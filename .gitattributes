@@ -1,0 +1,34 @@
+# Anvil is cross-platform.
+# Deal with different line endings on different operating systems.
+* text=auto
+
+# Explicitly declare text files you want to always be normalized and converted
+# to native line endings on checkout.
+*.h         text
+*.cpp       text
+*.inl       text
+*.txt       text
+*.lua       text
+*.md        text
+*.py        text
+*.cmake     text
+*.template  text
+*.in        text
+
+# Declare files that will always have CRLF line endings on checkout.
+*.vcxproj   text eol=crlf
+*.filters   text eol=crlf
+*.props     text eol=crlf
+*.sln       text eol=crlf
+*.bat       text eol=crlf
+
+# bash scripts use LF (including Windows under Cygwin)
+*.bash      text eof=lf
+*.sh        text eof=lf
+
+
+# Denote all files that are binary and should not be modified.
+*.pdf       binary
+*.jpg       binary
+*.png       binary
+*.spv       binary
