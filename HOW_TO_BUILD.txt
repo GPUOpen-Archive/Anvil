@@ -1,0 +1,40 @@
+This is a HOW_TO_BUILD file for Anvil library v1.0 by AMD
+----
+
+Q: How do I use Anvil?
+A:
+
+At its core, Anvil is a library, which should be statically linked with applications.
+This can be easily achieved by doing the following:
+
+1. create a new "anvil" directory in your project's dependencies folder.
+2. copy include/ and src/ directories there.
+3. (not recommended) for an in-place build, simply run:
+
+   cmake -G "Your IDE of choice" ..
+
+   in that directory.
+
+
+   (recommended) for an out-of-place build, create a "build" directory" and
+                 issue the cmake command (as above) from there.
+
+    For a list of IDEs supported by your cmake installation, simply run:
+
+    cmake --help
+
+----
+Q: How can I run any of the included examples?
+A: Let us say you are interested in running the "OutOfOrderRasterization" example.
+   To build it:
+
+1. Go to the examples\OutOfOrderRasterization directory.
+2. Create a "build" directory.
+3. From there, issue:
+
+cmake -G "Your IDE of choice" ..
+
+4. In the "build" directory, a project/solution file, supported by your IDE,
+   should have been created. Open it, build the project, and you should be good
+   to run it.
+  

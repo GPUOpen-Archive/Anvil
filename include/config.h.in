@@ -1,0 +1,2 @@
+/* Defined if glslangvalidator is statically linked with Anvil */
+#cmakedefine ANVIL_LINK_WITH_GLSLANG

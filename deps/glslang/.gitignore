@@ -1,0 +1,11 @@
+*.o
+*.a
+*.so
+*.exe
+tags
+glslang/MachineIndependent/glslang_tab.cpp
+glslang/MachineIndependent/glslang_tab.cpp.h
+build/
+Test/localResults/
+Test/multiThread.out
+Test/singleThread.out
