@@ -1086,7 +1086,10 @@ layout_qualifier_id
 
 precise_qualifier
     : PRECISE {
+        parseContext.profileRequires($$.loc, ECoreProfile | ECompatibilityProfile, 400, E_GL_ARB_gpu_shader5, "precise");
+        parseContext.profileRequires($1.loc, EEsProfile, 320, Num_AEP_gpu_shader5, AEP_gpu_shader5, "precise");
         $$.init($1.loc);
+        $$.qualifier.noContraction = true;
     }
     ;
 
@@ -1205,7 +1208,7 @@ storage_qualifier
         $$.qualifier.storage = EvqBuffer;
     }
     | SHARED {
-        parseContext.profileRequires($1.loc, ECoreProfile | ECompatibilityProfile, 430, 0, "shared");
+        parseContext.profileRequires($1.loc, ECoreProfile | ECompatibilityProfile, 430, E_GL_ARB_compute_shader, "shared");
         parseContext.profileRequires($1.loc, EEsProfile, 310, 0, "shared");
         parseContext.requireStage($1.loc, EShLangCompute, "shared");
         $$.init($1.loc);
@@ -2630,22 +2633,7 @@ jump_statement
             parseContext.postMainReturn = true;
     }
     | RETURN expression SEMICOLON {
-        parseContext.functionReturnsValue = true;
-        if (parseContext.currentFunctionType->getBasicType() == EbtVoid) {
-            parseContext.error($1.loc, "void function cannot return a value", "return", "");
-            $$ = parseContext.intermediate.addBranch(EOpReturn, $1.loc);
-        } else if (*(parseContext.currentFunctionType) != $2->getType()) {
-            TIntermTyped* converted = parseContext.intermediate.addConversion(EOpReturn, *parseContext.currentFunctionType, $2);
-            if (converted) {
-                if (parseContext.version < 420)
-                    parseContext.warn($1.loc, "type conversion on return values was not explicitly allowed until version 420", "return", "");
-                $$ = parseContext.intermediate.addBranch(EOpReturn, converted, $1.loc);
-            } else {
-                parseContext.error($1.loc, "type does not match, or is not convertible to, the function's return type", "return", "");
-                $$ = parseContext.intermediate.addBranch(EOpReturn, $2, $1.loc);
-            }
-        } else
-            $$ = parseContext.intermediate.addBranch(EOpReturn, $2, $1.loc);
+        $$ = parseContext.handleReturnValue($1.loc, $2);
     }
     | DISCARD SEMICOLON {
         parseContext.requireStage($1.loc, EShLangFragment, "discard");

@@ -1,17 +1,22 @@
-cmake_minimum_required(VERSION 2.8)
-
 set(SOURCES
     hlslParseHelper.cpp
     hlslScanContext.cpp
-    hlslGrammar.cpp)
+    hlslOpMap.cpp
+    hlslTokenStream.cpp
+    hlslGrammar.cpp
+    hlslParseables.cpp)
 
 set(HEADERS
     hlslParseHelper.h
     hlslTokens.h
     hlslScanContext.h
-    hlslGrammar.h)
+    hlslOpMap.h
+    hlslTokenStream.h
+    hlslGrammar.h
+    hlslParseables.h)
 
 add_library(HLSL STATIC ${SOURCES} ${HEADERS})
+set_property(TARGET HLSL PROPERTY FOLDER hlsl)
 
 if(WIN32)
     source_group("Source" FILES ${SOURCES} ${HEADERS})

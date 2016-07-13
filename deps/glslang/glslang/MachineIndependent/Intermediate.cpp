@@ -42,6 +42,7 @@
 #include "localintermediate.h"
 #include "RemoveTree.h"
 #include "SymbolTable.h"
+#include "propagateNoContraction.h"
 
 #include <float.h>
 
@@ -921,6 +922,7 @@ TIntermTyped* TIntermediate::addSelection(TIntermTyped* cond, TIntermTyped* true
 TIntermConstantUnion* TIntermediate::addConstantUnion(const TConstUnionArray& unionArray, const TType& t, const TSourceLoc& loc, bool literal) const
 {
     TIntermConstantUnion* node = new TIntermConstantUnion(unionArray, t);
+    node->getQualifier().storage = EvqConst;
     node->setLoc(loc);
     if (literal)
         node->setLiteral();
@@ -1026,7 +1028,7 @@ const TIntermTyped* TIntermediate::findLValueBase(const TIntermTyped* node, bool
 }
 
 //
-// Create loop nodes.
+// Create while and do-while loop nodes.
 //
 TIntermLoop* TIntermediate::addLoop(TIntermNode* body, TIntermTyped* test, TIntermTyped* terminal, bool testFirst, const TSourceLoc& loc)
 {
@@ -1034,6 +1036,22 @@ TIntermLoop* TIntermediate::addLoop(TIntermNode* body, TIntermTyped* test, TInte
     node->setLoc(loc);
 
     return node;
+}
+
+//
+// Create a for-loop sequence.
+//
+TIntermAggregate* TIntermediate::addForLoop(TIntermNode* body, TIntermNode* initializer, TIntermTyped* test, TIntermTyped* terminal, bool testFirst, const TSourceLoc& loc)
+{
+    TIntermLoop* node = new TIntermLoop(body, test, terminal, testFirst);
+    node->setLoc(loc);
+
+    // make a sequence of the initializer and statement
+    TIntermAggregate* loopSequence = makeAggregate(initializer, loc);
+    loopSequence = growAggregate(loopSequence, node);
+    loopSequence->setOperator(EOpSequence);
+
+    return loopSequence;
 }
 
 //
@@ -1065,6 +1083,9 @@ bool TIntermediate::postProcess(TIntermNode* root, EShLanguage /*language*/)
     TIntermAggregate* aggRoot = root->getAsAggregate();
     if (aggRoot && aggRoot->getOp() == EOpNull)
         aggRoot->setOperator(EOpSequence);
+
+    // Propagate 'noContraction' label in backward from 'precise' variables.
+    glslang::PropagateNoContraction(*this);
 
     return true;
 }
@@ -1161,20 +1182,44 @@ void TIntermediate::removeTree()
 //
 // "5.x Specialization Constant Operations"
 //
-// ...
+//    Only some operations discussed in this section may be applied to a
+//    specialization constant and still yield a result that is as
+//    specialization constant.  The operations allowed are listed below.
+//    When a specialization constant is operated on with one of these
+//    operators and with another constant or specialization constant, the
+//    result is implicitly a specialization constant.
 //
-// It also needs to allow basic construction, swizzling, and indexing
-// operations.
+//     - int(), uint(), and bool() constructors for type conversions
+//       from any of the following types to any of the following types:
+//         * int
+//         * uint
+//         * bool
+//     - vector versions of the above conversion constructors
+//     - allowed implicit conversions of the above
+//     - swizzles (e.g., foo.yx)
+//     - The following when applied to integer or unsigned integer types:
+//         * unary negative ( - )
+//         * binary operations ( + , - , * , / , % )
+//         * shift ( <<, >> )
+//         * bitwise operations ( & , | , ^ )
+//     - The following when applied to integer or unsigned integer scalar types:
+//         * comparison ( == , != , > , >= , < , <= )
+//     - The following when applied to the Boolean scalar type:
+//         * not ( ! )
+//         * logical operations ( && , || , ^^ )
+//         * comparison ( == , != )"
+//
+// This function just handles binary and unary nodes.  Construction
+// rules are handled in construction paths that are not covered by the unary
+// and binary paths, while required conversions will still show up here
+// as unary converters in the from a construction operator.
 //
 bool TIntermediate::isSpecializationOperation(const TIntermOperator& node) const
 {
-    // allow construction
-    if (node.isConstructor())
-        return true;
-
-    // The set for floating point is quite limited
-    if (node.getBasicType() == EbtFloat ||
-        node.getBasicType() == EbtDouble) {
+    // The operations resulting in floating point are quite limited
+    // (However, some floating-point operations result in bool, like ">",
+    // so are handled later.)
+    if (node.getType().isFloatingDomain()) {
         switch (node.getOp()) {
         case EOpIndexDirect:
         case EOpIndexIndirect:
@@ -1186,7 +1231,14 @@ bool TIntermediate::isSpecializationOperation(const TIntermOperator& node) const
         }
     }
 
-    // Floating-point is out of the way.
+    // Check for floating-point arguments
+    if (const TIntermBinary* bin = node.getAsBinaryNode())
+        if (bin->getLeft() ->getType().isFloatingDomain() ||
+            bin->getRight()->getType().isFloatingDomain())
+            return false;
+
+    // So, for now, we can assume everything left is non-floating-point...
+
     // Now check for integer/bool-based operations
     switch (node.getOp()) {
 
@@ -1625,8 +1677,10 @@ bool TIntermBinary::promote()
             return false;
         if (left->isVector() && right->isVector() && left->getVectorSize() != right->getVectorSize())
             return false;
-        if (right->isVector() || right->isMatrix())
-            setType(TType(basicType, EvqTemporary, right->getVectorSize(), right->getMatrixCols(), right->getMatrixRows()));
+        if (right->isVector() || right->isMatrix()) {
+            type.shallowCopy(right->getType());
+            type.getQualifier().makeTemporary();
+        }
         break;
 
     default:

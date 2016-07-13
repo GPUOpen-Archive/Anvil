@@ -54,10 +54,10 @@ namespace glslang {
 class TParseVersions {
 public:
     TParseVersions(TIntermediate& interm, int version, EProfile profile,
-                   int spv, int vulkan, EShLanguage language, TInfoSink& infoSink,
+                   const SpvVersion& spvVersion, EShLanguage language, TInfoSink& infoSink,
                    bool forwardCompatible, EShMessages messages)
         : infoSink(infoSink), version(version), profile(profile), language(language),
-          spv(spv), vulkan(vulkan), forwardCompatible(forwardCompatible),
+          spvVersion(spvVersion), forwardCompatible(forwardCompatible),
           intermediate(interm), messages(messages), numErrors(0), currentScanner(0) { }
     virtual ~TParseVersions() { }
     virtual void initializeExtensionBehavior();
@@ -104,7 +104,7 @@ public:
     void setCurrentSourceName(const char* name) { currentScanner->setFile(name); }
     void setCurrentString(int string) { currentScanner->setString(string); }
 
-    const char* getPreamble();
+    void getPreamble(std::string&);
     bool relaxedErrors()    const { return (messages & EShMsgRelaxedErrors) != 0; }
     bool suppressWarnings() const { return (messages & EShMsgSuppressWarnings) != 0; }
 
@@ -114,8 +114,7 @@ public:
     int version;                 // version, updated by #version in the shader
     EProfile profile;            // the declared profile in the shader (core by default)
     EShLanguage language;        // really the stage
-    int spv;                     // SPIR-V version; 0 means not SPIR-V
-    int vulkan;                  // Vulkan version; 0 means not vulkan
+    SpvVersion spvVersion;
     bool forwardCompatible;      // true if errors are to be given for use of deprecated features
     TIntermediate& intermediate; // helper for making and hooking up pieces of the parse tree
 
