@@ -162,11 +162,16 @@ namespace Anvil
          *  The specified memory region to be mapped must be fully located within the
          *  boundaries of maintained storage space.
          *
-         *  @param start_offset Offset, from which the mapped region should start.
-         *  @param size         Size of the region to be mapped. Must not be 0.
+         *  @param start_offset     Offset, from which the mapped region should start.
+         *  @param size             Size of the region to be mapped. Must not be 0.
+         *  @param opt_out_data_ptr If not null, deref will be set to the result pointer.
+         *                          It is recommended to use memory block's read() & write()
+         *                          functions to access GPU memory, although in some cases
+         *                          a raw pointer may be useful. May be nullptr.
          **/
         bool map(VkDeviceSize start_offset,
-                 VkDeviceSize size);
+                 VkDeviceSize size,
+                 void**       opt_out_data_ptr = nullptr);
 
         /** Reads data from the specified region of the underlying memory object after mapping
          *  it into process space and copies it to the user-specified location.

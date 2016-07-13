@@ -30,6 +30,7 @@
 #include "misc/callbacks.h"
 #include "misc/ref_counter.h"
 #include "misc/types.h"
+#include "misc/debug.h"
 
 #ifdef _WIN32
     #include <Windows.h>
@@ -73,6 +74,28 @@ namespace Anvil
         WINDOW_CALLBACK_ID_COUNT
     };
 
+    /* Enumerates available window call-back types.*/
+    enum WindowPlatform
+    {
+    #ifdef _WIN32
+        /* win32 */
+        WINDOW_PLATFORM_SYSTEM,
+
+    #else
+        /* linux xcb */
+        WINDOW_PLATFORM_XCB,
+
+        /* linux xlib */
+        WINDOW_PLATFORM_XLIB,
+
+        /* linux xlib */
+        WINDOW_PLATFORM_WAYLAND,
+    #endif
+
+        /* Always last */
+        WINDOW_PLATFORM_COUNT
+    };
+
     class Window : public CallbacksSupportProvider,
                    public RefCounterSupportProvider
     {
@@ -101,27 +124,16 @@ namespace Anvil
 
 
         /** Closes the window and unblocks the thread executing the message pump. */
-        void close();
+        virtual void close() { /* Stub */ }
 
-        #ifdef _WIN32
-            /** Returns system window handle. */
-            HWND get_handle() const
-            {
-                return m_window;
-            }
-        #else
-            /** Returns system XCB connection */
-            xcb_connection_t* get_connection() const
-            {
-                return m_connection_ptr;
-            }
+        /** Returns system XCB connection, should be used by linux only */
+        virtual void* get_connection() const { return nullptr; }
 
-            /** Retrusns system window handle. */
-            xcb_window_t get_handle() const
-            {
-                return m_window;
-            }
-        #endif
+        /** Returns system window handle. */
+        WindowHandle get_handle() const
+        {
+            return m_window;
+        }
 
         /** Returns window's height */
         uint32_t get_height() const
@@ -135,6 +147,9 @@ namespace Anvil
             return m_width;
         }
 
+        /* Tells if it's a dummy window (offscreen rendering thus no WSI/swapchain involved) */
+        virtual bool  is_dummy() = 0;
+
         /** Makes the window responsive to user's action and starts updating window contents.
          *
          *  This function will *block* the calling thread. To unblock it, call close().
@@ -142,25 +157,10 @@ namespace Anvil
          *  This function can only be called once throughout Window instance's lifetime.
          *
          **/
-        void run();
+        virtual void  run()       = 0;
 
-    private:
-        /* Private functions */
-
-        virtual ~Window();
-
-        void init();
-
-        #ifdef _WIN32
-            static LRESULT CALLBACK msg_callback_pfn_proc(HWND   window_handle,
-                                                          UINT   message_id,
-                                                          WPARAM param_wide,
-                                                          LPARAM param_long);
-        #else
-            void init_connection();
-        #endif
-
-        /* Private variables */
+    protected:
+        /* protected variables */
         PFNPRESENTCALLBACKPROC m_present_callback_func_ptr;
         void*                  m_present_callback_func_user_arg;
 
@@ -169,16 +169,19 @@ namespace Anvil
         unsigned int m_width;
         bool         m_window_should_close;
 
-        #ifdef _WIN32
-            /* Window handle */
-            HWND m_window;
-        #else
-            xcb_intern_atom_reply_t* m_atom_wm_delete_window_ptr;
-            xcb_connection_t*        m_connection_ptr;
-            xcb_screen_t*            m_screen_ptr;
-            xcb_window_t             m_window;
-            xcb_key_symbols_t*       m_key_symbols;
-        #endif
+        /* This member should be used by linux only */
+        void*        m_connection_ptr;
+
+        /* Window handle */
+        WindowHandle m_window;
+
+        /* protected functions */
+        virtual ~Window();
+
+    private:
+        /* Private functions */
+
+        /* Private variables */
 
     };
 

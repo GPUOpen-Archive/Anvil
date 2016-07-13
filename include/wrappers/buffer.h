@@ -132,6 +132,15 @@ namespace Anvil
             return &m_buffer;
         }
 
+        /** Returns a pointer to the underlying memory block wrapper instance.
+         *
+         *  Under normal circumstances, you should never need to access it.
+         **/
+        Anvil::MemoryBlock* get_memory()
+        {
+            return m_memory_block_ptr;
+        }
+
         /** Returns memory requirements for the buffer */
         VkMemoryRequirements get_memory_requirements() const
         {
@@ -163,6 +172,17 @@ namespace Anvil
 
         /** Reads @param size bytes, starting from @param start_offset, from the wrapped memory object.
          *
+         *  If the buffer object uses mappable storage memory, the affected region will be mapped into process space,
+         *  read from, and then unmapped. If the memory region comes from a non-coherent memory heap, it will be
+         *  invalidated before the CPU read operation.
+         *
+         *  If the buffer object uses non-mappable storage memory, a staging buffer using mappable memory will be created
+         *  instead. User-specified region of the source buffer will then be copied into it by submitting a copy operation,
+         *  executed either on the transfer queue (if available), or on the universal queue. Afterward, the staging buffer 
+         *  will be released.
+         *
+         *  This function blocks until the transfer completes.
+         *
          *  @param start_offset   As per description. Must be smaller than the underlying memory object's size.
          *  @param size           As per description. @param start_offset + @param size must be lower than or
          *                        equal to the underlying memory object's size.
@@ -186,6 +206,17 @@ namespace Anvil
         bool set_memory(MemoryBlock* memory_block_ptr);
 
         /** Writes @param size bytes, starting from @param start_offset, into the wrapped memory object.
+         *
+         *  If the buffer object uses mappable storage memory, the affected region will be mapped into process space,
+         *  updated, and then unmapped. If the memory region comes from a non-coherent memory heap, it will be
+         *  flushed after the CPU write operation.
+         *
+         *  If the buffer object uses non-mappable storage memory, a staging buffer using mappable memory will be created
+         *  instead. It will then be filled with user-specified data and used as a source for a copy operation which will
+         *  transfer the new contents to the target buffer. The operation will be submitted via a transfer queue, if one
+         *  is available, or a universal queue otherwise.
+         *
+         *  This function blocks until the transfer completes.
          *
          *  @param start_offset   As per description. Must be smaller than the underlying memory object's size.
          *  @param size           As per description. @param start_offset + @param size must be lower than or
@@ -215,6 +246,7 @@ namespace Anvil
         /* Private members */
         VkBuffer              m_buffer;
         VkMemoryRequirements  m_buffer_memory_reqs;
+        VkDeviceSize          m_buffer_size;
         Anvil::Device*        m_device_ptr;
         Anvil::MemoryBlock*   m_memory_block_ptr;
         Anvil::Buffer*        m_parent_buffer_ptr;

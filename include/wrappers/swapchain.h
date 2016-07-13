@@ -53,6 +53,7 @@ namespace Anvil
          *  @param device_ptr                    Device to initialize the swapchain for.
          *  @param parent_surface_ptr            Rendering surface the swapchain is to be created for. Must
          *                                       not be nullptr.
+         *  @param window_ptr                    current window to create the swapchain for. Must not be nullptr.
          *  @param format                        Format to use for the swapchain image.
          *  @param present_mode                  Presentation mode to use for the swapchain.
          *  @param usage_flags                   Image usage flags to use for the swapchain.
@@ -69,6 +70,7 @@ namespace Anvil
          */
         Swapchain(Anvil::Device*              device_ptr,
                   Anvil::RenderingSurface*    parent_surface_ptr,
+                  Anvil::Window*              window_ptr,
                   VkFormat                    format,
                   VkPresentModeKHR            present_mode,
                   VkImageUsageFlags           usage_flags,
@@ -165,11 +167,12 @@ namespace Anvil
 
         virtual ~Swapchain();
 
-        void init();
+        void     init     ();
 
 
         /* Private variables */
         Anvil::Device*           m_device_ptr;
+        Anvil::Window*           m_window_ptr;
         Anvil::Fence**           m_image_available_fence_ptrs;
         VkFormat                 m_image_format;
         Anvil::Image**           m_image_ptrs;

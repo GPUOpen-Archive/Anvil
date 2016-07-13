@@ -28,6 +28,7 @@
 #ifndef MISC_GLSL_TO_SPIRV_H
 #define MISC_GLSL_TO_SPIRV_H
 
+#include "config.h"
 #include "misc/debug.h"
 #include "misc/types.h"
 #include <map>
@@ -35,11 +36,37 @@
 #include <vector>
 
 #ifdef ANVIL_LINK_WITH_GLSLANG
-    #include "glslang/glslang/Public/ShaderLang.h"
+    #include "../../deps/glslang/SPIRV/GlslangToSpv.h"
 #endif
 
 namespace Anvil
 {
+    #ifdef ANVIL_LINK_WITH_GLSLANG
+        /** Holds glslang limit values, extracted from a physical device instance. */
+        class GLSLangLimits
+        {
+        public:
+            /* Constructor. */
+            explicit GLSLangLimits(Anvil::PhysicalDevice* physical_device_ptr);
+
+            /* Destructor */
+            ~GLSLangLimits()
+            {
+                /* Stub */
+            }
+
+            /** Retrieves a pointer to an initialized TBuiltInResource instance */
+            const TBuiltInResource* get_resource_ptr() const
+            {
+                return &m_resources;
+            }
+
+        private:
+            /* Private fields */
+            TBuiltInResource m_resources;
+        };
+    #endif
+
     /** Loads a GLSL shader from the file specified at creation time, customizes it with a user-specified set of #defines,
      *  and then converts the source code to a SPIR-V blob.
      **/
@@ -57,18 +84,20 @@ namespace Anvil
 
         /** Constructor.
          *
-         *  @param mode         Defines type of contents specified under @param data.
-         *  @param data         If @param mode is MODE_LOAD_SOURCE_FROM_FILE, @param data holds the name
-         *                      of the file (possibly including path) where the GLSL source code is stored.
-         *                      If @param mode is MODE_USE_SPECIFIED_SOURCE, @param data holds GLSL source code
-         *                      which should be used. This mode is NOT supported if ANVIL_LINK_WITH_GLSLANG
-         *                      macro is undefined.
-         *
-         *  @param shader_stage Shader stage described by the file.
+         *  @param physical_device_ptr Physical device, whose limit values should be passed to glslang. Must not
+         *                             be NULL.
+         *  @param mode                Defines type of contents specified under @param data.
+         *  @param data                If @param mode is MODE_LOAD_SOURCE_FROM_FILE, @param data holds the name
+         *                             of the file (possibly including path) where the GLSL source code is stored.
+         *                             If @param mode is MODE_USE_SPECIFIED_SOURCE, @param data holds GLSL source code
+         *                             which should be used. This mode is NOT supported if ANVIL_LINK_WITH_GLSLANG
+         *                             macro is undefined.
+         *  @param shader_stage        Shader stage described by the file.
          **/
-         explicit GLSLShaderToSPIRVGenerator(const Mode& mode,
-                                             std::string data,
-                                             ShaderStage shader_stage);
+         explicit GLSLShaderToSPIRVGenerator(Anvil::PhysicalDevice* physical_device_ptr,
+                                             const Mode&            mode,
+                                             std::string            data,
+                                             ShaderStage            shader_stage);
 
          /** Destructor. Releases all created Vulkan objects, as well as the SPIR-V blob data. */
          ~GLSLShaderToSPIRVGenerator();
@@ -167,6 +196,10 @@ namespace Anvil
         #endif
 
         /* Private members */
+        #ifdef ANVIL_LINK_WITH_GLSLANG
+            GLSLangLimits m_limits;
+        #endif
+
         const std::string m_data;
         const Mode        m_mode;
 

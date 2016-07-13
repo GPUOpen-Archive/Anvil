@@ -41,6 +41,8 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     image_layout    = VK_IMAGE_LAYOUT_UNDEFINED;
     image_view_ptr  = nullptr;
     sampler_ptr     = nullptr;
+    size            = element.size;
+    start_offset    = element.start_offset;
 
     if (element.buffer_ptr != nullptr)
     {
@@ -59,6 +61,8 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     image_layout    = element.image_layout;
     image_view_ptr  = element.image_view_ptr;
     sampler_ptr     = element.sampler_ptr;
+    size            = -1;
+    start_offset    = -1;
 
     if (element.image_view_ptr != nullptr)
     {
@@ -82,6 +86,8 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     image_layout    = element.image_layout;
     image_view_ptr  = element.image_view_ptr;
     sampler_ptr     = nullptr;
+    size            = -1;
+    start_offset    = -1;
 
     if (element.image_view_ptr != nullptr)
     {
@@ -100,6 +106,8 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     image_layout    = VK_IMAGE_LAYOUT_UNDEFINED;
     image_view_ptr  = nullptr;
     sampler_ptr     = element.sampler_ptr;
+    size            = -1;
+    start_offset    = -1;
 
     if (sampler_ptr != nullptr)
     {
@@ -118,6 +126,8 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     image_layout    = VK_IMAGE_LAYOUT_UNDEFINED;
     image_view_ptr  = nullptr;
     sampler_ptr     = nullptr;
+    size            = -1;
+    start_offset    = -1;
 
     if (buffer_view_ptr != nullptr)
     {
@@ -164,7 +174,31 @@ Anvil::DescriptorSet::BufferBindingElement::BufferBindingElement(Anvil::Buffer* 
 {
     anvil_assert(in_buffer_ptr != nullptr);
 
-    buffer_ptr = in_buffer_ptr;
+    buffer_ptr   = in_buffer_ptr;
+    size         = -1;
+    start_offset = -1;
+
+    if (in_buffer_ptr != nullptr)
+    {
+        in_buffer_ptr->retain();
+    }
+}
+
+/** Please see header for specification */
+Anvil::DescriptorSet::BufferBindingElement::BufferBindingElement(Anvil::Buffer* in_buffer_ptr,
+                                                                 VkDeviceSize   in_start_offset,
+                                                                 VkDeviceSize   in_size)
+{
+    anvil_assert(in_buffer_ptr != nullptr);
+
+    if (in_size != VK_WHOLE_SIZE)
+    {
+        anvil_assert(in_start_offset + in_size <= in_buffer_ptr->get_size() );
+    }
+
+    buffer_ptr   = in_buffer_ptr;
+    size         = in_size;
+    start_offset = in_start_offset;
 
     if (in_buffer_ptr != nullptr)
     {
@@ -511,9 +545,18 @@ bool Anvil::DescriptorSet::bake()
                 {
                     VkDescriptorBufferInfo buffer_info;
 
-                    buffer_info.buffer = current_binding_item.buffer_ptr->get_buffer      ();
-                    buffer_info.offset = current_binding_item.buffer_ptr->get_start_offset();
-                    buffer_info.range  = current_binding_item.buffer_ptr->get_size        ();
+                    buffer_info.buffer = current_binding_item.buffer_ptr->get_buffer();
+
+                    if (current_binding_item.start_offset != -1)
+                    {
+                        buffer_info.offset = current_binding_item.start_offset;
+                        buffer_info.range  = current_binding_item.size;
+                    }
+                    else
+                    {
+                        buffer_info.offset = current_binding_item.buffer_ptr->get_start_offset();
+                        buffer_info.range  = current_binding_item.buffer_ptr->get_size        ();
+                    }
 
                     m_cached_ds_info_buffer_info_items_vk.push_back(buffer_info);
 

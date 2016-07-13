@@ -46,13 +46,24 @@ namespace Anvil
         typedef struct BufferBindingElement
         {
             Anvil::Buffer* buffer_ptr;
+            VkDeviceSize   size;
+            VkDeviceSize   start_offset;
 
-            /** Constructor.
+            /** Constructor. Associates all available buffer memory with the binding.
              *
              *  @param in_buffer_ptr Buffer object to use for the binding. Must not be nullptr.
              *                       Retained. The object will be released at destruction time.
              **/
             BufferBindingElement(Anvil::Buffer* in_buffer_ptr);
+
+            /** Constructor. Associates specified sub-region of the buffer memory with the binding.
+             *
+             *  @param in_buffer_ptr Buffer object to use for the binding. Must not be nullptr.
+             *                       Retained. The object will be released at destruction time.
+             **/
+            BufferBindingElement(Anvil::Buffer* in_buffer_ptr,
+                                 VkDeviceSize   in_start_offset,
+                                 VkDeviceSize   in_size);
 
             /** Destructor. Releases the encapsulated buffer instance */
             ~BufferBindingElement();
@@ -323,12 +334,14 @@ namespace Anvil
             anvil_assert(m_unusable == false);
 
             BindingItems&  binding_items      = m_bindings[binding_index];
-            const uint32_t last_element_index = element_range.second - element_range.first;
+            const uint32_t last_element_index = element_range.second + element_range.first;
 
             for (BindingElementIndex current_element_index = element_range.first;
                                      current_element_index < last_element_index;
                                    ++current_element_index)
             {
+                m_dirty |= !(binding_items[current_element_index] == elements[current_element_index - element_range.first]);
+
                 binding_items[current_element_index] = elements[current_element_index - element_range.first];
             }
 
@@ -376,8 +389,40 @@ namespace Anvil
             VkImageLayout      image_layout;
             Anvil::ImageView*  image_view_ptr;
             Anvil::Sampler*    sampler_ptr;
+            VkDeviceSize       size;
+            VkDeviceSize       start_offset;
 
             bool dirty;
+
+            bool operator==(const BufferBindingElement& in) const
+            {
+                return (buffer_ptr   == in.buffer_ptr      &&
+                        size         == in.size            &&
+                        start_offset == in.start_offset);
+            }
+
+            bool operator==(const CombinedImageSamplerBindingElement& in) const
+            {
+                return (image_layout   == in.image_layout     &&
+                        image_view_ptr == in.image_view_ptr   &&
+                        sampler_ptr    == in.sampler_ptr);
+            }
+
+            bool operator==(const ImageBindingElement& in) const
+            {
+                return (image_layout   == in.image_layout   &&
+                        image_view_ptr == in.image_view_ptr);
+            }
+
+            bool operator==(const SamplerBindingElement& in) const
+            {
+                return (sampler_ptr == in.sampler_ptr);
+            }
+
+            bool operator==(const TexelBufferBindingElement& in) const
+            {
+                return (buffer_view_ptr == in.buffer_view_ptr);
+            }
 
             /* Copy assignment operator.
              *

@@ -20,31 +20,33 @@
 // THE SOFTWARE.
 //
 
-#include "misc/debug.h"
-#include "misc/window.h"
+/** Implements a simple window factory. **/
+#ifndef WINDOW_FACTORY_H
+#define WINDOW_FACTORY_H
 
-/** Please see header for specification */
-Anvil::Window::Window(const std::string&     title,
-                      unsigned int           width,
-                      unsigned int           height,
-                      PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                      void*                  present_callback_func_user_arg)
-    :CallbacksSupportProvider        (WINDOW_CALLBACK_ID_COUNT),
-     m_height                        (height),
-     m_present_callback_func_ptr     (present_callback_func_ptr),
-     m_present_callback_func_user_arg(present_callback_func_user_arg),
-     m_title                         (title),
-     m_width                         (width),
-     m_window_should_close           (false),
-     m_connection_ptr                (nullptr)
+#ifdef _WIN32
+    #include "misc/window_win3264.h"
+#else
+    #include "misc/window_xcb.h"
+#endif /* _WIN32 */
 
+#include "misc/dummy_window.h"
+
+namespace Anvil
 {
-    //init();
-}
+    class WindowFactory
+    {
+    public:
+        /* Public functions */
+        static Window* create_window(WindowPlatform         platform,
+                                     const std::string&     title,
+                                     unsigned int           width,
+                                     unsigned int           height,
+                                     PFNPRESENTCALLBACKPROC present_callback_func_ptr,
+                                     void*                  present_callback_func_user_arg,
+                                     bool                   is_dummy = false);
 
-/** Destructor */
-Anvil::Window::~Window()
-{
-    /* Stub */
-}
+    };
+}; /* namespace Anvil */
 
+#endif /* WINDOW_FACTORY_H */

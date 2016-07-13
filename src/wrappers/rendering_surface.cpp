@@ -64,6 +64,8 @@ Anvil::RenderingSurface::RenderingSurface(Anvil::Instance*                      
 
     anvil_assert(physical_device_ptr != nullptr);
 
+    if (!window_ptr->is_dummy())
+    {
     #ifdef _WIN32
         VkWin32SurfaceCreateInfoKHR surface_create_info;
 
@@ -82,7 +84,7 @@ Anvil::RenderingSurface::RenderingSurface(Anvil::Instance*                      
 
         surface_create_info.flags       = 0;
         surface_create_info.window      = window_ptr->get_handle();
-        surface_create_info.connection  = window_ptr->get_connection();
+        surface_create_info.connection  = static_cast<xcb_connection_t*>(window_ptr->get_connection());
         surface_create_info.pNext       = nullptr;
         surface_create_info.sType       = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
 
@@ -91,11 +93,17 @@ Anvil::RenderingSurface::RenderingSurface(Anvil::Instance*                      
                                          nullptr, /* pAllocator */
                                         &m_surface);
     #endif
+    }
+    else
+    {
+        /* offscreen rendering */
+        result = VK_SUCCESS;
+    }
 
     anvil_assert_vk_call_succeeded(result);
 
     /* Retrieve Vulkan object capabilities and cache them */
-    cache_surface_properties();
+    cache_surface_properties(window_ptr);
 
     /* Register the event instance */
     Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_RENDERING_SURFACE,
@@ -119,13 +127,30 @@ Anvil::RenderingSurface::~RenderingSurface()
 }
 
 /* Please see header for specification */
-void Anvil::RenderingSurface::cache_surface_properties()
+void Anvil::RenderingSurface::cache_surface_properties(Anvil::Window* window_ptr)
 {
     uint32_t               n_supported_formats            = 0;
     uint32_t               n_supported_presentation_modes = 0;
     const VkPhysicalDevice physical_device_vk             = m_physical_device_ptr->get_physical_device();
     VkResult               result;
     VkSurfaceFormatKHR*    supported_formats              = nullptr;
+    bool                   is_offscreen_rendering_enabled = window_ptr->is_dummy();
+
+    if (is_offscreen_rendering_enabled)
+    {
+        m_height                          = window_ptr->get_height();
+        m_supported_composite_alpha_flags = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
+        m_supported_transformations       = VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR;
+        m_supported_usages                = static_cast<VkImageUsageFlagBits> (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                                                                               VK_IMAGE_USAGE_TRANSFER_SRC_BIT     |
+                                                                               VK_IMAGE_USAGE_TRANSFER_DST_BIT     |
+                                                                               VK_IMAGE_USAGE_STORAGE_BIT);
+        m_width                           = window_ptr->get_width();
+
+        return;
+    }
+
+    /* not offscreen rendering */
 
     /* Retrieve general properties */
     result = m_vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device_vk,

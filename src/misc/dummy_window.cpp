@@ -20,31 +20,48 @@
 // THE SOFTWARE.
 //
 
-#include "misc/debug.h"
-#include "misc/window.h"
+#include "misc/dummy_window.h"
 
 /** Please see header for specification */
-Anvil::Window::Window(const std::string&     title,
-                      unsigned int           width,
-                      unsigned int           height,
-                      PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                      void*                  present_callback_func_user_arg)
-    :CallbacksSupportProvider        (WINDOW_CALLBACK_ID_COUNT),
-     m_height                        (height),
-     m_present_callback_func_ptr     (present_callback_func_ptr),
-     m_present_callback_func_user_arg(present_callback_func_user_arg),
-     m_title                         (title),
-     m_width                         (width),
-     m_window_should_close           (false),
-     m_connection_ptr                (nullptr)
-
+Anvil::DummyWindow::DummyWindow(const std::string&     title,
+                                unsigned int           width,
+                                unsigned int           height,
+                                PFNPRESENTCALLBACKPROC present_callback_func_ptr,
+                                void*                  present_callback_func_user_arg)
+    : Window(title,
+             width,
+             height,
+             present_callback_func_ptr,
+             present_callback_func_user_arg)
 {
-    //init();
+    init();
 }
 
-/** Destructor */
-Anvil::Window::~Window()
+/** Please see header for specification */
+void Anvil::DummyWindow::close()
+{
+    if (!m_window_should_close)
+    {
+        m_window_should_close = true;
+    }
+}
+
+/** Creates a new system window and prepares it for usage. */
+void Anvil::DummyWindow::init()
 {
     /* Stub */
+}
+
+/* Please see header for specification */
+void Anvil::DummyWindow::run()
+{
+    bool running = true;
+
+    while (running && !m_window_should_close)
+    {
+        m_present_callback_func_ptr(m_present_callback_func_user_arg);
+
+        running = !m_window_should_close;
+    }
 }
 

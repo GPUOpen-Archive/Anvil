@@ -23,9 +23,12 @@
 #include "config.h"
 #include "misc/glsl_to_spirv.h"
 #include "misc/io.h"
+#include "wrappers/physical_device.h"
+#include <algorithm>
 #include <sstream>
 
 #ifndef _WIN32
+    #include <limits.h>
     #include <unistd.h>
     #include <sys/wait.h>
 #endif
@@ -33,139 +36,185 @@
 #ifndef ANVIL_LINK_WITH_GLSLANG
     #define SPIRV_FILE_NAME_LEN 100
 #else
-    #include "glslang/SPIRV/GlslangToSpv.h"
-
-    /* Helper class used as a process-wide RAII (de-)-initializer for glslangvalidator.
-     * Also holds limits by the tool.
-     **/
-    class GLSLangInitializer
+    /* Helper class used as a process-wide RAII (de-)-initializer for glslangvalidator. **/
+    class GLSLangGlobalInitializer
     {
     public:
         /* Constructor. */
-        GLSLangInitializer()
+        GLSLangGlobalInitializer()
         {
             glslang::InitializeProcess();
-
-            m_resources.maxLights                                   = 32;
-            m_resources.maxClipPlanes                               = 6;
-            m_resources.maxTextureUnits                             = 32;
-            m_resources.maxTextureCoords                            = 32;
-            m_resources.maxVertexAttribs                            = 64;
-            m_resources.maxVertexUniformComponents                  = 4096;
-            m_resources.maxVaryingFloats                            = 64;
-            m_resources.maxVertexTextureImageUnits                  = 32;
-            m_resources.maxCombinedTextureImageUnits                = 80;
-            m_resources.maxTextureImageUnits                        = 32;
-            m_resources.maxFragmentUniformComponents                = 4096;
-            m_resources.maxDrawBuffers                              = 32;
-            m_resources.maxVertexUniformVectors                     = 128;
-            m_resources.maxVaryingVectors                           = 8;
-            m_resources.maxFragmentUniformVectors                   = 16;
-            m_resources.maxVertexOutputVectors                      = 16;
-            m_resources.maxFragmentInputVectors                     = 15;
-            m_resources.minProgramTexelOffset                       = -8;
-            m_resources.maxProgramTexelOffset                       = 7;
-            m_resources.maxClipDistances                            = 8;
-            m_resources.maxComputeWorkGroupCountX                   = 65535;
-            m_resources.maxComputeWorkGroupCountY                   = 65535;
-            m_resources.maxComputeWorkGroupCountZ                   = 65535;
-            m_resources.maxComputeWorkGroupSizeX                    = 1024;
-            m_resources.maxComputeWorkGroupSizeY                    = 1024;
-            m_resources.maxComputeWorkGroupSizeZ                    = 64;
-            m_resources.maxComputeUniformComponents                 = 1024;
-            m_resources.maxComputeTextureImageUnits                 = 16;
-            m_resources.maxComputeImageUniforms                     = 8;
-            m_resources.maxComputeAtomicCounters                    = 8;
-            m_resources.maxComputeAtomicCounterBuffers              = 1;
-            m_resources.maxVaryingComponents                        = 60;
-            m_resources.maxVertexOutputComponents                   = 64;
-            m_resources.maxGeometryInputComponents                  = 64;
-            m_resources.maxGeometryOutputComponents                 = 128;
-            m_resources.maxFragmentInputComponents                  = 128;
-            m_resources.maxImageUnits                               = 8;
-            m_resources.maxCombinedImageUnitsAndFragmentOutputs     = 8;
-            m_resources.maxCombinedShaderOutputResources            = 8;
-            m_resources.maxImageSamples                             = 0;
-            m_resources.maxVertexImageUniforms                      = 0;
-            m_resources.maxTessControlImageUniforms                 = 0;
-            m_resources.maxTessEvaluationImageUniforms              = 0;
-            m_resources.maxGeometryImageUniforms                    = 0;
-            m_resources.maxFragmentImageUniforms                    = 8;
-            m_resources.maxCombinedImageUniforms                    = 8;
-            m_resources.maxGeometryTextureImageUnits                = 16;
-            m_resources.maxGeometryOutputVertices                   = 256;
-            m_resources.maxGeometryTotalOutputComponents            = 1024;
-            m_resources.maxGeometryUniformComponents                = 1024;
-            m_resources.maxGeometryVaryingComponents                = 64;
-            m_resources.maxTessControlInputComponents               = 128;
-            m_resources.maxTessControlOutputComponents              = 128;
-            m_resources.maxTessControlTextureImageUnits             = 16;
-            m_resources.maxTessControlUniformComponents             = 1024;
-            m_resources.maxTessControlTotalOutputComponents         = 4096;
-            m_resources.maxTessEvaluationInputComponents            = 128;
-            m_resources.maxTessEvaluationOutputComponents           = 128;
-            m_resources.maxTessEvaluationTextureImageUnits          = 16;
-            m_resources.maxTessEvaluationUniformComponents          = 1024;
-            m_resources.maxTessPatchComponents                      = 120;
-            m_resources.maxPatchVertices                            = 32;
-            m_resources.maxTessGenLevel                             = 64;
-            m_resources.maxViewports                                = 16;
-            m_resources.maxVertexAtomicCounters                     = 0;
-            m_resources.maxTessControlAtomicCounters                = 0;
-            m_resources.maxTessEvaluationAtomicCounters             = 0;
-            m_resources.maxGeometryAtomicCounters                   = 0;
-            m_resources.maxFragmentAtomicCounters                   = 8;
-            m_resources.maxCombinedAtomicCounters                   = 8;
-            m_resources.maxAtomicCounterBindings                    = 1;
-            m_resources.maxVertexAtomicCounterBuffers               = 0;
-            m_resources.maxTessControlAtomicCounterBuffers          = 0;
-            m_resources.maxTessEvaluationAtomicCounterBuffers       = 0;
-            m_resources.maxGeometryAtomicCounterBuffers             = 0;
-            m_resources.maxFragmentAtomicCounterBuffers             = 1;
-            m_resources.maxCombinedAtomicCounterBuffers             = 1;
-            m_resources.maxAtomicCounterBufferSize                  = 16384;
-            m_resources.maxTransformFeedbackBuffers                 = 4;
-            m_resources.maxTransformFeedbackInterleavedComponents   = 64;
-            m_resources.maxCullDistances                            = 8;
-            m_resources.maxCombinedClipAndCullDistances             = 8;
-            m_resources.maxSamples                                  = 4;
-            m_resources.limits.nonInductiveForLoops                 = 1;
-            m_resources.limits.whileLoops                           = 1;
-            m_resources.limits.doWhileLoops                         = 1;
-            m_resources.limits.generalUniformIndexing               = 1;
-            m_resources.limits.generalAttributeMatrixVectorIndexing = 1;
-            m_resources.limits.generalVaryingIndexing               = 1;
-            m_resources.limits.generalSamplerIndexing               = 1;
-            m_resources.limits.generalVariableIndexing              = 1;
-            m_resources.limits.generalConstantMatrixVectorIndexing  = 1;
         }
 
         /* Destructor */
-        ~GLSLangInitializer()
+        ~GLSLangGlobalInitializer()
         {
             glslang::FinalizeProcess();
         }
-
-        /** Retrieves a pointer to an initialized TBuiltInResource instance */
-        const TBuiltInResource* get_resource_ptr() const
-        {
-            return &m_resources;
-        }
-
-    private:
-        /* Private fields */
-        TBuiltInResource m_resources;
     };
 
-    GLSLangInitializer glslang_helper;
+    /* Constructor. */
+    Anvil::GLSLangLimits::GLSLangLimits(Anvil::PhysicalDevice* physical_device_ptr)
+    {
+        const VkPhysicalDeviceLimits& limits                         = physical_device_ptr->get_device_properties().limits;
+        VkSampleCountFlags            max_sampled_image_sample_count;
+        uint32_t                      max_sampled_image_samples      = 0;
+        VkSampleCountFlags            max_storage_image_sample_count = limits.storageImageSampleCounts;
+        uint32_t                      max_storage_image_samples      = 0;
+
+        max_sampled_image_sample_count = std::max<VkSampleCountFlags>(limits.sampledImageColorSampleCounts, limits.sampledImageDepthSampleCounts);
+        max_sampled_image_sample_count = std::max<VkSampleCountFlags>(max_sampled_image_sample_count,       limits.sampledImageIntegerSampleCounts);
+        max_sampled_image_sample_count = std::max<VkSampleCountFlags>(max_sampled_image_sample_count,       limits.sampledImageStencilSampleCounts);
+
+        const struct SampleCountToSamplesData
+        {
+            VkSampleCountFlags sample_count;
+            uint32_t*          out_result_ptr;
+        } conversion_items[] =
+        {
+            {max_sampled_image_sample_count, &max_sampled_image_samples},
+            {max_storage_image_sample_count, &max_storage_image_samples}
+        };
+        const uint32_t n_conversion_items = sizeof(conversion_items) / sizeof(conversion_items[0]);
+
+        for (uint32_t n_conversion_item = 0;
+                      n_conversion_item < n_conversion_items;
+                    ++n_conversion_item)
+        {
+            const SampleCountToSamplesData& current_item = conversion_items[n_conversion_item];
+            uint32_t                        result       = 1;
+
+            if (current_item.sample_count & VK_SAMPLE_COUNT_16_BIT)
+            {
+                result = 16;
+            }
+            else
+            if (current_item.sample_count & VK_SAMPLE_COUNT_8_BIT)
+            {
+                result = 8;
+            }
+            else
+            if (current_item.sample_count & VK_SAMPLE_COUNT_4_BIT)
+            {
+                result = 4;
+            }
+            else
+            if (current_item.sample_count & VK_SAMPLE_COUNT_2_BIT)
+            {
+                result = 2;
+            }
+
+            *current_item.out_result_ptr = result;
+        }
+
+        #define CLAMP_TO_INT_MAX(x) ((x <= INT_MAX) ? x : INT_MAX)
+
+        m_resources.maxLights                                   = 32; /* irrelevant to Vulkan */
+        m_resources.maxClipPlanes                               = 6;  /* irrelevant to Vulkan */
+        m_resources.maxTextureUnits                             = 32; /* irrelevant to Vulkan */
+        m_resources.maxTextureCoords                            = 32; /* irrelevant to Vulkan */
+        m_resources.maxVertexAttribs                            = CLAMP_TO_INT_MAX(limits.maxVertexInputAttributes);
+        m_resources.maxVertexUniformComponents                  = 4096; /* irrelevant to Vulkan  */
+        m_resources.maxVaryingFloats                            = 64;   /* irrelevant to Vulkan? */
+        m_resources.maxVertexTextureImageUnits                  = 32;   /* irrelevant to Vulkan? */
+        m_resources.maxCombinedTextureImageUnits                = 80;   /* irrelevant to Vulkan? */
+        m_resources.maxTextureImageUnits                        = 32;   /* irrelevant to Vulkan? */
+        m_resources.maxFragmentUniformComponents                = 4096; /* irrelevant to Vulkan? */
+        m_resources.maxDrawBuffers                              = 32;   /* irrelevant to Vulkan  */
+        m_resources.maxVertexUniformVectors                     = 128;  /* irrelevant to Vulkan? */
+        m_resources.maxVaryingVectors                           = 8;    /* irrelevant to Vulkan? */
+        m_resources.maxFragmentUniformVectors                   = 16;   /* irrelevant to Vulkan? */
+        m_resources.maxVertexOutputVectors                      = CLAMP_TO_INT_MAX(limits.maxVertexOutputComponents  / 4);
+        m_resources.maxFragmentInputVectors                     = CLAMP_TO_INT_MAX(limits.maxFragmentInputComponents / 4);
+        m_resources.minProgramTexelOffset                       = CLAMP_TO_INT_MAX(limits.minTexelOffset);
+        m_resources.maxProgramTexelOffset                       = CLAMP_TO_INT_MAX(limits.maxTexelOffset);
+        m_resources.maxClipDistances                            = CLAMP_TO_INT_MAX(limits.maxClipDistances);
+        m_resources.maxComputeWorkGroupCountX                   = CLAMP_TO_INT_MAX(limits.maxComputeWorkGroupCount[0]);
+        m_resources.maxComputeWorkGroupCountY                   = CLAMP_TO_INT_MAX(limits.maxComputeWorkGroupCount[1]);
+        m_resources.maxComputeWorkGroupCountZ                   = CLAMP_TO_INT_MAX(limits.maxComputeWorkGroupCount[2]);
+        m_resources.maxComputeWorkGroupSizeX                    = CLAMP_TO_INT_MAX(limits.maxComputeWorkGroupSize[0]);
+        m_resources.maxComputeWorkGroupSizeY                    = CLAMP_TO_INT_MAX(limits.maxComputeWorkGroupSize[1]);
+        m_resources.maxComputeWorkGroupSizeZ                    = CLAMP_TO_INT_MAX(limits.maxComputeWorkGroupSize[2]);
+        m_resources.maxComputeUniformComponents                 = 1024; /* irrelevant to Vulkan? */
+        m_resources.maxComputeTextureImageUnits                 = 16;   /* irrelevant to Vulkan? */
+        m_resources.maxComputeImageUniforms                     = CLAMP_TO_INT_MAX(limits.maxPerStageDescriptorStorageImages);
+        m_resources.maxComputeAtomicCounters                    = 8;    /* irrelevant to Vulkan */
+        m_resources.maxComputeAtomicCounterBuffers              = 1;    /* irrelevant to Vulkan */
+        m_resources.maxVaryingComponents                        = 60;   /* irrelevant to Vulkan */
+        m_resources.maxVertexOutputComponents                   = CLAMP_TO_INT_MAX(limits.maxVertexOutputComponents);
+        m_resources.maxGeometryInputComponents                  = CLAMP_TO_INT_MAX(limits.maxGeometryInputComponents);
+        m_resources.maxGeometryOutputComponents                 = CLAMP_TO_INT_MAX(limits.maxGeometryOutputComponents);
+        m_resources.maxFragmentInputComponents                  = CLAMP_TO_INT_MAX(limits.maxFragmentInputComponents);
+        m_resources.maxImageUnits                               = 8; /* irrelevant to Vulkan */
+        m_resources.maxCombinedImageUnitsAndFragmentOutputs     = 8; /* irrelevant to Vulkan? */
+        m_resources.maxCombinedShaderOutputResources            = CLAMP_TO_INT_MAX(limits.maxFragmentCombinedOutputResources);
+        m_resources.maxImageSamples                             = max_storage_image_samples;
+        m_resources.maxVertexImageUniforms                      = CLAMP_TO_INT_MAX(limits.maxPerStageDescriptorStorageImages);
+        m_resources.maxTessControlImageUniforms                 = CLAMP_TO_INT_MAX(limits.maxPerStageDescriptorStorageImages);
+        m_resources.maxTessEvaluationImageUniforms              = CLAMP_TO_INT_MAX(limits.maxPerStageDescriptorStorageImages);
+        m_resources.maxGeometryImageUniforms                    = CLAMP_TO_INT_MAX(limits.maxPerStageDescriptorStorageImages);
+        m_resources.maxFragmentImageUniforms                    = CLAMP_TO_INT_MAX(limits.maxPerStageDescriptorStorageImages);
+        m_resources.maxCombinedImageUniforms                    = CLAMP_TO_INT_MAX(5 /* vs, tc, te, gs, fs */ * limits.maxPerStageDescriptorStorageImages);
+        m_resources.maxGeometryTextureImageUnits                = 16; /* irrelevant to Vulkan? */
+        m_resources.maxGeometryOutputVertices                   = CLAMP_TO_INT_MAX(limits.maxGeometryOutputVertices);
+        m_resources.maxGeometryTotalOutputComponents            = CLAMP_TO_INT_MAX(limits.maxGeometryTotalOutputComponents);
+        m_resources.maxGeometryUniformComponents                = 1024; /* irrelevant to Vulkan? */
+        m_resources.maxGeometryVaryingComponents                = CLAMP_TO_INT_MAX(limits.maxGeometryInputComponents);
+        m_resources.maxTessControlInputComponents               = CLAMP_TO_INT_MAX(limits.maxTessellationControlPerVertexInputComponents);
+        m_resources.maxTessControlOutputComponents              = CLAMP_TO_INT_MAX(limits.maxTessellationControlPerVertexOutputComponents);
+        m_resources.maxTessControlTextureImageUnits             = 16;   /* irrelevant to Vulkan? */
+        m_resources.maxTessControlUniformComponents             = 1024; /* irrelevant to Vulkan? */
+        m_resources.maxTessControlTotalOutputComponents         = CLAMP_TO_INT_MAX(limits.maxTessellationControlTotalOutputComponents);
+        m_resources.maxTessEvaluationInputComponents            = CLAMP_TO_INT_MAX(limits.maxTessellationEvaluationInputComponents);
+        m_resources.maxTessEvaluationOutputComponents           = CLAMP_TO_INT_MAX(limits.maxTessellationEvaluationOutputComponents);
+        m_resources.maxTessEvaluationTextureImageUnits          = 16; /* irrelevant to Vulkan? */
+        m_resources.maxTessEvaluationUniformComponents          = 1024; /* irrelevant to Vulkan? */
+        m_resources.maxTessPatchComponents                      = CLAMP_TO_INT_MAX(limits.maxTessellationControlPerPatchOutputComponents);
+        m_resources.maxPatchVertices                            = CLAMP_TO_INT_MAX(limits.maxTessellationPatchSize);
+        m_resources.maxTessGenLevel                             = CLAMP_TO_INT_MAX(limits.maxTessellationGenerationLevel);
+        m_resources.maxViewports                                = CLAMP_TO_INT_MAX(limits.maxViewports);
+        m_resources.maxVertexAtomicCounters                     = 0; /* not supported in Vulkan */
+        m_resources.maxTessControlAtomicCounters                = 0; /* not supported in Vulkan */
+        m_resources.maxTessEvaluationAtomicCounters             = 0; /* not supported in Vulkan */
+        m_resources.maxGeometryAtomicCounters                   = 0; /* not supported in Vulkan */
+        m_resources.maxFragmentAtomicCounters                   = 0; /* not supported in Vulkan */
+        m_resources.maxCombinedAtomicCounters                   = 0; /* not supported in Vulkan */
+        m_resources.maxAtomicCounterBindings                    = 0; /* not supported in Vulkan */
+        m_resources.maxVertexAtomicCounterBuffers               = 0; /* not supported in Vulkan */
+        m_resources.maxTessControlAtomicCounterBuffers          = 0; /* not supported in Vulkan */
+        m_resources.maxTessEvaluationAtomicCounterBuffers       = 0; /* not supported in Vulkan */
+        m_resources.maxGeometryAtomicCounterBuffers             = 0; /* not supported in Vulkan */
+        m_resources.maxFragmentAtomicCounterBuffers             = 0; /* not supported in Vulkan */
+        m_resources.maxCombinedAtomicCounterBuffers             = 0; /* not supported in Vulkan */
+        m_resources.maxAtomicCounterBufferSize                  = 0; /* not supported in Vulkan */
+        m_resources.maxTransformFeedbackBuffers                 = 0; /* not supported in Vulkan */
+        m_resources.maxTransformFeedbackInterleavedComponents   = 0; /* not supported in Vulkan */
+        m_resources.maxCullDistances                            = CLAMP_TO_INT_MAX(limits.maxCullDistances);
+        m_resources.maxCombinedClipAndCullDistances             = CLAMP_TO_INT_MAX(limits.maxCombinedClipAndCullDistances);
+        m_resources.maxSamples                                  = (max_sampled_image_samples > max_storage_image_samples) ? CLAMP_TO_INT_MAX(max_sampled_image_samples)
+                                                                                                                          : CLAMP_TO_INT_MAX(max_storage_image_samples);
+        m_resources.limits.nonInductiveForLoops                 = 1;
+        m_resources.limits.whileLoops                           = 1;
+        m_resources.limits.doWhileLoops                         = 1;
+        m_resources.limits.generalUniformIndexing               = 1;
+        m_resources.limits.generalAttributeMatrixVectorIndexing = 1;
+        m_resources.limits.generalVaryingIndexing               = 1;
+        m_resources.limits.generalSamplerIndexing               = 1;
+        m_resources.limits.generalVariableIndexing              = 1;
+        m_resources.limits.generalConstantMatrixVectorIndexing  = 1;
+    }
+
+    static GLSLangGlobalInitializer glslang_helper;
 #endif
 
 
 /* Please see header for specification */
-Anvil::GLSLShaderToSPIRVGenerator::GLSLShaderToSPIRVGenerator(const Mode& mode,
-                                                              std::string data,
-                                                              ShaderStage shader_stage)
+Anvil::GLSLShaderToSPIRVGenerator::GLSLShaderToSPIRVGenerator(Anvil::PhysicalDevice* physical_device_ptr,
+                                                              const Mode&            mode,
+                                                              std::string            data,
+                                                              ShaderStage            shader_stage)
     :m_data           (data),
+     m_limits         (physical_device_ptr),
      m_mode           (mode),
      m_shader_stage   (shader_stage),
      m_spirv_blob     (nullptr),
@@ -386,7 +435,7 @@ end:
             new_shader_ptr->setStrings(&body,
                                        1);
 
-            result = new_shader_ptr->parse(glslang_helper.get_resource_ptr(),
+            result = new_shader_ptr->parse(m_limits.get_resource_ptr(),
                                            110,   /* defaultVersion    */
                                            false, /* forwardCompatible */
                                            (EShMessages) (EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules) );

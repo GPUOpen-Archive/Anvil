@@ -39,20 +39,17 @@
     #endif
 
     #include <windows.h>
-#else
-    #include <X11/Xlib.h>
-    #include <X11/Xutil.h>
-    #include <X11/Xos.h>
-    #include <X11/Xatom.h>
-    #include <X11/keysym.h>
 
-    #include <xcb/xcb.h>
-    #include <xcb/xcb_keysyms.h>
+    typedef HWND WindowHandle;
+#else
+    #include "xcb_loader_for_anvil.h"
     #include <string.h>
 
     #ifndef nullptr
         #define nullptr NULL
     #endif
+
+    typedef xcb_window_t WindowHandle;
 #endif
 
 #ifdef _WIN32
@@ -386,6 +383,12 @@ namespace Anvil
             implementation_version = layer_props.implementationVersion;
             name                   = layer_props.layerName;
             spec_version           = layer_props.specVersion;
+        }
+
+        /** Returns true if @param layer_name matches the layer name described by the instance. */
+        bool operator==(const std::string& layer_name) const
+        {
+            return name == layer_name;
         }
     } Layer;
 

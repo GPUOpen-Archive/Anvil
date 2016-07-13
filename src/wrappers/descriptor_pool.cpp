@@ -135,7 +135,7 @@ void Anvil::DescriptorPool::bake()
     uint32_t                   n_descriptor_types_used = 0;
     VkResult                   result_vk;
 
-    if (m_pool != nullptr)
+    if (m_pool != VK_NULL_HANDLE)
     {
         vkDestroyDescriptorPool(m_device_ptr->get_device_vk(),
                                 m_pool,

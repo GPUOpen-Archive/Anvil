@@ -56,6 +56,7 @@ Anvil::CommandPool::CommandPool(Anvil::Device*         device_ptr,
                                     nullptr, /* pAllocator */
                                    &m_command_pool);
 
+    anvil_assert                  (queue_family_index != -1);
     anvil_assert_vk_call_succeeded(result_vk);
 
     /* Register the command pool instance */
@@ -97,6 +98,17 @@ Anvil::PrimaryCommandBuffer* Anvil::CommandPool::alloc_primary_level_command_buf
 {
     PrimaryCommandBuffer* new_buffer_ptr = new PrimaryCommandBuffer(m_device_ptr,
                                                                     this /* parent_pool_ptr */);
+
+    m_allocs_in_flight.push_back(static_cast<CommandBufferBase*>(new_buffer_ptr) );
+
+    return new_buffer_ptr;
+}
+
+/* Please see header for specification */
+Anvil::SecondaryCommandBuffer* Anvil::CommandPool::alloc_secondary_level_command_buffer()
+{
+    SecondaryCommandBuffer* new_buffer_ptr = new SecondaryCommandBuffer(m_device_ptr,
+                                                                        this /* parent_command_pool_ptr */);
 
     m_allocs_in_flight.push_back(static_cast<CommandBufferBase*>(new_buffer_ptr) );
 

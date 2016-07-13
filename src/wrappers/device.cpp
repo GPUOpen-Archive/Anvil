@@ -103,8 +103,22 @@ Anvil::Device::Device(Anvil::PhysicalDevice*          physical_device_ptr,
             }
         }
 #else
-        /* This is needed for SDK 1.0.11.0, likely future versions too. */
-        layers_final.push_back("VK_LAYER_LUNARG_standard_validation");
+        /* This is needed for SDK 1.0.11.0, likely future versions too. 
+         *
+         * NOTE: Older SDK versions used VK_LAYER_LUNARG_standard_validation, but the latest ones
+         *       appear to have switched to VK_LAYER_LUNARG_core_validation. Need to take this
+         *       into account here.
+         */
+        if (physical_device_ptr->is_layer_supported("VK_LAYER_LUNARG_standard_validation") )
+        {
+            layers_final.push_back("VK_LAYER_LUNARG_standard_validation");
+        }
+        else
+        {
+            anvil_assert(physical_device_ptr->is_layer_supported("VK_LAYER_LUNARG_core_validation") );
+
+            layers_final.push_back("VK_LAYER_LUNARG_core_validation");
+        }
 #endif
     }
 
@@ -360,6 +374,7 @@ Anvil::Device::~Device()
 
 /** Please see header for specification */
 Anvil::Swapchain* Anvil::Device::create_swapchain(Anvil::RenderingSurface* parent_surface_ptr,
+                                                  Anvil::Window*           window_ptr,
                                                   VkFormat                 image_format,
                                                   VkPresentModeKHR         present_mode,
                                                   VkImageUsageFlags        usage,
@@ -369,6 +384,7 @@ Anvil::Swapchain* Anvil::Device::create_swapchain(Anvil::RenderingSurface* paren
 
     result_ptr = new Anvil::Swapchain(this,
                                       parent_surface_ptr,
+                                      window_ptr,
                                       image_format,
                                       present_mode,
                                       usage,

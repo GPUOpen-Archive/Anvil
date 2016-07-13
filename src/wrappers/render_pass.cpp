@@ -1063,7 +1063,7 @@ end:
 /* Please see header for specification */
 VkRenderPass Anvil::RenderPass::get_render_pass()
 {
-    VkRenderPass result = nullptr;
+    VkRenderPass result = VK_NULL_HANDLE;
 
     if (m_dirty)
     {

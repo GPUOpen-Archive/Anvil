@@ -414,6 +414,7 @@ bool Anvil::GraphicsPipelineManager::bake()
             const uint32_t                      start_offset = (uint32_t) color_blend_attachment_states_vk_cache.size();
 
             color_blend_state_create_info.attachmentCount       = subpass_n_color_attachments;
+            color_blend_state_create_info.flags                 = 0;
             color_blend_state_create_info.logicOp               = current_pipeline_config_ptr->logic_op;
             color_blend_state_create_info.logicOpEnable         = current_pipeline_config_ptr->logic_op_enabled;
             color_blend_state_create_info.pAttachments          = nullptr;

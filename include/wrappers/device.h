@@ -71,6 +71,7 @@ namespace Anvil
         /** Creates a new swapchain instance for the device.
          *
          *  @param parent_surface_ptr Rendering surface to create the swapchain for. Must not be nullptr.
+         *  @param window_ptr         current window to create the swapchain for. Must not be nullptr.
          *  @param image_format       Format which the swap-chain should use.
          *  @param present_mode       Presentation mode which the swap-chain should use.
          *  @param usage              Image usage flags describing how the swap-chain is going to be used.
@@ -79,6 +80,7 @@ namespace Anvil
          *  @return A new Swapchain instance.
          **/
         Anvil::Swapchain* create_swapchain(Anvil::RenderingSurface* parent_surface_ptr,
+                                           Anvil::Window*           window_ptr,
                                            VkFormat                 image_format,
                                            VkPresentModeKHR         present_mode,
                                            VkImageUsageFlags        usage,
@@ -256,7 +258,7 @@ namespace Anvil
         {
             Anvil::Queue* result_ptr = nullptr;
 
-            if (m_compute_queues.size() > n_queue)
+            if (m_transfer_queues.size() > n_queue)
             {
                 result_ptr = m_transfer_queues[n_queue];
             }

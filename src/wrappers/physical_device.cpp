@@ -183,3 +183,11 @@ bool Anvil::PhysicalDevice::is_device_extension_supported(const char* extension_
                      m_extensions.end(),
                      extension_name) != m_extensions.end();
 }
+
+/* Please see header for specification */
+bool Anvil::PhysicalDevice::is_layer_supported(const char* layer_name) const
+{
+    return std::find(m_layers .begin(),
+                     m_layers.end(),
+                     layer_name) != m_layers.end();
+}

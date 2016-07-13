@@ -23,6 +23,8 @@
 #include "misc/debug.h"
 #include "misc/object_tracker.h"
 #include "wrappers/buffer.h"
+#include "wrappers/command_buffer.h"
+#include "wrappers/command_pool.h"
 #include "wrappers/device.h"
 #include "wrappers/memory_block.h"
 #include "wrappers/queue.h"
@@ -34,6 +36,7 @@ Anvil::Buffer::Buffer(Anvil::Device*     device_ptr,
                       VkSharingMode      queue_sharing_mode,
                       VkBufferUsageFlags usage_flags)
     :m_buffer           (VK_NULL_HANDLE),
+     m_buffer_size      (size),
      m_device_ptr       (device_ptr),
      m_memory_block_ptr (nullptr),
      m_parent_buffer_ptr(0),
@@ -60,6 +63,7 @@ Anvil::Buffer::Buffer(Anvil::Device*         device_ptr,
                       bool                   should_be_coherent,
                       const void*            opt_client_data)
     :m_buffer           (VK_NULL_HANDLE),
+     m_buffer_size      (size),
      m_device_ptr       (device_ptr),
      m_memory_block_ptr (nullptr),
      m_parent_buffer_ptr(0),
@@ -70,12 +74,11 @@ Anvil::Buffer::Buffer(Anvil::Device*         device_ptr,
     if (!should_be_mappable)
     {
         anvil_assert(!should_be_coherent);
-    }
 
-    if (!should_be_mappable      &&
-         opt_client_data != nullptr)
-    {
-        should_be_mappable = true;
+        /* For host->gpu writes to work in this case, we will need the buffer to work as a target
+         * for buffer->buffer copy operations.
+         */
+        m_usage_flags = static_cast<VkBufferUsageFlagBits>(m_usage_flags | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
     }
 
     /* Create the buffer object */
@@ -99,9 +102,9 @@ Anvil::Buffer::Buffer(Anvil::Device*         device_ptr,
 
         if (opt_client_data != nullptr)
         {
-            m_memory_block_ptr->write(0, /* strt_offset */
-                                      size,
-                                      opt_client_data);
+            write(0,
+                  size,
+                  opt_client_data);
         }
 
         memory_block_ptr->release();
@@ -117,6 +120,7 @@ Anvil::Buffer::Buffer(Anvil::Buffer* parent_buffer_ptr,
                       VkDeviceSize   start_offset,
                       VkDeviceSize   size)
     :m_buffer           (VK_NULL_HANDLE),
+     m_buffer_size      (size),
      m_memory_block_ptr (nullptr),
      m_parent_buffer_ptr(parent_buffer_ptr),
      m_start_offset     (start_offset),
@@ -143,14 +147,14 @@ Anvil::Buffer::Buffer(Anvil::Buffer* parent_buffer_ptr,
 /** Releases a buffer object and a memory object associated with this Buffer instance. */
 Anvil::Buffer::~Buffer()
 {
-    if (m_buffer            != nullptr &&
+    if (m_buffer            != VK_NULL_HANDLE &&
         m_parent_buffer_ptr == nullptr)
     {
         vkDestroyBuffer(m_device_ptr->get_device_vk(),
                         m_buffer,
                         nullptr /* pAllocator */);
 
-        m_buffer = nullptr;
+        m_buffer = VK_NULL_HANDLE;
     }
 
     if (m_memory_block_ptr != nullptr)
@@ -241,7 +245,7 @@ void Anvil::Buffer::create_buffer(Anvil::QueueFamilyBits queue_families,
 {
     VkBufferCreateInfo buffer_create_info;
     uint32_t           n_queue_family_indices;
-    uint32_t           queue_family_indices[3];
+    uint32_t           queue_family_indices[8];
     VkResult           result;
 
     /* Determine which queues the buffer should be available to. */
@@ -292,14 +296,9 @@ Anvil::Buffer* Anvil::Buffer::get_base_buffer()
 /* Please see header for specification */
 VkDeviceSize Anvil::Buffer::get_size() const
 {
-    if (m_memory_block_ptr != nullptr)
-    {
-        return m_memory_block_ptr->get_size();
-    }
-    else
-    {
-        return -1;
-    }
+    anvil_assert(m_buffer_size != 0);
+
+    return m_buffer_size;
 }
 
 /* Please see header for specification */
@@ -321,13 +320,85 @@ VkDeviceSize Anvil::Buffer::get_start_offset() const
 bool Anvil::Buffer::read(VkDeviceSize start_offset,
                          VkDeviceSize size,
                          void*        out_result_ptr)
- {
-     anvil_assert(m_memory_block_ptr != nullptr);
+{
+    bool result = false;
 
-     return m_memory_block_ptr->read(start_offset,
-                                     size,
-                                     out_result_ptr);
- }
+    anvil_assert(m_memory_block_ptr != nullptr);
+
+    if (m_memory_block_ptr->is_mappable() )
+    {
+        result = m_memory_block_ptr->read(start_offset,
+                                          size,
+                                          out_result_ptr);
+    }
+    else
+    {
+        /* The buffer memory is not mappable. We need to create a staging buffer,
+         * do a non-mappable->mappable memory copy, and then read back data from the mappable buffer. */
+        const uint32_t               n_transfer_queues             = m_device_ptr->get_n_transfer_queues();
+        Anvil::Queue*                queue_ptr                     = (n_transfer_queues > 0) ? m_device_ptr->get_transfer_queue (0)
+                                                                                             : m_device_ptr->get_universal_queue(0);
+        Anvil::Buffer*               staging_buffer_ptr            = nullptr;
+        const Anvil::QueueFamilyBits staging_buffer_queue_fam_bits = (n_transfer_queues > 0) ? Anvil::QUEUE_FAMILY_DMA_BIT       : Anvil::QUEUE_FAMILY_GRAPHICS_BIT;
+        const Anvil::QueueFamilyType staging_buffer_queue_fam_type = (n_transfer_queues > 0) ? Anvil::QUEUE_FAMILY_TYPE_TRANSFER : Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL;
+
+        Anvil::PrimaryCommandBuffer* copy_cmdbuf_ptr               = m_device_ptr->get_command_pool(staging_buffer_queue_fam_type)->alloc_primary_level_command_buffer();
+
+        if (copy_cmdbuf_ptr == nullptr)
+        {
+            anvil_assert(copy_cmdbuf_ptr != nullptr);
+
+            goto end;
+        }
+
+        staging_buffer_ptr = new Anvil::Buffer(m_device_ptr,
+                                               size,
+                                               staging_buffer_queue_fam_bits,
+                                               VK_SHARING_MODE_EXCLUSIVE,
+                                               VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                               true,  /* should_be_mappable */
+                                               false, /* should_be_coherent */
+                                               nullptr);
+
+        if (staging_buffer_ptr == nullptr)
+        {
+            anvil_assert(staging_buffer_ptr != nullptr);
+
+            copy_cmdbuf_ptr->release();
+            goto end;
+        }
+
+        copy_cmdbuf_ptr->start_recording(true,   /* one_time_submit          */
+                                         false); /* simultaneous_use_allowed */
+        {
+            VkBufferCopy copy_region;
+
+            copy_region.dstOffset = 0;
+            copy_region.size      = size;
+            copy_region.srcOffset = start_offset;
+
+            copy_cmdbuf_ptr->record_copy_buffer(this,
+                                                staging_buffer_ptr,
+                                                1, /* in_region_count */
+                                               &copy_region);
+        }
+        copy_cmdbuf_ptr->stop_recording();
+
+        queue_ptr->submit_command_buffer(copy_cmdbuf_ptr,
+                                         true /* should_block */);
+
+        result = staging_buffer_ptr->read(start_offset,
+                                          size,
+                                          out_result_ptr);
+        copy_cmdbuf_ptr->release();
+        staging_buffer_ptr->release();
+
+        result = true;
+    }
+
+end:
+    return result;
+}
 
 /* Please see header for specification */
 bool Anvil::Buffer::set_memory(Anvil::MemoryBlock* memory_block_ptr)
@@ -369,9 +440,78 @@ bool Anvil::Buffer::write(VkDeviceSize start_offset,
                           VkDeviceSize size,
                           const void*  data)
 {
+    bool result = false;
+
     anvil_assert(m_memory_block_ptr != nullptr);
 
-    return m_memory_block_ptr->write(start_offset,
-                                     size,
-                                     data);
+    if (m_memory_block_ptr->is_mappable() )
+    {
+        result = m_memory_block_ptr->write(start_offset,
+                                           size,
+                                           data);
+    }
+    else
+    {
+        /* The buffer memory is not mappable. We need to create a staging memory,
+         * upload user's data there, and then issue a copy op. */
+        const uint32_t               n_transfer_queues             = m_device_ptr->get_n_transfer_queues();
+        Anvil::Queue*                queue_ptr                     = (n_transfer_queues > 0) ? m_device_ptr->get_transfer_queue (0)
+                                                                                             : m_device_ptr->get_universal_queue(0);
+        Anvil::Buffer*               staging_buffer_ptr            = nullptr;
+        const Anvil::QueueFamilyBits staging_buffer_queue_fam_bits = (n_transfer_queues > 0) ? Anvil::QUEUE_FAMILY_DMA_BIT       : Anvil::QUEUE_FAMILY_GRAPHICS_BIT;
+        const Anvil::QueueFamilyType staging_buffer_queue_fam_type = (n_transfer_queues > 0) ? Anvil::QUEUE_FAMILY_TYPE_TRANSFER : Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL;
+
+        Anvil::PrimaryCommandBuffer* copy_cmdbuf_ptr               = m_device_ptr->get_command_pool(staging_buffer_queue_fam_type)->alloc_primary_level_command_buffer();
+
+        if (copy_cmdbuf_ptr == nullptr)
+        {
+            anvil_assert(copy_cmdbuf_ptr != nullptr);
+
+            goto end;
+        }
+
+        staging_buffer_ptr = new Anvil::Buffer(m_device_ptr,
+                                               size,
+                                               staging_buffer_queue_fam_bits,
+                                               VK_SHARING_MODE_EXCLUSIVE,
+                                               VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                               true,  /* should_be_mappable */
+                                               false, /* should_be_coherent */
+                                               data);
+
+        if (staging_buffer_ptr == nullptr)
+        {
+            anvil_assert(staging_buffer_ptr != nullptr);
+
+            copy_cmdbuf_ptr->release();
+            goto end;
+        }
+
+        copy_cmdbuf_ptr->start_recording(true,   /* one_time_submit          */
+                                         false); /* simultaneous_use_allowed */
+        {
+            VkBufferCopy copy_region;
+
+            copy_region.dstOffset = start_offset;
+            copy_region.size      = size;
+            copy_region.srcOffset = 0;
+
+            copy_cmdbuf_ptr->record_copy_buffer(staging_buffer_ptr,
+                                                this,
+                                                1, /* in_region_count */
+                                               &copy_region);
+        }
+        copy_cmdbuf_ptr->stop_recording();
+
+        queue_ptr->submit_command_buffer(copy_cmdbuf_ptr,
+                                         true /* should_block */);
+
+        copy_cmdbuf_ptr->release();
+        staging_buffer_ptr->release();
+
+        result = true;
+    }
+
+end:
+    return result;
 }

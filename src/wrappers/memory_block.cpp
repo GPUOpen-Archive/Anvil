@@ -85,7 +85,7 @@ Anvil::MemoryBlock::MemoryBlock(MemoryBlock* parent_memory_block_ptr,
     m_gpu_data_user_mapped    = false;
     m_is_coherent             = parent_memory_block_ptr->m_is_coherent;
     m_is_mappable             = parent_memory_block_ptr->m_is_mappable;
-    m_memory                  = nullptr;
+    m_memory                  = VK_NULL_HANDLE;
     m_memory_type_index       = -1;
     m_parent_memory_block_ptr = parent_memory_block_ptr;
     m_size                    = size;
@@ -103,13 +103,13 @@ Anvil::MemoryBlock::~MemoryBlock()
 {
     anvil_assert(!m_gpu_data_user_mapped);
 
-    if (m_memory != nullptr)
+    if (m_memory != VK_NULL_HANDLE)
     {
         vkFreeMemory(m_device_ptr->get_device_vk(),
                      m_memory,
                      nullptr /* pAllocator */);
 
-        m_memory = nullptr;
+        m_memory = VK_NULL_HANDLE;
     }
 
     if (m_parent_memory_block_ptr != nullptr)
@@ -127,12 +127,12 @@ Anvil::MemoryBlock::~MemoryBlock()
 /** Finishes the memory mapping process, opened earlier with a open_gpu_memory_access() call. */
 void Anvil::MemoryBlock::close_gpu_memory_access()
 {
-    VkDeviceMemory memory = nullptr;
+    VkDeviceMemory memory = VK_NULL_HANDLE;
 
     anvil_assert(m_gpu_data_ptr != nullptr);
 
     memory = (m_parent_memory_block_ptr != nullptr) ? m_parent_memory_block_ptr->m_memory
-                                                 : m_memory;
+                                                    : m_memory;
 
     vkUnmapMemory(m_device_ptr->get_device_vk(),
                   memory);
@@ -196,7 +196,8 @@ uint32_t Anvil::MemoryBlock::get_device_memory_type_index(uint32_t memory_type_b
 
 /* Please see header for specification */
 bool Anvil::MemoryBlock::map(VkDeviceSize start_offset,
-                             VkDeviceSize size)
+                             VkDeviceSize size,
+                             void**       opt_out_data_ptr)
 {
     bool result = false;
 
@@ -220,6 +221,11 @@ bool Anvil::MemoryBlock::map(VkDeviceSize start_offset,
     m_gpu_data_user_size         = size;
     m_gpu_data_user_start_offset = start_offset;
 
+    if (opt_out_data_ptr != nullptr)
+    {
+        *opt_out_data_ptr = m_gpu_data_ptr;
+    }
+
     result = true;
 end:
     return result;
@@ -242,7 +248,7 @@ end:
 bool Anvil::MemoryBlock::open_gpu_memory_access(VkDeviceSize start_offset,
                                                 VkDeviceSize size)
 {
-    VkDeviceMemory memory     = nullptr;
+    VkDeviceMemory memory     = VK_NULL_HANDLE;
     bool           result     = false;
     VkResult       result_vk;
 
@@ -411,8 +417,8 @@ bool Anvil::MemoryBlock::write(VkDeviceSize start_offset,
          */
         if (m_gpu_data_user_mapped)
         {
-            const bool no_full_overlap = !(start_offset + size < m_gpu_data_user_start_offset + m_gpu_data_user_size ||
-                                           start_offset        > m_gpu_data_user_start_offset);
+            const bool no_full_overlap = !(start_offset + size <= m_gpu_data_user_start_offset + m_gpu_data_user_size ||
+                                           start_offset        >  m_gpu_data_user_start_offset);
 
             if (no_full_overlap)
             {

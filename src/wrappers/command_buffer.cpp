@@ -1258,15 +1258,18 @@ Anvil::CommandBufferBase::WriteTimestampCommand::~WriteTimestampCommand()
  *
  *  @param device_ptr              Device to use.
  *  @param parent_command_pool_ptr Command pool to allocate the commands from. Must not be nullptr.
+ *  @param type                    Command buffer type
  **/
-Anvil::CommandBufferBase::CommandBufferBase(Anvil::Device*      device_ptr,
-                                            Anvil::CommandPool* parent_command_pool_ptr)
+Anvil::CommandBufferBase::CommandBufferBase(Anvil::Device*           device_ptr,
+                                            Anvil::CommandPool*      parent_command_pool_ptr,
+                                            Anvil::CommandBufferType type)
     :CallbacksSupportProvider(COMMAND_BUFFER_CALLBACK_ID_COUNT),
      m_command_buffer         (VK_NULL_HANDLE),
      m_device_ptr             (device_ptr),
      m_is_renderpass_active   (false),
      m_parent_command_pool_ptr(parent_command_pool_ptr),
-     m_recording_in_progress  (false)
+     m_recording_in_progress  (false),
+     m_type                   (type)
 {
     anvil_assert(parent_command_pool_ptr != nullptr);
 }
@@ -3146,51 +3149,6 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::CommandBufferBase::start_recording(bool one_time_submit,
-                                               bool simultaneous_use_allowed)
-{
-    VkCommandBufferBeginInfo command_buffer_begin_info;
-    bool                     result    = false;
-    VkResult                 result_vk;
-
-    if (m_recording_in_progress)
-    {
-        anvil_assert(!m_recording_in_progress);
-
-        goto end;
-    }
-
-    command_buffer_begin_info.flags            = ((one_time_submit)          ? VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT  : 0) |
-                                                 ((simultaneous_use_allowed) ? VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT : 0);
-    command_buffer_begin_info.pNext            = nullptr;
-    command_buffer_begin_info.pInheritanceInfo = nullptr;  /* Only relevant for secondary-level command buffers */
-    command_buffer_begin_info.sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-    result_vk = vkBeginCommandBuffer(m_command_buffer,
-                                    &command_buffer_begin_info);
-
-    if (!is_vk_call_successful(result_vk) )
-    {
-        anvil_assert_vk_call_succeeded(result_vk);
-
-        goto end;
-    }
-
-    #ifdef STORE_COMMAND_BUFFER_COMMANDS
-    {
-        /* vkBeginCommandBuffer() implicitly resets all commands recorded previously */
-        clear_commands();
-    }
-    #endif
-
-    m_recording_in_progress = true;
-    result                  = true;
-
-end:
-    return result;
-}
-
-/* Please see header for specification */
 bool Anvil::CommandBufferBase::stop_recording()
 {
     bool     result = false;
@@ -3222,7 +3180,8 @@ end:
 Anvil::PrimaryCommandBuffer::PrimaryCommandBuffer(Anvil::Device*      device_ptr,
                                                   Anvil::CommandPool* parent_command_pool_ptr)
     :CommandBufferBase(device_ptr,
-                       parent_command_pool_ptr)
+                       parent_command_pool_ptr,
+                       COMMAND_BUFFER_TYPE_PRIMARY)
 {
     VkCommandBufferAllocateInfo alloc_info;
     VkResult                    result_vk;
@@ -3437,12 +3396,58 @@ end:
     return result;
 }
 
+/* Please see header for specification */
+bool Anvil::PrimaryCommandBuffer::start_recording(bool one_time_submit,
+                                                  bool simultaneous_use_allowed)
+{
+    VkCommandBufferBeginInfo command_buffer_begin_info;
+    bool                     result    = false;
+    VkResult                 result_vk;
+
+    if (m_recording_in_progress)
+    {
+        anvil_assert(!m_recording_in_progress);
+
+        goto end;
+    }
+
+    command_buffer_begin_info.flags            = ((one_time_submit)          ? VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT  : 0) |
+                                                 ((simultaneous_use_allowed) ? VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT : 0);
+    command_buffer_begin_info.pNext            = nullptr;
+    command_buffer_begin_info.pInheritanceInfo = nullptr;  /* Only relevant for secondary-level command buffers */
+    command_buffer_begin_info.sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    result_vk = vkBeginCommandBuffer(m_command_buffer,
+                                    &command_buffer_begin_info);
+
+    if (!is_vk_call_successful(result_vk) )
+    {
+        anvil_assert_vk_call_succeeded(result_vk);
+
+        goto end;
+    }
+
+    #ifdef STORE_COMMAND_BUFFER_COMMANDS
+    {
+        /* vkBeginCommandBuffer() implicitly resets all commands recorded previously */
+        clear_commands();
+    }
+    #endif
+
+    m_recording_in_progress = true;
+    result                  = true;
+
+end:
+    return result;
+}
+
 
 /* Please see header for specification */
 Anvil::SecondaryCommandBuffer::SecondaryCommandBuffer(Anvil::Device*      device_ptr,
                                                       Anvil::CommandPool* parent_command_pool_ptr)
     :CommandBufferBase(device_ptr,
-                       parent_command_pool_ptr)
+                       parent_command_pool_ptr,
+                       COMMAND_BUFFER_TYPE_SECONDARY)
 {
     VkCommandBufferAllocateInfo command_buffer_alloc_info;
     VkResult                    result_vk;
@@ -3461,13 +3466,14 @@ Anvil::SecondaryCommandBuffer::SecondaryCommandBuffer(Anvil::Device*      device
 }
 
 /* Please see header for specification */
-bool Anvil::SecondaryCommandBuffer::start_recording_for_renderpass_usage(bool                          one_time_submit,
-                                                                         bool                          simultaneous_use_allowed,
-                                                                         Framebuffer*                  framebuffer_ptr,
-                                                                         RenderPass*                   render_pass_ptr,
-                                                                         SubPassID                     subpass_id,
-                                                                         OcclusionQuerySupportScope    required_occlusion_query_support_scope,
-                                                                         VkQueryPipelineStatisticFlags required_pipeline_statistics_scope)
+bool Anvil::SecondaryCommandBuffer::start_recording(bool                          one_time_submit,
+                                                    bool                          simultaneous_use_allowed,
+                                                    bool                          renderpass_usage_only,
+                                                    Framebuffer*                  framebuffer_ptr,
+                                                    RenderPass*                   render_pass_ptr,
+                                                    SubPassID                     subpass_id,
+                                                    OcclusionQuerySupportScope    required_occlusion_query_support_scope,
+                                                    VkQueryPipelineStatisticFlags required_pipeline_statistics_scope)
 {
     VkCommandBufferBeginInfo       command_buffer_begin_info;
     VkCommandBufferInheritanceInfo command_buffer_inheritance_info;
@@ -3490,9 +3496,9 @@ bool Anvil::SecondaryCommandBuffer::start_recording_for_renderpass_usage(bool   
     command_buffer_inheritance_info.sType                = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
     command_buffer_inheritance_info.subpass              = subpass_id;
 
-    command_buffer_begin_info.flags            = ((one_time_submit)          ? VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT  : 0) |
-                                                 ((simultaneous_use_allowed) ? VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT : 0) |
-                                                 VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+    command_buffer_begin_info.flags            = ((one_time_submit)          ? VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT      : 0) |
+                                                 ((simultaneous_use_allowed) ? VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT     : 0) |
+                                                 ((renderpass_usage_only)    ? VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT : 0);
     command_buffer_begin_info.pInheritanceInfo = &command_buffer_inheritance_info;
     command_buffer_begin_info.pNext            = nullptr;
     command_buffer_begin_info.sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -3513,6 +3519,8 @@ bool Anvil::SecondaryCommandBuffer::start_recording_for_renderpass_usage(bool   
         clear_commands();
     }
     #endif
+
+    m_is_renderpass_active = renderpass_usage_only;
 
     m_recording_in_progress = true;
     result                  = true;

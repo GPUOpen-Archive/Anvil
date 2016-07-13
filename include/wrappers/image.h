@@ -453,8 +453,9 @@ namespace Anvil
          **/
         void set_memory(Anvil::MemoryBlock* memory_block_ptr);
 
-        /** Returns a destination access mask, corresponding to the user-specified image usage bitfield. */
-        static VkAccessFlags get_destination_access_mask_from_image_usage(VkImageUsageFlags usage);
+        /** Returns an access mask which has all the access bits, relevant to the user-specified image layout,
+         *  enabled. */
+        static VkAccessFlags get_access_mask_from_image_layout(VkImageLayout layout);
 
     private:
         /* Private type declarations */

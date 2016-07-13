@@ -23,6 +23,7 @@
 #include "misc/debug.h"
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 static void default_assertion_failure_handler(const char*  filename,
                                               unsigned int line,
@@ -44,7 +45,7 @@ void default_assertion_failure_handler(const char*  filename,
              message);
     fflush  (stderr);
 
-    assert(false);
+    exit(-1);
 }
 
 /** Please see header for specification */
@@ -52,6 +53,12 @@ void Anvil::on_assertion_failed(const char*  filename,
                                 unsigned int line,
                                 const char*  message)
 {
+    #if defined(_WIN32) && defined(_DEBUG)
+    {
+        __debugbreak();
+    }
+    #endif
+
     g_anvil_assertion_check_failed_func_ptr(filename,
                                             line,
                                             message);

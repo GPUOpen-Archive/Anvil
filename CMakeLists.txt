@@ -34,10 +34,10 @@ else()
                         $ENV{VULKAN_SDK}/x86_64/lib)
 endif()
 
-
-add_library(Anvil STATIC "${Anvil_SOURCE_DIR}/include/misc/base_pipeline_manager.h"
+SET (SRC_LIST            "${Anvil_SOURCE_DIR}/include/misc/base_pipeline_manager.h"
                          "${Anvil_SOURCE_DIR}/include/misc/callbacks.h"
                          "${Anvil_SOURCE_DIR}/include/misc/debug.h"
+                         "${Anvil_SOURCE_DIR}/include/misc/dummy_window.h"
                          "${Anvil_SOURCE_DIR}/include/misc/formats.h"
                          "${Anvil_SOURCE_DIR}/include/misc/glsl_to_spirv.h"
                          "${Anvil_SOURCE_DIR}/include/misc/io.h"
@@ -48,6 +48,7 @@ add_library(Anvil STATIC "${Anvil_SOURCE_DIR}/include/misc/base_pipeline_manager
                          "${Anvil_SOURCE_DIR}/include/misc/time.h"
                          "${Anvil_SOURCE_DIR}/include/misc/types.h"
                          "${Anvil_SOURCE_DIR}/include/misc/window.h"
+                         "${Anvil_SOURCE_DIR}/include/misc/window_factory.h"
                          "${Anvil_SOURCE_DIR}/include/wrappers/buffer.h"
                          "${Anvil_SOURCE_DIR}/include/wrappers/buffer_view.h"
                          "${Anvil_SOURCE_DIR}/include/wrappers/command_buffer.h"
@@ -81,6 +82,7 @@ add_library(Anvil STATIC "${Anvil_SOURCE_DIR}/include/misc/base_pipeline_manager
 
                          "${Anvil_SOURCE_DIR}/src/misc/base_pipeline_manager.cpp"
                          "${Anvil_SOURCE_DIR}/src/misc/debug.cpp"
+                         "${Anvil_SOURCE_DIR}/src/misc/dummy_window.cpp"
                          "${Anvil_SOURCE_DIR}/src/misc/formats.cpp"
                          "${Anvil_SOURCE_DIR}/src/misc/glsl_to_spirv.cpp"
                          "${Anvil_SOURCE_DIR}/src/misc/io.cpp"
@@ -90,6 +92,7 @@ add_library(Anvil STATIC "${Anvil_SOURCE_DIR}/include/misc/base_pipeline_manager
                          "${Anvil_SOURCE_DIR}/src/misc/time.cpp"
                          "${Anvil_SOURCE_DIR}/src/misc/types.cpp"
                          "${Anvil_SOURCE_DIR}/src/misc/window.cpp"
+                         "${Anvil_SOURCE_DIR}/src/misc/window_factory.cpp"
                          "${Anvil_SOURCE_DIR}/src/wrappers/buffer.cpp"
                          "${Anvil_SOURCE_DIR}/src/wrappers/buffer_view.cpp"
                          "${Anvil_SOURCE_DIR}/src/wrappers/command_buffer.cpp"
@@ -120,7 +123,21 @@ add_library(Anvil STATIC "${Anvil_SOURCE_DIR}/include/misc/base_pipeline_manager
                          "${Anvil_SOURCE_DIR}/src/wrappers/semaphore.cpp"
                          "${Anvil_SOURCE_DIR}/src/wrappers/shader_module.cpp"
                          "${Anvil_SOURCE_DIR}/src/wrappers/swapchain.cpp"
+                         
                          )
+
+# prepare source code files for different OS
+if(WIN32)
+list (APPEND SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/window_win3264.h"
+                      "${Anvil_SOURCE_DIR}/src/misc/window_win3264.cpp")
+else()
+list (APPEND SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/xcb_loader_for_anvil.h"
+                      "${Anvil_SOURCE_DIR}/src/misc/xcb_loader_for_anvil.cpp"
+                      "${Anvil_SOURCE_DIR}/include/misc/window_xcb.h"
+                      "${Anvil_SOURCE_DIR}/src/misc/window_xcb.cpp")
+endif()
+
+add_library(Anvil STATIC ${SRC_LIST})
 
 if (WIN32)
     if (ANVIL_LINK_WITH_GLSLANG)
@@ -130,9 +147,9 @@ if (WIN32)
     endif()
 else()
     if (ANVIL_LINK_WITH_GLSLANG)
-        target_link_libraries(Anvil glslang HLSL OGLCompiler OSDependent SPIRV vulkan xcb pthread)
+        target_link_libraries(Anvil glslang HLSL OGLCompiler OSDependent SPIRV vulkan pthread)
     else()
-        target_link_libraries(Anvil vulkan xcb pthread)
+        target_link_libraries(Anvil vulkan pthread)
     endif()
 endif()
 

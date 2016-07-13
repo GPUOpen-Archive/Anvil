@@ -349,7 +349,10 @@ namespace Anvil
         }
 
         /** Tells the type of the command buffer instance */
-        virtual CommandBufferType get_command_buffer_type() const = 0;
+        CommandBufferType get_command_buffer_type() const
+        {
+            return m_type;
+        }
 
         /** Issues a vkCmdBeginQuery() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -1127,21 +1130,6 @@ namespace Anvil
          *  @return true if the request was handled successfully, false otherwise.
          **/
         bool reset(bool should_release_resources);
-
-        /** Issues a vkBeginCommandBufer() call and clears the internally managed vector of recorded
-         *  commands, if STORE_COMMAND_BUFFER_COMMANDS has been defined for the build.
-         *
-         *  It is an error to invoke this function if recording is already in progress.
-         *
-         *  @param one_time_submit          true if the VK_CMD_BUFFER_OPTIMIZE_ONE_TIME_SUBMIT_BIT flag should
-         *                                  be used for the Vulkan API call.
-         *  @param simultaneous_use_allowed true if the VK_CMD_BUFFER_OPTIMIZE_NO_SIMULTANEOUS_USE_BIT flag should
-         *                                  be used for the Vulkan API call.
-         *
-         *  @return true if successful, false otherwise.
-         **/
-        bool start_recording(bool one_time_submit,
-                             bool simultaneous_use_allowed);
 
         /** Stops an ongoing command recording process.
          *
@@ -2421,7 +2409,8 @@ namespace Anvil
 
         /* Protected functions */
         explicit CommandBufferBase(Anvil::Device*      device_ptr,
-                                   Anvil::CommandPool* parent_command_pool_ptr);
+                                   Anvil::CommandPool* parent_command_pool_ptr,
+                                   CommandBufferType   type);
 
         virtual ~CommandBufferBase();
 
@@ -2441,6 +2430,7 @@ namespace Anvil
         bool                m_is_renderpass_active;
         Anvil::CommandPool* m_parent_command_pool_ptr;
         bool                m_recording_in_progress;
+        CommandBufferType   m_type;
 
         static bool        m_command_stashing_disabled;
 
@@ -2459,12 +2449,6 @@ namespace Anvil
     {
     public:
         /* Public functions */
-
-        /** Tells the type of the command buffer instance */
-        CommandBufferType get_command_buffer_type() const
-        {
-            return COMMAND_BUFFER_TYPE_PRIMARY;
-        }
 
         /** Issues a vkCmdBeginRenderPass() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -2530,6 +2514,21 @@ namespace Anvil
          **/
         bool record_next_subpass(VkSubpassContents in_contents);
 
+        /** Issues a vkBeginCommandBufer() call and clears the internally managed vector of recorded
+         *  commands, if STORE_COMMAND_BUFFER_COMMANDS has been defined for the build.
+         *
+         *  It is an error to invoke this function if recording is already in progress.
+         *
+         *  @param one_time_submit          true if the VK_CMD_BUFFER_OPTIMIZE_ONE_TIME_SUBMIT_BIT flag should
+         *                                  be used for the Vulkan API call.
+         *  @param simultaneous_use_allowed true if the VK_CMD_BUFFER_OPTIMIZE_NO_SIMULTANEOUS_USE_BIT flag should
+         *                                  be used for the Vulkan API call.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool start_recording(bool one_time_submit,
+                             bool simultaneous_use_allowed);
+
     protected:
         /** Constructor. Should be used to instantiate primary-level command buffers.
          *
@@ -2557,12 +2556,6 @@ namespace Anvil
     public:
         /* Public functions */
 
-        /** Tells the type of the command buffer instance */
-        CommandBufferType get_command_buffer_type() const
-        {
-            return COMMAND_BUFFER_TYPE_SECONDARY;
-        }
-
         /** Issues a vkBeginCommandBufer() call and clears the internally managed vector of recorded
          *  commands, if STORE_COMMAND_BUFFER_COMMANDS has been defined for the build.
          *
@@ -2572,9 +2565,11 @@ namespace Anvil
          *
          *  It is an error to invoke this function if recording is already in progress.
          *
-         *  @param one_time_submit                        true if the VK_CMD_BUFFER_OPTIMIZE_ONE_TIME_SUBMIT_BIT flag should
+         *  @param one_time_submit                        true if the VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT flag should
          *                                                be used for the Vulkan API call.
-         *  @param simultaneous_use_allowed               true if the VK_CMD_BUFFER_OPTIMIZE_NO_SIMULTANEOUS_USE_BIT flag should
+         *  @param simultaneous_use_allowed               true if the VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT flag should
+         *                                                be used for the Vulkan API call.
+         *  @param renderpass_usage_only                  true if the VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT flag should
          *                                                be used for the Vulkan API call.
          *  @param framebuffer_ptr                        Meaning as per Vulkan API specification.
          *  @param render_pass_ptr                        Meaning as per Vulkan API specification.
@@ -2584,13 +2579,14 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool start_recording_for_renderpass_usage(bool                          one_time_submit,
-                                                  bool                          simultaneous_use_allowed,
-                                                  Framebuffer*                  framebuffer_ptr,
-                                                  RenderPass*                   render_pass_ptr,
-                                                  SubPassID                     subpass_id,
-                                                  OcclusionQuerySupportScope    required_occlusion_query_support_scope,
-                                                  VkQueryPipelineStatisticFlags required_pipeline_statistics_scope);
+        bool start_recording(bool                          one_time_submit,
+                             bool                          simultaneous_use_allowed,
+                             bool                          renderpass_usage_only,
+                             Framebuffer*                  framebuffer_ptr,
+                             RenderPass*                   render_pass_ptr,
+                             SubPassID                     subpass_id,
+                             OcclusionQuerySupportScope    required_occlusion_query_support_scope,
+                             VkQueryPipelineStatisticFlags required_pipeline_statistics_scope);
 
     protected:
         /** Constructor. Should be used to instantiate secondary-level command buffers.
@@ -2603,6 +2599,8 @@ namespace Anvil
                                CommandPool*   parent_command_pool_ptr); 
 
     private:
+        friend class Anvil::CommandPool;
+
         /* Private functions */
         SecondaryCommandBuffer           (const SecondaryCommandBuffer&);
         SecondaryCommandBuffer& operator=(const SecondaryCommandBuffer&);

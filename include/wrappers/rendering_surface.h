@@ -187,7 +187,7 @@ namespace Anvil
          **/
         virtual ~RenderingSurface();
 
-        void cache_surface_properties();
+        void cache_surface_properties(Anvil::Window* window_ptr);
 
         /* Private variables */
         Anvil::Instance*       m_instance_ptr;

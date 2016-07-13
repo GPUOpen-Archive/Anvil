@@ -142,6 +142,15 @@ namespace Anvil
          **/
         bool is_device_extension_supported(const char* extension_name) const;
 
+        /** Tells whether user-specified layer is supported by the physical device.
+         *
+         *  @param layer_name Name of the layer to use for the query. Must not be
+         *                    nullptr.
+         *
+         *  @return As per description.
+         **/
+        bool is_layer_supported(const char* layer_name) const;
+
     private:
         /* Private type definitions */
         typedef std::map<VkFormat, FormatProperties> FormatPropertiesMap;

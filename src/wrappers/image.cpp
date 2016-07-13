@@ -366,18 +366,106 @@ Anvil::Image::Image(Anvil::Device*        device_ptr,
 }
 
 /** Please see header for specification */
-VkAccessFlags Anvil::Image::get_destination_access_mask_from_image_usage(VkImageUsageFlags usage)
+VkAccessFlags Anvil::Image::get_access_mask_from_image_layout(VkImageLayout layout)
 {
     VkAccessFlags result = 0;
 
-    if (usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)         result |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    if (usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) result |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    if (usage & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT)         result |= 0;
-    if (usage & VK_IMAGE_USAGE_SAMPLED_BIT)                  result |= VK_ACCESS_SHADER_READ_BIT;
-    if (usage & VK_IMAGE_USAGE_STORAGE_BIT)                  result |= VK_ACCESS_SHADER_READ_BIT;
-    if (usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT)             result |= VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
-    if (usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT)             result |= VK_ACCESS_HOST_READ_BIT  | VK_ACCESS_TRANSFER_READ_BIT;
-    if (usage & VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT)     result |= 0;
+    switch (layout)
+    {
+        case VK_IMAGE_LAYOUT_UNDEFINED:
+        {
+            result = 0;
+
+            break;
+        }
+
+        case VK_IMAGE_LAYOUT_GENERAL:
+        {
+            result = VK_ACCESS_INDIRECT_COMMAND_READ_BIT          |
+                     VK_ACCESS_INDEX_READ_BIT                     |
+                     VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT          |
+                     VK_ACCESS_UNIFORM_READ_BIT                   |
+                     VK_ACCESS_INPUT_ATTACHMENT_READ_BIT          |
+                     VK_ACCESS_SHADER_READ_BIT                    |
+                     VK_ACCESS_SHADER_WRITE_BIT                   |
+                     VK_ACCESS_COLOR_ATTACHMENT_READ_BIT          |
+                     VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT         |
+                     VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT  |
+                     VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
+                     VK_ACCESS_TRANSFER_READ_BIT                  |
+                     VK_ACCESS_TRANSFER_WRITE_BIT                 |
+                     VK_ACCESS_HOST_READ_BIT                      |
+                     VK_ACCESS_HOST_WRITE_BIT                     |
+                     VK_ACCESS_MEMORY_READ_BIT                    |
+                     VK_ACCESS_MEMORY_WRITE_BIT;
+
+            break;
+        }
+
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+        {
+            result = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+                     VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+            break;
+        }
+
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+        {
+            result = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT  |
+                     VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+            break;
+        }
+
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+        {
+            result = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+
+            break;
+        }
+
+        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+        {
+            result = VK_ACCESS_SHADER_READ_BIT;
+
+            break;
+        }
+
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+        {
+            result = VK_ACCESS_TRANSFER_READ_BIT;
+
+            break;
+        }
+
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+        {
+            result = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+            break;
+        }
+
+        case VK_IMAGE_LAYOUT_PREINITIALIZED:
+        {
+            result = VK_ACCESS_SHADER_READ_BIT;
+
+            break;
+        }
+
+        case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+        {
+            result = VK_ACCESS_MEMORY_READ_BIT;
+
+            break;
+        }
+
+        default:
+        {
+            anvil_assert(false && "Invalid VkImageLayout argument value");
+        }
+    }
+
 
     return result;
 }
@@ -573,7 +661,8 @@ void Anvil::Image::init(VkImageType                       type,
     }
 
     /* Transition the image to the final layout, if one was requested by the caller */
-    if (final_image_layout_ptr != nullptr)
+    if ( final_image_layout_ptr != nullptr                   &&
+        *final_image_layout_ptr != VK_IMAGE_LAYOUT_UNDEFINED)
     {
         Anvil::PrimaryCommandBuffer* transition_command_buffer_ptr = nullptr;
         Anvil::Queue*                universal_queue_ptr           = m_device_ptr->get_universal_queue(0);
@@ -584,8 +673,8 @@ void Anvil::Image::init(VkImageType                       type,
                                                        false); /* simultaneous_use_allowed */
         {
             Anvil::ImageBarrier image_barrier(((image_create_info.initialLayout == VK_IMAGE_LAYOUT_PREINITIALIZED)       ? VK_ACCESS_HOST_WRITE_BIT     : 0) |
-                                               ((current_image_layout            == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) ? VK_ACCESS_TRANSFER_WRITE_BIT : 0), /* source_access_mask */
-                                               get_destination_access_mask_from_image_usage(image_create_info.usage),
+                                               ((current_image_layout           == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) ? VK_ACCESS_TRANSFER_WRITE_BIT : 0), /* source_access_mask */
+                                               get_access_mask_from_image_layout(*final_image_layout_ptr),
                                                false,
                                                current_image_layout,
                                               *final_image_layout_ptr,
@@ -984,7 +1073,7 @@ void Anvil::Image::upload_mipmaps(const std::vector<Anvil::MipmapRawData>& mipma
                   mipmap_iterator != mipmaps.end();
                 ++mipmap_iterator)
         {
-            total_raw_mips_size += mipmap_iterator->data_size;
+            total_raw_mips_size += mipmap_iterator->n_slices * mipmap_iterator->data_size;
         }
 
         /* Merge data of all mips into one buffer, cache the offsets and push the merged data
@@ -1011,9 +1100,9 @@ void Anvil::Image::upload_mipmaps(const std::vector<Anvil::MipmapRawData>& mipma
 
             memcpy(merged_mip_storage + current_mip_offset,
                    current_mipmap.linear_tightly_packed_data_ptr,
-                   current_mipmap.data_size);
+                   current_mipmap.n_slices * current_mipmap.data_size);
 
-            current_mip_offset += current_mipmap.data_size;
+            current_mip_offset += current_mipmap.n_slices * current_mipmap.data_size;
         }
 
         temp_buffer_ptr = new Anvil::Buffer(m_device_ptr,
@@ -1035,8 +1124,7 @@ void Anvil::Image::upload_mipmaps(const std::vector<Anvil::MipmapRawData>& mipma
         temp_cmdbuf_ptr->start_recording(true, /* one_time_submit          */
                                          false /* simultaneous_use_allowed */);
         {
-            VkBufferImageCopy copy_region;
-            uint32_t          n_mipmap    = 0;
+            std::vector<VkBufferImageCopy> copy_regions;
 
             /* Transfer the image to the transfer_destination layout */
             Anvil::ImageBarrier image_barrier(0, /* source_access_mask */
@@ -1059,49 +1147,53 @@ void Anvil::Image::upload_mipmaps(const std::vector<Anvil::MipmapRawData>& mipma
                                                      1,              /* in_image_memory_barrier_count  */
                                                     &image_barrier);
 
-            /* Issue the buffer->image copy ops */
-            copy_region.bufferImageHeight = 0; /* assume tight packing */
-            copy_region.bufferRowLength   = 0; /* assume tight packing */
-            copy_region.imageOffset.x     = 0;
-            copy_region.imageOffset.y     = 0;
-            copy_region.imageOffset.z     = 0;
+            /* Issue the buffer->image copy op */
+            copy_regions.reserve(mipmaps.size() );
 
             for (auto mipmap_iterator  = mipmaps.begin();
                       mipmap_iterator != mipmaps.end();
-                    ++mipmap_iterator, ++n_mipmap)
+                    ++mipmap_iterator)
             {
-                const auto& current_mipmap = *mipmap_iterator;
+                VkBufferImageCopy current_copy_region;
+                const auto&       current_mipmap = *mipmap_iterator;
 
-                copy_region.bufferOffset                    = mip_data_offsets[n_mipmap];
-                copy_region.imageSubresource.baseArrayLayer = current_mipmap.n_layer;
-                copy_region.imageSubresource.layerCount     = current_mipmap.n_layers;
-                copy_region.imageSubresource.aspectMask     = current_mipmap.aspect;
-                copy_region.imageSubresource.mipLevel       = current_mipmap.n_mipmap;
-                copy_region.imageExtent.depth               = current_mipmap.n_slices / (1 << current_mipmap.n_mipmap);
-                copy_region.imageExtent.height              = m_image_height          / (1 << current_mipmap.n_mipmap);
-                copy_region.imageExtent.width               = m_image_width           / (1 << current_mipmap.n_mipmap);
+                current_copy_region.bufferImageHeight               = m_image_height / (1 << current_mipmap.n_mipmap);
+                current_copy_region.bufferOffset                    = mip_data_offsets[static_cast<uint32_t>(mipmap_iterator - mipmaps.begin()) ];
+                current_copy_region.bufferRowLength                 = 0;
+                current_copy_region.imageOffset.x                   = 0;
+                current_copy_region.imageOffset.y                   = 0;
+                current_copy_region.imageOffset.z                   = 0;
+                current_copy_region.imageSubresource.baseArrayLayer = current_mipmap.n_layer;
+                current_copy_region.imageSubresource.layerCount     = current_mipmap.n_layers;
+                current_copy_region.imageSubresource.aspectMask     = current_mipmap.aspect;
+                current_copy_region.imageSubresource.mipLevel       = current_mipmap.n_mipmap;
+                current_copy_region.imageExtent.depth               = current_mipmap.n_slices;
+                current_copy_region.imageExtent.height              = m_image_height          / (1 << current_mipmap.n_mipmap);
+                current_copy_region.imageExtent.width               = m_image_width           / (1 << current_mipmap.n_mipmap);
 
-                if (copy_region.imageExtent.depth < 1)
+                if (current_copy_region.imageExtent.depth < 1)
                 {
-                    copy_region.imageExtent.depth = 1;
+                    current_copy_region.imageExtent.depth = 1;
                 }
 
-                if (copy_region.imageExtent.height < 1)
+                if (current_copy_region.imageExtent.height < 1)
                 {
-                    copy_region.imageExtent.height = 1;
+                    current_copy_region.imageExtent.height = 1;
                 }
 
-                if (copy_region.imageExtent.width < 1)
+                if (current_copy_region.imageExtent.width < 1)
                 {
-                    copy_region.imageExtent.width = 1;
+                    current_copy_region.imageExtent.width = 1;
                 }
 
-                temp_cmdbuf_ptr->record_copy_buffer_to_image(temp_buffer_ptr,
-                                                             this,
-                                                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                                             1, /* regionCount */
-                                                            &copy_region);
+                copy_regions.push_back(current_copy_region);
             }
+
+            temp_cmdbuf_ptr->record_copy_buffer_to_image(temp_buffer_ptr,
+                                                         this,
+                                                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                                         static_cast<uint32_t>(copy_regions.size() ),
+                                                        &copy_regions[0]);
         }
         temp_cmdbuf_ptr->stop_recording();
 
