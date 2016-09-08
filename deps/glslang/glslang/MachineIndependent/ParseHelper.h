@@ -80,7 +80,7 @@ public:
             symbolTable(symbolTable), tokensBeforeEOF(false),
             linkage(nullptr), scanContext(nullptr), ppContext(nullptr) { }
     virtual ~TParseContextBase() { }
-    
+
     virtual void setLimits(const TBuiltInResource&) = 0;
     
     EShLanguage getLanguage() const { return language; }
@@ -142,6 +142,46 @@ protected:
     std::function<void(int, int, const char*)> versionCallback;
     std::function<void(int, const char*, const char*)> extensionCallback;
     std::function<void(int, const char*)> errorCallback;
+
+    // see implementation for detail
+    const TFunction* selectFunction(TVector<const TFunction*>, const TFunction&,
+        std::function<bool(const TType&, const TType&)>,
+        std::function<bool(const TType&, const TType&, const TType&)>,
+        /* output */ bool& tie);
+};
+
+//
+// Manage the state for when to respect precision qualifiers and when to warn about
+// the defaults being different than might be expected.
+//
+class TPrecisionManager {
+public:
+    TPrecisionManager() : obey(false), warn(false), explicitIntDefault(false), explicitFloatDefault(false){ }
+    virtual ~TPrecisionManager() {}
+
+    void respectPrecisionQualifiers() { obey = true; }
+    bool respectingPrecisionQualifiers() const { return obey; }
+    bool shouldWarnAboutDefaults() const { return warn; }
+    void defaultWarningGiven() { warn = false; }
+    void warnAboutDefaults() { warn = true; }
+    void explicitIntDefaultSeen()
+    {
+        explicitIntDefault = true;
+        if (explicitFloatDefault)
+            warn = false;
+    }
+    void explicitFloatDefaultSeen()
+    {
+        explicitFloatDefault = true;
+        if (explicitIntDefault)
+            warn = false;
+    }
+
+protected:
+    bool obey;                  // respect precision qualifiers
+    bool warn;                  // need to give a warning about the defaults
+    bool explicitIntDefault;    // user set the default for int/uint
+    bool explicitFloatDefault;  // user set the default for float
 };
 
 //
@@ -154,6 +194,9 @@ public:
     TParseContext(TSymbolTable&, TIntermediate&, bool parsingBuiltins, int version, EProfile, const SpvVersion& spvVersion, EShLanguage, TInfoSink&,
                   bool forwardCompatible = false, EShMessages messages = EShMsgDefault);
     virtual ~TParseContext();
+
+    bool obeyPrecisionQualifiers() const { return precisionManager.respectingPrecisionQualifiers(); };
+    void setPrecisionDefaults();
 
     void setLimits(const TBuiltInResource&);
     bool parseShaderStrings(TPpContext&, TInputScanner& input, bool versionWillBeError = false);
@@ -197,6 +240,8 @@ public:
     TFunction* handleFunctionDeclarator(const TSourceLoc&, TFunction& function, bool prototype);
     TIntermAggregate* handleFunctionDefinition(const TSourceLoc&, TFunction&);
     TIntermTyped* handleFunctionCall(const TSourceLoc&, TFunction*, TIntermNode*);
+    TIntermTyped* handleBuiltInFunctionCall(TSourceLoc, TIntermNode& arguments, const TFunction& function);
+    void computeBuiltinPrecisions(TIntermTyped&, const TFunction&);
     TIntermNode* handleReturnValue(const TSourceLoc&, TIntermTyped*);
     void checkLocation(const TSourceLoc&, TOperator);
     TIntermTyped* handleLengthMethod(const TSourceLoc&, TFunction*, TIntermNode*);
@@ -204,7 +249,11 @@ public:
     TIntermTyped* addOutputArgumentConversions(const TFunction&, TIntermAggregate&) const;
     void builtInOpCheck(const TSourceLoc&, const TFunction&, TIntermOperator&);
     void nonOpBuiltInCheck(const TSourceLoc&, const TFunction&, TIntermAggregate&);
+    void userFunctionCallCheck(const TSourceLoc&, TIntermAggregate&);
+    void samplerConstructorLocationCheck(const TSourceLoc&, const char* token, TIntermNode*);
     TFunction* handleConstructorCall(const TSourceLoc&, const TPublicType&);
+    void handlePrecisionQualifier(const TSourceLoc&, TQualifier&, TPrecisionQualifier);
+    void checkPrecisionQualifier(const TSourceLoc&, TPrecisionQualifier);
 
     bool parseVectorFields(const TSourceLoc&, const TString&, int vecSize, TVectorFields&);
     void assignError(const TSourceLoc&, const char* op, TString left, TString right);
@@ -276,7 +325,7 @@ public:
     const TFunction* findFunction400(const TSourceLoc& loc, const TFunction& call, bool& builtIn);
     void declareTypeDefaults(const TSourceLoc&, const TPublicType&);
     TIntermNode* declareVariable(const TSourceLoc&, TString& identifier, const TPublicType&, TArraySizes* typeArray = 0, TIntermTyped* initializer = 0);
-    TIntermTyped* addConstructor(const TSourceLoc&, TIntermNode*, const TType&, TOperator);
+    TIntermTyped* addConstructor(const TSourceLoc&, TIntermNode*, const TType&);
     TIntermTyped* constructAggregate(TIntermNode*, const TType&, int, const TSourceLoc&);
     TIntermTyped* constructBuiltIn(const TType&, TOperator, TIntermTyped*, const TSourceLoc&, bool subset);
     void declareBlock(const TSourceLoc&, TTypeList& typeList, const TString* instanceName = 0, TArraySizes* arraySizes = 0);
@@ -302,7 +351,6 @@ protected:
     void declareArray(const TSourceLoc&, TString& identifier, const TType&, TSymbol*&, bool& newDeclaration);
     TIntermNode* executeInitializer(const TSourceLoc&, TIntermTyped* initializer, TVariable* variable);
     TIntermTyped* convertInitializerList(const TSourceLoc&, const TType&, TIntermTyped* initializer);
-    TOperator mapTypeToConstructorOp(const TType&) const;
     void finalErrorCheck();
     void outputMessage(const TSourceLoc&, const char* szReason, const char* szToken,
                        const char* szExtraInfoFormat, TPrefixType prefix,
@@ -338,6 +386,7 @@ protected:
     const bool parsingBuiltins;        // true if parsing built-in symbols/functions
     static const int maxSamplerIndex = EsdNumDims * (EbtNumTypes * (2 * 2 * 2 * 2 * 2)); // see computeSamplerTypeIndex()
     TPrecisionQualifier defaultSamplerPrecision[maxSamplerIndex];
+    TPrecisionManager precisionManager;
     bool afterEOF;
     TQualifier globalBufferDefaults;
     TQualifier globalUniformDefaults;

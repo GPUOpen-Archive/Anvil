@@ -22,5 +22,3 @@ if(WIN32)
     source_group("Source" FILES ${SOURCES} ${HEADERS})
 endif(WIN32)
 
-install(TARGETS HLSL
-        ARCHIVE DESTINATION lib)

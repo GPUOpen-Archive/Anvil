@@ -36,24 +36,35 @@
 // Disassembler for SPIR-V.
 //
 
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
+#include <cstdlib>
+#include <cstring>
+#include <cassert>
 #include <iomanip>
 #include <stack>
 #include <sstream>
 #include <cstring>
 
-namespace spv {
-    // Include C-based headers that don't have a namespace
-    #include "GLSL.std.450.h"
-}
-const char* GlslStd450DebugNames[spv::GLSLstd450Count];
-
 #include "disassemble.h"
 #include "doc.h"
 
 namespace spv {
+    extern "C" {
+        // Include C-based headers that don't have a namespace
+        #include "GLSL.std.450.h"
+        #include "GLSL.ext.KHR.h"
+#ifdef AMD_EXTENSIONS
+        #include "GLSL.ext.AMD.h"
+#endif
+    }
+}
+const char* GlslStd450DebugNames[spv::GLSLstd450Count];
+
+namespace spv {
+
+static const char* GLSLextKHRGetDebugNames(const char*, unsigned);
+#ifdef AMD_EXTENSIONS
+static const char* GLSLextAMDGetDebugNames(const char*, unsigned);
+#endif
 
 static void Kill(std::ostream& out, const char* message)
 {
@@ -64,6 +75,10 @@ static void Kill(std::ostream& out, const char* message)
 // used to identify the extended instruction library imported when printing
 enum ExtInstSet {
     GLSL450Inst,
+    GLSLextKHRInst,
+#ifdef AMD_EXTENSIONS
+    GLSLextAMDInst,
+#endif
     OpenCLExtInst,
 };
 
@@ -446,14 +461,32 @@ void SpirvStream::disassembleInstruction(Id resultId, Id /*typeId*/, Op opCode, 
             --numOperands;
             if (opCode == OpExtInst) {
                 ExtInstSet extInstSet = GLSL450Inst;
-                if (0 == memcmp("OpenCL", (const char*)(idDescriptor[stream[word-2]].c_str()), 6)) {
+                const char* name = idDescriptor[stream[word - 2]].c_str();
+                if (0 == memcmp("OpenCL", name, 6)) {
                     extInstSet = OpenCLExtInst;
+                } else if (strcmp(spv::E_SPV_ARB_shader_ballot, name) == 0) {
+                    extInstSet = GLSLextKHRInst;
+#ifdef AMD_EXTENSIONS
+                } else if (strcmp(spv::E_SPV_AMD_shader_ballot, name) == 0 ||
+                           strcmp(spv::E_SPV_AMD_shader_trinary_minmax, name) == 0 ||
+                           strcmp(spv::E_SPV_AMD_shader_explicit_vertex_parameter, name) == 0 ||
+                           strcmp(spv::E_SPV_AMD_gcn_shader, name) == 0) {
+                    extInstSet = GLSLextAMDInst;
+#endif
                 }
+
                 unsigned entrypoint = stream[word - 1];
                 if (extInstSet == GLSL450Inst) {
                     if (entrypoint < GLSLstd450Count) {
                         out << "(" << GlslStd450DebugNames[entrypoint] << ")";
                     }
+                }
+                else if (extInstSet = GLSLextKHRInst) {
+                    out << "(" << GLSLextKHRGetDebugNames(name, entrypoint) << ")";
+#ifdef AMD_EXTENSIONS
+                } else if (extInstSet == GLSLextAMDInst) {
+                    out << "(" << GLSLextAMDGetDebugNames(name, entrypoint) << ")";
+#endif
                 }
             }
             break;
@@ -560,6 +593,65 @@ static void GLSLstd450GetDebugNames(const char** names)
     names[GLSLstd450InterpolateAtSample]     = "InterpolateAtSample";
     names[GLSLstd450InterpolateAtOffset]     = "InterpolateAtOffset";
 }
+
+static const char* GLSLextKHRGetDebugNames(const char* name, unsigned entrypoint)
+{
+    if (strcmp(name, spv::E_SPV_ARB_shader_ballot) == 0)
+    {
+        switch (entrypoint) {
+        case BallotARB:                 return "BallotARB";
+        case ReadInvocationARB:         return "ReadInvocationARB";
+        case ReadFirstInvocationARB:    return "ReadFirstInvocationARB";
+        default:                        return "Bad";
+        }
+    }
+
+    return "Bad";
+}
+
+#ifdef AMD_EXTENSIONS
+static const char* GLSLextAMDGetDebugNames(const char* name, unsigned entrypoint)
+{
+    if (strcmp(name, spv::E_SPV_AMD_shader_ballot) == 0) {
+        switch (entrypoint) {
+        case SwizzleInvocationsAMD:         return "SwizzleInvocationsAMD";
+        case SwizzleInvocationsMaskedAMD:   return "SwizzleInvocationsMaskedAMD";
+        case WriteInvocationAMD:            return "WriteInvocationAMD";
+        case MbcntAMD:                      return "MbcntAMD";
+        default:                            return "Bad";
+        }
+    } else if (strcmp(name, spv::E_SPV_AMD_shader_trinary_minmax) == 0) {
+        switch (entrypoint) {
+        case FMin3AMD:      return "FMin3AMD";
+        case UMin3AMD:      return "UMin3AMD";
+        case SMin3AMD:      return "SMin3AMD";
+        case FMax3AMD:      return "FMax3AMD";
+        case UMax3AMD:      return "UMax3AMD";
+        case SMax3AMD:      return "SMax3AMD";
+        case FMid3AMD:      return "FMid3AMD";
+        case UMid3AMD:      return "UMid3AMD";
+        case SMid3AMD:      return "SMid3AMD";
+        default:            return "Bad";
+        }
+    } else if (strcmp(name, spv::E_SPV_AMD_shader_explicit_vertex_parameter) == 0) {
+        switch (entrypoint) {
+        case InterpolateAtVertexAMD:    return "InterpolateAtVertexAMD";
+        default:                        return "Bad";
+        }
+    }
+    else if (strcmp(name, spv::E_SPV_AMD_gcn_shader) == 0) {
+        switch (entrypoint) {
+        case CubeFaceIndexAMD:      return "CubeFaceIndexAMD";
+        case CubeFaceCoordAMD:      return "CubeFaceCoordAMD";
+        case TimeAMD:               return "TimeAMD";
+        default:
+            break;
+        }
+    }
+
+    return "Bad";
+}
+#endif
 
 void Disassemble(std::ostream& out, const std::vector<unsigned int>& stream)
 {

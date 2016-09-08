@@ -10,6 +10,7 @@ set(SOURCES
 set(HEADERS
     spirv.hpp
     GLSL.std.450.h
+    GLSL.ext.KHR.h
     GlslangToSpv.h
     Logger.h
     SpvBuilder.h
@@ -18,6 +19,11 @@ set(HEADERS
     doc.h
     disassemble.h)
 
+if(ENABLE_AMD_EXTENSIONS)
+    set(HEADERS
+        GLSL.ext.AMD.h)
+endif(ENABLE_AMD_EXTENSIONS)
+
 add_library(SPIRV STATIC ${SOURCES} ${HEADERS})
 set_property(TARGET SPIRV PROPERTY FOLDER glslang)
 
@@ -25,5 +31,3 @@ if(WIN32)
     source_group("Source" FILES ${SOURCES} ${HEADERS})
 endif(WIN32)
 
-install(TARGETS SPIRV
-        ARCHIVE DESTINATION lib)

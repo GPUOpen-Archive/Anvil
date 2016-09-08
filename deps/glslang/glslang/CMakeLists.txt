@@ -14,6 +14,7 @@ set(SOURCES
     MachineIndependent/Initialize.cpp
     MachineIndependent/IntermTraverse.cpp
     MachineIndependent/Intermediate.cpp
+    MachineIndependent/ParseContextBase.cpp
     MachineIndependent/ParseHelper.cpp
     MachineIndependent/PoolAlloc.cpp
     MachineIndependent/RemoveTree.cpp
@@ -86,6 +87,3 @@ if(WIN32)
     source_group("GenericCodeGen" REGULAR_EXPRESSION "GenericCodeGen/*")
     source_group("MachineIndependent\\Preprocessor" REGULAR_EXPRESSION "MachineIndependent/preprocessor/*")
 endif(WIN32)
-
-install(TARGETS glslang 
-        ARCHIVE DESTINATION lib)
