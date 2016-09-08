@@ -31,24 +31,26 @@
 #ifndef WRAPPERS_EVENT_H
 #define WRAPPERS_EVENT_H
 
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
     /** Wrapper class for Vulkan events */
-    class Event : public RefCounterSupportProvider
+    class Event
     {
     public:
         /* Public functions */
 
-        /** Constructor.
+        /** Creates a new Event instance.
          *
          *  Creates a single Vulkan event instance and registers the object in Object Tracker.
          *
          *  @param device_ptr Device to use.
          */
-        Event(Anvil::Device* device_ptr);
+        static std::shared_ptr<Event> create(std::weak_ptr<Anvil::Device> device_ptr);
+
+        /** TODO */
+        virtual ~Event();
 
         /** Retrieves a raw Vulkan handle for the underlying VkEvent instance. */
         VkEvent get_event() const
@@ -81,25 +83,18 @@ namespace Anvil
 
     private:
         /* Private functions */
+
+        /* Constructor. */
+        Event(std::weak_ptr<Anvil::Device> device_ptr);
+
         Event           (const Event&);
         Event& operator=(const Event&);
-
-        virtual ~Event();
 
         void release_event();
 
         /* Private variables */
-        Anvil::Device* m_device_ptr;
-        VkEvent        m_event;
-    };
-
-    /** Delete functor. Useful if you need to wrap the event instance in an auto pointer */
-    struct EventDeleter
-    {
-        void operator()(Event* event_ptr) const
-        {
-            event_ptr->release();
-        }
+        std::weak_ptr<Anvil::Device> m_device_ptr;
+        VkEvent                      m_event;
     };
 }; /* namespace Anvil */
 

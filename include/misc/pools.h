@@ -44,6 +44,11 @@
 
 namespace Anvil
 {
+    /* Helper forward declarations */
+    template <class PoolItemType,
+              class PoolItemPtrType>
+    class GenericPool;
+
     /** A generic pool item interface which provides life-time control & reset facilities
      *  to the pool.
      **/
@@ -57,17 +62,69 @@ namespace Anvil
             /* Stub */
         }
 
-        virtual PoolItem* create_item ()                   = 0;
-        virtual void      release_item(PoolItem* item_ptr) = 0;
-        virtual void      reset_item  (PoolItem* item_ptr) = 0;
+        virtual PoolItem create_item ()                  = 0;
+        virtual void     release_item(PoolItem item_ptr) = 0;
+        virtual void     reset_item  (PoolItem item_ptr) = 0;
     };
 
     /** Generic pool implementation  */
-    template <class PoolItem>
+    template<class PoolItemType, class PoolItemPtrType>
+    struct PoolItemContainer
+    {
+        PoolItemPtrType item;
+
+        PoolItemContainer()
+        {
+            /* Stub */
+        }
+
+        PoolItemContainer(PoolItemPtrType in_item)
+        {
+            item = in_item;
+        }
+
+        bool operator==(const PoolItemType* item_ptr) const
+        {
+            return item.get() == item_ptr;
+        }
+    };
+
+    /** A functor which returns an object back to the pool.
+     *
+     *  Useful if you need to wrap an object in an auto pointer, retrieved from a command buffer pool.
+     *  By using the functor, you can have it automatically returned to the pool whenever the pointer
+     *  gets out of scope.
+     *
+     **/
+    template<class PoolItemType,
+             class PoolItemPtrType>
+    struct ReturnToPoolFunctor
+    {
+        /** Constructor.
+         *
+         *  @param in_pool_ptr Pointer to the command buffer pool, to which the command buffer
+         *                     should be returned when the auto pointer goes out of scope. Must
+         *                     not be nullptr.
+         **/
+        ReturnToPoolFunctor(GenericPool<PoolItemType, PoolItemPtrType>* in_pool_ptr)
+        {
+            pool_ptr = in_pool_ptr;
+        }
+
+        void operator()(PoolItemType* item)
+        {
+            pool_ptr->return_item(item);
+        }
+
+    private:
+        GenericPool<PoolItemType, PoolItemPtrType>* pool_ptr;
+    };
+
+    template <class PoolItemType,
+              class PoolItemPtrType>
     class GenericPool
     {
     public:
-        /* Public functions */
 
         /** Constructor
          *
@@ -79,8 +136,8 @@ namespace Anvil
          *                                   Must not be nullptr. Also see the note above.
          *
          **/
-        GenericPool(uint32_t               in_n_items_to_preallocate,
-                    IPoolWorker<PoolItem>* in_worker_ptr)
+        GenericPool(uint32_t                      in_n_items_to_preallocate,
+                    IPoolWorker<PoolItemPtrType>* in_worker_ptr)
             :m_capacity  (in_n_items_to_preallocate),
              m_worker_ptr(in_worker_ptr)
         {
@@ -88,9 +145,9 @@ namespace Anvil
                           n_item < in_n_items_to_preallocate;
                         ++n_item)
             {
-                PoolItem* new_item_ptr = m_worker_ptr->create_item();
+                PoolItemContainer<PoolItemType, PoolItemPtrType> new_item_container(m_worker_ptr->create_item() );
 
-                m_pool_items.push_front(new_item_ptr);
+                m_available_pool_item_containers.push_back(new_item_container);
             }
         }
 
@@ -103,15 +160,22 @@ namespace Anvil
          **/
         virtual ~GenericPool()
         {
-            PoolItem* current_item_ptr = nullptr;
-
-            while (!m_pool_items.empty())
+            while (!m_active_pool_item_containers.empty())
             {
-                PoolItem* current_item_ptr = m_pool_items.front();
+                Anvil::PoolItemContainer<PoolItemType, PoolItemPtrType> current_item_container = m_active_pool_item_containers.front();
 
-                m_worker_ptr->release_item(current_item_ptr);
+                m_worker_ptr->release_item(current_item_container.item);
 
-                m_pool_items.pop_front();
+                m_active_pool_item_containers.pop_back();
+            }
+
+            while (!m_available_pool_item_containers.empty())
+            {
+                Anvil::PoolItemContainer<PoolItemType, PoolItemPtrType> current_item_container = m_available_pool_item_containers.front();
+
+                m_worker_ptr->release_item(current_item_container.item);
+
+                m_available_pool_item_containers.pop_back();
             }
 
             if (m_worker_ptr != nullptr)
@@ -139,56 +203,85 @@ namespace Anvil
          *  Callers must NOT release the retrieved instances.
          *
          *  @return As per description. */
-        PoolItem* get_item()
+        PoolItemPtrType get_item()
         {
-            PoolItem* result_ptr = nullptr;
+            ReturnToPoolFunctor<PoolItemType, PoolItemPtrType> release_functor(this);
+            PoolItemPtrType                                    result;
 
-            if (!m_pool_items.empty())
+            if (!m_available_pool_item_containers.empty())
             {
-                result_ptr = m_pool_items.front();
+                result = PoolItemPtrType(m_available_pool_item_containers.back().item.get(),
+                                         release_functor);
 
-                m_pool_items.pop_front();
+                m_active_pool_item_containers.push_back  (m_available_pool_item_containers.back() );
+                m_available_pool_item_containers.pop_back();
             }
             else
             {
-                result_ptr = m_worker_ptr->create_item();
+                PoolItemContainer<PoolItemType, PoolItemPtrType> new_item_container(m_worker_ptr->create_item() );
+
+                m_active_pool_item_containers.push_back(new_item_container);
+
+                result = PoolItemPtrType(m_active_pool_item_containers.back().item.get(),
+                                         release_functor);
             }
 
-            m_worker_ptr->reset_item(result_ptr);
+            m_worker_ptr->reset_item(result);
 
-            return result_ptr;
+            return result;
         }
 
         /** Stores the provided instance back in the pool. */
-        void return_item(PoolItem* item_ptr)
+        void return_item(PoolItemType* item_ptr)
         {
-            m_pool_items.push_front(item_ptr);
+            PoolItemContainer<PoolItemType, PoolItemPtrType> container;
+            bool                                             has_found = false;
+
+            for (auto iterator  = m_active_pool_item_containers.begin();
+                      iterator != m_active_pool_item_containers.end();
+                    ++iterator)
+            {
+                if (iterator->item.get() == item_ptr)
+                {
+                    container = *iterator;
+                    has_found = true;
+
+                    m_active_pool_item_containers.erase(iterator);
+
+                    break;
+                }
+            }
+
+            anvil_assert(has_found);
+
+            m_available_pool_item_containers.push_back(container);
         }
 
     protected:
         /* Protected type declarations */
-        typedef std::forward_list<PoolItem*> PoolItems;
+        typedef std::vector<PoolItemContainer<PoolItemType, PoolItemPtrType> > PoolItemContainers;
 
         /* Protected functions */
 
         /** Retrieves the underlying pool worker instance */
-        const IPoolWorker<PoolItem>* get_worker_ptr() const
+        const IPoolWorker<PoolItemPtrType>* get_worker_ptr() const
         {
             return m_worker_ptr;
         }
 
         /* Protected variables */
-        PoolItems m_pool_items;
+        PoolItemContainers m_active_pool_item_containers;
+        PoolItemContainers m_available_pool_item_containers;
 
     private:
         /* Private variables */
-        uint32_t               m_capacity;
-        IPoolWorker<PoolItem>* m_worker_ptr;
+        uint32_t                      m_capacity;
+        IPoolWorker<PoolItemPtrType>* m_worker_ptr;
     };
 
 
     /** Implements IPoolWorker interface for primary command buffers. */
-    class PrimaryCommandBufferPoolWorker : public IPoolWorker<PrimaryCommandBuffer>
+    class PrimaryCommandBufferPoolWorker : public IPoolWorker<std::shared_ptr<PrimaryCommandBuffer> >
     {
     public:
         /* Public functions */
@@ -200,7 +293,7 @@ namespace Anvil
          *  @param parent_command_pool_ptr Command pool instance, from which command buffers
          *                                 should be spawned. Must not be nullptr.
          **/
-        PrimaryCommandBufferPoolWorker(Anvil::CommandPool* parent_command_pool_ptr);
+        PrimaryCommandBufferPoolWorker(std::shared_ptr<Anvil::CommandPool> parent_command_pool_ptr);
 
         /** Destructor.
          *
@@ -211,20 +304,16 @@ namespace Anvil
         /** Creates a new primary command buffer instance. The command buffer
          *  is taken from the pool specified at worker instantiation time.
          **/
-        PrimaryCommandBuffer* create_item();
+        std::shared_ptr<PrimaryCommandBuffer> create_item();
 
         /** Resets contents of the specified command buffer.
          *
          *  @param item_ptr Command buffer to reset. Must not be nullptr.
          **/
-        void reset_item(PrimaryCommandBuffer* item_ptr);
+        void reset_item(std::shared_ptr<PrimaryCommandBuffer> item_ptr);
 
-        /** Releases the specified command buffer.
-         *
-         *  NOTE: Command buffers are ref-counted which implies the object does not necessarily
-         *        have to be physically destroyed by this function.
-         **/
-        void release_item(PrimaryCommandBuffer* item_ptr);
+        /** Releases the specified command buffer. **/
+        void release_item(std::shared_ptr<PrimaryCommandBuffer> item_ptr);
 
     private:
         /* Private functions */
@@ -232,11 +321,11 @@ namespace Anvil
         bool operator=                (const PrimaryCommandBufferPoolWorker&);
 
         /* Private variables */
-        Anvil::CommandPool* m_parent_command_pool_ptr;
+        std::shared_ptr<Anvil::CommandPool> m_parent_command_pool_ptr;
     };
 
     /** Implements a primary command buffer pool */
-    class PrimaryCommandBufferPool : public GenericPool<PrimaryCommandBuffer>
+    class PrimaryCommandBufferPool : public GenericPool<PrimaryCommandBuffer, std::shared_ptr<PrimaryCommandBuffer> >
     {
     public:
         /** Constructor
@@ -246,49 +335,20 @@ namespace Anvil
          *  @param n_preallocated_items    Number of command buffers to preallocate at creation time.
          *
          **/
-        PrimaryCommandBufferPool(Anvil::CommandPool* parent_command_pool_ptr,
-                                 uint32_t            n_preallocated_items);
+        static std::shared_ptr<PrimaryCommandBufferPool> create(std::shared_ptr<Anvil::CommandPool> parent_command_pool_ptr,
+                                                                uint32_t                            n_preallocated_items);
 
         /** Stub destructor */
         virtual ~PrimaryCommandBufferPool()
         {
             /* Stub */
         }
-    };
-
-    /** A functor which returns an object back to the pool.
-     *
-     *  Useful if you need to wrap an object in an auto pointer, retrieved from a command buffer pool.
-     *  By using the functor, you can have it automatically returned to the pool whenever the pointer
-     *  gets out of scope.
-     *
-     **/
-    template<class Pool,
-             class PoolItem>
-    struct ReturnToPoolFunctor
-    {
-        /** Constructor.
-         *
-         *  @param in_pool_ptr Pointer to the command buffer pool, to which the command buffer
-         *                     should be returned when the auto pointer goes out of scope. Must
-         *                     not be nullptr.
-         **/
-        ReturnToPoolFunctor(Pool* in_pool_ptr)
-        {
-            pool_ptr = in_pool_ptr;
-        }
-
-        void operator()(PoolItem* command_buffer_ptr)
-        {
-            pool_ptr->return_item(command_buffer_ptr);
-        }
 
     private:
-        Pool* pool_ptr;
+        /* Constructor. Please see create() for documentation */
+        PrimaryCommandBufferPool(std::shared_ptr<Anvil::CommandPool> parent_command_pool_ptr,
+                                 uint32_t                            n_preallocated_items);
     };
-
-    typedef ReturnToPoolFunctor<PrimaryCommandBufferPool, PrimaryCommandBuffer> ReturnPrimaryCommandBufferToPoolFunctor;
-
 }; /* namespace Anvil */
 
 #endif /* WRAPPERS_POOLS_H */

@@ -31,13 +31,12 @@
 #ifndef WRAPPERS_PIPELINE_CACHE_H
 #define WRAPPERS_PIPELINE_CACHE_H
 
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 
 
 namespace Anvil
 {
-    class PipelineCache : public RefCounterSupportProvider
+    class PipelineCache
     {
     public:
         /* Public functions */
@@ -49,9 +48,12 @@ namespace Anvil
          *  @param initial_data      Initial data to initialize the new pipeline cache instance with.
          *                           May be nullptr if @param initial_data_size is 0.
          **/
-        PipelineCache(Anvil::Device* device_ptr,
-                      size_t         initial_data_size = 0,
-                      const void*    initial_data      = nullptr);
+        static std::shared_ptr<Anvil::PipelineCache> create(std::weak_ptr<Anvil::Device> device_ptr,
+                                                            size_t                       initial_data_size = 0,
+                                                            const void*                  initial_data      = nullptr);
+
+        /** TODO */
+        virtual ~PipelineCache();
 
         /** Retrieves pipeline cache data.
          *
@@ -77,19 +79,23 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool merge(uint32_t                           n_pipeline_caches,
-                   const Anvil::PipelineCache* const* src_cache_ptrs);
+        bool merge(uint32_t                                           n_pipeline_caches,
+                   std::shared_ptr<const Anvil::PipelineCache> const* src_cache_ptrs);
 
     private:
         /* Private functions */
+
+        /* Constructor. See create() for specification */
+        PipelineCache(std::weak_ptr<Anvil::Device> device_ptr,
+                      size_t                       initial_data_size,
+                      const void*                  initial_data);
+
         PipelineCache           (const PipelineCache&);
         PipelineCache& operator=(const PipelineCache&);
 
-        virtual ~PipelineCache();
-
         /* Private variables */
-        Anvil::Device*  m_device_ptr;
-        VkPipelineCache m_pipeline_cache;
+        std::weak_ptr<Anvil::Device> m_device_ptr;
+        VkPipelineCache              m_pipeline_cache;
     };
 }; /* namespace Anvil */
 

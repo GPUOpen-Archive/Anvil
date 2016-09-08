@@ -1,6 +1,6 @@
 # Anvil
 
-This is a README file for Anvil v1.0, a framework for Vulkan&trade;.
+This is a README file for Anvil v1.2, a framework for Vulkan&trade;.
 The README is organized as a FAQ.
 
 What license governs Anvil usage?
@@ -48,16 +48,16 @@ What platforms and hardware does it work on?
 ------
 Currently, Anvil has been confirmed to build and work correctly under:
 - 32- and 64-bit Linux   (Ubuntu)
-- 32- and 64-bit Windows (7, 8, 10)
+- 32- and 64-bit Windows (7, 8.1, 10)
 
 What are Anvil's requirements?
 ------
 In order to build Anvil, you will need the following software:
 - C++11 compiler.
 - CMake
-- Vulkan SDK
+- Vulkan SDK 1.0.13.0 or newer
 
-To build the Anvil on Linux, additional packages should be installed:
+To build Anvil on Linux, additional packages should be installed:
 - libxcb-keysyms (For ubuntu, use "apt-get install libxcb-keysyms1-dev")
 
 Does Anvil work only with AMD driver?
@@ -127,12 +127,9 @@ What are the known issues?
 ------
 Just a handful:
 * All command queues are currently assigned a priority of 1.0.
-* Buffer object wrapper does not support staging buffer-based writing.
 * DescriptorSetGroup wrapper does not leverage the <releaseable_sets> flag at
   baking time.
 * Per-attachment blending may not work correctly.
-* Reference-counting mechanism is non-atomic, and needs to be replaced with
-  automated pointers.
 
 Some of these will definitely be addressed in the next Anvil release.
 
@@ -142,7 +139,7 @@ Various developers within AMD.
 
 What if I have some feed-back?
 ------
-For now, please post it under the GPUOpen article informing about the library release.
+Please feel free to open an issue in Anvil's GitHub project.
 
 Attribution
 -----------

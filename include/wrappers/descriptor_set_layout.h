@@ -31,7 +31,6 @@
 #define WRAPPERS_DESCRIPTOR_SET_LAYOUT_H
 
 #include "misc/callbacks.h"
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 #include "wrappers/sampler.h"
 #include <memory>
@@ -51,21 +50,13 @@ namespace Anvil
     };
 
     /* Descriptor Set Layout wrapper */
-    class DescriptorSetLayout : public CallbacksSupportProvider,
-                                public RefCounterSupportProvider
+    class DescriptorSetLayout : public CallbacksSupportProvider
     {
     public:
         /* Public functions */
 
-        /** Constructor.
-         *
-         *  No Vulkan Descriptor Set Layout is instantiated at creation time. One will only be created
-         *  at getter time.
-         *
-         *  @param device_ptr Device the layout will be created for.
-         *
-         **/
-        DescriptorSetLayout(Anvil::Device* device_ptr);
+        /** TODO */
+        virtual ~DescriptorSetLayout();
 
         /** Adds a new binding to the layout instance.
          *
@@ -85,11 +76,11 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool add_binding(uint32_t           binding_index,
-                         VkDescriptorType   descriptor_type,
-                         uint32_t           descriptor_array_size,
-                         VkShaderStageFlags stage_flags,
-                         Anvil::Sampler**   immutable_sampler_ptrs = nullptr);
+        bool add_binding(uint32_t                         binding_index,
+                         VkDescriptorType                 descriptor_type,
+                         uint32_t                         descriptor_array_size,
+                         VkShaderStageFlags               stage_flags,
+                         std::shared_ptr<Anvil::Sampler>* immutable_sampler_ptrs = nullptr);
 
         /** Converts internal layout representation to a Vulkan object.
          *
@@ -99,6 +90,16 @@ namespace Anvil
          *  @return true if successful, false otherwise.
          **/
         bool bake();
+
+        /** Creates a new DescriptorSetLayout instance.
+         *
+         *  No Vulkan Descriptor Set Layout is instantiated at creation time. One will only be created
+         *  at getter time.
+         *
+         *  @param device_ptr Device the layout will be created for.
+         *
+         **/
+        static std::shared_ptr<DescriptorSetLayout> create(std::weak_ptr<Anvil::Device> device_ptr);
 
         /** Retrieves properties of a single defined binding.
          *
@@ -170,10 +171,10 @@ namespace Anvil
              *
              *  For argument discussion, please see Anvil::DescriptorSetLayout::add_binding() documentation.
              **/
-            Binding(uint32_t           in_descriptor_array_size,
-                    VkDescriptorType   in_descriptor_type,
-                    VkShaderStageFlags in_stage_flags,
-                    Anvil::Sampler**   in_immutable_sampler_ptrs)
+            Binding(uint32_t                         in_descriptor_array_size,
+                    VkDescriptorType                 in_descriptor_type,
+                    VkShaderStageFlags               in_stage_flags,
+                    std::shared_ptr<Anvil::Sampler>* in_immutable_sampler_ptrs)
             {
                 descriptor_array_size = in_descriptor_array_size;
                 descriptor_type       = in_descriptor_type;
@@ -185,10 +186,7 @@ namespace Anvil
                                   n_sampler < descriptor_array_size;
                                 ++n_sampler)
                     {
-                        immutable_samplers.push_back(std::shared_ptr<Anvil::Sampler>(in_immutable_sampler_ptrs[n_sampler],
-                                                                                     Anvil::SamplerDeleter() ));
-
-                        in_immutable_sampler_ptrs[n_sampler]->retain();
+                        immutable_samplers.push_back(in_immutable_sampler_ptrs[n_sampler]);
                     }
                 }
             }
@@ -197,25 +195,20 @@ namespace Anvil
         typedef std::map<BindingIndex, Binding> BindingIndexToBindingMap;
 
         /* Private functions */
+
+        /* Please see create() documentation for more details */
+        DescriptorSetLayout(std::weak_ptr<Anvil::Device> device_ptr);
+
         DescriptorSetLayout           (const DescriptorSetLayout&);
         DescriptorSetLayout& operator=(const DescriptorSetLayout&);
 
-        virtual ~DescriptorSetLayout();
-
         /* Private variables */
-        BindingIndexToBindingMap m_bindings;
-        Anvil::Device*           m_device_ptr;
-        bool                     m_dirty;
-        VkDescriptorSetLayout    m_layout;
-    };
+        BindingIndexToBindingMap     m_bindings;
+        std::weak_ptr<Anvil::Device> m_device_ptr;
+        bool                         m_dirty;
+        VkDescriptorSetLayout        m_layout;
 
-    /* Delete functor. Useful for wrapping DescriptorSetLayout instances in auto pointers. */
-    struct DescriptorSetLayoutDeleter
-    {
-        bool operator()(DescriptorSetLayout* layout_ptr)
-        {
-            layout_ptr->release();
-        }
+        friend class std::shared_ptr<Anvil::DescriptorSetLayout>;
     };
 }; /* namespace Anvil */
 

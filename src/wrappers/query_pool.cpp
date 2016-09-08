@@ -26,87 +26,21 @@
 #include "wrappers/pipeline_layout.h"
 #include "wrappers/query_pool.h"
 
-/* Please see header for specification */
-Anvil::QueryPoolWorker::QueryPoolWorker(Anvil::Device*                device_ptr,
-                                        VkQueryType                   query_type,
-                                        VkQueryPipelineStatisticFlags ps_flags,
-                                        uint32_t                      n_max_concurrent_queries)
-    :m_device_ptr     (device_ptr),
-     m_indices_created(0),
-     m_n_max_indices  (n_max_concurrent_queries),
-     m_query_pool_vk  (VK_NULL_HANDLE)
-{
-    VkQueryPoolCreateInfo create_info;
-    VkResult              result_vk;
-
-    create_info.flags              = 0;
-    create_info.pipelineStatistics = ps_flags;
-    create_info.pNext              = nullptr;
-    create_info.queryCount         = n_max_concurrent_queries;
-    create_info.queryType          = query_type;
-    create_info.sType              = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
-
-    result_vk = vkCreateQueryPool(m_device_ptr->get_device_vk(),
-                                 &create_info,
-                                  nullptr, /* pAllocator */
-                                 &m_query_pool_vk);
-
-    anvil_assert                  (m_query_pool_vk != VK_NULL_HANDLE);
-    anvil_assert_vk_call_succeeded(result_vk);
-}
 
 /* Please see header for specification */
-Anvil::QueryPoolWorker::~QueryPoolWorker()
+Anvil::QueryPool::QueryPool(std::weak_ptr<Anvil::Device> in_device_ptr,
+                            VkQueryType                  in_query_type,
+                            uint32_t                     in_n_max_concurrent_queries)
+    :m_device_ptr   (in_device_ptr),
+     m_n_max_indices(in_n_max_concurrent_queries)
 {
-    if (m_query_pool_vk != VK_NULL_HANDLE)
-    {
-        vkDestroyQueryPool(m_device_ptr->get_device_vk(),
-                           m_query_pool_vk,
-                           nullptr /* pAllocator */);
+    anvil_assert(in_query_type == VK_QUERY_TYPE_OCCLUSION ||
+                 in_query_type == VK_QUERY_TYPE_TIMESTAMP);
 
-        m_query_pool_vk = VK_NULL_HANDLE;
-    }
-}
-
-/* Please see header for specification */
-Anvil::QueryIndex* Anvil::QueryPoolWorker::create_item()
-{
-    /* Query indices start from 0 and increase linearly until the pool size, as specified
-     * at creation time, is reached */
-    anvil_assert(m_indices_created < m_n_max_indices);
-
-    return reinterpret_cast<QueryIndex*>( static_cast<uintptr_t>(m_indices_created++) );
-}
-
-/* Please see header for specification */
-void Anvil::QueryPoolWorker::release_item(QueryIndex* item_ptr)
-{
-    /* Stub - Vulkan query pool does not require us to return queries */
-}
-
-/* Please see header for specification */
-void Anvil::QueryPoolWorker::reset_item(QueryIndex* item_ptr)
-{
-    /* It is user's responsibility to reset the retrieved queries. If we were to handle this,
-     * we'd need to build a command buffer every time a reset request arrives, which would be
-     * extremely inefficient.
-     */
-    anvil_assert(false);
-}
-
-/* Please see header for specification */
-Anvil::QueryPool::QueryPool(Anvil::Device* device_ptr,
-                            VkQueryType    query_type,
-                            uint32_t       n_max_concurrent_queries)
-
-    :GenericPool(n_max_concurrent_queries,
-                 new QueryPoolWorker(device_ptr,
-                                     query_type,
-                                     0, /* ps_flags - irrelevant */
-                                     n_max_concurrent_queries) )
-{
-    anvil_assert(query_type == VK_QUERY_TYPE_OCCLUSION ||
-                query_type == VK_QUERY_TYPE_TIMESTAMP);
+    init(in_device_ptr,
+         in_query_type,
+         0, /* ps_flags - irrelevant */
+         in_n_max_concurrent_queries);
 
     /* Register the pool wrapper instance */
     Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_QUERY_POOL,
@@ -114,16 +48,17 @@ Anvil::QueryPool::QueryPool(Anvil::Device* device_ptr,
 }
 
 /* Please see header for specification */
-Anvil::QueryPool::QueryPool(Anvil::Device*                device_ptr,
-                            VkQueryPipelineStatisticFlags pipeline_statistics,
-                            uint32_t                      n_max_concurrent_queries)
-
-    :GenericPool(n_max_concurrent_queries,
-                 new QueryPoolWorker(device_ptr,
-                                     VK_QUERY_TYPE_PIPELINE_STATISTICS,
-                                     pipeline_statistics,
-                                     n_max_concurrent_queries) )
+Anvil::QueryPool::QueryPool(std::weak_ptr<Anvil::Device>  in_device_ptr,
+                            VkQueryPipelineStatisticFlags in_pipeline_statistics,
+                            uint32_t                      in_n_max_concurrent_queries)
+    :m_device_ptr   (in_device_ptr),
+     m_n_max_indices(in_n_max_concurrent_queries)
 {
+    init(in_device_ptr,
+         VK_QUERY_TYPE_PIPELINE_STATISTICS,
+         in_pipeline_statistics,
+         in_n_max_concurrent_queries);
+
     /* Register the pool wrapper instance */
     Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_QUERY_POOL,
                                                   this);
@@ -133,19 +68,76 @@ Anvil::QueryPool::QueryPool(Anvil::Device*                device_ptr,
 /* Please see header for specification */
 Anvil::QueryPool::~QueryPool()
 {
+    if (m_query_pool_vk != VK_NULL_HANDLE)
+    {
+        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
+        vkDestroyQueryPool(device_locked_ptr->get_device_vk(),
+                           m_query_pool_vk,
+                           nullptr /* pAllocator */);
+
+        m_query_pool_vk = VK_NULL_HANDLE;
+    }
+
     /* Unregister the pool wrapper instance */
     Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_QUERY_POOL,
                                                     this);
 }
 
 /* Please see header for specification */
-Anvil::QueryIndex* Anvil::QueryPool::pop_query_from_pool()
+std::shared_ptr<Anvil::QueryPool> Anvil::QueryPool::create_non_ps_query_pool(std::weak_ptr<Anvil::Device> device_ptr,
+                                                                             VkQueryType                  query_type,
+                                                                             uint32_t                     n_max_concurrent_queries)
 {
-    return reinterpret_cast<Anvil::QueryIndex*>(GenericPool::get_item() );
+    std::shared_ptr<Anvil::QueryPool> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::QueryPool(device_ptr,
+                             query_type,
+                             n_max_concurrent_queries)
+    );
+
+    return result_ptr;
 }
 
 /* Please see header for specification */
-void Anvil::QueryPool::return_query_to_pool(QueryIndex query_index)
+std::shared_ptr<Anvil::QueryPool> Anvil::QueryPool::create_ps_query_pool(std::weak_ptr<Anvil::Device>  device_ptr,
+                                                                         VkQueryPipelineStatisticFlags pipeline_statistics,
+                                                                         uint32_t                      n_max_concurrent_queries)
 {
-    GenericPool::return_item(reinterpret_cast<QueryIndex*>( static_cast<uintptr_t>(query_index) ));
+    std::shared_ptr<Anvil::QueryPool> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::QueryPool(device_ptr,
+                             pipeline_statistics,
+                             n_max_concurrent_queries)
+    );
+
+    return result_ptr;
+}
+
+/* Please see header for specification */
+void Anvil::QueryPool::init(std::weak_ptr<Anvil::Device>  device_ptr,
+                            VkQueryType                   query_type,
+                            VkQueryPipelineStatisticFlags ps_flags,
+                            uint32_t                      n_max_concurrent_queries)
+{
+    VkQueryPoolCreateInfo          create_info;
+    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+    VkResult                       result_vk;
+
+    create_info.flags              = 0;
+    create_info.pipelineStatistics = ps_flags;
+    create_info.pNext              = nullptr;
+    create_info.queryCount         = n_max_concurrent_queries;
+    create_info.queryType          = query_type;
+    create_info.sType              = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+
+    result_vk = vkCreateQueryPool(device_locked_ptr->get_device_vk(),
+                                 &create_info,
+                                  nullptr, /* pAllocator */
+                                 &m_query_pool_vk);
+
+    anvil_assert                  (m_query_pool_vk != VK_NULL_HANDLE);
+    anvil_assert_vk_call_succeeded(result_vk);
 }

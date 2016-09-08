@@ -28,12 +28,11 @@
 #ifndef WRAPPERS_IMAGE_VIEW_H
 #define WRAPPERS_IMAGE_VIEW_H
 
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
-    class ImageView : public RefCounterSupportProvider
+    class ImageView
     {
     public:
         /* Public functions */
@@ -55,17 +54,17 @@ namespace Anvil
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static ImageView* create_1D_image_view(Anvil::Device*        device_ptr,
-                                               Image*                image_ptr,
-                                               uint32_t              n_base_layer,
-                                               uint32_t              n_base_mipmap_level,
-                                               uint32_t              n_mipmaps,
-                                               VkImageAspectFlagBits aspect_mask,
-                                               VkFormat              format,
-                                               VkComponentSwizzle    swizzle_red,
-                                               VkComponentSwizzle    swizzle_green,
-                                               VkComponentSwizzle    swizzle_blue,
-                                               VkComponentSwizzle    swizzle_alpha);
+        static std::shared_ptr<ImageView> create_1D(std::weak_ptr<Anvil::Device> device_ptr,
+                                                    std::shared_ptr<Image>       image_ptr,
+                                                    uint32_t                     n_base_layer,
+                                                    uint32_t                     n_base_mipmap_level,
+                                                    uint32_t                     n_mipmaps,
+                                                    VkImageAspectFlagBits        aspect_mask,
+                                                    VkFormat                     format,
+                                                    VkComponentSwizzle           swizzle_red,
+                                                    VkComponentSwizzle           swizzle_green,
+                                                    VkComponentSwizzle           swizzle_blue,
+                                                    VkComponentSwizzle           swizzle_alpha);
 
         /** Creates a single-sample 1D array image view wrapper instance.
          *
@@ -85,18 +84,18 @@ namespace Anvil
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static ImageView* create_1D_array_image_view(Anvil::Device*        device_ptr,
-                                                     Image*                image_ptr,
-                                                     uint32_t              n_base_layer,
-                                                     uint32_t              n_layers,
-                                                     uint32_t              n_base_mipmap_level,
-                                                     uint32_t              n_mipmaps,
-                                                     VkImageAspectFlagBits aspect_mask,
-                                                     VkFormat              format,
-                                                     VkComponentSwizzle    swizzle_red,
-                                                     VkComponentSwizzle    swizzle_green,
-                                                     VkComponentSwizzle    swizzle_blue,
-                                                     VkComponentSwizzle    swizzle_alpha);
+        static std::shared_ptr<ImageView> create_1D_array(std::weak_ptr<Anvil::Device> device_ptr,
+                                                          std::shared_ptr<Image>       image_ptr,
+                                                          uint32_t                     n_base_layer,
+                                                          uint32_t                     n_layers,
+                                                          uint32_t                     n_base_mipmap_level,
+                                                          uint32_t                     n_mipmaps,
+                                                          VkImageAspectFlagBits        aspect_mask,
+                                                          VkFormat                     format,
+                                                          VkComponentSwizzle           swizzle_red,
+                                                          VkComponentSwizzle           swizzle_green,
+                                                          VkComponentSwizzle           swizzle_blue,
+                                                          VkComponentSwizzle           swizzle_alpha);
 
         /** Creates a single-sample or a multi-sample 2D image view wrapper instance. The view will be
          *  single-sample if @param image_ptr uses 1 sample per texel, and multi-sample otherwise.
@@ -116,17 +115,17 @@ namespace Anvil
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static ImageView* create_2D_image_view(Anvil::Device*        device_ptr,
-                                               Image*                image_ptr,
-                                               uint32_t              n_base_layer,
-                                               uint32_t              n_base_mipmap_level,
-                                               uint32_t              n_mipmaps,
-                                               VkImageAspectFlagBits aspect_mask,
-                                               VkFormat              format,
-                                               VkComponentSwizzle    swizzle_red,
-                                               VkComponentSwizzle    swizzle_green,
-                                               VkComponentSwizzle    swizzle_blue,
-                                               VkComponentSwizzle    swizzle_alpha);
+        static std::shared_ptr<ImageView> create_2D(std::weak_ptr<Anvil::Device> device_ptr,
+                                                    std::shared_ptr<Image>       image_ptr,
+                                                    uint32_t                     n_base_layer,
+                                                    uint32_t                     n_base_mipmap_level,
+                                                    uint32_t                     n_mipmaps,
+                                                    VkImageAspectFlagBits        aspect_mask,
+                                                    VkFormat                     format,
+                                                    VkComponentSwizzle           swizzle_red,
+                                                    VkComponentSwizzle           swizzle_green,
+                                                    VkComponentSwizzle           swizzle_blue,
+                                                    VkComponentSwizzle           swizzle_alpha);
 
         /** Creates a single-sample or a multi-sample 2D array image view wrapper instance. The view will be
          *  single-sample if @param image_ptr uses 1 sample per texel, and multi-sample otherwise.
@@ -147,18 +146,18 @@ namespace Anvil
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static ImageView* create_2D_array_image_view(Anvil::Device*        device_ptr,
-                                                     Image*                image_ptr,
-                                                     uint32_t              n_base_layer,
-                                                     uint32_t              n_layers,
-                                                     uint32_t              n_base_mipmap_level,
-                                                     uint32_t              n_mipmaps,
-                                                     VkImageAspectFlagBits aspect_mask,
-                                                     VkFormat              format,
-                                                     VkComponentSwizzle    swizzle_red,
-                                                     VkComponentSwizzle    swizzle_green,
-                                                     VkComponentSwizzle    swizzle_blue,
-                                                     VkComponentSwizzle    swizzle_alpha);
+        static std::shared_ptr<ImageView> create_2D_array(std::weak_ptr<Anvil::Device>  device_ptr,
+                                                          std::shared_ptr<Anvil::Image> image_ptr,
+                                                          uint32_t                      n_base_layer,
+                                                          uint32_t                      n_layers,
+                                                          uint32_t                      n_base_mipmap_level,
+                                                          uint32_t                      n_mipmaps,
+                                                          VkImageAspectFlagBits         aspect_mask,
+                                                          VkFormat                      format,
+                                                          VkComponentSwizzle            swizzle_red,
+                                                          VkComponentSwizzle            swizzle_green,
+                                                          VkComponentSwizzle            swizzle_blue,
+                                                          VkComponentSwizzle            swizzle_alpha);
 
         /** Creates a single-sample 3D image view wrapper instance.
          *
@@ -178,18 +177,18 @@ namespace Anvil
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static ImageView* create_3D_image_view(Anvil::Device*        device_ptr,
-                                               Image*                image_ptr,
-                                               uint32_t              n_base_slice,
-                                               uint32_t              n_slices,
-                                               uint32_t              n_base_mipmap_level,
-                                               uint32_t              n_mipmaps,
-                                               VkImageAspectFlagBits aspect_mask,
-                                               VkFormat              format,
-                                               VkComponentSwizzle    swizzle_red,
-                                               VkComponentSwizzle    swizzle_green,
-                                               VkComponentSwizzle    swizzle_blue,
-                                               VkComponentSwizzle    swizzle_alpha);
+        static std::shared_ptr<ImageView> create_3D(std::weak_ptr<Anvil::Device> device_ptr,
+                                                    std::shared_ptr<Image>       image_ptr,
+                                                    uint32_t                     n_base_slice,
+                                                    uint32_t                     n_slices,
+                                                    uint32_t                     n_base_mipmap_level,
+                                                    uint32_t                     n_mipmaps,
+                                                    VkImageAspectFlagBits        aspect_mask,
+                                                    VkFormat                     format,
+                                                    VkComponentSwizzle           swizzle_red,
+                                                    VkComponentSwizzle           swizzle_green,
+                                                    VkComponentSwizzle           swizzle_blue,
+                                                    VkComponentSwizzle           swizzle_alpha);
 
         /** Creates a cube-map image view wrapper instance.
          *
@@ -208,17 +207,17 @@ namespace Anvil
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static ImageView* create_cube_map_image_view(Anvil::Device*        device_ptr,
-                                                     Image*                image_ptr,
-                                                     uint32_t              n_base_layer,
-                                                     uint32_t              n_base_mipmap_level,
-                                                     uint32_t              n_mipmaps,
-                                                     VkImageAspectFlagBits aspect_mask,
-                                                     VkFormat              format,
-                                                     VkComponentSwizzle    swizzle_red,
-                                                     VkComponentSwizzle    swizzle_green,
-                                                     VkComponentSwizzle    swizzle_blue,
-                                                     VkComponentSwizzle    swizzle_alpha);
+        static std::shared_ptr<ImageView> create_cube_map(std::weak_ptr<Anvil::Device>  device_ptr,
+                                                          std::shared_ptr<Anvil::Image> image_ptr,
+                                                          uint32_t                      n_base_layer,
+                                                          uint32_t                      n_base_mipmap_level,
+                                                          uint32_t                      n_mipmaps,
+                                                          VkImageAspectFlagBits         aspect_mask,
+                                                          VkFormat                      format,
+                                                          VkComponentSwizzle            swizzle_red,
+                                                          VkComponentSwizzle            swizzle_green,
+                                                          VkComponentSwizzle            swizzle_blue,
+                                                          VkComponentSwizzle            swizzle_alpha);
 
         /** Creates a cube-map array image view wrapper instance.
          *
@@ -239,18 +238,21 @@ namespace Anvil
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static ImageView* create_cube_map_array_image_view(Anvil::Device*         device_ptr,
-                                                           Image*                 image_ptr,
-                                                           uint32_t               n_base_layer,
-                                                           uint32_t               n_cube_maps,
-                                                           uint32_t               n_base_mipmap_level,
-                                                           uint32_t               n_mipmaps,
-                                                           VkImageAspectFlagBits  aspect_mask,
-                                                           VkFormat               format,
-                                                           VkComponentSwizzle     swizzle_red,
-                                                           VkComponentSwizzle     swizzle_green,
-                                                           VkComponentSwizzle     swizzle_blue,
-                                                           VkComponentSwizzle     swizzle_alpha);
+        static std::shared_ptr<ImageView> create_cube_map_array(std::weak_ptr<Anvil::Device>  device_ptr,
+                                                                std::shared_ptr<Anvil::Image> image_ptr,
+                                                                uint32_t                      n_base_layer,
+                                                                uint32_t                      n_cube_maps,
+                                                                uint32_t                      n_base_mipmap_level,
+                                                                uint32_t                      n_mipmaps,
+                                                                VkImageAspectFlagBits         aspect_mask,
+                                                                VkFormat                      format,
+                                                                VkComponentSwizzle            swizzle_red,
+                                                                VkComponentSwizzle            swizzle_green,
+                                                                VkComponentSwizzle            swizzle_blue,
+                                                                VkComponentSwizzle            swizzle_alpha);
+
+        /** TODO */
+        virtual ~ImageView();
 
         /* Returns the internally maintained Vulkan image view instance. */
         uint32_t get_base_mipmap_level() const
@@ -282,7 +284,7 @@ namespace Anvil
         }
 
         /** Returns a pointer to the parent image, from which the image view has been created. */
-        Anvil::Image* get_parent_image()
+        std::shared_ptr<Anvil::Image> get_parent_image()
         {
             return m_parent_image_ptr;
         }
@@ -292,10 +294,8 @@ namespace Anvil
         ImageView           (const ImageView&);
         ImageView& operator=(const ImageView&);
 
-        ImageView(Anvil::Device* device_ptr,
-                  Anvil::Image*  parent_image_ptr);
-
-        virtual ~ImageView();
+        ImageView(std::weak_ptr<Anvil::Device>  device_ptr,
+                  std::shared_ptr<Anvil::Image> parent_image_ptr);
 
         bool init(VkImageViewType           image_view_type,
                   uint32_t                  n_base_layer,
@@ -308,9 +308,9 @@ namespace Anvil
                   const VkComponentSwizzle* swizzle_rgba_ptr);
 
         /* Private members */
-        Anvil::Device* m_device_ptr;
-        VkImageView    m_image_view;
-        Anvil::Image*  m_parent_image_ptr;
+        std::weak_ptr<Anvil::Device>  m_device_ptr;
+        VkImageView                   m_image_view;
+        std::shared_ptr<Anvil::Image> m_parent_image_ptr;
 
         VkImageAspectFlagBits m_aspect_mask;
         VkFormat              m_format;
@@ -318,15 +318,6 @@ namespace Anvil
         uint32_t              m_n_layers;
         uint32_t              m_n_mipmaps;
         uint32_t              m_n_slices;
-    };
-
-    /** Delete functor. Useful if you need to wrap the image view instance in an auto pointer */
-    struct ImageViewDeleter
-    {
-        void operator()(ImageView* image_view_ptr) const
-        {
-            image_view_ptr->release();
-        }
     };
 };
 

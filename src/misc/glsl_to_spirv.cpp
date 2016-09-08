@@ -54,9 +54,11 @@
     };
 
     /* Constructor. */
-    Anvil::GLSLangLimits::GLSLangLimits(Anvil::PhysicalDevice* physical_device_ptr)
+    Anvil::GLSLangLimits::GLSLangLimits(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr)
     {
-        const VkPhysicalDeviceLimits& limits                         = physical_device_ptr->get_device_properties().limits;
+        std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(physical_device_ptr);
+
+        const VkPhysicalDeviceLimits& limits                         = physical_device_locked_ptr->get_device_properties().limits;
         VkSampleCountFlags            max_sampled_image_sample_count;
         uint32_t                      max_sampled_image_samples      = 0;
         VkSampleCountFlags            max_storage_image_sample_count = limits.storageImageSampleCounts;
@@ -209,10 +211,10 @@
 
 
 /* Please see header for specification */
-Anvil::GLSLShaderToSPIRVGenerator::GLSLShaderToSPIRVGenerator(Anvil::PhysicalDevice* physical_device_ptr,
-                                                              const Mode&            mode,
-                                                              std::string            data,
-                                                              ShaderStage            shader_stage)
+Anvil::GLSLShaderToSPIRVGenerator::GLSLShaderToSPIRVGenerator(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                                                              const Mode&                          mode,
+                                                              std::string                          data,
+                                                              ShaderStage                          shader_stage)
     :m_data           (data),
      m_limits         (physical_device_ptr),
      m_mode           (mode),
@@ -670,3 +672,21 @@ end:
         return result;
     }
 #endif
+
+/* Please see header for specification */
+std::shared_ptr<Anvil::GLSLShaderToSPIRVGenerator> Anvil::GLSLShaderToSPIRVGenerator::create(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                                                                                             const Mode&                          mode,
+                                                                                             std::string                          data,
+                                                                                             ShaderStage                          shader_stage)
+{
+    std::shared_ptr<Anvil::GLSLShaderToSPIRVGenerator> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::GLSLShaderToSPIRVGenerator(physical_device_ptr,
+                                              mode,
+                                              data,
+                                              shader_stage)
+    );
+
+    return result_ptr;
+}

@@ -39,7 +39,7 @@
 namespace Anvil
 {
     /* Wrapper class for Vulkan rendering surfaces */
-    class RenderingSurface : public RefCounterSupportProvider
+    class RenderingSurface
     {
     public:
         /* Public type definitions */
@@ -70,25 +70,28 @@ namespace Anvil
 
         /* Public functions */
 
-        /** Constructor.
-         *
-         *  Creates a single Vulkan rendering surface instance and registers the object in
-         *  Object Tracker.
-         *
-         */
-        RenderingSurface(Anvil::Instance*                              instance_ptr,
-                         Anvil::PhysicalDevice*                        physical_device_ptr,
-                         Anvil::Window*                                window_ptr,
+        /** Creates a single Vulkan rendering surface instance and registers the object in
+         *  Object Tracker. */
+        static std::shared_ptr<RenderingSurface> create(std::weak_ptr<Anvil::Instance>                instance_ptr,
+                                                        std::weak_ptr<Anvil::PhysicalDevice>          physical_device_ptr,
+                                                        std::shared_ptr<Anvil::Window>                window_ptr,
 #ifdef _WIN32
-                         PFN_vkCreateWin32SurfaceKHR                   pfn_create_win32_surface_khr_proc,
+                                                        PFN_vkCreateWin32SurfaceKHR                   pfn_create_win32_surface_khr_proc,
 #else
-                         PFN_vkCreateXcbSurfaceKHR                     pfn_create_xcb_surface_khr_proc,
+                                                        PFN_vkCreateXcbSurfaceKHR                     pfn_create_xcb_surface_khr_proc,
 #endif
-                         PFN_vkDestroySurfaceKHR                       pfn_destroy_surface_khr_proc,
-                         PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR pfn_get_physical_device_surface_capabilities_khr_proc,
-                         PFN_vkGetPhysicalDeviceSurfaceFormatsKHR      pfn_get_physical_device_surface_formats_khr_proc,
-                         PFN_vkGetPhysicalDeviceSurfacePresentModesKHR pfn_get_physical_device_surface_present_modes_khr_proc,
-                         PFN_vkGetPhysicalDeviceSurfaceSupportKHR      pfn_get_physical_device_surface_support_khr_proc);
+                                                        PFN_vkDestroySurfaceKHR                       pfn_destroy_surface_khr_proc,
+                                                        PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR pfn_get_physical_device_surface_capabilities_khr_proc,
+                                                        PFN_vkGetPhysicalDeviceSurfaceFormatsKHR      pfn_get_physical_device_surface_formats_khr_proc,
+                                                        PFN_vkGetPhysicalDeviceSurfacePresentModesKHR pfn_get_physical_device_surface_present_modes_khr_proc,
+                                                        PFN_vkGetPhysicalDeviceSurfaceSupportKHR      pfn_get_physical_device_surface_support_khr_proc);
+
+        /** Destructor
+         *
+         *  Releases the underlying Vulkan rendering surface instance and unregisters the
+         *  object from the Object Tracker.
+         **/
+        virtual ~RenderingSurface();
 
         /** Returns rendering surface capabilities */
         const VkSurfaceCapabilitiesKHR& get_capabilities() const
@@ -105,7 +108,7 @@ namespace Anvil
         }
 
         /** Returns physical device which was used to create this surface */
-        const Anvil::PhysicalDevice* get_physical_device() const
+        std::weak_ptr<const Anvil::PhysicalDevice> get_physical_device() const
         {
             return m_physical_device_ptr;
         }
@@ -161,7 +164,10 @@ namespace Anvil
         VkResult supports_presentation_for_queue(Anvil::Queue* queue_ptr,
                                                  VkBool32*     out_result_ptr) const
         {
-            return m_vkGetPhysicalDeviceSurfaceSupportKHR(queue_ptr->get_parent_device()->get_physical_device()->get_physical_device(),
+            std::shared_ptr<const Anvil::Device>         device_locked_ptr         (queue_ptr->get_parent_device() );
+            std::shared_ptr<const Anvil::PhysicalDevice> physical_device_locked_ptr(device_locked_ptr->get_physical_device() );
+
+            return m_vkGetPhysicalDeviceSurfaceSupportKHR(physical_device_locked_ptr->get_physical_device(),
                                                           queue_ptr->get_queue_family_index(),
                                                           m_surface,
                                                           out_result_ptr);
@@ -177,21 +183,30 @@ namespace Anvil
 
     private:
         /* Private functions */
+
+        /* Constructor. Please see create() for specification */
+        RenderingSurface(std::weak_ptr<Anvil::Instance>                instance_ptr,
+                         std::weak_ptr<Anvil::PhysicalDevice>          physical_device_ptr,
+                         std::shared_ptr<Anvil::Window>                window_ptr,
+#ifdef _WIN32
+                         PFN_vkCreateWin32SurfaceKHR                   pfn_create_win32_surface_khr_proc,
+#else
+                         PFN_vkCreateXcbSurfaceKHR                     pfn_create_xcb_surface_khr_proc,
+#endif
+                         PFN_vkDestroySurfaceKHR                       pfn_destroy_surface_khr_proc,
+                         PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR pfn_get_physical_device_surface_capabilities_khr_proc,
+                         PFN_vkGetPhysicalDeviceSurfaceFormatsKHR      pfn_get_physical_device_surface_formats_khr_proc,
+                         PFN_vkGetPhysicalDeviceSurfacePresentModesKHR pfn_get_physical_device_surface_present_modes_khr_proc,
+                         PFN_vkGetPhysicalDeviceSurfaceSupportKHR      pfn_get_physical_device_surface_support_khr_proc);
+
         RenderingSurface           (const RenderingSurface&);
         RenderingSurface& operator=(const RenderingSurface&);
 
-        /** Destructor
-         *
-         *  Releases the underlying Vulkan rendering surface instance and unregisters the
-         *  object from the Object Tracker.
-         **/
-        virtual ~RenderingSurface();
-
-        void cache_surface_properties(Anvil::Window* window_ptr);
+        void cache_surface_properties(std::shared_ptr<Anvil::Window> window_ptr);
 
         /* Private variables */
-        Anvil::Instance*       m_instance_ptr;
-        Anvil::PhysicalDevice* m_physical_device_ptr;
+        std::shared_ptr<Anvil::Instance>     m_instance_ptr;
+        std::weak_ptr<Anvil::PhysicalDevice> m_physical_device_ptr;
 
         VkSurfaceCapabilitiesKHR m_capabilities;
         VkSurfaceKHR             m_surface;
@@ -216,15 +231,6 @@ namespace Anvil
         PFN_vkGetPhysicalDeviceSurfaceFormatsKHR      m_vkGetPhysicalDeviceSurfaceFormatsKHR;
         PFN_vkGetPhysicalDeviceSurfacePresentModesKHR m_vkGetPhysicalDeviceSurfacePresentModesKHR;
         PFN_vkGetPhysicalDeviceSurfaceSupportKHR      m_vkGetPhysicalDeviceSurfaceSupportKHR;
-    };
-
-    /** Delete functor. Useful if you need to wrap the rendering surface instance in an auto pointer */
-    struct RenderingSurfaceDeleter
-    {
-        void operator()(RenderingSurface* surface_ptr) const
-        {
-            surface_ptr->release();
-        }
     };
 }; /* namespace Anvil */
 

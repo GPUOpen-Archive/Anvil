@@ -23,6 +23,7 @@
 #ifndef MISC_TYPES_H
 #define MISC_TYPES_H
 
+
 /* The following #define is required to include Vulkan entry-point prototypes. */
 #ifdef _WIN32
     #define VK_USE_PLATFORM_WIN32_KHR
@@ -55,14 +56,21 @@
 #ifdef _WIN32
     #include "vulkan\vulkan.h"
     #include "vulkan\vk_sdk_platform.h"
+    #include "extensions\vk_amd_draw_indirect_count.h"
 #else
     #include "vulkan/vulkan.h"
     #include "vulkan/vk_sdk_platform.h"
+    #include "extensions/vk_amd_draw_indirect_count.h"
 #endif
 
-
 #include <map>
+#include <memory>
 #include <vector>
+
+/* Sanity checks */
+#if !defined(VK_AMD_rasterization_order)
+    #error Vulkan SDK header used in the compilation process is too old. Please ensure deps\anvil\include\vulkan.h is used.
+#endif
 
 /* Defines various enums used by Vulkan API wrapper classes. */
 namespace Anvil
@@ -112,15 +120,15 @@ namespace Anvil
     /** Describes a buffer memory barrier. */
     typedef struct BufferBarrier
     {
-        VkBuffer              buffer;
-        VkBufferMemoryBarrier buffer_barrier_vk;
-        Anvil::Buffer*       buffer_ptr;
-        VkAccessFlagBits      dst_access_mask;
-        uint32_t              dst_queue_family_index;
-        VkDeviceSize          offset;
-        VkDeviceSize          size;
-        VkAccessFlagBits      src_access_mask;
-        uint32_t              src_queue_family_index;
+        VkBuffer                       buffer;
+        VkBufferMemoryBarrier          buffer_barrier_vk;
+        std::shared_ptr<Anvil::Buffer> buffer_ptr;
+        VkAccessFlagBits               dst_access_mask;
+        uint32_t                       dst_queue_family_index;
+        VkDeviceSize                   offset;
+        VkDeviceSize                   size;
+        VkAccessFlagBits               src_access_mask;
+        uint32_t                       src_queue_family_index;
 
         /** Constructor.
          *
@@ -132,17 +140,16 @@ namespace Anvil
          *  @param in_dst_queue_family_index  Destination queue family index to use for the barrier.
          *  @param in_buffer_ptr              Pointer to a Buffer instance the instantiated barrier
          *                                    refers to. Must not be nullptr.
-         *                                    The object will be retained.
          *  @param in_offset                  Start offset of the region described by the barrier.
          *  @param in_size                    Size of the region described by the barrier.
          **/
-        explicit BufferBarrier(VkAccessFlags  in_source_access_mask,
-                               VkAccessFlags  in_destination_access_mask,
-                               uint32_t       in_src_queue_family_index,
-                               uint32_t       in_dst_queue_family_index,
-                               Anvil::Buffer* in_buffer_ptr,
-                               VkDeviceSize   in_offset,
-                               VkDeviceSize   in_size);
+        explicit BufferBarrier(VkAccessFlags                  in_source_access_mask,
+                               VkAccessFlags                  in_destination_access_mask,
+                               uint32_t                       in_src_queue_family_index,
+                               uint32_t                       in_dst_queue_family_index,
+                               std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                               VkDeviceSize                   in_offset,
+                               VkDeviceSize                   in_size);
 
         /** Destructor.
          *
@@ -227,6 +234,36 @@ namespace Anvil
 
     typedef std::vector<Extension> Extensions;
 
+    typedef struct ExtensionAMDDrawIndirectCountEntrypoints
+    {
+        PFN_vkCmdDrawIndexedIndirectCountAMD vkCmdDrawIndexedIndirectCountAMD;
+        PFN_vkCmdDrawIndirectCountAMD        vkCmdDrawIndirectCountAMD;
+
+        ExtensionAMDDrawIndirectCountEntrypoints()
+        {
+            vkCmdDrawIndexedIndirectCountAMD = nullptr;
+            vkCmdDrawIndirectCountAMD        = nullptr;
+        }
+    } ExtensionAMDDrawIndirectCountEntrypoints;
+
+    typedef struct ExtensionKHRDeviceSwapchainEntrypoints
+    {
+        PFN_vkAcquireNextImageKHR   vkAcquireNextImageKHR;
+        PFN_vkCreateSwapchainKHR    vkCreateSwapchainKHR;
+        PFN_vkDestroySwapchainKHR   vkDestroySwapchainKHR;
+        PFN_vkGetSwapchainImagesKHR vkGetSwapchainImagesKHR;
+        PFN_vkQueuePresentKHR       vkQueuePresentKHR;
+
+        ExtensionKHRDeviceSwapchainEntrypoints()
+        {
+            vkAcquireNextImageKHR   = nullptr;
+            vkCreateSwapchainKHR    = nullptr;
+            vkDestroySwapchainKHR   = nullptr;
+            vkGetSwapchainImagesKHR = nullptr;
+            vkQueuePresentKHR       = nullptr;
+        }
+    } ExtensionKHRDeviceSwapchainEntrypoints;
+
     /** Holds driver-specific format capabilities */
     typedef struct FormatProperties
     {
@@ -277,17 +314,17 @@ namespace Anvil
     /** Describes an image memory barrier. */
     typedef struct ImageBarrier
     {
-        bool                    by_region;
-        VkAccessFlagBits        dst_access_mask;
-        uint32_t                dst_queue_family_index;
-        VkImage                 image;
-        VkImageMemoryBarrier    image_barrier_vk;
-        Anvil::Image*           image_ptr;
-        VkImageLayout           new_layout;
-        VkImageLayout           old_layout;
-        VkAccessFlagBits        src_access_mask;
-        uint32_t                src_queue_family_index;
-        VkImageSubresourceRange subresource_range;
+        bool                          by_region;
+        VkAccessFlagBits              dst_access_mask;
+        uint32_t                      dst_queue_family_index;
+        VkImage                       image;
+        VkImageMemoryBarrier          image_barrier_vk;
+        std::shared_ptr<Anvil::Image> image_ptr;
+        VkImageLayout                 new_layout;
+        VkImageLayout                 old_layout;
+        VkAccessFlagBits              src_access_mask;
+        uint32_t                      src_queue_family_index;
+        VkImageSubresourceRange       subresource_range;
 
         /** Constructor.
          *
@@ -306,15 +343,15 @@ namespace Anvil
          *  @param in_image_subresource_range Subresource range to use for the barrier.
          *
          **/
-        ImageBarrier(VkAccessFlags           in_source_access_mask,
-                     VkAccessFlags           in_destination_access_mask,
-                     bool                    in_by_region_barrier,
-                     VkImageLayout           in_old_layout,
-                     VkImageLayout           in_new_layout,
-                     uint32_t                in_src_queue_family_index,
-                     uint32_t                in_dst_queue_family_index,
-                     Anvil::Image*           in_image_ptr,
-                     VkImageSubresourceRange in_image_subresource_range);
+        ImageBarrier(VkAccessFlags                 in_source_access_mask,
+                     VkAccessFlags                 in_destination_access_mask,
+                     bool                          in_by_region_barrier,
+                     VkImageLayout                 in_old_layout,
+                     VkImageLayout                 in_new_layout,
+                     uint32_t                      in_src_queue_family_index,
+                     uint32_t                      in_dst_queue_family_index,
+                     std::shared_ptr<Anvil::Image> in_image_ptr,
+                     VkImageSubresourceRange       in_image_subresource_range);
 
         /** Destructor.
          *
@@ -494,7 +531,7 @@ namespace Anvil
         {
             if (heaps != nullptr)
             {
-                delete heaps;
+                delete [] heaps;
 
                 heaps = nullptr;
             }
@@ -510,6 +547,304 @@ namespace Anvil
         MemoryProperties           (const MemoryProperties&);
         MemoryProperties& operator=(const MemoryProperties&);
     } MemoryProperties;
+
+    /** Defines data for a single image mip-map.
+     *
+     *  Use one of the static create_() functions to set up structure fields according to the target
+     *  image type.
+     **/
+    typedef struct MipmapRawData
+    {
+        /* Image aspect the mip-map data is specified for. */
+        VkImageAspectFlagBits aspect;
+    
+        /* Start layer index */
+        uint32_t n_layer;
+    
+        /* Number of layers to update */
+        uint32_t n_layers;
+    
+        /* Number of 3D texture slices to update. For non-3D texture types, this field
+         * should be set to 1. */
+        uint32_t n_slices;
+    
+    
+        /* Index of the mip-map to update. */
+        uint32_t n_mipmap;
+    
+    
+        /* Pointer to a buffer holding raw data representation. The data structure is characterized by
+         * data_size, row_size and slice_size fields.
+         *
+         * It is assumed the data under the pointer is tightly packed, and stored in column->row->slice->layer
+         * order.
+         */
+        std::shared_ptr<unsigned char>               linear_tightly_packed_data_uchar_ptr;
+        const unsigned char*                         linear_tightly_packed_data_uchar_raw_ptr;
+        std::shared_ptr<std::vector<unsigned char> > linear_tightly_packed_data_uchar_vec_ptr;
+    
+    
+        /* Total number of bytes available for reading under linear_tightly_packed_data_ptr */
+        uint32_t data_size;
+    
+        /* Number of bytes each row takes */
+        uint32_t row_size;
+    
+    
+        /** Creates a MipmapRawData instance which can be used to upload data to 1D Image instances:
+         *
+         *  @param aspect                                Image aspect to modify.
+         *  @param n_mipmap                              Index of the mipmap to be updated.
+         *  @param linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
+         *  @param linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
+         *  @param row_size                              Number of bytes each texture row takes.
+         *
+         *  NOTE: Mipmap contents is NOT cached at call time. This implies raw pointers are ASSUMED to
+         *        be valid at baking time.
+         *
+         *  @return As per description.
+         **/
+        static MipmapRawData create_1D_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
+                                                             uint32_t                                     n_mipmap,
+                                                             std::shared_ptr<unsigned char>               linear_tightly_packed_data_ptr,
+                                                             uint32_t                                     row_size);
+        static MipmapRawData create_1D_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
+                                                             uint32_t                                     n_mipmap,
+                                                             const unsigned char*                         linear_tightly_packed_data_vector_ptr,
+                                                             uint32_t                                     row_size);
+        static MipmapRawData create_1D_from_uchar_vector_ptr(VkImageAspectFlagBits                        aspect,
+                                                             uint32_t                                     n_mipmap,
+                                                             std::shared_ptr<std::vector<unsigned char> > linear_tightly_packed_data_ptr,
+                                                             uint32_t                                     row_size);
+    
+        /** Creates a MipmapRawData instance which can be used to upload data to 1D Array Image instances:
+         *
+         *  @param in_aspect                                Image aspect to modify.
+         *  @param in_n_layer                               Index of a texture layer the mip-map data should be uploaded to.
+         *  @param in_n_layers                              Number of texture layers to be updated.
+         *  @param in_n_mipmap                              Index of the mipmap to be updated.
+         *  @param in_linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
+         *  @param in_linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
+         *  @param in_row_size                              Number of bytes each texture row takes.
+         *  @param in_data_size                             Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr.
+         *
+         *  @return As per description.
+         **/
+        static MipmapRawData create_1D_array_from_uchar_ptr       (VkImageAspectFlagBits                        in_aspect,
+                                                                   uint32_t                                     in_n_layer,
+                                                                   uint32_t                                     in_n_layers,
+                                                                   uint32_t                                     in_n_mipmap,
+                                                                   std::shared_ptr<unsigned char>               in_linear_tightly_packed_data_ptr,
+                                                                   uint32_t                                     in_row_size,
+                                                                   uint32_t                                     in_data_size);
+        static MipmapRawData create_1D_array_from_uchar_ptr       (VkImageAspectFlagBits                        in_aspect,
+                                                                   uint32_t                                     in_n_layer,
+                                                                   uint32_t                                     in_n_layers,
+                                                                   uint32_t                                     in_n_mipmap,
+                                                                   const unsigned char*                         in_linear_tightly_packed_data_ptr,
+                                                                   uint32_t                                     in_row_size,
+                                                                   uint32_t                                     in_data_size);
+        static MipmapRawData create_1D_array_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+                                                                   uint32_t                                     in_n_layer,
+                                                                   uint32_t                                     in_n_layers,
+                                                                   uint32_t                                     in_n_mipmap,
+                                                                   std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
+                                                                   uint32_t                                     in_row_size,
+                                                                   uint32_t                                     in_data_size);
+    
+        /** Creates a MipmapRawData instance which can be used to upload data to 2D Image instances:
+         *
+         *  @param aspect                                Image aspect to modify.
+         *  @param n_mipmap                              Index of the mipmap to be updated.
+         *  @param linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
+         *  @param linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
+         *  @param data_size                             Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr.
+         *  @param row_size                              Number of bytes each texture row takes.
+         *
+         *  @return As per description.
+         **/
+        static MipmapRawData create_2D_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
+                                                             uint32_t                                     n_mipmap,
+                                                             std::shared_ptr<unsigned char>               linear_tightly_packed_data_ptr,
+                                                             uint32_t                                     data_size,
+                                                             uint32_t                                     row_size);
+        static MipmapRawData create_2D_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
+                                                             uint32_t                                     n_mipmap,
+                                                             const unsigned char*                         linear_tightly_packed_data_ptr,
+                                                             uint32_t                                     data_size,
+                                                             uint32_t                                     row_size);
+        static MipmapRawData create_2D_from_uchar_vector_ptr(VkImageAspectFlagBits                        aspect,
+                                                             uint32_t                                     n_mipmap,
+                                                             std::shared_ptr<std::vector<unsigned char> > linear_tightly_packed_data_ptr,
+                                                             uint32_t                                     data_size,
+                                                             uint32_t                                     row_size);
+    
+        /** Creates a MipmapRawData instance which can be used to upload data to 2D Array Image instances:
+         *
+         *  @param aspect                                Image aspect to modify.
+         *  @param n_layer                               Index of a texture layer the mip-map data should be uploaded to.
+         *  @param n_layers                              Number of texture layers to be updated.
+         *  @param n_mipmap                              Index of the mipmap to be updated.
+         *  @param linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
+         *  @param linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
+         *  @param data_size                             Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr.
+         *  @param row_size                              Number of bytes each texture row takes.
+         *
+         *  @return As per description.
+         **/
+        static MipmapRawData create_2D_array_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
+                                                                   uint32_t                                     n_layer,
+                                                                   uint32_t                                     n_layers,
+                                                                   uint32_t                                     n_mipmap,
+                                                                   std::shared_ptr<unsigned char>               linear_tightly_packed_data_ptr,
+                                                                   uint32_t                                     data_size,
+                                                                   uint32_t                                     row_size);
+        static MipmapRawData create_2D_array_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
+                                                                   uint32_t                                     n_layer,
+                                                                   uint32_t                                     n_layers,
+                                                                   uint32_t                                     n_mipmap,
+                                                                   const unsigned char*                         linear_tightly_packed_data_ptr,
+                                                                   uint32_t                                     data_size,
+                                                                   uint32_t                                     row_size);
+        static MipmapRawData create_2D_array_from_uchar_vector_ptr(VkImageAspectFlagBits                        aspect,
+                                                                   uint32_t                                     n_layer,
+                                                                   uint32_t                                     n_layers,
+                                                                   uint32_t                                     n_mipmap,
+                                                                   std::shared_ptr<std::vector<unsigned char> > linear_tightly_packed_data_ptr,
+                                                                   uint32_t                                     data_size,
+                                                                   uint32_t                                     row_size);
+    
+        /** Creates a MipmapRawData instnce which can be used to upload data to 3D Image instances:
+         *
+         *  @param aspect                                Image aspect to modify.
+         *  @param n_layer                               Index of a texture layer the mip-map data should be uploaded to.
+         *  @param n_slices                              Number of texture slices to be updated.
+         *  @param n_mipmap                              Index of the mipmap to be updated.
+         *  @param linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
+         *  @param linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
+         *  @param data_size                             Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr.
+         *  @param row_size                              Number of bytes each texture row takes.
+         *
+         *  @return As per description.
+         **/
+        static MipmapRawData create_3D_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
+                                                             uint32_t                                     n_layer,
+                                                             uint32_t                                     n_layer_slices,
+                                                             uint32_t                                     n_mipmap,
+                                                             std::shared_ptr<unsigned char>               linear_tightly_packed_data_ptr,
+                                                             uint32_t                                     data_size,
+                                                             uint32_t                                     row_size);
+        static MipmapRawData create_3D_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
+                                                             uint32_t                                     n_layer,
+                                                             uint32_t                                     n_layer_slices,
+                                                             uint32_t                                     n_mipmap,
+                                                             const unsigned char*                         linear_tightly_packed_data_ptr,
+                                                             uint32_t                                     data_size,
+                                                             uint32_t                                     row_size);
+        static MipmapRawData create_3D_from_uchar_vector_ptr(VkImageAspectFlagBits                        aspect,
+                                                             uint32_t                                     n_layer,
+                                                             uint32_t                                     n_layer_slices,
+                                                             uint32_t                                     n_mipmap,
+                                                             std::shared_ptr<std::vector<unsigned char> > linear_tightly_packed_data_ptr,
+                                                             uint32_t                                     data_size,
+                                                             uint32_t                                     row_size);
+    
+        /** Creates a MipmapRawData instance which can be used to upload data to Cube Map Image instances:
+         *
+         *  @param aspect                                Image aspect to modify.
+         *  @param n_layer                               Index of a texture layer the mip-map data should be uploaded to.
+         *                                               Valid values and corresponding cube map faces: 0: -X, 1: -Y, 2: -Z, 3: +X, 4: +Y, 5: +Z
+         *  @param n_mipmap                              Index of the mipmap to be updated.
+         *  @param linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
+         *  @param linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
+         *  @param data_size                             Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr.
+         *  @param row_size                              Number of bytes each texture row takes.
+         *
+         *  @return As per description.
+         **/
+        static MipmapRawData create_cube_map_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
+                                                                   uint32_t                                     n_layer,
+                                                                   uint32_t                                     n_mipmap,
+                                                                   std::shared_ptr<unsigned char>               linear_tightly_packed_data_ptr,
+                                                                   uint32_t                                     data_size,
+                                                                   uint32_t                                     row_size);
+        static MipmapRawData create_cube_map_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
+                                                                   uint32_t                                     n_layer,
+                                                                   uint32_t                                     n_mipmap,
+                                                                   const unsigned char*                         linear_tightly_packed_data_ptr,
+                                                                   uint32_t                                     data_size,
+                                                                   uint32_t                                     row_size);
+        static MipmapRawData create_cube_map_from_uchar_vector_ptr(VkImageAspectFlagBits                        aspect,
+                                                                   uint32_t                                     n_layer,
+                                                                   uint32_t                                     n_mipmap,
+                                                                   std::shared_ptr<std::vector<unsigned char> > linear_tightly_packed_data_ptr,
+                                                                   uint32_t                                     data_size,
+                                                                   uint32_t                                     row_size);
+    
+        /** Creates a MipmapRawData instance which can be used to upload data to Cube Map Array Image instances:
+         *
+         *  @param aspect                                Image aspect to modify.
+         *  @param n_layer                               Index of a texture layer the mip-map data should be uploaded to.
+         *                                               Cube map faces, as selected for layer at index (n_layer % 6), are:
+         *                                               0: -X, 1: -Y, 2: -Z, 3: +X, 4: +Y, 5: +Z
+         *  @param n_layers                              Number of texture layers to update.
+         *  @param n_mipmap                              Index of the mipmap to be updated.
+         *  @param linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
+         *  @param linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
+         *  @param data_size                             Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr.
+         *  @param row_size                              Number of bytes each texture row takes.
+         *
+         *  @return As per description.
+         **/
+        static MipmapRawData create_cube_map_array_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
+                                                                         uint32_t                                     n_layer,
+                                                                         uint32_t                                     n_layers,
+                                                                         uint32_t                                     n_mipmap,
+                                                                         std::shared_ptr<unsigned char>               linear_tightly_packed_data_ptr,
+                                                                         uint32_t                                     data_size,
+                                                                         uint32_t                                     row_size);
+        static MipmapRawData create_cube_map_array_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
+                                                                         uint32_t                                     n_layer,
+                                                                         uint32_t                                     n_layers,
+                                                                         uint32_t                                     n_mipmap,
+                                                                         const unsigned char*                         linear_tightly_packed_data_ptr,
+                                                                         uint32_t                                     data_size,
+                                                                         uint32_t                                     row_size);
+        static MipmapRawData create_cube_map_array_from_uchar_vector_ptr(VkImageAspectFlagBits                        aspect,
+                                                                         uint32_t                                     n_layer,
+                                                                         uint32_t                                     n_layers,
+                                                                         uint32_t                                     n_mipmap,
+                                                                         std::shared_ptr<std::vector<unsigned char> > linear_tightly_packed_data_ptr,
+                                                                         uint32_t                                     data_size,
+                                                                         uint32_t                                     row_size);
+    
+    private:
+        static MipmapRawData create_1D      (VkImageAspectFlagBits aspect,
+                                             uint32_t              n_mipmap,
+                                             uint32_t              row_size);
+        static MipmapRawData create_1D_array(VkImageAspectFlagBits aspect,
+                                             uint32_t              n_layer,
+                                             uint32_t              n_layers,
+                                             uint32_t              n_mipmap,
+                                             uint32_t              row_size,
+                                             uint32_t              data_size);
+        static MipmapRawData create_2D      (VkImageAspectFlagBits aspect,
+                                             uint32_t              n_mipmap,
+                                             uint32_t              data_size,
+                                             uint32_t              row_size);
+        static MipmapRawData create_2D_array(VkImageAspectFlagBits aspect,
+                                             uint32_t              n_layer,
+                                             uint32_t              n_layers,
+                                             uint32_t              n_mipmap,
+                                             uint32_t              data_size,
+                                             uint32_t              row_size);
+        static MipmapRawData create_3D      (VkImageAspectFlagBits aspect,
+                                             uint32_t              n_layer,
+                                             uint32_t              n_slices,
+                                             uint32_t              n_mipmap,
+                                             uint32_t              data_size,
+                                             uint32_t              row_size);
+    } MipmapRawData;
 
     /* Dummy delete functor */
     template<class Type>
@@ -558,8 +893,8 @@ namespace Anvil
 
     typedef std::pair<StartBindingElementIndex, NumberOfBindingElements> BindingElementArrayRange;
 
-    typedef std::vector<Anvil::DescriptorSetGroup*> DescriptorSetGroups;
-    typedef std::vector<PushConstantRange>          PushConstantRanges;
+    typedef std::vector<std::shared_ptr<Anvil::DescriptorSetGroup> > DescriptorSetGroups;
+    typedef std::vector<PushConstantRange>                           PushConstantRanges;
 
     /** Holds information about a single Vulkan Queue Family. */
     typedef struct QueueFamilyInfo
@@ -654,9 +989,9 @@ namespace Anvil
     /** Holds all information related to a specific shader module stage entry-point. */
     typedef struct ShaderModuleStageEntryPoint
     {
-        const char*          name;
-        Anvil::ShaderModule* shader_module_ptr;
-        Anvil::ShaderStage   stage;
+        const char*                          name;
+        std::shared_ptr<Anvil::ShaderModule> shader_module_ptr;
+        Anvil::ShaderStage                   stage;
 
         /** Dummy constructor */
         ShaderModuleStageEntryPoint();
@@ -667,12 +1002,12 @@ namespace Anvil
         /** Constructor.
          *
          *  @param in_name              Entry-point name. Must not be nullptr.
-         *  @param in_shader_module_ptr ShaderModule instance to use. Will be retained.
+         *  @param in_shader_module_ptr ShaderModule instance to use.
          *  @param in_stage             Shader stage the entry-point implements.
          */
-        ShaderModuleStageEntryPoint(const char*   in_name,
-                                    ShaderModule* in_shader_module_ptr,
-                                    ShaderStage   in_stage);
+        ShaderModuleStageEntryPoint(const char*                   in_name,
+                                    std::shared_ptr<ShaderModule> in_shader_module_ptr,
+                                    ShaderStage                   in_stage);
 
         /** Destructor. */
         ~ShaderModuleStageEntryPoint();

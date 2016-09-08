@@ -33,9 +33,9 @@
 
 
 /* Please see header for specification */
-Anvil::DescriptorSetGroup::DescriptorSetGroup(Anvil::Device* device_ptr,
-                                              bool           releaseable_sets,
-                                              uint32_t       n_sets)
+Anvil::DescriptorSetGroup::DescriptorSetGroup(std::weak_ptr<Anvil::Device> device_ptr,
+                                              bool                         releaseable_sets,
+                                              uint32_t                     n_sets)
     :m_descriptor_pool_dirty       (false),
      m_device_ptr                  (device_ptr),
      m_layout_modifications_blocked(false),
@@ -54,9 +54,9 @@ Anvil::DescriptorSetGroup::DescriptorSetGroup(Anvil::Device* device_ptr,
     m_cached_immutable_samplers.resize(N_PREALLOCATED_IMMUTABLE_SAMPLERS);
 
     /* Initialize descriptor pool */
-    m_descriptor_pool_ptr = new Anvil::DescriptorPool(device_ptr,
-                                                      n_sets,
-                                                      releaseable_sets);
+    m_descriptor_pool_ptr = Anvil::DescriptorPool::create(device_ptr,
+                                                          n_sets,
+                                                          releaseable_sets);
 
     /* Register the object */
     Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_DESCRIPTOR_SET_GROUP,
@@ -64,8 +64,8 @@ Anvil::DescriptorSetGroup::DescriptorSetGroup(Anvil::Device* device_ptr,
 }
 
 /* Please see header for specification */
-Anvil::DescriptorSetGroup::DescriptorSetGroup(DescriptorSetGroup* parent_dsg_ptr,
-                                              bool                releaseable_sets)
+Anvil::DescriptorSetGroup::DescriptorSetGroup(std::shared_ptr<DescriptorSetGroup> parent_dsg_ptr,
+                                              bool                                releaseable_sets)
     :m_descriptor_pool_dirty       (true),
      m_descriptor_pool_ptr         (nullptr),
      m_device_ptr                  (parent_dsg_ptr->m_device_ptr),
@@ -83,9 +83,9 @@ Anvil::DescriptorSetGroup::DescriptorSetGroup(DescriptorSetGroup* parent_dsg_ptr
            sizeof(m_overhead_allocations) );
 
     /* Initialize descriptor pool */
-    m_descriptor_pool_ptr = new Anvil::DescriptorPool(parent_dsg_ptr->m_device_ptr,
-                                                      parent_dsg_ptr->m_n_sets,
-                                                      releaseable_sets);
+    m_descriptor_pool_ptr = Anvil::DescriptorPool::create(parent_dsg_ptr->m_device_ptr,
+                                                          parent_dsg_ptr->m_n_sets,
+                                                          releaseable_sets);
 
     /* Preallocate memory for descriptor containers */
     m_cached_immutable_samplers.resize(N_PREALLOCATED_IMMUTABLE_SAMPLERS);
@@ -113,13 +113,6 @@ Anvil::DescriptorSetGroup::DescriptorSetGroup(DescriptorSetGroup* parent_dsg_ptr
 /** Releases the internally managed descriptor pool. */
 Anvil::DescriptorSetGroup::~DescriptorSetGroup()
 {
-    if (m_descriptor_pool_ptr != nullptr)
-    {
-        m_descriptor_pool_ptr->release();
-
-        m_descriptor_pool_ptr = nullptr;
-    }
-
     /* Unregister the object */
     Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_DESCRIPTOR_SET_GROUP,
                                                     this);
@@ -152,8 +145,7 @@ bool Anvil::DescriptorSetGroup::add_binding(uint32_t           n_set,
             goto end;
         }
 
-        m_descriptor_sets[n_set].descriptor_set_ptr = nullptr;
-        m_descriptor_sets[n_set].layout_ptr         = new Anvil::DescriptorSetLayout(m_device_ptr);
+        m_descriptor_sets[n_set].layout_ptr = Anvil::DescriptorSetLayout::create(m_device_ptr);
     }
 
     /* Pass the call down to DescriptorSet instance */
@@ -229,11 +221,11 @@ void Anvil::DescriptorSetGroup::bake_descriptor_pool()
 /* Please see header for specification */
 bool Anvil::DescriptorSetGroup::bake_descriptor_sets()
 {
-    Anvil::DescriptorSetGroup* layout_vk_owner_ptr = (m_parent_dsg_ptr != nullptr) ? m_parent_dsg_ptr
-                                                                                : this;
-    uint32_t                    n_descriptors       = 0;
-    const uint32_t              n_sets              = (uint32_t) m_descriptor_sets.size();
-    bool                        result              = false;
+    Anvil::DescriptorSetGroup* layout_vk_owner_ptr = (m_parent_dsg_ptr != nullptr) ? m_parent_dsg_ptr.get()
+                                                                                   : this;
+    uint32_t                   n_descriptors       = 0;
+    const uint32_t             n_sets              = (uint32_t) m_descriptor_sets.size();
+    bool                       result              = false;
 
     /* Copy layout descriptors to the helper vector.. */
     m_cached_ds_layouts.clear();
@@ -346,7 +338,37 @@ bool Anvil::DescriptorSetGroup::bake_descriptor_sets()
 }
 
 /* Please see header for specification */
-Anvil::DescriptorSet* Anvil::DescriptorSetGroup::get_descriptor_set(uint32_t n_set)
+std::shared_ptr<Anvil::DescriptorSetGroup> Anvil::DescriptorSetGroup::create(std::weak_ptr<Anvil::Device> device_ptr,
+                                                                             bool                         releaseable_sets,
+                                                                             uint32_t                     n_sets)
+{
+    std::shared_ptr<Anvil::DescriptorSetGroup> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::DescriptorSetGroup(device_ptr,
+                                      releaseable_sets,
+                                      n_sets)
+    );
+
+    return result_ptr;
+}
+
+/* Please see header for specification */
+std::shared_ptr<Anvil::DescriptorSetGroup> Anvil::DescriptorSetGroup::create(std::shared_ptr<Anvil::DescriptorSetGroup> parent_dsg_ptr,
+                                                                             bool                                       releaseable_sets)
+{
+    std::shared_ptr<Anvil::DescriptorSetGroup> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::DescriptorSetGroup(parent_dsg_ptr,
+            releaseable_sets)
+    );
+
+    return result_ptr;
+}
+
+/* Please see header for specification */
+std::shared_ptr<Anvil::DescriptorSet> Anvil::DescriptorSetGroup::get_descriptor_set(uint32_t n_set)
 {
     bool pool_rebaked = false;
 
@@ -390,7 +412,7 @@ uint32_t Anvil::DescriptorSetGroup::get_descriptor_set_binding_index(uint32_t n_
 }
 
 /* Please see header for specification */
-Anvil::DescriptorSetLayout* Anvil::DescriptorSetGroup::get_descriptor_set_layout(uint32_t n_set)
+std::shared_ptr<Anvil::DescriptorSetLayout> Anvil::DescriptorSetGroup::get_descriptor_set_layout(uint32_t n_set)
 {
     if (m_parent_dsg_ptr != nullptr)
     {
@@ -424,16 +446,6 @@ Anvil::DescriptorSetGroup::DescriptorSetInfo::DescriptorSetInfo(const Descriptor
 {
     descriptor_set_ptr = in.descriptor_set_ptr;
     layout_ptr         = in.layout_ptr;
-
-    if (descriptor_set_ptr != nullptr)
-    {
-        descriptor_set_ptr->retain();
-    }
-
-    if (layout_ptr != nullptr)
-    {
-        layout_ptr->retain();
-    }
 }
 
 /** Please see header for specification */
@@ -442,33 +454,11 @@ Anvil::DescriptorSetGroup::DescriptorSetInfo& Anvil::DescriptorSetGroup::Descrip
     descriptor_set_ptr = in.descriptor_set_ptr;
     layout_ptr         = in.layout_ptr;
 
-    if (descriptor_set_ptr != nullptr)
-    {
-        descriptor_set_ptr->retain();
-    }
-
-    if (layout_ptr != nullptr)
-    {
-        layout_ptr->retain();
-    }
-
     return *this;
 }
 
 /** Please see header for specification */
 Anvil::DescriptorSetGroup::DescriptorSetInfo::~DescriptorSetInfo()
 {
-    if (descriptor_set_ptr != nullptr)
-    {
-        descriptor_set_ptr->release();
-
-        descriptor_set_ptr = nullptr;
-    }
-
-    if (layout_ptr != nullptr)
-    {
-        layout_ptr->release();
-
-        layout_ptr = nullptr;
-    }
+    /* Stub */
 }

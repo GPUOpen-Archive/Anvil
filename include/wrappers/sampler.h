@@ -30,14 +30,13 @@
 #ifndef WRAPPERS_SAMPLER_H
 #define WRAPPERS_SAMPLER_H
 
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 
 
 namespace Anvil
 {
     /** Wrapper class for Vulkan samplers */
-    class Sampler : public RefCounterSupportProvider
+    class Sampler
     {
     public:
         /* Public functions */
@@ -48,21 +47,28 @@ namespace Anvil
          *
          *  For argument discussion, please consult Vulkan API specification.
          */
-        Sampler(Anvil::Device*       device_ptr,
-                VkFilter             mag_filter,
-                VkFilter             min_filter,
-                VkSamplerMipmapMode  mipmap_mode,
-                VkSamplerAddressMode address_mode_u,
-                VkSamplerAddressMode address_mode_v,
-                VkSamplerAddressMode address_mode_w,
-                float                lod_bias,
-                float                max_anisotropy,
-                bool                 compare_enable,
-                VkCompareOp          compare_op,
-                float                min_lod,
-                float                max_lod,
-                VkBorderColor        border_color,
-                bool                 use_unnormalized_coordinates);
+        static std::shared_ptr<Sampler> create(std::weak_ptr<Anvil::Device> device_ptr,
+                                               VkFilter                     mag_filter,
+                                               VkFilter                     min_filter,
+                                               VkSamplerMipmapMode          mipmap_mode,
+                                               VkSamplerAddressMode         address_mode_u,
+                                               VkSamplerAddressMode         address_mode_v,
+                                               VkSamplerAddressMode         address_mode_w,
+                                               float                        lod_bias,
+                                               float                        max_anisotropy,
+                                               bool                         compare_enable,
+                                               VkCompareOp                  compare_op,
+                                               float                        min_lod,
+                                               float                        max_lod,
+                                               VkBorderColor                border_color,
+                                               bool                         use_unnormalized_coordinates);
+
+        /** Destructor.
+         *
+         *  Releases the underlying Vulkan Sampler instance and signs the wrapper object out from
+         *  the Object Tracker.
+         **/
+        virtual ~Sampler();
 
         /** Retrieves a raw Vulkan handle for the underlying VkSampler instance. */
         VkSampler get_sampler() const
@@ -78,10 +84,26 @@ namespace Anvil
 
     private:
         /* Private functions */
+
+        /* Please see create() for specification */
+        Sampler(std::weak_ptr<Anvil::Device> device_ptr,
+                VkFilter                     mag_filter,
+                VkFilter                     min_filter,
+                VkSamplerMipmapMode          mipmap_mode,
+                VkSamplerAddressMode         address_mode_u,
+                VkSamplerAddressMode         address_mode_v,
+                VkSamplerAddressMode         address_mode_w,
+                float                        lod_bias,
+                float                        max_anisotropy,
+                bool                         compare_enable,
+                VkCompareOp                  compare_op,
+                float                        min_lod,
+                float                        max_lod,
+                VkBorderColor                border_color,
+                bool                         use_unnormalized_coordinates);
+
         Sampler           (const Sampler&);
         Sampler& operator=(const Sampler&);
-
-        virtual ~Sampler();
 
         /* Private variables */
         VkSamplerAddressMode m_address_mode_u;
@@ -99,19 +121,8 @@ namespace Anvil
         VkSamplerMipmapMode  m_mipmap_mode;
         bool                 m_use_unnormalized_coordinates;
 
-        Anvil::Device* m_device_ptr;
-        VkSampler      m_sampler;
-    };
-
-    /** Functor to delete the sampler wrapper. Useful for encapsulating sampler wrappers
-     *  inside auto pointers.
-     */
-    struct SamplerDeleter
-    {
-        void operator()(Sampler* sampler_ptr) const
-        {
-            sampler_ptr->release();
-        }
+        std::weak_ptr<Anvil::Device> m_device_ptr;
+        VkSampler                    m_sampler;
     };
 }; /* namespace Anvil */
 

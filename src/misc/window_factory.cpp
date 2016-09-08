@@ -22,32 +22,34 @@
 
 #include "misc/window_factory.h"
 
-Anvil::Window* Anvil::WindowFactory::create_window(WindowPlatform         platform,
-                                                   const std::string&     title,
-                                                   unsigned int           width,
-                                                   unsigned int           height,
-                                                   PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                                   void*                  present_callback_func_user_arg,
-                                                   bool                   is_dummy)
+std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatform         platform,
+                                                                   const std::string&     title,
+                                                                   unsigned int           width,
+                                                                   unsigned int           height,
+                                                                   PFNPRESENTCALLBACKPROC present_callback_func_ptr,
+                                                                   void*                  present_callback_func_user_arg,
+                                                                   bool                   is_dummy)
 {
+    std::shared_ptr<Anvil::Window> result;
+
     if (is_dummy)
     {
-        return new Anvil::DummyWindow(title,
-                                      width,
-                                      height,
-                                      present_callback_func_ptr,
-                                      present_callback_func_user_arg);
+        result.reset(new Anvil::DummyWindow(title,
+                                            width,
+                                            height,
+                                            present_callback_func_ptr,
+                                            present_callback_func_user_arg));
     }
     else
     #ifdef _WIN32
     {
         anvil_assert(WINDOW_PLATFORM_SYSTEM == platform);
 
-        return new Anvil::WindowWin3264(title,
-                                        width,
-                                        height,
-                                        present_callback_func_ptr,
-                                        present_callback_func_user_arg);
+        result.reset(new Anvil::WindowWin3264(title,
+                                              width,
+                                              height,
+                                              present_callback_func_ptr,
+                                              present_callback_func_user_arg));
     }
     #else
     {
@@ -55,11 +57,11 @@ Anvil::Window* Anvil::WindowFactory::create_window(WindowPlatform         platfo
         {
             case WINDOW_PLATFORM_XCB:
             {
-                return new Anvil::WindowXcb(title,
-                                            width,
-                                            height,
-                                            present_callback_func_ptr,
-                                            present_callback_func_user_arg);
+                result.reset(new Anvil::WindowXcb(title,
+                                                  width,
+                                                  height,
+                                                  present_callback_func_ptr,
+                                                  present_callback_func_user_arg));
 
                 break;
             }
@@ -71,8 +73,8 @@ Anvil::Window* Anvil::WindowFactory::create_window(WindowPlatform         platfo
                 anvil_assert(0);
             }
         }
-
-        return nullptr;
     }
     #endif /* _WIN32 */
+
+    return result;
 }

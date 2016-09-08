@@ -38,13 +38,13 @@ namespace Anvil
     {
     public:
         /* Public functions */
-        static Window* create_window(WindowPlatform         platform,
-                                     const std::string&     title,
-                                     unsigned int           width,
-                                     unsigned int           height,
-                                     PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                     void*                  present_callback_func_user_arg,
-                                     bool                   is_dummy = false);
+        static std::shared_ptr<Window> create_window(WindowPlatform         platform,
+                                                     const std::string&     title,
+                                                     unsigned int           width,
+                                                     unsigned int           height,
+                                                     PFNPRESENTCALLBACKPROC present_callback_func_ptr,
+                                                     void*                  present_callback_func_user_arg,
+                                                     bool                   is_dummy = false);
 
     };
 }; /* namespace Anvil */

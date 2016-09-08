@@ -41,8 +41,10 @@ namespace Anvil
                       PFNPRESENTCALLBACKPROC present_callback_func_ptr,
                       void*                  present_callback_func_user_arg);
 
-        virtual void            close();
-        virtual void            run();
+        virtual ~WindowWin3264(){ /* Stub */ }
+
+        virtual void close();
+        virtual void run();
 
         /* Tells if it's a dummy window (offscreen rendering thus no WSI/swapchain involved) */
         virtual bool            is_dummy()
@@ -60,7 +62,6 @@ namespace Anvil
 
     private:
         /* Private functions */
-        virtual                ~WindowWin3264(){ /* Stub */ }
 
         /** Creates a new system window and prepares it for usage. */
         void                    init();

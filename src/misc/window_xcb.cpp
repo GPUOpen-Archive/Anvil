@@ -41,7 +41,13 @@ Anvil::WindowXcb::~WindowXcb()
 {
     const XCBLoaderForAnvilFuncs* xcb_procs_ptr = m_xcb_loader.GetProcsTable();
 
-    xcb_procs_ptr->pfnXcbDisconnect(static_cast<xcb_connection_t*>(m_connection_ptr));
+    xcb_procs_ptr->pfnXcbUnmapWindow  (static_cast<xcb_connection_t*>(m_connection_ptr),
+                                       m_window);
+
+    xcb_procs_ptr->pfnXcbDestroyWindow(static_cast<xcb_connection_t*>(m_connection_ptr),
+                                       m_window);
+
+    xcb_procs_ptr->pfnXcbDisconnect   (static_cast<xcb_connection_t*>(m_connection_ptr));
 }
 
 /** Please see header for specification */
@@ -55,12 +61,6 @@ void Anvil::WindowXcb::close()
 
         free(m_key_symbols);
         free(m_atom_wm_delete_window_ptr);
-
-        xcb_procs_ptr->pfnXcbUnmapWindow  (static_cast<xcb_connection_t*>(m_connection_ptr),
-                                           m_window);
-
-        xcb_procs_ptr->pfnXcbDestroyWindow(static_cast<xcb_connection_t*>(m_connection_ptr),
-                                           m_window);
     }
 }
 

@@ -22,7 +22,6 @@
 
 #include "misc/debug.h"
 #include "misc/object_tracker.h"
-#include "misc/ref_counter.h"
 #include "wrappers/buffer.h"
 #include "wrappers/buffer_view.h"
 #include "wrappers/descriptor_pool.h"
@@ -44,11 +43,6 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     size            = element.size;
     start_offset    = element.start_offset;
 
-    if (element.buffer_ptr != nullptr)
-    {
-        element.buffer_ptr->retain();
-    }
-
     return *this;
 }
 
@@ -63,16 +57,6 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     sampler_ptr     = element.sampler_ptr;
     size            = -1;
     start_offset    = -1;
-
-    if (element.image_view_ptr != nullptr)
-    {
-        element.image_view_ptr->retain();
-    }
-
-    if (element.sampler_ptr != nullptr)
-    {
-        element.sampler_ptr->retain();
-    }
 
     return *this;
 }
@@ -89,11 +73,6 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     size            = -1;
     start_offset    = -1;
 
-    if (element.image_view_ptr != nullptr)
-    {
-        element.image_view_ptr->retain();
-    }
-
     return *this;
 }
 
@@ -108,11 +87,6 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     sampler_ptr     = element.sampler_ptr;
     size            = -1;
     start_offset    = -1;
-
-    if (sampler_ptr != nullptr)
-    {
-        sampler_ptr->retain();
-    }
 
     return *this;
 }
@@ -129,65 +103,29 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     size            = -1;
     start_offset    = -1;
 
-    if (buffer_view_ptr != nullptr)
-    {
-        buffer_view_ptr->retain();
-    }
-
     return *this;
 }
 
 /** Please see header for specification */
 Anvil::DescriptorSet::BindingItem::~BindingItem()
 {
-    if (buffer_ptr != nullptr)
-    {
-        buffer_ptr->release();
-
-        buffer_ptr = nullptr;
-    }
-
-    if (buffer_view_ptr != nullptr)
-    {
-        buffer_view_ptr->release();
-
-        buffer_view_ptr = nullptr;
-    }
-
-    if (image_view_ptr != nullptr)
-    {
-        image_view_ptr->release();
-
-        image_view_ptr = nullptr;
-    }
-
-    if (sampler_ptr != nullptr)
-    {
-        sampler_ptr->release();
-
-        sampler_ptr = nullptr;
-    }
+    /* Stub */
 }
 
 /** Please see header for specification */
-Anvil::DescriptorSet::BufferBindingElement::BufferBindingElement(Anvil::Buffer* in_buffer_ptr)
+Anvil::DescriptorSet::BufferBindingElement::BufferBindingElement(std::shared_ptr<Anvil::Buffer> in_buffer_ptr)
 {
     anvil_assert(in_buffer_ptr != nullptr);
 
     buffer_ptr   = in_buffer_ptr;
     size         = -1;
     start_offset = -1;
-
-    if (in_buffer_ptr != nullptr)
-    {
-        in_buffer_ptr->retain();
-    }
 }
 
 /** Please see header for specification */
-Anvil::DescriptorSet::BufferBindingElement::BufferBindingElement(Anvil::Buffer* in_buffer_ptr,
-                                                                 VkDeviceSize   in_start_offset,
-                                                                 VkDeviceSize   in_size)
+Anvil::DescriptorSet::BufferBindingElement::BufferBindingElement(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                                                 VkDeviceSize                   in_start_offset,
+                                                                 VkDeviceSize                   in_size)
 {
     anvil_assert(in_buffer_ptr != nullptr);
 
@@ -199,37 +137,24 @@ Anvil::DescriptorSet::BufferBindingElement::BufferBindingElement(Anvil::Buffer* 
     buffer_ptr   = in_buffer_ptr;
     size         = in_size;
     start_offset = in_start_offset;
-
-    if (in_buffer_ptr != nullptr)
-    {
-        in_buffer_ptr->retain();
-    }
 }
 
 /** Please see header for specification */
 Anvil::DescriptorSet::BufferBindingElement::~BufferBindingElement()
 {
-    if (buffer_ptr != nullptr)
-    {
-        buffer_ptr->release();
-    }
+    /* Stub */
 }
 
 /** Please see header for specification */
 Anvil::DescriptorSet::BufferBindingElement::BufferBindingElement(const BufferBindingElement& in)
 {
     buffer_ptr = in.buffer_ptr;
-
-    if (buffer_ptr != nullptr)
-    {
-        buffer_ptr->retain();
-    }
 }
 
 /** Please see header for specification */
-Anvil::DescriptorSet::CombinedImageSamplerBindingElement::CombinedImageSamplerBindingElement(VkImageLayout     in_image_layout,
-                                                                                             Anvil::ImageView* in_image_view_ptr,
-                                                                                             Anvil::Sampler*   in_sampler_ptr)
+Anvil::DescriptorSet::CombinedImageSamplerBindingElement::CombinedImageSamplerBindingElement(VkImageLayout                     in_image_layout,
+                                                                                             std::shared_ptr<Anvil::ImageView> in_image_view_ptr,
+                                                                                             std::shared_ptr<Anvil::Sampler>   in_sampler_ptr)
 {
     anvil_assert(in_image_view_ptr != nullptr);
     anvil_assert(in_sampler_ptr    != nullptr);
@@ -237,34 +162,12 @@ Anvil::DescriptorSet::CombinedImageSamplerBindingElement::CombinedImageSamplerBi
     image_layout   = in_image_layout;
     image_view_ptr = in_image_view_ptr;
     sampler_ptr    = in_sampler_ptr;
-
-    if (in_image_view_ptr != nullptr)
-    {
-        in_image_view_ptr->retain();
-    }
-
-    if (in_sampler_ptr != nullptr)
-    {
-        in_sampler_ptr->retain();
-    }
 }
 
 /** Please see header for specification */
 Anvil::DescriptorSet::CombinedImageSamplerBindingElement::~CombinedImageSamplerBindingElement()
 {
-    if (image_view_ptr != nullptr)
-    {
-        image_view_ptr->release();
-
-        image_view_ptr = nullptr;
-    }
-
-    if (sampler_ptr != nullptr)
-    {
-        sampler_ptr->release();
-
-        sampler_ptr = nullptr;
-    }
+    /* Stub */
 }
 
 /** Please see header for specification */
@@ -273,31 +176,16 @@ Anvil::DescriptorSet::CombinedImageSamplerBindingElement::CombinedImageSamplerBi
     image_layout   = in.image_layout;
     image_view_ptr = in.image_view_ptr;
     sampler_ptr    = in.sampler_ptr;
-
-    if (image_view_ptr != nullptr)
-    {
-        image_view_ptr->retain();
-    }
-
-    if (sampler_ptr != nullptr)
-    {
-        sampler_ptr->retain();
-    }
 }
 
 /** Please see header for specification */
-Anvil::DescriptorSet::ImageBindingElement::ImageBindingElement(VkImageLayout     in_image_layout,
-                                                               Anvil::ImageView* in_image_view_ptr)
+Anvil::DescriptorSet::ImageBindingElement::ImageBindingElement(VkImageLayout                     in_image_layout,
+                                                               std::shared_ptr<Anvil::ImageView> in_image_view_ptr)
 {
     anvil_assert(in_image_view_ptr != nullptr);
 
     image_layout   = in_image_layout;
     image_view_ptr = in_image_view_ptr;
-
-    if (image_view_ptr != nullptr)
-    {
-        image_view_ptr->retain();
-    }
 }
 
 /** Please see header for specification */
@@ -305,95 +193,59 @@ Anvil::DescriptorSet::ImageBindingElement::ImageBindingElement(const ImageBindin
 {
     image_layout   = in.image_layout;
     image_view_ptr = in.image_view_ptr;
-
-    if (image_view_ptr != nullptr)
-    {
-        image_view_ptr->retain();
-    }
 }
 
 /** Please see header for specification */
 Anvil::DescriptorSet::ImageBindingElement::~ImageBindingElement()
 {
-    if (image_view_ptr != nullptr)
-    {
-        image_view_ptr->release();
-    }
+    /* Stub */
 }
 
 /** Please see header for specification */
-Anvil::DescriptorSet::SamplerBindingElement::SamplerBindingElement(Anvil::Sampler* in_sampler_ptr)
+Anvil::DescriptorSet::SamplerBindingElement::SamplerBindingElement(std::shared_ptr<Anvil::Sampler> in_sampler_ptr)
 {
     anvil_assert(in_sampler_ptr != nullptr);
 
     sampler_ptr = in_sampler_ptr;
-
-    if (sampler_ptr != nullptr)
-    {
-        sampler_ptr->retain();
-    }
 }
 
 /** Please see header for specification */
 Anvil::DescriptorSet::SamplerBindingElement::SamplerBindingElement(const SamplerBindingElement& in)
 {
     sampler_ptr = in.sampler_ptr;
-
-    if (sampler_ptr != nullptr)
-    {
-        sampler_ptr->retain();
-    }
 }
 
 /** Please see header for specification */
 Anvil::DescriptorSet::SamplerBindingElement::~SamplerBindingElement()
 {
-    if (sampler_ptr != nullptr)
-    {
-        sampler_ptr->release();
-    }
+    /* Stub */
 }
 
 /** Please see header for specification */
-Anvil::DescriptorSet::TexelBufferBindingElement::TexelBufferBindingElement(Anvil::BufferView* in_buffer_view_ptr)
+Anvil::DescriptorSet::TexelBufferBindingElement::TexelBufferBindingElement(std::shared_ptr<Anvil::BufferView> in_buffer_view_ptr)
 {
     anvil_assert(in_buffer_view_ptr != nullptr);
 
     buffer_view_ptr = in_buffer_view_ptr;
-
-    if (buffer_view_ptr != nullptr)
-    {
-        buffer_view_ptr->retain();
-    }
 }
 
 /** Please see header for specification */
 Anvil::DescriptorSet::TexelBufferBindingElement::~TexelBufferBindingElement()
 {
-    if (buffer_view_ptr != nullptr)
-    {
-        buffer_view_ptr->release();
-
-        buffer_view_ptr = nullptr;
-    }
+    /* Stub */
 }
 
 /** Please see header for specification */
 Anvil::DescriptorSet::TexelBufferBindingElement::TexelBufferBindingElement(const TexelBufferBindingElement& in)
 {
     buffer_view_ptr = in.buffer_view_ptr;
-
-    if (buffer_view_ptr != nullptr)
-    {
-        buffer_view_ptr->retain();
-    }
 }
 
 /** Please see header for specification */
-Anvil::DescriptorSet::DescriptorSet(Anvil::Device*              device_ptr,
-                                    Anvil::DescriptorPool*      parent_pool_ptr,
-                                    Anvil::DescriptorSetLayout* layout_ptr,
-                                    VkDescriptorSet             descriptor_set)
+Anvil::DescriptorSet::DescriptorSet(std::weak_ptr<Anvil::Device>                device_ptr,
+                                    std::shared_ptr<Anvil::DescriptorPool>      parent_pool_ptr,
+                                    std::shared_ptr<Anvil::DescriptorSetLayout> layout_ptr,
+                                    VkDescriptorSet                             descriptor_set)
     :m_descriptor_set            (descriptor_set),
      m_device_ptr                (device_ptr),
      m_dirty                     (true),
@@ -401,9 +253,6 @@ Anvil::DescriptorSet::DescriptorSet(Anvil::Device*              device_ptr,
      m_parent_pool_ptr           (parent_pool_ptr),
      m_unusable                  (false)
 {
-    m_layout_ptr->retain();
-    m_parent_pool_ptr->retain();
-
     alloc_bindings();
 
     layout_ptr->register_for_callbacks       (Anvil::DESCRIPTOR_SET_LAYOUT_CALLBACK_ID_BINDING_ADDED,
@@ -420,20 +269,6 @@ Anvil::DescriptorSet::DescriptorSet(Anvil::Device*              device_ptr,
 /** Please see header for specification */
 Anvil::DescriptorSet::~DescriptorSet()
 {
-    if (m_layout_ptr != nullptr)
-    {
-        m_layout_ptr->release();
-
-        m_layout_ptr = nullptr;
-    }
-
-    if (m_parent_pool_ptr != nullptr)
-    {
-        m_parent_pool_ptr->release();
-
-        m_parent_pool_ptr = nullptr;
-    }
-
     Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_DESCRIPTOR_SET,
                                                    this);
 }
@@ -623,7 +458,9 @@ bool Anvil::DescriptorSet::bake()
         /* Issue the Vulkan call */
         if (m_cached_ds_write_items_vk.size() > 0)
         {
-            vkUpdateDescriptorSets(m_device_ptr->get_device_vk(),
+            std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
+            vkUpdateDescriptorSets(device_locked_ptr->get_device_vk(),
                                    (uint32_t) m_cached_ds_write_items_vk.size(),
                                   &m_cached_ds_write_items_vk[0],
                                    0,        /* copyCount         */
@@ -637,6 +474,24 @@ bool Anvil::DescriptorSet::bake()
 
 end:
     return result;
+}
+
+/* Please see header for specification */
+std::shared_ptr<Anvil::DescriptorSet> Anvil::DescriptorSet::create(std::weak_ptr<Anvil::Device>                device_ptr,
+                                                                   std::shared_ptr<Anvil::DescriptorPool>      parent_pool_ptr,
+                                                                   std::shared_ptr<Anvil::DescriptorSetLayout> layout_ptr,
+                                                                   VkDescriptorSet                             descriptor_set)
+{
+    std::shared_ptr<Anvil::DescriptorSet> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::DescriptorSet(device_ptr,
+                                 parent_pool_ptr,
+                                 layout_ptr,
+                                 descriptor_set)
+    );
+
+    return result_ptr;
 }
 
 /** Entry-point called back whenever a new binding is added to the parent layout.

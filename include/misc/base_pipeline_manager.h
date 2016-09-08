@@ -64,9 +64,9 @@ namespace Anvil
         *                                     it will be used instead.
         *  @param pipeline_cache_to_reuse_ptr Please see above.
         **/
-       explicit BasePipelineManager(Anvil::Device*        device_ptr,
-                                    bool                  use_pipeline_cache          = false,
-                                    Anvil::PipelineCache* pipeline_cache_to_reuse_ptr = nullptr);
+       explicit BasePipelineManager(std::weak_ptr<Anvil::Device>          device_ptr,
+                                    bool                                  use_pipeline_cache          = false,
+                                    std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr = std::shared_ptr<Anvil::PipelineCache>() );
 
        /** Destructor. Releases internally managed objects. */
        virtual ~BasePipelineManager();
@@ -99,8 +99,8 @@ namespace Anvil
         *
         *  @return true if successful, false otherwise.
         **/
-       bool attach_dsg_to_pipeline(PipelineID                 pipeline_id,
-                                   Anvil::DescriptorSetGroup* dsg_ptr);
+       bool attach_dsg_to_pipeline(PipelineID                                 pipeline_id,
+                                   std::shared_ptr<Anvil::DescriptorSetGroup> dsg_ptr);
 
        virtual bool bake() = 0;
 
@@ -156,7 +156,7 @@ namespace Anvil
        {
            VkPipeline                base_pipeline;
            std::shared_ptr<Pipeline> base_pipeline_ptr;
-           Anvil::Device*            device_ptr;
+           std::weak_ptr<Device>     device_ptr;
 
            DescriptorSetGroups                     descriptor_set_groups;
            PushConstantRanges                      push_constant_ranges;
@@ -165,8 +165,8 @@ namespace Anvil
 
            std::vector<ShaderModuleStageEntryPoint> shader_stages;
 
-           bool            layout_dirty;
-           PipelineLayout* layout_ptr;
+           bool                            layout_dirty;
+           std::shared_ptr<PipelineLayout> layout_ptr;
 
            bool             allow_derivatives;
            VkPipeline       baked_pipeline;
@@ -216,7 +216,7 @@ namespace Anvil
             *  @param in_shader_module_stage_entrypoint_ptrs Array of shader module stage entrypoint descriptors. Must hold
             *                                                @param in_n_shader_module_stage_entrypoints elements. Must not be nullptr.
             **/
-           Pipeline(Anvil::Device*                     in_device_ptr,
+           Pipeline(std::weak_ptr<Anvil::Device>       in_device_ptr,
                     bool                               in_disable_optimizations,
                     bool                               in_allow_derivatives,
                     std::shared_ptr<Pipeline>          in_base_pipeline_ptr,
@@ -233,7 +233,6 @@ namespace Anvil
                is_bakeable           = true;
                is_proxy              = false;
                layout_dirty          = true;
-               layout_ptr            = nullptr;
 
                init_shader_modules(in_n_shader_module_stage_entrypoints,
                                    in_shader_module_stage_entrypoint_ptrs);
@@ -255,7 +254,7 @@ namespace Anvil
             *  @param in_shader_module_stage_entrypoint_ptrs Array of shader module stage entrypoint descriptors. Must hold
             *                                                @param in_n_shader_module_stage_entrypoints elements. Must not be nullptr.
             **/
-           Pipeline(Anvil::Device*                     in_device_ptr,
+           Pipeline(std::weak_ptr<Anvil::Device>       in_device_ptr,
                     bool                               in_disable_optimizations,
                     bool                               in_allow_derivatives,
                     VkPipeline                         in_base_pipeline,
@@ -265,14 +264,12 @@ namespace Anvil
                allow_derivatives     = in_allow_derivatives;
                baked_pipeline        = VK_NULL_HANDLE;
                base_pipeline         = in_base_pipeline;
-               base_pipeline_ptr     = nullptr;
                device_ptr            = in_device_ptr;
                dirty                 = true;
                disable_optimizations = in_disable_optimizations;
                is_bakeable           = true;
                is_proxy              = false;
                layout_dirty          = true;
-               layout_ptr            = nullptr;
 
                init_shader_modules(in_n_shader_module_stage_entrypoints,
                                    in_shader_module_stage_entrypoint_ptrs);
@@ -292,7 +289,7 @@ namespace Anvil
             *  @param in_is_proxy                            true if the created pipeline is a proxy pipeline; false otherwise.
             * 
             **/
-           Pipeline(Anvil::Device*                     in_device_ptr,
+           Pipeline(std::weak_ptr<Anvil::Device>       in_device_ptr,
                     bool                               in_disable_optimizations,
                     bool                               in_allow_derivatives,
                     uint32_t                           in_n_shader_module_stage_entrypoints,
@@ -302,14 +299,12 @@ namespace Anvil
                allow_derivatives     = in_allow_derivatives;
                baked_pipeline        = VK_NULL_HANDLE;
                base_pipeline         = VK_NULL_HANDLE;
-               base_pipeline_ptr     = nullptr;
                device_ptr            = in_device_ptr;
                dirty                 = true;
                disable_optimizations = in_disable_optimizations;
                is_bakeable           = true;
                is_proxy              = in_is_proxy;
                layout_dirty          = true;
-               layout_ptr            = nullptr;
 
                init_shader_modules(in_n_shader_module_stage_entrypoints,
                                    in_shader_module_stage_entrypoint_ptrs);
@@ -484,23 +479,21 @@ namespace Anvil
         *
         *  @return Ptr to a PipelineLayout instance or nullptr if the function failed.
         **/
-       Anvil::PipelineLayout* get_pipeline_layout(PipelineID pipeline_id);
+       std::shared_ptr<Anvil::PipelineLayout> get_pipeline_layout(PipelineID pipeline_id);
 
        /* Protected members */
-       Anvil::Device* m_device_ptr;
-       uint32_t       m_pipeline_counter;
-       Pipelines      m_pipelines;
+       std::weak_ptr<Anvil::Device> m_device_ptr;
+       uint32_t                     m_pipeline_counter;
+       Pipelines                    m_pipelines;
 
-       Anvil::PipelineCache*  m_pipeline_cache_ptr;
-       PipelineLayoutManager* m_pipeline_layout_manager_ptr;
-       bool                   m_use_pipeline_cache;
+       std::shared_ptr<Anvil::PipelineCache>  m_pipeline_cache_ptr;
+       std::shared_ptr<PipelineLayoutManager> m_pipeline_layout_manager_ptr;
+       bool                                   m_use_pipeline_cache;
 
 private:
        /* Private functions */
        BasePipelineManager& operator=(const BasePipelineManager&);
        BasePipelineManager           (const BasePipelineManager&);
-
-       void release_pipeline_vulkan_objects(std::shared_ptr<Pipeline> pipeline_ptr);
     };
 }; /* Vulkan namespace */
 

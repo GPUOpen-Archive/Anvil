@@ -96,8 +96,7 @@ namespace Anvil
         WINDOW_PLATFORM_COUNT
     };
 
-    class Window : public CallbacksSupportProvider,
-                   public RefCounterSupportProvider
+    class Window : public CallbacksSupportProvider
     {
     public:
         /* Public functions */
@@ -121,7 +120,6 @@ namespace Anvil
                unsigned int           height,
                PFNPRESENTCALLBACKPROC present_callback_func_ptr,
                void*                  present_callback_func_user_arg);
-
 
         /** Closes the window and unblocks the thread executing the message pump. */
         virtual void close() { /* Stub */ }
@@ -181,17 +179,8 @@ namespace Anvil
     private:
         /* Private functions */
 
-        /* Private variables */
+    /* Private variables */
 
-    };
-
-    /** Delete functor. Useful if you need to wrap the event instance in an auto pointer */
-    struct WindowDeleter
-    {
-        void operator()(Window* window_ptr) const
-        {
-            window_ptr->release();
-        }
     };
 }; /* namespace Anvil */
 

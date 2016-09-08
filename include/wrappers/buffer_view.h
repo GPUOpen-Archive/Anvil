@@ -30,29 +30,26 @@
 #ifndef WRAPPERS_BUFFER_VIEW_H
 #define WRAPPERS_BUFFER_VIEW_H
 
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
     /** Wrapper class for Vulkan buffer views */
-    class BufferView : public RefCounterSupportProvider
+    class BufferView
     {
     public:
         /* Public functions */
 
-        /** Constructor.
-         *
-         *  Creates a single Vulkan buffer view instance and registers the object in Object Tracker.
-         *  For argument documentation, please see Vulkan API specification.
-         *
-         *  NOTE: @param buffer_ptr is retained and will be released at buffer view destruction time.
-         */
-        BufferView(Anvil::Device* device_ptr,
-                   Anvil::Buffer* buffer_ptr,
-                   VkFormat       format,
-                   VkDeviceSize   start_offset,
-                   VkDeviceSize   size);
+        /** Creates a single Vulkan buffer view instance and registers the object in Object Tracker.
+         *  For argument documentation, please see Vulkan API specification. */
+        static std::shared_ptr<BufferView> create(std::weak_ptr<Anvil::Device>   device_ptr,
+                                                  std::shared_ptr<Anvil::Buffer> buffer_ptr,
+                                                  VkFormat                       format,
+                                                  VkDeviceSize                   start_offset,
+                                                  VkDeviceSize                   size);
+
+        /** Destructor */
+        virtual ~BufferView();
 
         /** Retrieves a raw Vulkan handle for the underlying VkBufferView instance. */
         VkBufferView get_buffer_view() const
@@ -68,29 +65,22 @@ namespace Anvil
 
     private:
         /* Private functions */
+        BufferView(std::weak_ptr<Anvil::Device>   device_ptr,
+                   std::shared_ptr<Anvil::Buffer> buffer_ptr,
+                   VkFormat                       format,
+                   VkDeviceSize                   start_offset,
+                   VkDeviceSize                   size);
+
         BufferView           (const BufferView&);
         BufferView& operator=(const BufferView&);
 
-        virtual ~BufferView();
-
         /* Private variables */
-        Anvil::Buffer* m_buffer_ptr;
-        VkBufferView   m_buffer_view;
-        Anvil::Device* m_device_ptr;
-        VkFormat       m_format;
-        VkDeviceSize   m_size;
-        VkDeviceSize   m_start_offset;
-    };
-
-    /** Buffer view wrapper deleter. Useful if you need to wrap a BufferView instance in an
-     *  auto pointer.
-     **/
-    struct BufferViewDeleter
-    {
-        void operator()(BufferView* buffer_view_ptr) const
-        {
-            buffer_view_ptr->release();
-        }
+        std::shared_ptr<Anvil::Buffer> m_buffer_ptr;
+        VkBufferView                   m_buffer_view;
+        std::weak_ptr<Anvil::Device>   m_device_ptr;
+        VkFormat                       m_format;
+        VkDeviceSize                   m_size;
+        VkDeviceSize                   m_start_offset;
     };
 }; /* namespace Anvil */
 

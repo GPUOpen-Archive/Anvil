@@ -41,9 +41,9 @@
  *                                 to release the cache when no longer needed!
  *  @param pipeline_cache_to_reuse Please see above.
  **/
-Anvil::ComputePipelineManager::ComputePipelineManager(Anvil::Device*        device_ptr,
-                                                      bool                  use_pipeline_cache,
-                                                      Anvil::PipelineCache* pipeline_cache_to_reuse_ptr)
+Anvil::ComputePipelineManager::ComputePipelineManager(std::weak_ptr<Anvil::Device>          device_ptr,
+                                                      bool                                  use_pipeline_cache,
+                                                      std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr)
     :BasePipelineManager(device_ptr,
                          use_pipeline_cache,
                          pipeline_cache_to_reuse_ptr)
@@ -72,6 +72,7 @@ Anvil::ComputePipelineManager::~ComputePipelineManager()
  **/
 bool Anvil::ComputePipelineManager::bake()
 {
+    std::shared_ptr<Anvil::Device>           locked_device_ptr(m_device_ptr);
     std::vector<VkComputePipelineCreateInfo> pipeline_create_info_items_vk;
     bool                                     result = false;
     std::vector<VkPipeline>                  result_pipeline_items_vk;
@@ -117,7 +118,7 @@ bool Anvil::ComputePipelineManager::bake()
 
         if (current_pipeline_ptr->baked_pipeline != VK_NULL_HANDLE)
         {
-            vkDestroyPipeline(m_device_ptr->get_device_vk(),
+            vkDestroyPipeline(locked_device_ptr->get_device_vk(),
                               current_pipeline_ptr->baked_pipeline,
                               nullptr /* pAllocator */);
 
@@ -126,11 +127,6 @@ bool Anvil::ComputePipelineManager::bake()
 
         if (current_pipeline_ptr->layout_dirty)
         {
-            if (current_pipeline_ptr->layout_ptr != nullptr)
-            {
-                current_pipeline_ptr->layout_ptr->release();
-            }
-
             current_pipeline_ptr->layout_ptr = get_pipeline_layout(pipeline_iterator->first);
         }
 
@@ -248,7 +244,7 @@ bool Anvil::ComputePipelineManager::bake()
 
         result_pipeline_items_vk.resize(pipeline_create_info_items_vk.size() );
 
-        result_vk = vkCreateComputePipelines(m_device_ptr->get_device_vk(),
+        result_vk = vkCreateComputePipelines(locked_device_ptr->get_device_vk(),
                                              m_pipeline_cache_ptr->get_pipeline_cache(),
                                              (uint32_t) pipeline_create_info_items_vk.size(),
                                             &pipeline_create_info_items_vk[0],
@@ -281,3 +277,18 @@ end:
     return result;
 }
 
+/* Please see header for specification */
+std::shared_ptr<Anvil::ComputePipelineManager> Anvil::ComputePipelineManager::create(std::weak_ptr<Anvil::Device>          device_ptr,
+                                                                                     bool                                  use_pipeline_cache,
+                                                                                     std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr)
+{
+    std::shared_ptr<Anvil::ComputePipelineManager> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::ComputePipelineManager(device_ptr,
+                                          use_pipeline_cache,
+                                          pipeline_cache_to_reuse_ptr)
+    );
+
+    return result_ptr;
+}

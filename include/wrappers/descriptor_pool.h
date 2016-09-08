@@ -30,7 +30,6 @@
 #define WRAPPERS_DESCRIPTOR_POOL_H
 
 #include "misc/callbacks.h"
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 
 namespace Anvil
@@ -48,12 +47,13 @@ namespace Anvil
     };
 
     class DescriptorPool : public CallbacksSupportProvider,
-                           public RefCounterSupportProvider
+                           public std::enable_shared_from_this<DescriptorPool>
     {
     public:
         /* Public functions */
 
-        /** Constructor. Sets up the wrapper, but does not bake a new Vulkan pool.
+        /** Creates a new DescriptorPool instance. Sets up the wrapper, but does not immediately
+         *  bake a new Vulkan pool.
          *
          *  @param device_ptr       Device to use.
          *  @param n_max_sets       Maximum number of sets to be allocable from the pool. Must be at
@@ -61,9 +61,9 @@ namespace Anvil
          *  @param releaseable_sets true if the sets should be releaseable with vkFreeDescriptorSet()
          *                          calls. false otherwise.
          **/
-        DescriptorPool(Anvil::Device* device_ptr,
-                       uint32_t       n_max_sets,
-                       bool           releaseable_sets);
+        static std::shared_ptr<DescriptorPool> create(std::weak_ptr<Anvil::Device> device_ptr,
+                                                      uint32_t                     n_max_sets,
+                                                      bool                         releaseable_sets);
 
         /** Destructor. Releases the Vulkan pool object if instantiated. */
         virtual ~DescriptorPool();
@@ -83,13 +83,13 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool alloc_descriptor_sets(uint32_t                     n_sets,
-                                   Anvil::DescriptorSetLayout** descriptor_set_layouts_ptr,
-                                   Anvil::DescriptorSet**       out_descriptor_sets_ptr);
+        bool alloc_descriptor_sets(uint32_t                                     n_sets,
+                                   std::shared_ptr<Anvil::DescriptorSetLayout>* descriptor_set_layouts_ptr,
+                                   std::shared_ptr<Anvil::DescriptorSet>*       out_descriptor_sets_ptr);
 
-        bool alloc_descriptor_sets(uint32_t                     n_sets,
-                                   Anvil::DescriptorSetLayout** descriptor_set_layouts_ptr,
-                                   VkDescriptorSet*             out_descriptor_sets_vk_ptr);
+        bool alloc_descriptor_sets(uint32_t                                     n_sets,
+                                   std::shared_ptr<Anvil::DescriptorSetLayout>* descriptor_set_layouts_ptr,
+                                   VkDescriptorSet*                             out_descriptor_sets_vk_ptr);
 
         /** Tells if the pool allocated from the pool can be freed with vkFreeDescriptorSet() call. */
         bool are_sets_releaseable() const
@@ -166,13 +166,19 @@ namespace Anvil
         }
     private:
         /* Private functions */
+
+        /** Constructor */
+        DescriptorPool(std::weak_ptr<Anvil::Device> device_ptr,
+                       uint32_t                     n_max_sets,
+                       bool                         releaseable_sets);
+
         DescriptorPool           (const DescriptorPool&);
         DescriptorPool& operator=(const DescriptorPool&);
 
         /* Private variables */
-        bool             m_baked;
-        Anvil::Device*   m_device_ptr;
-        VkDescriptorPool m_pool;
+        bool                         m_baked;
+        std::weak_ptr<Anvil::Device> m_device_ptr;
+        VkDescriptorPool             m_pool;
 
         uint32_t m_descriptor_count[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
         uint32_t m_n_max_sets;
@@ -180,9 +186,9 @@ namespace Anvil
         /* The instances stored in this vector are owned by alloc() callers - do not release
          * unless Vulkan object goes out of scope.
          */
-        std::vector<Anvil::DescriptorSet* > m_alloced_dses;
-        std::vector<VkDescriptorSet>        m_ds_cache;
-        std::vector<VkDescriptorSetLayout>  m_ds_layout_cache;
+        std::vector<std::shared_ptr<Anvil::DescriptorSet> > m_alloced_dses;
+        std::vector<VkDescriptorSet>                        m_ds_cache;
+        std::vector<VkDescriptorSetLayout>                  m_ds_layout_cache;
 
         const bool m_releaseable_sets;
     };

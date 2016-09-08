@@ -26,19 +26,20 @@
 #include "wrappers/event.h"
 
 /* Please see header for specification */
-Anvil::Event::Event(Anvil::Device* device_ptr)
+Anvil::Event::Event(std::weak_ptr<Anvil::Device> device_ptr)
     :m_device_ptr(device_ptr),
      m_event      (VK_NULL_HANDLE)
 {
-    VkEventCreateInfo event_create_info;
-    VkResult          result;
+    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+    VkEventCreateInfo              event_create_info;
+    VkResult                       result;
 
     /* Spawn a new event */
     event_create_info.flags = 0;
     event_create_info.pNext = nullptr;
     event_create_info.sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO;
 
-    result = vkCreateEvent(m_device_ptr->get_device_vk(),
+    result = vkCreateEvent(device_locked_ptr->get_device_vk(),
                           &event_create_info,
                            nullptr, /* pAllocator */
                           &m_event);
@@ -63,11 +64,24 @@ Anvil::Event::~Event()
 }
 
 /* Please see header for specification */
+std::shared_ptr<Anvil::Event> Anvil::Event::create(std::weak_ptr<Anvil::Device> device_ptr)
+{
+    std::shared_ptr<Event> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::Event(device_ptr)
+    );
+
+    return result_ptr;
+}
+
+/* Please see header for specification */
 bool Anvil::Event::is_set() const
 {
-    VkResult result;
+    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+    VkResult                       result;
 
-    result = vkGetEventStatus(m_device_ptr->get_device_vk(),
+    result = vkGetEventStatus(device_locked_ptr->get_device_vk(),
                               m_event);
 
     anvil_assert(result == VK_EVENT_RESET ||
@@ -81,7 +95,9 @@ void Anvil::Event::release_event()
 {
     if (m_event != VK_NULL_HANDLE)
     {
-        vkDestroyEvent(m_device_ptr->get_device_vk(),
+        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
+        vkDestroyEvent(device_locked_ptr->get_device_vk(),
                        m_event,
                        nullptr /* pAllocator */);
 
@@ -92,9 +108,10 @@ void Anvil::Event::release_event()
 /* Please see header for specification */
 bool Anvil::Event::reset()
 {
-    VkResult result;
+    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+    VkResult                       result;
 
-    result = vkResetEvent(m_device_ptr->get_device_vk(),
+    result = vkResetEvent(device_locked_ptr->get_device_vk(),
                           m_event);
     anvil_assert_vk_call_succeeded(result);
 
@@ -104,9 +121,10 @@ bool Anvil::Event::reset()
 /* Please see header for specification */
 bool Anvil::Event::set()
 {
-    VkResult result;
+    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+    VkResult                       result;
 
-    result = vkSetEvent(m_device_ptr->get_device_vk(),
+    result = vkSetEvent(device_locked_ptr->get_device_vk(),
                         m_event);
     anvil_assert_vk_call_succeeded(result);
 

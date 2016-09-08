@@ -26,21 +26,21 @@
 #include "wrappers/sampler.h"
 
 /** Please see header for specification */
-Anvil::Sampler::Sampler(Anvil::Device*       device_ptr,
-                        VkFilter             mag_filter,
-                        VkFilter             min_filter,
-                        VkSamplerMipmapMode  mipmap_mode,
-                        VkSamplerAddressMode address_mode_u,
-                        VkSamplerAddressMode address_mode_v,
-                        VkSamplerAddressMode address_mode_w,
-                        float                lod_bias,
-                        float                max_anisotropy,
-                        bool                 compare_enable,
-                        VkCompareOp          compare_op,
-                        float                min_lod,
-                        float                max_lod,
-                        VkBorderColor        border_color,
-                        bool                 use_unnormalized_coordinates)
+Anvil::Sampler::Sampler(std::weak_ptr<Anvil::Device> device_ptr,
+                        VkFilter                     mag_filter,
+                        VkFilter                     min_filter,
+                        VkSamplerMipmapMode          mipmap_mode,
+                        VkSamplerAddressMode         address_mode_u,
+                        VkSamplerAddressMode         address_mode_v,
+                        VkSamplerAddressMode         address_mode_w,
+                        float                        lod_bias,
+                        float                        max_anisotropy,
+                        bool                         compare_enable,
+                        VkCompareOp                  compare_op,
+                        float                        min_lod,
+                        float                        max_lod,
+                        VkBorderColor                border_color,
+                        bool                         use_unnormalized_coordinates)
     :m_address_mode_u              (address_mode_u),
      m_address_mode_v              (address_mode_v),
      m_address_mode_w              (address_mode_w),
@@ -58,8 +58,9 @@ Anvil::Sampler::Sampler(Anvil::Device*       device_ptr,
      m_sampler                     (VK_NULL_HANDLE),
      m_use_unnormalized_coordinates(m_use_unnormalized_coordinates)
 {
-    VkSamplerCreateInfo sampler_create_info;
-    VkResult            result;
+    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+    VkSamplerCreateInfo            sampler_create_info;
+    VkResult                       result;
 
     /* Spawn a new sampler */
     sampler_create_info.addressModeU            = address_mode_u;
@@ -81,7 +82,7 @@ Anvil::Sampler::Sampler(Anvil::Device*       device_ptr,
     sampler_create_info.sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     sampler_create_info.unnormalizedCoordinates = use_unnormalized_coordinates;
 
-    result = vkCreateSampler(m_device_ptr->get_device_vk(),
+    result = vkCreateSampler(device_locked_ptr->get_device_vk(),
                             &sampler_create_info,
                              nullptr, /* pAllocator */
                             &m_sampler);
@@ -92,16 +93,14 @@ Anvil::Sampler::Sampler(Anvil::Device*       device_ptr,
                                                   this);
 }
 
-/** Destructor.
- *
- *  Releases the underlying Vulkan Sampler instance and signs the wrapper object out from
- *  the Object Tracker.
- **/
+/* Please see header for specification */
 Anvil::Sampler::~Sampler()
 {
     if (m_sampler != VK_NULL_HANDLE)
     {
-        vkDestroySampler(m_device_ptr->get_device_vk(),
+        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
+        vkDestroySampler(device_locked_ptr->get_device_vk(),
                          m_sampler,
                          nullptr /* pAllocator */);
 
@@ -110,4 +109,44 @@ Anvil::Sampler::~Sampler()
 
     Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_SAMPLER,
                                                     this);
+}
+
+/* Please see header for specification */
+std::shared_ptr<Anvil::Sampler> Anvil::Sampler::create(std::weak_ptr<Anvil::Device> device_ptr,
+                                                       VkFilter                     mag_filter,
+                                                       VkFilter                     min_filter,
+                                                       VkSamplerMipmapMode          mipmap_mode,
+                                                       VkSamplerAddressMode         address_mode_u,
+                                                       VkSamplerAddressMode         address_mode_v,
+                                                       VkSamplerAddressMode         address_mode_w,
+                                                       float                        lod_bias,
+                                                       float                        max_anisotropy,
+                                                       bool                         compare_enable,
+                                                       VkCompareOp                  compare_op,
+                                                       float                        min_lod,
+                                                       float                        max_lod,
+                                                       VkBorderColor                border_color,
+                                                       bool                         use_unnormalized_coordinates)
+{
+    std::shared_ptr<Anvil::Sampler> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::Sampler(device_ptr,
+                           mag_filter,
+                           min_filter,
+                           mipmap_mode,
+                           address_mode_u,
+                           address_mode_v,
+                           address_mode_w,
+                           lod_bias,
+                           max_anisotropy,
+                           compare_enable,
+                           compare_op,
+                           min_lod,
+                           max_lod,
+                           border_color,
+                           use_unnormalized_coordinates)
+    );
+
+    return result_ptr;
 }

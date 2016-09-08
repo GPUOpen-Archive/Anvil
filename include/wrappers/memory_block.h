@@ -31,26 +31,23 @@
  *    lets its users map the block's storage into process space. Then, the user should issue
  *    a number of read & write ops, after which the object can be unmapped.
  *  - provides a way to create derivative memory blocks, whose storage is "carved out" of the
- *    parent memory block's. Note that only two-level hierarchy is supported (but could be
- *    extended if necessary).
+ *    parent memory block's.
  **/
 #ifndef WRAPPERS_MEMORY_BLOCK_H
 #define WRAPPERS_MEMORY_BLOCK_H
 
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 
 
 namespace Anvil
 {
     /** Wrapper class for memory objects. Please see header for more details */
-    class MemoryBlock : public RefCounterSupportProvider
+    class MemoryBlock : public std::enable_shared_from_this<MemoryBlock>
     {
     public:
         /* Public functions */
 
-        /** Constructor which should be used to create and bind a new device memory object
-         *  to the instantiated MemoryBlock object.
+        /** Create and bind a new device memory object to the instantiated MemoryBlock object.
          *
          *  @param device_ptr          Device to use.
          *  @param allowed_memory_bits Memory type bits which meet the allocation requirements.
@@ -61,19 +58,15 @@ namespace Anvil
          *  @param should_be_coherent  true if the underlying memory backing should come from a heap
          *                             which support coherent accesses. false otherwise.
          **/
-         MemoryBlock(Anvil::Device* device_ptr,
-                     uint32_t       allowed_memory_bits,
-                     VkDeviceSize   size,
-                     bool           should_be_mappable,
-                     bool           should_be_coherent);
+         static std::shared_ptr<MemoryBlock> create(std::weak_ptr<Anvil::Device> device_ptr,
+                                                    uint32_t                     allowed_memory_bits,
+                                                    VkDeviceSize                 size,
+                                                    bool                         should_be_mappable,
+                                                    bool                         should_be_coherent);
 
-        /** Constructor which should be used to create a memory block whose storage space is
-         *  maintained by another MemoryBlock instance.
-         *
-         *  The specified parent memory block is going to be retained.
+        /** Create a memory block whose storage space is maintained by another MemoryBlock instance.
          *
          *  @param parent_memory_block_ptr MemoryBlock instance to use as a parent. Must not be nullptr.
-         *                                 Parent memory block must not have any parent on its own.
          *                                 Parent memory block must not be mapped.
          *  @param start_offset            Start offset of the storage maintained by the specified parent memory block,
          *                                 from which the new MemoryBlock instance's storage should start.
@@ -82,9 +75,12 @@ namespace Anvil
          *                                 storage size.
          *  @param size
          **/
-        MemoryBlock(MemoryBlock* parent_memory_block_ptr,
-                    VkDeviceSize start_offset,
-                    VkDeviceSize size);
+        static std::shared_ptr<MemoryBlock> create_derived(std::shared_ptr<MemoryBlock> parent_memory_block_ptr,
+                                                           VkDeviceSize                 start_offset,
+                                                           VkDeviceSize                 size);
+
+        /** TODO */
+        virtual ~MemoryBlock();
 
         /* Returns the underlying raw Vulkan VkDeviceMemory handle. */
         const VkDeviceMemory& get_memory() const
@@ -156,7 +152,7 @@ namespace Anvil
 
         /** Maps the specified region of the underlying memory object to the process space.
          *
-         *  Neither the object, nor its parent (if one is defined) is allowed to be mapped
+         *  Neither the object, nor its parent(s) is allowed to be mapped
          *  at the time of the call.
          *
          *  The specified memory region to be mapped must be fully located within the
@@ -220,10 +216,21 @@ namespace Anvil
 
     private:
         /* Private functions */
+
+        /** Please see create() for documentation */
+        MemoryBlock(std::weak_ptr<Anvil::Device> device_ptr,
+                    uint32_t                     allowed_memory_bits,
+                    VkDeviceSize                 size,
+                    bool                         should_be_mappable,
+                    bool                         should_be_coherent);
+
+        /** Please see create() for documentation */
+        MemoryBlock(std::shared_ptr<MemoryBlock> parent_memory_block_ptr,
+                    VkDeviceSize                 start_offset,
+                    VkDeviceSize                 size);
+
         MemoryBlock           (const MemoryBlock&);
         MemoryBlock& operator=(const MemoryBlock&);
-
-        virtual ~MemoryBlock();
 
         void     close_gpu_memory_access     ();
         uint32_t get_device_memory_type_index(uint32_t     memory_type_bits,
@@ -238,15 +245,15 @@ namespace Anvil
         VkDeviceSize         m_gpu_data_user_size;
         VkDeviceSize         m_gpu_data_user_start_offset;
 
-        uint32_t            m_allowed_memory_bits;
-        Anvil::Device*      m_device_ptr;
-        bool                m_is_coherent;
-        bool                m_is_mappable;
-        VkDeviceMemory      m_memory;
-        uint32_t            m_memory_type_index;
-        Anvil::MemoryBlock* m_parent_memory_block_ptr;
-        VkDeviceSize        m_size;
-        VkDeviceSize        m_start_offset;
+        uint32_t                            m_allowed_memory_bits;
+        std::weak_ptr<Anvil::Device>        m_device_ptr;
+        bool                                m_is_coherent;
+        bool                                m_is_mappable;
+        VkDeviceMemory                      m_memory;
+        uint32_t                            m_memory_type_index;
+        std::shared_ptr<Anvil::MemoryBlock> m_parent_memory_block_ptr;
+        VkDeviceSize                        m_size;
+        VkDeviceSize                        m_start_offset;
     };
 }; /* Vulkan namespace */
 

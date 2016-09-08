@@ -32,28 +32,31 @@
 #define WRAPPERS_PHYSICAL_DEVICE_H
 
 #include "misc/debug.h"
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
     /* Wrapper class for Vulkan physical devices */
-    class PhysicalDevice : public RefCounterSupportProvider
+    class PhysicalDevice : public std::enable_shared_from_this<PhysicalDevice>
     {
     public:
         /* Public functions */
 
-        /** Constructor. Retrieves properties & capabilities of a physical device at
-         *  user-specified index.
+        /** Creates a new PhysicalDevice instance.
+         *
+         *  Retrieves properties & capabilities of a physical device at user-specified index.
          *
          *  @param instance_ptr    Vulkan instance this object is being spawned for. Must
          *                         not be nullptr.
          *  @param index           Index of the physical device to initialize the wrapper for.
          *  @param physical_device Raw Vulkan physical device handle to encapsulate.
          */
-        explicit PhysicalDevice(Anvil::Instance* instance_ptr,
-                                uint32_t         index,
-                                VkPhysicalDevice physical_device);
+        static std::weak_ptr<Anvil::PhysicalDevice> create(std::shared_ptr<Anvil::Instance> instance_ptr,
+                                                           uint32_t                         index,
+                                                           VkPhysicalDevice                 physical_device);
+
+        /** Destructor */
+        virtual ~PhysicalDevice();
 
         /** Retrieves features supported by the physical device */
         const VkPhysicalDeviceFeatures& get_device_features() const
@@ -100,7 +103,7 @@ namespace Anvil
         }
 
         /** Returns parent Vulkan instance wrapper. */
-        const Anvil::Instance* get_instance() const
+        std::weak_ptr<Anvil::Instance> get_instance() const
         {
             return m_instance_ptr;
         }
@@ -156,34 +159,52 @@ namespace Anvil
         typedef std::map<VkFormat, FormatProperties> FormatPropertiesMap;
 
         /* Private functions */
+
+        /** Constructor. Retrieves properties & capabilities of a physical device at
+         *  user-specified index.
+         *
+         *  @param instance_ptr    Vulkan instance this object is being spawned for. Must
+         *                         not be nullptr.
+         *  @param index           Index of the physical device to initialize the wrapper for.
+         *  @param physical_device Raw Vulkan physical device handle to encapsulate.
+         */
+        explicit PhysicalDevice(std::weak_ptr<Anvil::Instance> instance_ptr,
+                                uint32_t                       index,
+                                VkPhysicalDevice               physical_device)
+            :m_destroyed      (false),
+             m_index          (index),
+             m_instance_ptr   (instance_ptr),
+             m_physical_device(physical_device)
+        {
+            anvil_assert(physical_device != VK_NULL_HANDLE);
+        }
+
         PhysicalDevice           (const PhysicalDevice&);
         PhysicalDevice& operator=(const PhysicalDevice&);
 
-        virtual ~PhysicalDevice();
-
-        void init();
+        void destroy          ();
+        void init             ();
+        void register_device  (std::shared_ptr<Anvil::Device> device_ptr);
+        void unregister_device(std::shared_ptr<Anvil::Device> device_ptr);
 
         /* Private variables */
+        bool             m_destroyed;
         VkPhysicalDevice m_physical_device;
 
-        Anvil::Extensions          m_extensions;
-        uint32_t                   m_index;
-        Anvil::Instance*           m_instance_ptr;
-        VkPhysicalDeviceFeatures   m_features;
-        FormatPropertiesMap        m_format_properties;
-        Anvil::Layers              m_layers;
-        MemoryProperties           m_memory_properties;
-        QueueFamilyInfoItems       m_queue_families;
-        VkPhysicalDeviceProperties m_properties;
-    };
+        Anvil::Extensions                m_extensions;
+        uint32_t                         m_index;
+        std::shared_ptr<Anvil::Instance> m_instance_ptr;
+        VkPhysicalDeviceFeatures         m_features;
+        FormatPropertiesMap              m_format_properties;
+        Anvil::Layers                    m_layers;
+        MemoryProperties                 m_memory_properties;
+        QueueFamilyInfoItems             m_queue_families;
+        VkPhysicalDeviceProperties       m_properties;
 
-    /* Delete functor. Useful for wrapping Physical Device instances in auto pointers. */
-    struct PhysicalDeviceDeleter
-    {
-        void operator()(PhysicalDevice* physical_device_ptr)
-        {
-            physical_device_ptr->release();
-        }
+        std::vector<std::shared_ptr<Anvil::Device> > m_cached_devices;
+
+        friend class Anvil::Device;
+        friend class Anvil::Instance;
     };
 }; /* namespace Anvil */
 

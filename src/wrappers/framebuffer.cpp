@@ -30,20 +30,17 @@
 #include <algorithm>
 
 /** Please see header for specification */
-Anvil::Framebuffer::FramebufferAttachment::FramebufferAttachment(ImageView* in_image_view_ptr)
+Anvil::Framebuffer::FramebufferAttachment::FramebufferAttachment(std::shared_ptr<ImageView> in_image_view_ptr)
 {
     anvil_assert(in_image_view_ptr != nullptr);
 
     image_view_ptr = in_image_view_ptr;
-    in_image_view_ptr->retain();
 }
 
 /** Please see header for specification */
 Anvil::Framebuffer::FramebufferAttachment::FramebufferAttachment(const FramebufferAttachment& in)
 {
     image_view_ptr = in.image_view_ptr;
-
-    image_view_ptr->retain();
 }
 
 /** Please see header for specification */
@@ -51,26 +48,20 @@ Anvil::Framebuffer::FramebufferAttachment& Anvil::Framebuffer::FramebufferAttach
 {
     image_view_ptr = in.image_view_ptr;
 
-    image_view_ptr->retain();
     return *this;
 }
 
 /** Destructor. Releases the wrapped image view instance. */
 Anvil::Framebuffer::FramebufferAttachment::~FramebufferAttachment()
 {
-    if (image_view_ptr != nullptr)
-    {
-        image_view_ptr->release();
-
-        image_view_ptr = nullptr;
-    }
+    /* Stub */
 }
 
 /* Please see header for specification */
-Anvil::Framebuffer::Framebuffer(Anvil::Device* device_ptr,
-                                 uint32_t       width,
-                                 uint32_t       height,
-                                 uint32_t       n_layers)
+Anvil::Framebuffer::Framebuffer(std::weak_ptr<Anvil::Device> device_ptr,
+                                uint32_t                     width,
+                                uint32_t                     height,
+                                uint32_t                     n_layers)
     :m_device_ptr(device_ptr)
 {
     anvil_assert(width    >= 1);
@@ -93,6 +84,8 @@ Anvil::Framebuffer::Framebuffer(Anvil::Device* device_ptr,
  **/
 Anvil::Framebuffer::~Framebuffer()
 {
+    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
     for (auto fb_iterator  = m_baked_framebuffers.begin();
               fb_iterator != m_baked_framebuffers.end();
             ++fb_iterator)
@@ -100,7 +93,7 @@ Anvil::Framebuffer::~Framebuffer()
         anvil_assert(fb_iterator->second.framebuffer != VK_NULL_HANDLE);
 
         /* Destroy the Vulkan framebuffer object */
-        vkDestroyFramebuffer(m_device_ptr->get_device_vk(),
+        vkDestroyFramebuffer(device_locked_ptr->get_device_vk(),
                              fb_iterator->second.framebuffer,
                              nullptr /* pAllocator */);
 
@@ -108,10 +101,9 @@ Anvil::Framebuffer::~Framebuffer()
         fb_iterator->first->unregister_from_callbacks(RENDER_PASS_CALLBACK_ID_BAKING_NEEDED,
                                                       on_renderpass_changed,
                                                       this);
-
-        fb_iterator->first->release();
     }
 
+    m_baked_framebuffers.clear();
     m_attachments.clear();
 
     /* Unregister the object */
@@ -120,12 +112,12 @@ Anvil::Framebuffer::~Framebuffer()
 }
 
 /* Please see header for specification */
-bool Anvil::Framebuffer::add_attachment(ImageView*               image_view_ptr,
-                                        FramebufferAttachmentID* out_opt_attachment_id_ptr)
+bool Anvil::Framebuffer::add_attachment(std::shared_ptr<ImageView> image_view_ptr,
+                                        FramebufferAttachmentID*   out_opt_attachment_id_ptr)
 {
-    const Anvil::Image* parent_image_ptr = nullptr;
-    bool                 result           = false;
-    uint32_t             view_size[3];
+    std::shared_ptr<const Anvil::Image> parent_image_ptr;
+    bool                                result           = false;
+    uint32_t                            view_size[3];
 
     /* Sanity checks: Input image view must not be nullptr */
     anvil_assert(image_view_ptr != nullptr);
@@ -198,14 +190,15 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::Framebuffer::bake(Anvil::RenderPass* render_pass_ptr)
+bool Anvil::Framebuffer::bake(std::shared_ptr<Anvil::RenderPass> render_pass_ptr)
 {
-    BakedFramebufferMap::iterator baked_fb_iterator;
-    VkFramebufferCreateInfo       fb_create_info;
-    std::vector<VkImageView>      image_view_attachments;
-    bool                          result    = false;
-    VkFramebuffer                 result_fb = VK_NULL_HANDLE;
-    VkResult                      result_vk;
+    BakedFramebufferMap::iterator  baked_fb_iterator;
+    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+    VkFramebufferCreateInfo        fb_create_info;
+    std::vector<VkImageView>       image_view_attachments;
+    bool                           result    = false;
+    VkFramebuffer                  result_fb = VK_NULL_HANDLE;
+    VkResult                       result_vk;
 
     /* Sanity check: Input render pass is not nullptr */
     if (render_pass_ptr == nullptr)
@@ -230,7 +223,7 @@ bool Anvil::Framebuffer::bake(Anvil::RenderPass* render_pass_ptr)
 
     if (baked_fb_iterator != m_baked_framebuffers.end() )
     {
-        vkDestroyFramebuffer(m_device_ptr->get_device_vk(),
+        vkDestroyFramebuffer(device_locked_ptr->get_device_vk(),
                              baked_fb_iterator->second.framebuffer,
                              nullptr /* pAllocator */);
 
@@ -260,7 +253,7 @@ bool Anvil::Framebuffer::bake(Anvil::RenderPass* render_pass_ptr)
     fb_create_info.width           = m_framebuffer_size[0];
 
     /* Create the framebuffer instance and store it */
-    result_vk = vkCreateFramebuffer(m_device_ptr->get_device_vk(),
+    result_vk = vkCreateFramebuffer(device_locked_ptr->get_device_vk(),
                                   &fb_create_info,
                                    nullptr, /* pAllocator */
                                   &result_fb);
@@ -272,7 +265,6 @@ bool Anvil::Framebuffer::bake(Anvil::RenderPass* render_pass_ptr)
     m_baked_framebuffers[render_pass_ptr].framebuffer = result_fb;
 
     /* If the render pass is ever changed, make sure we re-bake the framebuffer when needed */
-    render_pass_ptr->retain                ();
     render_pass_ptr->register_for_callbacks(RENDER_PASS_CALLBACK_ID_BAKING_NEEDED,
                                            &on_renderpass_changed,
                                            this);
@@ -285,8 +277,26 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::Framebuffer::get_attachment_id_for_image_view(ImageView*               image_view_ptr,
-                                                          FramebufferAttachmentID* out_attachment_id_ptr)
+std::shared_ptr<Anvil::Framebuffer> Anvil::Framebuffer::create(std::weak_ptr<Anvil::Device> device_ptr,
+                                                               uint32_t                     width,
+                                                               uint32_t                     height,
+                                                               uint32_t                     n_layers)
+{
+    std::shared_ptr<Anvil::Framebuffer> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::Framebuffer(device_ptr,
+                               width,
+                               height,
+                               n_layers)
+    );
+
+    return result_ptr;
+}
+
+/* Please see header for specification */
+bool Anvil::Framebuffer::get_attachment_id_for_image_view(std::shared_ptr<ImageView> image_view_ptr,
+                                                          FramebufferAttachmentID*   out_attachment_id_ptr)
 {
     bool result              = false;
     auto attachment_iterator = std::find(m_attachments.cbegin(),
@@ -303,7 +313,7 @@ bool Anvil::Framebuffer::get_attachment_id_for_image_view(ImageView*            
 }
 
 /* Please see header for specification */
-const VkFramebuffer Anvil::Framebuffer::get_framebuffer(Anvil::RenderPass* render_pass_ptr)
+const VkFramebuffer Anvil::Framebuffer::get_framebuffer(std::shared_ptr<Anvil::RenderPass> render_pass_ptr)
 {
     auto          fb_iterator = m_baked_framebuffers.find(render_pass_ptr);
     VkFramebuffer result_fb   = VK_NULL_HANDLE;
@@ -351,8 +361,10 @@ end:
 void Anvil::Framebuffer::on_renderpass_changed(void* raw_renderpass_ptr,
                                                void* raw_framebuffer_ptr)
 {
-    Framebuffer* framebuffer_ptr   = reinterpret_cast<Framebuffer*>(raw_framebuffer_ptr);
-    RenderPass*  renderpass_ptr    = reinterpret_cast<RenderPass*> (raw_renderpass_ptr);
+    Framebuffer*                framebuffer_ptr   = reinterpret_cast<Framebuffer*>(raw_framebuffer_ptr);
+    std::shared_ptr<RenderPass> renderpass_ptr    = std::shared_ptr<RenderPass>(reinterpret_cast<RenderPass*>(raw_renderpass_ptr),
+                                                                                Anvil::NullDeleter<RenderPass>() );
+
     auto         baked_fb_iterator = framebuffer_ptr->m_baked_framebuffers.find(renderpass_ptr);
 
     if (baked_fb_iterator == framebuffer_ptr->m_baked_framebuffers.end() )

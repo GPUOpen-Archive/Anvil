@@ -42,9 +42,9 @@ namespace Anvil
     {
     public:
         /* Public functions */
-       explicit ComputePipelineManager(Anvil::Device*        device_ptr,
-                                       bool                  use_pipeline_cache          = false,
-                                       Anvil::PipelineCache* pipeline_cache_to_reuse_ptr = nullptr);
+       static std::shared_ptr<ComputePipelineManager> create(std::weak_ptr<Anvil::Device>          device_ptr,
+                                                             bool                                  use_pipeline_cache          = false,
+                                                             std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr = nullptr);
 
        ~ComputePipelineManager();
 
@@ -198,10 +198,17 @@ namespace Anvil
         *
         *  @return Ptr to a PipelineLayout instance or nullptr if the function failed.
         **/
-       Anvil::PipelineLayout* get_compute_pipeline_layout(ComputePipelineID pipeline_id)
+       std::shared_ptr<Anvil::PipelineLayout> get_compute_pipeline_layout(ComputePipelineID pipeline_id)
        {
            return BasePipelineManager::get_pipeline_layout(pipeline_id);
        }
+
+       private:
+           /* Constructor */
+           explicit ComputePipelineManager(std::weak_ptr<Anvil::Device>          device_ptr,
+                                           bool                                  use_pipeline_cache          = false,
+                                           std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr = nullptr);
+
     };
 }; /* Vulkan namespace */
 

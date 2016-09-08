@@ -47,7 +47,7 @@ namespace Anvil
         {
         public:
             /* Constructor. */
-            explicit GLSLangLimits(Anvil::PhysicalDevice* physical_device_ptr);
+            explicit GLSLangLimits(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr);
 
             /* Destructor */
             ~GLSLangLimits()
@@ -82,7 +82,7 @@ namespace Anvil
 
         /* Public functions */
 
-        /** Constructor.
+        /** Creates a new GLSLShaderToSPIRVGenerator instance.
          *
          *  @param physical_device_ptr Physical device, whose limit values should be passed to glslang. Must not
          *                             be NULL.
@@ -94,10 +94,10 @@ namespace Anvil
          *                             macro is undefined.
          *  @param shader_stage        Shader stage described by the file.
          **/
-         explicit GLSLShaderToSPIRVGenerator(Anvil::PhysicalDevice* physical_device_ptr,
-                                             const Mode&            mode,
-                                             std::string            data,
-                                             ShaderStage            shader_stage);
+         static std::shared_ptr<GLSLShaderToSPIRVGenerator> create(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                                                                   const Mode&                          mode,
+                                                                   std::string                          data,
+                                                                   ShaderStage                          shader_stage);
 
          /** Destructor. Releases all created Vulkan objects, as well as the SPIR-V blob data. */
          ~GLSLShaderToSPIRVGenerator();
@@ -187,6 +187,13 @@ namespace Anvil
         typedef std::map<std::string, std::string> DefinitionNameToValueMap;
 
         /* Private functions */
+
+        /* Constructor. Please see create() documentation for specification */
+        explicit GLSLShaderToSPIRVGenerator(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                                            const Mode&                          mode,
+                                            std::string                          data,
+                                            ShaderStage                          shader_stage);
+
         #ifdef ANVIL_LINK_WITH_GLSLANG
             bool        bake_spirv_blob_by_calling_glslang(const char* body);
             EShLanguage get_glslang_shader_stage          () const;

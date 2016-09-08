@@ -41,27 +41,29 @@ namespace Anvil
                     PFNPRESENTCALLBACKPROC present_callback_func_ptr,
                     void*                  present_callback_func_user_arg);
 
-        virtual void    close();
-        virtual void    run();
+        virtual ~DummyWindow()
+        {
+            /* Stub */
+        }
+
+        virtual void close();
+        virtual void run();
 
         /* Tells if it's a dummy window (offscreen rendering thus no WSI/swapchain involved) */
-        virtual bool    is_dummy()
+        virtual bool is_dummy()
         {
             return true;
         }
 
         /** Returns system XCB connection, should be used by linux only */
-        virtual void*   get_connection() const
+        virtual void* get_connection() const
         {
             return nullptr;
         }
 
     private:
-        /* Private functions */
-        virtual        ~DummyWindow(){ /* Stub */ }
-
         /** Creates a new system window and prepares it for usage. */
-        void            init();
+        void init();
     };
 }; /* namespace Anvil */
 

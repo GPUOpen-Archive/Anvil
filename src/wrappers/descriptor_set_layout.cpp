@@ -27,7 +27,7 @@
 #include "wrappers/sampler.h"
 
 /** Please see header for specification */
-Anvil::DescriptorSetLayout::DescriptorSetLayout(Anvil::Device* device_ptr)
+Anvil::DescriptorSetLayout::DescriptorSetLayout(std::weak_ptr<Anvil::Device> device_ptr)
     :CallbacksSupportProvider(DESCRIPTOR_SET_LAYOUT_CALLBACK_ID_COUNT),
      m_device_ptr(device_ptr),
      m_dirty     (true),
@@ -42,7 +42,9 @@ Anvil::DescriptorSetLayout::~DescriptorSetLayout()
 {
     if (m_layout != VK_NULL_HANDLE)
     {
-        vkDestroyDescriptorSetLayout(m_device_ptr->get_device_vk(),
+        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
+        vkDestroyDescriptorSetLayout(device_locked_ptr->get_device_vk(),
                                      m_layout,
                                      nullptr /* pAllocator */);
 
@@ -54,11 +56,11 @@ Anvil::DescriptorSetLayout::~DescriptorSetLayout()
 }
 
 /** Please see header for specification */
-bool Anvil::DescriptorSetLayout::add_binding(uint32_t           binding_index,
-                                             VkDescriptorType   descriptor_type,
-                                             uint32_t           descriptor_array_size,
-                                             VkShaderStageFlags stage_flags,
-                                             Anvil::Sampler**  immutable_sampler_ptrs)
+bool Anvil::DescriptorSetLayout::add_binding(uint32_t                         binding_index,
+                                             VkDescriptorType                 descriptor_type,
+                                             uint32_t                         descriptor_array_size,
+                                             VkShaderStageFlags               stage_flags,
+                                             std::shared_ptr<Anvil::Sampler>* immutable_sampler_ptrs)
 {
     bool result = false;
 
@@ -103,6 +105,7 @@ bool Anvil::DescriptorSetLayout::bake()
 {
     std::vector<VkDescriptorSetLayoutBinding> binding_info_items;
     VkDescriptorSetLayoutCreateInfo           create_info;
+    std::shared_ptr<Anvil::Device>            device_locked_ptr(m_device_ptr);
     uint32_t                                  n_binding          = 0;
     uint32_t                                  n_bindings_defined = 0;
     uint32_t                                  n_samplers_defined = 0;
@@ -120,7 +123,7 @@ bool Anvil::DescriptorSetLayout::bake()
     /* Release an existing Vulkan layout, if one's already been baked in the past */
     if (m_layout != VK_NULL_HANDLE)
     {
-        vkDestroyDescriptorSetLayout(m_device_ptr->get_device_vk(),
+        vkDestroyDescriptorSetLayout(device_locked_ptr->get_device_vk(),
                                      m_layout,
                                      nullptr /* pAllocator */);
 
@@ -216,7 +219,7 @@ bool Anvil::DescriptorSetLayout::bake()
     }
 
     /* Bake the Vulkan object */
-    result_vk = vkCreateDescriptorSetLayout(m_device_ptr->get_device_vk(),
+    result_vk = vkCreateDescriptorSetLayout(device_locked_ptr->get_device_vk(),
                                            &create_info,
                                             nullptr, /* pAllocator */
                                            &m_layout);
@@ -231,6 +234,18 @@ bool Anvil::DescriptorSetLayout::bake()
 
 end:
     return result;
+}
+
+/** Please see header for specification */
+std::shared_ptr<Anvil::DescriptorSetLayout> Anvil::DescriptorSetLayout::create(std::weak_ptr<Anvil::Device> device_ptr)
+{
+    std::shared_ptr<Anvil::DescriptorSetLayout> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::DescriptorSetLayout(device_ptr)
+    );
+
+    return result_ptr;
 }
 
 /** Please see header for specification */

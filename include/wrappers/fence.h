@@ -31,18 +31,20 @@
 #ifndef WRAPPERS_FENCE_H
 #define WRAPPERS_FENCE_H
 
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
     /* Wrapper class for Vulkan fences */
-    class Fence : public RefCounterSupportProvider
+    class Fence
     {
     public:
         /* Public functions */
 
-        /** Constructor.
+        /** TODO */
+        virtual ~Fence();
+
+        /** Creates a new Fence instance.
          *
          *  Creates a single Vulkan fence instance and registers the object in Object Tracker.
          *
@@ -50,8 +52,8 @@ namespace Anvil
          *  @param create_signalled true if the fence should be created as a signalled entity.
          *                          False to make it unsignalled at creation time.
          */
-        Fence(Anvil::Device* device_ptr,
-              bool           create_signalled);
+        static std::shared_ptr<Fence> create(std::weak_ptr<Anvil::Device> device_ptr,
+                                      bool                         create_signalled);
 
         /** Retrieves a raw handle to the underlying Vulkan fence instance */
         VkFence get_fence() const
@@ -95,26 +97,23 @@ namespace Anvil
 
     private:
         /* Private functions */
+
+        /** Constructor.
+         *
+         *  Please see documentation of create() for specification
+         */
+        Fence(std::weak_ptr<Anvil::Device> device_ptr,
+              bool                         create_signalled);
+
         Fence           (const Fence&);
         Fence& operator=(const Fence&);
-
-        virtual ~Fence();
 
         void release_fence();
 
         /* Private variables */
-        Anvil::Device* m_device_ptr;
-        VkFence        m_fence;
-        bool           m_possibly_set;
-    };
-
-    /* Delete functor. Useful for wrapping Fence instances in auto pointers. */
-    struct FenceDeleter
-    {
-        void operator()(Fence* fence_ptr)
-        {
-            fence_ptr->release();
-        }
+        std::weak_ptr<Anvil::Device> m_device_ptr;
+        VkFence                      m_fence;
+        bool                         m_possibly_set;
     };
 }; /* namespace Anvil */
 

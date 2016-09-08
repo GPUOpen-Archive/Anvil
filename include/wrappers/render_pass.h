@@ -32,7 +32,6 @@
 #define WRAPPERS_RENDER_PASS_H
 
 #include "misc/callbacks.h"
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 
 namespace Anvil
@@ -50,7 +49,7 @@ namespace Anvil
     };
 
     class RenderPass : public CallbacksSupportProvider,
-                       public RefCounterSupportProvider
+                       public std::enable_shared_from_this<RenderPass>
     {
     public:
         /* Public functions */
@@ -70,13 +69,11 @@ namespace Anvil
          *                           May be nullptr.
          *
          **/
-        RenderPass(Anvil::Device*    device_ptr,
-                   Anvil::Swapchain* opt_swapchain_ptr);
+        static std::shared_ptr<RenderPass> create(std::weak_ptr<Anvil::Device>      device_ptr,
+                                                  std::shared_ptr<Anvil::Swapchain> opt_swapchain_ptr);
 
-        virtual void retain()
-        {
-            RefCounterSupportProvider::retain();
-        }
+        /** TODO */
+        virtual ~RenderPass();
 
         /** Adds a new render-pass color attachment to the internal data model.
          *
@@ -444,7 +441,7 @@ namespace Anvil
                                              uint32_t* out_n_color_attachments_ptr) const;
 
         /** Returns the Swapchain instance, associated with the RenderPass wrapper instance at creation time. */
-        Anvil::Swapchain* get_swapchain() const
+        std::shared_ptr<Anvil::Swapchain> get_swapchain() const
         {
             return m_swapchain_ptr;
         }
@@ -628,7 +625,7 @@ namespace Anvil
         {
             LocationToSubPassAttachmentMap color_attachments_map;
             SubPassAttachment              depth_stencil_attachment;
-            Anvil::Device*                 device_ptr;
+            std::weak_ptr<Anvil::Device>   device_ptr;
             uint32_t                       index;
             LocationToSubPassAttachmentMap input_attachments_map;
             GraphicsPipelineID             pipeline_id;
@@ -656,7 +653,6 @@ namespace Anvil
             /** Dummy constructor. This should only be used by STL containers */
             SubPass()
             {
-                device_ptr  = nullptr;
                 index       = -1;
                 pipeline_id = -1;
             }
@@ -667,9 +663,9 @@ namespace Anvil
              *  @param in_pipeline_id ID of the graphics pipeline which is associated with the subpass.
              *
              **/
-            SubPass(Anvil::Device*     in_device_ptr,
-                    uint32_t           in_index,
-                    GraphicsPipelineID in_pipeline_id)
+            SubPass(std::weak_ptr<Anvil::Device> in_device_ptr,
+                    uint32_t                     in_index,
+                    GraphicsPipelineID           in_pipeline_id)
             {
                 device_ptr  = in_device_ptr;
                 index       = in_index;
@@ -777,10 +773,13 @@ namespace Anvil
         typedef std::vector<SubPassDependency> SubPassDependencies;
 
         /* Private functions */
-         RenderPass& operator=(const RenderPass&);
-         RenderPass           (const RenderPass&);
 
-         virtual ~RenderPass();
+        /* Constructor. Please see create() for specification */
+        RenderPass(std::weak_ptr<Anvil::Device>      device_ptr,
+                   std::shared_ptr<Anvil::Swapchain> opt_swapchain_ptr);
+
+        RenderPass& operator=(const RenderPass&);
+        RenderPass           (const RenderPass&);
 
         bool add_dependency        (SubPass*               destination_subpass_ptr,
                                     SubPass*               source_subpass_ptr,
@@ -802,22 +801,13 @@ namespace Anvil
         void                  update_preserved_attachments                       ();
 
         /* Private members */
-        RenderPassAttachments m_attachments;
-        Anvil::Device*        m_device_ptr;
-        bool                  m_dirty;
-        VkRenderPass          m_render_pass;
-        SubPasses             m_subpasses;
-        SubPassDependencies   m_subpass_dependencies;
-        Swapchain*            m_swapchain_ptr;
-    };
-
-    struct RenderPassDeleter
-    {
-        /* Delete functor. Useful when a renderpass instance needs to be wrapped in an auto pointer */
-        void operator()(RenderPass* renderpass_ptr)
-        {
-            renderpass_ptr->release();
-        }
+        RenderPassAttachments        m_attachments;
+        std::weak_ptr<Anvil::Device> m_device_ptr;
+        bool                         m_dirty;
+        VkRenderPass                 m_render_pass;
+        SubPasses                    m_subpasses;
+        SubPassDependencies          m_subpass_dependencies;
+        std::shared_ptr<Swapchain>  m_swapchain_ptr;
     };
 };
 

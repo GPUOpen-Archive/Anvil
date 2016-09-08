@@ -34,36 +34,33 @@
 #ifndef WRAPPERS_DESCRIPTOR_SET_H
 #define WRAPPERS_DESCRIPTOR_SET_H
 
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
-    class DescriptorSet : public RefCounterSupportProvider
+    class DescriptorSet
     {
     public:
         /** Represents a single buffer object, which can be bound to a specific descriptor set slot */
         typedef struct BufferBindingElement
         {
-            Anvil::Buffer* buffer_ptr;
-            VkDeviceSize   size;
-            VkDeviceSize   start_offset;
+            std::shared_ptr<Anvil::Buffer> buffer_ptr;
+            VkDeviceSize                   size;
+            VkDeviceSize                   start_offset;
 
             /** Constructor. Associates all available buffer memory with the binding.
              *
              *  @param in_buffer_ptr Buffer object to use for the binding. Must not be nullptr.
-             *                       Retained. The object will be released at destruction time.
              **/
-            BufferBindingElement(Anvil::Buffer* in_buffer_ptr);
+            BufferBindingElement(std::shared_ptr<Anvil::Buffer> in_buffer_ptr);
 
             /** Constructor. Associates specified sub-region of the buffer memory with the binding.
              *
              *  @param in_buffer_ptr Buffer object to use for the binding. Must not be nullptr.
-             *                       Retained. The object will be released at destruction time.
              **/
-            BufferBindingElement(Anvil::Buffer* in_buffer_ptr,
-                                 VkDeviceSize   in_start_offset,
-                                 VkDeviceSize   in_size);
+            BufferBindingElement(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                 VkDeviceSize                   in_start_offset,
+                                 VkDeviceSize                   in_size);
 
             /** Destructor. Releases the encapsulated buffer instance */
             ~BufferBindingElement();
@@ -103,23 +100,21 @@ namespace Anvil
          **/
         typedef struct CombinedImageSamplerBindingElement
         {
-            VkImageLayout     image_layout;
-            Anvil::ImageView* image_view_ptr; 
-            Anvil::Sampler*   sampler_ptr;
+            VkImageLayout                     image_layout;
+            std::shared_ptr<Anvil::ImageView> image_view_ptr; 
+            std::shared_ptr<Anvil::Sampler>   sampler_ptr;
 
             /** Constructor.
              *
              *  @param in_image_layout   Image layout to use for the binding.
              *  @param in_image_view_ptr Image view to use for the binding. Must not be nullptr.
-             *                           Retained. The object will be released at destruction time.
              *  @param in_sampler_ptr    Sampler to use for the binding. Can be nullptr, in which case
              *                           it will be assumed the element corresponds to an immutable
-             *                           sampler and the specified instance will be retained.
-             *                           The instance will be released at destruction time.
+             *                           sampler.
              **/
-            CombinedImageSamplerBindingElement(VkImageLayout     in_image_layout,
-                                               Anvil::ImageView* in_image_view_ptr,
-                                               Anvil::Sampler*   in_sampler_ptr);
+            CombinedImageSamplerBindingElement(VkImageLayout                     in_image_layout,
+                                               std::shared_ptr<Anvil::ImageView> in_image_view_ptr,
+                                               std::shared_ptr<Anvil::Sampler>   in_sampler_ptr);
 
             /** Destructor.
              *
@@ -140,17 +135,16 @@ namespace Anvil
         /** Holds a single image view, along with other metadata required bound it to a specific descriptor set slot */
         typedef struct ImageBindingElement
         {
-            VkImageLayout     image_layout;
-            Anvil::ImageView* image_view_ptr;
+            VkImageLayout                     image_layout;
+            std::shared_ptr<Anvil::ImageView> image_view_ptr;
 
             /** Constructor.
              *
              *  @param in_image_layout   Image layout to use for the binding.
              *  @param in_image_view_ptr Image view to use for the binding. Must not be nullptr.
-             *                           Retained. The object will be released at destruction time.
              **/
-            ImageBindingElement(VkImageLayout     in_image_layout,
-                                Anvil::ImageView* in_image_view_ptr);
+            ImageBindingElement(VkImageLayout                     in_image_layout,
+                                std::shared_ptr<Anvil::ImageView> in_image_view_ptr);
 
             /** Destructor.
              *
@@ -186,16 +180,15 @@ namespace Anvil
         /** Holds a single sampler. Can be used to bind a sampler to a descriptor set slot **/
         typedef struct SamplerBindingElement
         {
-            Anvil::Sampler* sampler_ptr;
+            std::shared_ptr<Anvil::Sampler> sampler_ptr;
 
             /** Constructor.
              *
              *  @param in_sampler_ptr Sampler to use for the binding. Can be nullptr, in which case
              *                        it will be assumed the element corresponds to an immutable
-             *                        sampler and the specified instance will be retained.
-             *                        The instance will be released at destruction time.
+             *                        sampler.
              **/
-            SamplerBindingElement(Anvil::Sampler* in_sampler_ptr);
+            SamplerBindingElement(std::shared_ptr<Anvil::Sampler> in_sampler_ptr);
 
             /** Destructor.
              *
@@ -216,14 +209,14 @@ namespace Anvil
         /** Holds a single buffer view instance. Can be used to bind a sampler to a descriptor set slot */
         typedef struct TexelBufferBindingElement
         {
-            Anvil::BufferView* buffer_view_ptr;
+            std::shared_ptr<Anvil::BufferView> buffer_view_ptr;
 
             /** Constructor.
              *
              *  @param in_buffer_view_ptr Buffer view to use for the binding. Must not be nullptr.
              *                            Retained. The object will be released at destruction time.
              **/
-            TexelBufferBindingElement(Anvil::BufferView* in_buffer_view_ptr);
+            TexelBufferBindingElement(std::shared_ptr<Anvil::BufferView> in_buffer_view_ptr);
 
             /** Destructor.
              *
@@ -254,7 +247,16 @@ namespace Anvil
 
         /* Public functions */
 
-        /** Constructor.
+        /** TODO */
+        virtual ~DescriptorSet();
+
+        /** Updates internally-maintained Vulkan descriptor set instances.
+         *
+         *  @return true if the function executed successfully, false otherwise.
+         **/
+        bool bake();
+
+        /** Creates a new DescriptorSet instance.
          *
          *  @param device_ptr      Device the descriptor set has been initialized for.
          *  @param parent_pool_ptr Pool, from which the descriptor set has been allocated from.
@@ -262,16 +264,10 @@ namespace Anvil
          *  @param layout_ptr      Layout which has been used at descriptor set construction time.
          *  @param descriptor_set  Raw Vulkan handle the wrapper instance is being created for.
          **/
-        DescriptorSet(Anvil::Device*              device_ptr,
-                      Anvil::DescriptorPool*      parent_pool_ptr,
-                      Anvil::DescriptorSetLayout* layout_ptr,
-                      VkDescriptorSet             descriptor_set);
-
-        /** Updates internally-maintained Vulkan descriptor set instances.
-         *
-         *  @return true if the function executed successfully, false otherwise.
-         **/
-        bool bake();
+        static std::shared_ptr<DescriptorSet> create(std::weak_ptr<Anvil::Device>                device_ptr,
+                                                     std::shared_ptr<Anvil::DescriptorPool>      parent_pool_ptr,
+                                                     std::shared_ptr<Anvil::DescriptorSetLayout> layout_ptr,
+                                                     VkDescriptorSet                             descriptor_set);
 
         /** Retrieves raw Vulkan handle of the encapsulated descriptor set.
          *
@@ -384,13 +380,13 @@ namespace Anvil
          **/
         typedef struct BindingItem
         {
-            Anvil::Buffer*     buffer_ptr;
-            Anvil::BufferView* buffer_view_ptr;
-            VkImageLayout      image_layout;
-            Anvil::ImageView*  image_view_ptr;
-            Anvil::Sampler*    sampler_ptr;
-            VkDeviceSize       size;
-            VkDeviceSize       start_offset;
+            std::shared_ptr<Anvil::Buffer>     buffer_ptr;
+            std::shared_ptr<Anvil::BufferView> buffer_view_ptr;
+            VkImageLayout                      image_layout;
+            std::shared_ptr<Anvil::ImageView>  image_view_ptr;
+            std::shared_ptr<Anvil::Sampler>    sampler_ptr;
+            VkDeviceSize                       size;
+            VkDeviceSize                       start_offset;
 
             bool dirty;
 
@@ -457,9 +453,10 @@ namespace Anvil
             /* Default dummy constructor. */ 
             BindingItem()
             {
-                memset(this,
-                       0,
-                       sizeof(*this) );
+                dirty        = false;
+                image_layout = VK_IMAGE_LAYOUT_MAX_ENUM;
+                size         = 0;
+                start_offset = 0;
             }
 
             /* Destructor.
@@ -472,10 +469,15 @@ namespace Anvil
         typedef std::map<BindingIndex, BindingItems> BindingIndexToBindingItemsMap;
 
         /* Private functions */
+
+        /** Please see create() documentation for argument discussion */
+        DescriptorSet(std::weak_ptr<Anvil::Device>                device_ptr,
+                      std::shared_ptr<Anvil::DescriptorPool>      parent_pool_ptr,
+                      std::shared_ptr<Anvil::DescriptorSetLayout> layout_ptr,
+                      VkDescriptorSet                             descriptor_set);
+
         DescriptorSet           (const DescriptorSet&);
         DescriptorSet& operator=(const DescriptorSet&);
-
-        virtual ~DescriptorSet();
 
         static void on_binding_added_to_layout(void* layout_raw_ptr,
                                                void* ds_raw_ptr);
@@ -485,13 +487,13 @@ namespace Anvil
         void alloc_bindings();
 
         /* Private variables */
-        BindingIndexToBindingItemsMap m_bindings;
-        VkDescriptorSet               m_descriptor_set;
-        Anvil::Device*                m_device_ptr;
-        bool                          m_dirty;
-        Anvil::DescriptorSetLayout*   m_layout_ptr;
-        bool                          m_unusable;
-        Anvil::DescriptorPool*        m_parent_pool_ptr;
+        BindingIndexToBindingItemsMap               m_bindings;
+        VkDescriptorSet                             m_descriptor_set;
+        std::weak_ptr<Anvil::Device>                m_device_ptr;
+        bool                                        m_dirty;
+        std::shared_ptr<Anvil::DescriptorSetLayout> m_layout_ptr;
+        bool                                        m_unusable;
+        std::shared_ptr<Anvil::DescriptorPool>      m_parent_pool_ptr;
 
         std::vector<VkDescriptorBufferInfo> m_cached_ds_info_buffer_info_items_vk;
         std::vector<VkDescriptorImageInfo>  m_cached_ds_info_image_info_items_vk;

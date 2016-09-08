@@ -96,27 +96,10 @@ namespace Anvil
 
         typedef uint32_t DynamicStateBitfield;
 
-        /** As defined by VK_AMD_rasterization order
-         *
-         *  Once this lands in the header, we'll need to get rid of this declaration
-         **/
-        typedef enum VkRasterizationOrderAMD
-        {
-            VK_RASTERIZATION_ORDER_STRICT_AMD  = 0,
-            VK_RASTERIZATION_ORDER_RELAXED_AMD = 1,
-        } VkRasterizationOrderAMD;
-
-        typedef struct VkPipelineRasterizationStateRasterizationOrderAMD
-        {
-            VkStructureType         sType;
-            const void*             pNext;
-            VkRasterizationOrderAMD rasterizationOrder;
-        } VkPipelineRasterizationStateRasterizationOrderAMD;
-
         /* Prototype for a call-back function, invoked right after vkCreateGraphicsPipelines() call returns. **/
-        typedef void (*PFNPIPELINEPOSTBAKECALLBACKPROC)(Anvil::Device*     device_ptr,
-                                                        GraphicsPipelineID pipeline_id,
-                                                        void*              user_arg);
+        typedef void (*PFNPIPELINEPOSTBAKECALLBACKPROC)(std::weak_ptr<Anvil::Device> device_ptr,
+                                                        GraphicsPipelineID           pipeline_id,
+                                                        void*                        user_arg);
 
         /* Prototype for a call-back function, invoked before a Vulkan graphics pipeline is created.
          *
@@ -124,14 +107,14 @@ namespace Anvil
          * Anvil::GraphicsPipelineManager will not adjust its internal state to sync with user-modified
          * fields.
          **/
-        typedef void (*PFNPIPELINEPREBAKECALLBACKPROC)(Anvil::Device*                device_ptr,
+        typedef void (*PFNPIPELINEPREBAKECALLBACKPROC)(std::weak_ptr<Anvil::Device>  device_ptr,
                                                        GraphicsPipelineID            pipeline_id,
                                                        VkGraphicsPipelineCreateInfo* graphics_pipeline_create_info_ptr,
                                                        void*                         user_arg);
 
         /* Public functions */
 
-        /** Constructor.
+        /** Creates a new GraphicsPipelineManager instance.
          *
          *  @param device_ptr                  Device to use.
          *  @param use_pipeline_cache          true if the manager should use a pipeline cache instance. false
@@ -142,9 +125,9 @@ namespace Anvil
          *                                     If one is not provided and the other argument is set as described,
          *                                     a new pipeline cache with size 0 will be allocated.
          **/
-        explicit GraphicsPipelineManager(Anvil::Device*        device_ptr,
-                                         bool                  use_pipeline_cache          = false,
-                                         Anvil::PipelineCache* pipeline_cache_to_reuse_ptr = nullptr);
+        static std::shared_ptr<GraphicsPipelineManager> create(std::weak_ptr<Anvil::Device>          device_ptr,
+                                                               bool                                  use_pipeline_cache          = false,
+                                                               std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr = std::shared_ptr<Anvil::PipelineCache>() );
 
         /** Destructor. */
         ~GraphicsPipelineManager();
@@ -176,7 +159,7 @@ namespace Anvil
          **/
         bool add_derivative_pipeline_from_sibling_pipeline(bool                               disable_optimizations,
                                                            bool                               allow_derivatives,
-                                                           RenderPass*                        renderpass_ptr,
+                                                           std::shared_ptr<RenderPass>        renderpass_ptr,
                                                            SubPassID                          subpass_id,
                                                            const ShaderModuleStageEntryPoint& fragment_shader_stage_entrypoint_info,
                                                            const ShaderModuleStageEntryPoint& geometry_shader_stage_entrypoint_info,
@@ -210,7 +193,7 @@ namespace Anvil
         **/
         bool add_derivative_pipeline_from_pipeline(bool                               disable_optimizations,
                                                    bool                               allow_derivatives,
-                                                   RenderPass*                        renderpass_ptr,
+                                                   std::shared_ptr<RenderPass>        renderpass_ptr,
                                                    SubPassID                          subpass_id,
                                                    const ShaderModuleStageEntryPoint& fragment_shader_stage_entrypoint_info,
                                                    const ShaderModuleStageEntryPoint& geometry_shader_stage_entrypoint_info,
@@ -252,7 +235,7 @@ namespace Anvil
          **/
         bool add_regular_pipeline(bool                               disable_optimizations,
                                   bool                               allow_derivatives,
-                                  RenderPass*                        renderpass_ptr,
+                                  std::shared_ptr<RenderPass>        renderpass_ptr,
                                   SubPassID                          subpass_id,
                                   const ShaderModuleStageEntryPoint& fragment_shader_stage_entrypoint_info,
                                   const ShaderModuleStageEntryPoint& geometry_shader_stage_entrypoint_info,
@@ -271,6 +254,10 @@ namespace Anvil
 
         /** Adds a new vertex attribute descriptor to the specified graphics pipeline. This data will be used
          *  at baking time to configure input vertex attribute & bindings for the Vulkan pipeline object.
+         *
+         *  NOTE: At baking time, Anvil will only assign a binding slot to vertex attributes, whose characteristics
+         *        are unique (ie. whose input rate & stride has not already been encountered before). User-specified
+         *        binding assignment is a TODO. If this is a problem, please raise a ticket.
          *
          *  @param graphics_pipeine_id ID of the graphics pipeline object, whose state should be changed. The ID
          *                             must have been returned by one of the add_() functions, issued against the
@@ -317,7 +304,7 @@ namespace Anvil
          *
          *  @return Ptr to a PipelineLayout instance or nullptr if the function failed.
          **/
-        Anvil::PipelineLayout* get_graphics_pipeline_layout(GraphicsPipelineID pipeline_id);
+        std::shared_ptr<Anvil::PipelineLayout> get_graphics_pipeline_layout(GraphicsPipelineID pipeline_id);
 
         /** Sets a new blend constant for the specified graphics pipeline and marks the pipeline as dirty.
          *
@@ -998,8 +985,8 @@ namespace Anvil
             void*                           pipeline_postbake_callback_user_arg;
             void*                           pipeline_prebake_callback_user_arg;
 
-            RenderPass* renderpass_ptr;
-            SubPassID   subpass_id;
+            std::shared_ptr<RenderPass> renderpass_ptr;
+            SubPassID                   subpass_id;
 
             /** Constructor.
              *
@@ -1009,8 +996,8 @@ namespace Anvil
              *  @param in_subpass_id     ID of the subpass the graphics pipeline descriptor is created
              *                           for.
              **/
-            explicit GraphicsPipelineConfiguration(RenderPass* in_renderpass_ptr,
-                                                   SubPassID   in_subpass_id)
+            explicit GraphicsPipelineConfiguration(std::shared_ptr<RenderPass> in_renderpass_ptr,
+                                                   SubPassID                   in_subpass_id)
             {
                 alpha_to_coverage_enabled  = false;
                 alpha_to_one_enabled       = false;
@@ -1044,11 +1031,6 @@ namespace Anvil
 
                 renderpass_ptr = in_renderpass_ptr;
                 subpass_id     = in_subpass_id;
-
-                if (renderpass_ptr != nullptr)
-                {
-                    renderpass_ptr->retain();
-                }
 
                 stencil_state_back_face.compareMask = ~0;
                 stencil_state_back_face.compareOp   = VK_COMPARE_OP_ALWAYS;
@@ -1085,7 +1067,7 @@ namespace Anvil
              *                                     for.
              **/
             explicit GraphicsPipelineConfiguration(std::shared_ptr<GraphicsPipelineConfiguration> in_base_pipeline_config_ptr,
-                                                   RenderPass*                                    in_renderpass_ptr,
+                                                   std::shared_ptr<RenderPass>                    in_renderpass_ptr,
                                                    SubPassID                                      in_subpass_id)
             {
                 /* Copy all state from the base config.. */
@@ -1094,22 +1076,12 @@ namespace Anvil
                 /* Override the renderpass & the subpass with the data we've been provided */
                 renderpass_ptr = in_renderpass_ptr;
                 subpass_id     = in_subpass_id;
-
-                if (renderpass_ptr != nullptr)
-                {
-                    renderpass_ptr->retain();
-                }
             }
 
             /** Destructor. */
             ~GraphicsPipelineConfiguration()
             {
-                if (renderpass_ptr != nullptr)
-                {
-                    renderpass_ptr->release();
-
-                    renderpass_ptr = nullptr;
-                }
+                /* Stub */
             }
 
             /** Copy assignment operator. */
@@ -1182,6 +1154,10 @@ namespace Anvil
         typedef std::map<GraphicsPipelineID, std::shared_ptr<GraphicsPipelineConfiguration> > GraphicsPipelineConfigurations;
 
         /* Private functions */
+        explicit GraphicsPipelineManager(std::weak_ptr<Anvil::Device>          device_ptr,
+                                         bool                                  use_pipeline_cache,
+                                         std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr);
+
         void bake_vk_attributes_and_bindings(std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr);
 
         /* Private members */

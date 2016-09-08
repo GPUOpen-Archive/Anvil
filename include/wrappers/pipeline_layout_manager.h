@@ -38,6 +38,7 @@ namespace Anvil
     {
     public:
         /* Public functions */
+        ~PipelineLayoutManager();
 
         /** Returns a pointer to the global PipelineLayoutManager instance.
          *
@@ -48,26 +49,26 @@ namespace Anvil
          *
          *  @return PipelineLayoutManager instance, or nullptr if the function failed.
          **/
-        static PipelineLayoutManager* acquire(Anvil::Device* device_ptr);
+        static std::shared_ptr<PipelineLayoutManager> acquire(std::weak_ptr<Anvil::Device> device_ptr);
 
-        /** Retains & returns a pipeline layout wrapper matching the specified DSG + push constant range configuration.
+        /** Returns a pipeline layout wrapper matching the specified DSG + push constant range configuration.
          *  If such pipeline layout has never been defined before, it will be created at the call time.
          *
          *  If the function returns a Anvil::PipelineLayout instance, it is caller's responsibility to release it
          *  in order for the object to be correctly deleted when its reference counter drops to zero.
          *
-         *  @param dsgs                        A vector of DescriptorSetGroup instances, describing the set of descriptor sets which the
-         *                                     layout should refer to.
-         *  @param push_constant_ranges        A vector of PushConstantRange descriptor, describing the push constant ranges
-         *                                     the layout should define.
-         *  @param out_pipeline_layout_ptr_ptr Deref will be set to a ptr to the pipeline layout wrapper instance, matching the described
-         *                                     requirements. The object will be retained, prior to being returned. Must not be nullptr.
+         *  @param dsgs                    A vector of DescriptorSetGroup instances, describing the set of descriptor sets which the
+         *                                 layout should refer to.
+         *  @param push_constant_ranges    A vector of PushConstantRange descriptor, describing the push constant ranges
+         *                                 the layout should define.
+         *  @param out_pipeline_layout_ptr Deref will be set to a ptr to the pipeline layout wrapper instance, matching the described
+         *                                 requirements. Must not be nullptr.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_retained_layout(const DescriptorSetGroups& dsgs,
-                                 const PushConstantRanges&  push_constant_ranges,
-                                 Anvil::PipelineLayout**    out_pipeline_layout_ptr_ptr);
+        bool get_layout(const DescriptorSetGroups&              dsgs,
+                        const PushConstantRanges&               push_constant_ranges,
+                        std::shared_ptr<Anvil::PipelineLayout>* out_pipeline_layout_ptr);
 
         /** Decrements the internal reference counter and releases the manager instance, if the counter
          *  drops to zero.
@@ -76,24 +77,23 @@ namespace Anvil
 
     private:
         /* Private type declarations */
-        typedef std::vector<Anvil::PipelineLayout*> PipelineLayouts;
+        typedef std::vector<std::shared_ptr<Anvil::PipelineLayout> > PipelineLayouts;
 
+        /* TODO: This struct is redundant */
         typedef struct PipelineLayoutManagerInfo
         {
-                     PipelineLayoutManager* instance_ptr;
-            volatile uint32_t               ref_counter;
+            std::shared_ptr<PipelineLayoutManager> instance_ptr;
+            uint32_t                               n_acquisitions;
 
             PipelineLayoutManagerInfo()
             {
-                instance_ptr = nullptr;
-                ref_counter  = 0;
+                n_acquisitions = 1;
             }
 
         } PipelineLayoutManagerInfo;
 
         /* Private functions */
-         PipelineLayoutManager(Anvil::Device* device_ptr);
-        ~PipelineLayoutManager();
+        PipelineLayoutManager(std::weak_ptr<Anvil::Device> device_ptr);
 
         PipelineLayoutManager           (const PipelineLayoutManager&);
         PipelineLayoutManager& operator=(const PipelineLayoutManager&);
@@ -102,8 +102,8 @@ namespace Anvil
                                                void* user_arg);
 
         /* Private members */
-        Anvil::Device* m_device_ptr;
-        PipelineLayouts m_pipeline_layouts;
+        std::weak_ptr<Anvil::Device> m_device_ptr;
+        PipelineLayouts              m_pipeline_layouts;
 
         static std::map<Anvil::Device*, PipelineLayoutManagerInfo> m_instance_map;
     };

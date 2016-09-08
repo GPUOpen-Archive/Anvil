@@ -29,51 +29,39 @@
 #include "wrappers/swapchain.h"
 
 /** Please see header for specification */
-Anvil::Swapchain::Swapchain(Anvil::Device*              device_ptr,
-                            Anvil::RenderingSurface*    parent_surface_ptr,
-                            Anvil::Window*              window_ptr,
-                            VkFormat                    format,
-                            VkPresentModeKHR            present_mode,
-                            VkImageUsageFlags           usage_flags,
-                            uint32_t                    n_images,
-                            PFN_vkAcquireNextImageKHR   pfn_acquire_next_image_proc,
-                            PFN_vkCreateSwapchainKHR    pfn_create_swapchain_proc,
-                            PFN_vkDestroySwapchainKHR   pfn_destroy_swapchain_proc,
-                            PFN_vkGetSwapchainImagesKHR pfn_get_swapchain_images_proc)
-    :m_device_ptr                (device_ptr),
-     m_window_ptr                (window_ptr),
-     m_image_available_fence_ptrs(nullptr),
-     m_image_format              (format),
-     m_image_ptrs                (nullptr),
-     m_image_view_ptrs           (nullptr),
-     m_n_acquire_counter         (0),
-     m_n_swapchain_images        (n_images),
-     m_parent_surface_ptr        (parent_surface_ptr),
-     m_present_mode              (present_mode),
-     m_swapchain                 (0),
-     m_usage_flags               (static_cast<VkImageUsageFlagBits>(usage_flags) ),
-     m_vkAcquireNextImageKHR     (pfn_acquire_next_image_proc),
-     m_vkCreateSwapchainKHR      (pfn_create_swapchain_proc),
-     m_vkDestroySwapchainKHR     (pfn_destroy_swapchain_proc),
-     m_vkGetSwapchainImagesKHR   (pfn_get_swapchain_images_proc)
-
+Anvil::Swapchain::Swapchain(std::weak_ptr<Anvil::Device>                  device_ptr,
+                            std::shared_ptr<Anvil::RenderingSurface>      parent_surface_ptr,
+                            std::shared_ptr<Anvil::Window>                window_ptr,
+                            VkFormat                                      format,
+                            VkPresentModeKHR                              present_mode,
+                            VkImageUsageFlags                             usage_flags,
+                            uint32_t                                      n_images,
+                            const ExtensionKHRDeviceSwapchainEntrypoints& khr_device_swapchain_entrypoints)
+    :m_device_ptr                      (device_ptr),
+     m_window_ptr                      (window_ptr),
+     m_image_format                    (format),
+     m_n_acquire_counter               (0),
+     m_n_swapchain_images              (n_images),
+     m_parent_surface_ptr              (parent_surface_ptr),
+     m_present_mode                    (present_mode),
+     m_swapchain                       (0),
+     m_usage_flags                     (static_cast<VkImageUsageFlagBits>(usage_flags) ),
+     m_khr_device_swapchain_entrypoints(khr_device_swapchain_entrypoints)
 {
     anvil_assert(n_images           >  0);
     anvil_assert(parent_surface_ptr != nullptr);
     anvil_assert(usage_flags        != 0);
 
-    m_image_available_fence_ptrs = new Anvil::Fence*    [n_images];
-    m_image_ptrs                 = new Anvil::Image*    [n_images];
-    m_image_view_ptrs            = new Anvil::ImageView*[n_images];
-
-    m_parent_surface_ptr->retain();
+    m_image_available_fence_ptrs.resize(n_images);
+    m_image_ptrs.resize                (n_images);
+    m_image_view_ptrs.resize           (n_images);
 
     for (uint32_t n_fence = 0;
                   n_fence < n_images;
                 ++n_fence)
     {
-        m_image_available_fence_ptrs[n_fence] = new Anvil::Fence(m_device_ptr,
-                                                                 false /* create_signalled */);
+        m_image_available_fence_ptrs[n_fence] = Anvil::Fence::create(m_device_ptr,
+                                                                     false /* create_signalled */);
     }
 
 
@@ -88,66 +76,23 @@ Anvil::Swapchain::~Swapchain()
 {
     if (m_swapchain != VK_NULL_HANDLE)
     {
-        m_vkDestroySwapchainKHR(m_device_ptr->get_device_vk(),
-                                m_swapchain,
-                                nullptr /* pAllocator */);
+        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
+        m_khr_device_swapchain_entrypoints.vkDestroySwapchainKHR(device_locked_ptr->get_device_vk(),
+                                                                 m_swapchain,
+                                                                 nullptr /* pAllocator */);
 
         m_swapchain = VK_NULL_HANDLE;
     }
 
     if (m_parent_surface_ptr != nullptr)
     {
-        m_parent_surface_ptr->release();
-
         m_parent_surface_ptr = nullptr;
     }
 
-    if (m_image_ptrs != nullptr)
-    {
-        for (uint32_t n_image = 0;
-                      n_image < m_n_swapchain_images;
-                    ++n_image)
-        {
-            if (m_image_ptrs[n_image] != nullptr)
-            {
-                m_image_ptrs[n_image]->release();
-            }
-        }
-
-        delete [] m_image_ptrs;
-        m_image_ptrs = nullptr;
-    }
-
-    if (m_image_available_fence_ptrs != nullptr)
-    {
-        for (uint32_t n_fence = 0;
-                      n_fence < m_n_swapchain_images;
-                    ++n_fence)
-        {
-            m_image_available_fence_ptrs[n_fence]->release();
-
-            m_image_available_fence_ptrs[n_fence] = nullptr;
-        }
-
-        delete [] m_image_available_fence_ptrs;
-        m_image_available_fence_ptrs = nullptr;
-    }
-
-    if (m_image_view_ptrs != nullptr)
-    {
-        for (uint32_t n_image_view = 0;
-                      n_image_view < m_n_swapchain_images;
-                    ++n_image_view)
-        {
-            if (m_image_view_ptrs != nullptr)
-            {
-                m_image_view_ptrs[n_image_view]->release();
-            }
-        }
-
-        delete [] m_image_view_ptrs;
-        m_image_view_ptrs = nullptr;
-    }
+    m_image_ptrs.clear                ();
+    m_image_available_fence_ptrs.clear();
+    m_image_view_ptrs.clear           ();
 
     Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_SWAPCHAIN,
                                                     this);
@@ -162,18 +107,21 @@ uint32_t Anvil::Swapchain::acquire_image_by_blocking()
 
     /* Which swap-chain image should we render to? */
     m_image_available_fence_ptrs[m_n_acquire_counter]->reset();
+
     if (!is_offscreen_rendering_enabled)
     {
-        result_vk = m_vkAcquireNextImageKHR(m_device_ptr->get_device_vk(),
-                                            m_swapchain,
-                                            UINT64_MAX,
-                                            VK_NULL_HANDLE, /* semaphore */
-                                            m_image_available_fence_ptrs[m_n_acquire_counter]->get_fence(),
-                                           &result);
+        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
+        result_vk = m_khr_device_swapchain_entrypoints.vkAcquireNextImageKHR(device_locked_ptr->get_device_vk(),
+                                                                             m_swapchain,
+                                                                             UINT64_MAX,
+                                                                             VK_NULL_HANDLE, /* semaphore */
+                                                                             m_image_available_fence_ptrs[m_n_acquire_counter]->get_fence(),
+                                                                            &result);
 
         anvil_assert_vk_call_succeeded(result_vk);
 
-        result_vk = vkWaitForFences(m_device_ptr->get_device_vk(),
+        result_vk = vkWaitForFences(device_locked_ptr->get_device_vk(),
                                     1, /* fenceCount */
                                     m_image_available_fence_ptrs[m_n_acquire_counter]->get_fence_ptr(),
                                     VK_TRUE, /* waitAll */
@@ -186,14 +134,14 @@ uint32_t Anvil::Swapchain::acquire_image_by_blocking()
 
     if (is_offscreen_rendering_enabled)
     {
-        result          = m_n_acquire_counter;
+        result = m_n_acquire_counter;
     }
 
     return result;
 }
 
 /** Please see header for specification */
-uint32_t Anvil::Swapchain::acquire_image_by_setting_semaphore(Anvil::Semaphore* semaphore_ptr)
+uint32_t Anvil::Swapchain::acquire_image_by_setting_semaphore(std::shared_ptr<Anvil::Semaphore> semaphore_ptr)
 {
     uint32_t                   result = -1;
     VkResult                   result_vk;
@@ -202,12 +150,14 @@ uint32_t Anvil::Swapchain::acquire_image_by_setting_semaphore(Anvil::Semaphore* 
 
     if (!is_offscreen_rendering_enabled)
     {
-        result_vk = m_vkAcquireNextImageKHR(m_device_ptr->get_device_vk(),
-                                            m_swapchain,
-                                            UINT64_MAX,
-                                            semaphore_ptr->get_semaphore(),
-                                            VK_NULL_HANDLE,
-                                           &result);
+        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
+        result_vk = m_khr_device_swapchain_entrypoints.vkAcquireNextImageKHR(device_locked_ptr->get_device_vk(),
+                                                                             m_swapchain,
+                                                                             UINT64_MAX,
+                                                                             semaphore_ptr->get_semaphore(),
+                                                                             VK_NULL_HANDLE,
+                                                                            &result);
 
         anvil_assert_vk_call_succeeded(result_vk);
     }
@@ -216,14 +166,40 @@ uint32_t Anvil::Swapchain::acquire_image_by_setting_semaphore(Anvil::Semaphore* 
 
     if (is_offscreen_rendering_enabled)
     {
-        result          = m_n_acquire_counter;
+        result = m_n_acquire_counter;
     }
 
     return result;
 }
 
 /** Please see header for specification */
-Anvil::Image* Anvil::Swapchain::get_image(uint32_t n_swapchain_image) const
+std::shared_ptr<Anvil::Swapchain> Anvil::Swapchain::create(std::weak_ptr<Anvil::Device>                  device_ptr,
+                                                           std::shared_ptr<Anvil::RenderingSurface>      parent_surface_ptr,
+                                                           std::shared_ptr<Anvil::Window>                window_ptr,
+                                                           VkFormat                                      format,
+                                                           VkPresentModeKHR                              present_mode,
+                                                           VkImageUsageFlags                             usage_flags,
+                                                           uint32_t                                      n_images,
+                                                           const ExtensionKHRDeviceSwapchainEntrypoints& khr_device_swapchain_entrypoints)
+{
+    std::shared_ptr<Anvil::Swapchain> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::Swapchain(device_ptr,
+                             parent_surface_ptr,
+                             window_ptr,
+                             format,
+                             present_mode,
+                             usage_flags,
+                             n_images,
+                             khr_device_swapchain_entrypoints)
+    );
+
+    return result_ptr;
+}
+
+/** Please see header for specification */
+std::shared_ptr<Anvil::Image> Anvil::Swapchain::get_image(uint32_t n_swapchain_image) const
 {
     anvil_assert(n_swapchain_image < m_n_swapchain_images);
 
@@ -231,7 +207,7 @@ Anvil::Image* Anvil::Swapchain::get_image(uint32_t n_swapchain_image) const
 }
 
 /** Please see header for specification */
-Anvil::ImageView* Anvil::Swapchain::get_image_view(uint32_t n_swapchain_image) const
+std::shared_ptr<Anvil::ImageView> Anvil::Swapchain::get_image_view(uint32_t n_swapchain_image) const
 {
     anvil_assert(n_swapchain_image < m_n_swapchain_images);
 
@@ -244,15 +220,17 @@ void Anvil::Swapchain::init()
     VkSwapchainCreateInfoKHR            create_info;
     uint32_t                            n_swapchain_images             = 0;
     VkResult                            result;
-    VkImage*                            swapchain_images               = nullptr;
+    std::vector<VkImage>                swapchain_images;
     const VkSurfaceTransformFlagBitsKHR swapchain_transformation       = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
     bool                                is_offscreen_rendering_enabled = m_window_ptr->is_dummy();
 
-    m_image_view_format                                          = m_image_format;
+    m_image_view_format = m_image_format;
 
     /* not offscreen rendering */
     if (!is_offscreen_rendering_enabled)
     {
+        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
         /* Ensure opaque composite alpha mode is supported */
         anvil_assert(m_parent_surface_ptr->get_supported_composite_alpha_flags() & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR);
 
@@ -286,29 +264,28 @@ void Anvil::Swapchain::init()
         create_info.sType                 = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
         create_info.surface               = m_parent_surface_ptr->get_surface();
 
-        result = m_vkCreateSwapchainKHR(m_device_ptr->get_device_vk(),
-                                       &create_info,
-                                        nullptr, /* pAllocator */
-                                       &m_swapchain);
+        result = m_khr_device_swapchain_entrypoints.vkCreateSwapchainKHR(device_locked_ptr->get_device_vk(),
+                                                                        &create_info,
+                                                                         nullptr, /* pAllocator */
+                                                                        &m_swapchain);
 
         anvil_assert_vk_call_succeeded(result);
 
         /* Retrieve swap-chain images */
-        result = m_vkGetSwapchainImagesKHR(m_device_ptr->get_device_vk(),
-                                           m_swapchain,
-                                          &n_swapchain_images,
-                                           nullptr); /* pSwapchainImages */
+        result = m_khr_device_swapchain_entrypoints.vkGetSwapchainImagesKHR(device_locked_ptr->get_device_vk(),
+                                                                            m_swapchain,
+                                                                           &n_swapchain_images,
+                                                                            nullptr); /* pSwapchainImages */
 
         anvil_assert_vk_call_succeeded(result);
         anvil_assert                  (n_swapchain_images >  0);
 
-        swapchain_images = new VkImage[n_swapchain_images];
-        anvil_assert(swapchain_images != nullptr);
+        swapchain_images.resize(n_swapchain_images);
 
-        result = m_vkGetSwapchainImagesKHR(m_device_ptr->get_device_vk(),
-                                           m_swapchain,
-                                          &n_swapchain_images,
-                                           swapchain_images);
+        result = m_khr_device_swapchain_entrypoints.vkGetSwapchainImagesKHR(device_locked_ptr->get_device_vk(),
+                                                                            m_swapchain,
+                                                                           &n_swapchain_images,
+                                                                           &swapchain_images[0]);
 
         anvil_assert_vk_call_succeeded(result);
     }
@@ -328,69 +305,53 @@ void Anvil::Swapchain::init()
          */
         if (!is_offscreen_rendering_enabled)
         {
-            m_image_ptrs[n_result_image] = new Anvil::Image(m_device_ptr,
-                                                            swapchain_images[n_result_image],
-                                                            create_info.imageFormat,
-                                                            VK_IMAGE_TILING_OPTIMAL,
-                                                            create_info.imageUsage,
-                                                            create_info.imageExtent.width,
-                                                            create_info.imageExtent.height,
-                                                            1,                            /* base_mipmap_depth */
-                                                            create_info.imageArrayLayers,
-                                                            1,                           /* n_mipmaps          */
-                                                            VK_SAMPLE_COUNT_1_BIT,
-                                                            1,                           /* n_slices           */
-                                                            true);                       /* is_mutable         */
+            m_image_ptrs[n_result_image] = Anvil::Image::create(m_device_ptr,
+                                                                create_info,
+                                                                swapchain_images[n_result_image]);
         }
         else
         {
-            m_image_ptrs[n_result_image] = new Anvil::Image(m_device_ptr,
-                                                            VK_IMAGE_TYPE_2D,
-                                                            m_image_format,
-                                                            VK_IMAGE_TILING_OPTIMAL,
-                                                            m_usage_flags,
-                                                            m_parent_surface_ptr->get_width(),
-                                                            m_parent_surface_ptr->get_height(),
-                                                            1,                            /* base_mipmap_depth */
-                                                            1,
-                                                            VK_SAMPLE_COUNT_1_BIT,
-                                                            QUEUE_FAMILY_GRAPHICS_BIT | QUEUE_FAMILY_DMA_BIT,
-                                                            VK_SHARING_MODE_CONCURRENT,
-                                                            false,
-                                                            true,
-                                                            true,
-                                                            true,                         /* is_mutable         */
-                                                            VK_IMAGE_LAYOUT_GENERAL,
-                                                            nullptr);
+            m_image_ptrs[n_result_image] = Anvil::Image::create(m_device_ptr,
+                                                                VK_IMAGE_TYPE_2D,
+                                                                m_image_format,
+                                                                VK_IMAGE_TILING_OPTIMAL,
+                                                                m_usage_flags,
+                                                                m_parent_surface_ptr->get_width(),
+                                                                m_parent_surface_ptr->get_height(),
+                                                                1,                            /* base_mipmap_depth */
+                                                                1,
+                                                                VK_SAMPLE_COUNT_1_BIT,
+                                                                QUEUE_FAMILY_GRAPHICS_BIT | QUEUE_FAMILY_DMA_BIT,
+                                                                VK_SHARING_MODE_CONCURRENT,
+                                                                false, /* use_full_mipmap_chain             */
+                                                                true,  /* should_memory_backing_be_mappable */
+                                                                true,  /* should_memory_backing_be_coherent */
+                                                                true,  /* is_mutable                        */
+                                                                VK_IMAGE_LAYOUT_GENERAL,
+                                                                nullptr);
         }
 
         /* For each swap-chain image, create a relevant view */
-        m_image_view_ptrs[n_result_image] = Anvil::ImageView::create_2D_image_view(m_device_ptr,
-                                                                                    m_image_ptrs[n_result_image],
-                                                                                    0, /* n_base_layer */
-                                                                                    0, /* n_base_mipmap_level */
-                                                                                    1, /* n_mipmaps           */
-                                                                                    VK_IMAGE_ASPECT_COLOR_BIT,
-                                                                                    m_image_format,
-                                                                                    VK_COMPONENT_SWIZZLE_R,
-                                                                                    VK_COMPONENT_SWIZZLE_G,
-                                                                                    VK_COMPONENT_SWIZZLE_B,
-                                                                                    VK_COMPONENT_SWIZZLE_A);
+        m_image_view_ptrs[n_result_image] = Anvil::ImageView::create_2D(m_device_ptr,
+                                                                         m_image_ptrs[n_result_image],
+                                                                         0, /* n_base_layer */
+                                                                         0, /* n_base_mipmap_level */
+                                                                         1, /* n_mipmaps           */
+                                                                         VK_IMAGE_ASPECT_COLOR_BIT,
+                                                                         m_image_format,
+                                                                         VK_COMPONENT_SWIZZLE_R,
+                                                                         VK_COMPONENT_SWIZZLE_G,
+                                                                         VK_COMPONENT_SWIZZLE_B,
+                                                                         VK_COMPONENT_SWIZZLE_A);
 
         /* Note: swapchain images must not be transitioned before they are acquired. We can't do that here.
          *
          * See issue #1 for more details
          */
-        m_image_ptrs[n_result_image]->set_creation_time_image_layout( (is_offscreen_rendering_enabled) ? VK_IMAGE_LAYOUT_GENERAL 
-                                                                                                       : VK_IMAGE_LAYOUT_UNDEFINED);
-    }
-
-    /* Clean up */
-    if (swapchain_images != nullptr)
-    {
-        delete [] swapchain_images;
-
-        swapchain_images = nullptr;
+        if (!is_offscreen_rendering_enabled)
+        {
+            m_image_ptrs[n_result_image]->set_creation_time_image_layout(VK_IMAGE_LAYOUT_UNDEFINED);
+        }
     }
 }
 
@@ -405,18 +366,16 @@ void Anvil::Swapchain::set_image_view_format(VkFormat new_view_format)
                   n_image_view < m_n_swapchain_images;
                 ++n_image_view)
     {
-        m_image_view_ptrs[n_image_view]->release();
-
-        m_image_view_ptrs[n_image_view] = Anvil::ImageView::create_2D_image_view(m_device_ptr,
-                                                                                  m_image_ptrs[n_image_view],
-                                                                                  0, /* n_base_layer */
-                                                                                  0, /* n_base_mipmap_level */
-                                                                                  1, /* n_mipmaps           */
-                                                                                  VK_IMAGE_ASPECT_COLOR_BIT,
-                                                                                  m_image_view_format,
-                                                                                  VK_COMPONENT_SWIZZLE_R,
-                                                                                  VK_COMPONENT_SWIZZLE_G,
-                                                                                  VK_COMPONENT_SWIZZLE_B,
-                                                                                  VK_COMPONENT_SWIZZLE_A);
+        m_image_view_ptrs[n_image_view] = Anvil::ImageView::create_2D(m_device_ptr,
+                                                                      m_image_ptrs[n_image_view],
+                                                                      0, /* n_base_layer        */
+                                                                      0, /* n_base_mipmap_level */
+                                                                      1, /* n_mipmaps           */
+                                                                      VK_IMAGE_ASPECT_COLOR_BIT,
+                                                                      m_image_view_format,
+                                                                      VK_COMPONENT_SWIZZLE_R,
+                                                                      VK_COMPONENT_SWIZZLE_G,
+                                                                      VK_COMPONENT_SWIZZLE_B,
+                                                                      VK_COMPONENT_SWIZZLE_A);
     }
 }

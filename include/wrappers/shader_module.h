@@ -30,7 +30,6 @@
 #ifndef WRAPPERS_SHADER_MODULE_H
 #define WRAPPERS_SHADER_MODULE_H
 
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 
 namespace Anvil
@@ -38,7 +37,7 @@ namespace Anvil
     /* Forward declarations */
     class GLSLShaderToSPIRVGenerator;
 
-    class ShaderModule : public RefCounterSupportProvider
+    class ShaderModule
     {
     public:
         /* Public functions */
@@ -49,11 +48,11 @@ namespace Anvil
          *  via the main() entry-point, the created shader module will only expose one
          *  entry-point for one shader stage.
          *
-         *  @param device_ptr      Device to use to instantiate the shader module. Must not be nullptr.
-         *  @param spirv_generator SPIR-V generator, initialized with a GLSL shader body.
+         *  @param device_ptr          Device to use to instantiate the shader module. Must not be nullptr.
+         *  @param spirv_generator_ptr SPIR-V generator, initialized with a GLSL shader body.
          **/
-        explicit ShaderModule(Anvil::Device*              device_ptr,
-                              GLSLShaderToSPIRVGenerator& spirv_generator);
+        static std::shared_ptr<ShaderModule> create_from_spirv_generator(std::weak_ptr<Anvil::Device>                device_ptr,
+                                                                         std::shared_ptr<GLSLShaderToSPIRVGenerator> spirv_generator_ptr);
 
         /** Creates a new shader module instance from a raw SPIR-V blob.
          *
@@ -76,15 +75,18 @@ namespace Anvil
          *  @param vs_entrypoint_name Vertex shader stage entry-point, if one is defined in the blob.
          *                            Otherwise, should be set to nullptr.
          **/
-        explicit ShaderModule(Anvil::Device* device_ptr,
-                              const char*    spirv_blob,
-                              uint32_t       n_spirv_blob_bytes,
-                              const char*    cs_entrypoint_name,
-                              const char*    fs_entrypoint_name,
-                              const char*    gs_entrypoint_name,
-                              const char*    tc_entrypoint_name,
-                              const char*    te_entrypoint_name,
-                              const char*    vs_entrypoint_name);
+        static std::shared_ptr<ShaderModule> create_from_spirv_blob(std::weak_ptr<Anvil::Device> device_ptr,
+                                                                    const char*                  spirv_blob,
+                                                                    uint32_t                     n_spirv_blob_bytes,
+                                                                    const char*                  cs_entrypoint_name,
+                                                                    const char*                  fs_entrypoint_name,
+                                                                    const char*                  gs_entrypoint_name,
+                                                                    const char*                  tc_entrypoint_name,
+                                                                    const char*                  te_entrypoint_name,
+                                                                    const char*                  vs_entrypoint_name);
+
+        /** Destructor. Releases internally maintained Vulkan shader module instance. */
+        virtual ~ShaderModule();
 
         /** Returns name of the compute shader stage entry-point, as defined at construction time.
          *
@@ -150,11 +152,22 @@ namespace Anvil
 
     private:
         /* Private functions */
+
+        /* Constructor. Please see create() for specification */
+        explicit ShaderModule(std::weak_ptr<Anvil::Device>                device_ptr,
+                              std::shared_ptr<GLSLShaderToSPIRVGenerator> spirv_generator_ptr);
+        explicit ShaderModule(std::weak_ptr<Anvil::Device>                device_ptr,
+                              const char*                                 spirv_blob,
+                              uint32_t                                    n_spirv_blob_bytes,
+                              const char*                                 cs_entrypoint_name,
+                              const char*                                 fs_entrypoint_name,
+                              const char*                                 gs_entrypoint_name,
+                              const char*                                 tc_entrypoint_name,
+                              const char*                                 te_entrypoint_name,
+                              const char*                                 vs_entrypoint_name);
+
         ShaderModule           (const ShaderModule&);
         ShaderModule& operator=(const ShaderModule&);
-
-        /** Destructor. Releases internally maintained Vulkan shader module instance. */
-        virtual ~ShaderModule();
 
         /** Creates a Vulkan shader module instance, using the specified buffer holding SPIR-V blob data.
          *
@@ -175,17 +188,8 @@ namespace Anvil
         const char* m_te_entrypoint_name;
         const char* m_vs_entrypoint_name;
 
-        Anvil::Device* m_device_ptr;
-        VkShaderModule  m_module;
-    };
-
-    /** Delete functor. Useful if you need to wrap the shader module instance in an auto pointer */
-    struct ShaderModuleDeleter
-    {
-        void operator()(ShaderModule* shader_module_ptr) const
-        {
-            shader_module_ptr->release();
-        }
+        std::weak_ptr<Anvil::Device> m_device_ptr;
+        VkShaderModule               m_module;
     };
 }; /* namespace Anvil */
 

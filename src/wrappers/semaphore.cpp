@@ -26,7 +26,7 @@
 #include "wrappers/semaphore.h"
 
 /* Please see header for specification */
-Anvil::Semaphore::Semaphore(Anvil::Device* device_ptr)
+Anvil::Semaphore::Semaphore(std::weak_ptr<Anvil::Device> device_ptr)
     :m_device_ptr(device_ptr),
      m_semaphore (VK_NULL_HANDLE)
 {
@@ -45,12 +45,26 @@ Anvil::Semaphore::~Semaphore()
                                                     this);
 }
 
+/** Please see header for specification */
+std::shared_ptr<Anvil::Semaphore> Anvil::Semaphore::create(std::weak_ptr<Anvil::Device> device_ptr)
+{
+    std::shared_ptr<Anvil::Semaphore> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::Semaphore(device_ptr)
+    );
+
+    return result_ptr;
+}
+
 /** Destroys the underlying Vulkan Semaphore instance. */
 void Anvil::Semaphore::release_semaphore()
 {
     if (m_semaphore != VK_NULL_HANDLE)
     {
-        vkDestroySemaphore(m_device_ptr->get_device_vk(),
+        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
+        vkDestroySemaphore(device_locked_ptr->get_device_vk(),
                            m_semaphore,
                            nullptr /* pAllocator */);
 
@@ -61,8 +75,9 @@ void Anvil::Semaphore::release_semaphore()
 /* Please see header for specification */
 void Anvil::Semaphore::reset()
 {
-    VkResult              result;
-    VkSemaphoreCreateInfo semaphore_create_info;
+    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+    VkResult                       result;
+    VkSemaphoreCreateInfo          semaphore_create_info;
 
     release_semaphore();
 
@@ -71,7 +86,7 @@ void Anvil::Semaphore::reset()
     semaphore_create_info.pNext = nullptr;
     semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-    result = vkCreateSemaphore(m_device_ptr->get_device_vk(),
+    result = vkCreateSemaphore(device_locked_ptr->get_device_vk(),
                               &semaphore_create_info,
                                nullptr, /* pAllocator */
                               &m_semaphore);

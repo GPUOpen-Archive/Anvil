@@ -31,7 +31,6 @@
 #ifndef WRAPPERS_INSTANCE_H
 #define WRAPPERS_INSTANCE_H
 
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 #include "wrappers/rendering_surface.h"
 
@@ -44,10 +43,11 @@ namespace Anvil
                                                      const char*                message,
                                                      void*                      user_arg);
 
-    class Instance : public RefCounterSupportProvider
+    class Instance : public std::enable_shared_from_this<Instance>
     {
     public:
-        /* Public functions */
+        /** Destructor */
+        virtual ~Instance();
 
         /** Creates a new Instance wrapper instance. This process is executed in the following steps:
          *
@@ -59,6 +59,9 @@ namespace Anvil
          *  4. Instance-level function pointers are extracted.
          *
          *  Only one Instance wrapper instance should be created during application's life-time.
+         *
+         *  NOTE: You MUST call destroy() for this object in order for all dependent objects to be
+         *        destroyed correctly.
          *
          *
          *  @param app_name                 Name of the application, to be passed in VkCreateInstanceInfo
@@ -72,10 +75,10 @@ namespace Anvil
          *                                  will be passed to @param opt_pfn_validation_proc every time
          *                                  a debug callback is received. Ignored otherwise.
          **/
-        Instance(const char*                  app_name,
-                 const char*                  engine_name,
-                 PFNINSTANCEDEBUGCALLBACKPROC opt_pfn_validation_callback_proc,
-                 void*                        validation_proc_user_arg);
+        static std::shared_ptr<Anvil::Instance> create(const char*                  app_name,
+                                                       const char*                  engine_name,
+                                                       PFNINSTANCEDEBUGCALLBACKPROC opt_pfn_validation_callback_proc,
+                                                       void*                        validation_proc_user_arg);
 
         /** Creates a new RenderingSurface wrapper instance.
          *
@@ -84,23 +87,27 @@ namespace Anvil
          *
          *  @return As per description.
          **/
-        RenderingSurface* create_rendering_surface(Anvil::PhysicalDevice* physical_device_ptr,
-                                                   Anvil::Window*         window_ptr)
+        std::shared_ptr<RenderingSurface> create_rendering_surface(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                                                                   std::shared_ptr<Anvil::Window>       window_ptr)
         {
-            return new Anvil::RenderingSurface(this,
-                                               physical_device_ptr,
-                                               window_ptr,
+            std::shared_ptr<RenderingSurface> result_ptr = Anvil::RenderingSurface::create(shared_from_this(),
+                                                                                           physical_device_ptr,
+                                                                                           window_ptr,
 #ifdef _WIN32
-                                               m_vkCreateWin32SurfaceKHR,
+                                                                                           m_vkCreateWin32SurfaceKHR,
 #else
-                                               m_vkCreateXcbSurfaceKHR,
+                                                                                           m_vkCreateXcbSurfaceKHR,
 #endif
-                                               m_vkDestroySurfaceKHR,
-                                               m_vkGetPhysicalDeviceSurfaceCapabilitiesKHR,
-                                               m_vkGetPhysicalDeviceSurfaceFormatsKHR,
-                                               m_vkGetPhysicalDeviceSurfacePresentModesKHR,
-                                               m_vkGetPhysicalDeviceSurfaceSupportKHR);
+                                                                                           m_vkDestroySurfaceKHR,
+                                                                                           m_vkGetPhysicalDeviceSurfaceCapabilitiesKHR,
+                                                                                           m_vkGetPhysicalDeviceSurfaceFormatsKHR,
+                                                                                           m_vkGetPhysicalDeviceSurfacePresentModesKHR,
+                                                                                           m_vkGetPhysicalDeviceSurfaceSupportKHR);
+
+            return result_ptr;
         }
+
+        void destroy();
 
         /** Returns a raw wrapped VkInstance handle. */
         VkInstance get_instance_vk() const
@@ -116,7 +123,7 @@ namespace Anvil
          *
          ** @return As per description.
          **/
-        Anvil::PhysicalDevice* get_physical_device(uint32_t n_device) const
+        std::weak_ptr<Anvil::PhysicalDevice> get_physical_device(uint32_t n_device) const
         {
             return m_physical_devices[n_device];
         }
@@ -143,10 +150,18 @@ namespace Anvil
 
     private:
         /* Private functions */
-        virtual ~Instance();
+
+        /** Private constructor. Please use create() function instead. */
+        Instance(const char*                  app_name,
+                 const char*                  engine_name,
+                 PFNINSTANCEDEBUGCALLBACKPROC opt_pfn_validation_callback_proc,
+                 void*                        validation_proc_user_arg);
 
         Instance& operator=(const Instance&);
         Instance           (const Instance&);
+
+        void register_physical_device  (std::shared_ptr<Anvil::PhysicalDevice> physical_device_ptr);
+        void unregister_physical_device(std::shared_ptr<Anvil::PhysicalDevice> physical_device_ptr);
 
         void enumerate_instance_layers ();
         void enumerate_layer_extensions(Anvil::Layer* layer_ptr);
@@ -192,18 +207,12 @@ namespace Anvil
         PFNINSTANCEDEBUGCALLBACKPROC m_pfn_validation_callback_proc;
         void*                        m_validation_proc_user_arg;
 
-        std::vector<Anvil::Extension>       m_extensions;
-        std::vector<Anvil::PhysicalDevice*> m_physical_devices;
-        std::vector<Anvil::Layer>           m_supported_layers;
-    };
+        std::vector<Anvil::Extension>                        m_extensions;
+        std::vector<std::shared_ptr<Anvil::PhysicalDevice> > m_physical_devices;
+        std::vector<Anvil::Layer>                            m_supported_layers;
 
-    /** Delete functor. Useful if you need to wrap the Vulkan instance in an auto pointer */
-    struct InstanceDeleter
-    {
-        void operator()(Instance* instance_ptr) const
-        {
-            instance_ptr->release();
-        }
+        friend class  Anvil::PhysicalDevice;
+        friend struct InstanceDeleter;
     };
 }; /* namespace Anvil */
 

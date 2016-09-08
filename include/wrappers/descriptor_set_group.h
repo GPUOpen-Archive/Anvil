@@ -51,49 +51,18 @@
 #ifndef WRAPPERS_DESCRIPTOR_SET_GROUP_H
 #define WRAPPERS_DESCRIPTOR_SET_GROUP_H
 
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 #include "wrappers/descriptor_set.h"
 
 namespace Anvil
 {
-    class DescriptorSetGroup : public RefCounterSupportProvider
+    class DescriptorSetGroup
     {
     public:
         /* Public functions */
 
-        /** Constructor for the DescriptorSetGroup class.
-         *
-         *  Apart from the usual stuff, this function also preallocates memory for a number of
-         *  helper arrays
-         *
-         *  By using this constructor, you're explicitly stating you'd like the instance to maintain
-         *  its own copy of DescriptorSetLayout and DescriptorSet objects. Such object can then be used
-         *  as a parent to other DescriptorSetGroup class instances, initialized with another constructor that
-         *  takes a ptr to DescriptorSetGroup instance, causing objects created in such fashion to treat the
-         *  specified DescriptorSetGroup instance as a parent.
-         *
-         *  @param device_ptr       Device to use.
-         *  @param releaseable_sets true if the created VkDescriptorSet instances should be releaseable
-         *                          to the internal descriptor pool by invoking vkFreeDescriptorSets().
-         *                          false otherwise.
-         *  @param n_sets           Number of descriptor sets this instance should store information for.
-         */
-        DescriptorSetGroup(Anvil::Device* device_ptr,
-                           bool           releaseable_sets,
-                           uint32_t       n_sets);
-
-        /** Constructor for the DescriptorSetGroup class.
-         *
-         *  By using this constructor, you explicitly state you'd like this DescriptorSetGroup instance
-         *  to re-use layout of another DSG. This is useful if you'd like to re-use the same layout with
-         *  a different combination of descriptor sets.
-         *
-         *  @param parent_dsg_ptr   Pointer to a DSG without a parent. Must not be nullptr.
-         *  @param releaseable_sets See the documentation above for more details.
-         **/
-        DescriptorSetGroup(DescriptorSetGroup*  parent_dsg_ptr,
-                           bool                 releaseable_sets);
+        /** Destructor */
+        virtual ~DescriptorSetGroup();
 
         /** Adds a new descriptor set binding to the DSG. This lets you attach one or more descriptors
          *  to the binding's individual array items by calling set_binding() later on.
@@ -118,6 +87,39 @@ namespace Anvil
                          uint32_t           n_elements,
                          VkShaderStageFlags shader_stages);
 
+        /** Creates a new DescriptorSetGroup instance.
+         *
+         *  Apart from the usual stuff, this function also preallocates memory for a number of
+         *  helper arrays
+         *
+         *  By using this function, you're explicitly stating you'd like the instance to maintain
+         *  its own copy of DescriptorSetLayout and DescriptorSet objects. Such object can then be used
+         *  as a parent to other DescriptorSetGroup class instances, initialized with another constructor that
+         *  takes a ptr to DescriptorSetGroup instance, causing objects created in such fashion to treat the
+         *  specified DescriptorSetGroup instance as a parent.
+         *
+         *  @param device_ptr       Device to use.
+         *  @param releaseable_sets true if the created VkDescriptorSet instances should be releaseable
+         *                          to the internal descriptor pool by invoking vkFreeDescriptorSets().
+         *                          false otherwise.
+         *  @param n_sets           Number of descriptor sets this instance should store information for.
+         */
+        static std::shared_ptr<DescriptorSetGroup> create(std::weak_ptr<Anvil::Device> device_ptr,
+                                                          bool                         releaseable_sets,
+                                                          uint32_t                     n_sets);
+
+        /** Creates a new DescriptorSetGroup instance.
+         *
+         *  By using this function, you explicitly state you'd like this DescriptorSetGroup instance
+         *  to re-use layout of another DSG. This is useful if you'd like to re-use the same layout with
+         *  a different combination of descriptor sets.
+         *
+         *  @param parent_dsg_ptr   Pointer to a DSG without a parent. Must not be nullptr.
+         *  @param releaseable_sets See the documentation above for more details.
+         **/
+        static std::shared_ptr<DescriptorSetGroup> create(std::shared_ptr<DescriptorSetGroup> parent_dsg_ptr,
+                                                          bool                                releaseable_sets);
+
         /** Retrieves a Vulkan instance of the descriptor set, as configured for the DSG instance's set
          *  at index @param n_set.
          *
@@ -128,7 +130,7 @@ namespace Anvil
          *
          *  @return Pointer to the requested Anvil::DescriptorSet instance.
          **/
-        Anvil::DescriptorSet* get_descriptor_set(uint32_t n_set);
+        std::shared_ptr<Anvil::DescriptorSet> get_descriptor_set(uint32_t n_set);
 
         /** Returns a descriptor set binding index for a descriptor set at index @param n_set. */
         uint32_t get_descriptor_set_binding_index(uint32_t n_set) const;
@@ -140,7 +142,7 @@ namespace Anvil
          *
          *  @return Requested Anvil::DescriptorSetLayout instance.
          */
-        Anvil::DescriptorSetLayout* get_descriptor_set_layout(uint32_t n_set);
+        std::shared_ptr<Anvil::DescriptorSetLayout> get_descriptor_set_layout(uint32_t n_set);
 
         /** Returns the total number of added descriptor sets.
          *
@@ -235,14 +237,13 @@ namespace Anvil
         /* Encapsulates all info related to a single descriptor set */
         typedef struct DescriptorSetInfo
         {
-            Anvil::DescriptorSet*       descriptor_set_ptr;
-            Anvil::DescriptorSetLayout* layout_ptr;
+            std::shared_ptr<Anvil::DescriptorSet>       descriptor_set_ptr;
+            std::shared_ptr<Anvil::DescriptorSetLayout> layout_ptr;
 
             /* Dummy constructor */
             DescriptorSetInfo()
             {
-                descriptor_set_ptr = nullptr;
-                layout_ptr         = nullptr;
+                /* Stub */
             }
 
             /** Copy constructor.
@@ -267,41 +268,40 @@ namespace Anvil
         } DescriptorSetInfo;
 
         /* Private functions */
+
+        /** Please see create() documentation for more details. */
+        DescriptorSetGroup(std::weak_ptr<Anvil::Device> device_ptr,
+                           bool                         releaseable_sets,
+                           uint32_t                     n_sets);
+
+        /** Please see create() documentation for more details. */
+        DescriptorSetGroup(std::shared_ptr<DescriptorSetGroup> parent_dsg_ptr,
+                           bool                                releaseable_sets);
+
         DescriptorSetGroup           (const DescriptorSetGroup&);
         DescriptorSetGroup& operator=(const DescriptorSetGroup&);
-
-        virtual ~DescriptorSetGroup();
 
         void bake_descriptor_pool();
         bool bake_descriptor_sets();
 
         /* Private members */
-        std::vector<Anvil::DescriptorSet*>       m_cached_ds;
-        std::vector<Anvil::DescriptorSetLayout*> m_cached_ds_layouts;
-        std::vector<VkDescriptorSet>             m_cached_ds_vk;
-        std::vector<Anvil::Sampler*>             m_cached_immutable_samplers;
+        std::vector<std::shared_ptr<Anvil::DescriptorSet> >       m_cached_ds;
+        std::vector<std::shared_ptr<Anvil::DescriptorSetLayout> > m_cached_ds_layouts;
+        std::vector<VkDescriptorSet>                              m_cached_ds_vk;
+        std::vector<std::shared_ptr<Anvil::Sampler> >             m_cached_immutable_samplers;
 
-        bool                                  m_descriptor_pool_dirty;
-        Anvil::DescriptorPool*                m_descriptor_pool_ptr;
-        std::map<uint32_t, DescriptorSetInfo> m_descriptor_sets;
-        Anvil::Device*                        m_device_ptr;
-        uint32_t                              m_overhead_allocations[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
+        bool                                   m_descriptor_pool_dirty;
+        std::shared_ptr<Anvil::DescriptorPool> m_descriptor_pool_ptr;
+        std::map<uint32_t, DescriptorSetInfo>  m_descriptor_sets;
+        std::weak_ptr<Anvil::Device>           m_device_ptr;
+        uint32_t                               m_overhead_allocations[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
 
         uint32_t                   m_n_instantiated_sets;
         uint32_t                   m_n_sets;
         bool                       m_releaseable_sets;
 
-        bool                       m_layout_modifications_blocked;
-        Anvil::DescriptorSetGroup* m_parent_dsg_ptr;
-    };
-
-    /** Delete functor. Useful if you need to wrap the DSG instance in an auto pointer */
-    struct DescriptorSetGroupDeleter
-    {
-        void operator()(DescriptorSetGroup* dsg_ptr) const
-        {
-            dsg_ptr->release();
-        }
+        bool                                       m_layout_modifications_blocked;
+        std::shared_ptr<Anvil::DescriptorSetGroup> m_parent_dsg_ptr;
     };
 } /* Vulkan namespace */
 

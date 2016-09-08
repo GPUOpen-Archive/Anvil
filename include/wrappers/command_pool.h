@@ -29,19 +29,37 @@
 #ifndef WRAPPERS_COMMAND_POOL_H
 #define WRAPPERS_COMMAND_POOL_H
 
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 
 
 namespace Anvil
 {
     /** Implements a command pool wrapper */
-    class CommandPool : public RefCounterSupportProvider
+    class CommandPool : public std::enable_shared_from_this<CommandPool>
     {
     public:
         /* Public functions */
 
-        /** Constructor.
+        /** TODO */
+        virtual ~CommandPool();
+
+        /** Allocates a new primary-level command buffer instance from this command pool.
+         *
+         *  When no longer needed, the returned instance should be released by the app.
+         *
+         *  @return As per description.
+         **/
+        std::shared_ptr<Anvil::PrimaryCommandBuffer> alloc_primary_level_command_buffer();
+
+        /** Allocates a new secondary-level command buffer instance from this command pool.
+         *
+         *  When no longer needed, the returned instance should be released by the app.
+         *
+         *  @return As per description.
+         **/
+        std::shared_ptr<Anvil::SecondaryCommandBuffer> alloc_secondary_level_command_buffer();
+
+        /** Creates a new CommandPool object.
          *
          *  @param device_ptr                     Device to create the command pool for. Must not be nullptr.
          *  @param transient_allocations_friendly Set to true if the command pool should be created with the
@@ -50,26 +68,10 @@ namespace Anvil
          *                                        VK_COMMAND_POOL_RESET_COMMAND_BUFFER_BIT flag set on.
          *  @param queue_family                   Index of the queue family the command pool should be created for.
          **/
-        explicit CommandPool(Anvil::Device*         device_ptr,
-                             bool                   transient_allocations_friendly,
-                             bool                   support_per_cmdbuf_reset_ops,
-                             Anvil::QueueFamilyType queue_family);
-
-        /** Allocates a new primary-level command buffer instance from this command pool.
-         *
-         *  When no longer needed, the returned instance should be released by the app.
-         *
-         *  @return As per description.
-         **/
-        Anvil::PrimaryCommandBuffer* alloc_primary_level_command_buffer();
-
-        /** Allocates a new secondary-level command buffer instance from this command pool.
-         *
-         *  When no longer needed, the returned instance should be released by the app.
-         *
-         *  @return As per description.
-         **/
-        Anvil::SecondaryCommandBuffer* alloc_secondary_level_command_buffer();
+        static std::shared_ptr<CommandPool> create(std::weak_ptr<Anvil::Device> device_ptr,
+                                                   bool                         transient_allocations_friendly,
+                                                   bool                         support_per_cmdbuf_reset_ops,
+                                                   Anvil::QueueFamilyType       queue_family);
 
         /** Retrieves the raw Vulkan handle for the encapsulated command pool */
         VkCommandPool get_command_pool() const
@@ -102,20 +104,25 @@ namespace Anvil
 
     private:
         /* Private functions */
+
+        /* Please seee create() documentation for more details */
+        explicit CommandPool(std::weak_ptr<Anvil::Device> device_ptr,
+                             bool                         transient_allocations_friendly,
+                             bool                         support_per_cmdbuf_reset_ops,
+                             Anvil::QueueFamilyType       queue_family);
+
         CommandPool           (const CommandPool&);
         CommandPool& operator=(const CommandPool&);
 
         void on_command_buffer_wrapper_destroyed(CommandBufferBase* command_buffer_ptr);
 
-        ~CommandPool();
-
         /* Private variables */
-        std::vector<CommandBufferBase*> m_allocs_in_flight;
+        std::vector<std::shared_ptr<CommandBufferBase> > m_allocs_in_flight;
 
-        VkCommandPool  m_command_pool;
-        Anvil::Device* m_device_ptr;
-        bool           m_is_transient_allocations_friendly;
-        bool           m_supports_per_cmdbuf_reset_ops;
+        VkCommandPool                m_command_pool;
+        std::weak_ptr<Anvil::Device> m_device_ptr;
+        bool                         m_is_transient_allocations_friendly;
+        bool                         m_supports_per_cmdbuf_reset_ops;
 
         friend class Anvil::CommandBufferBase;
     };

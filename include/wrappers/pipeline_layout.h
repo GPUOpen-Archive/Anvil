@@ -31,7 +31,6 @@
 #define WRAPPERS_PIPELINE_LAYOUT_H
 
 #include "misc/callbacks.h"
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 
 namespace Anvil
@@ -49,22 +48,11 @@ namespace Anvil
          */
         PIPELINE_LAYOUT_CALLBACK_ID_OBJECT_ABOUT_TO_BE_DELETED,
 
-        /* Notification fired when a pipeline layout instance is about to be released,
-         * but there are objects still referring to the object, so the object will not
-         * be deleted at callback time.
-         *
-         * This call-back occurs BEFORE the reference counter is decremented.
-         *
-         * callback_arg: originating PipelineLayout instance ptr
-         */
-        PIPELINE_LAYOUT_CALLBACK_ID_OBJECT_ABOUT_TO_BE_RELEASED_BUT_NOT_DELETED,
-
         PIPELINE_LAYOUT_CALLBACK_ID_COUNT
     } PipelineLayoutCallbackID;
 
     /** Vulkan Pipeline Layout wrapper */
-    class PipelineLayout : public CallbacksSupportProvider,
-                           public RefCounterSupportProvider
+    class PipelineLayout : public CallbacksSupportProvider
     {
     public:
         /* Public functions */
@@ -77,7 +65,7 @@ namespace Anvil
          *
          *  @param device_ptr Device the layout is being created for. Must not be nullptr.
          */
-        PipelineLayout(Anvil::Device* device_ptr);
+        static std::shared_ptr<PipelineLayout> create(std::weak_ptr<Anvil::Device> device_ptr);
 
         /** Initializes a new wrapper instance with user-specified descriptor set groups (appended
          *  one after another, in the user-defined order) defined at creation time.
@@ -92,10 +80,15 @@ namespace Anvil
          *  @param is_immutable         true if the wrapper instance should be made immutable; false otherwise.
          *
          **/
-        PipelineLayout(Anvil::Device*             device_ptr,
-                       const DescriptorSetGroups& dsgs,
-                       const PushConstantRanges&  push_constant_ranges,
-                       bool                       is_immutable);
+        static std::shared_ptr<PipelineLayout> create(std::weak_ptr<Anvil::Device> device_ptr,
+                                                      const DescriptorSetGroups&   dsgs,
+                                                      const PushConstantRanges&    push_constant_ranges,
+                                                      bool                         is_immutable);
+
+        /** Destructor. Releases all attached descriptor set groups, as well as
+         *  the Vulkan pipeline layout object.
+         **/
+        virtual ~PipelineLayout();
 
         /** Appends the specified Descriptor Set Group to the list of Descriptor Sets that will
          *  be used to generate the descriptor set layout.
@@ -112,7 +105,7 @@ namespace Anvil
          *
          *  @return true if the operation was successful, false otherwise.
          **/
-        bool attach_dsg(DescriptorSetGroup* dsg_ptr);
+        bool attach_dsg(std::shared_ptr<DescriptorSetGroup> dsg_ptr);
 
         /** Appends a new push constant range to the list of push constant ranges that will be used
          *  when baking the layout object.
@@ -166,22 +159,24 @@ namespace Anvil
             return m_layout_vk;
         }
 
-        /** Decrements internal reference counter and releases the object, once the counter drops to zero. */
-        virtual void release();
-
     private:
         /* Private functions */
+
+        /* Constructor. Please see create() for specification */
+        PipelineLayout(std::weak_ptr<Anvil::Device> device_ptr);
+
+        /* Constructor. Please see create() for specification */
+        PipelineLayout(std::weak_ptr<Anvil::Device> device_ptr,
+                       const DescriptorSetGroups&   dsgs,
+                       const PushConstantRanges&    push_constant_ranges,
+                       bool                         is_immutable);
+
         PipelineLayout           (const PipelineLayout&);
         PipelineLayout& operator=(const PipelineLayout&);
 
-        /** Destructor. Releases all attached descriptor set groups, as well as
-         *  the Vulkan pipeline layout object.
-         **/
-        virtual ~PipelineLayout();
-
         /* Private variables */
-        Anvil::Device* m_device_ptr;
-        bool           m_is_immutable;
+        std::weak_ptr<Anvil::Device> m_device_ptr;
+        bool                         m_is_immutable;
 
         bool                m_dirty;
         DescriptorSetGroups m_dsgs;

@@ -32,7 +32,6 @@
 #ifndef WRAPPERS_SWAPCHAIN_H
 #define WRAPPERS_SWAPCHAIN_H
 
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 #include "wrappers/device.h"
 #include "wrappers/fence.h"
@@ -43,42 +42,35 @@
 namespace Anvil
 {
     /* Wrapper class for a Vulkan Swapchain */
-    class Swapchain : public RefCounterSupportProvider
+    class Swapchain
     {
     public:
         /* Public functions */
 
         /** Constructor.
          *
-         *  @param device_ptr                    Device to initialize the swapchain for.
-         *  @param parent_surface_ptr            Rendering surface the swapchain is to be created for. Must
-         *                                       not be nullptr.
-         *  @param window_ptr                    current window to create the swapchain for. Must not be nullptr.
-         *  @param format                        Format to use for the swapchain image.
-         *  @param present_mode                  Presentation mode to use for the swapchain.
-         *  @param usage_flags                   Image usage flags to use for the swapchain.
-         *  @param n_images                      Number of swapchain images to use for the swapchain.
-         *  @param pfn_acquire_next_image_proc   Func pointer to device-specific vkAcquireNextImageKHR() implementation.
-         *                                       Must not be nullptr.
-         *  @param pfn_create_swapchain_proc     Func pointer to device-specific vkCreateSwapchainKHR() implementation.
-         *                                       Must not be nullptr.
-         *  @param pfn_destroy_swapchain_proc    Func pointer to device-specific vkDestroySwapchainKHR() implementation.
-         *                                       Must not be nullptr.
-         *  @param pfn_get_swapchain_images_proc Func pointer to device-specific vkGetSwapchainImages() implementation.
-         *                                       Must not be nullptr.
+         *  @param device_ptr                       Device to initialize the swapchain for.
+         *  @param parent_surface_ptr               Rendering surface the swapchain is to be created for. Must
+         *                                          not be nullptr.
+         *  @param window_ptr                       current window to create the swapchain for. Must not be nullptr.
+         *  @param format                           Format to use for the swapchain image.
+         *  @param present_mode                     Presentation mode to use for the swapchain.
+         *  @param usage_flags                      Image usage flags to use for the swapchain.
+         *  @param n_images                         Number of swapchain images to use for the swapchain.
+         *  @param khr_device_swapchain_entrypoints VK_KHR_device_swapchain entrypoint container.
          *
          */
-        Swapchain(Anvil::Device*              device_ptr,
-                  Anvil::RenderingSurface*    parent_surface_ptr,
-                  Anvil::Window*              window_ptr,
-                  VkFormat                    format,
-                  VkPresentModeKHR            present_mode,
-                  VkImageUsageFlags           usage_flags,
-                  uint32_t                    n_images,
-                  PFN_vkAcquireNextImageKHR   pfn_acquire_next_image_proc,
-                  PFN_vkCreateSwapchainKHR    pfn_create_swapchain_proc,
-                  PFN_vkDestroySwapchainKHR   pfn_destroy_swapchain_proc,
-                  PFN_vkGetSwapchainImagesKHR pfn_get_swapchain_images_proc);
+        static std::shared_ptr<Swapchain> create(std::weak_ptr<Anvil::Device>                  device_ptr,
+                                                 std::shared_ptr<Anvil::RenderingSurface>      parent_surface_ptr,
+                                                 std::shared_ptr<Anvil::Window>                window_ptr,
+                                                 VkFormat                                      format,
+                                                 VkPresentModeKHR                              present_mode,
+                                                 VkImageUsageFlags                             usage_flags,
+                                                 uint32_t                                      n_images,
+                                                 const ExtensionKHRDeviceSwapchainEntrypoints& khr_device_swapchain_entrypoints);
+
+        /** TODO */
+        virtual ~Swapchain();
 
         /** Acquires a new swapchain image and waits until it becomes available before returning
          *  control to the caller.
@@ -94,7 +86,7 @@ namespace Anvil
          *
          *  @return Index of the swapchain image that the commands should be submitted against.
          **/
-        uint32_t acquire_image_by_setting_semaphore(Anvil::Semaphore* semaphore_ptr);
+        uint32_t acquire_image_by_setting_semaphore(std::shared_ptr<Anvil::Semaphore> semaphore_ptr);
 
         /** Returns format used by swapchain images */
         VkFormat get_image_format() const
@@ -119,7 +111,7 @@ namespace Anvil
          *
          *  @return As per summary.
          **/
-        Anvil::Image* get_image(uint32_t n_swapchain_image) const;
+        std::shared_ptr<Anvil::Image> get_image(uint32_t n_swapchain_image) const;
 
         /** Retrieves an Image View instance associated with a swapchain image at index
          *  @param n_swapchain_image.
@@ -132,7 +124,7 @@ namespace Anvil
          *
          *  @return As per summary.
          **/
-        Anvil::ImageView* get_image_view(uint32_t n_swapchain_image) const;
+        std::shared_ptr<Anvil::ImageView> get_image_view(uint32_t n_swapchain_image) const;
 
         /** Tells how many images the swap-chain encapsulates. */
         uint32_t get_n_images() const
@@ -141,7 +133,7 @@ namespace Anvil
         }
 
         /** Retrieves parent rendering surface. */
-        const Anvil::RenderingSurface* get_rendering_surface() const
+        std::shared_ptr<const Anvil::RenderingSurface> get_rendering_surface() const
         {
             return m_parent_surface_ptr;
         }
@@ -162,43 +154,40 @@ namespace Anvil
 
     private:
         /* Private functions */
+
+        /* Constructor. Please see create() for specification */
+        Swapchain(std::weak_ptr<Anvil::Device>                  device_ptr,
+                  std::shared_ptr<Anvil::RenderingSurface>      parent_surface_ptr,
+                  std::shared_ptr<Anvil::Window>                window_ptr,
+                  VkFormat                                      format,
+                  VkPresentModeKHR                              present_mode,
+                  VkImageUsageFlags                             usage_flags,
+                  uint32_t                                      n_images,
+                  const ExtensionKHRDeviceSwapchainEntrypoints& khr_device_swapchain_entrypoints);
+
         Swapchain           (const Swapchain&);
         Swapchain& operator=(const Swapchain&);
 
-        virtual ~Swapchain();
-
-        void     init     ();
+        void init();
 
 
         /* Private variables */
-        Anvil::Device*           m_device_ptr;
-        Anvil::Window*           m_window_ptr;
-        Anvil::Fence**           m_image_available_fence_ptrs;
-        VkFormat                 m_image_format;
-        Anvil::Image**           m_image_ptrs;
-        VkFormat                 m_image_view_format;
-        Anvil::ImageView**       m_image_view_ptrs;
-        uint32_t                 m_n_swapchain_images;
-        Anvil::RenderingSurface* m_parent_surface_ptr;
-        VkPresentModeKHR         m_present_mode;
-        VkSwapchainKHR           m_swapchain;
-        VkImageUsageFlagBits     m_usage_flags;
+        std::weak_ptr<Anvil::Device>                    m_device_ptr;
+        std::shared_ptr<Anvil::Window>                  m_window_ptr;
+        std::vector<std::shared_ptr<Anvil::Fence> >     m_image_available_fence_ptrs;
+        VkFormat                                        m_image_format;
+        std::vector<std::shared_ptr<Anvil::Image> >     m_image_ptrs;
+        VkFormat                                        m_image_view_format;
+        std::vector<std::shared_ptr<Anvil::ImageView> > m_image_view_ptrs;
+        uint32_t                                        m_n_swapchain_images;
+        std::shared_ptr<Anvil::RenderingSurface>        m_parent_surface_ptr;
+        VkPresentModeKHR                                m_present_mode;
+        VkSwapchainKHR                                  m_swapchain;
+        VkImageUsageFlagBits                            m_usage_flags;
 
-        PFN_vkAcquireNextImageKHR   m_vkAcquireNextImageKHR;
-        PFN_vkCreateSwapchainKHR    m_vkCreateSwapchainKHR;
-        PFN_vkDestroySwapchainKHR   m_vkDestroySwapchainKHR;
-        PFN_vkGetSwapchainImagesKHR m_vkGetSwapchainImagesKHR;
+        const ExtensionKHRDeviceSwapchainEntrypoints m_khr_device_swapchain_entrypoints;
 
         uint32_t m_n_acquire_counter;
-    };
-
-    /* Delete functor. Useful for wrapping Swapchain instances in auto pointers. */
-    struct SwapchainDeleter
-    {
-        void operator()(Swapchain* swapchain_ptr)
-        {
-            swapchain_ptr->release();
-        }
     };
 }; /* namespace Anvil */
 

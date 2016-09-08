@@ -30,9 +30,9 @@
 #include "wrappers/queue.h"
 
 /* Please see header for specification */
-Anvil::RenderingSurface::RenderingSurface(Anvil::Instance*                             instance_ptr,
-                                          Anvil::PhysicalDevice*                       physical_device_ptr,
-                                          Anvil::Window*                               window_ptr,
+Anvil::RenderingSurface::RenderingSurface(std::weak_ptr<Anvil::Instance>                instance_ptr,
+                                          std::weak_ptr<Anvil::PhysicalDevice>          physical_device_ptr,
+                                          std::shared_ptr<Anvil::Window>                window_ptr,
 #ifdef _WIN32
                                           PFN_vkCreateWin32SurfaceKHR                   pfn_create_win32_surface_khr_proc,
 #else
@@ -62,37 +62,41 @@ Anvil::RenderingSurface::RenderingSurface(Anvil::Instance*                      
 {
     VkResult result;
 
-    anvil_assert(physical_device_ptr != nullptr);
-
     if (!window_ptr->is_dummy())
     {
-    #ifdef _WIN32
-        VkWin32SurfaceCreateInfoKHR surface_create_info;
+        std::shared_ptr<Anvil::Instance> instance_locked_ptr(m_instance_ptr);
 
-        surface_create_info.flags     = 0;
-        surface_create_info.hinstance = GetModuleHandle(nullptr);
-        surface_create_info.hwnd      = window_ptr->get_handle();
-        surface_create_info.pNext     = nullptr;
-        surface_create_info.sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+        #ifdef _WIN32
+        {
+            VkWin32SurfaceCreateInfoKHR surface_create_info;
 
-        result = m_vkCreateWin32SurfaceKHR(m_instance_ptr->get_instance_vk(),
-                                          &surface_create_info,
-                                           nullptr, /* pAllocator */
-                                          &m_surface);
-    #else
-        VkXcbSurfaceCreateInfoKHR surface_create_info;
+            surface_create_info.flags     = 0;
+            surface_create_info.hinstance = GetModuleHandle(nullptr);
+            surface_create_info.hwnd      = window_ptr->get_handle();
+            surface_create_info.pNext     = nullptr;
+            surface_create_info.sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
 
-        surface_create_info.flags       = 0;
-        surface_create_info.window      = window_ptr->get_handle();
-        surface_create_info.connection  = static_cast<xcb_connection_t*>(window_ptr->get_connection());
-        surface_create_info.pNext       = nullptr;
-        surface_create_info.sType       = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+            result = m_vkCreateWin32SurfaceKHR(instance_locked_ptr->get_instance_vk(),
+                                              &surface_create_info,
+                                               nullptr, /* pAllocator */
+                                              &m_surface);
+        }
+        #else
+        {
+            VkXcbSurfaceCreateInfoKHR surface_create_info;
 
-        result = m_vkCreateXcbSurfaceKHR(m_instance_ptr->get_instance_vk(),
-                                        &surface_create_info,
-                                         nullptr, /* pAllocator */
-                                        &m_surface);
-    #endif
+            surface_create_info.flags       = 0;
+            surface_create_info.window      = window_ptr->get_handle();
+            surface_create_info.connection  = static_cast<xcb_connection_t*>(window_ptr->get_connection());
+            surface_create_info.pNext       = nullptr;
+            surface_create_info.sType       = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+
+            result = m_vkCreateXcbSurfaceKHR(instance_locked_ptr->get_instance_vk(),
+                                            &surface_create_info,
+                                             nullptr, /* pAllocator */
+                                            &m_surface);
+        }
+        #endif
     }
     else
     {
@@ -115,7 +119,9 @@ Anvil::RenderingSurface::~RenderingSurface()
 {
     if (m_surface != VK_NULL_HANDLE)
     {
-        m_vkDestroySurfaceKHR(m_instance_ptr->get_instance_vk(),
+        std::shared_ptr<Anvil::Instance> instance_locked_ptr(m_instance_ptr);
+
+        m_vkDestroySurfaceKHR(instance_locked_ptr->get_instance_vk(),
                               m_surface,
                               nullptr /* pAllocator */);
 
@@ -127,11 +133,13 @@ Anvil::RenderingSurface::~RenderingSurface()
 }
 
 /* Please see header for specification */
-void Anvil::RenderingSurface::cache_surface_properties(Anvil::Window* window_ptr)
+void Anvil::RenderingSurface::cache_surface_properties(std::shared_ptr<Anvil::Window> window_ptr)
 {
+    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_physical_device_ptr);
+
     uint32_t               n_supported_formats            = 0;
     uint32_t               n_supported_presentation_modes = 0;
-    const VkPhysicalDevice physical_device_vk             = m_physical_device_ptr->get_physical_device();
+    const VkPhysicalDevice physical_device_vk             = physical_device_locked_ptr->get_physical_device();
     VkResult               result;
     VkSurfaceFormatKHR*    supported_formats              = nullptr;
     bool                   is_offscreen_rendering_enabled = window_ptr->is_dummy();
@@ -209,4 +217,40 @@ void Anvil::RenderingSurface::cache_surface_properties(Anvil::Window* window_ptr
                                                         &n_supported_presentation_modes,
                                                         &m_supported_presentation_modes[0]);
     anvil_assert_vk_call_succeeded(result);
+}
+
+/* Please see header for specification */
+std::shared_ptr<Anvil::RenderingSurface> Anvil::RenderingSurface::create(std::weak_ptr<Anvil::Instance>                instance_ptr,
+                                                                         std::weak_ptr<Anvil::PhysicalDevice>          physical_device_ptr,
+                                                                         std::shared_ptr<Anvil::Window>                window_ptr,
+#ifdef _WIN32
+                                                                         PFN_vkCreateWin32SurfaceKHR                   pfn_create_win32_surface_khr_proc,
+#else
+                                                                         PFN_vkCreateXcbSurfaceKHR                     pfn_create_xcb_surface_khr_proc,
+#endif
+                                                                         PFN_vkDestroySurfaceKHR                       pfn_destroy_surface_khr_proc,
+                                                                         PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR pfn_get_physical_device_surface_capabilities_khr_proc,
+                                                                         PFN_vkGetPhysicalDeviceSurfaceFormatsKHR      pfn_get_physical_device_surface_formats_khr_proc,
+                                                                         PFN_vkGetPhysicalDeviceSurfacePresentModesKHR pfn_get_physical_device_surface_present_modes_khr_proc,
+                                                                         PFN_vkGetPhysicalDeviceSurfaceSupportKHR      pfn_get_physical_device_surface_support_khr_proc)
+{
+    std::shared_ptr<Anvil::RenderingSurface> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::RenderingSurface(instance_ptr,
+                                    physical_device_ptr,
+                                    window_ptr,
+#ifdef _WIN32
+                                    pfn_create_win32_surface_khr_proc,
+#else
+                                    pfn_create_xcb_surface_khr_proc,
+#endif
+                                    pfn_destroy_surface_khr_proc,
+                                    pfn_get_physical_device_surface_capabilities_khr_proc,
+                                    pfn_get_physical_device_surface_formats_khr_proc,
+                                    pfn_get_physical_device_surface_present_modes_khr_proc,
+                                    pfn_get_physical_device_surface_support_khr_proc)
+    );
+
+    return result_ptr;
 }

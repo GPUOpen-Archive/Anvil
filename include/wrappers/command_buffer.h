@@ -36,7 +36,6 @@
 #define WRAPPERS_COMMAND_BUFFER_H
 
 #include "misc/callbacks.h"
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 
 #ifdef _DEBUG
@@ -79,7 +78,9 @@ namespace Anvil
         COMMAND_TYPE_DRAW,
         COMMAND_TYPE_DRAW_INDEXED,
         COMMAND_TYPE_DRAW_INDEXED_INDIRECT,
+        COMMAND_TYPE_DRAW_INDEXED_INDIRECT_COUNT_AMD,
         COMMAND_TYPE_DRAW_INDIRECT,
+        COMMAND_TYPE_DRAW_INDIRECT_COUNT_AMD,
         COMMAND_TYPE_END_QUERY,
         COMMAND_TYPE_END_RENDER_PASS,
         COMMAND_TYPE_EXECUTE_COMMANDS,
@@ -128,8 +129,11 @@ namespace Anvil
         {
             /* Stub */
         }
-    private:
-        Command(const Command& in);
+
+        Command(const Command& in)
+        {
+            type = in.type;
+        }
     } Command;
 
     enum CommandBufferCallbackID
@@ -165,11 +169,11 @@ namespace Anvil
      */
     typedef struct BeginRenderPassCommand : public Command
     {
-        std::vector<VkClearValue> clear_values;
-        VkSubpassContents         contents;
-        Anvil::Framebuffer*      fbo_ptr;
-        VkRect2D                  render_area;
-        Anvil::RenderPass*       render_pass_ptr;
+        std::vector<VkClearValue>           clear_values;
+        VkSubpassContents                   contents;
+        std::shared_ptr<Anvil::Framebuffer> fbo_ptr;
+        VkRect2D                            render_area;
+        std::shared_ptr<Anvil::RenderPass>  render_pass_ptr;
 
         /** Constructor.
          *
@@ -177,18 +181,22 @@ namespace Anvil
          *
          *  Arguments as per Vulkan API.
          **/
-        explicit BeginRenderPassCommand(uint32_t            in_n_clear_values,
-                                        const VkClearValue* in_clear_value_ptrs,
-                                        Anvil::Framebuffer* in_fbo_ptr,
-                                        VkRect2D            in_render_area,
-                                        Anvil::RenderPass*  in_render_pass_ptr,
-                                        VkSubpassContents   in_contents);
+        explicit BeginRenderPassCommand(uint32_t                            in_n_clear_values,
+                                        const VkClearValue*                 in_clear_value_ptrs,
+                                        std::shared_ptr<Anvil::Framebuffer> in_fbo_ptr,
+                                        VkRect2D                            in_render_area,
+                                        std::shared_ptr<Anvil::RenderPass>  in_render_pass_ptr,
+                                        VkSubpassContents                   in_contents);
 
         /** Destructor.
          *
          *  Releases the encapsulated Framebuffer and RenderPass instances.
          **/
-        ~BeginRenderPassCommand();
+        virtual ~BeginRenderPassCommand()
+         {
+             /* Stub */
+         }
+
 
     private:
         BeginRenderPassCommand           (const BeginRenderPassCommand&);
@@ -273,8 +281,13 @@ namespace Anvil
                                         const BufferBarrier* const in_buffer_memory_barrier_ptr_ptr,
                                         uint32_t                   in_image_memory_barrier_count,
                                         const ImageBarrier*  const in_image_memory_barrier_ptr_ptr);
+
+        virtual ~PipelineBarrierCommand()
+        {
+            /* Stub */
+        }
     } PipelineBarrierCommand;
-        
+
     /* Structure passed as a COMMAND_BUFFER_CALLBACK_ID_PIPELINE_BARRIER_COMMAND_RECORDED call-back argument */
     typedef struct PipelineBarrierCommandRecordedCallbackData
     {
@@ -303,8 +316,7 @@ namespace Anvil
      *
      *  Provides core functionality for the PrimaryCommandBuffer and SecondaryCommandBuffer classes.
      */
-    class CommandBufferBase : public CallbacksSupportProvider,
-                              public RefCounterSupportProvider
+    class CommandBufferBase : public CallbacksSupportProvider
     {
     public:
         /* Public type definitions */
@@ -365,9 +377,9 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_begin_query(Anvil::QueryPool*   in_query_pool_ptr,
-                                Anvil::QueryIndex   in_entry,
-                                VkQueryControlFlags in_flags);
+        bool record_begin_query(std::shared_ptr<Anvil::QueryPool> in_query_pool_ptr,
+                                Anvil::QueryIndex                 in_entry,
+                                VkQueryControlFlags               in_flags);
 
         /** Issues a vkCmdBindDescriptorSets() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -380,13 +392,13 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_bind_descriptor_sets(VkPipelineBindPoint    in_pipeline_bind_point,
-                                         Anvil::PipelineLayout* in_layout_ptr,
-                                         uint32_t               in_first_set,
-                                         uint32_t               in_set_count,
-                                         Anvil::DescriptorSet** in_descriptor_set_ptrs,
-                                         uint32_t               in_dynamic_offset_count,
-                                         const uint32_t*        in_dynamic_offset_ptrs);
+        bool record_bind_descriptor_sets(VkPipelineBindPoint                    in_pipeline_bind_point,
+                                         std::shared_ptr<Anvil::PipelineLayout> in_layout_ptr,
+                                         uint32_t                               in_first_set,
+                                         uint32_t                               in_set_count,
+                                         std::shared_ptr<Anvil::DescriptorSet>* in_descriptor_set_ptrs,
+                                         uint32_t                               in_dynamic_offset_count,
+                                         const uint32_t*                        in_dynamic_offset_ptrs);
 
         /** Issues a vkCmdBindIndexBuffer() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -402,9 +414,9 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_bind_index_buffer(Anvil::Buffer* in_buffer_ptr,
-                                      VkDeviceSize   in_offset,
-                                      VkIndexType    in_index_type);
+        bool record_bind_index_buffer(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                      VkDeviceSize                   in_offset,
+                                      VkIndexType                    in_index_type);
 
         /** Issues a vkCmdBindPipeline() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -434,10 +446,10 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_bind_vertex_buffers(uint32_t            in_start_binding,
-                                        uint32_t            in_binding_count,
-                                        Anvil::Buffer**     in_buffer_ptrs,
-                                        const VkDeviceSize* in_offset_ptrs);
+        bool record_bind_vertex_buffers(uint32_t                        in_start_binding,
+                                        uint32_t                        in_binding_count,
+                                        std::shared_ptr<Anvil::Buffer>* in_buffer_ptrs,
+                                        const VkDeviceSize*             in_offset_ptrs);
 
         /** Issues a vkCmdBlitImage() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -456,13 +468,13 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_blit_image(Anvil::Image*      in_src_image_ptr,
-                               VkImageLayout      in_src_image_layout,
-                               Anvil::Image*      in_dst_image_ptr,
-                               VkImageLayout      in_dst_image_layout,
-                               uint32_t           in_region_count,
-                               const VkImageBlit* in_region_ptrs,
-                               VkFilter           in_filter);
+        bool record_blit_image(std::shared_ptr<Anvil::Image> in_src_image_ptr,
+                               VkImageLayout                 in_src_image_layout,
+                               std::shared_ptr<Anvil::Image> in_dst_image_ptr,
+                               VkImageLayout                 in_dst_image_layout,
+                               uint32_t                      in_region_count,
+                               const VkImageBlit*            in_region_ptrs,
+                               VkFilter                      in_filter);
 
         /** Issues a vkCmdClearAttachments() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -503,7 +515,7 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_clear_color_image(Anvil::Image*                  in_image_ptr,
+        bool record_clear_color_image(std::shared_ptr<Anvil::Image>  in_image_ptr,
                                       VkImageLayout                  in_image_layout,
                                       const VkClearColorValue*       in_color_ptr,
                                       uint32_t                       in_range_count,
@@ -526,7 +538,7 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_clear_depth_stencil_image(Anvil::Image*                   in_image_ptr,
+        bool record_clear_depth_stencil_image(std::shared_ptr<Anvil::Image>   in_image_ptr,
                                               VkImageLayout                   in_image_layout,
                                               const VkClearDepthStencilValue* in_depth_stencil_ptr,
                                               uint32_t                        in_range_count,
@@ -549,10 +561,10 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_copy_buffer(Anvil::Buffer*      in_src_buffer_ptr,
-                                Anvil::Buffer*      in_dst_buffer_ptr,
-                                uint32_t            in_region_count,
-                                const VkBufferCopy* in_region_ptrs);
+        bool record_copy_buffer(std::shared_ptr<Anvil::Buffer> in_src_buffer_ptr,
+                                std::shared_ptr<Anvil::Buffer> in_dst_buffer_ptr,
+                                uint32_t                       in_region_count,
+                                const VkBufferCopy*            in_region_ptrs);
 
         /** Issues a vkCmdCopyBufferToImage() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -571,11 +583,11 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_copy_buffer_to_image(Anvil::Buffer*           in_src_buffer_ptr,
-                                         Anvil::Image*            in_dst_image_ptr,
-                                         VkImageLayout            in_dst_image_layout,
-                                         uint32_t                 in_region_count,
-                                         const VkBufferImageCopy* in_region_ptrs);
+        bool record_copy_buffer_to_image(std::shared_ptr<Anvil::Buffer> in_src_buffer_ptr,
+                                         std::shared_ptr<Anvil::Image>  in_dst_image_ptr,
+                                         VkImageLayout                  in_dst_image_layout,
+                                         uint32_t                       in_region_count,
+                                         const VkBufferImageCopy*       in_region_ptrs);
 
         /** Issues a vkCmdCopyImage() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -594,12 +606,12 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_copy_image(Anvil::Image*      in_src_image_ptr,
-                               VkImageLayout      in_src_image_layout,
-                               Anvil::Image*      in_dst_image_ptr,
-                               VkImageLayout      in_dst_image_layout,
-                               uint32_t           in_region_count,
-                               const VkImageCopy* in_region_ptrs);
+        bool record_copy_image(std::shared_ptr<Anvil::Image> in_src_image_ptr,
+                               VkImageLayout                 in_src_image_layout,
+                               std::shared_ptr<Anvil::Image> in_dst_image_ptr,
+                               VkImageLayout                 in_dst_image_layout,
+                               uint32_t                      in_region_count,
+                               const VkImageCopy*            in_region_ptrs);
 
         /** Issues a vkCmdCopyImageToBuffer() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -618,11 +630,11 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_copy_image_to_buffer(Anvil::Image*            in_src_image_ptr,
-                                         VkImageLayout            in_src_image_layout,
-                                         Anvil::Buffer*           in_dst_buffer_ptr,
-                                         uint32_t                 in_region_count,
-                                         const VkBufferImageCopy* in_region_ptrs);
+        bool record_copy_image_to_buffer(std::shared_ptr<Anvil::Image>  in_src_image_ptr,
+                                         VkImageLayout                  in_src_image_layout,
+                                         std::shared_ptr<Anvil::Buffer> in_dst_buffer_ptr,
+                                         uint32_t                       in_region_count,
+                                         const VkBufferImageCopy*       in_region_ptrs);
 
         /** Issues a vkCmdCopyQueryPoolResults() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -641,13 +653,13 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_copy_query_pool_results(Anvil::QueryPool*  in_query_pool_ptr,
-                                            uint32_t           in_start_query,
-                                            uint32_t           in_query_count,
-                                            Anvil::Buffer*     in_dst_buffer_ptr,
-                                            VkDeviceSize       in_dst_offset,
-                                            VkDeviceSize       in_dst_stride,
-                                            VkQueryResultFlags in_flags);
+        bool record_copy_query_pool_results(std::shared_ptr<Anvil::QueryPool> in_query_pool_ptr,
+                                            Anvil::QueryIndex                 in_start_query,
+                                            uint32_t                          in_query_count,
+                                            std::shared_ptr<Anvil::Buffer>    in_dst_buffer_ptr,
+                                            VkDeviceSize                      in_dst_offset,
+                                            VkDeviceSize                      in_dst_stride,
+                                            VkQueryResultFlags                in_flags);
 
         /** Issues a vkCmdDispatch() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -684,8 +696,8 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_dispatch_indirect(Anvil::Buffer* in_buffer_ptr,
-                                      VkDeviceSize   in_offset);
+        bool record_dispatch_indirect(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                      VkDeviceSize                   in_offset);
 
         /** Issues a vkCmdDraw() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -743,11 +755,38 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_draw_indexed_indirect(Anvil::Buffer* in_buffer_ptr,
-                                          VkDeviceSize   in_offset,
-                                          uint32_t       in_draw_count,
-                                          uint32_t       in_stride);
+        bool record_draw_indexed_indirect(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                          VkDeviceSize                   in_offset,
+                                          uint32_t                       in_draw_count,
+                                          uint32_t                       in_stride);
 
+        /** Issues a vkCmdDrawIndexedIndirectCount() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  It is also illegal to call this function when not recording renderpass commands. Doing so
+         *  will also result in an assertion failure.
+         *
+         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
+         *  and will be released when the command buffer is released or resetted.
+         *
+         *  This function is only available if VK_AMD_draw_indirect_count is supported by the Vulkan
+         *  device AND if the extension has been requested at creation time.
+         *
+         *  Argument meaning is as per VK_AMD_draw_indirect_count specification.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_draw_indexed_indirect_count_AMD(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                                    VkDeviceSize                   in_offset,
+                                                    std::shared_ptr<Anvil::Buffer> in_count_buffer_ptr,
+                                                    VkDeviceSize                   in_count_offset,
+                                                    uint32_t                       in_max_draw_count,
+                                                    uint32_t                       in_stride);
+        
         /** Issues a vkCmdDrawIndirect() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
          *  #define enabled).
@@ -765,10 +804,37 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_draw_indirect(Anvil::Buffer* in_buffer_ptr,
-                                  VkDeviceSize   in_offset,
-                                  uint32_t       in_count,
-                                  uint32_t       in_stride);
+        bool record_draw_indirect(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                  VkDeviceSize                   in_offset,
+                                  uint32_t                       in_count,
+                                  uint32_t                       in_stride);
+
+        /** Issues a vkCmdDrawIndirectCount() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  It is also illegal to call this function when not recording renderpass commands. Doing so
+         *  will also result in an assertion failure.
+         *
+         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
+         *  and will be released when the command buffer is released or resetted.
+         *
+         *  This function is only available if VK_AMD_draw_indirect_count is supported by the Vulkan
+         *  device AND if the extension has been requested at creation time.
+         *
+         *  Argument meaning is as per VK_AMD_draw_indirect_count specification.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_draw_indirect_count_AMD(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                            VkDeviceSize                   in_offset,
+                                            std::shared_ptr<Anvil::Buffer> in_count_buffer_ptr,
+                                            VkDeviceSize                   in_count_offset,
+                                            uint32_t                       in_max_draw_count,
+                                            uint32_t                       in_stride);
 
         /** Issues a vkCmdEndQuery() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -781,8 +847,8 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_end_query(Anvil::QueryPool* in_query_pool_ptr,
-                              Anvil::QueryIndex in_entry);
+        bool record_end_query(std::shared_ptr<Anvil::QueryPool> in_query_pool_ptr,
+                              Anvil::QueryIndex                 in_entry);
 
         /** Issues a vkCmdFillBuffer() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -801,10 +867,10 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_fill_buffer(Anvil::Buffer* in_dst_buffer_ptr,
-                                VkDeviceSize   in_dst_offset,
-                                VkDeviceSize   in_size,
-                                uint32_t       in_data);
+        bool record_fill_buffer(std::shared_ptr<Anvil::Buffer> in_dst_buffer_ptr,
+                                VkDeviceSize                   in_dst_offset,
+                                VkDeviceSize                   in_size,
+                                uint32_t                       in_data);
 
         /** Issues a vkCmdPipelineBarrier() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -841,11 +907,11 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_push_constants(Anvil::PipelineLayout* in_layout_ptr,
-                                   VkShaderStageFlags     in_stage_flags,
-                                   uint32_t               in_offset,
-                                   uint32_t               in_size,
-                                   const void*            in_values);
+        bool record_push_constants(std::shared_ptr<Anvil::PipelineLayout> in_layout_ptr,
+                                   VkShaderStageFlags                     in_stage_flags,
+                                   uint32_t                               in_offset,
+                                   uint32_t                               in_size,
+                                   const void*                            in_values);
 
         /** Issues a vkCmdResetEvent() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -864,8 +930,8 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_reset_event(Anvil::Event*        in_event_ptr,
-                                VkPipelineStageFlags in_stage_mask);
+        bool record_reset_event(std::shared_ptr<Anvil::Event> in_event_ptr,
+                                VkPipelineStageFlags          in_stage_mask);
 
         /** Issues a vkCmdResetQueryPool() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -881,9 +947,9 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_reset_query_pool(Anvil::QueryPool* query_pool_ptr,
-                                     Anvil::QueryIndex in_start_query,
-                                     uint32_t          in_query_count);
+        bool record_reset_query_pool(std::shared_ptr<Anvil::QueryPool> query_pool_ptr,
+                                     Anvil::QueryIndex                 in_start_query,
+                                     uint32_t                          in_query_count);
 
         /** Issues a vkCmdResolveImage() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -902,12 +968,12 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_resolve_image(Anvil::Image*         in_src_image_ptr,
-                                  VkImageLayout         in_src_image_layout,
-                                  Anvil::Image*         in_dst_image_ptr,
-                                  VkImageLayout         in_dst_image_layout,
-                                  uint32_t              in_region_count,
-                                  const VkImageResolve* in_region_ptrs);
+        bool record_resolve_image(std::shared_ptr<Anvil::Image> in_src_image_ptr,
+                                  VkImageLayout                 in_src_image_layout,
+                                  std::shared_ptr<Anvil::Image> in_dst_image_ptr,
+                                  VkImageLayout                 in_dst_image_layout,
+                                  uint32_t                      in_region_count,
+                                  const VkImageResolve*         in_region_ptrs);
 
         /** Issues a vkCmdSetBlendConstants() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -968,8 +1034,8 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_set_event(Anvil::Event*        in_event_ptr,
-                              VkPipelineStageFlags in_stage_mask);
+        bool record_set_event(std::shared_ptr<Anvil::Event> in_event_ptr,
+                              VkPipelineStageFlags          in_stage_mask);
 
         /** Issues a vkCmdSetLineWidth() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -1073,10 +1139,10 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_update_buffer(Anvil::Buffer*  in_dst_buffer_ptr,
-                                  VkDeviceSize    in_dst_offset,
-                                  VkDeviceSize    in_data_size,
-                                  const uint32_t* in_data_ptr);
+        bool record_update_buffer(std::shared_ptr<Anvil::Buffer> in_dst_buffer_ptr,
+                                  VkDeviceSize                   in_dst_offset,
+                                  VkDeviceSize                   in_data_size,
+                                  const uint32_t*                in_data_ptr);
 
         /** Issues a vkCmdWaitEvents() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -1092,16 +1158,16 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_wait_events(uint32_t                   in_event_count,
-                                Anvil::Event**             in_event_ptrs,
-                                VkPipelineStageFlags       in_src_stage_mask,
-                                VkPipelineStageFlags       in_dst_stage_mask,
-                                uint32_t                   in_memory_barrier_count,
-                                const MemoryBarrier* const in_memory_barriers_ptr,
-                                uint32_t                   in_buffer_memory_barrier_count,
-                                const BufferBarrier* const in_buffer_memory_barriers_ptr,
-                                uint32_t                   in_image_memory_barrier_count,
-                                const ImageBarrier* const  in_image_memory_barriers_ptr);
+        bool record_wait_events(uint32_t                       in_event_count,
+                                std::shared_ptr<Anvil::Event>* in_event_ptrs,
+                                VkPipelineStageFlags           in_src_stage_mask,
+                                VkPipelineStageFlags           in_dst_stage_mask,
+                                uint32_t                       in_memory_barrier_count,
+                                const MemoryBarrier* const     in_memory_barriers_ptr,
+                                uint32_t                       in_buffer_memory_barrier_count,
+                                const BufferBarrier* const     in_buffer_memory_barriers_ptr,
+                                uint32_t                       in_image_memory_barrier_count,
+                                const ImageBarrier* const      in_image_memory_barriers_ptr);
 
         /** Issues a vkCmdWriteTimestamp() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -1117,9 +1183,9 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_write_timestamp(VkPipelineStageFlagBits in_pipeline_stage,
-                                    Anvil::QueryPool*       in_query_pool_ptr,
-                                    Anvil::QueryIndex       in_entry);
+        bool record_write_timestamp(VkPipelineStageFlagBits           in_pipeline_stage,
+                                    std::shared_ptr<Anvil::QueryPool> in_query_pool_ptr,
+                                    Anvil::QueryIndex                  in_entry);
 
         /** Resets the underlying Vulkan command buffer and clears the internally managed vector of
          *  recorded commands, if STORE_COMMAND_BUFFER_COMMANDS has been defined for the build.
@@ -1189,55 +1255,47 @@ namespace Anvil
         /** Holds all arguments passed to a vkCmdBeginQuery() command */
         typedef struct BeginQueryCommand : public Command
         {
-            Anvil::QueryIndex   entry;
-            VkQueryControlFlags flags;
-            Anvil::QueryPool*   query_pool_ptr;
+            Anvil::QueryIndex                 entry;
+            VkQueryControlFlags               flags;
+            std::shared_ptr<Anvil::QueryPool> query_pool_ptr;
 
-            /** Constructor.
-             *
-             *  Retains @param in_query_pool_ptr. The object is released at destruction time.
-             *
-             *  Arguments as per Vulkan API.
-             */
-            explicit BeginQueryCommand(Anvil::QueryPool*   in_query_pool_ptr,
-                                       Anvil::QueryIndex   in_entry,
-                                       VkQueryControlFlags in_flags);
+            /** Constructor. */
+            explicit BeginQueryCommand(std::shared_ptr<Anvil::QueryPool> in_query_pool_ptr,
+                                       Anvil::QueryIndex                 in_entry,
+                                       VkQueryControlFlags               in_flags);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Framebuffer and RenderPass instances.
-             **/
-            ~BeginQueryCommand();
+            /** Destructor. */
+            virtual ~BeginQueryCommand()
+            {
+                /* Stub */
+            }
         } BeginQueryCommand;
 
 
         /** Holds all arguments passed to a vkCmdBindDescriptorSets() command. */
         typedef struct BindDescriptorSetsCommand : public Command
         {
-            std::vector<Anvil::DescriptorSet*> descriptor_sets;
-            std::vector<uint32_t>              dynamic_offsets;
-            uint32_t                           first_set;
-            Anvil::PipelineLayout*             layout_ptr;
-            VkPipelineBindPoint                pipeline_bind_point;
+            std::vector<std::shared_ptr<Anvil::DescriptorSet> > descriptor_sets;
+            std::vector<uint32_t>                               dynamic_offsets;
+            uint32_t                                            first_set;
+            std::shared_ptr<Anvil::PipelineLayout>              layout_ptr;
+            VkPipelineBindPoint                                 pipeline_bind_point;
 
-            /** Constructor.
-             *
-             *  Retains the user-specified PipelineLayout instance.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit BindDescriptorSetsCommand(VkPipelineBindPoint    in_pipeline_bind_point,
-                                               Anvil::PipelineLayout* in_layout_ptr,
-                                               uint32_t               in_first_set,
-                                               uint32_t               in_set_count,
-                                               Anvil::DescriptorSet** in_descriptor_set_ptrs,
-                                               uint32_t               in_dynamic_offset_count,
-                                               const uint32_t*        in_dynamic_offset_ptrs);
+            /** Constructor. **/
+            explicit BindDescriptorSetsCommand(VkPipelineBindPoint                    in_pipeline_bind_point,
+                                               std::shared_ptr<Anvil::PipelineLayout> in_layout_ptr,
+                                               uint32_t                               in_first_set,
+                                               uint32_t                               in_set_count,
+                                               std::shared_ptr<Anvil::DescriptorSet>* in_descriptor_set_ptrs,
+                                               uint32_t                               in_dynamic_offset_count,
+                                               const uint32_t*                        in_dynamic_offset_ptrs);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated PipelineLayout instance */
-            virtual ~BindDescriptorSetsCommand();
+            /** Destructor. */
+            virtual ~BindDescriptorSetsCommand()
+            {
+                /* Stub */
+            }
+
         } BindDescriptorSetsCommand;
 
 
@@ -1249,28 +1307,21 @@ namespace Anvil
          */
         typedef struct BindIndexBufferCommand : public Command
         {
-            VkBuffer       buffer;
-            Anvil::Buffer* buffer_ptr;
-            VkIndexType    index_type;
-            VkDeviceSize   offset;
+            VkBuffer                       buffer;
+            std::shared_ptr<Anvil::Buffer> buffer_ptr;
+            VkIndexType                    index_type;
+            VkDeviceSize                   offset;
 
-            /** Constructor.
-             *
-             *  Retains @param in_buffer_ptr object.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit BindIndexBufferCommand(Anvil::Buffer* in_buffer_ptr,
-                                            VkDeviceSize   in_offset,
-                                            VkIndexType    in_index_type);
+            /** Constructor. **/
+            explicit BindIndexBufferCommand(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                            VkDeviceSize                   in_offset,
+                                            VkIndexType                    in_index_type);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Buffer instances.
-             **/
-            virtual ~BindIndexBufferCommand();
-
-            BindIndexBufferCommand(const BindIndexBufferCommand& in);
+            /** Destructor. */
+            virtual ~BindIndexBufferCommand()
+            {
+                /* Stub */
+            }
 
         private:
             BindIndexBufferCommand& operator=(const BindIndexBufferCommand&);
@@ -1293,107 +1344,87 @@ namespace Anvil
              **/
             explicit BindPipelineCommand(VkPipelineBindPoint in_pipeline_bind_point,
                                          Anvil::PipelineID   in_pipeline_id);
+
+            /* Destructor. */
+            virtual ~BindPipelineCommand()
+            {
+                 /* Stub */
+            }
         } BindPipelineCommand;
 
 
         /** Holds a single vertex buffer binding, as specified by "in_buffer_ptrs" and "in_offset_ptrs"
          *  argment arrays, passed to a vkCmdBindVertexBuffers() call.
-         *
-         *  Each Buffer instance is retained at construction time, and released at destruction time.
          **/
         typedef struct BindVertexBuffersCommandBinding
         {
-            VkBuffer       buffer;
-            Anvil::Buffer* buffer_ptr;
-            VkDeviceSize   offset;
+            VkBuffer                       buffer;
+            std::shared_ptr<Anvil::Buffer> buffer_ptr;
+            VkDeviceSize                   offset;
 
-            /** Constructor.
-             *
-             *  Retains @param in_buffer_ptr.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit BindVertexBuffersCommandBinding(Anvil::Buffer* in_buffer_ptr,
-                                                     VkDeviceSize   in_offset);
+            /** Constructor. **/
+            explicit BindVertexBuffersCommandBinding(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                                     VkDeviceSize                   in_offset);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Buffer instance.
-             **/
-            virtual ~BindVertexBuffersCommandBinding();
+            /** Destructor. */
+            virtual ~BindVertexBuffersCommandBinding()
+            {
+                /* Stub */
+            }
 
-            /** Copy constructor.
-             *
-             *  Retains the Buffer instance specified by @param in.
-             **/
             BindVertexBuffersCommandBinding(const BindVertexBuffersCommandBinding& in);
 
         private:
             BindVertexBuffersCommandBinding& operator=(const BindVertexBuffersCommandBinding&);
         } BindVertexBuffersCommandBinding;
 
-        /** Holds all arguments passed to a vkCmdBindVertexBuffers() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         */
+        /** Holds all arguments passed to a vkCmdBindVertexBuffers() command. */
         typedef struct BindVertexBuffersCommand : public Command
         {
             std::vector<BindVertexBuffersCommandBinding> bindings;
             uint32_t                                     start_binding;
 
-            /** Constructor.
-             *
-             *  Retains each Buffer instance specified in @param in_buffer_ptrs array.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit BindVertexBuffersCommand(uint32_t            in_start_binding,
-                                              uint32_t            in_binding_count,
-                                              Anvil::Buffer**     in_buffer_ptrs,
-                                              const VkDeviceSize* in_offset_ptrs);
+            /** Constructor. **/
+            explicit BindVertexBuffersCommand(uint32_t                        in_start_binding,
+                                              uint32_t                        in_binding_count,
+                                              std::shared_ptr<Anvil::Buffer>* in_buffer_ptrs,
+                                              const VkDeviceSize*             in_offset_ptrs);
+
+            /** Destructor. */
+            virtual ~BindVertexBuffersCommand()
+            {
+                /* Stub */
+            }
         } BindVertexBuffersCommand;
 
 
-        /** Holds all arguments passed to a vkCmdBlitImage() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         */
+        /** Holds all arguments passed to a vkCmdBlitImage() command. */
         typedef struct BlitImageCommand : public Command
         {
-            VkImage        dst_image;
-            VkImageLayout  dst_image_layout;
-            Anvil::Image*  dst_image_ptr;
-            VkImage        src_image;
-            VkImageLayout  src_image_layout;
-            Anvil::Image*  src_image_ptr;
+            VkImage                       dst_image;
+            VkImageLayout                 dst_image_layout;
+            std::shared_ptr<Anvil::Image> dst_image_ptr;
+            VkImage                       src_image;
+            VkImageLayout                 src_image_layout;
+            std::shared_ptr<Anvil::Image> src_image_ptr;
 
             VkFilter                 filter;
             std::vector<VkImageBlit> regions;
 
-            /** Constructor.
-             *
-             *  Retains @param in_src_image_ptr and @param in_dst_image_ptr objects.
-             *
-             *  Arguments as per Vulkan API */
-            explicit BlitImageCommand(Anvil::Image*      in_src_image_ptr,
-                                      VkImageLayout      in_src_image_layout,
-                                      Anvil::Image*      in_dst_image_ptr,
-                                      VkImageLayout      in_dst_image_layout,
-                                      uint32_t           in_region_count,
-                                      const VkImageBlit* in_region_ptrs,
-                                      VkFilter           in_filter);
+            /** Constructor. */
+            explicit BlitImageCommand(std::shared_ptr<Anvil::Image> in_src_image_ptr,
+                                      VkImageLayout                 in_src_image_layout,
+                                      std::shared_ptr<Anvil::Image> in_dst_image_ptr,
+                                      VkImageLayout                 in_dst_image_layout,
+                                      uint32_t                      in_region_count,
+                                      const VkImageBlit*            in_region_ptrs,
+                                      VkFilter                      in_filter);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Image instances.
-             **/
-            virtual ~BlitImageCommand();
-
-            BlitImageCommand(const BlitImageCommand& in);
+            /** Destructor. */
+            virtual ~BlitImageCommand()
+            {
+                /* Stub */
+            }
 
         private:
             BlitImageCommand& operator=(const BlitImageCommand&);
@@ -1407,10 +1438,7 @@ namespace Anvil
             VkClearValue       clear_value;
             uint32_t           color_attachment;
 
-            /** Constructor.
-             *
-             *  Arguments as per Vulkan API.
-             **/
+            /** Constructor. **/
             ClearAttachmentsCommandAttachment(VkImageAspectFlags in_aspect_mask,
                                               VkClearValue       in_clear_value,
                                               uint32_t           in_color_attachment)
@@ -1418,6 +1446,12 @@ namespace Anvil
                 aspect_mask      = in_aspect_mask;
                 clear_value      = in_clear_value;
                 color_attachment = in_color_attachment;
+            }
+
+            /** Destructor. */
+            virtual ~ClearAttachmentsCommandAttachment()
+            {
+                /* Stub */
             }
         } ClearAttachmentsCommandAttachment;
 
@@ -1427,167 +1461,122 @@ namespace Anvil
             std::vector<ClearAttachmentsCommandAttachment> attachments;
             std::vector<VkClearRect>                       rects;
 
-            /* Constructor.
-             *
-             *  Arguments as per Vulkan API
-             **/
+            /* Constructor. **/
             explicit ClearAttachmentsCommand(uint32_t                 in_n_attachments,
                                              const VkClearAttachment* in_attachments,
                                              uint32_t                 in_n_rects,
                                              const VkClearRect*       in_rect_ptrs);
+
+            /** Destructor. */
+            virtual ~ClearAttachmentsCommand()
+            {
+                /* Stub */
+            }
         } ClearAttachmentsCommand;
 
 
-        /** Holds all arguments passed to a vkCmdClearColorImage() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         */
+        /** Holds all arguments passed to a vkCmdClearColorImage() command. */
         typedef struct ClearColorImageCommand : public Command
         {
             VkClearColorValue                    color;
             VkImage                              image;
             VkImageLayout                        image_layout;
-            Anvil::Image*                        image_ptr;
+            std::shared_ptr<Anvil::Image>        image_ptr;
             std::vector<VkImageSubresourceRange> ranges;
 
-            /** Constructor.
-             *
-             *  Retains @param in_image_ptr image.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit ClearColorImageCommand(Anvil::Image*                  in_image_ptr,
+            /** Constructor. **/
+            explicit ClearColorImageCommand(std::shared_ptr<Anvil::Image>  in_image_ptr,
                                             VkImageLayout                  in_image_layout,
                                             const VkClearColorValue*       in_color_ptr,
                                             uint32_t                       in_range_count,
                                             const VkImageSubresourceRange* in_range_ptrs);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Image instance.
-             **/
-            virtual ~ClearColorImageCommand();
-
-            ClearColorImageCommand(const ClearColorImageCommand& in);
+            /** Destructor. */
+            virtual ~ClearColorImageCommand()
+            {
+                /* Stub */
+            }
 
         private:
             ClearColorImageCommand& operator=(const ClearColorImageCommand& in);
         } ClearColorImageCommand;
 
 
-        /** Holds all arguments passed to a vkCmdClearDepthStencilImage() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         */
+        /** Holds all arguments passed to a vkCmdClearDepthStencilImage() command. */
         typedef struct ClearDepthStencilImageCommand : public Command
         {
             VkClearDepthStencilValue             depth_stencil;
             VkImage                              image;
             VkImageLayout                        image_layout;
-            Anvil::Image*                        image_ptr;
+            std::shared_ptr<Anvil::Image>        image_ptr;
             std::vector<VkImageSubresourceRange> ranges;
 
-            /** Constructor.
-             *
-             *  Retains @param in_image_ptr image.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit ClearDepthStencilImageCommand(Anvil::Image*                   in_image_ptr,
+            /** Constructor. **/
+            explicit ClearDepthStencilImageCommand(std::shared_ptr<Anvil::Image>  in_image_ptr,
                                                    VkImageLayout                   in_image_layout,
                                                    const VkClearDepthStencilValue* in_depth_stencil_ptr,
                                                    uint32_t                        in_range_count,
                                                    const VkImageSubresourceRange*  in_range_ptrs);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Image instance.
-             **/
-            virtual ~ClearDepthStencilImageCommand();
-
-            ClearDepthStencilImageCommand(const ClearDepthStencilImageCommand&);
+            /** Destructor. */
+            virtual ~ClearDepthStencilImageCommand()
+            {
+                /* Stub */
+            }
 
         private:
             ClearDepthStencilImageCommand& operator=(const ClearDepthStencilImageCommand& in);
         } ClearDepthStencilImageCommand;
 
 
-        /** Holds all arguments passed to a vkCmdCopyBuffer() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         */
+        /** Holds all arguments passed to a vkCmdCopyBuffer() command. */
         typedef struct CopyBufferCommand : public Command
         {
-            VkBuffer                  dst_buffer;
-            Anvil::Buffer*            dst_buffer_ptr;
-            std::vector<VkBufferCopy> regions;
-            VkBuffer                  src_buffer;
-            Anvil::Buffer*            src_buffer_ptr;
+            VkBuffer                       dst_buffer;
+            std::shared_ptr<Anvil::Buffer> dst_buffer_ptr;
+            std::vector<VkBufferCopy>      regions;
+            VkBuffer                       src_buffer;
+            std::shared_ptr<Anvil::Buffer> src_buffer_ptr;
 
-            /** Constructor.
-             *
-             *  Retains @param in_src_buffer_ptr and in_dst_buffer_ptr buffers.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit CopyBufferCommand(Anvil::Buffer*      in_src_buffer_ptr,
-                                       Anvil::Buffer*      in_dst_buffer_ptr,
-                                       uint32_t            in_region_count,
-                                       const VkBufferCopy* in_region_ptrs);
+            /** Constructor. **/
+            explicit CopyBufferCommand(std::shared_ptr<Anvil::Buffer> in_src_buffer_ptr,
+                                       std::shared_ptr<Anvil::Buffer> in_dst_buffer_ptr,
+                                       uint32_t                       in_region_count,
+                                       const VkBufferCopy*            in_region_ptrs);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Buffer instances.
-             **/
-            virtual ~CopyBufferCommand();
-
-            CopyBufferCommand(const CopyBufferCommand&);
+            /** Destructor. */
+            virtual ~CopyBufferCommand()
+            {
+                /* Stub */
+            }
 
         private:
             CopyBufferCommand& operator=(const CopyBufferCommand&);
         } CopyBufferCommand;
 
 
-        /** Holds all arguments passed to a vkCmdCopyBufferToImage() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         */
+        /** Holds all arguments passed to a vkCmdCopyBufferToImage() command. */
         typedef struct CopyBufferToImageCommand : public Command
         {
             VkImage                        dst_image;
             VkImageLayout                  dst_image_layout;
-            Anvil::Image*                  dst_image_ptr;
+            std::shared_ptr<Anvil::Image>  dst_image_ptr;
             std::vector<VkBufferImageCopy> regions;
             VkBuffer                       src_buffer;
-            Anvil::Buffer*                 src_buffer_ptr;
+            std::shared_ptr<Anvil::Buffer> src_buffer_ptr;
 
-            /** Constructor.
-             *
-             *  Retains @param in_src_buffer_ptr buffer and @param in_dst_image_ptr image.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit CopyBufferToImageCommand(Anvil::Buffer*           in_src_buffer_ptr,
-                                              Anvil::Image*            in_dst_image_ptr,
+            /** Constructor. **/
+            explicit CopyBufferToImageCommand(std::shared_ptr<Anvil::Buffer> in_src_buffer_ptr,
+                                              std::shared_ptr<Anvil::Image>  in_dst_image_ptr,
                                               VkImageLayout            in_dst_image_layout,
                                               uint32_t                 in_region_count,
                                               const VkBufferImageCopy* in_region_ptrs);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Buffer and Image instances.
-             **/
-            virtual ~CopyBufferToImageCommand();
-
-            CopyBufferToImageCommand(const CopyBufferToImageCommand&);
+            /** Destructor. */
+            virtual ~CopyBufferToImageCommand()
+            {
+                /* Stub */
+            }
 
         private:
             CopyBufferToImageCommand& operator=(const CopyBufferToImageCommand&);
@@ -1595,126 +1584,90 @@ namespace Anvil
         } CopyBufferToImageCommand;
 
 
-        /** Holds all arguments passed to a vkCmdCopyImage() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         */
+        /** Holds all arguments passed to a vkCmdCopyImage() command. */
         typedef struct CopyImageCommand : public Command
         {
-            VkImage                   dst_image;
-            Anvil::Image*             dst_image_ptr;
-            VkImageLayout             dst_image_layout;
-            std::vector<VkImageCopy>  regions;
-            VkImage                   src_image;
-            Anvil::Image*             src_image_ptr;
-            VkImageLayout             src_image_layout;
+            VkImage                       dst_image;
+            std::shared_ptr<Anvil::Image> dst_image_ptr;
+            VkImageLayout                 dst_image_layout;
+            std::vector<VkImageCopy>      regions;
+            VkImage                       src_image;
+            std::shared_ptr<Anvil::Image> src_image_ptr;
+            VkImageLayout                 src_image_layout;
 
-            /** Constructor.
-             *
-             *  Retains @param in_src_image_ptr and @param in_dst_image_ptr images.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit CopyImageCommand(Anvil::Image*      in_src_image_ptr,
-                                      VkImageLayout      in_src_image_layout,
-                                      Anvil::Image*      in_dst_image_ptr,
-                                      VkImageLayout      in_dst_image_layout,
-                                      uint32_t           in_region_count,
-                                      const VkImageCopy* in_region_ptrs);
+            /** Constructor. **/
+            explicit CopyImageCommand(std::shared_ptr<Anvil::Image> in_src_image_ptr,
+                                      VkImageLayout                 in_src_image_layout,
+                                      std::shared_ptr<Anvil::Image> in_dst_image_ptr,
+                                      VkImageLayout                 in_dst_image_layout,
+                                      uint32_t                      in_region_count,
+                                      const VkImageCopy*            in_region_ptrs);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Image instances.
-             **/
-            virtual ~CopyImageCommand();
-
-            CopyImageCommand(const CopyImageCommand&);
+            /** Destructor. */
+            virtual ~CopyImageCommand()
+            {
+                /* Stub */
+            }
 
         private:
             CopyImageCommand& operator=(const CopyImageCommand&);
         } CopyImageCommand;
 
 
-        /** Holds all arguments passed to a vkCmdCopyImageToBuffer() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         */
+        /** Holds all arguments passed to a vkCmdCopyImageToBuffer() command. */
         typedef struct CopyImageToBufferCommand : public Command
         {
             VkBuffer                       dst_buffer;
-            Anvil::Buffer*                 dst_buffer_ptr;
+            std::shared_ptr<Anvil::Buffer> dst_buffer_ptr;
             std::vector<VkBufferImageCopy> regions;
             VkImage                        src_image;
             VkImageLayout                  src_image_layout;
-            Anvil::Image*                  src_image_ptr;
+            std::shared_ptr<Anvil::Image>  src_image_ptr;
 
-            /** Constructor.
-             *
-             *  Retains @param in_src_image_ptr image and @param in_dst_buffer_ptr buffer.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit CopyImageToBufferCommand(Anvil::Image*            in_src_image_ptr,
-                                              VkImageLayout            in_src_image_layout,
-                                              Anvil::Buffer*           in_dst_buffer_ptr,
-                                              uint32_t                 in_region_count,
-                                              const VkBufferImageCopy* in_region_ptrs);
+            /** Constructor. **/
+            explicit CopyImageToBufferCommand(std::shared_ptr<Anvil::Image>  in_src_image_ptr,
+                                              VkImageLayout                  in_src_image_layout,
+                                              std::shared_ptr<Anvil::Buffer> in_dst_buffer_ptr,
+                                              uint32_t                       in_region_count,
+                                              const VkBufferImageCopy*       in_region_ptrs);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Image instance.
-             **/
-            virtual ~CopyImageToBufferCommand();
-
-            CopyImageToBufferCommand(const CopyImageToBufferCommand&);
+            /** Destructor. */
+            virtual ~CopyImageToBufferCommand()
+            {
+                /* Stub */
+            }
 
         private:
             CopyImageToBufferCommand& operator=(const CopyImageToBufferCommand&);
         } CopyImageToBufferCommand;
 
 
-        /** Holds all arguments passed to a vkCmdCopyQueryPoolResults() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         */
+        /** Holds all arguments passed to a vkCmdCopyQueryPoolResults() command. */
         typedef struct CopyQueryPoolResultsCommand : public Command
         {
-            VkBuffer           dst_buffer;
-            Anvil::Buffer*     dst_buffer_ptr;
-            VkDeviceSize       dst_offset;
-            VkDeviceSize       dst_stride;
-            VkQueryResultFlags flags;
-            uint32_t           query_count;
-            Anvil::QueryPool*  query_pool_ptr;
-            Anvil::QueryIndex  start_query;
+            VkBuffer                          dst_buffer;
+            std::shared_ptr<Anvil::Buffer>    dst_buffer_ptr;
+            VkDeviceSize                      dst_offset;
+            VkDeviceSize                      dst_stride;
+            VkQueryResultFlags                flags;
+            uint32_t                          query_count;
+            std::shared_ptr<Anvil::QueryPool> query_pool_ptr;
+            Anvil::QueryIndex                 start_query;
 
-            /** Constructor.
-             *
-             *  Retains @param in_dst_buffer_ptr and @param in_query_pool_ptr.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit CopyQueryPoolResultsCommand(Anvil::QueryPool*  in_query_pool_ptr,
-                                                 Anvil::QueryIndex  in_start_query,
-                                                 uint32_t           in_query_count,
-                                                 Anvil::Buffer*     in_dst_buffer_ptr,
-                                                 VkDeviceSize       in_dst_offset,
-                                                 VkDeviceSize       in_dst_stride,
-                                                 VkQueryResultFlags in_flags);
+            /** Constructor. **/
+            explicit CopyQueryPoolResultsCommand(std::shared_ptr<Anvil::QueryPool> in_query_pool_ptr,
+                                                 Anvil::QueryIndex                 in_start_query,
+                                                 uint32_t                          in_query_count,
+                                                 std::shared_ptr<Anvil::Buffer>    in_dst_buffer_ptr,
+                                                 VkDeviceSize                      in_dst_offset,
+                                                 VkDeviceSize                      in_dst_stride,
+                                                 VkQueryResultFlags                in_flags);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Buffer & QueryPool instances.
-             **/
-            virtual ~CopyQueryPoolResultsCommand();
-
-            CopyQueryPoolResultsCommand(const CopyQueryPoolResultsCommand&);
+            /** Destructor. */
+            virtual ~CopyQueryPoolResultsCommand()
+            {
+                /* Stub */
+            }
 
         private:
             CopyQueryPoolResultsCommand& operator=(const CopyQueryPoolResultsCommand&);
@@ -1728,35 +1681,35 @@ namespace Anvil
             uint32_t y;
             uint32_t z;
 
-            /** Constructor.
-             *
-             *  Arguments as per Vulkan API.
-             **/
+            /** Constructor. **/
             explicit DispatchCommand(uint32_t in_x,
                                      uint32_t in_y,
                                      uint32_t in_z);
+
+            /** Destructor. */
+            virtual ~DispatchCommand()
+            {
+                /* Stub */
+            }
         } DispatchCommand;
 
 
         /** Holds all arguments passed to a vkCmdDispatchIndirect() command. */
         typedef struct DispatchIndirectCommand : public Command
         {
-            VkBuffer       buffer;
-            Anvil::Buffer* buffer_ptr;
-            VkDeviceSize   offset;
+            VkBuffer                       buffer;
+            std::shared_ptr<Anvil::Buffer> buffer_ptr;
+            VkDeviceSize                   offset;
 
-            /** Constructor.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit DispatchIndirectCommand(Anvil::Buffer* in_buffer_ptr,
-                                             VkDeviceSize   in_offset);
+            /** Constructor. **/
+            explicit DispatchIndirectCommand(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                             VkDeviceSize                   in_offset);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Buffer instance.
-             **/
-            virtual ~DispatchIndirectCommand();
+            /** Destructor. */
+            virtual ~DispatchIndirectCommand()
+            {
+                /* Stub */
+            }
 
         private:
             DispatchIndirectCommand& operator=(const DispatchIndirectCommand&);
@@ -1779,6 +1732,12 @@ namespace Anvil
                                  uint32_t in_instance_count,
                                  uint32_t in_first_vertex,
                                  uint32_t in_first_instance);
+
+            /** Destructor. */
+            virtual ~DrawCommand()
+            {
+                /* Stub */
+            }
         } DrawCommand;
 
 
@@ -1791,185 +1750,191 @@ namespace Anvil
             uint32_t instance_count;
             int32_t  vertex_offset;
 
-            /** Constructor.
-             *
-             *  Arguments as per Vulkan API.
-             **/
+            /** Constructor. **/
             explicit DrawIndexedCommand(uint32_t in_index_count,
                                         uint32_t in_instance_count,
                                         uint32_t in_first_index,
                                         int32_t  in_vertex_offset,
                                         uint32_t in_first_instance);
+
+            /** Destructor. */
+            virtual ~DrawIndexedCommand()
+            {
+                /* Stub */
+            }
         } DrawIndexedCommand;
 
 
-        /** Holds all arguments passed to a vkCmdDrawIndirect() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         */
+        /** Holds all arguments passed to a vkCmdDrawIndirect() command. */
         typedef struct DrawIndirectCommand : public Command
         {
-            VkBuffer       buffer;
-            Anvil::Buffer* buffer_ptr;
-            uint32_t       count;
-            VkDeviceSize   offset;
-            uint32_t       stride;
+            VkBuffer                       buffer;
+            std::shared_ptr<Anvil::Buffer> buffer_ptr;
+            uint32_t                       count;
+            VkDeviceSize                   offset;
+            uint32_t                       stride;
 
-            /** Constructor.
-             *
-             *  Retains @param in_buffer_ptr buffer.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit DrawIndirectCommand(Anvil::Buffer* in_buffer_ptr,
-                                         VkDeviceSize   in_offset,
-                                         uint32_t       in_count,
-                                         uint32_t       in_stride);
+            /** Constructor. **/
+            explicit DrawIndirectCommand(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                         VkDeviceSize                   in_offset,
+                                         uint32_t                       in_count,
+                                         uint32_t                       in_stride);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Buffer instance.
-             **/
-            virtual ~DrawIndirectCommand();
-
-            DrawIndirectCommand(const DrawIndirectCommand&);
+            /** Destructor. */
+            virtual ~DrawIndirectCommand()
+            {
+                /* Stub */
+            }
 
         private:
             DrawIndirectCommand& operator=(const DrawIndirectCommand&);
         } DrawIndirectCommand;
 
+        /** Holds all arguments passed to a vkCmdDrawIndirectCountAMD() command. */
+        typedef struct DrawIndirectCountAMDCommand : public Command
+        {
+            VkBuffer                                    buffer;
+            std::shared_ptr<Anvil::Buffer>              buffer_ptr;
+            VkBuffer                                    count_buffer;
+            std::shared_ptr<Anvil::Buffer>              count_buffer_ptr;
+            VkDeviceSize                                count_offset;
+            uint32_t                                    max_draw_count;
+            VkDeviceSize                                offset;
+            uint32_t                                    stride;
 
-        /** Holds all arguments passed to a vkCmdDrawIndexedIndirect() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         */
+            /** Constructor. **/
+            explicit DrawIndirectCountAMDCommand(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                                 VkDeviceSize                   in_offset,
+                                                 std::shared_ptr<Anvil::Buffer> in_count_buffer_ptr,
+                                                 VkDeviceSize                   in_count_offset,
+                                                 uint32_t                       in_max_draw_count,
+                                                 uint32_t                       in_stride);
+
+            /** Destructor */
+            virtual ~DrawIndirectCountAMDCommand()
+            {
+                /* Stub */
+            }
+
+        private:
+            DrawIndirectCountAMDCommand& operator=(const DrawIndirectCountAMDCommand&);
+        } DrawIndirectCountAMDCommand;
+
+        /** Holds all arguments passed to a vkCmdDrawIndexedIndirect() command. */
         typedef struct DrawIndexedIndirectCommand : public Command
         {
-            VkBuffer       buffer;
-            Anvil::Buffer* buffer_ptr;
-            uint32_t       draw_count;
-            VkDeviceSize   offset;
-            uint32_t       stride;
+            VkBuffer                       buffer;
+            std::shared_ptr<Anvil::Buffer> buffer_ptr;
+            uint32_t                      draw_count;
+            VkDeviceSize                  offset;
+            uint32_t                      stride;
 
-            /** Constructor.
-             *
-             *  Retains @param in_buffer_ptr buffer.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit DrawIndexedIndirectCommand(Anvil::Buffer* in_buffer_ptr,
-                                                VkDeviceSize   in_offset,
-                                                uint32_t       in_draw_count,
-                                                uint32_t       in_stride);
+            /** Constructor. **/
+            explicit DrawIndexedIndirectCommand(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                                VkDeviceSize                   in_offset,
+                                                uint32_t                       in_draw_count,
+                                                uint32_t                       in_stride);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Buffer instance.
-             **/
-            virtual ~DrawIndexedIndirectCommand();
-
-            DrawIndexedIndirectCommand(const DrawIndexedIndirectCommand&);
+            /** Destructor. */
+            virtual ~DrawIndexedIndirectCommand()
+            {
+                /* Stub */
+            }
 
         private:
             DrawIndexedIndirectCommand& operator=(const DrawIndexedIndirectCommand&);
         } DrawIndexedIndirectCommand;
 
+        /** Holds all arguments passed to a vkCmdDrawIndexedIndirectCountAMD() command. */
+        typedef struct DrawIndexedIndirectCountAMDCommand : public Command
+        {
+            VkBuffer                                    buffer;
+            std::shared_ptr<Anvil::Buffer>              buffer_ptr;
+            VkBuffer                                    count_buffer;
+            std::shared_ptr<Anvil::Buffer>              count_buffer_ptr;
+            VkDeviceSize                                count_offset;
+            uint32_t                                    max_draw_count;
+            VkDeviceSize                                offset;
+            uint32_t                                    stride;
+
+            /** Constructor. **/
+            explicit DrawIndexedIndirectCountAMDCommand(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                                        VkDeviceSize                   in_offset,
+                                                        std::shared_ptr<Anvil::Buffer> in_count_buffer_ptr,
+                                                        VkDeviceSize                   in_count_offset,
+                                                        uint32_t                       in_max_draw_count,
+                                                        uint32_t                       in_stride);
+
+            /** Destructor */
+            virtual ~DrawIndexedIndirectCountAMDCommand()
+            {
+                /* Stub */
+            }
+
+        private:
+            DrawIndexedIndirectCountAMDCommand& operator=(const DrawIndexedIndirectCountAMDCommand&);
+        } DrawIndexedIndirectCountAMDCommand;
 
         /** Holds all arguments passed to a vkCmdEndQuery() command. */
         typedef struct EndQueryCommand : public Command
         {
-            Anvil::QueryIndex entry;
-            Anvil::QueryPool* query_pool_ptr;
+            Anvil::QueryIndex                 entry;
+            std::shared_ptr<Anvil::QueryPool> query_pool_ptr;
 
-            /** Constructor.
-             *
-             *  Retains @param in_query_pool_ptr.
-             *
-             *  Arguments as per Vulkan API.
-             *
-             **/
-            explicit EndQueryCommand(Anvil::QueryPool* in_query_pool_ptr,
-                                     Anvil::QueryIndex in_entry);
+            /** Constructor. **/
+            explicit EndQueryCommand(std::shared_ptr<Anvil::QueryPool> in_query_pool_ptr,
+                                     Anvil::QueryIndex                 in_entry);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated query pool wrapper instance.
-             *
-             **/
-            virtual ~EndQueryCommand();
+            /** Destructor. */
+            virtual ~EndQueryCommand()
+            {
+                /* Stub */
+            }
+
         } EndQueryCommand;
 
 
-        /** Holds all arguments passed to a vkCmdExecuteCommands() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         */
+        /** Holds all arguments passed to a vkCmdExecuteCommands() command. */
         typedef struct ExecuteCommandsCommand : public Command
         {
-            std::vector<Anvil::SecondaryCommandBuffer*> command_buffer_ptrs;
-            std::vector<VkCommandBuffer>                command_buffers;
+            std::vector<std::shared_ptr<Anvil::SecondaryCommandBuffer> > command_buffer_ptrs;
+            std::vector<VkCommandBuffer>                                 command_buffers;
 
-            /** Constructor.
-             *
-             *  Retains each command buffer specified in the @param in_cmd_buffer_ptrs array.
-             *
-             *  Arguments as per Vulkan API.
-             *
-             **/
-            explicit ExecuteCommandsCommand(uint32_t                        in_cmd_buffers_count,
-                                            Anvil::SecondaryCommandBuffer** in_cmd_buffer_ptrs);
+            /** Constructor. **/
+            explicit ExecuteCommandsCommand(uint32_t                                        in_cmd_buffers_count,
+                                            std::shared_ptr<Anvil::SecondaryCommandBuffer>* in_cmd_buffer_ptrs);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated PrimaryCommandBuffer and/or SecondaryCommandBuffer instance(s).
-             **/
-            virtual ~ExecuteCommandsCommand();
-
-            ExecuteCommandsCommand(const ExecuteCommandsCommand&);
+            /** Destructor. */
+            virtual ~ExecuteCommandsCommand()
+            {
+                /* Stub */
+            }
 
         private:
             ExecuteCommandsCommand& operator=(const ExecuteCommandsCommand&);
         } ExecuteCommandsCommand;
 
 
-        /** Holds all arguments passed to a vkCmdFillBuffer() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         */
+        /** Holds all arguments passed to a vkCmdFillBuffer() command. */
         typedef struct FillBufferCommand : public Command
         {
-            uint32_t       data;
-            VkBuffer       dst_buffer;
-            Anvil::Buffer* dst_buffer_ptr;
-            VkDeviceSize   dst_offset;
-            VkDeviceSize   size;
+            uint32_t                       data;
+            VkBuffer                       dst_buffer;
+            std::shared_ptr<Anvil::Buffer> dst_buffer_ptr;
+            VkDeviceSize                   dst_offset;
+            VkDeviceSize                   size;
 
-            /** Constructor.
-             *
-             *  Retains @param in_dst_buffer_ptr buffer.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit FillBufferCommand(Anvil::Buffer* in_dst_buffer_ptr,
-                                       VkDeviceSize   in_dst_offset,
-                                       VkDeviceSize   in_size,
-                                       uint32_t       in_data);
+            /** Constructor. **/
+            explicit FillBufferCommand(std::shared_ptr<Anvil::Buffer> in_dst_buffer_ptr,
+                                       VkDeviceSize                   in_dst_offset,
+                                       VkDeviceSize                   in_size,
+                                       uint32_t                       in_data);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Buffer instance.
-             **/
-            virtual ~FillBufferCommand();
-
-            FillBufferCommand(const FillBufferCommand&);
+            /** Destructor. */
+            virtual ~FillBufferCommand()
+            {
+                /* Stub */
+            }
 
         private:
             FillBufferCommand& operator=(const FillBufferCommand&);
@@ -1981,69 +1946,57 @@ namespace Anvil
         {
             VkSubpassContents contents;
 
-            /** Constructor.
-             *
-             *  Arguments as per Vulkan API.
-             **/
+            /** Constructor. **/
             explicit NextSubpassCommand(VkSubpassContents in_contents);
+
+            /** Destructor. */
+            virtual ~NextSubpassCommand()
+            {
+                /* Stub */
+            }
         } NextSubpassCommand;
 
 
         /** Holds all arguments passed to a vkCmdPushConstants() command. */
         typedef struct PushConstantsCommand : public Command
         {
-            Anvil::PipelineLayout* layout_ptr;
-            uint32_t               offset;
-            uint32_t               size;
-            VkShaderStageFlags     stage_flags;
-            const void*            values;
+            std::shared_ptr<Anvil::PipelineLayout> layout_ptr;
+            uint32_t                               offset;
+            uint32_t                               size;
+            VkShaderStageFlags                     stage_flags;
+            const void*                            values;
 
-            /** Constructor.
-             *
-             *  Retains the user-specified PipelineLayout instance.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit PushConstantsCommand(Anvil::PipelineLayout* in_layout_ptr,
-                                          VkShaderStageFlags     in_stage_flags,
-                                          uint32_t               in_offset,
-                                          uint32_t               in_size,
-                                          const void*            in_values);
+            /** Constructor. **/
+            explicit PushConstantsCommand(std::shared_ptr<Anvil::PipelineLayout> in_layout_ptr,
+                                          VkShaderStageFlags                     in_stage_flags,
+                                          uint32_t                               in_offset,
+                                          uint32_t                               in_size,
+                                          const void*                            in_values);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated PipelineLayout instance
-             **/
-            virtual ~PushConstantsCommand();
+            /** Destructor. */
+            virtual ~PushConstantsCommand()
+            {
+                /* Stub */
+            }
         } PushConstantsCommand;
 
 
-        /** Holds all arguments passed to a vkCmdResetEvent() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         **/
+        /** Holds all arguments passed to a vkCmdResetEvent() command. **/
         typedef struct ResetEventCommand : public Command
         {
-            VkEvent              event;
-            Anvil::Event*        event_ptr;
-            VkPipelineStageFlags stage_mask;
+            VkEvent                       event;
+            std::shared_ptr<Anvil::Event> event_ptr;
+            VkPipelineStageFlags          stage_mask;
 
-            /** Constructor.
-             *
-             *  Retains @param in_event_ptr event.
-             **/
-            explicit ResetEventCommand(Anvil::Event*        in_event_ptr,
-                                       VkPipelineStageFlags in_stage_mask);
+            /** Constructor. **/
+            explicit ResetEventCommand(std::shared_ptr<Anvil::Event> in_event_ptr,
+                                       VkPipelineStageFlags          in_stage_mask);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Event instance.
-             **/
-            virtual ~ResetEventCommand();
-
-            ResetEventCommand(const ResetEventCommand&);
+            /** Destructor. */
+            virtual ~ResetEventCommand()
+            {
+                /* Stub */
+            }
 
         private:
             ResetEventCommand& operator=(const ResetEventCommand&);
@@ -2053,65 +2006,47 @@ namespace Anvil
         /** Holds all arguments passed to a vkCmdResetQueryPoolCommand() command. **/
         typedef struct ResetQueryPoolCommand : public Command
         {
-            uint32_t          query_count;
-            Anvil::QueryPool* query_pool_ptr;
-            Anvil::QueryIndex start_query;
+            uint32_t                          query_count;
+            std::shared_ptr<Anvil::QueryPool> query_pool_ptr;
+            Anvil::QueryIndex                 start_query;
 
-            /** Constructor.
-             *
-             *  Retains @param in_query_pool_ptr.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit ResetQueryPoolCommand(Anvil::QueryPool* in_query_pool_ptr,
-                                           Anvil::QueryIndex in_start_query,
-                                           uint32_t          in_query_count);
+            /** Constructor. **/
+            explicit ResetQueryPoolCommand(std::shared_ptr<Anvil::QueryPool> in_query_pool_ptr,
+                                           Anvil::QueryIndex                 in_start_query,
+                                           uint32_t                          in_query_count);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated query pool instance.
-             *
-             */
-            virtual ~ResetQueryPoolCommand();
+            /** Destructor. */
+            virtual ~ResetQueryPoolCommand()
+            {
+                /* Stub */
+            }
         } ResetQueryPoolCommand;
 
 
-        /** Holds all arguments passed to a vkCmdResolveImage() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         **/
+        /** Holds all arguments passed to a vkCmdResolveImage() command. **/
         typedef struct ResolveImageCommand : public Command
         {
-            VkImage                     dst_image;
-            Anvil::Image*               dst_image_ptr;
-            VkImageLayout               dst_image_layout;
-            std::vector<VkImageResolve> regions;
-            VkImage                     src_image;
-            Anvil::Image*               src_image_ptr;
-            VkImageLayout               src_image_layout;
+            VkImage                       dst_image;
+            std::shared_ptr<Anvil::Image> dst_image_ptr;
+            VkImageLayout                 dst_image_layout;
+            std::vector<VkImageResolve>   regions;
+            VkImage                       src_image;
+            std::shared_ptr<Anvil::Image> src_image_ptr;
+            VkImageLayout                 src_image_layout;
 
-            /** Constructor.
-             *
-             *  Retains @param in_src_image_ptr and @param in_dst_image_ptr images.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit ResolveImageCommand(Anvil::Image*         in_src_image_ptr,
-                                         VkImageLayout         in_src_image_layout,
-                                         Anvil::Image*         in_dst_image_ptr,
-                                         VkImageLayout         in_dst_image_layout,
-                                         uint32_t              in_region_count,
-                                         const VkImageResolve* in_region_ptrs);
+            /** Constructor. **/
+            explicit ResolveImageCommand(std::shared_ptr<Anvil::Image> in_src_image_ptr,
+                                         VkImageLayout                 in_src_image_layout,
+                                         std::shared_ptr<Anvil::Image> in_dst_image_ptr,
+                                         VkImageLayout                 in_dst_image_layout,
+                                         uint32_t                      in_region_count,
+                                         const VkImageResolve*         in_region_ptrs);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Image instances.
-             **/
-            virtual ~ResolveImageCommand();
-
-            ResolveImageCommand(const ResolveImageCommand&);
+            /** Destructor. */
+            virtual ~ResolveImageCommand()
+            {
+                /* Stub */
+            }
 
         private:
             ResolveImageCommand& operator=(const ResolveImageCommand&);
@@ -2123,11 +2058,14 @@ namespace Anvil
         {
             float blend_constants[4];
 
-            /** Constructor.
-             *
-             *  Arguments as per Vulkan API.
-             **/
+            /** Constructor. **/
             explicit SetBlendConstantsCommand(const float blend_constants[4]);
+
+            /** Destructor. */
+            virtual ~SetBlendConstantsCommand()
+            {
+                /* Stub */
+            }
         } SetBlendConstantsCommand;
 
 
@@ -2138,13 +2076,16 @@ namespace Anvil
             float depth_bias_constant_factor;
             float slope_scaled_depth_bias;
 
-            /** Constructor.
-             *
-             *  Arguments as per Vulkan API.
-             **/
+            /** Constructor. **/
             explicit SetDepthBiasCommand(float in_depth_bias_constant_factor,
                                          float in_depth_bias_clamp,
                                          float in_slope_scaled_depth_bias);
+
+            /** Destructor. */
+            virtual ~SetDepthBiasCommand()
+            {
+                /* Stub */
+            }
         } SetDepthBiasCommand;
 
 
@@ -2154,41 +2095,34 @@ namespace Anvil
             float max_depth_bounds;
             float min_depth_bounds;
 
-            /** Constructor.
-             *
-             *  Arguments as per Vulkan API.
-             **/
+            /** Constructor. **/
             explicit SetDepthBoundsCommand(float in_min_depth_bounds,
                                            float in_max_depth_bounds);
+
+            /** Destructor. */
+            virtual ~SetDepthBoundsCommand()
+            {
+                /* Stub */
+            }
         } SetDepthBoundsCommand;
 
 
-        /** Holds all arguments passed to a vkCmdSetEvent() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         **/
+        /** Holds all arguments passed to a vkCmdSetEvent() command. **/
         typedef struct SetEventCommand : public Command
         {
-            VkEvent              event;
-            Anvil::Event*        event_ptr;
-            VkPipelineStageFlags stage_mask;
+            VkEvent                       event;
+            std::shared_ptr<Anvil::Event> event_ptr;
+            VkPipelineStageFlags          stage_mask;
 
-            /** Constructor.
-             *
-             *  Retains @param in_event_ptr event.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit SetEventCommand(Anvil::Event*        in_event_ptr,
-                                     VkPipelineStageFlags in_stage_mask);
+            /** Constructor. **/
+            explicit SetEventCommand(std::shared_ptr<Anvil::Event> in_event_ptr,
+                                     VkPipelineStageFlags          in_stage_mask);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Event instance.
-             **/
-            virtual ~SetEventCommand();
+            /** Destructor. */
+            virtual ~SetEventCommand()
+            {
+                /* Stub */
+            }
 
         private:
             SetEventCommand& operator=(const SetEventCommand&);
@@ -2200,11 +2134,14 @@ namespace Anvil
         {
             float line_width;
 
-            /** Constructor.
-             *
-             *  Arguments as per Vulkan API.
-             **/
+            /** Constructor. **/
             explicit SetLineWidthCommand(float in_line_width);
+
+            /** Destructor. */
+            virtual ~SetLineWidthCommand()
+            {
+                /* Stub */
+            }
         } SetLineWidthCommand;
 
 
@@ -2214,13 +2151,16 @@ namespace Anvil
             uint32_t              first_scissor;
             std::vector<VkRect2D> scissors;
 
-            /** Constructor.
-             *
-             *  Arguments as per Vulkan API.
-             **/
+            /** Constructor. **/
             explicit SetScissorCommand(uint32_t        in_first_scissor,
                                        uint32_t        in_scissor_count,
                                        const VkRect2D* in_scissor_ptrs);
+
+            /** Destructor. */
+            virtual ~SetScissorCommand()
+            {
+                /* Stub */
+            }
         } SetScissorCommand;
 
 
@@ -2230,12 +2170,15 @@ namespace Anvil
             VkStencilFaceFlags face_mask;
             uint32_t           stencil_compare_mask;
 
-            /** Constructor.
-             *
-             *  Arguments as per Vulkan API.
-             **/
+            /** Constructor. **/
             explicit SetStencilCompareMaskCommand(VkStencilFaceFlags in_face_mask,
                                                   uint32_t           in_stencil_compare_mask);
+
+            /** Destructor. */
+            virtual ~SetStencilCompareMaskCommand()
+            {
+                /* Stub */
+            }
         } SetStencilCompareMaskCommand;
 
 
@@ -2245,12 +2188,15 @@ namespace Anvil
             VkStencilFaceFlags face_mask;
             uint32_t           stencil_reference;
 
-            /** Constructor.
-             *
-             *  Arguments as per Vulkan API
-             **/
+            /** Constructor. **/
             explicit SetStencilReferenceCommand(VkStencilFaceFlags in_face_mask,
                                                 uint32_t           in_stencil_reference);
+
+            /** Destructor. */
+            virtual ~SetStencilReferenceCommand()
+            {
+                /* Stub */
+            }
         } SetStencilReferenceCommand;
 
 
@@ -2260,12 +2206,15 @@ namespace Anvil
             VkStencilFaceFlags face_mask;
             uint32_t           stencil_write_mask;
 
-            /** Constructor.
-             *
-             *  Arguments as per Vulkan API.
-             **/
+            /** Constructor. **/
             explicit SetStencilWriteMaskCommand(VkStencilFaceFlags in_face_mask,
                                                 uint32_t           in_stencil_write_mask);
+
+            /** Destructor. */
+            virtual ~SetStencilWriteMaskCommand()
+            {
+                /* Stub */
+            }
         } SetStencilWriteMaskCommand;
 
 
@@ -2275,146 +2224,111 @@ namespace Anvil
             uint32_t                first_viewport;
             std::vector<VkViewport> viewports;
 
-            /** Constructor.
-             *
-             *  Arguments as per Vulkan API.
-             **/
+            /** Constructor. **/
             explicit SetViewportCommand(uint32_t          in_first_viewport,
                                         uint32_t          in_viewport_count,
                                         const VkViewport* in_viewport_ptrs);
+
+            /** Destructor. */
+            virtual ~SetViewportCommand()
+            {
+                /* Stub */
+            }
         } SetViewportCommand;
 
 
-        /** Holds all arguments passed to a vkCmdUpdateBuffer() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         **/
+        /** Holds all arguments passed to a vkCmdUpdateBuffer() command. **/
         typedef struct UpdateBufferCommand : public Command
         {
-            const uint32_t*  data_ptr;
-            VkDeviceSize     data_size;
-            VkBuffer         dst_buffer;
-            Anvil::Buffer*   dst_buffer_ptr;
-            VkDeviceSize     dst_offset;
+            const uint32_t*                data_ptr;
+            VkDeviceSize                   data_size;
+            VkBuffer                       dst_buffer;
+            std::shared_ptr<Anvil::Buffer> dst_buffer_ptr;
+            VkDeviceSize                   dst_offset;
 
-            /** Constructor
-             *
-             *  Retains @param in_dst_buffer_ptr buffer.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit UpdateBufferCommand(Anvil::Buffer*  in_dst_buffer_ptr,
-                                         VkDeviceSize    in_dst_offset,
-                                         VkDeviceSize    in_data_size,
-                                         const uint32_t* in_data_ptr);
+            /** Constructor **/
+            explicit UpdateBufferCommand(std::shared_ptr<Anvil::Buffer> in_dst_buffer_ptr,
+                                         VkDeviceSize                   in_dst_offset,
+                                         VkDeviceSize                   in_data_size,
+                                         const uint32_t*                in_data_ptr);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated Buffer instance.
-             **/
-            virtual ~UpdateBufferCommand();
-
-            UpdateBufferCommand(const UpdateBufferCommand&);
+            /** Destructor. */
+            virtual ~UpdateBufferCommand()
+            {
+                /* Stub */
+            }
 
         private:
             UpdateBufferCommand& operator=(const UpdateBufferCommand&);
         } UpdateBufferCommand;
 
 
-        /** Holds all arguments passed to a vkCmdWaitEvents() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         **/
+        /** Holds all arguments passed to a vkCmdWaitEvents() command. **/
         typedef struct WaitEventsCommand : public Command
         {
             std::vector<BufferBarrier>  buffer_barriers;
             std::vector<ImageBarrier>   image_barriers;
             std::vector<MemoryBarrier>  memory_barriers;
 
-            VkPipelineStageFlagBits     dst_stage_mask;
-            std::vector<VkEvent>        events;
-            std::vector<Anvil::Event*>  event_ptrs;
-            VkPipelineStageFlagBits     src_stage_mask;
+            VkPipelineStageFlagBits                     dst_stage_mask;
+            std::vector<VkEvent>                        events;
+            std::vector<std::shared_ptr<Anvil::Event> > event_ptrs;
+            VkPipelineStageFlagBits                     src_stage_mask;
 
-            /** Constructor
-             *
-             *  Retains all events specified in the @param in_event_ptrs array, as well as
-             *  all buffers specified for buffer barriers and all images specified for image
-             *  barriers, as passed via @param in_mem_barrier_ptr_ptr.
-             *
-             *  Arguments as per Vulkan API.
-             **/
-            explicit WaitEventsCommand(uint32_t                   in_event_count,
-                                       Anvil::Event**             in_event_ptrs,
-                                       VkPipelineStageFlags       in_src_stage_mask,
-                                       VkPipelineStageFlags       in_dst_stage_mask,
-                                       uint32_t                   in_memory_barrier_count,
-                                       const MemoryBarrier* const in_memory_barrier_ptr_ptr,
-                                       uint32_t                   in_buffer_memory_barrier_count,
-                                       const BufferBarrier* const in_buffer_memory_barrier_ptr_ptr,
-                                       uint32_t                   in_image_memory_barrier_count,
-                                       const ImageBarrier* const  in_image_memory_barrier_ptr_ptr);
+            /** Constructor **/
+            explicit WaitEventsCommand(uint32_t                       in_event_count,
+                                       std::shared_ptr<Anvil::Event>* in_event_ptrs,
+                                       VkPipelineStageFlags           in_src_stage_mask,
+                                       VkPipelineStageFlags           in_dst_stage_mask,
+                                       uint32_t                       in_memory_barrier_count,
+                                       const MemoryBarrier* const     in_memory_barrier_ptr_ptr,
+                                       uint32_t                       in_buffer_memory_barrier_count,
+                                       const BufferBarrier* const     in_buffer_memory_barrier_ptr_ptr,
+                                       uint32_t                       in_image_memory_barrier_count,
+                                       const ImageBarrier* const      in_image_memory_barrier_ptr_ptr);
 
-            /** Destructor.
-             *
-             *  Implicitly releases the encapsulated Buffer, Event and Image instances.
-             **/
-            virtual ~WaitEventsCommand();
-
-            WaitEventsCommand(const WaitEventsCommand&);
+            /** Destructor. */
+            virtual ~WaitEventsCommand()
+            {
+                /* Stub */
+            }
 
         private:
             WaitEventsCommand& operator=(const WaitEventsCommand&);
         } WaitEventsCommand;
 
 
-        /** Holds all arguments passed to a vkCmdWriteTimestamp() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         **/
+        /** Holds all arguments passed to a vkCmdWriteTimestamp() command. **/
         typedef struct WriteTimestampCommand : public Command
         {
-            Anvil::QueryIndex       entry;
-            VkPipelineStageFlagBits pipeline_stage;
-            Anvil::QueryPool*       query_pool_ptr;
+            Anvil::QueryIndex                 entry;
+            VkPipelineStageFlagBits           pipeline_stage;
+            std::shared_ptr<Anvil::QueryPool> query_pool_ptr;
 
-            /** Constructor.
-             *
-             *  Retains @param in_query_pool_ptr.
-             **/
-            explicit WriteTimestampCommand(VkPipelineStageFlagBits in_pipeline_stage,
-                                           Anvil::QueryPool*       in_query_pool_ptr,
-                                           Anvil::QueryIndex       in_entry);
+            /** Constructor. **/
+            explicit WriteTimestampCommand(VkPipelineStageFlagBits           in_pipeline_stage,
+                                           std::shared_ptr<Anvil::QueryPool> in_query_pool_ptr,
+                                           Anvil::QueryIndex                 in_entry);
 
-            /** Destructor.
-             *
-             *  Releases the encapsulated QueryPool instance.
-             **/
-            virtual ~WriteTimestampCommand();
-
-            WriteTimestampCommand(const WriteTimestampCommand&);
+            /** Destructor. */
+            virtual ~WriteTimestampCommand()
+            {
+                /* Stub */
+            }
 
         private:
             WriteTimestampCommand& operator=(const WriteTimestampCommand&);
         } WriteTimestampCommand;
 
 
-        typedef std::vector<Command*> Commands;
+        typedef std::vector<Command> Commands;
 
         /* Protected functions */
-        explicit CommandBufferBase(Anvil::Device*      device_ptr,
-                                   Anvil::CommandPool* parent_command_pool_ptr,
-                                   CommandBufferType   type);
+        explicit CommandBufferBase(std::weak_ptr<Anvil::Device>        device_ptr,
+                                   std::shared_ptr<Anvil::CommandPool> parent_command_pool_ptr,
+                                   CommandBufferType                   type);
 
         virtual ~CommandBufferBase();
-
-        void on_parent_pool_released();
 
         #ifdef STORE_COMMAND_BUFFER_COMMANDS
             void clear_commands();
@@ -2425,14 +2339,14 @@ namespace Anvil
             Commands m_commands;
         #endif
 
-        VkCommandBuffer     m_command_buffer;
-        Anvil::Device*      m_device_ptr;
-        bool                m_is_renderpass_active;
-        Anvil::CommandPool* m_parent_command_pool_ptr;
-        bool                m_recording_in_progress;
-        CommandBufferType   m_type;
+        VkCommandBuffer                   m_command_buffer;
+        std::weak_ptr<Anvil::Device>      m_device_ptr;
+        bool                              m_is_renderpass_active;
+        std::weak_ptr<Anvil::CommandPool> m_parent_command_pool_ptr;
+        bool                              m_recording_in_progress;
+        CommandBufferType                 m_type;
 
-        static bool        m_command_stashing_disabled;
+        static bool m_command_stashing_disabled;
 
     private:
         /* Private type definitions */
@@ -2450,6 +2364,12 @@ namespace Anvil
     public:
         /* Public functions */
 
+        /* Destructor */
+        virtual ~PrimaryCommandBuffer()
+         {
+            /* Stub */
+        }
+
         /** Issues a vkCmdBeginRenderPass() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
          *  #define enabled).
@@ -2464,12 +2384,12 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_begin_render_pass(uint32_t             in_n_clear_values,
-                                      const VkClearValue*  in_clear_value_ptrs,
-                                      Anvil::Framebuffer*  in_fbo_ptr,
-                                      VkRect2D             in_render_area,
-                                      Anvil::RenderPass*   in_render_pass_ptr,
-                                      VkSubpassContents    in_contents);
+        bool record_begin_render_pass(uint32_t                            in_n_clear_values,
+                                      const VkClearValue*                 in_clear_value_ptrs,
+                                      std::shared_ptr<Anvil::Framebuffer> in_fbo_ptr,
+                                      VkRect2D                            in_render_area,
+                                      std::shared_ptr<Anvil::RenderPass>  in_render_pass_ptr,
+                                      VkSubpassContents                   in_contents);
 
         /** Issues a vkCmdEndRenderPass() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -2498,8 +2418,8 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_execute_commands(uint32_t                        in_cmd_buffers_count,
-                                     Anvil::SecondaryCommandBuffer** in_cmd_buffers);
+        bool record_execute_commands(uint32_t                                        in_cmd_buffers_count,
+                                     std::shared_ptr<Anvil::SecondaryCommandBuffer>* in_cmd_buffers);
 
         /** Issues a vkCmdNextSubpass() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -2539,8 +2459,8 @@ namespace Anvil
          *  @param parent_command_pool_ptr Command pool to use as a parent. Must not be nullptr.
          *
          **/
-        PrimaryCommandBuffer(Anvil::Device* device_ptr,
-                             CommandPool*   parent_command_pool_ptr);
+        PrimaryCommandBuffer(std::weak_ptr<Anvil::Device> device_ptr,
+                             std::shared_ptr<CommandPool> parent_command_pool_ptr);
 
     private:
         friend class Anvil::CommandPool;
@@ -2582,12 +2502,17 @@ namespace Anvil
         bool start_recording(bool                          one_time_submit,
                              bool                          simultaneous_use_allowed,
                              bool                          renderpass_usage_only,
-                             Framebuffer*                  framebuffer_ptr,
-                             RenderPass*                   render_pass_ptr,
+                             std::shared_ptr<Framebuffer>  framebuffer_ptr,
+                             std::shared_ptr<RenderPass>   render_pass_ptr,
                              SubPassID                     subpass_id,
                              OcclusionQuerySupportScope    required_occlusion_query_support_scope,
                              VkQueryPipelineStatisticFlags required_pipeline_statistics_scope);
 
+        /* Destructor */
+        virtual ~SecondaryCommandBuffer()
+        {
+            /* Stub */
+        }
     protected:
         /** Constructor. Should be used to instantiate secondary-level command buffers.
          *
@@ -2595,8 +2520,8 @@ namespace Anvil
          *  @param parent_command_pool_ptr Command pool to use as a parent. Must not be nullptr.
          *
          **/
-        SecondaryCommandBuffer(Anvil::Device* device_ptr,
-                               CommandPool*   parent_command_pool_ptr); 
+        SecondaryCommandBuffer(std::weak_ptr<Anvil::Device> device_ptr,
+                               std::shared_ptr<CommandPool> parent_command_pool_ptr); 
 
     private:
         friend class Anvil::CommandPool;
@@ -2604,15 +2529,6 @@ namespace Anvil
         /* Private functions */
         SecondaryCommandBuffer           (const SecondaryCommandBuffer&);
         SecondaryCommandBuffer& operator=(const SecondaryCommandBuffer&);
-    };
-
-    /** Delete functor. Useful when a command buffer instance needs to be wrapped inside an auto pointer */
-    struct CommandBufferDeleter
-    {
-        void operator()(CommandBufferBase* command_buffer_ptr)
-        {
-            command_buffer_ptr->release();
-        }
     };
 }; /* namespace Anvil */
 

@@ -49,9 +49,9 @@
 
 
 /* Please see header for specification */
-Anvil::GraphicsPipelineManager::GraphicsPipelineManager(Anvil::Device*        device_ptr,
-                                                        bool                  use_pipeline_cache,
-                                                        Anvil::PipelineCache* pipeline_cache_to_reuse_ptr)
+Anvil::GraphicsPipelineManager::GraphicsPipelineManager(std::weak_ptr<Anvil::Device>          device_ptr,
+                                                        bool                                  use_pipeline_cache,
+                                                        std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr)
     :BasePipelineManager(device_ptr,
                          use_pipeline_cache,
                          pipeline_cache_to_reuse_ptr)
@@ -74,7 +74,7 @@ Anvil::GraphicsPipelineManager::~GraphicsPipelineManager()
 /* Please see header for specification */
 bool Anvil::GraphicsPipelineManager::add_derivative_pipeline_from_sibling_pipeline(bool                               disable_optimizations,
                                                                                    bool                               allow_derivatives,
-                                                                                   RenderPass*                        renderpass_ptr,
+                                                                                   std::shared_ptr<RenderPass>        renderpass_ptr,
                                                                                    SubPassID                          subpass_id,
                                                                                    const ShaderModuleStageEntryPoint& fragment_shader_stage_entrypoint_info,
                                                                                    const ShaderModuleStageEntryPoint& geometry_shader_stage_entrypoint_info,
@@ -117,7 +117,7 @@ bool Anvil::GraphicsPipelineManager::add_derivative_pipeline_from_sibling_pipeli
 /* Please see header for specification */
 bool Anvil::GraphicsPipelineManager::add_derivative_pipeline_from_pipeline(bool                               disable_optimizations,
                                                                            bool                               allow_derivatives,
-                                                                           RenderPass*                        renderpass_ptr,
+                                                                           std::shared_ptr<RenderPass>        renderpass_ptr,
                                                                            SubPassID                          subpass_id,
                                                                            const ShaderModuleStageEntryPoint& fragment_shader_stage_entrypoint_info,
                                                                            const ShaderModuleStageEntryPoint& geometry_shader_stage_entrypoint_info,
@@ -178,7 +178,7 @@ bool Anvil::GraphicsPipelineManager::add_proxy_pipeline(GraphicsPipelineID* out_
 /* Please see header for specification */
 bool Anvil::GraphicsPipelineManager::add_regular_pipeline(bool                               disable_optimizations,
                                                           bool                               allow_derivatives,
-                                                          RenderPass*                        renderpass_ptr,
+                                                          std::shared_ptr<RenderPass>        renderpass_ptr,
                                                           SubPassID                          subpass_id,
                                                           const ShaderModuleStageEntryPoint& fragment_shader_stage_entrypoint_info,
                                                           const ShaderModuleStageEntryPoint& geometry_shader_stage_entrypoint_info,
@@ -290,15 +290,17 @@ bool Anvil::GraphicsPipelineManager::bake()
     std::vector<VkPipelineViewportStateCreateInfo>      viewport_state_create_info_items_vk_cache;
     std::vector<VkViewport>                             viewports_vk_cache;
 
+    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
     static const VkPipelineRasterizationStateRasterizationOrderAMD relaxed_rasterization_order_item =
     {
-        static_cast<VkStructureType>(1000018000), /* VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_RASTERIZATION_ORDER_AMD */
+        VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_RASTERIZATION_ORDER_AMD,
         nullptr,
         VK_RASTERIZATION_ORDER_RELAXED_AMD
     };
     static const VkPipelineRasterizationStateRasterizationOrderAMD strict_rasterization_order_item =
     {
-        static_cast<VkStructureType>(1000018000), /* VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_RASTERIZATION_ORDER_AMD */
+        VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_RASTERIZATION_ORDER_AMD,
         nullptr,
         VK_RASTERIZATION_ORDER_STRICT_AMD
     };
@@ -335,11 +337,6 @@ bool Anvil::GraphicsPipelineManager::bake()
         {
             if (pipeline_iterator->second->layout_dirty)
             {
-                if (pipeline_iterator->second->layout_ptr != nullptr)
-                {
-                    pipeline_iterator->second->layout_ptr->release();
-                }
-
                 pipeline_iterator->second->layout_ptr = get_pipeline_layout(pipeline_iterator->first);
             }
 
@@ -643,12 +640,12 @@ bool Anvil::GraphicsPipelineManager::bake()
         raster_state_create_info.rasterizerDiscardEnable = current_pipeline_config_ptr->rasterizer_discard_enabled;
         raster_state_create_info.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 
-        if (m_device_ptr->is_extension_enabled("VK_AMD_rasterization_order") )
+        if (device_locked_ptr->is_extension_enabled("VK_AMD_rasterization_order") )
         {
             /* Chain a predefined struct which will toggle the relaxed rasterization, as long as the device supports the
              * VK_AMD_rasterization_order extension.
              */
-            const Anvil::GraphicsPipelineManager::VkPipelineRasterizationStateRasterizationOrderAMD* chained_item_ptr = nullptr;
+            const VkPipelineRasterizationStateRasterizationOrderAMD* chained_item_ptr = nullptr;
 
             if (current_pipeline_config_ptr->rasterization_order != VK_RASTERIZATION_ORDER_STRICT_AMD)
             {
@@ -681,7 +678,8 @@ bool Anvil::GraphicsPipelineManager::bake()
         {
             if (current_pipeline_ptr->shader_stages[n_shader].name != nullptr)
             {
-                VkPipelineShaderStageCreateInfo current_shader_stage_create_info;
+                VkPipelineShaderStageCreateInfo      current_shader_stage_create_info;
+                std::shared_ptr<Anvil::ShaderModule> shader_module_ptr;
 
                 if (current_pipeline_ptr->specialization_constants_map[n_shader].size() > 0)
                 {
@@ -691,7 +689,7 @@ bool Anvil::GraphicsPipelineManager::bake()
                                                &specialization_info_vk_cache[n_shader]);
                 }
 
-                Anvil::ShaderModule* shader_module_ptr = current_pipeline_ptr->shader_stages[n_shader].shader_module_ptr;
+                shader_module_ptr = current_pipeline_ptr->shader_stages[n_shader].shader_module_ptr;
 
                 current_shader_stage_create_info.module = shader_module_ptr->get_module();
                 current_shader_stage_create_info.pName  = (n_shader == GRAPHICS_SHADER_STAGE_FRAGMENT)                ? shader_module_ptr->get_fs_entrypoint_name()
@@ -773,10 +771,10 @@ bool Anvil::GraphicsPipelineManager::bake()
             if (current_pipeline_config_ptr->scissor_boxes.size() == 0)
             {
                 /* No scissor boxes / viewport defined. Use default settings.. */
-                InternalScissorBox default_scissor_box;
-                InternalViewport   default_viewport;
-                const Swapchain*   swapchain_ptr  = current_pipeline_config_ptr->renderpass_ptr->get_swapchain();
-                uint32_t           window_size[2] = {0};
+                InternalScissorBox         default_scissor_box;
+                InternalViewport           default_viewport;
+                std::shared_ptr<Swapchain> swapchain_ptr  = current_pipeline_config_ptr->renderpass_ptr->get_swapchain();
+                uint32_t                   window_size[2] = {0};
 
                 /* NOTE: If you hit this assertion, you either need to pass a Swapchain instance when this renderpass is being created,
                  *       *or* specify scissor & viewport information for the GFX pipeline.
@@ -979,7 +977,7 @@ bool Anvil::GraphicsPipelineManager::bake()
     /* All right. Try to bake all pipeline objects at once */
     result_graphics_pipelines.resize(bake_items.size() );
 
-    result_vk = vkCreateGraphicsPipelines(m_device_ptr->get_device_vk(),
+    result_vk = vkCreateGraphicsPipelines(device_locked_ptr->get_device_vk(),
                                           m_pipeline_cache_ptr->get_pipeline_cache(),
                                           (uint32_t) graphics_pipeline_create_info_items_vk_cache.size(),
                                          &graphics_pipeline_create_info_items_vk_cache[0],
@@ -1098,6 +1096,22 @@ void Anvil::GraphicsPipelineManager::bake_vk_attributes_and_bindings(std::shared
 }
 
 /* Please see header for specification */
+std::shared_ptr<Anvil::GraphicsPipelineManager> Anvil::GraphicsPipelineManager::create(std::weak_ptr<Anvil::Device>          device_ptr,
+                                                                                       bool                                  use_pipeline_cache,
+                                                                                       std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr)
+{
+    std::shared_ptr<Anvil::GraphicsPipelineManager> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::GraphicsPipelineManager(device_ptr,
+                                           use_pipeline_cache,
+                                           pipeline_cache_to_reuse_ptr)
+    );
+
+    return result_ptr;
+}
+
+/* Please see header for specification */
 bool Anvil::GraphicsPipelineManager::delete_pipeline(GraphicsPipelineID graphics_pipeline_id)
 {
     GraphicsPipelineConfigurations::iterator configuration_iterator;
@@ -1161,14 +1175,14 @@ end:
 }
 
 /* Please see header for specification */
-Anvil::PipelineLayout* Anvil::GraphicsPipelineManager::get_graphics_pipeline_layout(GraphicsPipelineID pipeline_id)
+std::shared_ptr<Anvil::PipelineLayout> Anvil::GraphicsPipelineManager::get_graphics_pipeline_layout(GraphicsPipelineID pipeline_id)
 {
     return get_pipeline_layout(pipeline_id);
 }
 
 /* Please see header for specification */
 void Anvil::GraphicsPipelineManager::set_blending_properties(GraphicsPipelineID graphics_pipeline_id,
-                                                              const float*       blend_constant_vec4)
+                                                             const float*       blend_constant_vec4)
 {
     std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
     auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
@@ -1423,7 +1437,7 @@ end:
 bool Anvil::GraphicsPipelineManager::set_pipeline_state_from_pipeline(GraphicsPipelineID target_pipeline_id,
                                                                       GraphicsPipelineID source_pipeline_id)
 {
-    RenderPass*                                    cached_renderpass_ptr = nullptr;
+    std::shared_ptr<RenderPass>                    cached_renderpass_ptr;
     SubPassID                                      cached_subpass_id     = -1;
     bool                                           result                = false;
     std::shared_ptr<GraphicsPipelineConfiguration> source_pipeline_config_ptr;
@@ -1456,19 +1470,43 @@ bool Anvil::GraphicsPipelineManager::set_pipeline_state_from_pipeline(GraphicsPi
     m_pipelines              [target_pipeline_id]->descriptor_set_groups = m_pipelines[source_pipeline_id]->descriptor_set_groups;
     m_pipelines              [target_pipeline_id]->dirty                 = true;
 
-    if (m_pipeline_configurations[target_pipeline_id]->renderpass_ptr != nullptr)
-    {
-        m_pipeline_configurations[target_pipeline_id]->renderpass_ptr->release();
-    }
-
     m_pipeline_configurations[target_pipeline_id]->renderpass_ptr = cached_renderpass_ptr;
     m_pipeline_configurations[target_pipeline_id]->subpass_id     = cached_subpass_id;
-
-    cached_renderpass_ptr->retain();
 
     result = true;
 end:
     return result;
+}
+
+/* Please see header for specification */
+void Anvil::GraphicsPipelineManager::set_rasterization_order(GraphicsPipelineID      graphics_pipeline_id,
+                                                             VkRasterizationOrderAMD rasterization_order)
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    auto                                           pipeline_iterator        = m_pipelines.find              (graphics_pipeline_id);
+
+    if (pipeline_iterator        == m_pipelines.end()               ||
+        pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_iterator        == m_pipelines.end()               ||
+                      pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (pipeline_config_ptr->rasterization_order != rasterization_order)
+    {
+        pipeline_config_ptr->rasterization_order = rasterization_order;
+        pipeline_iterator->second->dirty         = true;
+    }
+
+end:
+    ;
 }
 
 /* Please see header for specification */
@@ -1970,37 +2008,6 @@ void Anvil::GraphicsPipelineManager::toggle_rasterizer_discard(GraphicsPipelineI
 
     pipeline_config_ptr->rasterizer_discard_enabled = should_enable;
     pipeline_iterator->second->dirty                = true;
-
-end:
-    ;
-}
-
-/* Please see header for specification */
-void Anvil::GraphicsPipelineManager::set_rasterization_order(GraphicsPipelineID      graphics_pipeline_id,
-                                                             VkRasterizationOrderAMD rasterization_order)
-{
-    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
-    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
-    auto                                           pipeline_iterator        = m_pipelines.find              (graphics_pipeline_id);
-
-    if (pipeline_iterator        == m_pipelines.end()               ||
-        pipeline_config_iterator == m_pipeline_configurations.end() )
-    {
-        anvil_assert(!(pipeline_iterator        == m_pipelines.end()               ||
-                      pipeline_config_iterator == m_pipeline_configurations.end()) );
-
-        goto end;
-    }
-    else
-    {
-        pipeline_config_ptr = pipeline_config_iterator->second;
-    }
-
-    if (pipeline_config_ptr->rasterization_order != rasterization_order)
-    {
-        pipeline_config_ptr->rasterization_order = rasterization_order;
-        pipeline_iterator->second->dirty         = true;
-    }
 
 end:
     ;

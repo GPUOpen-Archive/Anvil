@@ -31,21 +31,22 @@
 #include "wrappers/swapchain.h"
 
 /** Please see header for specification */
-Anvil::Queue::Queue(Anvil::Device*        device_ptr,
-                    uint32_t              queue_family_index,
-                    uint32_t              queue_index,
-                    PFN_vkQueuePresentKHR pfn_queue_present_proc)
+Anvil::Queue::Queue(std::weak_ptr<Anvil::Device>                  device_ptr,
+                    uint32_t                                      queue_family_index,
+                    uint32_t                                      queue_index,
+                    const ExtensionKHRDeviceSwapchainEntrypoints& khr_device_swapchain_entrypoints)
 
-    :m_device_ptr           (device_ptr),
-     m_queue                (VK_NULL_HANDLE),
-     m_queue_family_index   (queue_family_index),
-     m_queue_index          (queue_index),
-     m_supports_presentation(false),
-     m_swapchain_ptr        (nullptr),
-     m_vkQueuePresentKHR    (pfn_queue_present_proc)
+    :m_device_ptr                      (device_ptr),
+     m_khr_device_swapchain_entrypoints(khr_device_swapchain_entrypoints),
+     m_queue                           (VK_NULL_HANDLE),
+     m_queue_family_index              (queue_family_index),
+     m_queue_index                     (queue_index),
+     m_supports_presentation           (false)
 {
+    std::shared_ptr<Anvil::Device> device_locked_ptr(device_ptr);
+
     /* Retrieve the Vulkan handle */
-    vkGetDeviceQueue(device_ptr->get_device_vk(),
+    vkGetDeviceQueue(device_locked_ptr->get_device_vk(),
                      queue_family_index,
                      queue_index,
                     &m_queue);
@@ -67,9 +68,27 @@ Anvil::Queue::~Queue()
 }
 
 /** Please see header for specification */
-void Anvil::Queue::present(uint32_t          swapchain_image_index,
-                           uint32_t          n_wait_semaphores,
-                           Anvil::Semaphore* wait_semaphore_ptrs)
+std::shared_ptr<Anvil::Queue> Anvil::Queue::create(std::weak_ptr<Anvil::Device>                  device_ptr,
+                                                   uint32_t                                      queue_family_index,
+                                                   uint32_t                                      queue_index,
+                                                   const ExtensionKHRDeviceSwapchainEntrypoints& khr_device_swapchain_entrypoints)
+{
+    std::shared_ptr<Queue> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::Queue(device_ptr,
+                         queue_family_index,
+                         queue_index,
+                         khr_device_swapchain_entrypoints)
+    );
+
+    return result_ptr;
+}
+
+/** Please see header for specification */
+void Anvil::Queue::present(uint32_t                           swapchain_image_index,
+                           uint32_t                           n_wait_semaphores,
+                           std::shared_ptr<Anvil::Semaphore>* wait_semaphore_ptrs)
 {
     VkPresentInfoKHR image_presentation_info;
     VkResult         presentation_result;
@@ -83,36 +102,35 @@ void Anvil::Queue::present(uint32_t          swapchain_image_index,
                   n_wait_semaphore < n_wait_semaphores;
                 ++n_wait_semaphore)
     {
-        wait_semaphores_vk[n_wait_semaphore] = wait_semaphore_ptrs->get_semaphore();
+        wait_semaphores_vk[n_wait_semaphore] = wait_semaphore_ptrs[n_wait_semaphore]->get_semaphore();
     }
 
     image_presentation_info.pImageIndices      = &swapchain_image_index;
     image_presentation_info.pNext              = nullptr;
     image_presentation_info.pResults           = &presentation_result;
-    image_presentation_info.pSwapchains        = m_swapchain_ptr->get_swapchain_ptr();
+    image_presentation_info.pSwapchains        = m_swapchain_ptr.lock()->get_swapchain_ptr();
     image_presentation_info.pWaitSemaphores    = wait_semaphores_vk;
     image_presentation_info.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     image_presentation_info.swapchainCount     = 1;
     image_presentation_info.waitSemaphoreCount = n_wait_semaphores;
 
-    result = m_vkQueuePresentKHR(m_queue,
-                                &image_presentation_info);
+    result = m_khr_device_swapchain_entrypoints.vkQueuePresentKHR(m_queue,
+                                                                 &image_presentation_info);
 
     anvil_assert_vk_call_succeeded(result);
     anvil_assert                  (presentation_result == result);
 }
 
 /** Please see header for specification */
-void Anvil::Queue::set_swapchain(Anvil::Swapchain* swapchain_ptr)
+void Anvil::Queue::set_swapchain(std::shared_ptr<Anvil::Swapchain> swapchain_ptr)
 {
-    anvil_assert(m_swapchain_ptr == nullptr);
-    anvil_assert(swapchain_ptr   != nullptr);
+    anvil_assert(swapchain_ptr != nullptr);
 
     m_swapchain_ptr = swapchain_ptr;
 
     /* Does this queue support presentation for the specified rendering surface? */
-    const Anvil::RenderingSurface* rendering_surface_ptr = swapchain_ptr->get_rendering_surface();
-    VkBool32                        result_vk;
+    std::shared_ptr<const Anvil::RenderingSurface> rendering_surface_ptr = swapchain_ptr->get_rendering_surface();
+    VkBool32                                       result_vk;
 
     rendering_surface_ptr->supports_presentation_for_queue(this,
                                                           &result_vk);
@@ -121,19 +139,18 @@ void Anvil::Queue::set_swapchain(Anvil::Swapchain* swapchain_ptr)
 }
 
 /** Please see header for specification */
-void Anvil::Queue::submit_command_buffers(uint32_t                               n_command_buffers,
-                                          const Anvil::CommandBufferBase* const* opt_cmd_buffer_ptrs,
-                                          uint32_t                               n_semaphores_to_signal,
-                                          const Anvil::Semaphore* const*         opt_semaphore_to_signal_ptr_ptrs,
-                                          uint32_t                               n_semaphores_to_wait_on,
-                                          const Anvil::Semaphore* const*         opt_semaphore_to_wait_on_ptr_ptrs,
-                                          const VkPipelineStageFlags*            opt_dst_stage_masks_to_wait_on_ptrs,
-                                          bool                                   should_block,
-                                          Anvil::Fence*                          opt_fence_ptr)
+void Anvil::Queue::submit_command_buffers(uint32_t                                         n_command_buffers,
+                                          std::shared_ptr<Anvil::CommandBufferBase> const* opt_cmd_buffer_ptrs,
+                                          uint32_t                                         n_semaphores_to_signal,
+                                          std::shared_ptr<Anvil::Semaphore> const*         opt_semaphore_to_signal_ptr_ptrs,
+                                          uint32_t                                         n_semaphores_to_wait_on,
+                                          std::shared_ptr<Anvil::Semaphore> const*         opt_semaphore_to_wait_on_ptr_ptrs,
+                                          const VkPipelineStageFlags*                      opt_dst_stage_masks_to_wait_on_ptrs,
+                                          bool                                             should_block,
+                                          std::shared_ptr<Anvil::Fence>                    opt_fence_ptr)
 {
     VkResult     result;
     VkSubmitInfo submit_info;
-    bool         uses_custom_fence = false;
 
     VkCommandBuffer cmd_buffers_vk      [64];
     VkSemaphore     signal_semaphores_vk[64];
@@ -143,11 +160,11 @@ void Anvil::Queue::submit_command_buffers(uint32_t                              
     anvil_assert(n_semaphores_to_signal  < sizeof(signal_semaphores_vk) / sizeof(signal_semaphores_vk[0]) );
     anvil_assert(n_semaphores_to_wait_on < sizeof(wait_semaphores_vk)   / sizeof(wait_semaphores_vk  [0]) );
 
-    if (opt_fence_ptr == nullptr && should_block)
+    if (opt_fence_ptr == nullptr &&
+        should_block)
     {
-        opt_fence_ptr     = new Anvil::Fence(m_device_ptr,
-                                              false /* create_signalled */);
-        uses_custom_fence = true;
+        opt_fence_ptr = Anvil::Fence::create(m_device_ptr,
+                                             false /* create_signalled */);
     }
 
     for (uint32_t n_command_buffer = 0;
@@ -191,16 +208,13 @@ void Anvil::Queue::submit_command_buffers(uint32_t                              
     if (should_block)
     {
         /* Wait till initialization finishes GPU-side */
-        result = vkWaitForFences(m_device_ptr->get_device_vk(),
+        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
+        result = vkWaitForFences(device_locked_ptr->get_device_vk(),
                                  1, /* fenceCount */
                                  opt_fence_ptr->get_fence_ptr(),
                                  VK_TRUE,     /* waitAll */
                                  UINT64_MAX); /* timeout */
         anvil_assert_vk_call_succeeded(result);
-    }
-
-    if (uses_custom_fence)
-    {
-        opt_fence_ptr->release();
     }
 }

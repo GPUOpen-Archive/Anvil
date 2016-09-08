@@ -29,11 +29,11 @@
 #include "wrappers/physical_device.h"
 
 /* Please see header for specification */
-Anvil::MemoryBlock::MemoryBlock(Anvil::Device* device_ptr,
-                                uint32_t       allowed_memory_bits,
-                                VkDeviceSize   size,
-                                bool           should_be_mappable,
-                                bool           should_be_coherent)
+Anvil::MemoryBlock::MemoryBlock(std::weak_ptr<Anvil::Device> device_ptr,
+                                uint32_t                     allowed_memory_bits,
+                                VkDeviceSize                 size,
+                                bool                         should_be_mappable,
+                                bool                         should_be_coherent)
     :m_allowed_memory_bits    (allowed_memory_bits),
      m_device_ptr             (device_ptr),
      m_gpu_data_ptr           (nullptr),
@@ -45,8 +45,9 @@ Anvil::MemoryBlock::MemoryBlock(Anvil::Device* device_ptr,
      m_size                   (size),
      m_start_offset           (0)
 {
-    VkMemoryAllocateInfo buffer_data_alloc_info;
-    VkResult             result;
+    VkMemoryAllocateInfo           buffer_data_alloc_info;
+    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+    VkResult                       result;
 
     buffer_data_alloc_info.allocationSize  = size;
     buffer_data_alloc_info.memoryTypeIndex = get_device_memory_type_index(allowed_memory_bits,
@@ -55,7 +56,7 @@ Anvil::MemoryBlock::MemoryBlock(Anvil::Device* device_ptr,
     buffer_data_alloc_info.pNext           = nullptr;
     buffer_data_alloc_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 
-    result = vkAllocateMemory(m_device_ptr->get_device_vk(),
+    result = vkAllocateMemory(device_locked_ptr->get_device_vk(),
                              &buffer_data_alloc_info,
                               nullptr, /* pAllocator */
                              &m_memory);
@@ -69,18 +70,15 @@ Anvil::MemoryBlock::MemoryBlock(Anvil::Device* device_ptr,
 }
 
 /* Please see header for specification */
-Anvil::MemoryBlock::MemoryBlock(MemoryBlock* parent_memory_block_ptr,
-                                VkDeviceSize start_offset,
-                                VkDeviceSize size)
+Anvil::MemoryBlock::MemoryBlock(std::shared_ptr<MemoryBlock> parent_memory_block_ptr,
+                                VkDeviceSize                 start_offset,
+                                VkDeviceSize                 size)
 {
-    anvil_assert(parent_memory_block_ptr                                != nullptr);
-    anvil_assert(parent_memory_block_ptr->m_gpu_data_ptr                == nullptr);
-    anvil_assert(parent_memory_block_ptr->m_memory                      != nullptr);
-    anvil_assert(parent_memory_block_ptr->m_parent_memory_block_ptr     == nullptr);
-    anvil_assert(parent_memory_block_ptr->m_start_offset + start_offset <  parent_memory_block_ptr->m_size);
-    anvil_assert(size                                                   <= parent_memory_block_ptr->m_size - start_offset - parent_memory_block_ptr->m_start_offset);
+    anvil_assert(parent_memory_block_ptr                 != nullptr);
+    anvil_assert(parent_memory_block_ptr->m_gpu_data_ptr == nullptr);
 
     m_allowed_memory_bits     = parent_memory_block_ptr->m_allowed_memory_bits;
+    m_device_ptr              = parent_memory_block_ptr->m_device_ptr;
     m_gpu_data_ptr            = nullptr;
     m_gpu_data_user_mapped    = false;
     m_is_coherent             = parent_memory_block_ptr->m_is_coherent;
@@ -89,9 +87,15 @@ Anvil::MemoryBlock::MemoryBlock(MemoryBlock* parent_memory_block_ptr,
     m_memory_type_index       = -1;
     m_parent_memory_block_ptr = parent_memory_block_ptr;
     m_size                    = size;
-    m_start_offset            = parent_memory_block_ptr->m_start_offset + start_offset;
+    m_start_offset            = start_offset + m_parent_memory_block_ptr->m_start_offset;
 
-    parent_memory_block_ptr->retain();
+    while (m_parent_memory_block_ptr->m_parent_memory_block_ptr != nullptr)
+    {
+        m_parent_memory_block_ptr  = m_parent_memory_block_ptr->m_parent_memory_block_ptr;
+        m_start_offset            += m_parent_memory_block_ptr->m_start_offset;
+    }
+
+    anvil_assert(m_start_offset + size <= m_parent_memory_block_ptr->m_size);
 
     /* Register the object */
     Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_MEMORY_BLOCK,
@@ -105,18 +109,13 @@ Anvil::MemoryBlock::~MemoryBlock()
 
     if (m_memory != VK_NULL_HANDLE)
     {
-        vkFreeMemory(m_device_ptr->get_device_vk(),
+        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
+        vkFreeMemory(device_locked_ptr->get_device_vk(),
                      m_memory,
                      nullptr /* pAllocator */);
 
         m_memory = VK_NULL_HANDLE;
-    }
-
-    if (m_parent_memory_block_ptr != nullptr)
-    {
-        m_parent_memory_block_ptr->release();
-
-        m_parent_memory_block_ptr = nullptr;
     }
 
     /* Unregister the object */
@@ -127,17 +126,51 @@ Anvil::MemoryBlock::~MemoryBlock()
 /** Finishes the memory mapping process, opened earlier with a open_gpu_memory_access() call. */
 void Anvil::MemoryBlock::close_gpu_memory_access()
 {
-    VkDeviceMemory memory = VK_NULL_HANDLE;
+    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+    VkDeviceMemory                 memory           ((m_parent_memory_block_ptr != nullptr) ? m_parent_memory_block_ptr->m_memory : m_memory);
 
     anvil_assert(m_gpu_data_ptr != nullptr);
 
-    memory = (m_parent_memory_block_ptr != nullptr) ? m_parent_memory_block_ptr->m_memory
-                                                    : m_memory;
-
-    vkUnmapMemory(m_device_ptr->get_device_vk(),
+    vkUnmapMemory(device_locked_ptr->get_device_vk(),
                   memory);
 
     m_gpu_data_ptr = nullptr;
+}
+
+/* Please see header for specification */
+std::shared_ptr<Anvil::MemoryBlock> Anvil::MemoryBlock::create(std::weak_ptr<Anvil::Device> device_ptr,
+                                                               uint32_t                     allowed_memory_bits,
+                                                               VkDeviceSize                 size,
+                                                               bool                         should_be_mappable,
+                                                               bool                         should_be_coherent)
+{
+    std::shared_ptr<Anvil::MemoryBlock> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::MemoryBlock(device_ptr,
+                               allowed_memory_bits,
+                               size,
+                               should_be_mappable,
+                               should_be_coherent)
+    );
+
+    return result_ptr;
+}
+
+/* Please see header for specification */
+std::shared_ptr<Anvil::MemoryBlock> Anvil::MemoryBlock::create_derived(std::shared_ptr<MemoryBlock> parent_memory_block_ptr,
+                                                                       VkDeviceSize                 start_offset,
+                                                                       VkDeviceSize                 size)
+{
+    std::shared_ptr<Anvil::MemoryBlock> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::MemoryBlock(parent_memory_block_ptr,
+                               start_offset,
+                               size)
+    );
+
+    return result_ptr;
 }
 
 /** Returns index of a memory type which meets the specified requirements
@@ -160,12 +193,15 @@ uint32_t Anvil::MemoryBlock::get_device_memory_type_index(uint32_t memory_type_b
                                                           bool     mappable_memory_required,
                                                           bool     coherent_memory_required)
 {
+    std::shared_ptr<Anvil::Device>         device_locked_ptr         (m_device_ptr);
+    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(device_locked_ptr->get_physical_device() );
+
     if (!mappable_memory_required)
     {
         anvil_assert(!coherent_memory_required);
     }
 
-    const Anvil::MemoryTypes& memory_types   = m_device_ptr->get_physical_device()->get_memory_properties().types;
+    const Anvil::MemoryTypes& memory_types   = physical_device_locked_ptr->get_memory_properties().types;
     const std::size_t         n_memory_types = memory_types.size();
     uint32_t                  result         = -1;
 
@@ -248,13 +284,13 @@ end:
 bool Anvil::MemoryBlock::open_gpu_memory_access(VkDeviceSize start_offset,
                                                 VkDeviceSize size)
 {
-    VkDeviceMemory memory     = VK_NULL_HANDLE;
-    bool           result     = false;
-    VkResult       result_vk;
+    std::shared_ptr<Anvil::Device>      device_locked_ptr(m_device_ptr);
+    VkDeviceMemory                      memory           (VK_NULL_HANDLE);
+    std::shared_ptr<Anvil::MemoryBlock> memory_block_ptr ((m_parent_memory_block_ptr != nullptr) ? m_parent_memory_block_ptr : shared_from_this() );
+    bool                                result           (false);
+    VkResult                            result_vk;
 
     /* Sanity checks */
-    anvil_assert(m_parent_memory_block_ptr == nullptr);
-
     if (!m_is_mappable)
     {
         anvil_assert(m_is_mappable);
@@ -270,10 +306,9 @@ bool Anvil::MemoryBlock::open_gpu_memory_access(VkDeviceSize start_offset,
     }
 
     /* Map the memory region into process space */
-    memory = (m_parent_memory_block_ptr != nullptr) ? m_parent_memory_block_ptr->m_memory
-                                                    : m_memory;
+    memory = memory_block_ptr->m_memory;
 
-    result_vk = vkMapMemory(m_device_ptr->get_device_vk(),
+    result_vk = vkMapMemory(device_locked_ptr->get_device_vk(),
                             memory,
                             m_start_offset + start_offset,
                             size,
@@ -292,8 +327,9 @@ bool Anvil::MemoryBlock::read(VkDeviceSize start_offset,
                               VkDeviceSize size,
                               void*        out_result_ptr)
 {
-    VkDeviceSize memcpy_offset = 0;
-    bool         result       = false;
+    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+    VkDeviceSize                   memcpy_offset = 0;
+    bool                           result       = false;
 
     anvil_assert(size                >  0);
     anvil_assert(start_offset + size <= m_size);
@@ -345,7 +381,7 @@ bool Anvil::MemoryBlock::read(VkDeviceSize start_offset,
             mapped_memory_range.size   = size;
             mapped_memory_range.sType  = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
 
-            result_vk = vkInvalidateMappedMemoryRanges(m_device_ptr->get_device_vk(),
+            result_vk = vkInvalidateMappedMemoryRanges(device_locked_ptr->get_device_vk(),
                                                        1, /* memRangeCount */
                                                       &mapped_memory_range);
             anvil_assert_vk_call_succeeded(result_vk);
@@ -396,8 +432,9 @@ bool Anvil::MemoryBlock::write(VkDeviceSize start_offset,
                                VkDeviceSize size,
                                const void*  data)
 {
-    VkDeviceSize memcpy_offset = 0;
-    bool         result        = false;
+    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+    VkDeviceSize                   memcpy_offset = 0;
+    bool                           result        = false;
 
     anvil_assert(size                >  0);
     anvil_assert(start_offset + size <= m_size);
@@ -433,7 +470,7 @@ bool Anvil::MemoryBlock::write(VkDeviceSize start_offset,
         }
         else
         if (!open_gpu_memory_access(start_offset,
-                                   size) )
+                                    size) )
         {
             goto end;
         }
@@ -453,7 +490,7 @@ bool Anvil::MemoryBlock::write(VkDeviceSize start_offset,
             mapped_memory_range.size   = size;
             mapped_memory_range.sType  = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
 
-            result_vk = vkFlushMappedMemoryRanges(m_device_ptr->get_device_vk(),
+            result_vk = vkFlushMappedMemoryRanges(device_locked_ptr->get_device_vk(),
                                                   1, /* memRangeCount */
                                                  &mapped_memory_range);
             anvil_assert_vk_call_succeeded(result_vk);

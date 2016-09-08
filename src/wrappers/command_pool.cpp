@@ -30,19 +30,20 @@
 #include <algorithm>
 
 /* Please see header for specification */
-Anvil::CommandPool::CommandPool(Anvil::Device*         device_ptr,
-                                bool                   transient_allocations_friendly,
-                                bool                   support_per_cmdbuf_reset_ops,
-                                Anvil::QueueFamilyType queue_family)
+Anvil::CommandPool::CommandPool(std::weak_ptr<Anvil::Device> device_ptr,
+                                bool                         transient_allocations_friendly,
+                                bool                         support_per_cmdbuf_reset_ops,
+                                Anvil::QueueFamilyType       queue_family)
 
     :m_command_pool                     (VK_NULL_HANDLE),
      m_device_ptr                       (device_ptr),
      m_supports_per_cmdbuf_reset_ops    (support_per_cmdbuf_reset_ops),
      m_is_transient_allocations_friendly(transient_allocations_friendly)
 {
-    VkCommandPoolCreateInfo command_pool_create_info;
-    uint32_t                queue_family_index = m_device_ptr->get_queue_family_index(queue_family);
-    VkResult                result_vk;
+    VkCommandPoolCreateInfo        command_pool_create_info;
+    std::shared_ptr<Anvil::Device> device_locked_ptr(device_ptr);
+    uint32_t                       queue_family_index = device_locked_ptr->get_queue_family_index(queue_family);
+    VkResult                       result_vk;
 
     /* Go on and create the command pool */
     command_pool_create_info.flags            = ((transient_allocations_friendly) ? VK_COMMAND_POOL_CREATE_TRANSIENT_BIT            : 0) |
@@ -51,7 +52,7 @@ Anvil::CommandPool::CommandPool(Anvil::Device*         device_ptr,
     command_pool_create_info.queueFamilyIndex = queue_family_index;
     command_pool_create_info.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 
-    result_vk = vkCreateCommandPool(m_device_ptr->get_device_vk(),
+    result_vk = vkCreateCommandPool(device_locked_ptr->get_device_vk(),
                                    &command_pool_create_info,
                                     nullptr, /* pAllocator */
                                    &m_command_pool);
@@ -70,49 +71,60 @@ Anvil::CommandPool::~CommandPool()
     /* Release the Vulkan command pool */
     if (m_command_pool != VK_NULL_HANDLE)
     {
-        vkDestroyCommandPool(m_device_ptr->get_device_vk(),
+        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
+        vkDestroyCommandPool(device_locked_ptr->get_device_vk(),
                              m_command_pool,
                              nullptr /* pAllocator */);
 
         m_command_pool = VK_NULL_HANDLE;
     }
 
-    /* If there are any buffer wrapper instances still kicking at this point, force-release them. */
-    for (auto alloc_iterator  = m_allocs_in_flight.begin();
-              alloc_iterator != m_allocs_in_flight.end();
-            ++alloc_iterator)
-    {
-        (*alloc_iterator)->on_parent_pool_released();
-        (*alloc_iterator)->force_release();
-    }
-
     m_allocs_in_flight.clear();
 
     /* Unregister the object */
     Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_COMMAND_POOL,
-                                                    this);
+                                                   this);
 }
 
 /* Please see header for specification */
-Anvil::PrimaryCommandBuffer* Anvil::CommandPool::alloc_primary_level_command_buffer()
+std::shared_ptr<Anvil::PrimaryCommandBuffer> Anvil::CommandPool::alloc_primary_level_command_buffer()
 {
-    PrimaryCommandBuffer* new_buffer_ptr = new PrimaryCommandBuffer(m_device_ptr,
-                                                                    this /* parent_pool_ptr */);
+    std::shared_ptr<PrimaryCommandBuffer> new_buffer_ptr(new PrimaryCommandBuffer(m_device_ptr,
+                                                                                  shared_from_this() ));
 
-    m_allocs_in_flight.push_back(static_cast<CommandBufferBase*>(new_buffer_ptr) );
+    m_allocs_in_flight.push_back(new_buffer_ptr);
 
     return new_buffer_ptr;
 }
 
 /* Please see header for specification */
-Anvil::SecondaryCommandBuffer* Anvil::CommandPool::alloc_secondary_level_command_buffer()
+std::shared_ptr<Anvil::SecondaryCommandBuffer> Anvil::CommandPool::alloc_secondary_level_command_buffer()
 {
-    SecondaryCommandBuffer* new_buffer_ptr = new SecondaryCommandBuffer(m_device_ptr,
-                                                                        this /* parent_command_pool_ptr */);
+    std::shared_ptr<SecondaryCommandBuffer> new_buffer_ptr(new SecondaryCommandBuffer(m_device_ptr,
+                                                                                      shared_from_this() ));
 
-    m_allocs_in_flight.push_back(static_cast<CommandBufferBase*>(new_buffer_ptr) );
+    m_allocs_in_flight.push_back(new_buffer_ptr);
 
     return new_buffer_ptr;
+}
+
+/* Please see header for specification */
+std::shared_ptr<Anvil::CommandPool> Anvil::CommandPool::create(std::weak_ptr<Anvil::Device> device_ptr,
+                                                               bool                         transient_allocations_friendly,
+                                                               bool                         support_per_cmdbuf_reset_ops,
+                                                               Anvil::QueueFamilyType       queue_family)
+{
+    std::shared_ptr<Anvil::CommandPool> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::CommandPool(device_ptr,
+                               transient_allocations_friendly,
+                               support_per_cmdbuf_reset_ops,
+                               queue_family)
+    );
+
+    return result_ptr;
 }
 
 /** Called back when a command buffer, which allocates its commands from this pool, is released.
@@ -124,9 +136,12 @@ void Anvil::CommandPool::on_command_buffer_wrapper_destroyed(CommandBufferBase* 
     /* The command buffer is being released back to the pool. No longer consider the buffer as allocated,
      * so that we do not accidentally delete the wrapper instance for the second time at tear-down time.
      */
+    std::shared_ptr<CommandBufferBase> command_buffer_safe_ptr = std::shared_ptr<CommandBufferBase>(command_buffer_ptr,
+                                                                                                    Anvil::NullDeleter<CommandBufferBase>() );
+
     auto alloc_iterator = std::find(m_allocs_in_flight.begin(),
                                     m_allocs_in_flight.end(),
-                                    command_buffer_ptr);
+                                    command_buffer_safe_ptr);
 
     anvil_assert(alloc_iterator != m_allocs_in_flight.end() );
 
@@ -139,9 +154,10 @@ void Anvil::CommandPool::on_command_buffer_wrapper_destroyed(CommandBufferBase* 
 /* Please see header for specification */
 bool Anvil::CommandPool::reset(bool release_resources)
 {
-    VkResult result_vk;
+    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+    VkResult                       result_vk;
 
-    result_vk = vkResetCommandPool(m_device_ptr->get_device_vk(),
+    result_vk = vkResetCommandPool(device_locked_ptr->get_device_vk(),
                                    m_command_pool,
                                    ((release_resources) ? VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT : 0) );
 

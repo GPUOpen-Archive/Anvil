@@ -39,7 +39,7 @@ Anvil::Window::Window(const std::string&     title,
      m_connection_ptr                (nullptr)
 
 {
-    //init();
+    /* Stub */
 }
 
 /** Destructor */

@@ -28,11 +28,9 @@
 #include "wrappers/pipeline_layout.h"
 
 /** Please see header for specification */
-Anvil::PipelineLayout::PipelineLayout(Anvil::Device* device_ptr)
+Anvil::PipelineLayout::PipelineLayout(std::weak_ptr<Anvil::Device> device_ptr)
     :CallbacksSupportProvider(PIPELINE_LAYOUT_CALLBACK_ID_COUNT)
 {
-    anvil_assert(device_ptr != nullptr);
-
     m_device_ptr   = device_ptr;
     m_dirty        = true;
     m_is_immutable = false;
@@ -43,7 +41,7 @@ Anvil::PipelineLayout::PipelineLayout(Anvil::Device* device_ptr)
 }
 
 /** Please see header for specification */
-Anvil::PipelineLayout::PipelineLayout(Anvil::Device*                    device_ptr,
+Anvil::PipelineLayout::PipelineLayout(std::weak_ptr<Anvil::Device>      device_ptr,
                                       const Anvil::DescriptorSetGroups& dsgs,
                                       const Anvil::PushConstantRanges&  push_constant_ranges,
                                       bool                              is_immutable)
@@ -64,16 +62,16 @@ Anvil::PipelineLayout::PipelineLayout(Anvil::Device*                    device_p
 /** Please see header for specification */
 Anvil::PipelineLayout::~PipelineLayout()
 {
-    for (auto dsg_iterator  = m_dsgs.begin();
-              dsg_iterator != m_dsgs.end();
-            ++dsg_iterator)
-    {
-        (*dsg_iterator)->release();
-    }
+    callback(PIPELINE_LAYOUT_CALLBACK_ID_OBJECT_ABOUT_TO_BE_DELETED,
+             this);
+
+    m_dsgs.clear();
 
     if (m_layout_vk != VK_NULL_HANDLE)
     {
-        vkDestroyPipelineLayout(m_device_ptr->get_device_vk(),
+        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
+        vkDestroyPipelineLayout(device_locked_ptr->get_device_vk(),
                                 m_layout_vk,
                                 nullptr /* pAllocator */);
 
@@ -85,7 +83,7 @@ Anvil::PipelineLayout::~PipelineLayout()
 }
 
 /** Please see header for specification */
-bool Anvil::PipelineLayout::attach_dsg(DescriptorSetGroup* dsg_ptr)
+bool Anvil::PipelineLayout::attach_dsg(std::shared_ptr<DescriptorSetGroup> dsg_ptr)
 {
     bool result = false;
 
@@ -99,8 +97,6 @@ bool Anvil::PipelineLayout::attach_dsg(DescriptorSetGroup* dsg_ptr)
     /* Attach the specified DSG */
     m_dirty = true;
     m_dsgs.push_back(dsg_ptr);
-
-    dsg_ptr->retain();
 
     result = true;
 end:
@@ -135,13 +131,14 @@ end:
 /** Please see header for specification */
 bool Anvil::PipelineLayout::bake()
 {
+    std::shared_ptr<Anvil::Device>     device_locked_ptr(m_device_ptr);
     std::vector<VkDescriptorSetLayout> dsg_layouts_vk;
     VkPipelineLayoutCreateInfo         pipeline_layout_create_info;
     std::vector<VkPushConstantRange>   push_constant_ranges_vk;
     VkResult                           result_vk;
 
     /* Convert descriptor set layouts to Vulkan equivalents */
-    const VkDescriptorSetLayout dummy_ds_layout      = m_device_ptr->get_dummy_descriptor_set_layout()->get_layout();
+    const VkDescriptorSetLayout dummy_ds_layout      = device_locked_ptr->get_dummy_descriptor_set_layout()->get_layout();
     uint32_t                    max_ds_binding_index = 0;
 
     if (!m_dirty)
@@ -153,7 +150,7 @@ bool Anvil::PipelineLayout::bake()
 
     if (m_layout_vk != VK_NULL_HANDLE)
     {
-        vkDestroyPipelineLayout(m_device_ptr->get_device_vk(),
+        vkDestroyPipelineLayout(device_locked_ptr->get_device_vk(),
                                 m_layout_vk,
                                 nullptr /* pAllocator */);
 
@@ -164,8 +161,8 @@ bool Anvil::PipelineLayout::bake()
               dsg_iterator != m_dsgs.end();
             ++dsg_iterator)
     {
-        DescriptorSetGroup* current_dsg_ptr    = *dsg_iterator;
-        const uint32_t      n_current_dsg_sets = current_dsg_ptr->get_n_of_descriptor_sets();
+        std::shared_ptr<DescriptorSetGroup> current_dsg_ptr    = *dsg_iterator;
+        const uint32_t                      n_current_dsg_sets = current_dsg_ptr->get_n_of_descriptor_sets();
 
         for (uint32_t n_current_dsg_set = 0;
                       n_current_dsg_set < n_current_dsg_sets;
@@ -187,8 +184,8 @@ bool Anvil::PipelineLayout::bake()
               dsg_iterator != m_dsgs.end();
             ++dsg_iterator)
     {
-        DescriptorSetGroup* current_dsg_ptr    = *dsg_iterator;
-        const uint32_t      n_current_dsg_sets = current_dsg_ptr->get_n_of_descriptor_sets();
+        std::shared_ptr<DescriptorSetGroup> current_dsg_ptr    = *dsg_iterator;
+        const uint32_t                      n_current_dsg_sets = current_dsg_ptr->get_n_of_descriptor_sets();
 
         for (uint32_t n_current_dsg_set = 0;
                       n_current_dsg_set < n_current_dsg_sets;
@@ -227,7 +224,7 @@ bool Anvil::PipelineLayout::bake()
     pipeline_layout_create_info.pushConstantRangeCount = (uint32_t) m_push_constant_ranges.size();
     pipeline_layout_create_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 
-    result_vk = vkCreatePipelineLayout(m_device_ptr->get_device_vk(),
+    result_vk = vkCreatePipelineLayout(device_locked_ptr->get_device_vk(),
                                       &pipeline_layout_create_info,
                                        nullptr, /* pAllocator */
                                       &m_layout_vk);
@@ -243,21 +240,32 @@ end:
     return is_vk_call_successful(result_vk);
 }
 
-/** Please see header for specification */
-void Anvil::PipelineLayout::release()
+/* Please see header for specification */
+std::shared_ptr<Anvil::PipelineLayout> Anvil::PipelineLayout::create(std::weak_ptr<Anvil::Device> device_ptr)
 {
-    const uint32_t ref_counter = get_ref_counter();
+    std::shared_ptr<Anvil::PipelineLayout> result_ptr;
 
-    if (ref_counter == 1)
-    {
-         callback(PIPELINE_LAYOUT_CALLBACK_ID_OBJECT_ABOUT_TO_BE_DELETED,
-                  this);
-    }
-    else
-    {
-        callback(PIPELINE_LAYOUT_CALLBACK_ID_OBJECT_ABOUT_TO_BE_RELEASED_BUT_NOT_DELETED,
-                 this);
-    }
+    result_ptr.reset(
+        new Anvil::PipelineLayout(device_ptr)
+    );
 
-    RefCounterSupportProvider::release();
+    return result_ptr;
+}
+
+/* Please see header for specification */
+std::shared_ptr<Anvil::PipelineLayout> Anvil::PipelineLayout::create(std::weak_ptr<Anvil::Device> device_ptr,
+                                                                     const DescriptorSetGroups&   dsgs,
+                                                                     const PushConstantRanges&    push_constant_ranges,
+                                                                     bool                         is_immutable)
+{
+    std::shared_ptr<Anvil::PipelineLayout> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::PipelineLayout(device_ptr,
+                                  dsgs,
+                                  push_constant_ranges,
+                                  is_immutable)
+    );
+
+    return result_ptr;
 }

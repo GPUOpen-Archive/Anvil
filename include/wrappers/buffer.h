@@ -33,20 +33,19 @@
 #ifndef WRAPPERS_BUFFER_H
 #define WRAPPERS_BUFFER_H
 
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
-    class Buffer : public RefCounterSupportProvider
+    class Buffer : public std::enable_shared_from_this<Buffer>
     {
     public:
         /* Public functions */
 
         /** Initializes a new buffer object using user-specified parameters.
          *
-         *  This constructor does NOT allocate and bind a memory block to the object. It is
-         *  user's responsibility to call Buffer::set_memory() afterward to configure the binding.
+         *  Does NOT allocate and bind a memory block to the object. It is user's responsibility
+         *  to call Buffer::set_memory() afterward to configure the binding.
          *
          *  @param device_ptr              Device to use.
          *  @param size                    Size of the buffer object to be initialized.
@@ -64,15 +63,15 @@ namespace Anvil
          *  @param opt_client_data         if not nullptr, exactly @param size bytes will be copied to the allocated
          *                                 buffer memory.
          **/
-        explicit Buffer(Anvil::Device*     device_ptr,
-                        VkDeviceSize       size,
-                        QueueFamilyBits    queue_families,
-                        VkSharingMode      queue_sharing_mode,
-                        VkBufferUsageFlags usage_flags);
+        static std::shared_ptr<Anvil::Buffer> create(std::weak_ptr<Anvil::Device> device_ptr,
+                                                     VkDeviceSize                 size,
+                                                     QueueFamilyBits              queue_families,
+                                                     VkSharingMode                queue_sharing_mode,
+                                                     VkBufferUsageFlags           usage_flags);
 
         /** Initializes a new buffer object using user-specified parameters.
          *
-         *  This constructor ALLOCATES and BINDS a unique memory block to the object. Do NOT
+         *  This version of create() ALLOCATES and BINDS a unique memory block to the object. Do NOT
          *  call Buffer::set_memory() to configure the binding.
          *
          *  The constructor can optionally upload data to the initialized memory.
@@ -93,14 +92,14 @@ namespace Anvil
          *  @param opt_client_data         if not nullptr, exactly @param size bytes will be copied to the allocated
          *                                 buffer memory.
          **/
-        explicit Buffer(Anvil::Device*     device_ptr,
-                        VkDeviceSize       size,
-                        QueueFamilyBits    queue_families,
-                        VkSharingMode      queue_sharing_mode,
-                        VkBufferUsageFlags usage_flags,
-                        bool               should_be_mappable,
-                        bool               should_be_coherent,
-                        const void*        opt_client_data);
+        static std::shared_ptr<Anvil::Buffer> create(std::weak_ptr<Anvil::Device> device_ptr,
+                                                     VkDeviceSize                 size,
+                                                     QueueFamilyBits              queue_families,
+                                                     VkSharingMode                queue_sharing_mode,
+                                                     VkBufferUsageFlags           usage_flags,
+                                                     bool                         should_be_mappable,
+                                                     bool                         should_be_coherent,
+                                                     const void*                  opt_client_data);
 
         /** Creates a new Buffer wrapper instance. The new instance will reuse a region of the specified
          *  buffer's storage, instead of creating one's own.
@@ -109,16 +108,19 @@ namespace Anvil
          *  to the spec rules.
          *
          *  @param parent_buffer_ptr Specifies the buffer, whose memory block should be used. Must not be
-         *                           nullptr. The specified Buffer instance will be retained.
+         *                           nullptr.
          *  @param start_offset      Memory region's start offset.
          *  @param size              Size of the memory region to "claim".
          **/
-        explicit Buffer(Anvil::Buffer* parent_buffer_ptr,
-                        VkDeviceSize   start_offset,
-                        VkDeviceSize   size);
+        static std::shared_ptr<Anvil::Buffer> create(std::shared_ptr<Anvil::Buffer> parent_buffer_ptr,
+                                                     VkDeviceSize                   start_offset,
+                                                     VkDeviceSize                   size);
+
+        /** TODO */
+        virtual ~Buffer();
 
         /** Returns the lowest-level Buffer instance which stores the data exposed by this Buffer instance. */
-        Anvil::Buffer* get_base_buffer();
+        std::shared_ptr<Anvil::Buffer> get_base_buffer();
 
         /** Returns the encapsulated raw Vulkan buffer handle */
         VkBuffer get_buffer() const
@@ -136,7 +138,7 @@ namespace Anvil
          *
          *  Under normal circumstances, you should never need to access it.
          **/
-        Anvil::MemoryBlock* get_memory()
+        std::shared_ptr<Anvil::MemoryBlock> get_memory()
         {
             return m_memory_block_ptr;
         }
@@ -155,7 +157,7 @@ namespace Anvil
         }
 
         /** Returns a pointer to the parent buffer, if one was specified at creation time */
-        Anvil::Buffer* get_parent_buffer_ptr()
+        std::shared_ptr<Anvil::Buffer> get_parent_buffer_ptr()
         {
             return m_parent_buffer_ptr;
         }
@@ -203,7 +205,7 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool set_memory(MemoryBlock* memory_block_ptr);
+        bool set_memory(std::shared_ptr<MemoryBlock> memory_block_ptr);
 
         /** Writes @param size bytes, starting from @param start_offset, into the wrapped memory object.
          *
@@ -231,10 +233,25 @@ namespace Anvil
 
     private:
         /* Private functions */
+        explicit Buffer(std::weak_ptr<Anvil::Device>   device_ptr,
+                        VkDeviceSize                   size,
+                        QueueFamilyBits                queue_families,
+                        VkSharingMode                  queue_sharing_mode,
+                        VkBufferUsageFlags             usage_flags);
+        explicit Buffer(std::weak_ptr<Anvil::Device>   device_ptr,
+                        VkDeviceSize                   size,
+                        QueueFamilyBits                queue_families,
+                        VkSharingMode                  queue_sharing_mode,
+                        VkBufferUsageFlags             usage_flags,
+                        bool                           should_be_mappable,
+                        bool                           should_be_coherent,
+                        const void*                    opt_client_data);
+        explicit Buffer(std::shared_ptr<Anvil::Buffer> parent_buffer_ptr,
+                        VkDeviceSize                   start_offset,
+                        VkDeviceSize                   size);
+
         Buffer           (const Buffer&);
         Buffer& operator=(const Buffer&);
-
-        virtual ~Buffer();
 
         void convert_queue_family_bits_to_family_indices(Anvil::QueueFamilyBits queue_families,
                                                          uint32_t*              out_opt_queue_family_indices_ptr,
@@ -244,23 +261,14 @@ namespace Anvil
                                                          VkDeviceSize           size);
 
         /* Private members */
-        VkBuffer              m_buffer;
-        VkMemoryRequirements  m_buffer_memory_reqs;
-        VkDeviceSize          m_buffer_size;
-        Anvil::Device*        m_device_ptr;
-        Anvil::MemoryBlock*   m_memory_block_ptr;
-        Anvil::Buffer*        m_parent_buffer_ptr;
-        VkDeviceSize          m_start_offset;
-        VkBufferUsageFlagBits m_usage_flags;
-    };
-
-    /** Delete functor. Useful if you need to wrap the buffer instance in an auto pointer */
-    struct BufferDeleter
-    {
-        void operator()(Buffer* buffer_ptr) const
-        {
-            buffer_ptr->release();
-        }
+        VkBuffer                              m_buffer;
+        VkMemoryRequirements                  m_buffer_memory_reqs;
+        VkDeviceSize                          m_buffer_size;
+        std::weak_ptr<Anvil::Device>          m_device_ptr;
+        std::shared_ptr<Anvil::MemoryBlock>   m_memory_block_ptr;
+        std::shared_ptr<Anvil::Buffer>        m_parent_buffer_ptr;
+        VkDeviceSize                          m_start_offset;
+        VkBufferUsageFlagBits                 m_usage_flags;
     };
 }; /* namespace Anvil */
 

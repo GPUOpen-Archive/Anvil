@@ -31,7 +31,6 @@
 #define MISC_MEMORY_ALLOCATOR_H
 
 #include "misc/types.h"
-
 #include <vector>
 
 
@@ -46,18 +45,36 @@ namespace Anvil
         /** Adds a new Buffer object which should use storage coming from the buffer memory
          *  maintained by the Memory Allocator.
          *
-         *  @param buffer_ptr Buffer to configure storage for at bake() call time. Must not
-         *                    be nullptr.
+         *  @param buffer_ptr      Buffer to configure storage for at bake() call time. Must not
+         *                         be nullptr.
+         *  @param data_ptr        The buffer will be filled with data extracted from the specified
+         *                         location. The number of bytes which will be stored is defined by
+         *                         buffer size.
+         *  @param data_vector_ptr The buffer will be filled with data extracted from the specified
+         *                         vector. Total number of bytes defined in the vector must match
+         *                         buffer size.
          **/
-        void add_buffer(Anvil::Buffer* buffer_ptr);
+        void add_buffer                                            (std::shared_ptr<Anvil::Buffer>               buffer_ptr);
+        void add_buffer_with_float_data_ptr_based_post_fill        (std::shared_ptr<Anvil::Buffer>               buffer_ptr,
+                                                                    std::shared_ptr<float>                       data_ptr);
+        void add_buffer_with_float_data_vector_ptr_based_post_fill (std::shared_ptr<Anvil::Buffer>               buffer_ptr,
+                                                                    std::shared_ptr<std::vector<float> >         data_vector_ptr);
+        void add_buffer_with_uchar8_data_ptr_based_post_fill       (std::shared_ptr<Anvil::Buffer>               buffer_ptr,
+                                                                    std::shared_ptr<unsigned char>               data_ptr);
+        void add_buffer_with_uchar8_data_vector_ptr_based_post_fill(std::shared_ptr<Anvil::Buffer>               buffer_ptr,
+                                                                    std::shared_ptr<std::vector<unsigned char> > data_vector_ptr);
+        void add_buffer_with_uint32_data_ptr_based_post_fill       (std::shared_ptr<Anvil::Buffer>               buffer_ptr,
+                                                                    std::shared_ptr<uint32_t>                    data_ptr);
+        void add_buffer_with_uint32_data_vector_ptr_based_post_fill(std::shared_ptr<Anvil::Buffer>               buffer_ptr,
+                                                                    std::shared_ptr<std::vector<uint32_t> >      data_vector_ptr);
 
-        /** Adds a new Image object which should use storage coming from the buffer memory
+        /** Adds a new Image object which should use storage coming from memory objects
          *  maintained by the Memory Allocator.
          *
          *  @param image_ptr Image to configure storage for at bake() call time. Must not
          *                   be nullptr.
          **/
-        void add_image(Anvil::Image* image_ptr);
+        void add_image(std::shared_ptr<Anvil::Image> image_ptr);
 
         /** Tries to create a memory object of size large enough to capacitate all added objects,
          *  given their alignment, size, and other requirements.
@@ -72,7 +89,7 @@ namespace Anvil
          **/
         bool bake();
 
-        /** Constructor.
+        /** Creates a new MemoryAllocator instance.
          *
          *  @param device_ptr               Device to use.
          *  @param mappable_memory_required true if the allocated buffer storage should come
@@ -80,9 +97,9 @@ namespace Anvil
          *  @param coherent_memory_required true if the allocated buffer storage should come
          *                                  from a coherent memory backing; false otherwise.
          **/
-         MemoryAllocator(Anvil::Device* device_ptr,
-                         bool           mappable_memory_required,
-                         bool           coherent_memory_required);
+        static std::shared_ptr<MemoryAllocator> create(std::weak_ptr<Anvil::Device> device_ptr,
+                                                       bool                         mappable_memory_required,
+                                                       bool                         coherent_memory_required);
 
          /** Destructor.
           *
@@ -100,11 +117,14 @@ namespace Anvil
 
         typedef struct Item
         {
-            union
-            {
-                Anvil::Buffer* buffer_ptr;
-                Anvil::Image*  image_ptr;
-            };
+            std::shared_ptr<Anvil::Buffer>               buffer_ptr;
+            std::shared_ptr<float>                       buffer_ref_float_data_ptr;
+            std::shared_ptr<std::vector<float> >         buffer_ref_float_vector_data_ptr;
+            std::shared_ptr<unsigned char>               buffer_ref_uchar8_data_ptr;
+            std::shared_ptr<std::vector<unsigned char> > buffer_ref_uchar8_vector_data_ptr;
+            std::shared_ptr<uint32_t>                    buffer_ref_uint32_data_ptr;
+            std::shared_ptr<std::vector<uint32_t> >      buffer_ref_uint32_vector_data_ptr;
+            std::shared_ptr<Anvil::Image>                image_ptr;
 
             ItemType type;
 
@@ -112,10 +132,10 @@ namespace Anvil
             uint32_t     alloc_memory_types;
             VkDeviceSize alloc_size;
 
-            Item(Anvil::Buffer* in_buffer_ptr,
-                 VkDeviceSize   in_alloc_offset,
-                 VkDeviceSize   in_alloc_size,
-                 uint32_t       in_alloc_memory_types)
+            Item(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                 VkDeviceSize                   in_alloc_offset,
+                 VkDeviceSize                   in_alloc_size,
+                 uint32_t                       in_alloc_memory_types)
             {
                 alloc_memory_types = in_alloc_memory_types;
                 alloc_offset       = in_alloc_offset;
@@ -124,10 +144,10 @@ namespace Anvil
                 type               = ITEM_TYPE_BUFFER;
             }
 
-            Item(Anvil::Image* in_image_ptr,
-                 VkDeviceSize  in_alloc_offset,
-                 VkDeviceSize  in_alloc_size,
-                 uint32_t      in_alloc_memory_types)
+            Item(std::shared_ptr<Anvil::Image> in_image_ptr,
+                 VkDeviceSize                  in_alloc_offset,
+                 VkDeviceSize                  in_alloc_size,
+                 uint32_t                      in_alloc_memory_types)
             {
                 alloc_memory_types = in_alloc_memory_types;
                 alloc_offset       = in_alloc_offset;
@@ -135,23 +155,37 @@ namespace Anvil
                 image_ptr          = in_image_ptr;
                 type               = ITEM_TYPE_IMAGE;
             }
+
+            ~Item()
+            {
+                /* Stub */
+            }
         } Item;
 
         typedef std::vector<Item> Items;
 
         /* Private functions */
+        void add_buffer_internal(std::shared_ptr<Anvil::Buffer> buffer_ptr);
+
+        /** Constructor.
+         *
+         *  Please see create() documentation for specification. */
+         MemoryAllocator(std::weak_ptr<Anvil::Device> device_ptr,
+                         bool                         mappable_memory_required,
+                         bool                         coherent_memory_required);
+
         MemoryAllocator           (const MemoryAllocator&);
         MemoryAllocator& operator=(const MemoryAllocator&);
 
         /* Private members */
-        bool           m_coherent_memory_required;
-        bool           m_mappable_memory_required;
+        bool m_coherent_memory_required;
+        bool m_mappable_memory_required;
 
-        Anvil::Device*      m_device_ptr;
-        bool                m_is_baked;
-        Items               m_items;
-        Anvil::MemoryBlock* m_memory_block_ptr;
-        VkDeviceSize        m_needed_memory_size;
+        std::weak_ptr<Anvil::Device>        m_device_ptr;
+        bool                                m_is_baked;
+        Items                               m_items;
+        std::shared_ptr<Anvil::MemoryBlock> m_memory_block_ptr;
+        VkDeviceSize                        m_needed_memory_size;
     };
 };
 

@@ -30,64 +30,13 @@
 
 namespace Anvil
 {
-    /** Implements IPoolWorker interface for a query pool worker. Used internally
-     *  by QueryPool wrapper.
-     **/
-    class QueryPoolWorker : public IPoolWorker<QueryIndex>
-    {
-    public:
-        /* Public functions */
-
-        /** Constructor
-         *
-         *  @param device_ptr               Device to create the query pool for. Must not be nullptr.
-         *  @param query_type               Type of the query to instantiate the worker for.
-         *  @param ps_flags                 Pipeline Statistic flags to instantiate the worker with.
-         *  @param n_max_concurrent_queries Maximum number of queries which can be used concurrently with
-         *                                  the query pool.
-         **/
-        QueryPoolWorker(Anvil::Device*                device_ptr,
-                        VkQueryType                   query_type,
-                        VkQueryPipelineStatisticFlags ps_flags,
-                        uint32_t                      n_max_concurrent_queries);
-
-        /** Destructor. */
-        virtual ~QueryPoolWorker();
-
-        /** Reserve a query from the pool and returns a QueryIndex value holding the allocated query index. */
-        QueryIndex* create_item();
-
-        /** Retrieves the raw Vulkan handle of the encapsulated query pool. */
-        VkQueryPool get_query_pool() const
-        {
-            return m_query_pool_vk;
-        }
-
-        /** Releases a query at @param item_ptr index back to the pool. */
-        void release_item(QueryIndex* item_ptr);
-
-    private:
-        /* Private functions */
-
-        /** Stub - do not use */
-        void reset_item(QueryIndex* item_ptr);
-
-        /* Private variables */
-        Anvil::Device* m_device_ptr;
-        uint32_t       m_indices_created;
-        uint32_t       m_n_max_indices;
-        VkQueryPool    m_query_pool_vk;
-    };
-
     /* Implements a query pool wrapper. */
-    class QueryPool : public GenericPool<QueryIndex>,
-                      public RefCounterSupportProvider
+    class QueryPool
     {
     public:
         /* Public functions */
 
-        /** Constructor which should be used to initialize a new query pool instance
-         *  for occlusion or timestamp queries.
+        /** Creates a new occlusion/timestamp query pool.
          *
          *  Note that a query pool preallocates the requested number of queries. This number
          *  cannot be increased after the object is spawned.
@@ -100,12 +49,11 @@ namespace Anvil
          *                                  for this query pool.
          *
          **/
-        explicit QueryPool(Anvil::Device* device_ptr,
-                           VkQueryType    query_type,
-                           uint32_t       n_max_concurrent_queries);
+        static std::shared_ptr<QueryPool> create_non_ps_query_pool(std::weak_ptr<Anvil::Device> device_ptr,
+                                                                   VkQueryType                  query_type,
+                                                                   uint32_t                     n_max_concurrent_queries);
 
-        /** Constructor which should be used to initialize a new query pool instance
-         *  for pipeline statistics queries.
+        /** Creates a new pipeline statistics query pool.
          *
          *  Note that a query pool preallocates the requested number of queries. This number
          *  cannot be increased after the object is spawned.
@@ -115,32 +63,53 @@ namespace Anvil
          *  @param n_max_concurrent_queries Number of queries to preallocate in the pool.
          *
          **/
-        explicit QueryPool(Anvil::Device*                device_ptr,
-                           VkQueryPipelineStatisticFlags pipeline_statistics,
-                           uint32_t                      n_max_concurrent_queries);
+        static std::shared_ptr<QueryPool> create_ps_query_pool(std::weak_ptr<Anvil::Device>  device_ptr,
+                                                               VkQueryPipelineStatisticFlags pipeline_statistics,
+                                                               uint32_t                      n_max_concurrent_queries);
 
         /** Destructor */
         virtual ~QueryPool();
 
-        /** Retrieves a raw Vulkan handle of the encapsulated query pool */
-        VkQueryPool get_query_pool() const
+        /** Retrieves pool capacity */
+        uint32_t get_capacity() const
         {
-            return dynamic_cast<const QueryPoolWorker*>(get_worker_ptr() )->get_query_pool();
+            return m_n_max_indices;
         }
 
-        /** Returns an unused query index and removes it from the pool. The query index should
-         *  be returned to the pool when no longer used.
-         *
-         *  This function will throw an assertion failure, if the client has already retrieved
-         *  all available queries.
-         *
-         *  NOTE: It is user's responsibility to reset the retrieved query before using it!
-         *
-         **/
-        QueryIndex* pop_query_from_pool();
+        /** Retrieves the raw Vulkan handle of the encapsulated query pool. */
+        VkQueryPool get_query_pool() const
+        {
+            return m_query_pool_vk;
+        }
 
-        /** Returns a user-assigned query back to the pool. */
-        void return_query_to_pool(QueryIndex query_index);
+
+    private:
+        /* Constructor. Please see corresponding create() for specification */
+        explicit QueryPool(std::weak_ptr<Anvil::Device> device_ptr,
+                           VkQueryType                  query_type,
+                           uint32_t                     n_max_concurrent_queries);
+
+        /* Constructor. Please see corresponding create() for specification */
+        explicit QueryPool(std::weak_ptr<Anvil::Device>  device_ptr,
+                           VkQueryPipelineStatisticFlags pipeline_statistics,
+                           uint32_t                      n_max_concurrent_queries);
+        /** TODO
+         *
+         *  @param device_ptr               Device to create the query pool for. Must not be nullptr.
+         *  @param query_type               Type of the query to instantiate the worker for.
+         *  @param ps_flags                 Pipeline Statistic flags to instantiate the worker with.
+         *  @param n_max_concurrent_queries Maximum number of queries which can be used concurrently with
+         *                                  the query pool.
+         **/
+        void init(std::weak_ptr<Anvil::Device>  device_ptr,
+                  VkQueryType                   query_type,
+                  VkQueryPipelineStatisticFlags ps_flags,
+                  uint32_t                      n_max_concurrent_queries);
+
+        /* Private variables */
+        std::weak_ptr<Anvil::Device> m_device_ptr;
+        uint32_t                     m_n_max_indices;
+        VkQueryPool                  m_query_pool_vk;
     };
 }; /* namespace Anvil */
 

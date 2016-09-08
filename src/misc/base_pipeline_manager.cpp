@@ -30,12 +30,11 @@
 #include <algorithm>
 
 /** Please see header for specification */
-Anvil::BasePipelineManager::BasePipelineManager(Anvil::Device*        device_ptr,
-                                                bool                  use_pipeline_cache,
-                                                Anvil::PipelineCache* pipeline_cache_to_reuse_ptr)
-    :m_device_ptr        (device_ptr),
-     m_pipeline_cache_ptr(nullptr),
-     m_pipeline_counter  (0)
+Anvil::BasePipelineManager::BasePipelineManager(std::weak_ptr<Anvil::Device>          device_ptr,
+                                                bool                                  use_pipeline_cache,
+                                                std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr)
+    :m_device_ptr      (device_ptr),
+     m_pipeline_counter(0)
 {
     anvil_assert(!use_pipeline_cache && pipeline_cache_to_reuse_ptr == nullptr ||
                  use_pipeline_cache);
@@ -46,14 +45,12 @@ Anvil::BasePipelineManager::BasePipelineManager(Anvil::Device*        device_ptr
     {
         m_pipeline_cache_ptr   = pipeline_cache_to_reuse_ptr;
         m_use_pipeline_cache   = true;
-
-        pipeline_cache_to_reuse_ptr->retain();
     }
     else
     {
         if (use_pipeline_cache)
         {
-            m_pipeline_cache_ptr = new Anvil::PipelineCache(m_device_ptr);
+            m_pipeline_cache_ptr = Anvil::PipelineCache::create(m_device_ptr);
         }
 
         m_use_pipeline_cache = use_pipeline_cache;
@@ -65,18 +62,11 @@ Anvil::BasePipelineManager::~BasePipelineManager()
 {
     anvil_assert(m_pipelines.size() == 0);
 
-    if (m_pipeline_cache_ptr != nullptr)
-    {
-        m_pipeline_cache_ptr->release();
-
-        m_pipeline_cache_ptr = nullptr;
-    }
-
    if (m_pipeline_layout_manager_ptr != nullptr)
    {
        m_pipeline_layout_manager_ptr->release();
 
-       m_pipeline_layout_manager_ptr = nullptr;
+       m_pipeline_layout_manager_ptr.reset();
    }
 }
 
@@ -89,18 +79,13 @@ void Anvil::BasePipelineManager::Pipeline::release_vulkan_objects()
 {
     if (baked_pipeline != VK_NULL_HANDLE)
     {
-        vkDestroyPipeline(device_ptr->get_device_vk(),
+        std::shared_ptr<Anvil::Device> device_locked_ptr(device_ptr);
+
+        vkDestroyPipeline(device_locked_ptr->get_device_vk(),
                           baked_pipeline,
                           nullptr /* pAllocator */);
 
         baked_pipeline = VK_NULL_HANDLE;
-    }
-
-    if (layout_ptr != nullptr)
-    {
-        layout_ptr->release();
-
-        layout_ptr = nullptr;
     }
 }
 
@@ -306,8 +291,8 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::BasePipelineManager::attach_dsg_to_pipeline(PipelineID                 pipeline_id,
-                                                        Anvil::DescriptorSetGroup* dsg_ptr)
+bool Anvil::BasePipelineManager::attach_dsg_to_pipeline(PipelineID                                 pipeline_id,
+                                                        std::shared_ptr<Anvil::DescriptorSetGroup> dsg_ptr)
 {
     std::shared_ptr<Pipeline> pipeline_ptr;
     bool                      result = false;
@@ -491,11 +476,10 @@ end:
 }
 
 /* Please see header for specification */
-Anvil::PipelineLayout* Anvil::BasePipelineManager::get_pipeline_layout(PipelineID pipeline_id)
+std::shared_ptr<Anvil::PipelineLayout> Anvil::BasePipelineManager::get_pipeline_layout(PipelineID pipeline_id)
 {
-    Anvil::PipelineLayout*   pipeline_layout_ptr = nullptr;
-    std::shared_ptr<Pipeline> pipeline_ptr;
-    Anvil::PipelineLayout*   result_ptr          = nullptr;
+    std::shared_ptr<Pipeline>              pipeline_ptr;
+    std::shared_ptr<Anvil::PipelineLayout> result_ptr;
 
     if (m_pipelines.find(pipeline_id) == m_pipelines.end() )
     {
@@ -517,16 +501,11 @@ Anvil::PipelineLayout* Anvil::BasePipelineManager::get_pipeline_layout(PipelineI
 
     if (pipeline_ptr->layout_dirty)
     {
-        if (pipeline_ptr->layout_ptr != nullptr)
-        {
-            pipeline_ptr->layout_ptr->release();
+        pipeline_ptr->layout_ptr.reset();
 
-            pipeline_ptr->layout_ptr = nullptr;
-        }
-
-        if (!m_pipeline_layout_manager_ptr->get_retained_layout(pipeline_ptr->descriptor_set_groups,
-                                                                pipeline_ptr->push_constant_ranges,
-                                                               &pipeline_ptr->layout_ptr) )
+        if (!m_pipeline_layout_manager_ptr->get_layout(pipeline_ptr->descriptor_set_groups,
+                                                       pipeline_ptr->push_constant_ranges,
+                                                      &pipeline_ptr->layout_ptr) )
         {
             anvil_assert(false);
 

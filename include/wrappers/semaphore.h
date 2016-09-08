@@ -31,22 +31,21 @@
 #ifndef WRAPPERS_SEMAPHORE_H
 #define WRAPPERS_SEMAPHORE_H
 
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
     /* Wrapper class for Vulkan semaphores */
-    class Semaphore : public RefCounterSupportProvider
+    class Semaphore
     {
     public:
         /* Public functions */
 
-        /** Constructor.
-         *
-         *  Creates a single Vulkan semaphore instance and registers the object in Object Tracker.
-         */
-         Semaphore(Anvil::Device* device_ptr);
+        /** Creates a single Vulkan semaphore instance and registers the object in Object Tracker. */
+        static std::shared_ptr<Anvil::Semaphore> create(std::weak_ptr<Anvil::Device> device_ptr);
+
+        /** TODO */
+        virtual ~Semaphore();
 
         /** Retrieves a raw handle to the underlying Vulkan semaphore instance  */
         VkSemaphore get_semaphore() const
@@ -66,30 +65,18 @@ namespace Anvil
 
     private:
         /* Private functions */
+
+        /* Constructor. Please see create() for specification */
+        Semaphore(std::weak_ptr<Anvil::Device> device_ptr);
+
         Semaphore           (const Semaphore&);
         Semaphore& operator=(const Semaphore&);
-
-        /** Destructor.
-         *
-         *  Releases the underlying Vulkan Semaphore instance and signs the wrapper object out from
-         *  the Object Tracker.
-         **/
-        virtual ~Semaphore();
 
         void release_semaphore();
 
         /* Private variables */
-        Anvil::Device* m_device_ptr;
-        VkSemaphore     m_semaphore;
-    };
-
-    /* Delete functor. Useful for wrapping Semaphore instances in auto pointers. */
-    struct SemaphoreDeleter
-    {
-        void operator()(Semaphore* semaphore_ptr)
-        {
-            semaphore_ptr->release();
-        }
+        std::weak_ptr<Anvil::Device> m_device_ptr;
+        VkSemaphore                  m_semaphore;
     };
 }; /* namespace Anvil */
 

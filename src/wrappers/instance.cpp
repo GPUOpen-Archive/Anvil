@@ -50,11 +50,6 @@ Anvil::Instance::Instance(const char*                  app_name,
     ,m_vkGetPhysicalDeviceWin32PresentationSupportKHR(nullptr)
 #endif
 {
-    anvil_assert(app_name    != nullptr);
-    anvil_assert(engine_name != nullptr);
-
-    init();
-
     Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_INSTANCE,
                                                   this);
 }
@@ -62,21 +57,7 @@ Anvil::Instance::Instance(const char*                  app_name,
 /** Please see header for specification */
 Anvil::Instance::~Instance()
 {
-    if (m_debug_callback_data != VK_NULL_HANDLE)
-    {
-        m_vkDestroyDebugReportCallbackEXT(m_instance,
-                                          m_debug_callback_data,
-                                          nullptr /* pAllocator */);
-
-        m_debug_callback_data = VK_NULL_HANDLE;
-    }
-
-    while (m_physical_devices.size() > 0)
-    {
-        m_physical_devices.back()->release();
-
-        m_physical_devices.pop_back();
-    }
+    destroy();
 
     if (m_instance != VK_NULL_HANDLE)
     {
@@ -88,6 +69,30 @@ Anvil::Instance::~Instance()
 
     Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_INSTANCE,
                                                     this);
+}
+
+/** Please see header for specification */
+std::shared_ptr<Anvil::Instance> Anvil::Instance::create(const char*                  app_name,
+                                                         const char*                  engine_name,
+                                                         PFNINSTANCEDEBUGCALLBACKPROC opt_pfn_validation_callback_proc,
+                                                         void*                        validation_proc_user_arg)
+{
+    std::shared_ptr<Anvil::Instance> new_instance_ptr;
+
+    anvil_assert(app_name    != nullptr);
+    anvil_assert(engine_name != nullptr);
+
+    new_instance_ptr = std::shared_ptr<Anvil::Instance>(
+        new Instance(
+            app_name,
+            engine_name,
+            opt_pfn_validation_callback_proc,
+            validation_proc_user_arg)
+    );
+
+    new_instance_ptr->init();
+
+    return new_instance_ptr;
 }
 
 /** Entry-point for the Vulkan loader's debug callbacks.
@@ -112,23 +117,40 @@ VkBool32 VKAPI_PTR Anvil::Instance::debug_callback_pfn_proc(VkDebugReportFlagsEX
                                                         instance_ptr->m_validation_proc_user_arg);
 }
 
+/** Please see header for specification */
+void Anvil::Instance::destroy()
+{
+    if (m_debug_callback_data != VK_NULL_HANDLE)
+    {
+        m_vkDestroyDebugReportCallbackEXT(m_instance,
+                                          m_debug_callback_data,
+                                          nullptr /* pAllocator */);
+
+        m_debug_callback_data = VK_NULL_HANDLE;
+    }
+
+    while (m_physical_devices.size() > 0)
+    {
+        m_physical_devices.back()->destroy();
+    }
+}
+
 /** Enumerates and caches all layers supported by the Vulkan Instance. */
 void Anvil::Instance::enumerate_instance_layers()
 {
-    VkLayerProperties* layer_props_ptr = nullptr;
-    uint32_t           n_layers        = 0;
-    VkResult           result;
+    std::vector<VkLayerProperties> layer_props;
+    uint32_t                       n_layers    = 0;
+    VkResult                       result;
 
     /* Retrieve layer data */
     result = vkEnumerateInstanceLayerProperties(&n_layers,
                                                 nullptr); /* pProperties */
     anvil_assert_vk_call_succeeded(result);
 
-    layer_props_ptr = new VkLayerProperties[n_layers + 1 /* global layer */];
-    anvil_assert(layer_props_ptr != nullptr);
+    layer_props.resize(n_layers + 1 /* global layer */);
 
     result = vkEnumerateInstanceLayerProperties(&n_layers,
-                                                 layer_props_ptr);
+                                               &layer_props[0]);
 
     anvil_assert_vk_call_succeeded(result);
 
@@ -141,17 +163,13 @@ void Anvil::Instance::enumerate_instance_layers()
 
         if (n_layer < n_layers)
         {
-            m_supported_layers.push_back(Anvil::Layer(layer_props_ptr[n_layer]) );
+            m_supported_layers.push_back(Anvil::Layer(layer_props[n_layer]) );
 
             layer_ptr = &m_supported_layers[n_layer];
         }
 
         enumerate_layer_extensions(layer_ptr);
     }
-
-    /* Release the raw layer data */
-    delete [] layer_props_ptr;
-    layer_props_ptr = nullptr;
 }
 
 /** Enumerates all available layer extensions. The enumerated extensions will be stored
@@ -162,13 +180,12 @@ void Anvil::Instance::enumerate_instance_layers()
  **/
 void Anvil::Instance::enumerate_layer_extensions(Anvil::Layer* layer_ptr)
 {
-    VkExtensionProperties* extension_props_ptr = nullptr;
-    uint32_t               n_extensions        = 0;
-    VkResult               result;
+    uint32_t  n_extensions = 0;
+    VkResult  result;
 
     /* Check if the layer supports any extensions  at all*/
     const char* layer_name = (layer_ptr != nullptr) ? layer_ptr->name.c_str()
-                                                 : nullptr;
+                                                    : nullptr;
 
     result = vkEnumerateInstanceExtensionProperties(layer_name,
                                                    &n_extensions,
@@ -177,12 +194,13 @@ void Anvil::Instance::enumerate_layer_extensions(Anvil::Layer* layer_ptr)
 
     if (n_extensions > 0)
     {
-        extension_props_ptr = new VkExtensionProperties[n_extensions];
-        anvil_assert(extension_props_ptr != nullptr);
+        std::vector<VkExtensionProperties> extension_props;
+
+        extension_props.resize(n_extensions);
 
         result = vkEnumerateInstanceExtensionProperties(layer_name,
                                                        &n_extensions,
-                                                        extension_props_ptr);
+                                                       &extension_props[0]);
 
         anvil_assert_vk_call_succeeded(result);
 
@@ -191,21 +209,17 @@ void Anvil::Instance::enumerate_layer_extensions(Anvil::Layer* layer_ptr)
                       n_extension < n_extensions;
                     ++n_extension)
         {
-            layer_ptr->extensions.push_back(Anvil::Extension(extension_props_ptr[n_extension]) );
+            layer_ptr->extensions.push_back(Anvil::Extension(extension_props[n_extension]) );
         }
-
-        /* Release the raw layer data */
-        delete [] extension_props_ptr;
-        extension_props_ptr = nullptr;
     }
 }
 
 /** Enumerates and caches all available physical devices. */
 void Anvil::Instance::enumerate_physical_devices()
 {
-    VkPhysicalDevice* devices            = nullptr;
-    uint32_t          n_physical_devices = 0;
-    VkResult          result;
+    std::vector<VkPhysicalDevice> devices;
+    uint32_t                      n_physical_devices = 0;
+    VkResult                      result;
 
     /* Retrieve physical device handles */
     result = vkEnumeratePhysicalDevices(m_instance,
@@ -229,12 +243,11 @@ void Anvil::Instance::enumerate_physical_devices()
 #endif
     }
 
-    devices = new VkPhysicalDevice[n_physical_devices];
-    anvil_assert(devices != nullptr);
+    devices.resize(n_physical_devices);
 
     result = vkEnumeratePhysicalDevices(m_instance,
                                        &n_physical_devices,
-                                        devices);
+                                       &devices[0]);
     anvil_assert_vk_call_succeeded(result);
 
     /* Fill out internal physical device descriptors */
@@ -242,14 +255,12 @@ void Anvil::Instance::enumerate_physical_devices()
                       n_physical_device < n_physical_devices;
                     ++n_physical_device)
     {
-        m_physical_devices.push_back(new Anvil::PhysicalDevice(this,
-                                                                n_physical_device,
-                                                                devices[n_physical_device]) );
-    }
+        std::shared_ptr<Anvil::PhysicalDevice> new_physical_device_ptr;
 
-    /* Clean up */
-    delete [] devices;
-    devices = nullptr;
+        Anvil::PhysicalDevice::create(shared_from_this(),
+                                      n_physical_device,
+                                      devices[n_physical_device]);
+    }
 }
 
 /** Initializes the wrapper. */
@@ -335,7 +346,7 @@ void Anvil::Instance::init()
                        ++n_instance_layer)
             {
                 const std::vector<Anvil::Extension>& layer_extensions = m_supported_layers[n_instance_layer].extensions;
-                const std::string&                    layer_name       = m_supported_layers[n_instance_layer].name;
+                const std::string&                   layer_name       = m_supported_layers[n_instance_layer].name;
 
                 /* Is this really a validation layer? */
                 if (std::find(layer_extensions.begin(),
@@ -455,4 +466,34 @@ bool Anvil::Instance::is_instance_extension_supported(const char* extension_name
     return std::find(m_extensions.begin(),
                      m_extensions.end(),
                      extension_name) != m_extensions.end();
+}
+
+/** Please see header for specification */
+void Anvil::Instance::register_physical_device(std::shared_ptr<Anvil::PhysicalDevice> physical_device_ptr)
+{
+    auto iterator = std::find(m_physical_devices.begin(),
+                              m_physical_devices.end(),
+                              physical_device_ptr);
+
+    anvil_assert(iterator == m_physical_devices.end() );
+
+    if (iterator == m_physical_devices.end() )
+    {
+        m_physical_devices.push_back(physical_device_ptr);
+    }
+}
+
+/** Please see header for specification */
+void Anvil::Instance::unregister_physical_device(std::shared_ptr<Anvil::PhysicalDevice> physical_device_ptr)
+{
+    auto iterator = std::find(m_physical_devices.begin(),
+                              m_physical_devices.end(),
+                              physical_device_ptr);
+
+    anvil_assert(iterator != m_physical_devices.end() );
+
+    if (iterator != m_physical_devices.end() )
+    {
+        m_physical_devices.erase(iterator);
+    }
 }

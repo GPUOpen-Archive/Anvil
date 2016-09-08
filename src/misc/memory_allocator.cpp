@@ -28,14 +28,13 @@
 
 
 /* Please see header for specification */
-Anvil::MemoryAllocator::MemoryAllocator(Anvil::Device* device_ptr,
-                                        bool           mappable_memory_required,
-                                        bool           coherent_memory_required)
+Anvil::MemoryAllocator::MemoryAllocator(std::weak_ptr<Anvil::Device> device_ptr,
+                                        bool                         mappable_memory_required,
+                                        bool                         coherent_memory_required)
     :m_device_ptr              (device_ptr),
      m_is_baked                (false),
      m_coherent_memory_required(coherent_memory_required),
      m_mappable_memory_required(mappable_memory_required),
-     m_memory_block_ptr        (nullptr),
      m_needed_memory_size      (0)
 {
     /* Stub */
@@ -44,17 +43,22 @@ Anvil::MemoryAllocator::MemoryAllocator(Anvil::Device* device_ptr,
 /* Please see header for specification */
 Anvil::MemoryAllocator::~MemoryAllocator()
 {
-    if (m_memory_block_ptr != nullptr)
+    if (!m_is_baked         &&
+         m_items.size() > 0)
     {
-        m_memory_block_ptr->release();
-
-        m_memory_block_ptr = nullptr;
+        bake();
     }
 }
 
 
-/* Please see header for specification */
-void Anvil::MemoryAllocator::add_buffer(Anvil::Buffer* buffer_ptr)
+/** Please see header for specification */
+void Anvil::MemoryAllocator::add_buffer(std::shared_ptr<Anvil::Buffer> buffer_ptr)
+{
+    add_buffer_internal(buffer_ptr);
+}
+
+/** TODO */
+void Anvil::MemoryAllocator::add_buffer_internal(std::shared_ptr<Anvil::Buffer> buffer_ptr)
 {
     VkDeviceSize buffer_alignment    = 0;
     uint32_t     buffer_memory_types = 0;
@@ -76,7 +80,11 @@ void Anvil::MemoryAllocator::add_buffer(Anvil::Buffer* buffer_ptr)
 
     anvil_assert((m_needed_memory_size % buffer_alignment) == 0);
 
-    /* Store a new block item descriptor */
+    /* Store a new block item descriptor.
+     *
+     * NOTE: It is caller's responsibility to update the data* fields, if any data should be written
+     *       to the alloc'ed space.
+     */
     m_items.push_back(Item(buffer_ptr,
                            m_needed_memory_size,
                            buffer_storage_size,
@@ -86,7 +94,67 @@ void Anvil::MemoryAllocator::add_buffer(Anvil::Buffer* buffer_ptr)
 }
 
 /* Please see header for specification */
-void Anvil::MemoryAllocator::add_image(Anvil::Image* image_ptr)
+void Anvil::MemoryAllocator::add_buffer_with_float_data_ptr_based_post_fill(std::shared_ptr<Anvil::Buffer> buffer_ptr,
+                                                                            std::shared_ptr<float>         data_ptr)
+{
+    add_buffer_internal(buffer_ptr);
+
+    m_items.back().buffer_ref_float_data_ptr = data_ptr;
+}
+
+/* Please see header for specification */
+void Anvil::MemoryAllocator::add_buffer_with_float_data_vector_ptr_based_post_fill(std::shared_ptr<Anvil::Buffer>        buffer_ptr,
+                                                                                    std::shared_ptr<std::vector<float> > data_vector_ptr)
+{
+    anvil_assert(data_vector_ptr->size() * sizeof(float) == buffer_ptr->get_size() );
+
+    add_buffer_internal(buffer_ptr);
+
+    m_items.back().buffer_ref_float_vector_data_ptr = data_vector_ptr;
+}
+
+/* Please see header for specification */
+void Anvil::MemoryAllocator::add_buffer_with_uchar8_data_ptr_based_post_fill(std::shared_ptr<Anvil::Buffer> buffer_ptr,
+                                                                             std::shared_ptr<unsigned char> data_ptr)
+{
+    add_buffer_internal(buffer_ptr);
+
+    m_items.back().buffer_ref_uchar8_data_ptr = data_ptr;
+}
+
+/* Please see header for specification */
+void Anvil::MemoryAllocator::add_buffer_with_uchar8_data_vector_ptr_based_post_fill(std::shared_ptr<Anvil::Buffer>               buffer_ptr,
+                                                                                    std::shared_ptr<std::vector<unsigned char> > data_vector_ptr)
+{
+    anvil_assert(data_vector_ptr->size() == buffer_ptr->get_size() );
+
+    add_buffer_internal(buffer_ptr);
+
+    m_items.back().buffer_ref_uchar8_vector_data_ptr = data_vector_ptr;
+}
+
+/* Please see header for specification */
+void Anvil::MemoryAllocator::add_buffer_with_uint32_data_ptr_based_post_fill(std::shared_ptr<Anvil::Buffer> buffer_ptr,
+                                                                             std::shared_ptr<uint32_t>      data_ptr)
+{
+    add_buffer_internal(buffer_ptr);
+
+    m_items.back().buffer_ref_uint32_data_ptr = data_ptr;
+}
+
+/* Please see header for specification */
+void Anvil::MemoryAllocator::add_buffer_with_uint32_data_vector_ptr_based_post_fill(std::shared_ptr<Anvil::Buffer>          buffer_ptr,
+                                                                                    std::shared_ptr<std::vector<uint32_t> > data_vector_ptr)
+{
+    anvil_assert(data_vector_ptr->size() * sizeof(uint32_t) == buffer_ptr->get_size() );
+
+    add_buffer_internal(buffer_ptr);
+
+    m_items.back().buffer_ref_uint32_vector_data_ptr = data_vector_ptr;
+}
+
+/** TODO */
+void Anvil::MemoryAllocator::add_image(std::shared_ptr<Anvil::Image> image_ptr)
 {
     VkDeviceSize image_alignment    = 0;
     uint32_t     image_memory_types = 0;
@@ -145,28 +213,73 @@ bool Anvil::MemoryAllocator::bake()
     }
 
     /* Allocate the required memory region .. */
-    m_memory_block_ptr = new Anvil::MemoryBlock(m_device_ptr,
-                                                allowed_memory_types,
-                                                m_needed_memory_size,
-                                                m_mappable_memory_required,
-                                                m_coherent_memory_required);
+    m_memory_block_ptr = Anvil::MemoryBlock::create(m_device_ptr,
+                                                    allowed_memory_types,
+                                                    m_needed_memory_size,
+                                                    m_mappable_memory_required,
+                                                    m_coherent_memory_required);
 
     /* Distribute memory regions to the registered objects */
-    for (auto item_iterator  = m_items.cbegin();
-              item_iterator != m_items.cend();
+    for (auto item_iterator  = m_items.begin();
+              item_iterator != m_items.end();
             ++item_iterator)
     {
-        Anvil::MemoryBlock* memory_block_ptr = new Anvil::MemoryBlock(m_memory_block_ptr,
-                                                                      item_iterator->alloc_offset,
-                                                                      item_iterator->alloc_size);
+        std::shared_ptr<Anvil::MemoryBlock> memory_block_ptr;
+
+        memory_block_ptr = Anvil::MemoryBlock::create_derived(m_memory_block_ptr,
+                                                              item_iterator->alloc_offset,
+                                                              item_iterator->alloc_size);
 
         switch (item_iterator->type)
         {
             case ITEM_TYPE_BUFFER:
             {
+                const VkDeviceSize buffer_size = item_iterator->buffer_ptr->get_size();
+
                 item_iterator->buffer_ptr->set_memory(memory_block_ptr);
 
-                memory_block_ptr->release();
+                if (item_iterator->buffer_ref_float_data_ptr != nullptr)
+                {
+                    item_iterator->buffer_ptr->write(0, /* start_offset */
+                                                     buffer_size,
+                                                     item_iterator->buffer_ref_float_data_ptr.get() );
+                }
+                else
+                if (item_iterator->buffer_ref_float_vector_data_ptr != nullptr)
+                {
+                    item_iterator->buffer_ptr->write(0, /* start_offset */
+                                                     buffer_size,
+                                                    &(*item_iterator->buffer_ref_float_vector_data_ptr)[0]);
+                }
+                else
+                if (item_iterator->buffer_ref_uchar8_data_ptr != nullptr)
+                {
+                    item_iterator->buffer_ptr->write(0, /* start_offset */
+                                                     buffer_size,
+                                                     item_iterator->buffer_ref_uchar8_data_ptr.get() );
+                }
+                else
+                if (item_iterator->buffer_ref_uchar8_vector_data_ptr != nullptr)
+                {
+                    item_iterator->buffer_ptr->write(0, /* start_offset */
+                                                     buffer_size,
+                                                    &(*item_iterator->buffer_ref_uchar8_vector_data_ptr)[0]);
+                }
+                else
+                if (item_iterator->buffer_ref_uint32_data_ptr != nullptr)
+                {
+                    item_iterator->buffer_ptr->write(0, /* start_offset */
+                                                     buffer_size,
+                                                     item_iterator->buffer_ref_uint32_data_ptr.get() );
+                }
+                else
+                if (item_iterator->buffer_ref_uint32_vector_data_ptr != nullptr)
+                {
+                    item_iterator->buffer_ptr->write(0, /* start_offset */
+                                                     buffer_size,
+                                                    &(*item_iterator->buffer_ref_uint32_vector_data_ptr)[0]);
+                }
+
                 break;
             }
 
@@ -174,7 +287,6 @@ bool Anvil::MemoryAllocator::bake()
             {
                 item_iterator->image_ptr->set_memory(memory_block_ptr);
 
-                memory_block_ptr->release();
                 break;
             }
 
@@ -185,8 +297,24 @@ bool Anvil::MemoryAllocator::bake()
         }
     }
 
+    m_items.clear();
     m_is_baked = true;
 end:
     return result;
 }
 
+/* Please see header for specification */
+std::shared_ptr<Anvil::MemoryAllocator> Anvil::MemoryAllocator::create(std::weak_ptr<Anvil::Device> device_ptr,
+                                                                       bool                         mappable_memory_required,
+                                                                       bool                         coherent_memory_required)
+{
+    std::shared_ptr<MemoryAllocator> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::MemoryAllocator(device_ptr,
+                                   mappable_memory_required,
+                                   coherent_memory_required)
+    );
+
+    return result_ptr;
+}

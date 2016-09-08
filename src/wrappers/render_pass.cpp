@@ -31,19 +31,14 @@
 
 
 /** Contsructor. Initializes the Renderpass instance with default values. */
-Anvil::RenderPass::RenderPass(Anvil::Device*    device_ptr,
-                              Anvil::Swapchain* opt_swapchain_ptr)
+Anvil::RenderPass::RenderPass(std::weak_ptr<Anvil::Device>      device_ptr,
+                              std::shared_ptr<Anvil::Swapchain> opt_swapchain_ptr)
     :CallbacksSupportProvider(RENDER_PASS_CALLBACK_ID_COUNT),
      m_device_ptr    (device_ptr),
      m_dirty         (false),
      m_render_pass   (VK_NULL_HANDLE),
      m_swapchain_ptr (opt_swapchain_ptr)
 {
-    if (m_swapchain_ptr != nullptr)
-    {
-        m_swapchain_ptr->retain();
-    }
-
     /* Register the object */
     Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_RENDER_PASS,
                                                   this);
@@ -54,7 +49,9 @@ Anvil::RenderPass::~RenderPass()
 {
     if (m_render_pass != VK_NULL_HANDLE)
     {
-        vkDestroyRenderPass(m_device_ptr->get_device_vk(),
+        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
+        vkDestroyRenderPass(device_locked_ptr->get_device_vk(),
                             m_render_pass,
                             nullptr /* pAllocator */);
 
@@ -70,12 +67,7 @@ Anvil::RenderPass::~RenderPass()
         m_subpasses.erase(iterator);
     }
 
-    if (m_swapchain_ptr != nullptr)
-    {
-        m_swapchain_ptr->release();
-
-        m_swapchain_ptr = nullptr;
-    }
+    m_swapchain_ptr = nullptr;
 
     /* Unregister the object */
     Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_RENDER_PASS,
@@ -310,16 +302,18 @@ bool Anvil::RenderPass::add_subpass(const ShaderModuleStageEntryPoint& fragment_
 
     if (opt_pipeline_id == -1)
     {
-        m_device_ptr->get_graphics_pipeline_manager()->add_regular_pipeline(false, /* disable_optimizations */
-                                                                            false, /* allow_derivatives */
-                                                                            this,
-                                                                            new_subpass_index,
-                                                                            fragment_shader_entrypoint,
-                                                                            geometry_shader_entrypoint,
-                                                                            tess_control_shader_entrypoint,
-                                                                            tess_evaluation_shader_entrypoint,
-                                                                            vertex_shader_entrypoint,
-                                                                           &new_subpass_pipeline_id);
+        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+
+        device_locked_ptr->get_graphics_pipeline_manager()->add_regular_pipeline(false, /* disable_optimizations */
+                                                                                 false, /* allow_derivatives     */
+                                                                                 shared_from_this(),
+                                                                                 new_subpass_index,
+                                                                                 fragment_shader_entrypoint,
+                                                                                 geometry_shader_entrypoint,
+                                                                                 tess_control_shader_entrypoint,
+                                                                                 tess_evaluation_shader_entrypoint,
+                                                                                 vertex_shader_entrypoint,
+                                                                                &new_subpass_pipeline_id);
     }
     else
     {
@@ -476,8 +470,8 @@ bool Anvil::RenderPass::add_subpass_color_attachment(SubPassID                  
 
 /* Please see header for specification */
 bool Anvil::RenderPass::add_subpass_depth_stencil_attachment(SubPassID              subpass_id,
-                                                              RenderPassAttachmentID attachment_id,
-                                                              VkImageLayout          layout)
+                                                             RenderPassAttachmentID attachment_id,
+                                                             VkImageLayout          layout)
 {
     RenderPassAttachment* attachment_ptr = nullptr;
     bool                  result         = false;
@@ -614,6 +608,7 @@ end:
 /* Please see header for specification */
 bool Anvil::RenderPass::bake()
 {
+    std::shared_ptr<Anvil::Device>       device_locked_ptr(m_device_ptr);
     std::vector<VkAttachmentDescription> renderpass_color_attachments_vk;
     VkRenderPassCreateInfo               render_pass_create_info;
     bool                                 result = false;
@@ -683,7 +678,7 @@ bool Anvil::RenderPass::bake()
     /* If this is not first baking request, release the previously created render pass instance */
     if (m_render_pass != VK_NULL_HANDLE)
     {
-        vkDestroyRenderPass(m_device_ptr->get_device_vk(),
+        vkDestroyRenderPass(device_locked_ptr->get_device_vk(),
                             m_render_pass,
                             nullptr /* pAllocator */);
 
@@ -893,7 +888,7 @@ bool Anvil::RenderPass::bake()
                                                                                          : nullptr;
     render_pass_create_info.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 
-    result_vk = vkCreateRenderPass(m_device_ptr->get_device_vk(),
+    result_vk = vkCreateRenderPass(device_locked_ptr->get_device_vk(),
                                   &render_pass_create_info,
                                    nullptr, /* pAllocator */
                                   &m_render_pass);
@@ -919,6 +914,20 @@ end:
         subpass_attachment_sets.pop_back();
     }
     return result;
+}
+
+/* Please see header for specification */
+std::shared_ptr<Anvil::RenderPass> Anvil::RenderPass::create(std::weak_ptr<Anvil::Device>      device_ptr,
+                                                             std::shared_ptr<Anvil::Swapchain> opt_swapchain_ptr)
+{
+    std::shared_ptr<RenderPass> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::RenderPass(device_ptr,
+                              opt_swapchain_ptr)
+    );
+
+    return result_ptr;
 }
 
 /** Creates a VkAttachmentReference descriptor from the specified RenderPassAttachment instance.
@@ -1148,7 +1157,8 @@ end:
 bool Anvil::RenderPass::set_subpass_graphics_pipeline_id(SubPassID          subpass_id,
                                                          GraphicsPipelineID new_graphics_pipeline_id)
 {
-    bool result = false;
+    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+    bool                           result = false;
 
     if (m_subpasses.size() <= subpass_id)
     {
@@ -1163,7 +1173,7 @@ bool Anvil::RenderPass::set_subpass_graphics_pipeline_id(SubPassID          subp
     }
 
     /* Remove the former graphics pipeline. */
-    if (!m_device_ptr->get_graphics_pipeline_manager()->delete_pipeline(m_subpasses[subpass_id]->pipeline_id) )
+    if (!device_locked_ptr->get_graphics_pipeline_manager()->delete_pipeline(m_subpasses[subpass_id]->pipeline_id) )
     {
         anvil_assert(false);
     }
@@ -1366,6 +1376,15 @@ Anvil::RenderPass::SubPass::~SubPass()
 {
     if (pipeline_id != -1)
     {
-        device_ptr->get_graphics_pipeline_manager()->delete_pipeline(pipeline_id);
+        std::shared_ptr<Anvil::Device>                device_locked_ptr       (device_ptr);
+        std::weak_ptr<Anvil::GraphicsPipelineManager> gfx_pipeline_manager_ptr(device_locked_ptr->get_graphics_pipeline_manager() );
+
+        /* If this subpass is being automatically destroyed as a part of gfx pipeline manager destruction, the weak pointer
+         * will have become expired. Since pipelines are automatically destroyed as well, only delete the pipeline, if the
+         * manager is still around. */
+        if (!gfx_pipeline_manager_ptr.expired() )
+        {
+            gfx_pipeline_manager_ptr.lock()->delete_pipeline(pipeline_id);
+        }
     }
 }

@@ -31,13 +31,12 @@
 #ifndef WRAPPERS_DEVICE_H
 #define WRAPPERS_DEVICE_H
 
-#include "misc/ref_counter.h"
 #include "misc/types.h"
 #include <algorithm>
 
 namespace Anvil
 {
-    class Device : public RefCounterSupportProvider
+    class Device : public std::enable_shared_from_this<Device>
     {
     public:
         /* Public functions */
@@ -48,6 +47,8 @@ namespace Anvil
          *  - a compute & a graphics pipeline manager;
          *  - a pipeline cache;
          *  - a Queue instance for each command queue supported by the driver;
+         *
+         *  To release a device instance, please call destroy().
          *
          *  @param physical_device_ptr                      Physical device to create this device from. Must not be nullptr.
          *  @param extensions                               A vector of extension names to be used when creating the device.
@@ -62,11 +63,11 @@ namespace Anvil
          *
          *  @return A new Device instance.
          **/
-        Device(Anvil::PhysicalDevice*          physical_device_ptr,
-               const std::vector<const char*>& extensions,
-               const std::vector<const char*>& layers,
-               bool                            transient_command_buffer_allocs_only,
-               bool                            support_resettable_command_buffer_allocs);
+        static std::weak_ptr<Anvil::Device> create(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                                                   const std::vector<const char*>&      extensions,
+                                                   const std::vector<const char*>&      layers,
+                                                   bool                                 transient_command_buffer_allocs_only,
+                                                   bool                                 support_resettable_command_buffer_allocs);
 
         /** Creates a new swapchain instance for the device.
          *
@@ -79,12 +80,15 @@ namespace Anvil
          *
          *  @return A new Swapchain instance.
          **/
-        Anvil::Swapchain* create_swapchain(Anvil::RenderingSurface* parent_surface_ptr,
-                                           Anvil::Window*           window_ptr,
-                                           VkFormat                 image_format,
-                                           VkPresentModeKHR         present_mode,
-                                           VkImageUsageFlags        usage,
-                                           uint32_t                 n_swapchain_images);
+        std::shared_ptr<Anvil::Swapchain> create_swapchain(std::shared_ptr<Anvil::RenderingSurface> parent_surface_ptr,
+                                                           std::shared_ptr<Anvil::Window>           window_ptr,
+                                                           VkFormat                                 image_format,
+                                                           VkPresentModeKHR                         present_mode,
+                                                           VkImageUsageFlags                        usage,
+                                                           uint32_t                                 n_swapchain_images);
+
+        /** TODO */
+        void destroy();
 
         /** Retrieves a command pool, created for the specified queue family type.
          *
@@ -92,7 +96,7 @@ namespace Anvil
          *
          *  @return As per description
          **/
-        Anvil::CommandPool* get_command_pool(Anvil::QueueFamilyType queue_family_type) const
+        std::shared_ptr<Anvil::CommandPool> get_command_pool(Anvil::QueueFamilyType queue_family_type) const
         {
             return m_command_pool_ptrs[queue_family_type];
         }
@@ -101,7 +105,7 @@ namespace Anvil
          *
          *  @return As per description
          **/
-        Anvil::ComputePipelineManager* get_compute_pipeline_manager() const
+        std::shared_ptr<Anvil::ComputePipelineManager> get_compute_pipeline_manager() const
         {
             return m_compute_pipeline_manager_ptr;
         }
@@ -112,9 +116,9 @@ namespace Anvil
          *
          *  @return As per description
          **/
-        Anvil::Queue* get_compute_queue(uint32_t n_queue) const
+        std::shared_ptr<Anvil::Queue> get_compute_queue(uint32_t n_queue) const
         {
-            Anvil::Queue* result_ptr = nullptr;
+            std::shared_ptr<Anvil::Queue> result_ptr;
 
             if (m_compute_queues.size() > n_queue)
             {
@@ -137,20 +141,26 @@ namespace Anvil
          *
          *  Do NOT release. This object is owned by Device and will be released at object tear-down time.
          **/
-        Anvil::DescriptorSet* get_dummy_descriptor_set() const;
+        std::shared_ptr<Anvil::DescriptorSet> get_dummy_descriptor_set() const;
 
         /** Retrieves a DescriptorSetLayout instance, which encapsulates a single descriptor set layout,
          *  which holds 1 descriptor set holding 0 descriptors.
          *
          *  Do NOT release. This object is owned by Device and will be released at object tear-down time.
          **/
-        Anvil::DescriptorSetLayout* get_dummy_descriptor_set_layout() const;
+        std::shared_ptr<Anvil::DescriptorSetLayout> get_dummy_descriptor_set_layout() const;
+
+        /** Returns a container with entry-points to functions introduced by VK_AMD_draw_indirect_count extension.
+         *
+         *  Will fire an assertion failure if the extension was not requested at device creation time.
+         **/
+        const ExtensionAMDDrawIndirectCountEntrypoints& get_extension_amd_draw_indirect_count_entrypoints() const;
 
         /** Retrieves a graphics pipeline manager, created for this device instance.
          *
          *  @return As per description
          **/
-        Anvil::GraphicsPipelineManager* get_graphics_pipeline_manager() const
+        std::shared_ptr<Anvil::GraphicsPipelineManager> get_graphics_pipeline_manager() const
         {
             return m_graphics_pipeline_manager_ptr;
         }
@@ -212,7 +222,7 @@ namespace Anvil
          *
          *  @return As per description
          **/
-        Anvil::PhysicalDevice* get_physical_device() const
+        std::weak_ptr<Anvil::PhysicalDevice> get_physical_device() const
         {
             return m_parent_physical_device_ptr;
         }
@@ -221,7 +231,7 @@ namespace Anvil
          *
          *  @return As per description
          **/
-        Anvil::PipelineCache* get_pipeline_cache() const
+        std::shared_ptr<Anvil::PipelineCache> get_pipeline_cache() const
         {
             return m_pipeline_cache_ptr;
         }
@@ -254,9 +264,9 @@ namespace Anvil
          *
          *  @return As per description
          **/
-        Anvil::Queue* get_transfer_queue(uint32_t n_queue) const
+        std::shared_ptr<Anvil::Queue> get_transfer_queue(uint32_t n_queue) const
         {
-            Anvil::Queue* result_ptr = nullptr;
+            std::shared_ptr<Anvil::Queue> result_ptr;
 
             if (m_transfer_queues.size() > n_queue)
             {
@@ -272,9 +282,9 @@ namespace Anvil
          *
          *  @return As per description
          **/
-        Anvil::Queue* get_universal_queue(uint32_t n_queue) const
+        std::shared_ptr<Anvil::Queue> get_universal_queue(uint32_t n_queue) const
         {
-            Anvil::Queue* result_ptr = nullptr;
+            std::shared_ptr<Anvil::Queue> result_ptr;
 
             if (m_universal_queues.size() > n_queue)
             {
@@ -298,50 +308,59 @@ namespace Anvil
         }
 
     private:
+        /* Private type definitions */
+        struct DeviceDeleter
+        {
+            void operator()(Device* device_ptr)
+            {
+                delete device_ptr;
+            }
+        };
+
         /* Private functions */
         virtual ~Device();
 
-        void get_queue_family_indices(uint32_t* out_compute_queue_family_index_ptr,
-                                      uint32_t* out_n_compute_queues_available_ptr,
-                                      uint32_t* out_universal_queue_family_index_ptr,
-                                      uint32_t* out_n_universal_queues_available_ptr,
-                                      uint32_t* out_dma_queue_family_index_ptr,
-                                      uint32_t* out_n_dma_queues_available_ptr) const;
+        /** Private constructor. Please use create() instead. */
+        Device(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr);
+
+        void get_queue_family_indices(uint32_t*                       out_compute_queue_family_index_ptr,
+                                      uint32_t*                       out_n_compute_queues_available_ptr,
+                                      uint32_t*                       out_universal_queue_family_index_ptr,
+                                      uint32_t*                       out_n_universal_queues_available_ptr,
+                                      uint32_t*                       out_dma_queue_family_index_ptr,
+                                      uint32_t*                       out_n_dma_queues_available_ptr) const;
+        void init                    (const std::vector<const char*>& extensions,
+                                      const std::vector<const char*>& layers,
+                                      bool                            transient_command_buffer_allocs_only,
+                                      bool                            support_resettable_command_buffer_allocs);
 
         Device& operator=(const Device&);
         Device           (const Device&);
 
         /* Private variables */
-        Anvil::ComputePipelineManager*  m_compute_pipeline_manager_ptr;
-        VkDevice                        m_device;
-        Anvil::DescriptorSetGroup*      m_dummy_dsg_ptr;
-        std::vector<std::string>        m_enabled_extensions;
-        Anvil::GraphicsPipelineManager* m_graphics_pipeline_manager_ptr;
-        Anvil::PhysicalDevice*          m_parent_physical_device_ptr;
-        Anvil::PipelineCache*           m_pipeline_cache_ptr;
+        bool m_destroyed;
 
-        Anvil::CommandPool* m_command_pool_ptrs[Anvil::QUEUE_FAMILY_TYPE_COUNT];
+        std::shared_ptr<Anvil::ComputePipelineManager>  m_compute_pipeline_manager_ptr;
+        VkDevice                                        m_device;
+        std::shared_ptr<Anvil::DescriptorSetGroup>      m_dummy_dsg_ptr;
+        std::vector<std::string>                        m_enabled_extensions;
+        std::shared_ptr<Anvil::GraphicsPipelineManager> m_graphics_pipeline_manager_ptr;
+        std::weak_ptr<Anvil::PhysicalDevice>            m_parent_physical_device_ptr;
+        std::shared_ptr<Anvil::PipelineCache>           m_pipeline_cache_ptr;
 
-        std::vector<Anvil::Queue*> m_compute_queues;
-        std::vector<Anvil::Queue*> m_transfer_queues;
-        std::vector<Anvil::Queue*> m_universal_queues;
+        std::shared_ptr<Anvil::CommandPool> m_command_pool_ptrs[Anvil::QUEUE_FAMILY_TYPE_COUNT];
 
-        /* VK_KHR_device_swapchain function pointers */
-        PFN_vkAcquireNextImageKHR   m_vkAcquireNextImageKHR;
-        PFN_vkCreateSwapchainKHR    m_vkCreateSwapchainKHR;
-        PFN_vkDestroySwapchainKHR   m_vkDestroySwapchainKHR;
-        PFN_vkGetSwapchainImagesKHR m_vkGetSwapchainImagesKHR;
-        PFN_vkQueuePresentKHR       m_vkQueuePresentKHR;
+        std::vector<std::shared_ptr<Anvil::Queue> > m_compute_queues;
+        std::vector<std::shared_ptr<Anvil::Queue> > m_transfer_queues;
+        std::vector<std::shared_ptr<Anvil::Queue> > m_universal_queues;
+
+        /* Extension containers */
+        ExtensionAMDDrawIndirectCountEntrypoints m_amd_draw_indirect_count_extension_entrypoints;
+        ExtensionKHRDeviceSwapchainEntrypoints   m_khr_device_swapchain_entrypoints;
+
+        friend struct DeviceDeleter;
     };
 
-    /** Delete functor. Useful if you need to wrap the device instance in an auto pointer */
-    struct DeviceDeleter
-    {
-        void operator()(Device* device_ptr) const
-        {
-            device_ptr->release();
-        }
-    };
 }; /* namespace Anvil */
 
 #endif /* WRAPPERS_DEVICE_H */
