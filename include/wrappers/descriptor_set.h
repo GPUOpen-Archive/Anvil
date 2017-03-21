@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -247,7 +247,10 @@ namespace Anvil
 
         /* Public functions */
 
-        /** TODO */
+        /** Destructor.
+         *
+         *  Unregisters the object from the object tracker.
+         **/
         virtual ~DescriptorSet();
 
         /** Updates internally-maintained Vulkan descriptor set instances.
@@ -264,7 +267,7 @@ namespace Anvil
          *  @param layout_ptr      Layout which has been used at descriptor set construction time.
          *  @param descriptor_set  Raw Vulkan handle the wrapper instance is being created for.
          **/
-        static std::shared_ptr<DescriptorSet> create(std::weak_ptr<Anvil::Device>                device_ptr,
+        static std::shared_ptr<DescriptorSet> create(std::weak_ptr<Anvil::BaseDevice>            device_ptr,
                                                      std::shared_ptr<Anvil::DescriptorPool>      parent_pool_ptr,
                                                      std::shared_ptr<Anvil::DescriptorSetLayout> layout_ptr,
                                                      VkDescriptorSet                             descriptor_set);
@@ -288,6 +291,12 @@ namespace Anvil
             return m_descriptor_set;
         }
 
+        /** Returns a descriptor set layout wrapper instance, assigned to the descriptor set wrapper */
+        std::shared_ptr<Anvil::DescriptorSetLayout> get_descriptor_set_layout() const
+        {
+            return m_layout_ptr;
+        }
+
         /** Returns information about the number of bindings described by the descriptor set. */
         uint32_t get_n_bindings() const
         {
@@ -298,8 +307,9 @@ namespace Anvil
          *  at index @param binding_index for descriptor set @param n_set.
          *  Each binding can hold one or more objects. Which slots the specified objects should take can
          *  be configured by passing the right values to @param element_range.
-         *  Objects are passed via @param elements argument. The argument must be one of the following
-         *  types, depending on what object is to be attached to the specified descriptor binding:
+         *  Objects are passed via @param elements argument. The argument must be passed an object of
+         *  one of the following types, depending on what object is to be attached to the specified
+         *  descriptor binding:
          *
          *  CombinedImageSamplerBindingElement - for combined image+sampler bindings.
          *  DynamicStorageBufferBindingElement - for dynamic storage buffer bindings.
@@ -471,7 +481,7 @@ namespace Anvil
         /* Private functions */
 
         /** Please see create() documentation for argument discussion */
-        DescriptorSet(std::weak_ptr<Anvil::Device>                device_ptr,
+        DescriptorSet(std::weak_ptr<Anvil::BaseDevice>            device_ptr,
                       std::shared_ptr<Anvil::DescriptorPool>      parent_pool_ptr,
                       std::shared_ptr<Anvil::DescriptorSetLayout> layout_ptr,
                       VkDescriptorSet                             descriptor_set);
@@ -489,7 +499,7 @@ namespace Anvil
         /* Private variables */
         BindingIndexToBindingItemsMap               m_bindings;
         VkDescriptorSet                             m_descriptor_set;
-        std::weak_ptr<Anvil::Device>                m_device_ptr;
+        std::weak_ptr<Anvil::BaseDevice>            m_device_ptr;
         bool                                        m_dirty;
         std::shared_ptr<Anvil::DescriptorSetLayout> m_layout_ptr;
         bool                                        m_unusable;

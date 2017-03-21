@@ -4,14 +4,8 @@ project (Anvil)
 option(ANVIL_LINK_WITH_GLSLANG "Links with glslang, instead of spawning a new process whenever GLSL->SPIR-V conversion is required" ON)
 
 
-
-# Do not modify after this line, unless you know what you're doing.
+# Do not modify anything after this line, unless you know what you're doing.
 configure_file("include/config.h.in" "${Anvil_SOURCE_DIR}/include/config.h")
-
-if (MSVC)
-    ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
-endif(MSVC)
-
 
 include_directories("$(Anvil_SOURCE_DIR)/deps"
                     "$(Anvil_SOURCE_DIR)/include")
@@ -28,8 +22,8 @@ if (WIN32)
                                 $ENV{VULKAN_SDK}/Bin32)
     endif()
 else()
-    include_directories($ENV{VK_SDK_PATH}/x86_64/include/vulkan
-                        $ENV{VULKAN_SDK}/x86_64/include/vulkan)
+    include_directories($ENV{VK_SDK_PATH}/x86_64/include
+                        $ENV{VULKAN_SDK}/x86_64/include)
     link_directories   ($ENV{VK_SDK_PATH}/x86_64/lib
                         $ENV{VULKAN_SDK}/x86_64/lib)
 endif()
@@ -39,10 +33,12 @@ SET (SRC_LIST            "${Anvil_SOURCE_DIR}/include/misc/base_pipeline_manager
                          "${Anvil_SOURCE_DIR}/include/misc/debug.h"
                          "${Anvil_SOURCE_DIR}/include/misc/dummy_window.h"
                          "${Anvil_SOURCE_DIR}/include/misc/formats.h"
+                         "${Anvil_SOURCE_DIR}/include/misc/fp16.h"
                          "${Anvil_SOURCE_DIR}/include/misc/glsl_to_spirv.h"
                          "${Anvil_SOURCE_DIR}/include/misc/io.h"
                          "${Anvil_SOURCE_DIR}/include/misc/memory_allocator.h"
                          "${Anvil_SOURCE_DIR}/include/misc/object_tracker.h"
+                         "${Anvil_SOURCE_DIR}/include/misc/page_tracker.h"
                          "${Anvil_SOURCE_DIR}/include/misc/pools.h"
                          "${Anvil_SOURCE_DIR}/include/misc/ref_counter.h"
                          "${Anvil_SOURCE_DIR}/include/misc/time.h"
@@ -84,10 +80,12 @@ SET (SRC_LIST            "${Anvil_SOURCE_DIR}/include/misc/base_pipeline_manager
                          "${Anvil_SOURCE_DIR}/src/misc/debug.cpp"
                          "${Anvil_SOURCE_DIR}/src/misc/dummy_window.cpp"
                          "${Anvil_SOURCE_DIR}/src/misc/formats.cpp"
+                         "${Anvil_SOURCE_DIR}/src/misc/fp16.cpp"
                          "${Anvil_SOURCE_DIR}/src/misc/glsl_to_spirv.cpp"
                          "${Anvil_SOURCE_DIR}/src/misc/io.cpp"
                          "${Anvil_SOURCE_DIR}/src/misc/memory_allocator.cpp"
                          "${Anvil_SOURCE_DIR}/src/misc/object_tracker.cpp"
+                         "${Anvil_SOURCE_DIR}/src/misc/page_tracker.cpp"
                          "${Anvil_SOURCE_DIR}/src/misc/pools.cpp"
                          "${Anvil_SOURCE_DIR}/src/misc/time.cpp"
                          "${Anvil_SOURCE_DIR}/src/misc/types.cpp"
@@ -167,6 +165,18 @@ else()
     add_subdirectory("deps/glslang")
     add_subdirectory("deps/glslang/OGLCompilersDLL")
 endif()
+
+# Enable level-4 warnings
+if (MSVC)
+    ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
+endif(MSVC)
+
+if (CMAKE_COMPILER_IS_GNUCC)
+    target_compile_options(Anvil PRIVATE "-Wall" "-Werror")
+endif (CMAKE_COMPILER_IS_GNUCC)
+if (MSVC)
+    target_compile_options(Anvil PRIVATE "/Wall" "/WX" "/wd4191" "/wd4350" "/wd4668" "/wd4820" "/wd4514" "/wd4061" "/wd4710" "/wd4711" "/wd4548" "/wd4555")
+endif (MSVC)
 
 # Add all demo sub-projects
 MESSAGE(STATUS "Using Vulkan SDK at either " $ENV{VK_SDK_PATH} " or " $ENV{VULKAN_SDK})

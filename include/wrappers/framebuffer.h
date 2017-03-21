@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -47,12 +47,15 @@ namespace Anvil
          *  @param height     Framebuffer height. Must be at least 1.
          *  @param n_layers   Number of layers the framebuffer should use. Must be at least 1.
          **/
-        static std::shared_ptr<Framebuffer> create(std::weak_ptr<Anvil::Device> device_ptr,
-                                                   uint32_t                     width,
-                                                   uint32_t                     height,
-                                                   uint32_t                     n_layers);
+        static std::shared_ptr<Framebuffer> create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                                   uint32_t                         width,
+                                                   uint32_t                         height,
+                                                   uint32_t                         n_layers);
 
-        /** TODO */
+        /** Destructor.
+         *
+         *  Destroys baked Vulkan counterparts and unregisters the wrapper instance from the object tracker.
+         **/
         virtual ~Framebuffer();
 
         /** Adds a new attachment to the framebuffer.
@@ -83,6 +86,10 @@ namespace Anvil
          * */
         bool bake(std::shared_ptr<Anvil::RenderPass> render_pass_ptr);
 
+        /* Returns an attachment at user-specified index */
+        bool get_attachment_at_index(uint32_t                    attachment_index,
+                                     std::shared_ptr<ImageView>* out_image_view_ptr) const;
+
         /** Checks if an attachment has already been created for the specified image view and, if so,
          *  returns the attachment's ID.
          *
@@ -109,6 +116,22 @@ namespace Anvil
          **/
         const VkFramebuffer get_framebuffer(std::shared_ptr<Anvil::RenderPass> render_pass_ptr);
 
+        /** Returns name assigned to the framebuffer instance */
+        const std::string& get_name() const
+        {
+            return m_name;
+        }
+
+        /** Returns framebuffer size, specified at creation time */
+        void get_size(uint32_t* out_framebuffer_width_ptr,
+                      uint32_t* out_framebuffer_height_ptr,
+                      uint32_t* out_framebuffer_depth_ptr) const;
+
+        /** Assigns a new name to the framebuffer instance */
+        void set_name(const std::string& in_name)
+        {
+            m_name = in_name;
+        }
 
     private:
         /* Private type declarations */
@@ -168,10 +191,10 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. Please see specification of create() for more details */
-        Framebuffer(std::weak_ptr<Anvil::Device> device_ptr,
-                    uint32_t                     width,
-                    uint32_t                     height,
-                    uint32_t                     n_layers);
+        Framebuffer(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                    uint32_t                         width,
+                    uint32_t                         height,
+                    uint32_t                         n_layers);
 
         Framebuffer& operator=(const Framebuffer&);
         Framebuffer           (const Framebuffer&);
@@ -180,10 +203,11 @@ namespace Anvil
                                           void* raw_framebuffer_ptr);
 
         /* Private members */
-        FramebufferAttachments       m_attachments;
-        BakedFramebufferMap          m_baked_framebuffers;
-        std::weak_ptr<Anvil::Device> m_device_ptr;
-        uint32_t                     m_framebuffer_size[3];
+        FramebufferAttachments           m_attachments;
+        BakedFramebufferMap              m_baked_framebuffers;
+        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
+        uint32_t                         m_framebuffer_size[3];
+        std::string                      m_name;
     };
 };
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,7 @@
 #define MISC_WINDOW_H
 
 #include "misc/callbacks.h"
+#include "misc/io.h"
 #include "misc/ref_counter.h"
 #include "misc/types.h"
 #include "misc/debug.h"
@@ -44,8 +45,8 @@ namespace Anvil
     /* Structure passed as a WINDOW_CALLBACK_ID_KEYPRESS_RELEASED call-back argument */
     typedef struct KeypressReleasedCallbackData
     {
-        Window* window_ptr;
         KeyID   released_key_id;
+        Window* window_ptr;
 
         /** Constructor.
          *
@@ -77,6 +78,17 @@ namespace Anvil
     /* Enumerates available window call-back types.*/
     enum WindowPlatform
     {
+        /* Stub window implementation - useful for off-screen rendering */
+        WINDOW_PLATFORM_DUMMY,
+
+        /* Stub window implementation - useful for off-screen rendering.
+         *
+         * This dummy window saves each "presented" frame in a PNG file. For that process to be successful,
+         * the application MUST ensure the swapchain image is transitioned to VK_IMAGE_LAYOUT_GENERAL before
+         * it is presented.
+         **/
+        WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS,
+
     #ifdef _WIN32
         /* win32 */
         WINDOW_PLATFORM_SYSTEM,
@@ -105,6 +117,9 @@ namespace Anvil
          *
          *  When returned execution, the created window will not be functional. In order for it
          *  to become responsive, a dedicated thread should invoke run() to host the message pump.
+         *
+         *  A window instance should be created in the same thread, from which the run() function
+         *  is going to be invoked.
          *
          *  @param title                          Name to use for the window's title bar.
          *  @param width                          Window's width. Note that this value should not exceed screen's width.
@@ -139,14 +154,14 @@ namespace Anvil
             return m_height;
         }
 
+        /* Returns window's platform */
+        virtual WindowPlatform get_platform() const = 0;
+
         /* Returns window's width */
         uint32_t get_width() const
         {
             return m_width;
         }
-
-        /* Tells if it's a dummy window (offscreen rendering thus no WSI/swapchain involved) */
-        virtual bool  is_dummy() = 0;
 
         /** Makes the window responsive to user's action and starts updating window contents.
          *
@@ -155,7 +170,18 @@ namespace Anvil
          *  This function can only be called once throughout Window instance's lifetime.
          *
          **/
-        virtual void  run()       = 0;
+        virtual void run() = 0;
+
+        /** Changes the window title.
+         *
+         *  @param new_title Null-terminated string, holding the new title. Must not be NULL.
+         */
+        virtual void set_title(const char* new_title)
+        {
+            ANVIL_REDUNDANT_ARGUMENT(new_title);
+
+            /* Nop by default */
+        }
 
     protected:
         /* protected variables */

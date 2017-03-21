@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,6 +21,9 @@
 //
 
 #include "misc/window_win3264.h"
+
+#define WM_DESTROY_WINDOW (WM_USER + 1)
+
 
 /** Please see header for specification */
 Anvil::WindowWin3264::WindowWin3264(const std::string&     title,
@@ -44,10 +47,11 @@ void Anvil::WindowWin3264::close()
     {
         m_window_should_close = true;
 
-        {
-            /* NOTE: This will unblock the thread executing run(). */
-            DestroyWindow(m_window);
-        }
+        /* NOTE: When the call below leaves, the window is guaranteed to be gone */
+        SendMessage(m_window,
+                    WM_DESTROY_WINDOW,
+                    0,  /* wParam */
+                    0); /* lParam */
     }
 }
 
@@ -90,8 +94,8 @@ void Anvil::WindowWin3264::init()
     /* Create the window */
     window_rect.left   = 0;
     window_rect.top    = 0;
-    window_rect.right  = window_size[0];
-    window_rect.bottom = window_size[1];
+    window_rect.right  = static_cast<LONG>(window_size[0]);
+    window_rect.bottom = static_cast<LONG>(window_size[1]);
 
     AdjustWindowRect(&window_rect,
                       WS_OVERLAPPEDWINDOW,
@@ -149,6 +153,13 @@ LRESULT CALLBACK Anvil::WindowWin3264::msg_callback_pfn_proc(HWND   window_handl
             PostQuitMessage(0);
 
             return 0;
+        }
+
+        case WM_DESTROY_WINDOW:
+        {
+            DestroyWindow(window_ptr->m_window);
+
+            break;
         }
 
         case WM_KEYUP:
@@ -213,4 +224,10 @@ void Anvil::WindowWin3264::run()
             DispatchMessage (&msg);
         }
     }
+}
+
+void Anvil::WindowWin3264::set_title(const char* new_title)
+{
+    ::SetWindowText(m_window,
+                    new_title);
 }

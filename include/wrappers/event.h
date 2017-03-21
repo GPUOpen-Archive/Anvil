@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -47,9 +47,12 @@ namespace Anvil
          *
          *  @param device_ptr Device to use.
          */
-        static std::shared_ptr<Event> create(std::weak_ptr<Anvil::Device> device_ptr);
+        static std::shared_ptr<Event> create(std::weak_ptr<Anvil::BaseDevice> device_ptr);
 
-        /** TODO */
+        /** Destructor.
+         *
+         *  Releases the Vulkan counterpart and unregisters the wrapper instance from the object tracker.
+         **/
         virtual ~Event();
 
         /** Retrieves a raw Vulkan handle for the underlying VkEvent instance. */
@@ -85,7 +88,7 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. */
-        Event(std::weak_ptr<Anvil::Device> device_ptr);
+        Event(std::weak_ptr<Anvil::BaseDevice> device_ptr);
 
         Event           (const Event&);
         Event& operator=(const Event&);
@@ -93,8 +96,8 @@ namespace Anvil
         void release_event();
 
         /* Private variables */
-        std::weak_ptr<Anvil::Device> m_device_ptr;
-        VkEvent                      m_event;
+        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
+        VkEvent                          m_event;
     };
 }; /* namespace Anvil */
 

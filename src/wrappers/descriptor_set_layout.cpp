@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -27,13 +27,13 @@
 #include "wrappers/sampler.h"
 
 /** Please see header for specification */
-Anvil::DescriptorSetLayout::DescriptorSetLayout(std::weak_ptr<Anvil::Device> device_ptr)
+Anvil::DescriptorSetLayout::DescriptorSetLayout(std::weak_ptr<Anvil::BaseDevice> device_ptr)
     :CallbacksSupportProvider(DESCRIPTOR_SET_LAYOUT_CALLBACK_ID_COUNT),
      m_device_ptr(device_ptr),
      m_dirty     (true),
      m_layout    (VK_NULL_HANDLE)
 {
-    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT,
+    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT,
                                                   this);
 }
 
@@ -42,7 +42,7 @@ Anvil::DescriptorSetLayout::~DescriptorSetLayout()
 {
     if (m_layout != VK_NULL_HANDLE)
     {
-        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
         vkDestroyDescriptorSetLayout(device_locked_ptr->get_device_vk(),
                                      m_layout,
@@ -51,16 +51,16 @@ Anvil::DescriptorSetLayout::~DescriptorSetLayout()
         m_layout = VK_NULL_HANDLE;
     }
 
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT,
                                                     this);
 }
 
 /** Please see header for specification */
-bool Anvil::DescriptorSetLayout::add_binding(uint32_t                         binding_index,
-                                             VkDescriptorType                 descriptor_type,
-                                             uint32_t                         descriptor_array_size,
-                                             VkShaderStageFlags               stage_flags,
-                                             std::shared_ptr<Anvil::Sampler>* immutable_sampler_ptrs)
+bool Anvil::DescriptorSetLayout::add_binding(uint32_t                               binding_index,
+                                             VkDescriptorType                       descriptor_type,
+                                             uint32_t                               descriptor_array_size,
+                                             VkShaderStageFlags                     stage_flags,
+                                             const std::shared_ptr<Anvil::Sampler>* immutable_sampler_ptrs)
 {
     bool result = false;
 
@@ -105,7 +105,7 @@ bool Anvil::DescriptorSetLayout::bake()
 {
     std::vector<VkDescriptorSetLayoutBinding> binding_info_items;
     VkDescriptorSetLayoutCreateInfo           create_info;
-    std::shared_ptr<Anvil::Device>            device_locked_ptr(m_device_ptr);
+    std::shared_ptr<Anvil::BaseDevice>        device_locked_ptr(m_device_ptr);
     uint32_t                                  n_binding          = 0;
     uint32_t                                  n_bindings_defined = 0;
     uint32_t                                  n_samplers_defined = 0;
@@ -237,7 +237,7 @@ end:
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::DescriptorSetLayout> Anvil::DescriptorSetLayout::create(std::weak_ptr<Anvil::Device> device_ptr)
+std::shared_ptr<Anvil::DescriptorSetLayout> Anvil::DescriptorSetLayout::create(std::weak_ptr<Anvil::BaseDevice> device_ptr)
 {
     std::shared_ptr<Anvil::DescriptorSetLayout> result_ptr;
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -97,9 +97,9 @@ namespace Anvil
         typedef uint32_t DynamicStateBitfield;
 
         /* Prototype for a call-back function, invoked right after vkCreateGraphicsPipelines() call returns. **/
-        typedef void (*PFNPIPELINEPOSTBAKECALLBACKPROC)(std::weak_ptr<Anvil::Device> device_ptr,
-                                                        GraphicsPipelineID           pipeline_id,
-                                                        void*                        user_arg);
+        typedef void (*PFNPIPELINEPOSTBAKECALLBACKPROC)(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                                        GraphicsPipelineID               pipeline_id,
+                                                        void*                            user_arg);
 
         /* Prototype for a call-back function, invoked before a Vulkan graphics pipeline is created.
          *
@@ -107,10 +107,10 @@ namespace Anvil
          * Anvil::GraphicsPipelineManager will not adjust its internal state to sync with user-modified
          * fields.
          **/
-        typedef void (*PFNPIPELINEPREBAKECALLBACKPROC)(std::weak_ptr<Anvil::Device>  device_ptr,
-                                                       GraphicsPipelineID            pipeline_id,
-                                                       VkGraphicsPipelineCreateInfo* graphics_pipeline_create_info_ptr,
-                                                       void*                         user_arg);
+        typedef void (*PFNPIPELINEPREBAKECALLBACKPROC)(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                                       GraphicsPipelineID               pipeline_id,
+                                                       VkGraphicsPipelineCreateInfo*    graphics_pipeline_create_info_ptr,
+                                                       void*                            user_arg);
 
         /* Public functions */
 
@@ -125,7 +125,7 @@ namespace Anvil
          *                                     If one is not provided and the other argument is set as described,
          *                                     a new pipeline cache with size 0 will be allocated.
          **/
-        static std::shared_ptr<GraphicsPipelineManager> create(std::weak_ptr<Anvil::Device>          device_ptr,
+        static std::shared_ptr<GraphicsPipelineManager> create(std::weak_ptr<Anvil::BaseDevice>      device_ptr,
                                                                bool                                  use_pipeline_cache          = false,
                                                                std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr = std::shared_ptr<Anvil::PipelineCache>() );
 
@@ -284,6 +284,211 @@ namespace Anvil
          **/
         bool bake();
 
+        /** Tells whether the graphics pipeline has been created with enabled alpha-to-coverage mode.
+         *
+         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr If not NULL, deref will be set to true if the mode has been
+         *                                enabled for the pipeline, or to false otherwise.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_alpha_to_coverage_state(GraphicsPipelineID graphics_pipeline_id,
+                                         bool*              out_opt_is_enabled_ptr) const;
+
+        /** Tells whether the graphics pipeline has been created with enabled alpha-to-one mode.
+         *
+         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr If not NULL, deref will be set to true if the mode has been
+         *                                enabled for the pipeline, or to false otherwise.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_alpha_to_one_state(GraphicsPipelineID graphics_pipeline_id,
+                                    bool*              out_opt_is_enabled_ptr) const;
+
+        /** Retrieves blending properties of the specified graphics pipeline.
+         *
+         *  @param graphics_pipeline_id            ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_blend_constant_vec4_ptr If not NULL, deref will be assigned four float values
+         *                                         representing the blend constant.
+         *  @param out_opt_n_blend_attachments_ptr If not NULL, deref will be set to the number of blend
+         *                                         attachments the graphics pipeline supports.
+         *
+         *  @return true if successful, false otherwise
+         **/
+        bool get_blending_properties(GraphicsPipelineID graphics_pipeline_id,
+                                     float*             out_opt_blend_constant_vec4_ptr,
+                                     uint32_t*          out_opt_n_blend_attachments_ptr) const;
+
+        /** Retrieves color blend attachment properties for the specified graphics pipeline and subpass
+         *  attachment.
+         *
+         *  @param graphics_pipeline_id               ID of the graphics pipeline the query is being made for.
+         *  @param attachment_id                      ID of the attachment the query is being made for.
+         *  @param out_opt_blending_enabled_ptr       If not null, deref will be set to true if blending has been
+         *                                            enabled for this pipeline, or to false otherwise.
+         *  @param out_opt_blend_op_color_ptr         If not null, deref will be set to the specified attachment's
+         *                                            color blend op.
+         *  @param out_opt_blend_op_alpha_ptr         If not null, deref will be set to the specified attachment's
+         *                                            alpha blend op.
+         *  @param out_opt_src_color_blend_factor_ptr If not null, deref will be set to the specified attachment's
+         *                                            source color blend factor.
+         *  @param out_opt_dst_color_blend_factor_ptr If not null, deref will be set to the specified attachment's
+         *                                            destination color blend factor.
+         *  @param out_opt_src_alpha_blend_factor_ptr If not null, deref will be set to the specified attachment's
+         *                                            source alpha blend factor.
+         *  @param out_opt_dst_alpha_blend_factor_ptr If not null, deref will be set to the specified attachment's
+         *                                            destination alpha blend factor.
+         *  @param out_opt_channel_write_mask_ptr     If not null, deref will be set to the specified attachment's
+         *                                            write mask.
+         *
+         *  @return true if successful, false otherwise.
+         */
+        bool get_color_blend_attachment_properties(GraphicsPipelineID     graphics_pipeline_id,
+                                                   SubPassAttachmentID    attachment_id,
+                                                   bool*                  out_opt_blending_enabled_ptr,
+                                                   VkBlendOp*             out_opt_blend_op_color_ptr,
+                                                   VkBlendOp*             out_opt_blend_op_alpha_ptr,
+                                                   VkBlendFactor*         out_opt_src_color_blend_factor_ptr,
+                                                   VkBlendFactor*         out_opt_dst_color_blend_factor_ptr,
+                                                   VkBlendFactor*         out_opt_src_alpha_blend_factor_ptr,
+                                                   VkBlendFactor*         out_opt_dst_alpha_blend_factor_ptr,
+                                                   VkColorComponentFlags* out_opt_channel_write_mask_ptr) const;
+
+        /** Retrieves depth bias-related state configuration for the specified graphics pipeline.
+         *
+         *  @param graphics_pipeline_id                   ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr                 If not null, deref will be set to true if depth bias has
+         *                                                been enabled for the pipeline, or to false otherwise.
+         *  @param out_opt_depth_bias_constant_factor_ptr If not null, deref will be set to the depth bias constant factor
+         *                                                assigned to the pipeline.
+         *  @param out_opt_depth_bias_clamp_ptr           If not null, deref will be set to the depth bias clamp value, as
+         *                                                assigned to the pipeline.
+         *  @param out_opt_depth_bias_slope_factor_ptr    If not null, deref will be set to the depth bias slope factor, as
+         *                                                configured for the pipeline.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_depth_bias_state(GraphicsPipelineID graphics_pipeline_id,
+                                  bool*              out_opt_is_enabled_ptr,
+                                  float*             out_opt_depth_bias_constant_factor_ptr,
+                                  float*             out_opt_depth_bias_clamp_ptr,
+                                  float*             out_opt_depth_bias_slope_factor_ptr) const;
+
+        /** Retrieves depth bounds-related state configuration for the specified graphics pipeline.
+         *
+         *  @param graphics_pipeline_id         ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr       If not null, deref will be set to true if depth bounds mode
+         *                                      has been enabled for the pipeline, or to false otherwise.
+         *  @param out_opt_min_depth_bounds_ptr If not null, deref will be set to the minimum depth bound value
+         *                                      assigned to the pipeline.
+         *  @param out_opt_max_depth_bounds_ptr If not null, deref will be set to the maximum depth bound value
+         *                                      assigned to the pipeline.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_depth_bounds_state(GraphicsPipelineID graphics_pipeline_id,
+                                    bool*              out_opt_is_enabled_ptr,
+                                    float*             out_opt_min_depth_bounds_ptr,
+                                    float*             out_opt_max_depth_bounds_ptr) const;
+
+        /** Tells whether the graphics pipeline has been created with enabled depth clamping.
+         *
+         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr If not NULL, deref will be set to true if depth clampnig has
+         *                                been enabled for the pipeline, or to false otherwise.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_depth_clamp_state(GraphicsPipelineID graphics_pipeline_id,
+                                   bool*              out_opt_is_enabled_ptr) const;
+
+        /** Retrieves depth test-related state configuration for the specified graphics pipeline.
+         *
+         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr If not null, deref will be set to true if depth test has been
+         *                                enabled for the pipeline, or to false otherwise.
+         *  @param out_opt_compare_op_ptr If not null, deref will be set to the depth compare op assigned
+         *                                to the pipeline.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_depth_test_state(GraphicsPipelineID graphics_pipeline_id,
+                                  bool*              out_opt_is_enabled_ptr,
+                                  VkCompareOp*       out_opt_compare_op_ptr) const;
+
+        /** Tells whether the graphics pipeline has been created with enabled depth writes.
+         *
+         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr If not NULL, deref will be set to true if depth writes have
+         *                                been enabled for the pipeline, or to false otherwise.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_depth_write_state(GraphicsPipelineID graphics_pipeline_id,
+                                   bool*              out_opt_is_enabled_ptr) const;
+
+        /** Tells the number of dynamic scissor boxes, as specified at graphics pipeline instantiation time
+         *
+         *  @param graphics_pipeline_id                ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_n_dynamic_scissor_boxes_ptr If not null, deref will be set to the number of dynamic
+         *                                             scissor boxes used by the pipeline.
+         *
+         *  @return true if successful, false otherwise.
+         *
+         **/
+        bool get_dynamic_scissor_state_properties(GraphicsPipelineID graphics_pipeline_id,
+                                                  uint32_t*          out_opt_n_dynamic_scissor_boxes_ptr) const;
+
+        /** Tells what dynamic states have been enabled for the specified graphics pipeline.
+         *
+         *  @param graphics_pipeline_id               ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_enabled_dynamic_states_ptr If not null, deref will be updated with a bitfield value,
+         *                                            telling which dynamic states have been enabled for the pipeline.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_dynamic_states(GraphicsPipelineID    graphics_pipeline_id,
+                                DynamicStateBitfield* out_opt_enabled_dynamic_states_ptr) const;
+
+        /** Tells the number of dynamic viewports, as specified at graphics pipeline instantiation time
+         *
+         *  @param graphics_pipeline_id            ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_n_dynamic_viewports_ptr If not null, deref will be set to the number of dynamic viewports
+         *                                         used by the pipeline.
+         *
+         *  @return true if successful, false otherwise.
+         *
+         **/
+        bool get_dynamic_viewport_state_properties(GraphicsPipelineID graphics_pipeline_id,
+                                                   uint32_t*          out_n_dynamic_viewports_ptr) const;
+
+        /** Retrieves general pipeline properties
+         *
+         *  @param graphics_pipeline_id                  ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_n_scissors_ptr                If not null, deref will be set to the number of scissors used
+         *                                               by the pipeline.
+         *  @param out_opt_n_viewports_ptr               If not null, deref will be set to the number of viewports used
+         *                                               by the pipeline.
+         *  @param out_opt_n_vertex_input_attributes_ptr If not null, deref will be set to the number of vertex
+         *                                               attributes used by the pipeline.
+         *  @param out_opt_n_vertex_input_bindings_ptr   If not null, deref will be set to the number of vertex bindings
+         *                                               defined for the pipeline.
+         *  @param out_opt_renderpass_ptr                If not null, deref will be set to the renderpass assigned to
+         *                                               the pipeline.
+         *  @param out_opt_subpass_id_ptr                If not null, deref will be set to the ID of the subpass the pipeline
+         *                                               has been created for.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_graphics_pipeline_properties(Anvil::GraphicsPipelineID    graphics_pipeline_id,
+                                              uint32_t*                    out_opt_n_scissors_ptr,
+                                              uint32_t*                    out_opt_n_viewports_ptr,
+                                              uint32_t*                    out_opt_n_vertex_input_attributes_ptr,
+                                              uint32_t*                    out_opt_n_vertex_input_bindings_ptr,
+                                              std::shared_ptr<RenderPass>* out_opt_renderpass_ptr,
+                                              SubPassID*                   out_opt_subpass_id_ptr) const;
+
         /** Returns a VkPipeline instance for the specified graphics pipeline ID. If the pipeline is marked as dirty,
          *  the Vulkan object will be created before returning after former instance is released.
          *
@@ -305,6 +510,253 @@ namespace Anvil
          *  @return Ptr to a PipelineLayout instance or nullptr if the function failed.
          **/
         std::shared_ptr<Anvil::PipelineLayout> get_graphics_pipeline_layout(GraphicsPipelineID pipeline_id);
+
+        /** Tells what primitive topology the specified graphics pipeline has been created for.
+         *
+         *  @param graphics_pipeline_id           ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_primitive_topology_ptr If not null, deref will be set to primitive topology, as specified
+         *                                        at creation time.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_input_assembly_properties(GraphicsPipelineID   graphics_pipeline_id,
+                                           VkPrimitiveTopology* out_opt_primitive_topology_ptr) const;
+
+        /** Retrieves logic op-related state configuration for the specified graphics pipeline.
+         *
+         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr If not null, deref will be set to true if the logic op has
+         *                                been enabled for the pipeline, or to false otherwise.
+         *  @param out_opt_logic_op_ptr   If not null, deref will be set to the logic op enum, specified
+         *                                at creation time.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_logic_op_state(GraphicsPipelineID graphics_pipeline_id,
+                                bool*              out_opt_is_enabled_ptr,
+                                VkLogicOp*         out_opt_logic_op_ptr) const;
+
+        /** Retrieves multisampling-related state configuration for the specified graphics pipeline.
+         *
+         *  @param graphics_pipeline_id     ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_sample_count_ptr If not null, deref will be set to the enum value telling
+         *                                  the sample count assigned to the pipeline.
+         *  @param out_opt_sample_mask_ptr  If not null, deref will be set to the sample mask assigned
+         *                                  to the pipeline.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_multisampling_properties(GraphicsPipelineID  graphics_pipeline_id,
+                                          VkSampleCountFlags* out_opt_sample_count_ptr,
+                                          VkSampleMask*       out_opt_sample_mask_ptr) const;
+
+        /** Tells whether the graphics pipeline has been created with enabled primitive restart mode.
+         *
+         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr If not NULL, deref will be set to true if primitive restart has
+         *                                been enabled for the pipeline, or to false otherwise.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_primitive_restart_state(GraphicsPipelineID graphics_pipeline_id,
+                                         bool*              out_opt_is_enabled_ptr) const;
+
+        /** Tells what rasterization order the graphics pipeline has been created for.
+         *
+         *  @param graphics_pipeline_id            ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_rasterization_order_ptr If not null, deref will be set to the rasterization order
+         *                                         assigned to the pipeline.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_rasterization_order(GraphicsPipelineID       graphics_pipeline_id,
+                                     VkRasterizationOrderAMD* out_opt_rasterization_order_ptr) const;
+
+        /** Tells whether the graphics pipeline has been created with enabled rasterizer discard mode.
+         *
+         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr If not NULL, deref will be set to true if the mode has been
+         *                                enabled for the pipeline, or to false otherwise.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_rasterizer_discard_state(GraphicsPipelineID graphics_pipeline_id,
+                                          bool*              out_opt_is_enabled_ptr) const;
+
+        /** Retrieves various properties of the specified graphics pipeline which are related to
+         *  rasterization.
+         *
+         *  @param graphics_pipeline_id     ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_polygon_mode_ptr If not null, deref will be set to polygon mode used by the
+         *                                  pipeline.
+         *  @param out_opt_cull_mode_ptr    If not null, deref will be set to cull mode used by the
+         *                                  pipeline.
+         *  @param out_opt_front_face_ptr   If not null, deref will be set to front face setting, used
+         *                                  by the pipeline.
+         *  @param out_opt_line_width_ptr   If not null, deref will be set to line width setting, as used
+         *                                  by the pipeline.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_rasterization_properties(GraphicsPipelineID graphics_pipeline_id,
+                                          VkPolygonMode*     out_opt_polygon_mode_ptr,
+                                          VkCullModeFlags*   out_opt_cull_mode_ptr,
+                                          VkFrontFace*       out_opt_front_face_ptr,
+                                          float*             out_opt_line_width_ptr) const;
+
+        /** Retrieves state configuration related to per-sample shading for the specified graphics pipeline.
+         *
+         *  @param graphics_pipeline_id           ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr         If not null, deref will be set to true if per-sample shading
+         *                                        is enabled for the pipeline.
+         *  @param out_opt_min_sample_shading_ptr If not null, deref will be set to the minimum sample shading value,
+         *                                        as specified at creation time.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_sample_shading_state(GraphicsPipelineID graphics_pipeline_id,
+                                      bool*              out_opt_is_enabled_ptr,
+                                      float*             out_opt_min_sample_shading_ptr) const;
+
+        /** Retrieves properties of a scissor box at a given index for the specified graphics pipeline.
+         *
+         *  @param graphics_pipeline_id ID of the graphics pipeline the query is being made for.
+         *  @param n_scissor_box        Index of the scissor box to retrieve data of.
+         *  @param out_opt_x_ptr        If not null, deref will be set to X offset of the scissor box.
+         *  @param out_opt_y_ptr        If not null, deref will be set to Y offset of the scissor box.
+         *  @param out_opt_width_ptr    If not null, deref will be set to width of the scissor box.
+         *  @param out_opt_height_ptr   If not null, deref will be set to height of the scissor box.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_scissor_box_properties(GraphicsPipelineID graphics_pipeline_id,
+                                        uint32_t           n_scissor_box,
+                                        int32_t*           out_opt_x_ptr,
+                                        int32_t*           out_opt_y_ptr,
+                                        uint32_t*          out_opt_width_ptr,
+                                        uint32_t*          out_opt_height_ptr) const;
+
+        /** Retrieves stencil test-related state configuration for the specified graphics pipeline.
+         *
+         *  @param graphics_pipeline_id                    ID of the graphics pipeline the query is being
+         *                                                 made for.
+         *  @param out_opt_is_enabled_ptr                  If not null, deref will be set to true if stencil test
+         *                                                 has been enabled for the pipeline.
+         *  @param out_opt_front_stencil_fail_op_ptr       If not null, deref will be set to "front stencil fail operation"
+         *                                                 setting, as specified at creation time.
+         *  @param out_opt_front_stencil_pass_op_ptr       If not null, deref will be set to "front stencil pass operation"
+         *                                                 setting, as specified at creation time.
+         *  @param out_opt_front_stencil_depth_fail_op_ptr If not null, deref will be set to "front stencil depth fail operation"
+         *                                                 setting, as specified at creation time.
+         *  @param out_opt_front_stencil_compare_op_ptr    If not null, deref will be set to "front stencil compare operation"
+         *                                                 setting, as specified at creation time.
+         *  @param out_opt_front_stencil_compare_mask_ptr  If not null, deref will be set to front stencil compare mask, as
+         *                                                 specified at creation time.
+         *  @param out_opt_front_stencil_write_mask_ptr    If not null, deref will be set to front stencil write mask, as
+         *                                                 specified at creation time.
+         *  @param out_opt_front_stencil_reference_ptr     If not null, deref will be set to front stencil reference value, as
+         *                                                 specified at creation time.
+         *  @param out_opt_back_stencil_fail_op_ptr        If not null, deref will be set to "back stencil fail operation"
+         *                                                 setting, as specified at creation time.
+         *  @param out_opt_back_stencil_pass_op_ptr        If not null, deref will be set to "back stencil pass operation"
+         *                                                 setting, as specified at creation time.
+         *  @param out_opt_back_stencil_depth_fail_op_ptr  If not null, deref will be set to "back stencil depth fail operation"
+         *                                                 setting, as specified at creation time.
+         *  @param out_opt_back_stencil_compare_op_ptr     If not null, deref will be set to "back stencil compare operation"
+         *                                                 setting, as specified at creation time.
+         *  @param out_opt_back_stencil_compare_mask_ptr   If not null, deref will be set to back stencil compare mask, as
+         *                                                 specified at creation time.
+         *  @param out_opt_back_stencil_write_mask_ptr     If not null, deref will be set to back stencil write mask, as
+         *                                                 specified at creation time.
+         *  @param out_opt_back_stencil_reference_ptr      If not null, deref will be set to back stencil reference value, as
+         *                                                 specified at creation time.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_stencil_test_properties(GraphicsPipelineID graphics_pipeline_id,
+                                         bool*              out_opt_is_enabled_ptr,
+                                         VkStencilOp*       out_opt_front_stencil_fail_op_ptr,
+                                         VkStencilOp*       out_opt_front_stencil_pass_op_ptr,
+                                         VkStencilOp*       out_opt_front_stencil_depth_fail_op_ptr,
+                                         VkCompareOp*       out_opt_front_stencil_compare_op_ptr,
+                                         uint32_t*          out_opt_front_stencil_compare_mask_ptr,
+                                         uint32_t*          out_opt_front_stencil_write_mask_ptr,
+                                         uint32_t*          out_opt_front_stencil_reference_ptr,
+                                         VkStencilOp*       out_opt_back_stencil_fail_op_ptr,
+                                         VkStencilOp*       out_opt_back_stencil_pass_op_ptr,
+                                         VkStencilOp*       out_opt_back_stencil_depth_fail_op_ptr,
+                                         VkCompareOp*       out_opt_back_stencil_compare_op_ptr,
+                                         uint32_t*          out_opt_back_stencil_compare_mask_ptr,
+                                         uint32_t*          out_opt_back_stencil_write_mask_ptr,
+                                         uint32_t*          out_opt_back_stencil_reference_ptr) const;
+
+        /** Tells the number of patch control points, as specified at creation time for the specified
+         *  graphics pipeline.
+         *
+         *  @param graphics_pipeline_id               ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_n_patch_control_points_ptr If not null, deref will be set to the number of patch control points,
+         *                                            as specified at creation time.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_tessellation_properties(GraphicsPipelineID graphics_pipeline_id,
+                                         uint32_t*          out_opt_n_patch_control_points_ptr) const;
+
+        /** Returns properties of a vertex attribute at a given index for the specified graphics pipeline.
+         *
+         *  @param graphics_pipeline_id     ID of the graphics pipeline the query is being made for.
+         *  @param n_vertex_input_attribute Index of the vertex attribute to retrieve info of.
+         *  @param out_opt_location_ptr     If not null, deref will be set to the specified attribute's location.
+         *  @param out_opt_binding_ptr      If not null, deref will be set to the specified attribute's binding index.
+         *  @param out_opt_format_ptr       If not null, deref will be set to the specified attribute's format.
+         *  @param out_opt_offset_ptr       If not null, deref will be set to the specified attribute's start offset.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_vertex_input_attribute_properties(GraphicsPipelineID graphics_pipeline_id,
+                                                   uint32_t           n_vertex_input_attribute,
+                                                   uint32_t*          out_opt_location_ptr,
+                                                   uint32_t*          out_opt_binding_ptr,
+                                                   VkFormat*          out_opt_format_ptr,
+                                                   uint32_t*          out_opt_offset_ptr) const;
+
+        /** Returns properties of a vertex binding at a given index for the specified graphics pipeline.
+         *
+         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
+         *  @param n_vertex_input_binding Index of the vertex binding to retrieve info of.
+         *  @param out_opt_binding_ptr    If not null, deref will be set to the specified binding's index.
+         *  @param out_opt_stride_ptr     If not null, deref will be set to the specified binding's stride.
+         *  @param out_opt_input_rate_ptr If not null, deref will be set to the specified binding's input rate.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_vertex_input_binding_properties(GraphicsPipelineID graphics_pipeline_id,
+                                                 uint32_t           n_vertex_input_binding,
+                                                 uint32_t*          out_opt_binding_ptr,
+                                                 uint32_t*          out_opt_stride_ptr,
+                                                 VkVertexInputRate* out_opt_input_rate_ptr) const;
+
+        /** Retrieves properties of a viewport at a given index for the specified graphics pipeline.
+         *
+         *  @param graphics_pipeline_id  ID of the graphics pipeline the query is being made for.
+         *  @param n_viewport            Index of the viewport to retrieve properties of.
+         *  @param out_opt_origin_x_ptr  If not null, deref will be set to the viewport's X origin.
+         *  @param out_opt_origin_y_ptr  If not null, deref will be set to the viewport's Y origin.
+         *  @param out_opt_width_ptr     If not null, deref will be set to the viewport's width.
+         *  @param out_opt_height_ptr    If not null, deref will be set to the viewport's height.
+         *  @param out_opt_min_depth_ptr If not null, deref will be set to the viewport's minimum depth value.
+         *  @param out_opt_max_depth_ptr If not null, deref will be set to the viewport's maximum depth value.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_viewport_properties(GraphicsPipelineID graphics_pipeline_id,
+                                     uint32_t           n_viewport,
+                                     float*             out_opt_origin_x_ptr,
+                                     float*             out_opt_origin_y_ptr,
+                                     float*             out_opt_width_ptr,
+                                     float*             out_opt_height_ptr,
+                                     float*             out_opt_min_depth_ptr,
+                                     float*             out_opt_max_depth_ptr) const;
 
         /** Sets a new blend constant for the specified graphics pipeline and marks the pipeline as dirty.
          *
@@ -472,8 +924,8 @@ namespace Anvil
                                         uint32_t           n_scissor_box,
                                         int32_t            x,
                                         int32_t            y,
-                                        int32_t            width,
-                                        int32_t            height);
+                                        uint32_t           width,
+                                        uint32_t           height);
 
         /** Sets a number of stencil test properties to be used for the pipeline, and marks the pipeline as dirty.
          *
@@ -681,14 +1133,15 @@ namespace Anvil
          */
         typedef struct BlendingProperties
         {
-            bool                  blend_enabled;
-            VkBlendOp             blend_op_alpha;
-            VkBlendOp             blend_op_color;
-            VkColorComponentFlags channel_write_mask;
-            VkBlendFactor         dst_alpha_blend_factor;
-            VkBlendFactor         dst_color_blend_factor;
-            VkBlendFactor         src_alpha_blend_factor;
-            VkBlendFactor         src_color_blend_factor;
+            VkColorComponentFlagsVariable(channel_write_mask);
+
+            bool          blend_enabled;
+            VkBlendOp     blend_op_alpha;
+            VkBlendOp     blend_op_color;
+            VkBlendFactor dst_alpha_blend_factor;
+            VkBlendFactor dst_color_blend_factor;
+            VkBlendFactor src_alpha_blend_factor;
+            VkBlendFactor src_color_blend_factor;
 
             /** Constructor. */
             BlendingProperties()
@@ -712,7 +1165,7 @@ namespace Anvil
                 VkPipelineColorBlendAttachmentState result;
 
                 result.alphaBlendOp        = blend_op_alpha;
-                result.blendEnable         = blend_enabled;
+                result.blendEnable         = static_cast<VkBool32>((blend_enabled) ? VK_TRUE : VK_FALSE);
                 result.colorBlendOp        = blend_op_color;
                 result.colorWriteMask      = channel_write_mask;
                 result.dstAlphaBlendFactor = dst_alpha_blend_factor;
@@ -763,18 +1216,18 @@ namespace Anvil
          */
         struct InternalScissorBox
         {
-            int32_t x;
-            int32_t y;
-            int32_t width;
-            int32_t height;
+            int32_t  x;
+            int32_t  y;
+            uint32_t width;
+            uint32_t height;
 
             /* Constructor. Should only be used by STL. */
             InternalScissorBox()
             {
                 x      = 0;
                 y      = 0;
-                width  = 32;
-                height = 32;
+                width  = 32u;
+                height = 32u;
             }
 
             /* Constructor
@@ -784,10 +1237,10 @@ namespace Anvil
              * @param in_width  Width of the scissor box
              * @param in_height Height of the scissor box
              **/
-            InternalScissorBox(int32_t in_x,
-                               int32_t in_y,
-                               int32_t in_width,
-                               int32_t in_height)
+            InternalScissorBox(int32_t  in_x,
+                               int32_t  in_y,
+                               uint32_t in_width,
+                               uint32_t in_height)
             {
                 height = in_height;
                 width  = in_width;
@@ -889,10 +1342,10 @@ namespace Anvil
             InternalVertexAttribute()
             {
                 format          = VK_FORMAT_UNDEFINED;
-                location        = -1;
-                offset_in_bytes = -1;
+                location        = UINT32_MAX;
+                offset_in_bytes = UINT32_MAX;
                 rate            = VK_VERTEX_INPUT_RATE_MAX_ENUM;
-                stride_in_bytes = -1;
+                stride_in_bytes = UINT32_MAX;
             }
 
             /** Constructor.
@@ -964,7 +1417,6 @@ namespace Anvil
 
             InternalVertexAttributes                 attributes;
             float                                    blend_constant[4];
-            VkCullModeFlags                          cull_mode;
             VkPolygonMode                            polygon_mode;
             VkFrontFace                              front_face;
             float                                    line_width;
@@ -974,11 +1426,13 @@ namespace Anvil
             uint32_t                                 n_dynamic_viewports;
             uint32_t                                 n_patch_control_points;
             VkPrimitiveTopology                      primitive_topology;
-            VkSampleCountFlagBits                    sample_count;
             VkSampleMask                             sample_mask;
             InternalScissorBoxes                     scissor_boxes;
             SubPassAttachmentToBlendingPropertiesMap subpass_attachment_blending_properties;
             InternalViewports                        viewports;
+
+            VkCullModeFlagsVariable   (cull_mode);
+            VkSampleCountFlagsVariable(sample_count);
 
             PFNPIPELINEPOSTBAKECALLBACKPROC pfn_pipeline_postbake_callback_proc;
             PFNPIPELINEPREBAKECALLBACKPROC  pfn_pipeline_prebake_callback_proc;
@@ -1032,13 +1486,13 @@ namespace Anvil
                 renderpass_ptr = in_renderpass_ptr;
                 subpass_id     = in_subpass_id;
 
-                stencil_state_back_face.compareMask = ~0;
+                stencil_state_back_face.compareMask = ~0u;
                 stencil_state_back_face.compareOp   = VK_COMPARE_OP_ALWAYS;
                 stencil_state_back_face.depthFailOp = VK_STENCIL_OP_KEEP;
                 stencil_state_back_face.failOp      = VK_STENCIL_OP_KEEP;
                 stencil_state_back_face.passOp      = VK_STENCIL_OP_KEEP;
                 stencil_state_back_face.reference   = 0;
-                stencil_state_back_face.writeMask   = ~0;
+                stencil_state_back_face.writeMask   = ~0u;
                 stencil_state_front_face            = stencil_state_back_face;
 
                 rasterization_order = VK_RASTERIZATION_ORDER_STRICT_AMD;
@@ -1053,7 +1507,7 @@ namespace Anvil
                 sample_count       = VK_SAMPLE_COUNT_1_BIT;
                 polygon_mode       = VK_POLYGON_MODE_FILL;
                 primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-                sample_mask        = ~0;
+                sample_mask        = ~0u;
             }
 
             /** Constructor. Copies all state from the specified base pipeline configuration, replacing
@@ -1154,11 +1608,14 @@ namespace Anvil
         typedef std::map<GraphicsPipelineID, std::shared_ptr<GraphicsPipelineConfiguration> > GraphicsPipelineConfigurations;
 
         /* Private functions */
-        explicit GraphicsPipelineManager(std::weak_ptr<Anvil::Device>          device_ptr,
+        explicit GraphicsPipelineManager(std::weak_ptr<Anvil::BaseDevice>      device_ptr,
                                          bool                                  use_pipeline_cache,
                                          std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr);
 
         void bake_vk_attributes_and_bindings(std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr);
+
+        ANVIL_DISABLE_ASSIGNMENT_OPERATOR(GraphicsPipelineManager);
+        ANVIL_DISABLE_COPY_CONSTRUCTOR   (GraphicsPipelineManager);
 
         /* Private members */
         GraphicsPipelineConfigurations m_pipeline_configurations;

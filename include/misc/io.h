@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -25,9 +25,42 @@
 
 #include <stdio.h>
 #include <string>
+#include <vector>
+
+#ifdef _WIN32
+    #include <windows.h>
+#else
+    #include <X11/keysym.h>
+    #include <xcb/xcb.h>
+    #include <xcb/xcb_keysyms.h>
+#endif
 
 namespace Anvil
 {
+    /* Keyboard character IDs */
+    #ifdef _WIN32
+        #define ANVIL_KEY_HELPER(key) VK_##key
+    #else
+        #define ANVIL_KEY_HELPER(key) XK_##key
+    #endif
+
+    typedef enum
+    {
+#ifdef _WIN32
+        KEY_ID_ESCAPE = ANVIL_KEY_HELPER(ESCAPE),
+        KEY_ID_LEFT   = ANVIL_KEY_HELPER(LEFT),
+        KEY_ID_RETURN = ANVIL_KEY_HELPER(RETURN),
+        KEY_ID_RIGHT  = ANVIL_KEY_HELPER(RIGHT),
+        KEY_ID_SPACE  = ANVIL_KEY_HELPER(SPACE)
+#else
+        KEY_ID_ESCAPE = ANVIL_KEY_HELPER(Escape),
+        KEY_ID_LEFT   = ANVIL_KEY_HELPER(Left),
+        KEY_ID_RETURN = ANVIL_KEY_HELPER(Return),
+        KEY_ID_RIGHT  = ANVIL_KEY_HELPER(Right),
+        KEY_ID_SPACE  = ANVIL_KEY_HELPER(space)
+#endif
+    } KeyID;
+
     class IO
     {
     public:
@@ -45,6 +78,13 @@ namespace Anvil
          *
          **/
         static void delete_file(std::string filename);
+
+        /** Enumerates files under user-specified directory. */
+        static bool enumerate_files_in_directory(const std::string&        path,
+                                                 std::vector<std::string>* out_result_ptr);
+
+        /** Tells whether the specified path exists and is a directory. */
+        static bool is_directory(const std::string& path);
 
         /** Loads file contents and returns a buffer holding the read data.
          *
@@ -65,19 +105,24 @@ namespace Anvil
                               char**      out_result_ptr,
                               size_t*     out_opt_size_ptr);
 
-        /** Writes specified text contents to a file under specified location. If a file exists under
+        /** Writes specified data to a file under specified location. If a file exists under
          *  given location, its contents is discarded.
-         *
-         *  It is assumed written data are not binary.
          *
          *  Upon failure, the function generates an assertion failure.
          *
          *
-         *  @param filename Name of the file to write to (incl. path)
-         *  @param contents Contents to write.
+         *  @param filename      Name of the file to write to (incl. path)
+         *  @param contents      Contents to write.
+         *  @param should_append True if new contents should be appended to the file;
+         *                       false to purge existing contents (if any).
          **/
-        static void write_file(std::string filename,
-                               std::string contents);
+        static void write_binary_file(std::string  filename,
+                                      const void*  data,
+                                      unsigned int data_size,
+                                      bool         should_append = false);
+        static void write_text_file  (std::string  filename,
+                                      std::string  contents,
+                                      bool         should_append = false);
     };
 }
 

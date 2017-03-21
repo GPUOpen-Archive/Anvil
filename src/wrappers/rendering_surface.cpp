@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -30,39 +30,34 @@
 #include "wrappers/queue.h"
 
 /* Please see header for specification */
-Anvil::RenderingSurface::RenderingSurface(std::weak_ptr<Anvil::Instance>                instance_ptr,
-                                          std::weak_ptr<Anvil::PhysicalDevice>          physical_device_ptr,
-                                          std::shared_ptr<Anvil::Window>                window_ptr,
+Anvil::RenderingSurface::RenderingSurface(std::weak_ptr<Anvil::Instance>             instance_ptr,
+                                          std::weak_ptr<Anvil::BaseDevice>           device_ptr,
+                                          std::shared_ptr<Anvil::Window>             window_ptr,
+                                          const ExtensionKHRSurfaceEntrypoints&      khr_surface_entrypoints,
 #ifdef _WIN32
-                                          PFN_vkCreateWin32SurfaceKHR                   pfn_create_win32_surface_khr_proc,
+                                          const ExtensionKHRWin32SurfaceEntrypoints& khr_win32_surface_entrypoints,
 #else
-                                          PFN_vkCreateXcbSurfaceKHR                     pfn_create_xcb_surface_khr_proc,
+                                          const ExtensionKHRXcbSurfaceEntrypoints&   khr_xcb_surface_entrypoints,
 #endif
-                                          PFN_vkDestroySurfaceKHR                       pfn_destroy_surface_khr_proc,
-                                          PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR pfn_get_physical_device_surface_capabilities_khr_proc,
-                                          PFN_vkGetPhysicalDeviceSurfaceFormatsKHR      pfn_get_physical_device_surface_formats_khr_proc,
-                                          PFN_vkGetPhysicalDeviceSurfacePresentModesKHR pfn_get_physical_device_surface_present_modes_khr_proc,
-                                          PFN_vkGetPhysicalDeviceSurfaceSupportKHR      pfn_get_physical_device_surface_support_khr_proc)
-
-    :m_height                                   (0),
-     m_instance_ptr                             (instance_ptr),
-     m_physical_device_ptr                      (physical_device_ptr),
-     m_surface                                  (VK_NULL_HANDLE),
+                                          bool*                                      out_safe_to_use_ptr)
+    :m_device_ptr                   (device_ptr),
+     m_height                       (0),
+     m_instance_ptr                 (instance_ptr),
+     m_khr_surface_entrypoints      (khr_surface_entrypoints),
 #ifdef _WIN32
-     m_vkCreateWin32SurfaceKHR                  (pfn_create_win32_surface_khr_proc),
+     m_khr_win32_surface_entrypoints(khr_win32_surface_entrypoints),
 #else
-     m_vkCreateXcbSurfaceKHR                    (pfn_create_xcb_surface_khr_proc),
+     m_khr_xcb_surface_entrypoints  (khr_xcb_surface_entrypoints),
 #endif
-     m_vkDestroySurfaceKHR                      (pfn_destroy_surface_khr_proc),
-     m_vkGetPhysicalDeviceSurfaceCapabilitiesKHR(pfn_get_physical_device_surface_capabilities_khr_proc),
-     m_vkGetPhysicalDeviceSurfaceFormatsKHR     (pfn_get_physical_device_surface_formats_khr_proc),
-     m_vkGetPhysicalDeviceSurfacePresentModesKHR(pfn_get_physical_device_surface_present_modes_khr_proc),
-     m_vkGetPhysicalDeviceSurfaceSupportKHR     (pfn_get_physical_device_surface_support_khr_proc),
-     m_width                                    (0)
+     m_surface                      (VK_NULL_HANDLE),
+     m_width                        (0)
 {
-    VkResult result;
+    VkBool32             is_physical_device_supported(VK_FALSE);
+    VkResult             result;
+    const WindowPlatform window_platform             (window_ptr->get_platform() );
 
-    if (!window_ptr->is_dummy())
+    if (window_platform != WINDOW_PLATFORM_DUMMY                     &&
+        window_platform != WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS)
     {
         std::shared_ptr<Anvil::Instance> instance_locked_ptr(m_instance_ptr);
 
@@ -76,10 +71,10 @@ Anvil::RenderingSurface::RenderingSurface(std::weak_ptr<Anvil::Instance>        
             surface_create_info.pNext     = nullptr;
             surface_create_info.sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
 
-            result = m_vkCreateWin32SurfaceKHR(instance_locked_ptr->get_instance_vk(),
-                                              &surface_create_info,
-                                               nullptr, /* pAllocator */
-                                              &m_surface);
+            result = m_khr_win32_surface_entrypoints.vkCreateWin32SurfaceKHR(instance_locked_ptr->get_instance_vk(),
+                                                                            &surface_create_info,
+                                                                             nullptr, /* pAllocator */
+                                                                            &m_surface);
         }
         #else
         {
@@ -91,27 +86,69 @@ Anvil::RenderingSurface::RenderingSurface(std::weak_ptr<Anvil::Instance>        
             surface_create_info.pNext       = nullptr;
             surface_create_info.sType       = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
 
-            result = m_vkCreateXcbSurfaceKHR(instance_locked_ptr->get_instance_vk(),
-                                            &surface_create_info,
-                                             nullptr, /* pAllocator */
-                                            &m_surface);
+            result = m_khr_xcb_surface_entrypoints.vkCreateXcbSurfaceKHR(instance_locked_ptr->get_instance_vk(),
+                                                                        &surface_create_info,
+                                                                         nullptr, /* pAllocator */
+                                                                        &m_surface);
         }
         #endif
+
+        /* Is there at least one queue fam that can be used together with at least one physical device associated with
+         * the logical device to present using the surface we've just spawned and the physical device user has specified? */
+        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr     (m_device_ptr);
+        uint32_t                           n_physical_devices    (1);
+        const auto&                        queue_families        (device_locked_ptr->get_physical_device_queue_families() );
+        std::shared_ptr<Anvil::SGPUDevice> sgpu_device_locked_ptr(std::dynamic_pointer_cast<Anvil::SGPUDevice>(device_locked_ptr) );
+
+        for (uint32_t n_physical_device = 0;
+                      n_physical_device < n_physical_devices && (is_physical_device_supported == VK_FALSE);
+                    ++n_physical_device)
+        {
+            std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(sgpu_device_locked_ptr->get_physical_device());
+
+            for (uint32_t n_queue_family = 0;
+                          n_queue_family < static_cast<uint32_t>(queue_families.size() );
+                        ++n_queue_family)
+            {
+                is_physical_device_supported = VK_FALSE;
+
+                result = vkGetPhysicalDeviceSurfaceSupportKHR(physical_device_locked_ptr->get_physical_device(),
+                                                              n_queue_family,
+                                                              m_surface,
+                                                             &is_physical_device_supported);
+
+                if (is_vk_call_successful(result)            &&
+                    is_physical_device_supported  == VK_TRUE)
+                {
+                    break;
+                }
+            }
+        }
     }
     else
     {
         /* offscreen rendering */
-        result = VK_SUCCESS;
+        is_physical_device_supported = true;
+        result                       = VK_SUCCESS;
     }
 
-    anvil_assert_vk_call_succeeded(result);
+    if (!is_physical_device_supported)
+    {
+        anvil_assert_vk_call_succeeded(is_physical_device_supported);
 
-    /* Retrieve Vulkan object capabilities and cache them */
-    cache_surface_properties(window_ptr);
+        *out_safe_to_use_ptr = false;
+    }
+    else
+    {
+        /* Retrieve Vulkan object capabilities and cache them */
+        cache_surface_properties(window_ptr);
 
-    /* Register the event instance */
-    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_RENDERING_SURFACE,
-                                                  this);
+        *out_safe_to_use_ptr = true;
+    }
+
+    /* Register the instance */
+    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_RENDERING_SURFACE,
+                                                 this);
 }
 
 /* Please see header for specification */
@@ -121,63 +158,73 @@ Anvil::RenderingSurface::~RenderingSurface()
     {
         std::shared_ptr<Anvil::Instance> instance_locked_ptr(m_instance_ptr);
 
-        m_vkDestroySurfaceKHR(instance_locked_ptr->get_instance_vk(),
-                              m_surface,
-                              nullptr /* pAllocator */);
+        m_khr_surface_entrypoints.vkDestroySurfaceKHR(instance_locked_ptr->get_instance_vk(),
+                                                      m_surface,
+                                                      nullptr /* pAllocator */);
 
         m_surface = VK_NULL_HANDLE;
     }
 
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_RENDERING_SURFACE,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_RENDERING_SURFACE,
                                                     this);
 }
 
 /* Please see header for specification */
 void Anvil::RenderingSurface::cache_surface_properties(std::shared_ptr<Anvil::Window> window_ptr)
 {
-    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_physical_device_ptr);
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr     (m_device_ptr);
+    std::shared_ptr<Anvil::SGPUDevice> sgpu_device_locked_ptr(std::dynamic_pointer_cast<Anvil::SGPUDevice>(device_locked_ptr));
 
-    uint32_t               n_supported_formats            = 0;
-    uint32_t               n_supported_presentation_modes = 0;
-    const VkPhysicalDevice physical_device_vk             = physical_device_locked_ptr->get_physical_device();
-    VkResult               result;
-    VkSurfaceFormatKHR*    supported_formats              = nullptr;
-    bool                   is_offscreen_rendering_enabled = window_ptr->is_dummy();
+    const WindowPlatform window_platform                = (window_ptr->get_platform() );
+    const bool           is_offscreen_rendering_enabled = (window_platform == WINDOW_PLATFORM_DUMMY                     ||
+                                                           window_platform == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS);
+
+    /* Retrieve general properties */
+    uint32_t            n_supported_formats           (0);
+    uint32_t            n_supported_presentation_modes(0);
+    VkResult            result                        (VK_ERROR_INITIALIZATION_FAILED);
+    VkSurfaceFormatKHR* supported_formats             (nullptr);
+
+    ANVIL_REDUNDANT_VARIABLE(result);
+
+    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(sgpu_device_locked_ptr->get_physical_device());
+
+    auto& result_caps = m_physical_device_capabilities[0];
 
     if (is_offscreen_rendering_enabled)
     {
-        m_height                          = window_ptr->get_height();
-        m_supported_composite_alpha_flags = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
-        m_supported_transformations       = VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR;
-        m_supported_usages                = static_cast<VkImageUsageFlagBits> (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-                                                                               VK_IMAGE_USAGE_TRANSFER_SRC_BIT     |
-                                                                               VK_IMAGE_USAGE_TRANSFER_DST_BIT     |
-                                                                               VK_IMAGE_USAGE_STORAGE_BIT);
-        m_width                           = window_ptr->get_width();
+        m_height                                    = window_ptr->get_height();
+        result_caps.supported_composite_alpha_flags = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
+        result_caps.supported_transformations       = VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR;
+        result_caps.supported_usages                = static_cast<VkImageUsageFlagBits> (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                                                                                         VK_IMAGE_USAGE_TRANSFER_SRC_BIT     |
+                                                                                         VK_IMAGE_USAGE_TRANSFER_DST_BIT     |
+                                                                                         VK_IMAGE_USAGE_STORAGE_BIT);
+        m_width                                     = window_ptr->get_width();
 
         return;
     }
 
-    /* not offscreen rendering */
+    const VkPhysicalDevice physical_device_vk = physical_device_locked_ptr->get_physical_device();
 
-    /* Retrieve general properties */
-    result = m_vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device_vk,
-                                                         m_surface,
-                                                        &m_capabilities);
+    result = m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device_vk,
+                                                                                 m_surface,
+                                                                                &result_caps.capabilities);
 
     anvil_assert_vk_call_succeeded(result);
 
-    m_height                          = m_capabilities.currentExtent.height;
-    m_supported_composite_alpha_flags = static_cast<VkCompositeAlphaFlagBitsKHR>  (m_capabilities.supportedCompositeAlpha);
-    m_supported_transformations       = static_cast<VkSurfaceTransformFlagBitsKHR>(m_capabilities.supportedTransforms);
-    m_supported_usages                = static_cast<VkImageUsageFlagBits>         (m_capabilities.supportedUsageFlags);
-    m_width                           = m_capabilities.currentExtent.width;
+    m_height = result_caps.capabilities.currentExtent.height;
+    m_width  = result_caps.capabilities.currentExtent.width;
+
+    result_caps.supported_composite_alpha_flags = static_cast<VkCompositeAlphaFlagBitsKHR>  (result_caps.capabilities.supportedCompositeAlpha);
+    result_caps.supported_transformations       = static_cast<VkSurfaceTransformFlagBitsKHR>(result_caps.capabilities.supportedTransforms);
+    result_caps.supported_usages                = static_cast<VkImageUsageFlagBits>         (result_caps.capabilities.supportedUsageFlags);
 
     /* Retrieve a list of formats supported by the surface */
-    result = m_vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device_vk,
-                                                    m_surface,
-                                                   &n_supported_formats,
-                                                    nullptr /* pSurfaceFormats */);
+    result = m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device_vk,
+                                                                            m_surface,
+                                                                           &n_supported_formats,
+                                                                            nullptr /* pSurfaceFormats */);
 
     anvil_assert                  (n_supported_formats >  0);
     anvil_assert_vk_call_succeeded(result);
@@ -185,72 +232,177 @@ void Anvil::RenderingSurface::cache_surface_properties(std::shared_ptr<Anvil::Wi
     supported_formats = new VkSurfaceFormatKHR[n_supported_formats];
     anvil_assert(supported_formats != nullptr);
 
-    result = m_vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device_vk,
-                                                    m_surface,
-                                                   &n_supported_formats,
-                                                    supported_formats);
+    result = m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device_vk,
+                                                                            m_surface,
+                                                                           &n_supported_formats,
+                                                                            supported_formats);
     anvil_assert_vk_call_succeeded(result);
 
     for (unsigned int n_format = 0;
                       n_format < n_supported_formats;
                     ++n_format)
     {
-        m_supported_formats.push_back(RenderingSurfaceFormat(supported_formats[n_format]) );
+        result_caps.supported_formats.push_back(RenderingSurfaceFormat(supported_formats[n_format]) );
     }
 
     delete [] supported_formats;
     supported_formats = nullptr;
 
     /* Retrieve a list of supported presentation modes */
-    result = m_vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device_vk,
-                                                         m_surface,
-                                                        &n_supported_presentation_modes,
-                                                         nullptr /* pPresentModes */);
+    result = m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device_vk,
+                                                                                 m_surface,
+                                                                                &n_supported_presentation_modes,
+                                                                                 nullptr /* pPresentModes */);
 
     anvil_assert                  (n_supported_presentation_modes >  0);
     anvil_assert_vk_call_succeeded(result);
 
-    m_supported_presentation_modes.resize(n_supported_presentation_modes);
+    result_caps.supported_presentation_modes.resize(n_supported_presentation_modes);
 
-    result = m_vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device_vk,
-                                                         m_surface,
-                                                        &n_supported_presentation_modes,
-                                                        &m_supported_presentation_modes[0]);
+    result = m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device_vk,
+                                                                                 m_surface,
+                                                                                &n_supported_presentation_modes,
+                                                                                &result_caps.supported_presentation_modes[0]);
     anvil_assert_vk_call_succeeded(result);
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::RenderingSurface> Anvil::RenderingSurface::create(std::weak_ptr<Anvil::Instance>                instance_ptr,
-                                                                         std::weak_ptr<Anvil::PhysicalDevice>          physical_device_ptr,
-                                                                         std::shared_ptr<Anvil::Window>                window_ptr,
+std::shared_ptr<Anvil::RenderingSurface> Anvil::RenderingSurface::create(std::weak_ptr<Anvil::Instance>             instance_ptr,
+                                                                         std::weak_ptr<Anvil::BaseDevice>           device_ptr,
+                                                                         std::shared_ptr<Anvil::Window>             window_ptr,
+                                                                         const ExtensionKHRSurfaceEntrypoints&      khr_surface_entrypoints,
 #ifdef _WIN32
-                                                                         PFN_vkCreateWin32SurfaceKHR                   pfn_create_win32_surface_khr_proc,
+                                                                         const ExtensionKHRWin32SurfaceEntrypoints& khr_win32_surface_entrypoints
 #else
-                                                                         PFN_vkCreateXcbSurfaceKHR                     pfn_create_xcb_surface_khr_proc,
+                                                                         const ExtensionKHRXcbSurfaceEntrypoints&   khr_xcb_surface_entrypoints
 #endif
-                                                                         PFN_vkDestroySurfaceKHR                       pfn_destroy_surface_khr_proc,
-                                                                         PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR pfn_get_physical_device_surface_capabilities_khr_proc,
-                                                                         PFN_vkGetPhysicalDeviceSurfaceFormatsKHR      pfn_get_physical_device_surface_formats_khr_proc,
-                                                                         PFN_vkGetPhysicalDeviceSurfacePresentModesKHR pfn_get_physical_device_surface_present_modes_khr_proc,
-                                                                         PFN_vkGetPhysicalDeviceSurfaceSupportKHR      pfn_get_physical_device_surface_support_khr_proc)
+)
 {
     std::shared_ptr<Anvil::RenderingSurface> result_ptr;
+    bool                                     success    = false;
 
     result_ptr.reset(
         new Anvil::RenderingSurface(instance_ptr,
-                                    physical_device_ptr,
+                                    device_ptr,
                                     window_ptr,
+                                    khr_surface_entrypoints,
 #ifdef _WIN32
-                                    pfn_create_win32_surface_khr_proc,
+                                    khr_win32_surface_entrypoints,
 #else
-                                    pfn_create_xcb_surface_khr_proc,
+                                    khr_xcb_surface_entrypoints,
 #endif
-                                    pfn_destroy_surface_khr_proc,
-                                    pfn_get_physical_device_surface_capabilities_khr_proc,
-                                    pfn_get_physical_device_surface_formats_khr_proc,
-                                    pfn_get_physical_device_surface_present_modes_khr_proc,
-                                    pfn_get_physical_device_surface_support_khr_proc)
-    );
+                                   &success) );
+
+    if (!success)
+    {
+        result_ptr.reset();
+    }
 
     return result_ptr;
+}
+
+/* Please see header for specification */
+bool Anvil::RenderingSurface::get_capabilities(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                                               VkSurfaceCapabilitiesKHR*            out_surface_caps_ptr) const
+{
+    auto caps_iterator = m_physical_device_capabilities.find(0);
+    bool result        = false;
+
+    if (caps_iterator != m_physical_device_capabilities.end() )
+    {
+        *out_surface_caps_ptr = caps_iterator->second.capabilities;
+        result                = true;
+    }
+
+    /* All done */
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::RenderingSurface::get_supported_composite_alpha_flags(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                                                                  VkCompositeAlphaFlagsKHR*            out_result_ptr) const
+{
+    auto caps_iterator = m_physical_device_capabilities.find(0);
+    bool result        = false;
+
+    if (caps_iterator != m_physical_device_capabilities.end() )
+    {
+        *out_result_ptr = caps_iterator->second.supported_composite_alpha_flags;
+        result          = true;
+    }
+
+    /* All done */
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::RenderingSurface::get_supported_transformations(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                                                            VkSurfaceTransformFlagsKHR*          out_result_ptr) const
+{
+    auto caps_iterator = m_physical_device_capabilities.find(0);
+    bool result        = false;
+
+    if (caps_iterator != m_physical_device_capabilities.end() )
+    {
+        *out_result_ptr = caps_iterator->second.supported_transformations;
+        result          = true;
+    }
+
+    /* All done */
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::RenderingSurface::get_supported_usages(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                                                   VkImageUsageFlags*                   out_result_ptr) const
+{
+    auto caps_iterator = m_physical_device_capabilities.find(0);
+    bool result        = false;
+
+    if (caps_iterator != m_physical_device_capabilities.end() )
+    {
+        *out_result_ptr = caps_iterator->second.supported_usages;
+        result          = true;
+    }
+
+    /* All done */
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::RenderingSurface::is_compatible_with_image_format(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                                                              VkFormat                             image_format,
+                                                              bool*                                out_result_ptr) const
+{
+    auto caps_iterator = m_physical_device_capabilities.find(0);
+    bool result        = false;
+
+    if (caps_iterator != m_physical_device_capabilities.end() )
+    {
+        *out_result_ptr = std::find(caps_iterator->second.supported_formats.begin(),
+                                    caps_iterator->second.supported_formats.end(),
+                                    image_format) != caps_iterator->second.supported_formats.end();
+        result          = true;
+    }
+
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::RenderingSurface::supports_presentation_mode(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                                                         VkPresentModeKHR                     presentation_mode,
+                                                         bool*                                out_result_ptr) const
+{
+    auto caps_iterator = m_physical_device_capabilities.find(0);
+    bool result        = false;
+
+    if (caps_iterator != m_physical_device_capabilities.end() )
+    {
+        *out_result_ptr = std::find(caps_iterator->second.supported_presentation_modes.begin(),
+                                    caps_iterator->second.supported_presentation_modes.end(),
+                                    presentation_mode) != caps_iterator->second.supported_presentation_modes.end();
+        result          = true;
+    }
+
+    return result;
 }

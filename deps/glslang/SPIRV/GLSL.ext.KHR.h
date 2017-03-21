@@ -24,31 +24,20 @@
 ** IN THE MATERIALS.
 */
 
-#ifndef GLSLextARB_H
-#define GLSLextARB_H
+#ifndef GLSLextKHR_H
+#define GLSLextKHR_H
 
 enum BuiltIn;
+enum Op;
+enum Capability;
 
-static const int GLSLextARBVersion = 100;
-static const int GLSLextARBRevision = 1;
+static const int GLSLextKHRVersion = 100;
+static const int GLSLextKHRRevision = 1;
 
-// SPV_ARB_shader_ballot
-static const char* const E_SPV_ARB_shader_ballot = "SPV_ARB_shader_ballot";
+static const char* const E_SPV_KHR_shader_ballot          = "SPV_KHR_shader_ballot";
+static const char* const E_SPV_KHR_subgroup_vote          = "SPV_KHR_subgroup_vote";
+static const char* const E_SPV_KHR_device_group           = "SPV_KHR_device_group";
+static const char* const E_SPV_KHR_multiview              = "SPV_KHR_multiview";
+static const char* const E_SPV_KHR_shader_draw_parameters = "SPV_KHR_shader_draw_parameters";
 
-static const BuiltIn BuiltInSubGroupSizeARB        = static_cast<BuiltIn>(4416);
-static const BuiltIn BuiltInSubGroupInvocationARB  = static_cast<BuiltIn>(4417);
-static const BuiltIn BuiltInSubGroupEqMaskARB      = static_cast<BuiltIn>(4418);
-static const BuiltIn BuiltInSubGroupGeMaskARB      = static_cast<BuiltIn>(4419);
-static const BuiltIn BuiltInSubGroupGtMaskARB      = static_cast<BuiltIn>(4420);
-static const BuiltIn BuiltInSubGroupLeMaskARB      = static_cast<BuiltIn>(4421);
-static const BuiltIn BuiltInSubGroupLtMaskARB      = static_cast<BuiltIn>(4422);
-
-enum ShaderBallotARB {
-    BallotARB = 0,
-    ReadInvocationARB = 1,
-    ReadFirstInvocationARB = 2,
-
-    ShaderBallotCountARB
-};
-
-#endif  // #ifndef GLSLextARB_H
+#endif  // #ifndef GLSLextKHR_H

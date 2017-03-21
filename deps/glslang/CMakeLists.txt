@@ -1,13 +1,23 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 2.8.11)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 option(ENABLE_AMD_EXTENSIONS "Enables support of AMD-specific extensions" ON)
+option(ENABLE_NV_EXTENSIONS "Enables support of Nvidia-specific extensions" ON)
+option(ENABLE_HLSL "Enables HLSL input support" ON)
 
 project(glslang)
 
 if(ENABLE_AMD_EXTENSIONS)
     add_definitions(-DAMD_EXTENSIONS)
 endif(ENABLE_AMD_EXTENSIONS)
+
+if(ENABLE_NV_EXTENSIONS)
+    add_definitions(-DNV_EXTENSIONS)
+endif(ENABLE_NV_EXTENSIONS)
+
+if(ENABLE_HLSL)
+    add_definitions(-DENABLE_HLSL)
+endif(ENABLE_HLSL)
 
 if(WIN32)
     set(CMAKE_DEBUG_POSTFIX "d")

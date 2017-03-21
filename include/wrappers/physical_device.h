@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -88,11 +88,9 @@ namespace Anvil
             }
             else
             {
-                static FormatProperties dummy;
-
                 anvil_assert(false);
 
-                return dummy;
+                return m_dummy;
             }
         }
 
@@ -135,6 +133,26 @@ namespace Anvil
         {
             return m_queue_families;
         }
+
+        /** Returns sprase image format properties for this physical device. See Vulkan spec
+         *  for vkGetPhysicalDeviceSparseImageFormatProperties() function for more details.
+         *
+         *  @param in_format       As per Vulkan spec.
+         *  @param in_type         As per Vulkan spec.
+         *  @param in_sample_count As per Vulkan spec.
+         *  @param in_usage        As per Vulkan spec.
+         *  @param in_tiling       As per Vulkan spec.
+         *  @param out_result      The retrieved information will be stored under this location, if
+         *                         the function returns true.
+         *
+         *  @return true if successful, false otherwise
+         **/
+        bool get_sparse_image_format_properties(VkFormat                                    in_format,
+                                                VkImageType                                 in_type,
+                                                VkSampleCountFlagBits                       in_sample_count,
+                                                VkImageUsageFlags                           in_usage,
+                                                VkImageTiling                               in_tiling,
+                                                std::vector<VkSparseImageFormatProperties>& out_result) const;
 
         /** Tells whether user-specified extension is supported by the physical device.
          *
@@ -184,12 +202,12 @@ namespace Anvil
 
         void destroy          ();
         void init             ();
-        void register_device  (std::shared_ptr<Anvil::Device> device_ptr);
-        void unregister_device(std::shared_ptr<Anvil::Device> device_ptr);
+        void register_device  (std::shared_ptr<Anvil::BaseDevice> device_ptr);
+        void unregister_device(std::shared_ptr<Anvil::BaseDevice> device_ptr);
 
         /* Private variables */
         bool             m_destroyed;
-        VkPhysicalDevice m_physical_device;
+        FormatProperties m_dummy;
 
         Anvil::Extensions                m_extensions;
         uint32_t                         m_index;
@@ -198,14 +216,26 @@ namespace Anvil
         FormatPropertiesMap              m_format_properties;
         Anvil::Layers                    m_layers;
         MemoryProperties                 m_memory_properties;
+        VkPhysicalDevice                 m_physical_device;
         QueueFamilyInfoItems             m_queue_families;
         VkPhysicalDeviceProperties       m_properties;
 
-        std::vector<std::shared_ptr<Anvil::Device> > m_cached_devices;
+        std::vector<std::shared_ptr<Anvil::BaseDevice> > m_cached_devices;
 
-        friend class Anvil::Device;
         friend class Anvil::Instance;
+        friend class Anvil::SGPUDevice;
     };
+
+    /** Tells whether the specified Anvil PhysicalDevice wrapper encapsulates given Vulkan physical device.
+     *
+     *  @param physical_device_ptr Anvil physical device wrapper. Must not be null.
+     *  @param physical_device_vk  Raw Vulkan physical device handle.
+     *
+     *  @return true if objects match, false otherwise.
+     **/
+    bool operator==(const std::shared_ptr<Anvil::PhysicalDevice>& physical_device_ptr,
+                    const VkPhysicalDevice&                       physical_device_vk);
+
 }; /* namespace Anvil */
 
 #endif /* WRAPPERS_FENCE_H */

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -48,11 +48,11 @@ namespace Anvil
          *  @param initial_data      Initial data to initialize the new pipeline cache instance with.
          *                           May be nullptr if @param initial_data_size is 0.
          **/
-        static std::shared_ptr<Anvil::PipelineCache> create(std::weak_ptr<Anvil::Device> device_ptr,
-                                                            size_t                       initial_data_size = 0,
-                                                            const void*                  initial_data      = nullptr);
+        static std::shared_ptr<Anvil::PipelineCache> create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                                            size_t                           initial_data_size = 0,
+                                                            const void*                      initial_data      = nullptr);
 
-        /** TODO */
+        /** Destroys the Vulkan counterpart and unregisters the wrapper instance from the object tracker. */
         virtual ~PipelineCache();
 
         /** Retrieves pipeline cache data.
@@ -86,16 +86,16 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. See create() for specification */
-        PipelineCache(std::weak_ptr<Anvil::Device> device_ptr,
-                      size_t                       initial_data_size,
-                      const void*                  initial_data);
+        PipelineCache(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                      size_t                           initial_data_size,
+                      const void*                      initial_data);
 
         PipelineCache           (const PipelineCache&);
         PipelineCache& operator=(const PipelineCache&);
 
         /* Private variables */
-        std::weak_ptr<Anvil::Device> m_device_ptr;
-        VkPipelineCache              m_pipeline_cache;
+        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
+        VkPipelineCache                  m_pipeline_cache;
     };
 }; /* namespace Anvil */
 

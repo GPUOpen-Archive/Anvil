@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -42,7 +42,7 @@ namespace Anvil
     {
     public:
         /* Public functions */
-       static std::shared_ptr<ComputePipelineManager> create(std::weak_ptr<Anvil::Device>          device_ptr,
+       static std::shared_ptr<ComputePipelineManager> create(std::weak_ptr<Anvil::BaseDevice>      device_ptr,
                                                              bool                                  use_pipeline_cache          = false,
                                                              std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr = nullptr);
 
@@ -205,10 +205,13 @@ namespace Anvil
 
        private:
            /* Constructor */
-           explicit ComputePipelineManager(std::weak_ptr<Anvil::Device>          device_ptr,
+           explicit ComputePipelineManager(std::weak_ptr<Anvil::BaseDevice>      device_ptr,
                                            bool                                  use_pipeline_cache          = false,
                                            std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr = nullptr);
 
+
+           ANVIL_DISABLE_ASSIGNMENT_OPERATOR(ComputePipelineManager);
+           ANVIL_DISABLE_COPY_CONSTRUCTOR   (ComputePipelineManager);
     };
 }; /* Vulkan namespace */
 

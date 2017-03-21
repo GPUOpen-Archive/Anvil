@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -19,9 +19,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
-
 #include "misc/window_xcb.h"
-
 /** Please see header for specification */
 Anvil::WindowXcb::WindowXcb(const std::string&     title,
                             unsigned int           width,
@@ -41,13 +39,13 @@ Anvil::WindowXcb::~WindowXcb()
 {
     const XCBLoaderForAnvilFuncs* xcb_procs_ptr = m_xcb_loader.GetProcsTable();
 
-    xcb_procs_ptr->pfnXcbUnmapWindow  (static_cast<xcb_connection_t*>(m_connection_ptr),
-                                       m_window);
+    xcb_procs_ptr->pfnXcbUnmapWindow(static_cast<xcb_connection_t*>(m_connection_ptr),
+                                     m_window);
 
     xcb_procs_ptr->pfnXcbDestroyWindow(static_cast<xcb_connection_t*>(m_connection_ptr),
                                        m_window);
 
-    xcb_procs_ptr->pfnXcbDisconnect   (static_cast<xcb_connection_t*>(m_connection_ptr));
+    xcb_procs_ptr->pfnXcbDisconnect(static_cast<xcb_connection_t*>(m_connection_ptr));
 }
 
 /** Please see header for specification */
@@ -55,9 +53,7 @@ void Anvil::WindowXcb::close()
 {
     if (!m_window_should_close)
     {
-        const XCBLoaderForAnvilFuncs* xcb_procs_ptr = m_xcb_loader.GetProcsTable();
-
-        m_window_should_close                       = true;
+        m_window_should_close = true;
 
         free(m_key_symbols);
         free(m_atom_wm_delete_window_ptr);
@@ -65,8 +61,7 @@ void Anvil::WindowXcb::close()
 }
 
 /** Creates a new system window and prepares it for usage. */
-void Anvil::WindowXcb::init()
-{
+void Anvil::WindowXcb::init(){
     const uint32_t window_size[2] =
     {
         m_width,
@@ -81,9 +76,10 @@ void Anvil::WindowXcb::init()
     const uint32_t      value_mask     = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
     uint32_t            value_list[sizeof(uint32_t) * 8];
     xcb_window_t        window;
-    xcb_connection_t*   connection_ptr = static_cast<xcb_connection_t*>(m_connection_ptr);
 
-    const XCBLoaderForAnvilFuncs* xcb_procs_ptr = m_xcb_loader.GetProcsTable();
+    xcb_connection_t*             connection_ptr = static_cast<xcb_connection_t*>(m_connection_ptr);
+    const XCBLoaderForAnvilFuncs* xcb_procs_ptr  = m_xcb_loader.GetProcsTable();
+
     anvil_assert(xcb_procs_ptr != NULL);
 
     value_list[0] = m_screen_ptr->black_pixel;
@@ -135,6 +131,7 @@ void Anvil::WindowXcb::init()
                                         32,
                                         1,
                                         &(*atom_wm_delete_window_ptr).atom);
+
     xcb_procs_ptr->pfnXcbChangeProperty(connection_ptr,
                                         XCB_PROP_MODE_REPLACE,
                                         window,
@@ -148,7 +145,6 @@ void Anvil::WindowXcb::init()
 
     xcb_procs_ptr->pfnXcbMapWindow(connection_ptr,
                                    window);
-
     xcb_procs_ptr->pfnXcbFlush    (connection_ptr);
 
     m_atom_wm_delete_window_ptr = atom_wm_delete_window_ptr;
@@ -233,7 +229,6 @@ void Anvil::WindowXcb::run()
                 case XCB_DESTROY_NOTIFY:
                 {
                     running = false;
-
                     break;
                 }
 
@@ -261,4 +256,3 @@ void Anvil::WindowXcb::run()
         }
     }
 }
-

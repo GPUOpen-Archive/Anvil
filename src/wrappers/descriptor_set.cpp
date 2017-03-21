@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -55,8 +55,8 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     image_layout    = element.image_layout;
     image_view_ptr  = element.image_view_ptr;
     sampler_ptr     = element.sampler_ptr;
-    size            = -1;
-    start_offset    = -1;
+    size            = UINT64_MAX;
+    start_offset    = UINT64_MAX;
 
     return *this;
 }
@@ -70,8 +70,8 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     image_layout    = element.image_layout;
     image_view_ptr  = element.image_view_ptr;
     sampler_ptr     = nullptr;
-    size            = -1;
-    start_offset    = -1;
+    size            = UINT64_MAX;
+    start_offset    = UINT64_MAX;
 
     return *this;
 }
@@ -85,8 +85,8 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     image_layout    = VK_IMAGE_LAYOUT_UNDEFINED;
     image_view_ptr  = nullptr;
     sampler_ptr     = element.sampler_ptr;
-    size            = -1;
-    start_offset    = -1;
+    size            = UINT64_MAX;
+    start_offset    = UINT64_MAX;
 
     return *this;
 }
@@ -100,8 +100,8 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     image_layout    = VK_IMAGE_LAYOUT_UNDEFINED;
     image_view_ptr  = nullptr;
     sampler_ptr     = nullptr;
-    size            = -1;
-    start_offset    = -1;
+    size            = UINT64_MAX;
+    start_offset    = UINT64_MAX;
 
     return *this;
 }
@@ -118,8 +118,8 @@ Anvil::DescriptorSet::BufferBindingElement::BufferBindingElement(std::shared_ptr
     anvil_assert(in_buffer_ptr != nullptr);
 
     buffer_ptr   = in_buffer_ptr;
-    size         = -1;
-    start_offset = -1;
+    size         = UINT64_MAX;
+    start_offset = UINT64_MAX;
 }
 
 /** Please see header for specification */
@@ -157,7 +157,6 @@ Anvil::DescriptorSet::CombinedImageSamplerBindingElement::CombinedImageSamplerBi
                                                                                              std::shared_ptr<Anvil::Sampler>   in_sampler_ptr)
 {
     anvil_assert(in_image_view_ptr != nullptr);
-    anvil_assert(in_sampler_ptr    != nullptr);
 
     image_layout   = in_image_layout;
     image_view_ptr = in_image_view_ptr;
@@ -242,7 +241,7 @@ Anvil::DescriptorSet::TexelBufferBindingElement::TexelBufferBindingElement(const
 }
 
 /** Please see header for specification */
-Anvil::DescriptorSet::DescriptorSet(std::weak_ptr<Anvil::Device>                device_ptr,
+Anvil::DescriptorSet::DescriptorSet(std::weak_ptr<Anvil::BaseDevice>            device_ptr,
                                     std::shared_ptr<Anvil::DescriptorPool>      parent_pool_ptr,
                                     std::shared_ptr<Anvil::DescriptorSetLayout> layout_ptr,
                                     VkDescriptorSet                             descriptor_set)
@@ -262,14 +261,14 @@ Anvil::DescriptorSet::DescriptorSet(std::weak_ptr<Anvil::Device>                
                                               on_parent_pool_reset,
                                               this);
 
-    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_DESCRIPTOR_SET,
+    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_DESCRIPTOR_SET,
                                                  this);
 }
 
 /** Please see header for specification */
 Anvil::DescriptorSet::~DescriptorSet()
 {
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_DESCRIPTOR_SET,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_DESCRIPTOR_SET,
                                                    this);
 }
 
@@ -317,10 +316,10 @@ bool Anvil::DescriptorSet::bake()
 
     if (m_dirty)
     {
-        uint32_t       cached_ds_buffer_info_items_array_offset       = (uint32_t) 0;
-        uint32_t       cached_ds_image_info_items_array_offset        = (uint32_t) 0;
-        uint32_t       cached_ds_texel_buffer_info_items_array_offset = (uint32_t) 0;
-        const uint32_t n_bindings                                     = (uint32_t) m_bindings.size();
+        uint32_t       cached_ds_buffer_info_items_array_offset       = 0;
+        uint32_t       cached_ds_image_info_items_array_offset        = 0;
+        uint32_t       cached_ds_texel_buffer_info_items_array_offset = 0;
+        const uint32_t n_bindings                                     = static_cast<uint32_t>(m_bindings.size() );
         uint32_t       n_max_ds_info_items_to_cache                   = 0;
 
         m_cached_ds_info_buffer_info_items_vk.clear();
@@ -382,7 +381,7 @@ bool Anvil::DescriptorSet::bake()
 
                     buffer_info.buffer = current_binding_item.buffer_ptr->get_buffer();
 
-                    if (current_binding_item.start_offset != -1)
+                    if (current_binding_item.start_offset != UINT64_MAX)
                     {
                         buffer_info.offset = current_binding_item.start_offset;
                         buffer_info.range  = current_binding_item.size;
@@ -458,7 +457,7 @@ bool Anvil::DescriptorSet::bake()
         /* Issue the Vulkan call */
         if (m_cached_ds_write_items_vk.size() > 0)
         {
-            std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+            std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
             vkUpdateDescriptorSets(device_locked_ptr->get_device_vk(),
                                    (uint32_t) m_cached_ds_write_items_vk.size(),
@@ -477,7 +476,7 @@ end:
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::DescriptorSet> Anvil::DescriptorSet::create(std::weak_ptr<Anvil::Device>                device_ptr,
+std::shared_ptr<Anvil::DescriptorSet> Anvil::DescriptorSet::create(std::weak_ptr<Anvil::BaseDevice>            device_ptr,
                                                                    std::shared_ptr<Anvil::DescriptorPool>      parent_pool_ptr,
                                                                    std::shared_ptr<Anvil::DescriptorSetLayout> layout_ptr,
                                                                    VkDescriptorSet                             descriptor_set)
@@ -508,6 +507,8 @@ void Anvil::DescriptorSet::on_binding_added_to_layout(void* layout_raw_ptr,
 {
     Anvil::DescriptorSet* ds_ptr = static_cast<Anvil::DescriptorSet*>(ds_raw_ptr);
 
+    ANVIL_REDUNDANT_ARGUMENT(layout_raw_ptr);
+
     ds_ptr->alloc_bindings();
 }
 
@@ -523,6 +524,9 @@ void Anvil::DescriptorSet::on_parent_pool_reset(void* pool_raw_ptr,
                                                 void* ds_raw_ptr)
 {
     Anvil::DescriptorSet* ds_ptr = static_cast<Anvil::DescriptorSet*>(ds_raw_ptr);
+
+    ANVIL_REDUNDANT_ARGUMENT(ds_raw_ptr);
+    ANVIL_REDUNDANT_ARGUMENT(pool_raw_ptr);
 
     /* This descriptor set instance is no longer usable.
      *

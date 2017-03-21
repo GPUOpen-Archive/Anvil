@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -26,13 +26,15 @@
 #include "wrappers/event.h"
 
 /* Please see header for specification */
-Anvil::Event::Event(std::weak_ptr<Anvil::Device> device_ptr)
+Anvil::Event::Event(std::weak_ptr<Anvil::BaseDevice> device_ptr)
     :m_device_ptr(device_ptr),
      m_event      (VK_NULL_HANDLE)
 {
-    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
-    VkEventCreateInfo              event_create_info;
-    VkResult                       result;
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
+    VkEventCreateInfo                  event_create_info;
+    VkResult                           result           (VK_ERROR_INITIALIZATION_FAILED);
+
+    ANVIL_REDUNDANT_VARIABLE(result);
 
     /* Spawn a new event */
     event_create_info.flags = 0;
@@ -46,7 +48,7 @@ Anvil::Event::Event(std::weak_ptr<Anvil::Device> device_ptr)
     anvil_assert_vk_call_succeeded(result);
 
     /* Register the event instance */
-    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_EVENT,
+    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_EVENT,
                                                   this);
 }
 
@@ -59,12 +61,12 @@ Anvil::Event::~Event()
 {
     release_event();
 
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_EVENT,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_EVENT,
                                                     this);
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::Event> Anvil::Event::create(std::weak_ptr<Anvil::Device> device_ptr)
+std::shared_ptr<Anvil::Event> Anvil::Event::create(std::weak_ptr<Anvil::BaseDevice> device_ptr)
 {
     std::shared_ptr<Event> result_ptr;
 
@@ -78,8 +80,8 @@ std::shared_ptr<Anvil::Event> Anvil::Event::create(std::weak_ptr<Anvil::Device> 
 /* Please see header for specification */
 bool Anvil::Event::is_set() const
 {
-    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
-    VkResult                       result;
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
+    VkResult                           result;
 
     result = vkGetEventStatus(device_locked_ptr->get_device_vk(),
                               m_event);
@@ -95,7 +97,7 @@ void Anvil::Event::release_event()
 {
     if (m_event != VK_NULL_HANDLE)
     {
-        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
         vkDestroyEvent(device_locked_ptr->get_device_vk(),
                        m_event,
@@ -108,8 +110,8 @@ void Anvil::Event::release_event()
 /* Please see header for specification */
 bool Anvil::Event::reset()
 {
-    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
-    VkResult                       result;
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
+    VkResult                           result;
 
     result = vkResetEvent(device_locked_ptr->get_device_vk(),
                           m_event);
@@ -121,8 +123,8 @@ bool Anvil::Event::reset()
 /* Please see header for specification */
 bool Anvil::Event::set()
 {
-    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
-    VkResult                       result;
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
+    VkResult                           result;
 
     result = vkSetEvent(device_locked_ptr->get_device_vk(),
                         m_event);

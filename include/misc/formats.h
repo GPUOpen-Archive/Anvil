@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -59,6 +59,16 @@ namespace Anvil
                                    uint32_t        n_component2_bits,
                                    uint32_t        n_component3_bits);
 
+        /** Returns image aspects exposed by a given image format.
+         *
+         *  @param foramt          Format to use for the query.
+         *  @param out_aspects_ptr Deref will be used to store the result data. Must not be NULL.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        static bool get_format_aspects(VkFormat                         format,
+                                       std::vector<VkImageAspectFlags>* out_aspects_ptr);
+
         /** Tells what component layout is used by @param format. */
         static ComponentLayout get_format_component_layout(VkFormat format);
 
@@ -83,6 +93,9 @@ namespace Anvil
                                                 uint32_t* out_channel1_bits_ptr,
                                                 uint32_t* out_channel2_bits_ptr,
                                                 uint32_t* out_channel3_bits_ptr);
+
+        /* Returns a raw C string for specified format, or NULL if the format is unknown. */
+        static const char* get_format_name(VkFormat format);
 
         /** Tells the format type used by @param format. */
         static FormatType get_format_type(VkFormat format);

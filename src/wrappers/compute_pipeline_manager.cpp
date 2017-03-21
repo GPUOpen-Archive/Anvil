@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,7 @@
  *                                 to release the cache when no longer needed!
  *  @param pipeline_cache_to_reuse Please see above.
  **/
-Anvil::ComputePipelineManager::ComputePipelineManager(std::weak_ptr<Anvil::Device>          device_ptr,
+Anvil::ComputePipelineManager::ComputePipelineManager(std::weak_ptr<Anvil::BaseDevice>      device_ptr,
                                                       bool                                  use_pipeline_cache,
                                                       std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr)
     :BasePipelineManager(device_ptr,
@@ -49,7 +49,7 @@ Anvil::ComputePipelineManager::ComputePipelineManager(std::weak_ptr<Anvil::Devic
                          pipeline_cache_to_reuse_ptr)
 {
     /* Register the object */
-    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_COMPUTE_PIPELINE_MANAGER,
+    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_COMPUTE_PIPELINE_MANAGER,
                                                   this);
 }
 
@@ -60,7 +60,7 @@ Anvil::ComputePipelineManager::~ComputePipelineManager()
     m_pipelines.clear();
 
     /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_COMPUTE_PIPELINE_MANAGER,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_COMPUTE_PIPELINE_MANAGER,
                                                     this);
 }
 
@@ -72,7 +72,7 @@ Anvil::ComputePipelineManager::~ComputePipelineManager()
  **/
 bool Anvil::ComputePipelineManager::bake()
 {
-    std::shared_ptr<Anvil::Device>           locked_device_ptr(m_device_ptr);
+    std::shared_ptr<Anvil::BaseDevice>       locked_device_ptr(m_device_ptr);
     std::vector<VkComputePipelineCreateInfo> pipeline_create_info_items_vk;
     bool                                     result = false;
     std::vector<VkPipeline>                  result_pipeline_items_vk;
@@ -105,7 +105,6 @@ bool Anvil::ComputePipelineManager::bake()
               pipeline_iterator != m_pipelines.end();
             ++pipeline_iterator)
     {
-        uint32_t                    base_pipeline_index   = -1;
         std::shared_ptr<Pipeline>   current_pipeline_ptr  = pipeline_iterator->second;
         VkComputePipelineCreateInfo pipeline_create_info;
         VkSpecializationInfo        specialization_info;
@@ -164,7 +163,7 @@ bool Anvil::ComputePipelineManager::bake()
             {
                 /* Case 1 */
                 pipeline_create_info.basePipelineHandle = current_pipeline_ptr->base_pipeline;
-                pipeline_create_info.basePipelineIndex  = (uint32_t) (base_pipeline_iterator - pipeline_vector.begin() );
+                pipeline_create_info.basePipelineIndex  = static_cast<int32_t>(base_pipeline_iterator - pipeline_vector.begin() );
             }
             else
             if (current_pipeline_ptr->base_pipeline_ptr                 != nullptr           &&
@@ -172,7 +171,7 @@ bool Anvil::ComputePipelineManager::bake()
             {
                 /* Case 2 */
                 pipeline_create_info.basePipelineHandle = current_pipeline_ptr->base_pipeline_ptr->baked_pipeline;
-                pipeline_create_info.basePipelineIndex  = -1; /* unused. */
+                pipeline_create_info.basePipelineIndex  = UINT32_MAX; /* unused. */
             }
             else
             {
@@ -184,13 +183,13 @@ bool Anvil::ComputePipelineManager::bake()
         if (current_pipeline_ptr->base_pipeline != VK_NULL_HANDLE)
         {
             pipeline_create_info.basePipelineHandle = current_pipeline_ptr->base_pipeline;
-            pipeline_create_info.basePipelineIndex  = -1; /* unused. */
+            pipeline_create_info.basePipelineIndex  = UINT32_MAX; /* unused. */
         }
         else
         {
             /* No base pipeline requested */
             pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE;
-            pipeline_create_info.basePipelineIndex  = -1; /* unused */
+            pipeline_create_info.basePipelineIndex  = UINT32_MAX; /* unused */
         }
 
         anvil_assert(!current_pipeline_ptr->layout_dirty);
@@ -210,7 +209,7 @@ bool Anvil::ComputePipelineManager::bake()
         pipeline_create_info.stage.module = current_pipeline_ptr->shader_stages[0].shader_module_ptr->get_module();
 
         if (pipeline_create_info.basePipelineHandle != VK_NULL_HANDLE ||
-            pipeline_create_info.basePipelineIndex != -1)
+            pipeline_create_info.basePipelineIndex  != INT32_MAX)
         {
             pipeline_create_info.flags |= VK_PIPELINE_CREATE_DERIVATIVE_BIT;
         }
@@ -228,8 +227,7 @@ bool Anvil::ComputePipelineManager::bake()
               map_iterator != layout_to_bake_item_map.end();
             ++map_iterator)
     {
-        const VkPipelineLayout current_layout = map_iterator->first;
-        uint32_t               n_current_item = 0;
+        uint32_t n_current_item = 0;
 
         pipeline_create_info_items_vk.clear();
 
@@ -278,7 +276,7 @@ end:
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::ComputePipelineManager> Anvil::ComputePipelineManager::create(std::weak_ptr<Anvil::Device>          device_ptr,
+std::shared_ptr<Anvil::ComputePipelineManager> Anvil::ComputePipelineManager::create(std::weak_ptr<Anvil::BaseDevice>      device_ptr,
                                                                                      bool                                  use_pipeline_cache,
                                                                                      std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr)
 {

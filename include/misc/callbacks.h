@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -19,7 +19,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
-
+    
 /** Defines & implements a simple callback manager which lets:
  *
  *  - clients sign up to any of the exposed callback slots at any time.
@@ -37,6 +37,9 @@
 #ifndef _WIN32
     #include <unistd.h>
 #endif
+
+#include "misc/types.h"
+
 namespace Anvil
 {
     /* Defines the callback ID type.
@@ -87,7 +90,7 @@ namespace Anvil
             anvil_assert(callback_id_count > 0);
 
             m_callback_id_count = callback_id_count;
-            m_callbacks         = new Callbacks[callback_id_count];
+            m_callbacks         = new Callbacks[static_cast<uintptr_t>(callback_id_count)];
         }
 
         /** Destructor.
@@ -95,7 +98,7 @@ namespace Anvil
          *  Throws an assertion failure if there are dangling call-back subscribers at the time this destructor
          *  is called.
          **/
-        ~CallbacksSupportProvider()
+        virtual ~CallbacksSupportProvider()
         {
             if (m_callbacks != nullptr)
             {
@@ -167,6 +170,8 @@ namespace Anvil
             }
 
             anvil_assert(has_found);
+
+            ANVIL_REDUNDANT_VARIABLE(has_found);
         }
 
     protected:
@@ -184,8 +189,6 @@ namespace Anvil
                       void*      callback_arg)
         {
             anvil_assert(callback_id < m_callback_id_count);
-
-            const uint32_t n_callbacks = (uint32_t) m_callbacks[callback_id].size();
 
             for (auto callback_iterator  = m_callbacks[callback_id].begin();
                       callback_iterator != m_callbacks[callback_id].end();

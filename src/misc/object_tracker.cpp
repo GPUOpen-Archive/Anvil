@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -128,13 +128,32 @@ const char* Anvil::ObjectTracker::get_object_type_name(ObjectType object_type) c
         "Sampler",
         "Semaphore",
         "Shader Module",
-        "Swapchain"
+        "Swapchain",
+
+        /* Fake types: */
+        "Graphics Pipeline (fake)"
     };
 
     static_assert(sizeof(result_array) / sizeof(result_array[0]) == OBJECT_TYPE_COUNT,
                   "Number of object types change detected - update result_array.");
 
     return result_array[object_type];
+}
+
+/* Please see header for specification */
+const void* Anvil::ObjectTracker::get_object_at_index(ObjectType object_type,
+                                                      uint32_t   alloc_index) const
+{
+    const void* result = nullptr;
+
+    anvil_assert(object_type < OBJECT_TYPE_COUNT);
+
+    if (m_object_allocations[object_type].size() > alloc_index)
+    {
+        result = m_object_allocations[object_type][alloc_index].object_ptr;
+    }
+
+    return result;
 }
 
 /* Please see header for specification */

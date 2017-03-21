@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -69,10 +69,13 @@ namespace Anvil
          *                           May be nullptr.
          *
          **/
-        static std::shared_ptr<RenderPass> create(std::weak_ptr<Anvil::Device>      device_ptr,
+        static std::shared_ptr<RenderPass> create(std::weak_ptr<Anvil::BaseDevice>  device_ptr,
                                                   std::shared_ptr<Anvil::Swapchain> opt_swapchain_ptr);
 
-        /** TODO */
+        /** Destructor.
+         *
+         *  Destroys the Vulkan counterpart and unregisters the wrapper instance from the object tracker.
+         **/
         virtual ~RenderPass();
 
         /** Adds a new render-pass color attachment to the internal data model.
@@ -96,7 +99,7 @@ namespace Anvil
          *  @return true if the function executed successfully, false otherwise.
          **/
         bool add_color_attachment(VkFormat                format,
-                                  VkSampleCountFlagBits   sample_count,
+                                  VkSampleCountFlags      sample_count,
                                   VkAttachmentLoadOp      load_op,
                                   VkAttachmentStoreOp     store_op,
                                   VkImageLayout           initial_layout,
@@ -127,7 +130,7 @@ namespace Anvil
          *  @return true if the function executed successfully, false otherwise.
          **/
         bool add_depth_stencil_attachment(VkFormat                format,
-                                          VkSampleCountFlagBits   sample_count,
+                                          VkSampleCountFlags   sample_count,
                                           VkAttachmentLoadOp      depth_load_op,
                                           VkAttachmentStoreOp     depth_store_op,
                                           VkAttachmentLoadOp      stencil_load_op,
@@ -170,7 +173,7 @@ namespace Anvil
                          const ShaderModuleStageEntryPoint& tess_evaluation_shader_entrypoint,
                          const ShaderModuleStageEntryPoint& vertex_shader_entrypoint,
                          SubPassID*                         out_subpass_id_ptr,
-                         const Anvil::PipelineID            opt_pipeline_id = -1);
+                         const Anvil::PipelineID            opt_pipeline_id = UINT32_MAX);
 
         /** Adds a new color attachment to the RenderPass instance's specified subpass.
          *
@@ -198,29 +201,6 @@ namespace Anvil
                                           uint32_t                      location,
                                           const RenderPassAttachmentID* opt_attachment_resolve_id_ptr);
 
-        /** Adds a new input attachment to the RenderPass instance's specified subpass.
-         *
-         *  This function does NOT re-create the internal VkRenderPass instance. Instead,
-         *  it marks the RenderPass as dirty, which will cause the object to be re-created
-         *  at next bake() or get_render_pass() request.
-         *
-         *  @param subpass_id       ID of the render-pass subpass to update.
-         *  @param layout           Layout to use for the attachment when executing the subpass.
-         *                          Driver takes care of transforming the attachment to the requested layout
-         *                          before subpass commands starts executing.
-         *  @param attachment_id    ID of the render-pass attachment the new sub-pass input attachment
-         *                          should refer to.
-         *  @param attachment_index The "input attachment index", under which the specified attachment should
-         *                          be accessible to the fragment shader. Do not forget the image view also
-         *                          needs to be bound to the descriptor set for the input attachment to work!
-         *
-         *  @return true if the function executed successfully, false otherwise.
-         **/
-        bool add_subpass_input_attachment(SubPassID              subpass_id,
-                                          VkImageLayout          layout,
-                                          RenderPassAttachmentID attachment_id,
-                                          uint32_t               attachment_index);
-
         /** Configures the depth+stencil attachment the subpass should use.
          *
          *  Note that only up to one depth/stencil attachment may be added for each subpass.
@@ -243,6 +223,29 @@ namespace Anvil
         bool add_subpass_depth_stencil_attachment(SubPassID              subpass_id,
                                                   RenderPassAttachmentID attachment_id,
                                                   VkImageLayout          layout);
+
+        /** Adds a new input attachment to the RenderPass instance's specified subpass.
+         *
+         *  This function does NOT re-create the internal VkRenderPass instance. Instead,
+         *  it marks the RenderPass as dirty, which will cause the object to be re-created
+         *  at next bake() or get_render_pass() request.
+         *
+         *  @param subpass_id       ID of the render-pass subpass to update.
+         *  @param layout           Layout to use for the attachment when executing the subpass.
+         *                          Driver takes care of transforming the attachment to the requested layout
+         *                          before subpass commands starts executing.
+         *  @param attachment_id    ID of the render-pass attachment the new sub-pass input attachment
+         *                          should refer to.
+         *  @param attachment_index The "input attachment index", under which the specified attachment should
+         *                          be accessible to the fragment shader. Do not forget the image view also
+         *                          needs to be bound to the descriptor set for the input attachment to work!
+         *
+         *  @return true if the function executed successfully, false otherwise.
+         **/
+        bool add_subpass_input_attachment(SubPassID              subpass_id,
+                                          VkImageLayout          layout,
+                                          RenderPassAttachmentID attachment_id,
+                                          uint32_t               attachment_index);
 
         /** Adds a new external->subpass dependency to the internal data model.
          *
@@ -349,6 +352,13 @@ namespace Anvil
          **/
         bool bake();
 
+        /** Tells what type an attachment with user-specified ID has.
+         *
+         *  @return true if successful, false otherwise
+         */
+        bool get_attachment_type(RenderPassAttachmentID attachment_id,
+                                 AttachmentType*        out_attachment_type_ptr) const;
+
         /** Retrieves properties of the render pass color attachment with the user-specified ID
          *
          *  @param attachment_id              ID of the attachment to retrieve properties of.
@@ -374,7 +384,38 @@ namespace Anvil
                                              VkAttachmentStoreOp*   out_opt_store_op_ptr       = nullptr,
                                              VkImageLayout*         out_opt_initial_layout_ptr = nullptr,
                                              VkImageLayout*         out_opt_final_layout_ptr   = nullptr,
-                                             bool*                  out_opt_may_alias_ptr      = nullptr);
+                                             bool*                  out_opt_may_alias_ptr      = nullptr) const;
+
+        /** Retrieves properties of a dependency at user-specified index.
+         *
+         *  @param n_dependency                    Index of the dependency to retrieve properties of.
+         *  @param out_destination_subpass_id_ptr  Deref will be set to the ID of the dependency's destination,
+         *                                         or to UINT32_MAX, if the destination of the dependency is external.
+         *                                         Must not be null.
+         *  @param out_source_subpass_id_ptr       Deref will be set to the ID of the dependency's source,
+         *                                         or to UINT32_MAX, if the source of the dependency is external.
+         *                                         Must not be null.
+         *  @param out_destination_stage_mask_ptr  Deref will be set to the destination stage mask set for the dependency.
+         *                                         Must not be null.
+         *  @param out_source_stage_mask_ptr       Deref will be set to the source stage mask set for the dependency.
+         *                                         Must not be null.
+         *  @param out_destination_access_mask_ptr Deref will be set to the destination access mask set for the dependency.
+         *                                         Must not be null.
+         *  @param out_source_access_mask_ptr      Deref will be set to the source access mask set for the dependency.
+         *                                         Must not be null.
+         *  @param out_by_region_ptr               Deref will be set to true, if the dependency is a by-region dependency.
+         *                                         If it is not, deref will be set to false. Must not be null.
+         *
+         *  @return true if successful, false otherwise
+         */
+        bool get_dependency_properties(uint32_t              n_dependency,
+                                       SubPassID*            out_destination_subpass_id_ptr,
+                                       SubPassID*            out_source_subpass_id_ptr,
+                                       VkPipelineStageFlags* out_destination_stage_mask_ptr,
+                                       VkPipelineStageFlags* out_source_stage_mask_ptr,
+                                       VkAccessFlags*        out_destination_access_mask_ptr,
+                                       VkAccessFlags*        out_source_access_mask_ptr,
+                                       bool*                 out_by_region_ptr) const;
 
         /** Retrieves properties of the render pass color attachment with the user-specified ID
          *
@@ -404,12 +445,30 @@ namespace Anvil
                                                      VkAttachmentStoreOp*   out_opt_stencil_store_op_ptr = nullptr,
                                                      VkImageLayout*         out_opt_initial_layout_ptr   = nullptr,
                                                      VkImageLayout*         out_opt_final_layout_ptr     = nullptr,
-                                                     bool*                  out_opt_may_alias_ptr        = nullptr);
+                                                     bool*                  out_opt_may_alias_ptr        = nullptr) const;
+
+        /** Returns name assigned to the renderpass instance */
+        const std::string& get_name() const
+        {
+            return m_name;
+        }
+
+        /** Returns the number of added attachments */
+        uint32_t get_n_attachments() const
+        {
+            return static_cast<uint32_t>(m_attachments.size() );
+        }
+
+        /** Returns the number of added dependencies */
+        uint32_t get_n_dependencies() const
+        {
+            return static_cast<uint32_t>(m_subpass_dependencies.size() );
+        }
 
         /** Returns the number of added subpasses */
         uint32_t get_n_subpasses() const
         {
-            return (uint32_t) m_subpasses.size();
+            return static_cast<uint32_t>(m_subpasses.size() );
         }
 
         /** Bakes the VkRenderPass object if the RenderPass instance is marked as dirty, and returns it.
@@ -417,6 +476,25 @@ namespace Anvil
          *  @return The requested object.
          **/
         VkRenderPass get_render_pass();
+
+        /** Retrieves subpass attachment properties, as specified at creation time. 
+         *
+         *  Triggers baking process if the renderpass is marked as dirty.
+         *
+         *  @param subpass_id                       ID of the subpass to use for the query.
+         *  @param attachment_type                  Type of the attachment to use for the query. Must not be ATTACHMENT_TYPE_PRESERVE.
+         *  @param out_renderpass_attachment_id_ptr Deref will be set to the ID of the renderpass attachment this subpass
+         *                                          attachment uses.
+         *  @param out_layout_ptr                   Deref will be set to the image layout assigned to the attachment for the specific
+         *                                          subpass. Must be NULL if @param attachment_type is ATTACHMENT_TYPE_PRESERVE.
+         *
+         *  @return true if successful, false otherwise.
+         */
+        bool get_subpass_attachment_properties(SubPassID               subpass_id,
+                                               AttachmentType          attachment_type,
+                                               uint32_t                n_subpass_attachment,
+                                               RenderPassAttachmentID* out_renderpass_attachment_id_ptr,
+                                               VkImageLayout*          out_layout_ptr);
 
         /** Returns the graphics pipeline ID, associated with the specified subpass.
          *
@@ -429,16 +507,20 @@ namespace Anvil
         bool get_subpass_graphics_pipeline_id(SubPassID           subpass_id,
                                               GraphicsPipelineID* out_graphics_pipeline_id_ptr) const;
 
-        /** Returns the number of color attachments, defined for the specified subpass.
+        /** Returns the number of attachments of user-specified type, defined for the specified subpass.
          *
-         *  @param subpass_id                  As per description.
-         *  @param out_n_color_attachments_ptr Deref will be set to the value above.. Must not be nullptr.
-         *                                     Will only be touched if the function returns true.
+         *  This function may trigger renderpass bake process, if the renderpass is marked as dirty
+         *  at the query time, and @param attachment_type is set to ATTACHMENT_TYPE_PRESERVE.
          *
+         *  @param subpass_id            As per description.
+         *  @param attachment_type       Type of the attachment to use for the query.
+         *  @param out_n_attachments_ptr Deref will be set to the value above. Must not be nullptr.
+         *                               Will only be touched if the function returns true.
          *  @return true if the function was successful, false otherwise.
          **/
-        bool get_subpass_n_color_attachments(SubPassID subpass_id,
-                                             uint32_t* out_n_color_attachments_ptr) const;
+        bool get_subpass_n_attachments(SubPassID      subpass_id,
+                                       AttachmentType attachment_type,
+                                       uint32_t*      out_n_attachments_ptr);
 
         /** Returns the Swapchain instance, associated with the RenderPass wrapper instance at creation time. */
         std::shared_ptr<Anvil::Swapchain> get_swapchain() const
@@ -446,16 +528,11 @@ namespace Anvil
             return m_swapchain_ptr;
         }
 
-        /** Tells if a depth (+stencil) attachment has been defined for the specified subpass.
-         *
-         *  @param subpass_id     As per description
-         *  @param out_result_ptr If function returns true: deref will be set to true if the attachment has
-         *                        been defined; otherwise, it will be set to false.
-         *
-         *  @return true if successful, false otherwise.
-         **/
-        bool is_depth_stencil_attachment_defined_for_subpass(SubPassID subpass_id,
-                                                             bool*     out_result_ptr) const;
+        /* Assigns a new name to the renderpass */
+        void set_name(const std::string& in_name)
+        {
+            m_name = in_name;
+        }
 
         /* Releases the graphics pipeline, as used by the specified subpass at the time of the call,
          * and assigns the user-specified one.
@@ -481,9 +558,11 @@ namespace Anvil
             uint32_t              index;
             VkImageLayout         initial_layout;
             bool                  may_alias;
-            VkSampleCountFlagBits sample_count;
             VkAttachmentLoadOp    stencil_load_op;
             VkAttachmentStoreOp   stencil_store_op;
+            AttachmentType        type;
+
+            VkSampleCountFlagsVariable(sample_count);
 
             /** Constructor. Should only be used for color attachments.
              *
@@ -498,14 +577,14 @@ namespace Anvil
              *                           memory region of another attachment; false otherwise.
              *  @param in_index          Index of the created render-pass attachment.
              ***/
-            RenderPassAttachment(VkFormat              in_format,
-                                 VkSampleCountFlagBits in_sample_count,
-                                 VkAttachmentLoadOp    in_load_op,
-                                 VkAttachmentStoreOp   in_store_op,
-                                 VkImageLayout         in_initial_layout,
-                                 VkImageLayout         in_final_layout,
-                                 bool                  in_may_alias,
-                                 uint32_t              in_index)
+            RenderPassAttachment(VkFormat            in_format,
+                                 VkSampleCountFlags  in_sample_count,
+                                 VkAttachmentLoadOp  in_load_op,
+                                 VkAttachmentStoreOp in_store_op,
+                                 VkImageLayout       in_initial_layout,
+                                 VkImageLayout       in_final_layout,
+                                 bool                in_may_alias,
+                                 uint32_t            in_index)
             {
                 color_depth_load_op  = in_load_op;
                 color_depth_store_op = in_store_op;
@@ -517,6 +596,7 @@ namespace Anvil
                 sample_count         = in_sample_count;
                 stencil_load_op      = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
                 stencil_store_op     = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                type                 = ATTACHMENT_TYPE_COLOR;
             }
 
             /** Constructor. Should only be used for depth/stencil attachments
@@ -534,16 +614,16 @@ namespace Anvil
              *                             memory region of another attachment; false otherwise.
              *  @param in_index            Index of the created render-pass attachment.
              **/
-            RenderPassAttachment(VkFormat              in_format,
-                                 VkSampleCountFlagBits in_sample_count,
-                                 VkAttachmentLoadOp    in_depth_load_op,
-                                 VkAttachmentStoreOp   in_depth_store_op,
-                                 VkAttachmentLoadOp    in_stencil_load_op,
-                                 VkAttachmentStoreOp   in_stencil_store_op,
-                                 VkImageLayout         in_initial_layout,
-                                 VkImageLayout         in_final_layout,
-                                 bool                  in_may_alias,
-                                 uint32_t              in_index)
+            RenderPassAttachment(VkFormat            in_format,
+                                 VkSampleCountFlags  in_sample_count,
+                                 VkAttachmentLoadOp  in_depth_load_op,
+                                 VkAttachmentStoreOp in_depth_store_op,
+                                 VkAttachmentLoadOp  in_stencil_load_op,
+                                 VkAttachmentStoreOp in_stencil_store_op,
+                                 VkImageLayout       in_initial_layout,
+                                 VkImageLayout       in_final_layout,
+                                 bool                in_may_alias,
+                                 uint32_t            in_index)
             {
                 color_depth_load_op  = in_depth_load_op;
                 color_depth_store_op = in_depth_store_op;
@@ -555,6 +635,7 @@ namespace Anvil
                 sample_count         = in_sample_count;
                 stencil_load_op      = in_stencil_load_op;
                 stencil_store_op     = in_stencil_store_op;
+                type                 = ATTACHMENT_TYPE_DEPTH_STENCIL;
             }
 
             /** Dummy constructor. This should only be used by STL containers. */
@@ -564,12 +645,13 @@ namespace Anvil
                 color_depth_store_op = VK_ATTACHMENT_STORE_OP_MAX_ENUM;
                 final_layout         = VK_IMAGE_LAYOUT_MAX_ENUM;
                 format               = VK_FORMAT_MAX_ENUM;
-                index                = -1;
+                index                = UINT32_MAX;
                 initial_layout       = VK_IMAGE_LAYOUT_MAX_ENUM;
                 may_alias            = false;
                 sample_count         = static_cast<VkSampleCountFlagBits>(0);
                 stencil_load_op      = VK_ATTACHMENT_LOAD_OP_MAX_ENUM;
                 stencil_store_op     = VK_ATTACHMENT_STORE_OP_MAX_ENUM;
+                type                 = ATTACHMENT_TYPE_UNKNOWN;
             }
         } RenderPassAttachment;
 
@@ -588,9 +670,9 @@ namespace Anvil
             SubPassAttachment()
             {
                 attachment_ptr         = nullptr;
-                highest_subpass_index  = -1;
+                highest_subpass_index  = UINT32_MAX;
                 layout                 = VK_IMAGE_LAYOUT_MAX_ENUM;
-                lowest_subpass_index   = -1;
+                lowest_subpass_index   = UINT32_MAX;
                 resolve_attachment_ptr = nullptr;
             }
 
@@ -610,9 +692,9 @@ namespace Anvil
                               RenderPassAttachment* in_opt_resolve_attachment_ptr)
             {
                 attachment_ptr         = in_attachment_ptr;
-                highest_subpass_index  = -1;
+                highest_subpass_index  = UINT32_MAX;
                 layout                 = in_layout;
-                lowest_subpass_index   = -1;
+                lowest_subpass_index   = UINT32_MAX;
                 resolve_attachment_ptr = in_opt_resolve_attachment_ptr;
             }
         } SubPassAttachment;
@@ -623,38 +705,38 @@ namespace Anvil
         /** Holds properties of a single sub-pass */
         typedef struct SubPass
         {
-            LocationToSubPassAttachmentMap color_attachments_map;
-            SubPassAttachment              depth_stencil_attachment;
-            std::weak_ptr<Anvil::Device>   device_ptr;
-            uint32_t                       index;
-            LocationToSubPassAttachmentMap input_attachments_map;
-            GraphicsPipelineID             pipeline_id;
-            SubPassAttachmentVector        preserved_attachments;
-            LocationToSubPassAttachmentMap resolved_attachments_map;
+            LocationToSubPassAttachmentMap   color_attachments_map;
+            SubPassAttachment                depth_stencil_attachment;
+            std::weak_ptr<Anvil::BaseDevice> device_ptr;
+            uint32_t                         index;
+            LocationToSubPassAttachmentMap   input_attachments_map;
+            GraphicsPipelineID               pipeline_id;
+            SubPassAttachmentVector          preserved_attachments;
+            LocationToSubPassAttachmentMap   resolved_attachments_map;
 
-            SubPassAttachment* get_color_attachment_at_index(uint32_t index)
+            SubPassAttachment* get_color_attachment_at_index(uint32_t in_index)
             {
                 return get_attachment_at_index(color_attachments_map,
-                                               index);
+                                               in_index);
             }
 
-            SubPassAttachment* get_input_attachment_at_index(uint32_t index)
+            SubPassAttachment* get_input_attachment_at_index(uint32_t in_index)
             {
                 return get_attachment_at_index(input_attachments_map,
-                                               index);
+                                               in_index);
             }
 
-            SubPassAttachment* get_resolved_attachment_at_index(uint32_t index)
+            SubPassAttachment* get_resolved_attachment_at_index(uint32_t in_index)
             {
                 return get_attachment_at_index(resolved_attachments_map,
-                                               index);
+                                               in_index);
             }
 
             /** Dummy constructor. This should only be used by STL containers */
             SubPass()
             {
-                index       = -1;
-                pipeline_id = -1;
+                index       = UINT32_MAX;
+                pipeline_id = UINT32_MAX;
             }
 
             /** Constructor.
@@ -663,9 +745,9 @@ namespace Anvil
              *  @param in_pipeline_id ID of the graphics pipeline which is associated with the subpass.
              *
              **/
-            SubPass(std::weak_ptr<Anvil::Device> in_device_ptr,
-                    uint32_t                     in_index,
-                    GraphicsPipelineID           in_pipeline_id)
+            SubPass(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                    uint32_t                         in_index,
+                    GraphicsPipelineID               in_pipeline_id)
             {
                 device_ptr  = in_device_ptr;
                 index       = in_index;
@@ -680,7 +762,7 @@ namespace Anvil
                  *  under @param index in @param map.
                  **/
                 SubPassAttachment* get_attachment_at_index(LocationToSubPassAttachmentMap& map,
-                                                           uint32_t                        index)
+                                                           uint32_t                        in_index)
                 {
                     uint32_t           current_index = 0;
                     SubPassAttachment* result_ptr    = nullptr;
@@ -689,7 +771,7 @@ namespace Anvil
                               attachment_iterator != map.end();
                             ++attachment_iterator, ++current_index)
                     {
-                        if (current_index == index)
+                        if (current_index == in_index)
                         {
                             result_ptr = &attachment_iterator->second;
 
@@ -709,13 +791,14 @@ namespace Anvil
         /** Holds properties of a single subpass<->subpass dependency. */
         typedef struct SubPassDependency
         {
-            bool                    by_region;
-            VkAccessFlagBits        destination_access_mask;
-            VkPipelineStageFlagBits destination_stage_mask;
-            const SubPass*          destination_subpass_ptr;
-            VkAccessFlagBits        source_access_mask;
-            VkPipelineStageFlagBits source_stage_mask;
-            const SubPass*          source_subpass_ptr;
+            VkAccessFlagsVariable       (destination_access_mask);
+            VkPipelineStageFlagsVariable(destination_stage_mask);
+            VkAccessFlagsVariable       (source_access_mask);
+            VkPipelineStageFlagsVariable(source_stage_mask);
+
+            bool           by_region;
+            const SubPass* destination_subpass_ptr;
+            const SubPass* source_subpass_ptr;
 
             /** Constructor.
              *
@@ -775,7 +858,7 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. Please see create() for specification */
-        RenderPass(std::weak_ptr<Anvil::Device>      device_ptr,
+        RenderPass(std::weak_ptr<Anvil::BaseDevice>  device_ptr,
                    std::shared_ptr<Anvil::Swapchain> opt_swapchain_ptr);
 
         RenderPass& operator=(const RenderPass&);
@@ -801,13 +884,14 @@ namespace Anvil
         void                  update_preserved_attachments                       ();
 
         /* Private members */
-        RenderPassAttachments        m_attachments;
-        std::weak_ptr<Anvil::Device> m_device_ptr;
-        bool                         m_dirty;
-        VkRenderPass                 m_render_pass;
-        SubPasses                    m_subpasses;
-        SubPassDependencies          m_subpass_dependencies;
-        std::shared_ptr<Swapchain>  m_swapchain_ptr;
+        RenderPassAttachments            m_attachments;
+        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
+        bool                             m_dirty;
+        std::string                      m_name;
+        VkRenderPass                     m_render_pass;
+        SubPasses                        m_subpasses;
+        SubPassDependencies              m_subpass_dependencies;
+        std::shared_ptr<Swapchain>       m_swapchain_ptr;
     };
 };
 

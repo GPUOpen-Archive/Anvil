@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -27,20 +27,22 @@
 #include "wrappers/device.h"
 
 /** Please see header for specification */
-Anvil::BufferView::BufferView(std::weak_ptr<Anvil::Device>   device_ptr,
-                              std::shared_ptr<Anvil::Buffer> buffer_ptr,
-                              VkFormat                       format,
-                              VkDeviceSize                   start_offset,
-                              VkDeviceSize                   size)
+Anvil::BufferView::BufferView(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                              std::shared_ptr<Anvil::Buffer>   buffer_ptr,
+                              VkFormat                         format,
+                              VkDeviceSize                     start_offset,
+                              VkDeviceSize                     size)
     :m_buffer_ptr  (buffer_ptr),
      m_device_ptr  (device_ptr),
      m_format      (format),
      m_size        (size),
      m_start_offset(start_offset)
 {
-    VkBufferViewCreateInfo         buffer_view_create_info;
-    std::shared_ptr<Anvil::Device> device_locked_ptr(device_ptr);
-    VkResult                       result;
+    VkBufferViewCreateInfo             buffer_view_create_info;
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(device_ptr);
+    VkResult                           result           (VK_ERROR_INITIALIZATION_FAILED);
+
+    ANVIL_REDUNDANT_VARIABLE(result);
 
     /* Spawn a new Vulkan buffer view */
     buffer_view_create_info.buffer = buffer_ptr->get_buffer();
@@ -66,7 +68,7 @@ Anvil::BufferView::BufferView(std::weak_ptr<Anvil::Device>   device_ptr,
  **/
 Anvil::BufferView::~BufferView()
 {
-    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
     vkDestroyBufferView(device_locked_ptr->get_device_vk(),
                         m_buffer_view,
@@ -74,16 +76,16 @@ Anvil::BufferView::~BufferView()
 
     m_buffer_view = VK_NULL_HANDLE;
 
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_BUFFER_VIEW,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_BUFFER_VIEW,
                                                     this);
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::BufferView> Anvil::BufferView::create(std::weak_ptr<Anvil::Device>   device_ptr,
-                                                             std::shared_ptr<Anvil::Buffer> buffer_ptr,
-                                                             VkFormat                       format,
-                                                             VkDeviceSize                   start_offset,
-                                                             VkDeviceSize                   size)
+std::shared_ptr<Anvil::BufferView> Anvil::BufferView::create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                                             std::shared_ptr<Anvil::Buffer>   buffer_ptr,
+                                                             VkFormat                         format,
+                                                             VkDeviceSize                     start_offset,
+                                                             VkDeviceSize                     size)
 {
     std::shared_ptr<Anvil::BufferView> result_ptr;
 
@@ -98,7 +100,7 @@ std::shared_ptr<Anvil::BufferView> Anvil::BufferView::create(std::weak_ptr<Anvil
     );
 
     /* Register the buffer view instance */
-    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_BUFFER_VIEW,
+    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_BUFFER_VIEW,
                                                  result_ptr.get() );
 
     return result_ptr;

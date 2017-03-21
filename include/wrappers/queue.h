@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -46,21 +46,25 @@ namespace Anvil
          *  to assign a swapchain to the queue. This is necessary in order for
          *  present() calls to work correctly.
          *
-         *  @param device_ptr                       Device to retrieve the queue from.
-         *  @param queue_family_index               Index of the queue family to retrieve the queue from.
-         *  @param queue_index                      Index of the queue to retrieve.
-         *  @param khr_device_swapchain_entrypoints VK_KHR_device_swapchain entrypoint container.
+         *  @param device_ptr         Device to retrieve the queue from.
+         *  @param queue_family_index Index of the queue family to retrieve the queue from.
+         *  @param queue_index        Index of the queue to retrieve.
          **/
-        static std::shared_ptr<Anvil::Queue> create(std::weak_ptr<Anvil::Device>                  device_ptr,
-                                                    uint32_t                                      queue_family_index,
-                                                    uint32_t                                      queue_index,
-                                                    const ExtensionKHRDeviceSwapchainEntrypoints& khr_device_swapchain_entrypoints);
+        static std::shared_ptr<Anvil::Queue> create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                                    uint32_t                         queue_family_index,
+                                                    uint32_t                         queue_index);
 
         /** Destructor */
         ~Queue();
 
+        /** Updates sparse resource memory bindings using this queue.
+         *
+         *  @param update Detailed information about the update to be carried out.
+         **/
+        bool bind_sparse_memory(Anvil::Utils::SparseMemoryBindingUpdateInfo& update);
+
         /** Retrieves parent device instance */
-        std::weak_ptr<const Anvil::Device> get_parent_device() const
+        std::weak_ptr<Anvil::BaseDevice> get_parent_device() const
         {
             return m_device_ptr;
         }
@@ -79,40 +83,26 @@ namespace Anvil
 
         /** Presents the specified swapchain image using this queue.
          *
-         *  This call will only succeed if supports_presentation() returns true.
+         *  This function will only succeed if supports_presentation() returns true.
          *
+         *  NOTE: If you are presenting to an off-screen window, make sure to transition
+         *        the image to VK_IMAGE_LAYOUT_GENERAL, instead of VK_IMAGE_LAYOUT_PRESENT_SRC_KHR.
+         *        In off-screen rendering mode, swapchain images are actually regular images, so
+         *        presentable layout is not supported.
+         *
+         *  @param swapchain_ptr         Swapchain to use for the operation. Must not be NULL.
          *  @param swapchain_image_index Index of the swapchain image to present.
          *  @param n_wait_semaphores     Number of semaphores defined under @param wait_semaphore_ptrs. These sems will
          *                               be waited on before presentation occurs.
          *  @param wait_semaphore_pts    An array of @param n_wait_semaphores semaphore wrapper instances. May be nullptr
          *                               if @param n_wait_semaphores is 0.
+         *
+         *  @return Vulkan result for the operation.
          **/
-        void present(uint32_t                           swapchain_image_index,
-                     uint32_t                           n_wait_semaphores,
-                     std::shared_ptr<Anvil::Semaphore>* wait_semaphore_ptrs);
-
-        /** Assigns the specified swapchain to the queue and checks if the queue can be used
-         *  for presentation.
-         *
-         *  This call must be only made once throughout queue wrapper lifetime.
-         *
-         *  @param swapchain_ptr Swapchain instance to use. Must not be nullptr.
-         **/
-        void set_swapchain(std::shared_ptr<Anvil::Swapchain> swapchain_ptr);
-
-        /** Tells whether the queue can be used to present a swapchain image.
-         *
-         *  It is required for a swapchain to be assigned to the queue via the set_swapchain()
-         *  call, before this function can be called.
-         *
-         *  @return true if the queue can be used for presentation, false otherwise.
-         **/
-        const bool supports_presentation() const
-        {
-            anvil_assert(m_swapchain_ptr.lock() != nullptr);
-
-            return m_supports_presentation;
-        }
+        VkResult present(std::shared_ptr<Anvil::Swapchain>  swapchain_ptr,
+                         uint32_t                           swapchain_image_index,
+                         uint32_t                           n_wait_semaphores,
+                         std::shared_ptr<Anvil::Semaphore>* wait_semaphore_ptrs);
 
         /** Waits on the semaphores specified by the user, executes user-defined command buffers,
          *  and then signals the semaphores passed by arguments. If a non-nullptr fence is specified,
@@ -124,7 +114,7 @@ namespace Anvil
          *  If @param should_block is true and @param opt_fence_ptr is nullptr, the function will create
          *  a new fence, wait on it, and then release it prior to leaving. This may come at a performance cost.
          *
-         *  @param n_command_buffers                 Number of command buffers under @param opt_cmd_buffer_ptrs
+         *  @param n_command_buffers                   Number of command buffers under @param opt_cmd_buffer_ptrs
          *                                             which should be executed. May be 0.
          *  @param opt_cmd_buffer_ptrs                 Array of command buffers to execute. Can be nullptr if
          *                                             @param n_command_buffers is 0.
@@ -182,14 +172,14 @@ namespace Anvil
          *
          *  For argument discussion, please see submit_command_buffers() documentation
          **/
-        void submit_command_buffer_with_signal_semaphores(std::shared_ptr<Anvil::CommandBufferBase> cmd_buffer_ptr,
+        void submit_command_buffer_with_signal_semaphores(std::shared_ptr<Anvil::CommandBufferBase> opt_cmd_buffer_ptr,
                                                           uint32_t                                  n_semaphores_to_signal,
                                                           std::shared_ptr<Anvil::Semaphore> const*  semaphore_to_signal_ptr_ptrs,
                                                           bool                                      should_block,
                                                           std::shared_ptr<Anvil::Fence>             opt_fence_ptr                = std::shared_ptr<Anvil::Fence>() )
         {
-            submit_command_buffers(1,                       /* n_command_buffers */
-                                  &cmd_buffer_ptr,
+            submit_command_buffers((opt_cmd_buffer_ptr != nullptr) ? 1u : 0u,
+                                  &opt_cmd_buffer_ptr,
                                    n_semaphores_to_signal,
                                    semaphore_to_signal_ptr_ptrs,
                                    0,                       /* n_semaphores_to_wait_on             */
@@ -207,7 +197,7 @@ namespace Anvil
          *
          *  For argument discussion, please see submit_command_buffers() documentation
          **/
-        void submit_command_buffer_with_signal_wait_semaphores(std::shared_ptr<Anvil::CommandBufferBase> cmd_buffer_ptr,
+        void submit_command_buffer_with_signal_wait_semaphores(std::shared_ptr<Anvil::CommandBufferBase> opt_cmd_buffer_ptr,
                                                                uint32_t                                  n_semaphores_to_signal,
                                                                std::shared_ptr<Anvil::Semaphore> const*  semaphore_to_signal_ptr_ptrs,
                                                                uint32_t                                  n_semaphores_to_wait_on,
@@ -216,8 +206,8 @@ namespace Anvil
                                                                bool                                      should_block,
                                                                std::shared_ptr<Anvil::Fence>             opt_fence_ptr                = std::shared_ptr<Anvil::Fence>() )
         {
-            submit_command_buffers(1,                       /* n_command_buffers */
-                                  &cmd_buffer_ptr,
+            submit_command_buffers((opt_cmd_buffer_ptr != nullptr) ? 1u : 0u,
+                                  &opt_cmd_buffer_ptr,
                                    n_semaphores_to_signal,
                                    semaphore_to_signal_ptr_ptrs,
                                    n_semaphores_to_wait_on,
@@ -240,9 +230,9 @@ namespace Anvil
                                                         bool                                      should_block,
                                                         std::shared_ptr<Anvil::Fence>             opt_fence_ptr                = std::shared_ptr<Anvil::Fence>() )
         {
-            submit_command_buffers(1,                      /* n_command_buffers */
+            submit_command_buffers((cmd_buffer_ptr != nullptr) ? 1u : 0u,
                                   &cmd_buffer_ptr,
-                                   0,                      /* n_semaphores_to_signal       */
+                                   0u,                     /* n_semaphores_to_signal       */
                                    nullptr,                /* semaphore_to_signal_ptr_ptrs */
                                    n_semaphores_to_wait_on,
                                    semaphore_to_wait_on_ptr_ptrs,
@@ -250,26 +240,30 @@ namespace Anvil
                                    should_block,
                                    opt_fence_ptr);
         }
+
+        /** Tells whether the queue supports sparse bindings */
+        bool supports_sparse_bindings() const
+        {
+            return m_supports_sparse_bindings;
+        }
+
     private:
         /* Private functions */
 
         /* Constructor. Please see create() for specification */
-        Queue(std::weak_ptr<Anvil::Device>                  device_ptr,
-              uint32_t                                      queue_family_index,
-              uint32_t                                      queue_index,
-              const ExtensionKHRDeviceSwapchainEntrypoints& khr_device_swapchain_entrypoints);
+        Queue(std::weak_ptr<Anvil::BaseDevice>        device_ptr,
+              uint32_t                                queue_family_index,
+              uint32_t                                queue_index);
 
         Queue          (const Queue&);
         Queue operator=(const Queue&);
 
         /* Private variables */
-        std::weak_ptr<Anvil::Device>                 m_device_ptr;
-        const ExtensionKHRDeviceSwapchainEntrypoints m_khr_device_swapchain_entrypoints;
-        std::weak_ptr<Anvil::Swapchain>              m_swapchain_ptr;
-        VkQueue                                      m_queue;
-        uint32_t                                     m_queue_family_index;
-        uint32_t                                     m_queue_index;
-        bool                                         m_supports_presentation;
+        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
+        VkQueue                          m_queue;
+        uint32_t                         m_queue_family_index;
+        uint32_t                         m_queue_index;
+        bool                             m_supports_sparse_bindings;
     };
 }; /* namespace Anvil */
 

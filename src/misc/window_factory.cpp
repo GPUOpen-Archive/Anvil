@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -27,54 +27,73 @@ std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatfor
                                                                    unsigned int           width,
                                                                    unsigned int           height,
                                                                    PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                                                   void*                  present_callback_func_user_arg,
-                                                                   bool                   is_dummy)
+                                                                   void*                  present_callback_func_user_arg)
 {
     std::shared_ptr<Anvil::Window> result;
 
-    if (is_dummy)
+    switch (platform)
     {
-        result.reset(new Anvil::DummyWindow(title,
-                                            width,
-                                            height,
-                                            present_callback_func_ptr,
-                                            present_callback_func_user_arg));
-    }
-    else
-    #ifdef _WIN32
-    {
-        anvil_assert(WINDOW_PLATFORM_SYSTEM == platform);
-
-        result.reset(new Anvil::WindowWin3264(title,
-                                              width,
-                                              height,
-                                              present_callback_func_ptr,
-                                              present_callback_func_user_arg));
-    }
-    #else
-    {
-        switch (platform)
+        case WINDOW_PLATFORM_DUMMY:
         {
-            case WINDOW_PLATFORM_XCB:
-            {
-                result.reset(new Anvil::WindowXcb(title,
+            result.reset(new Anvil::DummyWindow(title,
+                                                width,
+                                                height,
+                                                present_callback_func_ptr,
+                                                present_callback_func_user_arg));
+
+            break;
+        }
+
+        case WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS:
+        {
+            result.reset(new Anvil::DummyWindowWithPNGSnapshots(title,
+                                                                width,
+                                                                height,
+                                                                present_callback_func_ptr,
+                                                                present_callback_func_user_arg));
+
+            break;
+        }
+
+#ifdef _WIN32
+
+        case WINDOW_PLATFORM_SYSTEM:
+        {
+            anvil_assert(WINDOW_PLATFORM_SYSTEM == platform);
+
+            result.reset(new Anvil::WindowWin3264(title,
                                                   width,
                                                   height,
                                                   present_callback_func_ptr,
                                                   present_callback_func_user_arg));
 
-                break;
-            }
+            break;
+        }
 
-            case WINDOW_PLATFORM_XLIB:
-            case WINDOW_PLATFORM_WAYLAND:
-            default:
-            {
-                anvil_assert(0);
-            }
+#else
+        case WINDOW_PLATFORM_XCB:
+        {
+            result.reset(new Anvil::WindowXcb(title,
+                                              width,
+                                              height,
+                                              present_callback_func_ptr,
+                                              present_callback_func_user_arg));
+
+            break;
+        }
+
+        case WINDOW_PLATFORM_XLIB:
+        case WINDOW_PLATFORM_WAYLAND:
+            /* Fall-back - TODO */
+
+#endif /* !_WIN32 */
+
+        default:
+        {
+            /* TODO */
+            anvil_assert(0);
         }
     }
-    #endif /* _WIN32 */
 
     return result;
 }

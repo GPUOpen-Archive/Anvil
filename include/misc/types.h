@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,21 @@
 #ifndef MISC_TYPES_H
 #define MISC_TYPES_H
 
+/* Disable some of the warnings we cannot work around because they are caused
+ * by external dependencies (ie. Vulkan header)
+ */
+#ifdef _WIN32
+    #pragma warning(disable : 4063)
+#else
+    #pragma GCC diagnostic ignored "-Wswitch"
+    #pragma GCC diagnostic ignored "-Wreorder"
+    #pragma GCC diagnostic ignored "-Wunused-value"
+#endif
+
+/* Determine endianness */
+#if REG_DWORD == REG_DWORD_LITTLE_ENDIAN || __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    #define ANVIL_LITTLE_ENDIAN
+#endif
 
 /* The following #define is required to include Vulkan entry-point prototypes. */
 #ifdef _WIN32
@@ -55,12 +70,10 @@
 
 #ifdef _WIN32
     #include "vulkan\vulkan.h"
-    #include "vulkan\vk_sdk_platform.h"
-    #include "extensions\vk_amd_draw_indirect_count.h"
+    #include "vulkan\vk_platform.h"
 #else
     #include "vulkan/vulkan.h"
-    #include "vulkan/vk_sdk_platform.h"
-    #include "extensions/vk_amd_draw_indirect_count.h"
+    #include "vulkan/vk_platform.h"
 #endif
 
 #include <map>
@@ -72,10 +85,414 @@
     #error Vulkan SDK header used in the compilation process is too old. Please ensure deps\anvil\include\vulkan.h is used.
 #endif
 
+/* Wrappers for some of the Vulkan enums we use across Anvil */
+#ifdef ANVIL_LITTLE_ENDIAN
+    #define VkAccessFlagsVariable(name) \
+        union \
+        { \
+            VkAccessFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_ACCESS_INDIRECT_COMMAND_READ_BIT : 1; \
+                uint8_t  VK_ACCESS_INDEX_READ_BIT : 1; \
+                uint8_t  VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT : 1; \
+                uint8_t  VK_ACCESS_UNIFORM_READ_BIT : 1; \
+                uint8_t  VK_ACCESS_INPUT_ATTACHMENT_READ_BIT : 1; \
+                uint8_t  VK_ACCESS_SHADER_READ_BIT : 1; \
+                uint8_t  VK_ACCESS_SHADER_WRITE_BIT : 1; \
+                uint8_t  VK_ACCESS_COLOR_ATTACHMENT_READ_BIT : 1; \
+                uint8_t  VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT : 1; \
+                uint8_t  VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT : 1; \
+                uint8_t  VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT : 1; \
+                uint8_t  VK_ACCESS_TRANSFER_READ_BIT : 1; \
+                uint8_t  VK_ACCESS_TRANSFER_WRITE_BIT : 1; \
+                uint8_t  VK_ACCESS_HOST_READ_BIT : 1; \
+                uint8_t  VK_ACCESS_HOST_WRITE_BIT : 1; \
+                uint8_t  VK_ACCESS_MEMORY_READ_BIT : 1; \
+                uint8_t  VK_ACCESS_MEMORY_WRITE_BIT : 1; \
+                uint32_t OTHER: 15; \
+            } name##_flags; \
+        };
+
+    #define VkBufferCreateFlagsVariable(name) \
+        union \
+        { \
+            VkBufferCreateFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_BUFFER_CREATE_SPARSE_BINDING_BIT : 1; \
+                uint8_t  VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT : 1; \
+                uint8_t  VK_BUFFER_CREATE_SPARSE_ALIASED_BIT : 1; \
+                uint32_t OTHER: 29; \
+            } name##_flags; \
+        };
+
+    #define VkBufferUsageFlagsVariable(name) \
+        union \
+        { \
+            VkBufferUsageFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_BUFFER_USAGE_TRANSFER_SRC_BIT : 1; \
+                uint8_t  VK_BUFFER_USAGE_TRANSFER_DST_BIT : 1; \
+                uint8_t  VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT : 1; \
+                uint8_t  VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT : 1; \
+                uint8_t  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT : 1; \
+                uint8_t  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT : 1; \
+                uint8_t  VK_BUFFER_USAGE_INDEX_BUFFER_BIT : 1; \
+                uint8_t  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT : 1; \
+                uint8_t  VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT : 1; \
+                uint32_t OTHER: 23; \
+            } name##_flags; \
+        };
+
+    #define VkColorComponentFlagsVariable(name) \
+        union \
+        { \
+            VkColorComponentFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_COLOR_COMPONENT_R_BIT : 1; \
+                uint8_t  VK_COLOR_COMPONENT_G_BIT : 1; \
+                uint8_t  VK_COLOR_COMPONENT_B_BIT : 1; \
+                uint8_t  VK_COLOR_COMPONENT_A_BIT : 1; \
+                uint32_t OTHER: 28; \
+            } name##_flags; \
+        };
+
+    #define VkCompositeAlphaFlagsKHRVariable(name) \
+        union \
+        { \
+            VkCompositeAlphaFlagsKHR name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR : 1; \
+                uint8_t  VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR : 1; \
+                uint8_t  VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR : 1; \
+                uint8_t  VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR : 1; \
+                uint32_t OTHER: 28; \
+            } name##_flags; \
+        };
+
+    #define VkCullModeFlagsVariable(name) \
+        union \
+        { \
+            VkCullModeFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_CULL_MODE_FRONT_BIT : 1; \
+                uint8_t  VK_CULL_MODE_BACK_BIT : 1; \
+                uint32_t OTHER: 30; \
+            } name##_flags; \
+        };
+
+    #define VkDependencyFlagsVariable(name) \
+        union \
+        { \
+            VkDependencyFlags name; \
+        \
+            struct \
+            { \
+                uint8_t VK_DEPENDENCY_BY_REGION_BIT : 1; \
+                uint32_t OTHER: 31; \
+            } name##_flags; \
+        };
+
+    #define VkFormatFeatureFlagsVariable(name) \
+        union \
+        { \
+            VkFormatFeatureFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT : 1; \
+                uint8_t  VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT : 1; \
+                uint8_t  VK_FORMAT_FEATURE_STORAGE_IMAGE_ATOMIC_BIT : 1; \
+                uint8_t  VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT : 1; \
+                uint8_t  VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT : 1; \
+                uint8_t  VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_ATOMIC_BIT : 1; \
+                uint8_t  VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT : 1; \
+                uint8_t  VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT : 1; \
+                uint8_t  VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT : 1; \
+                uint8_t  VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT : 1; \
+                uint8_t  VK_FORMAT_FEATURE_BLIT_SRC_BIT : 1; \
+                uint8_t  VK_FORMAT_FEATURE_BLIT_DST_BIT : 1; \
+                uint8_t  VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT : 1; \
+                uint8_t  VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_CUBIC_BIT_IMG : 1; \
+                uint32_t OTHER: 18; \
+            } name##_flags; \
+        };
+
+    #define VkImageAspectFlagsVariable(name) \
+        union \
+        { \
+            VkImageAspectFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_IMAGE_ASPECT_COLOR_BIT : 1; \
+                uint8_t  VK_IMAGE_ASPECT_DEPTH_BIT : 1; \
+                uint8_t  VK_IMAGE_ASPECT_STENCIL_BIT : 1; \
+                uint8_t  VK_IMAGE_ASPECT_METADATA_BIT : 1; \
+                uint32_t OTHER: 28; \
+            } name##_flags; \
+        };
+
+    #define VkImageUsageFlagsVariable(name) \
+        union \
+        { \
+            VkImageUsageFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_IMAGE_USAGE_TRANSFER_SRC_BIT : 1; \
+                uint8_t  VK_IMAGE_USAGE_TRANSFER_DST_BIT : 1; \
+                uint8_t  VK_IMAGE_USAGE_SAMPLED_BIT : 1; \
+                uint8_t  VK_IMAGE_USAGE_STORAGE_BIT : 1; \
+                uint8_t  VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : 1; \
+                uint8_t  VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : 1; \
+                uint8_t  VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT : 1; \
+                uint8_t  VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT : 1; \
+                uint32_t OTHER: 24; \
+            } name##_flags; \
+        };
+
+    #define VkMemoryHeapFlagsVariable(name) \
+        union \
+        { \
+            VkMemoryHeapFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_MEMORY_HEAP_DEVICE_LOCAL_BIT : 1; \
+                uint32_t OTHER: 31; \
+            } name##_flags; \
+        };
+
+    #define VkMemoryPropertyFlagsVariable(name) \
+        union \
+        { \
+            VkMemoryPropertyFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : 1; \
+                uint8_t  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : 1; \
+                uint8_t  VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : 1; \
+                uint8_t  VK_MEMORY_PROPERTY_HOST_CACHED_BIT : 1; \
+                uint8_t  VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT : 1; \
+                uint32_t OTHER: 27; \
+            } name##_flags; \
+        };
+
+    #define VkPipelineStageFlagsVariable(name) \
+        union \
+        { \
+            VkPipelineStageFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT : 1; \
+                uint8_t  VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT : 1; \
+                uint8_t  VK_PIPELINE_STAGE_VERTEX_INPUT_BIT : 1; \
+                uint8_t  VK_PIPELINE_STAGE_VERTEX_SHADER_BIT : 1; \
+                uint8_t  VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT : 1; \
+                uint8_t  VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT : 1; \
+                uint8_t  VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT : 1; \
+                uint8_t  VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT : 1; \
+                uint8_t  VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT : 1; \
+                uint8_t  VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT : 1; \
+                uint8_t  VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT : 1; \
+                uint8_t  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT : 1; \
+                uint8_t  VK_PIPELINE_STAGE_TRANSFER_BIT : 1; \
+                uint8_t  VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT : 1; \
+                uint8_t  VK_PIPELINE_STAGE_HOST_BIT : 1; \
+                uint8_t  VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT : 1; \
+                uint8_t  VK_PIPELINE_STAGE_ALL_COMMANDS_BIT : 1; \
+                uint32_t OTHER: 15; \
+            } name##_flags; \
+        };
+
+    #define VkQueryControlFlagsVariable(name) \
+        union \
+        { \
+            VkQueryControlFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_QUERY_CONTROL_PRECISE_BIT : 1; \
+                uint32_t OTHER: 31; \
+            } name##_flags; \
+        };
+
+    #define VkQueryPipelineStatisticFlagsVariable(name) \
+        union \
+        { \
+            VkQueryPipelineStatisticFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT : 1; \
+                uint8_t  VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT : 1; \
+                uint8_t  VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT : 1; \
+                uint8_t  VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_INVOCATIONS_BIT : 1; \
+                uint8_t  VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT : 1; \
+                uint8_t  VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT : 1; \
+                uint8_t  VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT : 1; \
+                uint8_t  VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT : 1; \
+                uint8_t  VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_CONTROL_SHADER_PATCHES_BIT : 1; \
+                uint8_t  VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_EVALUATION_SHADER_INVOCATIONS_BIT : 1; \
+                uint8_t  VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT : 1; \
+                uint32_t OTHER: 21; \
+            } name##_flags; \
+        };
+
+    #define VkQueryResultFlagsVariable(name) \
+        union \
+        { \
+            VkQueryResultFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_QUERY_RESULT_64_BIT : 1; \
+                uint8_t  VK_QUERY_RESULT_WAIT_BIT : 1; \
+                uint8_t  VK_QUERY_RESULT_WITH_AVAILABILITY_BIT : 1; \
+                uint8_t  VK_QUERY_RESULT_PARTIAL_BIT : 1; \
+                uint32_t OTHER: 28; \
+            } name##_flags; \
+        };
+
+    #define VkQueueFlagsVariable(name) \
+        union \
+        { \
+            VkQueueFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_QUEUE_GRAPHICS_BIT : 1; \
+                uint8_t  VK_QUEUE_COMPUTE_BIT : 1; \
+                uint8_t  VK_QUEUE_TRANSFER_BIT : 1; \
+                uint8_t  VK_QUEUE_SPARSE_BINDING_BIT : 1; \
+                uint32_t OTHER: 28; \
+            } name##_flags; \
+        };
+
+    #define VkSampleCountFlagsVariable(name) \
+        union \
+        { \
+            VkSampleCountFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_SAMPLE_COUNT_1_BIT : 1; \
+                uint8_t  VK_SAMPLE_COUNT_2_BIT : 1; \
+                uint8_t  VK_SAMPLE_COUNT_4_BIT : 1; \
+                uint8_t  VK_SAMPLE_COUNT_8_BIT : 1; \
+                uint8_t  VK_SAMPLE_COUNT_16_BIT : 1; \
+                uint8_t  VK_SAMPLE_COUNT_32_BIT : 1; \
+                uint8_t  VK_SAMPLE_COUNT_64_BIT : 1; \
+                uint32_t OTHER: 25; \
+            } name##_flags; \
+        };
+
+    #define VkShaderStageFlagsVariable(name) \
+        union \
+        { \
+            VkShaderStageFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_SHADER_STAGE_VERTEX_BIT : 1; \
+                uint8_t  VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT : 1; \
+                uint8_t  VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT : 1; \
+                uint8_t  VK_SHADER_STAGE_GEOMETRY_BIT : 1; \
+                uint8_t  VK_SHADER_STAGE_FRAGMENT_BIT : 1; \
+                uint8_t  VK_SHADER_STAGE_COMPUTE_BIT : 1; \
+                uint32_t OTHER: 26; \
+            } name##_flags; \
+        };
+
+    #define VkSparseImageFormatFlagsVariable(name) \
+        union \
+        { \
+            VkSparseImageFormatFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_SPARSE_IMAGE_FORMAT_SINGLE_MIPTAIL_BIT : 1; \
+                uint8_t  VK_SPARSE_IMAGE_FORMAT_ALIGNED_MIP_SIZE_BIT: 1; \
+                uint8_t  VK_SPARSE_IMAGE_FORMAT_NONSTANDARD_BLOCK_SIZE_BIT: 1; \
+                uint32_t OTHER: 29; \
+            } name##_flags; \
+        };
+
+    #define VkSparseMemoryBindFlagsVariable(name) \
+        union \
+        { \
+            VkSparseMemoryBindFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_SPARSE_MEMORY_BIND_METADATA_BIT : 1; \
+                uint32_t OTHER: 31; \
+            } name##_flags; \
+        };
+
+    #define VkStencilFaceFlagsVariable(name) \
+        union \
+        { \
+            VkStencilFaceFlags name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_STENCIL_FACE_FRONT_BIT : 1; \
+                uint8_t  VK_STENCIL_FACE_BACK_BIT : 1; \
+                uint32_t OTHER: 30; \
+            } name##_flags; \
+        };
+
+    #define VkSurfaceTransformFlagsKHRVariable(name) \
+        union \
+        { \
+            VkSurfaceTransformFlagsKHR name; \
+        \
+            struct \
+            { \
+                uint8_t  VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR : 1; \
+                uint8_t  VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR : 1; \
+                uint8_t  VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR : 1; \
+                uint8_t  VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR : 1; \
+                uint8_t  VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR : 1; \
+                uint8_t  VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR : 1; \
+                uint8_t  VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR : 1; \
+                uint8_t  VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR : 1; \
+                uint8_t  VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR : 1; \
+                uint32_t OTHER: 23; \
+            } name##_flags; \
+        };
+#else
+    #error "Big-endian arch's are not supported"
+#endif
+
+/* Helper macros */
+#define ANVIL_DISABLE_ASSIGNMENT_OPERATOR(x) private: x& operator=(const x&);
+#define ANVIL_DISABLE_COPY_CONSTRUCTOR(x)    private: x(const x&);
+#define ANVIL_REDUNDANT_ARGUMENT(x)          x = x;
+#define ANVIL_REDUNDANT_ARGUMENT_CONST(x)    x;
+#define ANVIL_REDUNDANT_VARIABLE(x)          x = x;
+#define ANVIL_REDUNDANT_VARIABLE_CONST(x)    x;
+
 /* Defines various enums used by Vulkan API wrapper classes. */
 namespace Anvil
 {
     /* Forward declarations */
+    class  BaseDevice;
     class  Buffer;
     class  BufferView;
     class  CommandBufferBase;
@@ -86,7 +503,6 @@ namespace Anvil
     class  DescriptorSet;
     class  DescriptorSetGroup;
     class  DescriptorSetLayout;
-    class  Device;
     class  Event;
     class  Fence;
     class  Framebuffer;
@@ -104,30 +520,45 @@ namespace Anvil
     class  PipelineLayout;
     class  PipelineLayoutManager;
     class  PrimaryCommandBuffer;
-    class  PrimaryCommandBufferPool;
     class  QueryPool;
     class  Queue;
     class  RenderingSurface;
     class  RenderPass;
     class  Sampler;
     class  SecondaryCommandBuffer;
-    class  SecondaryCommandBufferPool;
     class  Semaphore;
+    class  SGPUDevice;
     class  ShaderModule;
     class  Swapchain;
     class  Window;
 
+    /* Describes recognized subpass attachment types */
+    enum AttachmentType
+    {
+        ATTACHMENT_TYPE_FIRST,
+
+        ATTACHMENT_TYPE_COLOR = ATTACHMENT_TYPE_FIRST,
+        ATTACHMENT_TYPE_DEPTH_STENCIL,
+        ATTACHMENT_TYPE_INPUT,
+        ATTACHMENT_TYPE_PRESERVE,
+        ATTACHMENT_TYPE_RESOLVE,
+
+        ATTACHMENT_TYPE_COUNT,
+        ATTACHMENT_TYPE_UNKNOWN = ATTACHMENT_TYPE_COUNT
+    };
+
     /** Describes a buffer memory barrier. */
     typedef struct BufferBarrier
     {
+        VkAccessFlagsVariable(dst_access_mask);
+        VkAccessFlagsVariable(src_access_mask);
+
         VkBuffer                       buffer;
         VkBufferMemoryBarrier          buffer_barrier_vk;
         std::shared_ptr<Anvil::Buffer> buffer_ptr;
-        VkAccessFlagBits               dst_access_mask;
         uint32_t                       dst_queue_family_index;
         VkDeviceSize                   offset;
         VkDeviceSize                   size;
-        VkAccessFlagBits               src_access_mask;
         uint32_t                       src_queue_family_index;
 
         /** Constructor.
@@ -209,6 +640,14 @@ namespace Anvil
         COMPONENT_LAYOUT_UNKNOWN
     } ComponentLayout;
 
+    /** Tells the type of an Anvil::Device instance */
+    typedef enum
+    {
+        /* BaseDevice is implemented by SGPUDevice class */
+        DEVICE_TYPE_SINGLE_GPU,
+
+    } DeviceType;
+
     /** Holds properties of a single Vulkan Extension */
     typedef struct Extension
     {
@@ -246,7 +685,59 @@ namespace Anvil
         }
     } ExtensionAMDDrawIndirectCountEntrypoints;
 
-    typedef struct ExtensionKHRDeviceSwapchainEntrypoints
+    typedef struct ExtensionEXTDebugReportEntrypoints
+    {
+        PFN_vkCreateDebugReportCallbackEXT  vkCreateDebugReportCallbackEXT;
+        PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallbackEXT;
+
+        ExtensionEXTDebugReportEntrypoints()
+        {
+            vkCreateDebugReportCallbackEXT  = nullptr;
+            vkDestroyDebugReportCallbackEXT = nullptr;
+        }
+    } ExtensionEXTDebugReportEntrypoints;
+
+    typedef struct ExtensionKHRGetPhysicalDeviceProperties2
+    {
+        PFN_vkGetPhysicalDeviceFeatures2KHR                    vkGetPhysicalDeviceFeatures2KHR;
+        PFN_vkGetPhysicalDeviceFormatProperties2KHR            vkGetPhysicalDeviceFormatProperties2KHR;
+        PFN_vkGetPhysicalDeviceImageFormatProperties2KHR       vkGetPhysicalDeviceImageFormatProperties2KHR;
+        PFN_vkGetPhysicalDeviceMemoryProperties2KHR            vkGetPhysicalDeviceMemoryProperties2KHR;
+        PFN_vkGetPhysicalDeviceProperties2KHR                  vkGetPhysicalDeviceProperties2KHR;
+        PFN_vkGetPhysicalDeviceQueueFamilyProperties2KHR       vkGetPhysicalDeviceQueueFamilyProperties2KHR;
+        PFN_vkGetPhysicalDeviceSparseImageFormatProperties2KHR vkGetPhysicalDeviceSparseImageFormatProperties2KHR;
+
+        ExtensionKHRGetPhysicalDeviceProperties2()
+        {
+            vkGetPhysicalDeviceFeatures2KHR                    = nullptr;
+            vkGetPhysicalDeviceFormatProperties2KHR            = nullptr;
+            vkGetPhysicalDeviceImageFormatProperties2KHR       = nullptr;
+            vkGetPhysicalDeviceMemoryProperties2KHR            = nullptr;
+            vkGetPhysicalDeviceProperties2KHR                  = nullptr;
+            vkGetPhysicalDeviceQueueFamilyProperties2KHR       = nullptr;
+            vkGetPhysicalDeviceSparseImageFormatProperties2KHR = nullptr;
+        }
+    } ExtensionKHRGetPhysicalDeviceProperties2;
+
+    typedef struct ExtensionKHRSurfaceEntrypoints
+    {
+        PFN_vkDestroySurfaceKHR                       vkDestroySurfaceKHR;
+        PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR vkGetPhysicalDeviceSurfaceCapabilitiesKHR;
+        PFN_vkGetPhysicalDeviceSurfaceFormatsKHR      vkGetPhysicalDeviceSurfaceFormatsKHR;
+        PFN_vkGetPhysicalDeviceSurfacePresentModesKHR vkGetPhysicalDeviceSurfacePresentModesKHR;
+        PFN_vkGetPhysicalDeviceSurfaceSupportKHR      vkGetPhysicalDeviceSurfaceSupportKHR;
+
+        ExtensionKHRSurfaceEntrypoints()
+        {
+            vkDestroySurfaceKHR                       = nullptr;
+            vkGetPhysicalDeviceSurfaceCapabilitiesKHR = nullptr;
+            vkGetPhysicalDeviceSurfaceFormatsKHR      = nullptr;
+            vkGetPhysicalDeviceSurfacePresentModesKHR = nullptr;
+            vkGetPhysicalDeviceSurfaceSupportKHR      = nullptr;
+        }
+    } ExtensionKHRSurfaceEntrypoints;
+
+    typedef struct ExtensionKHRSwapchainEntrypoints
     {
         PFN_vkAcquireNextImageKHR   vkAcquireNextImageKHR;
         PFN_vkCreateSwapchainKHR    vkCreateSwapchainKHR;
@@ -254,7 +745,7 @@ namespace Anvil
         PFN_vkGetSwapchainImagesKHR vkGetSwapchainImagesKHR;
         PFN_vkQueuePresentKHR       vkQueuePresentKHR;
 
-        ExtensionKHRDeviceSwapchainEntrypoints()
+        ExtensionKHRSwapchainEntrypoints()
         {
             vkAcquireNextImageKHR   = nullptr;
             vkCreateSwapchainKHR    = nullptr;
@@ -262,14 +753,38 @@ namespace Anvil
             vkGetSwapchainImagesKHR = nullptr;
             vkQueuePresentKHR       = nullptr;
         }
-    } ExtensionKHRDeviceSwapchainEntrypoints;
+    } ExtensionKHRSwapchainEntrypoints;
+
+    #ifdef _WIN32
+        typedef struct ExtensionKHRWin32SurfaceEntrypoints
+        {
+            PFN_vkCreateWin32SurfaceKHR                        vkCreateWin32SurfaceKHR;
+            PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR vkGetPhysicalDeviceWin32PresentationSupportKHR;
+
+            ExtensionKHRWin32SurfaceEntrypoints()
+            {
+                vkCreateWin32SurfaceKHR                        = nullptr;
+                vkGetPhysicalDeviceWin32PresentationSupportKHR = nullptr;
+            }
+        } ExtensionKHRWin32SurfaceEntrypoints;
+    #else
+        typedef struct ExtensionKHRXcbSurfaceEntrypoints
+        {
+            PFN_vkCreateXcbSurfaceKHR vkCreateXcbSurfaceKHR;
+
+            ExtensionKHRXcbSurfaceEntrypoints()
+            {
+                vkCreateXcbSurfaceKHR = nullptr;
+            }
+        } ExtensionKHRXcbSurfaceEntrypoints;
+    #endif
 
     /** Holds driver-specific format capabilities */
     typedef struct FormatProperties
     {
-        VkFormatFeatureFlagBits buffer_capabilities;
-        VkFormatFeatureFlagBits linear_tiling_capabilities;
-        VkFormatFeatureFlagBits optimal_tiling_capabilities;
+        VkFormatFeatureFlagsVariable(buffer_capabilities);
+        VkFormatFeatureFlagsVariable(linear_tiling_capabilities);
+        VkFormatFeatureFlagsVariable(optimal_tiling_capabilities);
 
         /** Dummy constructor */
         FormatProperties()
@@ -285,11 +800,14 @@ namespace Anvil
          **/
         FormatProperties(const VkFormatProperties& format_props)
         {
-            buffer_capabilities         = static_cast<VkFormatFeatureFlagBits>(format_props.bufferFeatures);
-            linear_tiling_capabilities  = static_cast<VkFormatFeatureFlagBits>(format_props.linearTilingFeatures);
-            optimal_tiling_capabilities = static_cast<VkFormatFeatureFlagBits>(format_props.optimalTilingFeatures);
+            buffer_capabilities         = format_props.bufferFeatures;
+            linear_tiling_capabilities  = format_props.linearTilingFeatures;
+            optimal_tiling_capabilities = format_props.optimalTilingFeatures;
         }
     } FormatProperties;
+
+    extern bool operator==(const FormatProperties& in1,
+                           const FormatProperties& in2);
 
     typedef enum
     {
@@ -314,15 +832,16 @@ namespace Anvil
     /** Describes an image memory barrier. */
     typedef struct ImageBarrier
     {
+        VkAccessFlagsVariable(dst_access_mask);
+        VkAccessFlagsVariable(src_access_mask);
+
         bool                          by_region;
-        VkAccessFlagBits              dst_access_mask;
         uint32_t                      dst_queue_family_index;
         VkImage                       image;
         VkImageMemoryBarrier          image_barrier_vk;
         std::shared_ptr<Anvil::Image> image_ptr;
         VkImageLayout                 new_layout;
         VkImageLayout                 old_layout;
-        VkAccessFlagBits              src_access_mask;
         uint32_t                      src_queue_family_index;
         VkImageSubresourceRange       subresource_range;
 
@@ -434,9 +953,10 @@ namespace Anvil
     /** Describes a Vulkan memory barrier. */
     typedef struct MemoryBarrier
     {
-        VkAccessFlagBits destination_access_mask;
-        VkMemoryBarrier  memory_barrier_vk;
-        VkAccessFlagBits source_access_mask;
+        VkAccessFlagsVariable(destination_access_mask);
+        VkAccessFlagsVariable(source_access_mask);
+
+        VkMemoryBarrier memory_barrier_vk;
 
         /** Constructor.
          *
@@ -485,24 +1005,29 @@ namespace Anvil
     /** Holds properties of a single Vulkan Memory Heap. */
     typedef struct MemoryHeap
     {
-        VkMemoryHeapFlagBits flags;
-        VkDeviceSize         size;
+        VkMemoryHeapFlagsVariable(flags);
+
+        VkDeviceSize size;
 
         /** Stub constructor */
         MemoryHeap()
         {
-            flags = static_cast<VkMemoryHeapFlagBits>(0);
+            flags = 0;
             size  = 0;
         }
     } MemoryHeap;
+
+    extern bool operator==(const MemoryHeap& in1,
+                           const MemoryHeap& in2);
 
     typedef std::vector<MemoryHeap> MemoryHeaps;
 
     /** Holds properties of a single Vulkan Memory Type. */
     typedef struct MemoryType
     {
-        MemoryHeap*              heap_ptr;
-        VkMemoryPropertyFlagBits flags;
+        MemoryHeap* heap_ptr;
+
+        VkMemoryPropertyFlagsVariable(flags);
 
         /** Constructor. Initializes the instance using data provided by the driver.
          *
@@ -513,17 +1038,30 @@ namespace Anvil
                             struct MemoryProperties* memory_props_ptr);
     } MemoryType;
 
+    extern bool operator==(const MemoryType& in1,
+                           const MemoryType& in2);
+
+    enum MemoryFeatureFlagBits
+    {
+        MEMORY_FEATURE_FLAG_COHERENT = 1 << 0,
+        MEMORY_FEATURE_FLAG_MAPPABLE = 1 << 1,
+    };
+    typedef uint32_t MemoryFeatureFlags;
+
+
     typedef std::vector<MemoryType> MemoryTypes;
 
     /** Holds information about available memory heaps & types for a specific physical device. */
     typedef struct MemoryProperties
     {
         MemoryHeap* heaps;
+        uint32_t    n_heaps;
         MemoryTypes types;
 
         MemoryProperties()
         {
-            heaps = nullptr;
+            heaps   = nullptr;
+            n_heaps = 0;
         }
 
         /** Destructor */
@@ -547,6 +1085,9 @@ namespace Anvil
         MemoryProperties           (const MemoryProperties&);
         MemoryProperties& operator=(const MemoryProperties&);
     } MemoryProperties;
+
+    extern bool operator==(const MemoryProperties& in1,
+                           const MemoryProperties& in2);
 
     /** Defines data for a single image mip-map.
      *
@@ -856,6 +1397,67 @@ namespace Anvil
         }
     };
 
+    typedef enum
+    {
+        /* NOTE: If new entries are added or existing entry order is modified, make sure to
+         *       update Anvil::ObjectTracker::get_object_type_name().
+         */
+        OBJECT_TYPE_FIRST,
+
+        OBJECT_TYPE_BUFFER = OBJECT_TYPE_FIRST,
+        OBJECT_TYPE_BUFFER_VIEW,
+        OBJECT_TYPE_COMMAND_BUFFER,
+        OBJECT_TYPE_COMMAND_POOL,
+        OBJECT_TYPE_COMPUTE_PIPELINE_MANAGER,
+        OBJECT_TYPE_DESCRIPTOR_POOL,
+        OBJECT_TYPE_DESCRIPTOR_SET,
+        OBJECT_TYPE_DESCRIPTOR_SET_GROUP,
+        OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT,
+        OBJECT_TYPE_DEVICE,
+        OBJECT_TYPE_EVENT,
+        OBJECT_TYPE_FENCE,
+        OBJECT_TYPE_FRAMEBUFFER,
+        OBJECT_TYPE_GRAPHICS_PIPELINE_MANAGER,
+        OBJECT_TYPE_IMAGE,
+        OBJECT_TYPE_IMAGE_VIEW,
+        OBJECT_TYPE_INSTANCE,
+        OBJECT_TYPE_MEMORY_BLOCK,
+        OBJECT_TYPE_PHYSICAL_DEVICE,
+        OBJECT_TYPE_PIPELINE_CACHE,
+        OBJECT_TYPE_PIPELINE_LAYOUT,
+        OBJECT_TYPE_PIPELINE_LAYOUT_MANAGER,
+        OBJECT_TYPE_QUERY_POOL,
+        OBJECT_TYPE_QUEUE,
+        OBJECT_TYPE_RENDER_PASS,
+        OBJECT_TYPE_RENDERING_SURFACE,
+        OBJECT_TYPE_SAMPLER,
+        OBJECT_TYPE_SEMAPHORE,
+        OBJECT_TYPE_SHADER_MODULE,
+        OBJECT_TYPE_SWAPCHAIN,
+
+        /* For DOT serialization, we also need a handful of fake object types. */
+        OBJECT_TYPE_GRAPHICS_PIPELINE,
+
+        /* Always last */
+        OBJECT_TYPE_COUNT
+    } ObjectType;
+
+    /** Defines, to what extent occlusion queries are going to be used.
+     *
+     *  Only used for second-level command buffer recording policy declaration.
+     **/
+    typedef enum
+    {
+        /** Occlusion queries are not going to be used */
+        OCCLUSION_QUERY_SUPPORT_SCOPE_NOT_REQUIRED,
+
+        /** Non-precise occlusion queries may be active when this second-level command buffer is executed */
+        OCCLUSION_QUERY_SUPPORT_SCOPE_REQUIRED_NONPRECISE,
+
+        /** Pprecise occlusion queries may be active when this second-level command buffer is executed */
+        OCCLUSION_QUERY_SUPPORT_SCOPE_REQUIRED_PRECISE,
+    } OcclusionQuerySupportScope;
+
     /* A single push constant range descriptor */
     typedef struct PushConstantRange
     {
@@ -892,17 +1494,25 @@ namespace Anvil
     typedef BindingElementIndex StartBindingElementIndex;
 
     typedef std::pair<StartBindingElementIndex, NumberOfBindingElements> BindingElementArrayRange;
+    typedef std::vector<PushConstantRange>                               PushConstantRanges;
 
-    typedef std::vector<std::shared_ptr<Anvil::DescriptorSetGroup> > DescriptorSetGroups;
-    typedef std::vector<PushConstantRange>                           PushConstantRanges;
+    /** A bitmask defining one or more queue family usage.*/
+    typedef enum
+    {
+        QUEUE_FAMILY_COMPUTE_BIT           = 1 << 0,
+        QUEUE_FAMILY_DMA_BIT               = 1 << 1,
+        QUEUE_FAMILY_GRAPHICS_BIT          = 1 << 2,
+    } QueueFamily;
+    typedef int QueueFamilyBits;
 
     /** Holds information about a single Vulkan Queue Family. */
     typedef struct QueueFamilyInfo
     {
-        VkQueueFlagBits flags;
-        VkExtent3D      min_image_transfer_granularity;
-        uint32_t        n_queues;
-        uint32_t        n_timestamp_bits;
+        VkQueueFlagsVariable(flags);
+
+        VkExtent3D min_image_transfer_granularity;
+        uint32_t   n_queues;
+        uint32_t   n_timestamp_bits;
 
         /** Constructor. Initializes the instance using data provided by the driver.
          *
@@ -910,12 +1520,15 @@ namespace Anvil
          **/
         explicit QueueFamilyInfo(const VkQueueFamilyProperties& props)
         {
-            flags                          = static_cast<VkQueueFlagBits>(props.queueFlags);
+            flags                          = props.queueFlags;
             min_image_transfer_granularity = props.minImageTransferGranularity;
             n_queues                       = props.queueCount;
             n_timestamp_bits               = props.timestampValidBits;
         }
     } QueueFamilyInfo;
+
+    extern bool operator==(const QueueFamilyInfo& in1,
+                           const QueueFamilyInfo& in2);
 
     typedef std::vector<QueueFamilyInfo> QueueFamilyInfoItems;
 
@@ -924,7 +1537,7 @@ namespace Anvil
     {
         QUEUE_FAMILY_TYPE_COMPUTE,
         QUEUE_FAMILY_TYPE_TRANSFER,
-        QUEUE_FAMILY_TYPE_UNIVERSAL, /* compute + queue */
+        QUEUE_FAMILY_TYPE_UNIVERSAL, /* compute + graphics */
 
         /* Always last */
         QUEUE_FAMILY_TYPE_COUNT,
@@ -932,32 +1545,11 @@ namespace Anvil
         QUEUE_FAMILY_TYPE_UNDEFINED = QUEUE_FAMILY_TYPE_COUNT
     } QueueFamilyType;
 
-    /* Keyboard character IDs */
-    #ifdef _WIN32
-        #define ANVIL_KEY_HELPER(key) VK_##key
-    #else
-        #define ANVIL_KEY_HELPER(key) XK_##key
-    #endif
-
-    typedef enum
-    {
-#ifdef _WIN32
-        KEY_ID_ESCAPE = ANVIL_KEY_HELPER(ESCAPE),
-        KEY_ID_LEFT   = ANVIL_KEY_HELPER(LEFT),
-        KEY_ID_RETURN = ANVIL_KEY_HELPER(RETURN),
-        KEY_ID_RIGHT  = ANVIL_KEY_HELPER(RIGHT),
-        KEY_ID_SPACE  = ANVIL_KEY_HELPER(SPACE)
-#else
-        KEY_ID_ESCAPE = ANVIL_KEY_HELPER(Escape),
-        KEY_ID_LEFT   = ANVIL_KEY_HELPER(Left),
-        KEY_ID_RETURN = ANVIL_KEY_HELPER(Return),
-        KEY_ID_RIGHT  = ANVIL_KEY_HELPER(Right),
-        KEY_ID_SPACE  = ANVIL_KEY_HELPER(space)
-#endif
-    } KeyID;
-
     /** Base pipeline ID. Internal type, used to represent compute / graphics pipeline IDs */
     typedef uint32_t PipelineID;
+
+    /** Pipeline layout ID */
+    typedef uint32_t PipelineLayoutID;
 
     /** Compute Pipeline ID */
     typedef PipelineID ComputePipelineID;
@@ -965,6 +1557,47 @@ namespace Anvil
     /** Graphics Pipeline ID */
     typedef PipelineID GraphicsPipelineID;
 
+    /* Used internally by Buffer and Image to track page occupancy status */
+    typedef union
+    {
+        uint32_t raw;
+
+        struct
+        {
+            uint8_t page_bit_0  : 1;
+            uint8_t page_bit_1  : 1;
+            uint8_t page_bit_2  : 1;
+            uint8_t page_bit_3  : 1;
+            uint8_t page_bit_4  : 1;
+            uint8_t page_bit_5  : 1;
+            uint8_t page_bit_6  : 1;
+            uint8_t page_bit_7  : 1;
+            uint8_t page_bit_8  : 1;
+            uint8_t page_bit_9  : 1;
+            uint8_t page_bit_10 : 1;
+            uint8_t page_bit_11 : 1;
+            uint8_t page_bit_12 : 1;
+            uint8_t page_bit_13 : 1;
+            uint8_t page_bit_14 : 1;
+            uint8_t page_bit_15 : 1;
+            uint8_t page_bit_16 : 1;
+            uint8_t page_bit_17 : 1;
+            uint8_t page_bit_18 : 1;
+            uint8_t page_bit_19 : 1;
+            uint8_t page_bit_20 : 1;
+            uint8_t page_bit_21 : 1;
+            uint8_t page_bit_22 : 1;
+            uint8_t page_bit_23 : 1;
+            uint8_t page_bit_24 : 1;
+            uint8_t page_bit_25 : 1;
+            uint8_t page_bit_26 : 1;
+            uint8_t page_bit_27 : 1;
+            uint8_t page_bit_28 : 1;
+            uint8_t page_bit_29 : 1;
+            uint8_t page_bit_30 : 1;
+            uint8_t page_bit_31 : 1;
+        } page_bits;
+    } PageOccupancyStatus;
 
     /* Index of a query within parent query pool instance */
     typedef uint32_t QueryIndex;
@@ -975,7 +1608,9 @@ namespace Anvil
     /* Specifies one of the compute / rendering pipeline stages. */
     typedef enum
     {
-        SHADER_STAGE_COMPUTE,
+        SHADER_STAGE_FIRST,
+
+        SHADER_STAGE_COMPUTE = SHADER_STAGE_FIRST,
         SHADER_STAGE_FRAGMENT,
         SHADER_STAGE_GEOMETRY,
         SHADER_STAGE_TESSELLATION_CONTROL,
@@ -1015,6 +1650,54 @@ namespace Anvil
         ShaderModuleStageEntryPoint& operator=(const ShaderModuleStageEntryPoint&);
     } ShaderModuleStageEntryPoint;
 
+    /* Describes sparse properties for an image format */
+    typedef struct SparseImageAspectProperties
+    {
+        VkImageAspectFlagsVariable      (aspect_mask);
+        VkSparseImageFormatFlagsVariable(flags);
+
+        VkExtent3D   granularity;
+        uint32_t     mip_tail_first_lod;
+        VkDeviceSize mip_tail_offset;
+        VkDeviceSize mip_tail_size;
+        VkDeviceSize mip_tail_stride;
+
+        SparseImageAspectProperties()
+        {
+            memset(this,
+                   0,
+                   sizeof(*this) );
+        }
+
+        SparseImageAspectProperties(const VkSparseImageMemoryRequirements& in_req)
+        {
+            aspect_mask        = in_req.formatProperties.aspectMask;
+            flags              = in_req.formatProperties.flags;
+            granularity        = in_req.formatProperties.imageGranularity;
+            mip_tail_first_lod = in_req.imageMipTailFirstLod;
+            mip_tail_offset    = in_req.imageMipTailOffset;
+            mip_tail_size      = in_req.imageMipTailSize;
+            mip_tail_stride    = in_req.imageMipTailStride;
+        }
+    } SparseImageAspectProperties;
+
+    /* Unique ID of a sparse memory bind update */
+    typedef uint32_t SparseMemoryBindInfoID;
+
+    typedef enum
+    {
+        /* Support sparse binding only */
+        SPARSE_RESIDENCY_SCOPE_NONE,
+
+        /* Support sparse residency, do not support sparse aliased residency */
+        SPARSE_RESIDENCY_SCOPE_NONALIASED,
+
+        /* Support sparse aliased residency */
+        SPARSE_RESIDENCY_SCOPE_ALIASED,
+
+        SPARSE_RESIDENCY_SCOPE_UNDEFINED
+    } SparseResidencyScope;
+
     /* Unique ID of a render-pass' sub-pass attachment within scope of a RenderPass instance. */
     typedef uint32_t SubPassAttachmentID;
 
@@ -1042,14 +1725,500 @@ namespace Anvil
         TIMESTAMP_CAPTURE_MODE_ENABLED_COMMAND_EXECUTION_TIME
     } TimestampCaptureMode;
 
-    /** A bitmask defining one or more queue family usage.*/
-    typedef enum
+    namespace Utils
     {
-        QUEUE_FAMILY_COMPUTE_BIT  = 1 << 0,
-        QUEUE_FAMILY_DMA_BIT      = 1 << 1,
-        QUEUE_FAMILY_GRAPHICS_BIT = 1 << 2 
-    } QueueFamily;
-    typedef int QueueFamilyBits;
-}; /* Vulkan namespace */
+        /** Converts a Anvil::QueueFamilyBits bitfield value to an array of queue family indices.
+         *
+         *  @param queue_families                     Input value to convert from.
+         *  @param out_opt_queue_family_indices_ptr   If not NULL, deref will be updated with @param *out_opt_n_queue_family_indices_ptr
+         *                                            values, corresponding to queue family indices, as specified under @param queue_families.
+         *  @param out_opt_n_queue_family_indices_ptr If not NULL, deref will be set to the number of items that would be or were written
+         *                                            under @param out_opt_queue_family_indices_ptr.
+         *
+         **/
+        void convert_queue_family_bits_to_family_indices(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                                         Anvil::QueueFamilyBits           queue_families,
+                                                         uint32_t*                        out_opt_queue_family_indices_ptr,
+                                                         uint32_t*                        out_opt_n_queue_family_indices_ptr);
+
+        /** Returns an access mask which has all the access bits, relevant to the user-specified image layout,
+         *  enabled. */
+        VkAccessFlags get_access_mask_from_image_layout(VkImageLayout layout);
+
+        /** Converts the specified VkAttachmentLoadOp value to a raw string
+         *
+         *  @param in_load_op Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkAttachmentLoadOp in_load_op);
+
+        /** Converts the specified VkAttachmentStoreOp value to a raw string
+         *
+         *  @param in_store_op Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkAttachmentStoreOp in_store_op);
+
+        /** Converts the specified VkBlendFactor value to a raw string
+         *
+         *  @param in_blend_factor Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkBlendFactor in_blend_factor);
+
+        /** Converts the specified VkBlendOp value to a raw string
+         *
+         *  @param in_blend_op Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkBlendOp in_blend_op);
+
+        /** Converts the specified VkCompareOp value to a raw string
+         *
+         *  @param in_compare_op Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkCompareOp in_compare_op);
+
+        /** Converts the specified VkCullModeFlagBits value to a raw string
+         *
+         *  @param in_cull_mode Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkCullModeFlagBits in_cull_mode);
+
+        /** Converts the specified VkDescriptorType value to a raw string
+         *
+         *  @param in_descriptor_type Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkDescriptorType in_descriptor_type);
+
+        /** Converts the specified VkFrontFace value to a raw string
+         *
+         *  @param in_front_face Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkFrontFace in_front_face);
+
+        /** Converts the specified VkImageLayout value to a raw string
+         *
+         *  @param in_image_layout Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkImageLayout in_image_layout);
+
+        /** Converts the specified VkImageTiling value to a raw string
+         *
+         *  @param in_image_tiling Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkImageTiling in_image_tiling);
+
+        /** Converts the specified VkImageType value to a raw string
+         *
+         *  @param in_image_type Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkImageType in_image_type);
+
+        /** Converts the specified VkImageViewType value to a raw string
+         *
+         *  @param in_image_view_type Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkImageViewType in_image_view_type);
+
+        /** Converts the specified VkLogicOp value to a raw string
+         *
+         *  @param in_logic_op Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkLogicOp in_logic_op);
+
+        /** Converts the specified VkPolygonMode value to a raw string
+         *
+         *  @param in_polygon_mode Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkPolygonMode in_polygon_mode);
+
+        /** Converts the specified VkPrimitiveTopology value to a raw string
+         *
+         *  @param in_topology Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkPrimitiveTopology in_topology);
+
+        /** Converts the specified VkSampleCountFlagBits value to a raw string
+         *
+         *  @param in_sample_count Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkSampleCountFlagBits in_sample_count);
+
+        /** Converts the specified VkSharingMode value to a raw string
+         *
+         *  @param in_sharing_mode Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkSharingMode in_sharing_mode);
+
+        /** Converts the specified VkStencilOp value to a raw string
+         *
+         *  @param in_stencil_op Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkStencilOp in_stencil_op);
+
+        /** Tells whether @param value is a power-of-two. */
+        template <typename type>
+        type is_pow2(const type value)
+        {
+            return ((value & (value - 1)) == 0);
+        }
+
+        /** Rounds up @param value to a multiple of @param base */
+        template <typename type>
+        type round_up(const type value, const type base)
+        {
+            if ((value % base) == 0)
+            {
+                return value;
+            }
+            else
+            {
+                return value + (base - value % base);
+            }
+        }
+
+        /** Container for sparse memory binding updates */
+        class SparseMemoryBindingUpdateInfo
+        {
+        public:
+            /* Public functions */
+
+            /** Constructor.
+             *
+             *  Marks the container as dirty by default.
+             */
+            SparseMemoryBindingUpdateInfo();
+
+            /** Adds a new bind info to the container. The application can then append buffer memory updates
+             *  to the bind info by calling append_buffer_memory_update().
+             *
+             *  @param n_signal_semaphores       Number of semaphores to signal after the bind info is processed. Can be 0.
+             *  @param opt_signal_semaphores_ptr An array of semaphores (sized @param n_signal_semaphores) to signal.
+             *                                   Should be null if @param n_signal_semaphores is 0.
+             *  @param n_wait_semaphores         Number of semaphores to wait on before the bind info should start being
+             *                                   processed. Can be 0.
+             *  @param opt_wait_semaphores_ptr   An array of semaphores (sized @param n_wait_semaphores) to wait on,
+             *                                   before processing the bind info. Should be null if @param n_wait_semaphores
+             *                                   is 0.
+             *
+             *  @return ID of the new bind info.
+             **/
+            SparseMemoryBindInfoID add_bind_info(uint32_t                            n_signal_semaphores,
+                                                 std::shared_ptr<Anvil::Semaphore>*  opt_signal_semaphores_ptr,
+                                                 uint32_t                            n_wait_semaphores,
+                                                 std::shared_ptr<Anvil::Semaphore>*  opt_wait_semaphores_ptr);
+
+            /** Appends a new buffer memory block update to the bind info.
+             *
+             *  @param bind_info_id                   ID of the bind info to append the update to.
+             *  @param buffer_ptr                     Buffer instance to update. Must not be NULL.
+             *  @param buffer_memory_start_offset     Start offset of the target memory region.
+             *  @param opt_memory_block_ptr           Memory block to use for the binding. May be NULL.
+             *  @param opt_memory_block_start_offset  Start offset of the source memory region. Ignored
+             *                                        if @param memory_block_ptr is NULL.
+             *  @param size                           Size of the memory block to update.
+             **/
+            void append_buffer_memory_update(SparseMemoryBindInfoID              bind_info_id,
+                                             std::shared_ptr<Anvil::Buffer>      buffer_ptr,
+                                             VkDeviceSize                        buffer_memory_start_offset,
+                                             std::shared_ptr<Anvil::MemoryBlock> opt_memory_block_ptr,
+                                             VkDeviceSize                        opt_memory_block_start_offset,
+                                             VkDeviceSize                        size);
+
+            /** Appends a new non-opaque image memory update to the bind info.
+             *
+             *  @param bind_info_id                  ID of the bind info to append the update to.
+             *  @param image_ptr                     Image instance to update. Must not be NULL.
+             *  @param subresource                   Subresource which should be used for the update operation.
+             *  @param offset                        Image region offset for the update operation.
+             *  @param extent                        Extent of the update operation.
+             *  @param flags                         VkSparseMemoryBindFlags value to use for the update.
+             *  @param opt_memory_block_ptr          Memory block to use for the update operation. May be NULL.
+             *  @param opt_memory_block_start_offset Start offset of the source memory region. ignored if
+             *                                       @param opt_memory_block_ptr is NULL.
+             **/
+            void append_image_memory_update(SparseMemoryBindInfoID              bind_info_id,
+                                            std::shared_ptr<Anvil::Image>       image_ptr,
+                                            const VkImageSubresource&           subresource,
+                                            const VkOffset3D&                   offset,
+                                            const VkExtent3D&                   extent,
+                                            VkSparseMemoryBindFlags             flags,
+                                            std::shared_ptr<Anvil::MemoryBlock> opt_memory_block_ptr,
+                                            VkDeviceSize                        opt_memory_block_start_offset);
+
+            /** Appends a new opaque image memory update to the bind info.
+             *
+             *  @param bind_info_id                  ID of the bind info to append the update to.
+             *  @param image_ptr                     Image instance to update. Must not be NULL.
+             *  @param resource_offset               Raw memory image start offset to use for the update.
+             *  @param size                          Number of bytes to update.
+             *  @param flags                         VkSparseMemoryBindFlags value to use for the update.
+             *  @param opt_memory_block_ptr          Memory block to use for the update operation. May be NULL.
+             *  @param opt_memory_block_start_offset Start offset of the source memory region. Ignored if
+             *                                       @param opt_memory_block_ptr is NULL.
+             **/
+            void append_opaque_image_memory_update(SparseMemoryBindInfoID              bind_info_id,
+                                                   std::shared_ptr<Anvil::Image>       image_ptr,
+                                                   VkDeviceSize                        resource_offset,
+                                                   VkDeviceSize                        size,
+                                                   VkSparseMemoryBindFlags             flags,
+                                                   std::shared_ptr<Anvil::MemoryBlock> opt_memory_block_ptr,
+                                                   VkDeviceSize                        opt_memory_block_start_offset);
+
+            /** Retrieves bind info properties.
+             *
+             *  @param bind_info_id                              ID of the bind info to retrieve properties of.
+             *  @param opt_out_n_buffer_memory_updates_ptr       Deref will be set to the number of buffer memory updates, assigned
+             *                                                   to the specified bind info item. May be NULL.
+             *  @param opt_out_n_image_memory_updates_ptr        Deref will be set to the number of non-opaque image memory updates, assigned
+             *                                                   to the specified bind info item. May be NULL.
+             *  @param opt_out_n_image_opaque_memory_updates_ptr Deref will be set to the number of image opaque memory updates, assigned
+             *                                                   to the specified bind info item. May be NULL.
+             *  @param opt_out_fence_to_set_ptr                  Deref will be set to the fence, which is going to be set once all
+             *                                                   updates assigned to the bind info item are executed. May be NULL.
+             *  @param opt_out_n_signal_semaphores_ptr           Deref will be set to the number of semaphores, which should be
+             *                                                   signalled after bindings are applied. May be NULL.
+             *  @param opt_out_signal_semaphores_ptr_ptr         Deref will be set to an array of signal semaphores. May be NULL.
+             *  @param opt_out_n_wait_semaphores_ptr             Deref will be set to the number of semaphores, which should be
+             *                                                   waited on before bindings are applied. May be NULL.
+             *  @param opt_out_wait_semaphores_ptr_ptr           Deref will be set to an array of wait semaphores. May be NULL.
+             *
+             *  @return true if successful, false otherwise.
+             **/
+            bool get_bind_info_properties(SparseMemoryBindInfoID                     bind_info_id,
+                                          uint32_t* const                            opt_out_n_buffer_memory_updates_ptr,
+                                          uint32_t* const                            opt_out_n_image_memory_updates_ptr,
+                                          uint32_t* const                            opt_out_n_image_opaque_memory_updates_ptr,
+                                          uint32_t* const                            opt_out_n_signal_semaphores_ptr,
+                                          const std::shared_ptr<Anvil::Semaphore>**  opt_out_signal_semaphores_ptr_ptr,
+                                          uint32_t* const                            opt_out_n_wait_semaphores_ptr,
+                                          const std::shared_ptr<Anvil::Semaphore>**  opt_out_wait_semaphores_ptr_ptr) const;
+
+            /** Retrieves Vulkan descriptors which should be used for the vkQueueBindSparse() call.
+             *
+             *  This call will trigger baking, if the container is marked as dirty.
+             *
+             *  @param out_bind_info_count_ptr Deref will be set to the value which should be passed in the
+             *                                 <bindInfoCount> argument of the call. Must not be NULL.
+             *  @param out_bind_info_ptr       Deref will be set to a pointer to an array, which should be
+             *                                 passed in the <pBindInfo> argument of the call. Must not be NULL.
+             *  @param out_fence_to_set_ptr    Deref will be set to the fence, which should be set by the implementation
+             *                                 after all bindings are in place. Note that the fence itself is optional
+             *                                 and may be null.
+             **/
+            void get_bind_sparse_call_args(uint32_t*                      out_bind_info_count_ptr,
+                                           const VkBindSparseInfo**       out_bind_info_ptr,
+                                           std::shared_ptr<Anvil::Fence>* out_fence_to_set_ptr);
+
+            /** Retrieves details of buffer memory binding updates, cached for user-specified bind info.
+             *
+             *  @param bind_info_id                           ID of the bind info, which owns the update, whose properties are
+             *                                                being queried.
+             *  @param n_update                               Index of the buffer memory update to retrieve properties of.
+             *  @param out_opt_buffer_ptr                     If not NULL, deref will be set to the buffer, whose sparse memory
+             *                                                binding should be updated. Otherwise ignored.
+             *  @param out_opt_buffer_memory_start_offset_ptr If not NULL, deref will be set to the start offset of the buffer,
+             *                                                at which the memory block should be bound. Otherwise ignored.
+             *  @param out_opt_memory_block_ptr               If not NULL, deref will be set to the memory block, which should
+             *                                                be used for the binding. Otherwise ignored.
+             *  @param out_opt_memory_block_start_offset_ptr  If not NULL, deref will be set to the start offset of the memory block,
+             *                                                from which the memory region, which should be used for the binding,
+             *                                                starts. Otherwise ignored.
+             *  @param out_opt_size_ptr                       If not NULL, deref will be set to the size of the memory region,
+             *                                                which should be used for the binding. Otherwise ignored.
+             *
+             *  @return true if successful, false otherwise.
+             **/
+            bool get_buffer_memory_update_properties(SparseMemoryBindInfoID               bind_info_id,
+                                                     uint32_t                             n_update,
+                                                     std::shared_ptr<Anvil::Buffer>*      out_opt_buffer_ptr,
+                                                     VkDeviceSize*                        out_opt_buffer_memory_start_offset_ptr,
+                                                     std::shared_ptr<Anvil::MemoryBlock>* out_opt_memory_block_ptr,
+                                                     VkDeviceSize*                        out_opt_memory_block_start_offset_ptr,
+                                                     VkDeviceSize*                        out_opt_size_ptr) const;
+
+            /** Retrieves the fence, if one was earlier assigned to the instance */
+            std::shared_ptr<Anvil::Fence> get_fence() const
+            {
+                return m_fence_ptr;
+            }
+
+            /** Retrieves properties of a non-opaque image memory update with a given ID.
+             *
+             *  @param bind_info_id                          ID of the bind info, which owns the update, and whose properties are
+             *                                               being queried.
+             *  @param n_update                              Index of the image memory update to retrieve properties of.
+             *  @param opt_out_image_ptr_ptr                 If not NULL, deref will be set to the image which should be updated.
+             *                                               Otherwise ignored.
+             *  @param opt_out_subresouce_ptr                If not NULL, deref will be set to the subresource to be used for the
+             *                                               update. Otherwise ignored.
+             *  @param opt_out_offset_ptr                    If not NULL, deref will be set to image start offset, at which
+             *                                               the memory block should be bound. Otherwise ignored.
+             *  @param opt_out_extent_ptr                    If not NULL, deref will be set to the extent of the update. Otherwise
+             *                                               ignored.
+             *  @param opt_out_flags_ptr                     If not NULL, deref will be set to VkSparseMemoryBindFlags value which
+             *                                               is going to be used for the update. Otherwise ignored.
+             *  @param opt_out_memory_block_ptr_ptr          If not NULL, deref will be set to pointer to the memory block, which
+             *                                               is going to be used for the bind operation. Otherwise ignored.
+             *  @param opt_out_memory_block_start_offset_ptr If not NULL, deref will be set to the start offset of the memory block,
+             *                                               which should be used for the binding operation. Otherwise ignored.
+             *
+             *  @return true if successful, false otherwise.
+             **/
+            bool get_image_memory_update_properties(SparseMemoryBindInfoID               bind_info_id,
+                                                    uint32_t                             n_update,
+                                                    std::shared_ptr<Anvil::Image>*       opt_out_image_ptr_ptr,
+                                                    VkImageSubresource*                  opt_out_subresource_ptr,
+                                                    VkOffset3D*                          opt_out_offset_ptr,
+                                                    VkExtent3D*                          opt_out_extent_ptr,
+                                                    VkSparseMemoryBindFlags*             opt_out_flags_ptr,
+                                                    std::shared_ptr<Anvil::MemoryBlock>* opt_out_memory_block_ptr_ptr,
+                                                    VkDeviceSize*                        opt_out_memory_block_start_offset_ptr) const;
+
+            /** Retrieves properties of an opaque image memory updated with a given ID.
+             *
+             *  @param bind_info_id                          ID of the bind info, which owns the update, and whose properties are being
+             *                                               queried.
+             *  @param n_update                              Index of the opaque image memory update to retrieve properties of.
+             *  @param opt_out_image_ptr_ptr                 If not NULL, deref will be set to the image which should be updated. Otherwise
+             *                                               ignored.
+             *  @param opt_out_resource_offset_ptr           If not NULL, deref will be set to the raw image memory offset, which should
+             *                                               be used for the update. Otherwise ignored.
+             *  @param opt_out_size_ptr                      If not NULL, deref will be set to the size of the image memory which should
+             *                                               be used for the update. Otherwise ignored.
+             *  @param opt_out_flags_ptr                     If not NULL, deref will be set to the VkSParseMemoryBindFlags value which is
+             *                                               going to be used for the update. Otherwise igfnored.
+             *  @param opt_out_memory_block_ptr_ptr          If not NULL, deref will be set to pointer to the memory block, which is going
+             *                                               to be used for the bind operation. Otherwise ignored.
+             *  @param opt_out_memory_block_start_offset_ptr If not NULL, deref will be set to the start offset of the memory block, which
+             *                                               should be used for the binding operation. Otherwise ignored.
+             *
+             *  @return true if successful, false otherwise.
+             */
+            bool get_image_opaque_memory_update_properties(SparseMemoryBindInfoID               bind_info_id,
+                                                           uint32_t                             n_update,
+                                                           std::shared_ptr<Anvil::Image>*       opt_out_image_ptr_ptr,
+                                                           VkDeviceSize*                        opt_out_resource_offset_ptr,
+                                                           VkDeviceSize*                        opt_out_size_ptr,
+                                                           VkSparseMemoryBindFlags*             opt_out_flags_ptr,
+                                                           std::shared_ptr<Anvil::MemoryBlock>* opt_out_memory_block_ptr_ptr,
+                                                           VkDeviceSize*                        opt_out_memory_block_start_offset_ptr) const;
+
+            /** Tells how many bind info items have been assigned to the descriptor */
+            uint32_t get_n_bind_info_items() const
+            {
+                return static_cast<uint32_t>(m_bindings.size() );
+            }
+
+            /* Changes the fence (null by default), which should be set by the Vulkan implementation after it finishes
+             * updating the bindings.
+            **/
+            void set_fence(std::shared_ptr<Anvil::Fence> in_fence_ptr)
+            {
+                m_fence_ptr = in_fence_ptr;
+            }
+
+        private:
+            /* Private type definitions */
+            typedef struct
+            {
+                VkDeviceSize                        start_offset;
+                std::shared_ptr<Anvil::MemoryBlock> memory_block_ptr;
+                VkDeviceSize                        memory_block_start_offset;
+                VkDeviceSize                        size;
+
+                VkSparseMemoryBindFlagsVariable(flags);
+            } GeneralBindInfo;
+
+            typedef struct
+            {
+                VkExtent3D                          extent;
+                VkOffset3D                          offset;
+                std::shared_ptr<Anvil::MemoryBlock> memory_block_ptr;
+                VkDeviceSize                        memory_block_start_offset;
+                VkImageSubresource                  subresource;
+
+                VkSparseMemoryBindFlagsVariable(flags);
+            } ImageBindInfo;
+
+            typedef std::map<std::shared_ptr<Anvil::Buffer>, std::pair<std::vector<GeneralBindInfo>, std::vector<VkSparseMemoryBind>      >> BufferBindUpdateMap;
+            typedef std::map<std::shared_ptr<Anvil::Image>,  std::pair<std::vector<ImageBindInfo>,   std::vector<VkSparseImageMemoryBind> >> ImageBindUpdateMap;
+            typedef std::map<std::shared_ptr<Anvil::Image>,  std::pair<std::vector<GeneralBindInfo>, std::vector<VkSparseMemoryBind>      >> ImageOpaqueBindUpdateMap;
+
+            typedef struct BindingInfo
+            {
+                BufferBindUpdateMap      buffer_updates;
+                ImageOpaqueBindUpdateMap image_opaque_updates;
+                ImageBindUpdateMap       image_updates;
+
+                std::vector<std::shared_ptr<Anvil::Semaphore> > signal_semaphores;
+                std::vector<VkSemaphore>                        signal_semaphores_vk;
+                std::vector<std::shared_ptr<Anvil::Semaphore> > wait_semaphores;
+                std::vector<VkSemaphore>                        wait_semaphores_vk;
+
+                BindingInfo()
+                {
+                    /* Stub */
+                }
+            } BindingInfo;
+
+            std::vector<BindingInfo>      m_bindings;
+            bool                          m_dirty;
+            std::shared_ptr<Anvil::Fence> m_fence_ptr;
+
+            std::vector<VkBindSparseInfo>                  m_bindings_vk;
+            std::vector<VkSparseBufferMemoryBindInfo>      m_buffer_bindings_vk;
+            std::vector<VkSparseImageMemoryBindInfo>       m_image_bindings_vk;
+            std::vector<VkSparseImageOpaqueMemoryBindInfo> m_image_opaque_bindings_vk;
+
+            /* Private functions */
+            SparseMemoryBindingUpdateInfo          (const SparseMemoryBindingUpdateInfo&);
+            SparseMemoryBindingUpdateInfo operator=(const SparseMemoryBindingUpdateInfo&);
+
+            void bake();
+        };
+    };
+
+    /* Describes recognized subpass attachment types */
+    enum Result
+    {
+        RESULT_SUCCESS,
+        RESULT_ERROR,
+        RESULT_NOT_SUPPORTED
+    };
+}; /* Anvil namespace */
 
 #endif /* MISC_TYPES_H */

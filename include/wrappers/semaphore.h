@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -42,9 +42,12 @@ namespace Anvil
         /* Public functions */
 
         /** Creates a single Vulkan semaphore instance and registers the object in Object Tracker. */
-        static std::shared_ptr<Anvil::Semaphore> create(std::weak_ptr<Anvil::Device> device_ptr);
+        static std::shared_ptr<Anvil::Semaphore> create(std::weak_ptr<Anvil::BaseDevice> device_ptr);
 
-        /** TODO */
+        /** Destructor.
+         *
+         *  Destroys the Vulkan counterpart and unregisters the wrapper instance from the Object Tracker.
+         **/
         virtual ~Semaphore();
 
         /** Retrieves a raw handle to the underlying Vulkan semaphore instance  */
@@ -67,7 +70,7 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. Please see create() for specification */
-        Semaphore(std::weak_ptr<Anvil::Device> device_ptr);
+        Semaphore(std::weak_ptr<Anvil::BaseDevice> device_ptr);
 
         Semaphore           (const Semaphore&);
         Semaphore& operator=(const Semaphore&);
@@ -75,8 +78,8 @@ namespace Anvil
         void release_semaphore();
 
         /* Private variables */
-        std::weak_ptr<Anvil::Device> m_device_ptr;
-        VkSemaphore                  m_semaphore;
+        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
+        VkSemaphore                      m_semaphore;
     };
 }; /* namespace Anvil */
 

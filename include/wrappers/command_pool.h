@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -40,7 +40,7 @@ namespace Anvil
     public:
         /* Public functions */
 
-        /** TODO */
+        /** Destroys the Vulkan object and unregisters the object from the Object Tracker. */
         virtual ~CommandPool();
 
         /** Allocates a new primary-level command buffer instance from this command pool.
@@ -68,15 +68,21 @@ namespace Anvil
          *                                        VK_COMMAND_POOL_RESET_COMMAND_BUFFER_BIT flag set on.
          *  @param queue_family                   Index of the queue family the command pool should be created for.
          **/
-        static std::shared_ptr<CommandPool> create(std::weak_ptr<Anvil::Device> device_ptr,
-                                                   bool                         transient_allocations_friendly,
-                                                   bool                         support_per_cmdbuf_reset_ops,
-                                                   Anvil::QueueFamilyType       queue_family);
+        static std::shared_ptr<CommandPool> create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                                   bool                             transient_allocations_friendly,
+                                                   bool                             support_per_cmdbuf_reset_ops,
+                                                   Anvil::QueueFamilyType           queue_family);
 
         /** Retrieves the raw Vulkan handle for the encapsulated command pool */
         VkCommandPool get_command_pool() const
         {
             return m_command_pool;
+        }
+
+        /** Tells what queue family this command pool instance has been created for */
+        Anvil::QueueFamilyType get_queue_family_type() const
+        {
+            return m_queue_family;
         }
 
         /** Tells whether the command pool has been created with VK_COMMAND_POOL_CREATE_TRANSIENT_BIT 
@@ -106,23 +112,20 @@ namespace Anvil
         /* Private functions */
 
         /* Please seee create() documentation for more details */
-        explicit CommandPool(std::weak_ptr<Anvil::Device> device_ptr,
-                             bool                         transient_allocations_friendly,
-                             bool                         support_per_cmdbuf_reset_ops,
-                             Anvil::QueueFamilyType       queue_family);
+        explicit CommandPool(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                             bool                             transient_allocations_friendly,
+                             bool                             support_per_cmdbuf_reset_ops,
+                             Anvil::QueueFamilyType           queue_family);
 
         CommandPool           (const CommandPool&);
         CommandPool& operator=(const CommandPool&);
 
-        void on_command_buffer_wrapper_destroyed(CommandBufferBase* command_buffer_ptr);
-
         /* Private variables */
-        std::vector<std::shared_ptr<CommandBufferBase> > m_allocs_in_flight;
-
-        VkCommandPool                m_command_pool;
-        std::weak_ptr<Anvil::Device> m_device_ptr;
-        bool                         m_is_transient_allocations_friendly;
-        bool                         m_supports_per_cmdbuf_reset_ops;
+        VkCommandPool                    m_command_pool;
+        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
+        bool                             m_is_transient_allocations_friendly;
+        Anvil::QueueFamilyType           m_queue_family;
+        bool                             m_supports_per_cmdbuf_reset_ops;
 
         friend class Anvil::CommandBufferBase;
     };

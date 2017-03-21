@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -45,49 +45,6 @@ namespace Anvil
     class ObjectTracker
     {
     public:
-        /* Public type declarations */
-        typedef enum
-        {
-            /* NOTE: If new entries are added or existing entry order is modified, make sure to
-             *       update get_object_type_name().
-             */
-            OBJECT_TYPE_FIRST,
-
-            OBJECT_TYPE_BUFFER = OBJECT_TYPE_FIRST,
-            OBJECT_TYPE_BUFFER_VIEW,
-            OBJECT_TYPE_COMMAND_BUFFER,
-            OBJECT_TYPE_COMMAND_POOL,
-            OBJECT_TYPE_COMPUTE_PIPELINE_MANAGER,
-            OBJECT_TYPE_DESCRIPTOR_POOL,
-            OBJECT_TYPE_DESCRIPTOR_SET,
-            OBJECT_TYPE_DESCRIPTOR_SET_GROUP,
-            OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT,
-            OBJECT_TYPE_DEVICE,
-            OBJECT_TYPE_EVENT,
-            OBJECT_TYPE_FENCE,
-            OBJECT_TYPE_FRAMEBUFFER,
-            OBJECT_TYPE_GRAPHICS_PIPELINE_MANAGER,
-            OBJECT_TYPE_IMAGE,
-            OBJECT_TYPE_IMAGE_VIEW,
-            OBJECT_TYPE_INSTANCE,
-            OBJECT_TYPE_MEMORY_BLOCK,
-            OBJECT_TYPE_PHYSICAL_DEVICE,
-            OBJECT_TYPE_PIPELINE_CACHE,
-            OBJECT_TYPE_PIPELINE_LAYOUT,
-            OBJECT_TYPE_PIPELINE_LAYOUT_MANAGER,
-            OBJECT_TYPE_QUERY_POOL,
-            OBJECT_TYPE_QUEUE,
-            OBJECT_TYPE_RENDER_PASS,
-            OBJECT_TYPE_RENDERING_SURFACE,
-            OBJECT_TYPE_SAMPLER,
-            OBJECT_TYPE_SEMAPHORE,
-            OBJECT_TYPE_SHADER_MODULE,
-            OBJECT_TYPE_SWAPCHAIN,
-
-            /* Always last */
-            OBJECT_TYPE_COUNT
-        } ObjectType;
-
         /* Public functions */
 
         /** Destroys the ObjectTracker singleton, no matter how many preceding get() calls have been made. */
@@ -105,6 +62,10 @@ namespace Anvil
          *  which have not been released yet.
          **/
         void check_for_leaks() const;
+
+        /** Retrieves an alive object of user-specified type at given index. */
+        const void* get_object_at_index(ObjectType object_type,
+                                        uint32_t   alloc_index) const;
 
         /** Registers a new object of the specified type.
          *
@@ -136,7 +97,7 @@ namespace Anvil
             /** Dummy constructor. Should only be used by STL */
             ObjectAllocation()
             {
-                n_allocation = -1;
+                n_allocation = UINT32_MAX;
                 object_ptr   = nullptr;
             }
 

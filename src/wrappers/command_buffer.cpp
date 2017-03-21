@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,8 @@
 #include "wrappers/framebuffer.h"
 #include "wrappers/graphics_pipeline_manager.h"
 #include "wrappers/image.h"
+#include "wrappers/instance.h"
+#include "wrappers/physical_device.h"
 #include "wrappers/pipeline_layout.h"
 #include "wrappers/query_pool.h"
 #include "wrappers/render_pass.h"
@@ -53,17 +55,18 @@ Anvil::CommandBufferBase::BeginQueryCommand::BeginQueryCommand(std::shared_ptr<A
 }
 
 /** Please see header for specification */
-Anvil::BeginRenderPassCommand::BeginRenderPassCommand(uint32_t                            in_n_clear_values,
-                                                      const VkClearValue*                 in_clear_value_ptrs,
-                                                      std::shared_ptr<Anvil::Framebuffer> in_fbo_ptr,
-                                                      VkRect2D                            in_render_area,
-                                                      std::shared_ptr<Anvil::RenderPass>  in_render_pass_ptr,
-                                                      VkSubpassContents                   in_contents)
+Anvil::BeginRenderPassCommand::BeginRenderPassCommand(uint32_t                                    in_n_clear_values,
+                                                      const VkClearValue*                         in_clear_value_ptrs,
+                                                      std::shared_ptr<Anvil::Framebuffer>         in_fbo_ptr,
+                                                      uint32_t                                    in_n_physical_devices,
+                                                      const std::weak_ptr<Anvil::PhysicalDevice>* in_physical_devices,
+                                                      const VkRect2D*                             in_render_areas,
+                                                      std::shared_ptr<Anvil::RenderPass>          in_render_pass_ptr,
+                                                      VkSubpassContents                           in_contents)
     :Command(COMMAND_TYPE_BEGIN_RENDER_PASS)
 {
     contents        = in_contents;
     fbo_ptr         = in_fbo_ptr;
-    render_area     = in_render_area;
     render_pass_ptr = in_render_pass_ptr;
 
     for (uint32_t n_clear_value = 0;
@@ -71,6 +74,14 @@ Anvil::BeginRenderPassCommand::BeginRenderPassCommand(uint32_t                  
                 ++n_clear_value)
     {
         clear_values.push_back(in_clear_value_ptrs[n_clear_value]);
+    }
+
+    for (uint32_t n_physical_device = 0;
+                  n_physical_device < in_n_physical_devices;
+                ++n_physical_device)
+    {
+        physical_devices.push_back(in_physical_devices[n_physical_device]);
+        render_areas.push_back    (in_render_areas    [n_physical_device]);
     }
 }
 
@@ -437,6 +448,7 @@ Anvil::CommandBufferBase::DrawIndexedIndirectCountAMDCommand::DrawIndexedIndirec
     count_buffer_ptr = in_count_buffer_ptr;
     count_offset     = in_count_offset;
     max_draw_count   = in_max_draw_count;
+    offset           = in_offset;
     stride           = in_stride;
 }
 
@@ -469,9 +481,9 @@ Anvil::CommandBufferBase::DrawIndirectCountAMDCommand::DrawIndirectCountAMDComma
     count_buffer_ptr = in_count_buffer_ptr;
     count_offset     = in_count_offset;
     max_draw_count   = in_max_draw_count;
+    offset           = in_offset;
     stride           = in_stride;
 }
-
 
 /** Please see header for specification */
 Anvil::CommandBufferBase::EndQueryCommand::EndQueryCommand(std::shared_ptr<Anvil::QueryPool> in_query_pool_ptr,
@@ -526,7 +538,7 @@ Anvil::CommandBufferBase::NextSubpassCommand::NextSubpassCommand(VkSubpassConten
 /** Please see header for specification */
 Anvil::PipelineBarrierCommand::PipelineBarrierCommand(VkPipelineStageFlags       in_src_stage_mask,
                                                       VkPipelineStageFlags       in_dst_stage_mask,
-                                                      VkBool32                   in_by_region,
+                                                      VkDependencyFlags          in_flags,
                                                       uint32_t                   in_memory_barrier_count,
                                                       const MemoryBarrier* const in_memory_barrier_ptr_ptr,
                                                       uint32_t                   in_buffer_memory_barrier_count,
@@ -535,8 +547,8 @@ Anvil::PipelineBarrierCommand::PipelineBarrierCommand(VkPipelineStageFlags      
                                                       const ImageBarrier*  const in_image_memory_barrier_ptr_ptr)
     :Command(COMMAND_TYPE_PIPELINE_BARRIER)
 {
-    by_region      = in_by_region;
     dst_stage_mask = static_cast<VkPipelineStageFlagBits>(in_dst_stage_mask);
+    flags          = in_flags;
     src_stage_mask = static_cast<VkPipelineStageFlagBits>(in_src_stage_mask);
 
     for (uint32_t n_buffer_memory_barrier = 0;
@@ -804,10 +816,10 @@ Anvil::CommandBufferBase::WriteTimestampCommand::WriteTimestampCommand(VkPipelin
  *  @param parent_command_pool_ptr Command pool to allocate the commands from. Must not be nullptr.
  *  @param type                    Command buffer type
  **/
-Anvil::CommandBufferBase::CommandBufferBase(std::weak_ptr<Anvil::Device>        device_ptr,
+Anvil::CommandBufferBase::CommandBufferBase(std::weak_ptr<Anvil::BaseDevice>    device_ptr,
                                             std::shared_ptr<Anvil::CommandPool> parent_command_pool_ptr,
                                             Anvil::CommandBufferType            type)
-    :CallbacksSupportProvider(COMMAND_BUFFER_CALLBACK_ID_COUNT),
+    :CallbacksSupportProvider (COMMAND_BUFFER_CALLBACK_ID_COUNT),
      m_command_buffer         (VK_NULL_HANDLE),
      m_device_ptr             (device_ptr),
      m_is_renderpass_active   (false),
@@ -832,10 +844,7 @@ Anvil::CommandBufferBase::~CommandBufferBase()
         m_parent_command_pool_ptr.expired() == false)
     {
         std::shared_ptr<Anvil::CommandPool> command_pool_locked_ptr(m_parent_command_pool_ptr);
-        std::shared_ptr<Anvil::Device>      device_locked_ptr      (m_device_ptr);
-
-        /* Unregister the command buffer from the pool */
-        command_pool_locked_ptr->on_command_buffer_wrapper_destroyed(this);
+        std::shared_ptr<Anvil::BaseDevice>  device_locked_ptr      (m_device_ptr);
 
         /* Physically free the command buffer we own */
         vkFreeCommandBuffers(device_locked_ptr->get_device_vk(),
@@ -996,9 +1005,9 @@ bool Anvil::CommandBufferBase::record_bind_pipeline(VkPipelineBindPoint in_pipel
                                                     Anvil::PipelineID   in_pipeline_id)
 {
     /* Command supported inside and outside the renderpass. */
-    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
-    VkPipeline                     pipeline_vk = VK_NULL_HANDLE;
-    bool                           result      = false;
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
+    VkPipeline                         pipeline_vk = VK_NULL_HANDLE;
+    bool                               result      = false;
 
     if (!m_recording_in_progress)
     {
@@ -1007,8 +1016,9 @@ bool Anvil::CommandBufferBase::record_bind_pipeline(VkPipelineBindPoint in_pipel
         goto end;
     }
 
-    pipeline_vk = (in_pipeline_bind_point == VK_PIPELINE_BIND_POINT_COMPUTE) ? device_locked_ptr->get_compute_pipeline_manager()->get_compute_pipeline  (in_pipeline_id)
-                                                                             : device_locked_ptr->get_graphics_pipeline_manager()->get_graphics_pipeline(in_pipeline_id);
+    pipeline_vk = (in_pipeline_bind_point == VK_PIPELINE_BIND_POINT_COMPUTE)  ? device_locked_ptr->get_compute_pipeline_manager()->get_compute_pipeline  (in_pipeline_id)
+                : (in_pipeline_bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS) ? device_locked_ptr->get_graphics_pipeline_manager()->get_graphics_pipeline(in_pipeline_id)
+                                                                              : VK_NULL_HANDLE;
 
     #ifdef STORE_COMMAND_BUFFER_COMMANDS
     {
@@ -2773,7 +2783,7 @@ bool Anvil::CommandBufferBase::reset(bool should_release_resources)
     }
 
     result_vk = vkResetCommandBuffer(m_command_buffer,
-                                     (should_release_resources) ? VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT : 0);
+                                     (should_release_resources) ? VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT : 0u);
 
     if (!is_vk_call_successful(result_vk) )
     {
@@ -2822,15 +2832,18 @@ end:
 }
 
 /* Please see header for specification */
-Anvil::PrimaryCommandBuffer::PrimaryCommandBuffer(std::weak_ptr<Anvil::Device>        device_ptr,
+Anvil::PrimaryCommandBuffer::PrimaryCommandBuffer(std::weak_ptr<Anvil::BaseDevice>    device_ptr,
                                                   std::shared_ptr<Anvil::CommandPool> parent_command_pool_ptr)
     :CommandBufferBase(device_ptr,
                        parent_command_pool_ptr,
                        COMMAND_BUFFER_TYPE_PRIMARY)
+
 {
-    VkCommandBufferAllocateInfo    alloc_info;
-    std::shared_ptr<Anvil::Device> device_locked_ptr(device_ptr);
-    VkResult                       result_vk;
+    VkCommandBufferAllocateInfo        alloc_info;
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(device_ptr);
+    VkResult                           result_vk        (VK_ERROR_INITIALIZATION_FAILED);
+
+    ANVIL_REDUNDANT_VARIABLE(result_vk);
 
     alloc_info.commandBufferCount = 1;
     alloc_info.commandPool        = parent_command_pool_ptr->get_command_pool();
@@ -2843,6 +2856,7 @@ Anvil::PrimaryCommandBuffer::PrimaryCommandBuffer(std::weak_ptr<Anvil::Device>  
                                         &m_command_buffer);
 
     anvil_assert_vk_call_succeeded(result_vk);
+
 }
 
 /* Please see header for specification */
@@ -2853,8 +2867,10 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass(uint32_t             
                                                            std::shared_ptr<Anvil::RenderPass>  in_render_pass_ptr,
                                                            VkSubpassContents                   in_contents)
 {
-    VkRenderPassBeginInfo render_pass_begin_info;
-    bool                  result = false;
+    std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr;
+    VkRenderPassBeginInfo                render_pass_begin_info;
+    bool                                 result                 = false;
+    std::shared_ptr<Anvil::SGPUDevice>   sgpu_device_locked_ptr(std::dynamic_pointer_cast<Anvil::SGPUDevice>(m_device_ptr.lock() ) );
 
     if (m_is_renderpass_active)
     {
@@ -2870,20 +2886,10 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass(uint32_t             
         goto end;
     }
 
-    if (get_n_of_callback_subscribers(COMMAND_BUFFER_CALLBACK_ID_BEGIN_RENDER_PASS_COMMAND_RECORDED) > 0)
-    {
-        BeginRenderPassCommand                     command_data(in_n_clear_values,
-                                                                in_clear_value_ptrs,
-                                                                in_fbo_ptr,
-                                                                in_render_area,
-                                                                in_render_pass_ptr,
-                                                                in_contents);
-        BeginRenderPassCommandRecordedCallbackData callback_data(this,
-                                                                &command_data);
 
-        callback(COMMAND_BUFFER_CALLBACK_ID_BEGIN_RENDER_PASS_COMMAND_RECORDED,
-                &callback_data);
-    }
+    anvil_assert(sgpu_device_locked_ptr != nullptr); /* User attempted to call this function prototype with in_n_physical_devices set to 0 */
+
+    physical_device_ptr = sgpu_device_locked_ptr->get_physical_device();
 
     #ifdef STORE_COMMAND_BUFFER_COMMANDS
     {
@@ -2892,7 +2898,9 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass(uint32_t             
             m_commands.push_back(BeginRenderPassCommand(in_n_clear_values,
                                                         in_clear_value_ptrs,
                                                         in_fbo_ptr,
-                                                        in_render_area,
+                                                        1, /* in_n_physical_devices */
+                                                       &physical_device_ptr,
+                                                       &in_render_area,
                                                         in_render_pass_ptr,
                                                         in_contents) );
         }
@@ -2936,16 +2944,6 @@ bool Anvil::PrimaryCommandBuffer::record_end_render_pass()
         goto end;
     }
 
-    if (get_n_of_callback_subscribers(COMMAND_BUFFER_CALLBACK_ID_END_RENDER_PASS_COMMAND_RECORDED) > 0)
-    {
-        EndRenderPassCommand                     command_data;
-        EndRenderPassCommandRecordedCallbackData callback_data(this,
-                                                              &command_data);
-
-        callback(COMMAND_BUFFER_CALLBACK_ID_END_RENDER_PASS_COMMAND_RECORDED,
-                &callback_data);
-    }
-
     #ifdef STORE_COMMAND_BUFFER_COMMANDS
     {
         if (!m_command_stashing_disabled)
@@ -2962,6 +2960,7 @@ bool Anvil::PrimaryCommandBuffer::record_end_render_pass()
 end:
     return result;
 }
+
 
 /* Please see header for specification */
 bool Anvil::PrimaryCommandBuffer::record_execute_commands(uint32_t                                        in_cmd_buffers_count,
@@ -3046,9 +3045,10 @@ end:
 bool Anvil::PrimaryCommandBuffer::start_recording(bool one_time_submit,
                                                   bool simultaneous_use_allowed)
 {
-    VkCommandBufferBeginInfo command_buffer_begin_info;
-    bool                     result    = false;
-    VkResult                 result_vk;
+    VkCommandBufferBeginInfo           command_buffer_begin_info;
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr         (m_device_ptr);
+    bool                               result                    (false);
+    VkResult                           result_vk;
 
     if (m_recording_in_progress)
     {
@@ -3057,8 +3057,8 @@ bool Anvil::PrimaryCommandBuffer::start_recording(bool one_time_submit,
         goto end;
     }
 
-    command_buffer_begin_info.flags            = ((one_time_submit)          ? VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT  : 0) |
-                                                 ((simultaneous_use_allowed) ? VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT : 0);
+    command_buffer_begin_info.flags            = ((one_time_submit)          ? VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT  : 0u) |
+                                                 ((simultaneous_use_allowed) ? VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT : 0u);
     command_buffer_begin_info.pNext            = nullptr;
     command_buffer_begin_info.pInheritanceInfo = nullptr;  /* Only relevant for secondary-level command buffers */
     command_buffer_begin_info.sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -3089,15 +3089,17 @@ end:
 
 
 /* Please see header for specification */
-Anvil::SecondaryCommandBuffer::SecondaryCommandBuffer(std::weak_ptr<Anvil::Device>        device_ptr,
+Anvil::SecondaryCommandBuffer::SecondaryCommandBuffer(std::weak_ptr<Anvil::BaseDevice>    device_ptr,
                                                       std::shared_ptr<Anvil::CommandPool> parent_command_pool_ptr)
     :CommandBufferBase(device_ptr,
                        parent_command_pool_ptr,
                        COMMAND_BUFFER_TYPE_SECONDARY)
 {
-    VkCommandBufferAllocateInfo    command_buffer_alloc_info;
-    std::shared_ptr<Anvil::Device> device_locked_ptr(device_ptr);
-    VkResult                       result_vk;
+    VkCommandBufferAllocateInfo        command_buffer_alloc_info;
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(device_ptr);
+    VkResult                           result_vk        (VK_ERROR_INITIALIZATION_FAILED);
+
+    ANVIL_REDUNDANT_VARIABLE(result_vk);
 
     command_buffer_alloc_info.commandBufferCount = 1;
     command_buffer_alloc_info.commandPool        = parent_command_pool_ptr->get_command_pool();
@@ -3113,19 +3115,20 @@ Anvil::SecondaryCommandBuffer::SecondaryCommandBuffer(std::weak_ptr<Anvil::Devic
 }
 
 /* Please see header for specification */
-bool Anvil::SecondaryCommandBuffer::start_recording(bool                          one_time_submit,
-                                                    bool                          simultaneous_use_allowed,
-                                                    bool                          renderpass_usage_only,
-                                                    std::shared_ptr<Framebuffer>  framebuffer_ptr,
-                                                    std::shared_ptr<RenderPass>   render_pass_ptr,
-                                                    SubPassID                     subpass_id,
-                                                    OcclusionQuerySupportScope    required_occlusion_query_support_scope,
-                                                    VkQueryPipelineStatisticFlags required_pipeline_statistics_scope)
+bool Anvil::SecondaryCommandBuffer::start_recording(bool                                  one_time_submit,
+                                                    bool                                  simultaneous_use_allowed,
+                                                    bool                                  renderpass_usage_only,
+                                                    std::shared_ptr<Framebuffer>          framebuffer_ptr,
+                                                    std::shared_ptr<RenderPass>           render_pass_ptr,
+                                                    SubPassID                             subpass_id,
+                                                    OcclusionQuerySupportScope            required_occlusion_query_support_scope,
+                                                    VkQueryPipelineStatisticFlags         required_pipeline_statistics_scope)
 {
-    VkCommandBufferBeginInfo       command_buffer_begin_info;
-    VkCommandBufferInheritanceInfo command_buffer_inheritance_info;
-    bool                           result    = false;
-    VkResult                       result_vk;
+    VkCommandBufferBeginInfo           command_buffer_begin_info;
+    VkCommandBufferInheritanceInfo     command_buffer_inheritance_info;
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr              (m_device_ptr);
+    bool                               result    = false;
+    VkResult                           result_vk;
 
     if (m_recording_in_progress)
     {
@@ -3134,18 +3137,19 @@ bool Anvil::SecondaryCommandBuffer::start_recording(bool                        
         goto end;
     }
 
-    command_buffer_inheritance_info.framebuffer          = framebuffer_ptr->get_framebuffer(render_pass_ptr);
-    command_buffer_inheritance_info.occlusionQueryEnable = (required_occlusion_query_support_scope != OCCLUSION_QUERY_SUPPORT_SCOPE_NOT_REQUIRED);
+    command_buffer_inheritance_info.framebuffer          = (framebuffer_ptr != nullptr) ? framebuffer_ptr->get_framebuffer(render_pass_ptr) : VK_NULL_HANDLE;
+    command_buffer_inheritance_info.occlusionQueryEnable = static_cast<VkBool32>((required_occlusion_query_support_scope != OCCLUSION_QUERY_SUPPORT_SCOPE_NOT_REQUIRED) ? VK_TRUE : VK_FALSE);
     command_buffer_inheritance_info.pipelineStatistics   = required_pipeline_statistics_scope;
     command_buffer_inheritance_info.pNext                = nullptr;
-    command_buffer_inheritance_info.queryFlags           = (required_occlusion_query_support_scope == OCCLUSION_QUERY_SUPPORT_SCOPE_REQUIRED);
-    command_buffer_inheritance_info.renderPass           = render_pass_ptr->get_render_pass();
+    command_buffer_inheritance_info.queryFlags           = (required_occlusion_query_support_scope == OCCLUSION_QUERY_SUPPORT_SCOPE_REQUIRED_PRECISE) ? VK_QUERY_CONTROL_PRECISE_BIT
+                                                                                                                                                      : 0u;
+    command_buffer_inheritance_info.renderPass           = (render_pass_ptr != nullptr) ? render_pass_ptr->get_render_pass() : VK_NULL_HANDLE;
     command_buffer_inheritance_info.sType                = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
     command_buffer_inheritance_info.subpass              = subpass_id;
 
-    command_buffer_begin_info.flags            = ((one_time_submit)          ? VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT      : 0) |
-                                                 ((simultaneous_use_allowed) ? VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT     : 0) |
-                                                 ((renderpass_usage_only)    ? VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT : 0);
+    command_buffer_begin_info.flags            = ((one_time_submit)          ? VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT      : 0u) |
+                                                 ((simultaneous_use_allowed) ? VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT     : 0u) |
+                                                 ((renderpass_usage_only)    ? VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT : 0u);
     command_buffer_begin_info.pInheritanceInfo = &command_buffer_inheritance_info;
     command_buffer_begin_info.pNext            = nullptr;
     command_buffer_begin_info.sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -3167,8 +3171,7 @@ bool Anvil::SecondaryCommandBuffer::start_recording(bool                        
     }
     #endif
 
-    m_is_renderpass_active = renderpass_usage_only;
-
+    m_is_renderpass_active  = renderpass_usage_only;
     m_recording_in_progress = true;
     result                  = true;
 

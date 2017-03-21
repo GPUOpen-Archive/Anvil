@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -55,7 +55,11 @@ namespace Anvil
     public:
         /* Public functions */
 
-        /** TODO */
+        /** Destructor.
+         *
+         *  Destroys the Vulkan counterpart and unregisters the instance from the
+         *  object tracker.
+         **/
         virtual ~DescriptorSetLayout();
 
         /** Adds a new binding to the layout instance.
@@ -71,16 +75,16 @@ namespace Anvil
          *  @param descriptor_array_size  Size of the descriptor array to use for the binding.
          *  @param stage_flags            Rendering stages which are going to use the binding.
          *  @param immutable_sampler_ptrs If not nullptr, an array of @param descriptor_array_size samplers should
-         *                                be passed. These sampler will be considered immutable, as per spec language.
+         *                                be passed. The binding will then be considered immutable, as per spec language.
          *                                May be nullptr.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool add_binding(uint32_t                         binding_index,
-                         VkDescriptorType                 descriptor_type,
-                         uint32_t                         descriptor_array_size,
-                         VkShaderStageFlags               stage_flags,
-                         std::shared_ptr<Anvil::Sampler>* immutable_sampler_ptrs = nullptr);
+        bool add_binding(uint32_t                               binding_index,
+                         VkDescriptorType                       descriptor_type,
+                         uint32_t                               descriptor_array_size,
+                         VkShaderStageFlags                     stage_flags,
+                         const std::shared_ptr<Anvil::Sampler>* immutable_sampler_ptrs = nullptr);
 
         /** Converts internal layout representation to a Vulkan object.
          *
@@ -99,7 +103,7 @@ namespace Anvil
          *  @param device_ptr Device the layout will be created for.
          *
          **/
-        static std::shared_ptr<DescriptorSetLayout> create(std::weak_ptr<Anvil::Device> device_ptr);
+        static std::shared_ptr<DescriptorSetLayout> create(std::weak_ptr<Anvil::BaseDevice> device_ptr);
 
         /** Retrieves properties of a single defined binding.
          *
@@ -157,7 +161,8 @@ namespace Anvil
             uint32_t                                      descriptor_array_size;
             VkDescriptorType                              descriptor_type;
             std::vector<std::shared_ptr<Anvil::Sampler> > immutable_samplers;
-            VkShaderStageFlagBits                         stage_flags;
+
+            VkShaderStageFlagsVariable(stage_flags);
 
             /** Dummy constructor. Do not use. */
             Binding()
@@ -171,10 +176,10 @@ namespace Anvil
              *
              *  For argument discussion, please see Anvil::DescriptorSetLayout::add_binding() documentation.
              **/
-            Binding(uint32_t                         in_descriptor_array_size,
-                    VkDescriptorType                 in_descriptor_type,
-                    VkShaderStageFlags               in_stage_flags,
-                    std::shared_ptr<Anvil::Sampler>* in_immutable_sampler_ptrs)
+            Binding(uint32_t                               in_descriptor_array_size,
+                    VkDescriptorType                       in_descriptor_type,
+                    VkShaderStageFlags                     in_stage_flags,
+                    const std::shared_ptr<Anvil::Sampler>* in_immutable_sampler_ptrs)
             {
                 descriptor_array_size = in_descriptor_array_size;
                 descriptor_type       = in_descriptor_type;
@@ -197,16 +202,16 @@ namespace Anvil
         /* Private functions */
 
         /* Please see create() documentation for more details */
-        DescriptorSetLayout(std::weak_ptr<Anvil::Device> device_ptr);
+        DescriptorSetLayout(std::weak_ptr<Anvil::BaseDevice> device_ptr);
 
         DescriptorSetLayout           (const DescriptorSetLayout&);
         DescriptorSetLayout& operator=(const DescriptorSetLayout&);
 
         /* Private variables */
-        BindingIndexToBindingMap     m_bindings;
-        std::weak_ptr<Anvil::Device> m_device_ptr;
-        bool                         m_dirty;
-        VkDescriptorSetLayout        m_layout;
+        BindingIndexToBindingMap         m_bindings;
+        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
+        bool                             m_dirty;
+        VkDescriptorSetLayout            m_layout;
 
         friend class std::shared_ptr<Anvil::DescriptorSetLayout>;
     };

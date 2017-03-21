@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -61,9 +61,9 @@ namespace Anvil
          *  @param releaseable_sets true if the sets should be releaseable with vkFreeDescriptorSet()
          *                          calls. false otherwise.
          **/
-        static std::shared_ptr<DescriptorPool> create(std::weak_ptr<Anvil::Device> device_ptr,
-                                                      uint32_t                     n_max_sets,
-                                                      bool                         releaseable_sets);
+        static std::shared_ptr<DescriptorPool> create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                                      uint32_t                         n_max_sets,
+                                                      bool                             releaseable_sets);
 
         /** Destructor. Releases the Vulkan pool object if instantiated. */
         virtual ~DescriptorPool();
@@ -168,17 +168,17 @@ namespace Anvil
         /* Private functions */
 
         /** Constructor */
-        DescriptorPool(std::weak_ptr<Anvil::Device> device_ptr,
-                       uint32_t                     n_max_sets,
-                       bool                         releaseable_sets);
+        DescriptorPool(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                       uint32_t                         n_max_sets,
+                       bool                             releaseable_sets);
 
         DescriptorPool           (const DescriptorPool&);
         DescriptorPool& operator=(const DescriptorPool&);
 
         /* Private variables */
-        bool                         m_baked;
-        std::weak_ptr<Anvil::Device> m_device_ptr;
-        VkDescriptorPool             m_pool;
+        bool                             m_baked;
+        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
+        VkDescriptorPool                 m_pool;
 
         uint32_t m_descriptor_count[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
         uint32_t m_n_max_sets;

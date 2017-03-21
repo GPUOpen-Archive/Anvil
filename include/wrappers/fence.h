@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,10 @@ namespace Anvil
     public:
         /* Public functions */
 
-        /** TODO */
+        /** Destructor.
+         *
+         *  Destroys the Vulkan counterpart and unregister the wrapper instance from the object tracker.
+         **/
         virtual ~Fence();
 
         /** Creates a new Fence instance.
@@ -52,8 +55,8 @@ namespace Anvil
          *  @param create_signalled true if the fence should be created as a signalled entity.
          *                          False to make it unsignalled at creation time.
          */
-        static std::shared_ptr<Fence> create(std::weak_ptr<Anvil::Device> device_ptr,
-                                      bool                         create_signalled);
+        static std::shared_ptr<Fence> create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                      bool                                    create_signalled);
 
         /** Retrieves a raw handle to the underlying Vulkan fence instance */
         VkFence get_fence() const
@@ -102,8 +105,8 @@ namespace Anvil
          *
          *  Please see documentation of create() for specification
          */
-        Fence(std::weak_ptr<Anvil::Device> device_ptr,
-              bool                         create_signalled);
+        Fence(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+              bool                             create_signalled);
 
         Fence           (const Fence&);
         Fence& operator=(const Fence&);
@@ -111,9 +114,9 @@ namespace Anvil
         void release_fence();
 
         /* Private variables */
-        std::weak_ptr<Anvil::Device> m_device_ptr;
-        VkFence                      m_fence;
-        bool                         m_possibly_set;
+        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
+        VkFence                          m_fence;
+        bool                             m_possibly_set;
     };
 }; /* namespace Anvil */
 

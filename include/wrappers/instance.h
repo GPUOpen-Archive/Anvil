@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -87,27 +87,36 @@ namespace Anvil
          *
          *  @return As per description.
          **/
-        std::shared_ptr<RenderingSurface> create_rendering_surface(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
-                                                                   std::shared_ptr<Anvil::Window>       window_ptr)
+        std::shared_ptr<RenderingSurface> create_rendering_surface(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                                                   std::shared_ptr<Anvil::Window>   window_ptr)
         {
             std::shared_ptr<RenderingSurface> result_ptr = Anvil::RenderingSurface::create(shared_from_this(),
-                                                                                           physical_device_ptr,
+                                                                                           device_ptr,
                                                                                            window_ptr,
+                                                                                           m_khr_surface_entrypoints,
 #ifdef _WIN32
-                                                                                           m_vkCreateWin32SurfaceKHR,
+                                                                                           m_khr_win32_surface_entrypoints
 #else
-                                                                                           m_vkCreateXcbSurfaceKHR,
+                                                                                           m_khr_xcb_surface_entrypoints
 #endif
-                                                                                           m_vkDestroySurfaceKHR,
-                                                                                           m_vkGetPhysicalDeviceSurfaceCapabilitiesKHR,
-                                                                                           m_vkGetPhysicalDeviceSurfaceFormatsKHR,
-                                                                                           m_vkGetPhysicalDeviceSurfacePresentModesKHR,
-                                                                                           m_vkGetPhysicalDeviceSurfaceSupportKHR);
+            );
 
             return result_ptr;
         }
 
         void destroy();
+
+        /** Returns a container with entry-points to functions introduced by VK_KHR_get_physical_device_properties2.
+         *
+         *  Will fire an assertion failure if the extension is not supported.
+         **/
+        const ExtensionKHRGetPhysicalDeviceProperties2& get_extension_khr_get_physical_device_properties2_entrypoints() const;
+
+        /** Returns a container with entry-points to functions introduced by VK_KHR_surface.
+         *
+         *  Will fire an assertion failure if the extension is not supported.
+         **/
+        const ExtensionKHRSurfaceEntrypoints& get_extension_khr_surface_entrypoints() const;
 
         /** Returns a raw wrapped VkInstance handle. */
         VkInstance get_instance_vk() const
@@ -182,32 +191,26 @@ namespace Anvil
         /* Private variables */
         VkInstance m_instance;
 
-        /* VK_KHR_swapchain function pointers */
-        PFN_vkDestroySurfaceKHR                       m_vkDestroySurfaceKHR;
-        PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR m_vkGetPhysicalDeviceSurfaceCapabilitiesKHR;
-        PFN_vkGetPhysicalDeviceSurfaceFormatsKHR      m_vkGetPhysicalDeviceSurfaceFormatsKHR;
-        PFN_vkGetPhysicalDeviceSurfacePresentModesKHR m_vkGetPhysicalDeviceSurfacePresentModesKHR;
-        PFN_vkGetPhysicalDeviceSurfaceSupportKHR      m_vkGetPhysicalDeviceSurfaceSupportKHR;
-
-        /* VK_KHR_device_swapchain function pointers */
-        #ifdef _WIN32
-            PFN_vkCreateWin32SurfaceKHR                        m_vkCreateWin32SurfaceKHR;
-            PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR m_vkGetPhysicalDeviceWin32PresentationSupportKHR;
-        #else
-            PFN_vkCreateXcbSurfaceKHR                          m_vkCreateXcbSurfaceKHR;
-        #endif
-
         /* DebugReport extension function pointers and data */
-        VkDebugReportCallbackEXT            m_debug_callback_data;
-        PFN_vkCreateDebugReportCallbackEXT  m_vkCreateDebugReportCallbackEXT;
-        PFN_vkDestroyDebugReportCallbackEXT m_vkDestroyDebugReportCallbackEXT;
+        VkDebugReportCallbackEXT m_debug_callback_data;
+
+        ExtensionEXTDebugReportEntrypoints       m_ext_debug_report_entrypoints;
+        ExtensionKHRGetPhysicalDeviceProperties2 m_khr_get_physical_device_properties2_entrypoints;
+        ExtensionKHRSurfaceEntrypoints           m_khr_surface_entrypoints;
+
+        #ifdef _WIN32
+            ExtensionKHRWin32SurfaceEntrypoints m_khr_win32_surface_entrypoints;
+        #else
+            ExtensionKHRXcbSurfaceEntrypoints m_khr_xcb_surface_entrypoints;
+        #endif
 
         const char*                  m_app_name;
         const char*                  m_engine_name;
         PFNINSTANCEDEBUGCALLBACKPROC m_pfn_validation_callback_proc;
         void*                        m_validation_proc_user_arg;
 
-        std::vector<Anvil::Extension>                        m_extensions;
+        std::vector<std::string>                             m_enabled_extensions;
+        Anvil::Layer                                         m_global_layer;
         std::vector<std::shared_ptr<Anvil::PhysicalDevice> > m_physical_devices;
         std::vector<Anvil::Layer>                            m_supported_layers;
 

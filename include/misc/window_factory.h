@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -43,8 +43,7 @@ namespace Anvil
                                                      unsigned int           width,
                                                      unsigned int           height,
                                                      PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                                     void*                  present_callback_func_user_arg,
-                                                     bool                   is_dummy = false);
+                                                     void*                  present_callback_func_user_arg);
 
     };
 }; /* namespace Anvil */

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -26,8 +26,13 @@
 #include "wrappers/device.h"
 #include "wrappers/shader_module.h"
 
+#ifdef ANVIL_LINK_WITH_GLSLANG
+    #include "glslang/SPIRV/disassemble.h"
+#endif
+
+
 /** Please see header for specification */
-Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::Device>                device_ptr,
+Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::BaseDevice>            device_ptr,
                                   std::shared_ptr<GLSLShaderToSPIRVGenerator> spirv_generator_ptr)
     :m_cs_entrypoint_name(nullptr),
      m_device_ptr        (device_ptr),
@@ -37,10 +42,12 @@ Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::Device>                de
      m_te_entrypoint_name(nullptr),
      m_vs_entrypoint_name(nullptr)
 {
-    bool              result;
+    bool              result                 = false;
     const char*       shader_spirv_blob      = spirv_generator_ptr->get_spirv_blob();
     const uint32_t    shader_spirv_blob_size = spirv_generator_ptr->get_spirv_blob_size();
     const ShaderStage shader_stage           = spirv_generator_ptr->get_shader_stage();
+
+    ANVIL_REDUNDANT_VARIABLE(result);
 
     anvil_assert(shader_spirv_blob      != nullptr);
     anvil_assert(shader_spirv_blob_size >  0);
@@ -57,20 +64,20 @@ Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::Device>                de
 
     anvil_assert(result);
 
-    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_SHADER_MODULE,
+    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
                                                   this);
 }
 
 /** Please see header for specification */
-Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::Device> device_ptr,
-                                  const char*                  spirv_blob,
-                                  uint32_t                     n_spirv_blob_bytes,
-                                  const char*                  cs_entrypoint_name,
-                                  const char*                  fs_entrypoint_name,
-                                  const char*                  gs_entrypoint_name,
-                                  const char*                  tc_entrypoint_name,
-                                  const char*                  te_entrypoint_name,
-                                  const char*                  vs_entrypoint_name)
+Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                  const char*                      spirv_blob,
+                                  uint32_t                         n_spirv_blob_bytes,
+                                  const char*                      cs_entrypoint_name,
+                                  const char*                      fs_entrypoint_name,
+                                  const char*                      gs_entrypoint_name,
+                                  const char*                      tc_entrypoint_name,
+                                  const char*                      te_entrypoint_name,
+                                  const char*                      vs_entrypoint_name)
     :m_cs_entrypoint_name(cs_entrypoint_name),
      m_device_ptr        (device_ptr),
      m_fs_entrypoint_name(fs_entrypoint_name),
@@ -82,9 +89,11 @@ Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::Device> device_ptr,
     bool result = init_from_spirv_blob(spirv_blob,
                                        n_spirv_blob_bytes);
 
+    ANVIL_REDUNDANT_VARIABLE(result);
+
     anvil_assert(result);
 
-    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_SHADER_MODULE,
+    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
                                                   this);
 }
 
@@ -93,7 +102,7 @@ Anvil::ShaderModule::~ShaderModule()
 {
     if (m_module != VK_NULL_HANDLE)
     {
-        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
         vkDestroyShaderModule(device_locked_ptr->get_device_vk(),
                               m_module,
@@ -102,12 +111,12 @@ Anvil::ShaderModule::~ShaderModule()
         m_module = VK_NULL_HANDLE;
     }
 
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_SHADER_MODULE,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
                                                     this);
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModule::create_from_spirv_generator(std::weak_ptr<Anvil::Device>                device_ptr,
+std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModule::create_from_spirv_generator(std::weak_ptr<Anvil::BaseDevice>            device_ptr,
                                                                                       std::shared_ptr<GLSLShaderToSPIRVGenerator> spirv_generator_ptr)
 {
     std::shared_ptr<Anvil::ShaderModule> result_ptr;
@@ -121,15 +130,15 @@ std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModule::create_from_spirv_gene
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModule::create_from_spirv_blob(std::weak_ptr<Anvil::Device> device_ptr,
-                                                                                 const char*                  spirv_blob,
-                                                                                 uint32_t                     n_spirv_blob_bytes,
-                                                                                 const char*                  cs_entrypoint_name,
-                                                                                 const char*                  fs_entrypoint_name,
-                                                                                 const char*                  gs_entrypoint_name,
-                                                                                 const char*                  tc_entrypoint_name,
-                                                                                 const char*                  te_entrypoint_name,
-                                                                                 const char*                  vs_entrypoint_name)
+std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModule::create_from_spirv_blob(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                                                                 const char*                      spirv_blob,
+                                                                                 uint32_t                         n_spirv_blob_bytes,
+                                                                                 const char*                      cs_entrypoint_name,
+                                                                                 const char*                      fs_entrypoint_name,
+                                                                                 const char*                      gs_entrypoint_name,
+                                                                                 const char*                      tc_entrypoint_name,
+                                                                                 const char*                      te_entrypoint_name,
+                                                                                 const char*                      vs_entrypoint_name)
 {
     std::shared_ptr<Anvil::ShaderModule> result_ptr;
 
@@ -152,11 +161,13 @@ std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModule::create_from_spirv_blob
 bool Anvil::ShaderModule::init_from_spirv_blob(const char* spirv_blob,
                                                uint32_t    n_spirv_blob_bytes)
 {
-    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
-    VkResult                       result_vk;
-    VkShaderModuleCreateInfo       shader_module_create_info;
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
+    VkResult                           result_vk;
+    VkShaderModuleCreateInfo           shader_module_create_info;
 
     /* Set up the "shader module" create info descriptor */
+    anvil_assert((n_spirv_blob_bytes % sizeof(uint32_t) ) == 0);
+
     shader_module_create_info.codeSize = n_spirv_blob_bytes;
     shader_module_create_info.flags    = 0;
     shader_module_create_info.pCode    = reinterpret_cast<const uint32_t*>(spirv_blob);
@@ -169,6 +180,28 @@ bool Anvil::ShaderModule::init_from_spirv_blob(const char* spirv_blob,
                                     &m_module);
 
     anvil_assert_vk_call_succeeded(result_vk);
+
+    if (is_vk_call_successful(result_vk) )
+    {
+        /* Cache a disassembly of the SPIR-V blob. */
+        #ifdef ANVIL_LINK_WITH_GLSLANG
+        {
+            std::stringstream     disassembly_sstream;
+            std::vector<uint32_t> spirv_blob_vec;
+
+            spirv_blob_vec.resize(n_spirv_blob_bytes / sizeof(uint32_t) );
+
+            memcpy(&spirv_blob_vec[0],
+                   spirv_blob,
+                   n_spirv_blob_bytes);
+
+            spv::Disassemble(disassembly_sstream,
+                             spirv_blob_vec);
+
+            m_disassembly = disassembly_sstream.str();
+        }
+        #endif
+    }
 
     return is_vk_call_successful(result_vk);
 }

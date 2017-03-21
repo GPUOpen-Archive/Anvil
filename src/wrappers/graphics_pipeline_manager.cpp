@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -49,7 +49,7 @@
 
 
 /* Please see header for specification */
-Anvil::GraphicsPipelineManager::GraphicsPipelineManager(std::weak_ptr<Anvil::Device>          device_ptr,
+Anvil::GraphicsPipelineManager::GraphicsPipelineManager(std::weak_ptr<Anvil::BaseDevice>      device_ptr,
                                                         bool                                  use_pipeline_cache,
                                                         std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr)
     :BasePipelineManager(device_ptr,
@@ -57,7 +57,7 @@ Anvil::GraphicsPipelineManager::GraphicsPipelineManager(std::weak_ptr<Anvil::Dev
                          pipeline_cache_to_reuse_ptr)
 {
     /* Register the object */
-    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_GRAPHICS_PIPELINE_MANAGER,
+    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_GRAPHICS_PIPELINE_MANAGER,
                                                   this);
 }
 
@@ -67,7 +67,7 @@ Anvil::GraphicsPipelineManager::~GraphicsPipelineManager()
     m_pipelines.clear();
 
     /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_GRAPHICS_PIPELINE_MANAGER,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_GRAPHICS_PIPELINE_MANAGER,
                                                     this);
 }
 
@@ -168,8 +168,8 @@ bool Anvil::GraphicsPipelineManager::add_proxy_pipeline(GraphicsPipelineID* out_
     {
         anvil_assert(m_pipeline_configurations.find(*out_proxy_graphics_pipeline_id_ptr) == m_pipeline_configurations.end() );
 
-        m_pipeline_configurations[*out_proxy_graphics_pipeline_id_ptr] = std::shared_ptr<GraphicsPipelineConfiguration>(new GraphicsPipelineConfiguration(nullptr,  /* in_renderpass_ptr */
-                                                                                                                                                          -1) );    /* in_subpass_id     */
+        m_pipeline_configurations[*out_proxy_graphics_pipeline_id_ptr] = std::shared_ptr<GraphicsPipelineConfiguration>(new GraphicsPipelineConfiguration(nullptr,       /* in_renderpass_ptr */
+                                                                                                                                                          UINT32_MAX) ); /* in_subpass_id     */
     }
 
     return result;
@@ -290,7 +290,7 @@ bool Anvil::GraphicsPipelineManager::bake()
     std::vector<VkPipelineViewportStateCreateInfo>      viewport_state_create_info_items_vk_cache;
     std::vector<VkViewport>                             viewports_vk_cache;
 
-    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
     static const VkPipelineRasterizationStateRasterizationOrderAMD relaxed_rasterization_order_item =
     {
@@ -373,11 +373,11 @@ bool Anvil::GraphicsPipelineManager::bake()
         std::shared_ptr<Pipeline>                      current_pipeline_ptr            = bake_item_iterator->pipeline_ptr;
         bool                                           depth_stencil_state_used        = false;
         bool                                           dynamic_state_used              = false;
-        VkGraphicsPipelineCreateInfo                   graphics_pipeline_create_info;
+        VkGraphicsPipelineCreateInfo                   graphics_pipeline_create_info   = {};
         VkPipelineInputAssemblyStateCreateInfo         input_assembly_state_create_info;
         bool                                           multisample_state_used          = false;
         VkPipelineRasterizationStateCreateInfo         raster_state_create_info;
-        uint32_t                                       shader_stage_start_offset       = -1;
+        uint32_t                                       shader_stage_start_offset       = UINT32_MAX;
         uint32_t                                       subpass_n_color_attachments     = 0;
         bool                                           tessellation_state_used         = false;
         VkPipelineVertexInputStateCreateInfo           vertex_input_state_create_info;
@@ -400,8 +400,9 @@ bool Anvil::GraphicsPipelineManager::bake()
         }
 
         /* Extract subpass information */
-        current_pipeline_config_ptr->renderpass_ptr->get_subpass_n_color_attachments(current_pipeline_config_ptr->subpass_id,
-                                                                                    &subpass_n_color_attachments);
+        current_pipeline_config_ptr->renderpass_ptr->get_subpass_n_attachments(current_pipeline_config_ptr->subpass_id,
+                                                                               ATTACHMENT_TYPE_COLOR,
+                                                                               &subpass_n_color_attachments);
 
         /* Form the color blend state create info descriptor, if needed */
         if (!current_pipeline_config_ptr->rasterizer_discard_enabled &&
@@ -413,7 +414,7 @@ bool Anvil::GraphicsPipelineManager::bake()
             color_blend_state_create_info.attachmentCount       = subpass_n_color_attachments;
             color_blend_state_create_info.flags                 = 0;
             color_blend_state_create_info.logicOp               = current_pipeline_config_ptr->logic_op;
-            color_blend_state_create_info.logicOpEnable         = current_pipeline_config_ptr->logic_op_enabled;
+            color_blend_state_create_info.logicOpEnable         = static_cast<VkBool32>((current_pipeline_config_ptr->logic_op_enabled) ? VK_TRUE : VK_FALSE);
             color_blend_state_create_info.pAttachments          = nullptr;
             color_blend_state_create_info.pNext                 = nullptr;
             color_blend_state_create_info.sType                 = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -483,26 +484,27 @@ bool Anvil::GraphicsPipelineManager::bake()
         }
 
         /* Form the depth stencil state create info descriptor, if needed */
-        bool is_depth_stencil_attachment_defined = false;
+        uint32_t n_depth_stencil_attachments = 0;
 
-        current_pipeline_config_ptr->renderpass_ptr->is_depth_stencil_attachment_defined_for_subpass(current_pipeline_config_ptr->subpass_id,
-                                                                                                    &is_depth_stencil_attachment_defined);
+        current_pipeline_config_ptr->renderpass_ptr->get_subpass_n_attachments(current_pipeline_config_ptr->subpass_id,
+                                                                               ATTACHMENT_TYPE_DEPTH_STENCIL,
+                                                                              &n_depth_stencil_attachments);
 
-        if (is_depth_stencil_attachment_defined)
+        if (n_depth_stencil_attachments)
         {
             VkPipelineDepthStencilStateCreateInfo depth_stencil_state_create_info;
 
             depth_stencil_state_create_info.back                  = current_pipeline_config_ptr->stencil_state_back_face;
-            depth_stencil_state_create_info.depthBoundsTestEnable = current_pipeline_config_ptr->depth_bounds_test_enabled;
+            depth_stencil_state_create_info.depthBoundsTestEnable = static_cast<VkBool32>(current_pipeline_config_ptr->depth_bounds_test_enabled ? VK_TRUE : VK_FALSE);
             depth_stencil_state_create_info.depthCompareOp        = current_pipeline_config_ptr->depth_test_compare_op;
-            depth_stencil_state_create_info.depthTestEnable       = current_pipeline_config_ptr->depth_test_enabled;
-            depth_stencil_state_create_info.depthWriteEnable      = current_pipeline_config_ptr->depth_writes_enabled;
+            depth_stencil_state_create_info.depthTestEnable       = static_cast<VkBool32>(current_pipeline_config_ptr->depth_test_enabled   ? VK_TRUE : VK_FALSE);
+            depth_stencil_state_create_info.depthWriteEnable      = static_cast<VkBool32>(current_pipeline_config_ptr->depth_writes_enabled ? VK_TRUE : VK_FALSE);
             depth_stencil_state_create_info.flags                 = 0;
             depth_stencil_state_create_info.front                 = current_pipeline_config_ptr->stencil_state_front_face;
             depth_stencil_state_create_info.maxDepthBounds        = current_pipeline_config_ptr->max_depth_bounds;
             depth_stencil_state_create_info.minDepthBounds        = current_pipeline_config_ptr->min_depth_bounds;
             depth_stencil_state_create_info.pNext                 = nullptr;
-            depth_stencil_state_create_info.stencilTestEnable     = current_pipeline_config_ptr->stencil_test_enabled;
+            depth_stencil_state_create_info.stencilTestEnable     = static_cast<VkBool32>(current_pipeline_config_ptr->stencil_test_enabled ? VK_TRUE : VK_FALSE);
             depth_stencil_state_create_info.sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 
             depth_stencil_state_used = true;
@@ -590,7 +592,7 @@ bool Anvil::GraphicsPipelineManager::bake()
         /* Form the input assembly create info descriptor */
         input_assembly_state_create_info.flags                  = 0;
         input_assembly_state_create_info.pNext                  = nullptr;
-        input_assembly_state_create_info.primitiveRestartEnable = current_pipeline_config_ptr->primitive_restart_enabled;
+        input_assembly_state_create_info.primitiveRestartEnable = static_cast<VkBool32>(current_pipeline_config_ptr->primitive_restart_enabled ? VK_TRUE : VK_FALSE);
         input_assembly_state_create_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
         input_assembly_state_create_info.topology               = current_pipeline_config_ptr->primitive_topology;
 
@@ -601,14 +603,14 @@ bool Anvil::GraphicsPipelineManager::bake()
         {
             VkPipelineMultisampleStateCreateInfo multisample_state_create_info;
 
-            multisample_state_create_info.alphaToCoverageEnable = current_pipeline_config_ptr->alpha_to_coverage_enabled;
-            multisample_state_create_info.alphaToOneEnable      = current_pipeline_config_ptr->alpha_to_one_enabled;
+            multisample_state_create_info.alphaToCoverageEnable = static_cast<VkBool32>(current_pipeline_config_ptr->alpha_to_coverage_enabled ? VK_TRUE : VK_FALSE);
+            multisample_state_create_info.alphaToOneEnable      = static_cast<VkBool32>(current_pipeline_config_ptr->alpha_to_one_enabled      ? VK_TRUE : VK_FALSE);
             multisample_state_create_info.flags                 = 0;
             multisample_state_create_info.minSampleShading      = current_pipeline_config_ptr->min_sample_shading;
             multisample_state_create_info.pNext                 = nullptr;
             multisample_state_create_info.pSampleMask           = &current_pipeline_config_ptr->sample_mask;
-            multisample_state_create_info.rasterizationSamples  = current_pipeline_config_ptr->sample_count;
-            multisample_state_create_info.sampleShadingEnable   = current_pipeline_config_ptr->sample_shading_enabled;
+            multisample_state_create_info.rasterizationSamples  = static_cast<VkSampleCountFlagBits>(current_pipeline_config_ptr->sample_count);
+            multisample_state_create_info.sampleShadingEnable   = static_cast<VkBool32>(current_pipeline_config_ptr->sample_shading_enabled ? VK_TRUE : VK_FALSE);
             multisample_state_create_info.sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 
             multisample_state_used = true;
@@ -629,15 +631,15 @@ bool Anvil::GraphicsPipelineManager::bake()
         raster_state_create_info.cullMode                = current_pipeline_config_ptr->cull_mode;
         raster_state_create_info.depthBiasClamp          = current_pipeline_config_ptr->depth_bias_clamp;
         raster_state_create_info.depthBiasConstantFactor = current_pipeline_config_ptr->depth_bias_constant_factor;
-        raster_state_create_info.depthBiasEnable         = current_pipeline_config_ptr->depth_bias_enabled;
+        raster_state_create_info.depthBiasEnable         = static_cast<VkBool32>(current_pipeline_config_ptr->depth_bias_enabled ? VK_TRUE : VK_FALSE);
         raster_state_create_info.depthBiasSlopeFactor    = current_pipeline_config_ptr->depth_bias_slope_factor;
-        raster_state_create_info.depthClampEnable        = current_pipeline_config_ptr->depth_clamp_enabled;
+        raster_state_create_info.depthClampEnable        = static_cast<VkBool32>(current_pipeline_config_ptr->depth_clamp_enabled ? VK_TRUE : VK_FALSE);
         raster_state_create_info.flags                   = 0;
         raster_state_create_info.frontFace               = current_pipeline_config_ptr->front_face;
         raster_state_create_info.lineWidth               = current_pipeline_config_ptr->line_width;
         raster_state_create_info.pNext                   = nullptr;
         raster_state_create_info.polygonMode             = current_pipeline_config_ptr->polygon_mode;
-        raster_state_create_info.rasterizerDiscardEnable = current_pipeline_config_ptr->rasterizer_discard_enabled;
+        raster_state_create_info.rasterizerDiscardEnable = static_cast<VkBool32>(current_pipeline_config_ptr->rasterizer_discard_enabled ? VK_TRUE : VK_FALSE);
         raster_state_create_info.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 
         if (device_locked_ptr->is_extension_enabled("VK_AMD_rasterization_order") )
@@ -868,7 +870,7 @@ bool Anvil::GraphicsPipelineManager::bake()
             {
                 /* Case 1 */
                 graphics_pipeline_create_info.basePipelineHandle = current_pipeline_ptr->base_pipeline;
-                graphics_pipeline_create_info.basePipelineIndex  = (uint32_t) (base_bake_item_iterator - bake_items.begin() );
+                graphics_pipeline_create_info.basePipelineIndex  = static_cast<int32_t>(base_bake_item_iterator - bake_items.begin() );
             }
             else
             if (current_pipeline_ptr->base_pipeline_ptr                 != nullptr            &&
@@ -925,7 +927,7 @@ bool Anvil::GraphicsPipelineManager::bake()
         graphics_pipeline_create_info.subpass             = current_pipeline_config_ptr->subpass_id;
 
         if (graphics_pipeline_create_info.basePipelineHandle != VK_NULL_HANDLE ||
-            graphics_pipeline_create_info.basePipelineIndex != -1)
+            graphics_pipeline_create_info.basePipelineIndex  != -1)
         {
             graphics_pipeline_create_info.flags |= VK_PIPELINE_CREATE_DERIVATIVE_BIT;
         }
@@ -1052,9 +1054,8 @@ void Anvil::GraphicsPipelineManager::bake_vk_attributes_and_bindings(std::shared
             ++attribute_iterator)
     {
         /* Identify the binding index we should use for the attribute */
-        const InternalVertexAttribute&    current_attribute   = *attribute_iterator;
         VkVertexInputAttributeDescription current_attribute_vk;
-        uint32_t                          n_attribute_binding = -1;
+        uint32_t                          n_attribute_binding = UINT32_MAX;
         bool                              has_found           = false;
 
         for (auto vk_input_binding_iterator  = pipeline_config_ptr->vk_input_bindings.begin();
@@ -1096,7 +1097,7 @@ void Anvil::GraphicsPipelineManager::bake_vk_attributes_and_bindings(std::shared
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::GraphicsPipelineManager> Anvil::GraphicsPipelineManager::create(std::weak_ptr<Anvil::Device>          device_ptr,
+std::shared_ptr<Anvil::GraphicsPipelineManager> Anvil::GraphicsPipelineManager::create(std::weak_ptr<Anvil::BaseDevice>      device_ptr,
                                                                                        bool                                  use_pipeline_cache,
                                                                                        std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr)
 {
@@ -1142,12 +1143,519 @@ end:
     return result;
 }
 
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_alpha_to_coverage_state(GraphicsPipelineID graphics_pipeline_id,
+                                                                 bool*              out_opt_is_enabled_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_is_enabled_ptr != nullptr)
+    {
+        *out_opt_is_enabled_ptr = pipeline_config_ptr->alpha_to_coverage_enabled;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_alpha_to_one_state(GraphicsPipelineID graphics_pipeline_id,
+                                                            bool*              out_opt_is_enabled_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_is_enabled_ptr != nullptr)
+    {
+        *out_opt_is_enabled_ptr = pipeline_config_ptr->alpha_to_one_enabled;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_blending_properties(GraphicsPipelineID graphics_pipeline_id,
+                                                             float*             out_opt_blend_constant_vec4_ptr,
+                                                             uint32_t*          out_opt_n_blend_attachments_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_blend_constant_vec4_ptr != nullptr)
+    {
+        memcpy(out_opt_blend_constant_vec4_ptr,
+               pipeline_config_ptr->blend_constant,
+               sizeof(pipeline_config_ptr->blend_constant) );
+    }
+
+    if (out_opt_n_blend_attachments_ptr != nullptr)
+    {
+        *out_opt_n_blend_attachments_ptr = static_cast<uint32_t>(pipeline_config_ptr->subpass_attachment_blending_properties.size() );
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_color_blend_attachment_properties(GraphicsPipelineID     graphics_pipeline_id,
+                                                                           SubPassAttachmentID    attachment_id,
+                                                                           bool*                  out_opt_blending_enabled_ptr,
+                                                                           VkBlendOp*             out_opt_blend_op_color_ptr,
+                                                                           VkBlendOp*             out_opt_blend_op_alpha_ptr,
+                                                                           VkBlendFactor*         out_opt_src_color_blend_factor_ptr,
+                                                                           VkBlendFactor*         out_opt_dst_color_blend_factor_ptr,
+                                                                           VkBlendFactor*         out_opt_src_alpha_blend_factor_ptr,
+                                                                           VkBlendFactor*         out_opt_dst_alpha_blend_factor_ptr,
+                                                                           VkColorComponentFlags* out_opt_channel_write_mask_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration>           pipeline_config_ptr;
+    auto                                                     pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    SubPassAttachmentToBlendingPropertiesMap::const_iterator props_iterator;
+    bool                                                     result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    props_iterator = pipeline_config_ptr->subpass_attachment_blending_properties.find(attachment_id);
+
+    if (props_iterator == pipeline_config_ptr->subpass_attachment_blending_properties.end() )
+    {
+        anvil_assert(!(props_iterator == pipeline_config_ptr->subpass_attachment_blending_properties.end() ) );
+
+        goto end;
+    }
+
+    if (out_opt_blending_enabled_ptr != nullptr)
+    {
+        *out_opt_blending_enabled_ptr = props_iterator->second.blend_enabled;
+    }
+
+    if (out_opt_blend_op_color_ptr != nullptr)
+    {
+        *out_opt_blend_op_color_ptr = props_iterator->second.blend_op_color;
+    }
+
+    if (out_opt_blend_op_alpha_ptr != nullptr)
+    {
+        *out_opt_blend_op_alpha_ptr = props_iterator->second.blend_op_alpha;
+    }
+
+    if (out_opt_src_color_blend_factor_ptr != nullptr)
+    {
+        *out_opt_src_color_blend_factor_ptr = props_iterator->second.src_color_blend_factor;
+    }
+
+    if (out_opt_dst_color_blend_factor_ptr != nullptr)
+    {
+        *out_opt_dst_color_blend_factor_ptr = props_iterator->second.dst_color_blend_factor;
+    }
+
+    if (out_opt_src_alpha_blend_factor_ptr != nullptr)
+    {
+        *out_opt_src_alpha_blend_factor_ptr = props_iterator->second.src_alpha_blend_factor;
+    }
+
+    if (out_opt_dst_alpha_blend_factor_ptr != nullptr)
+    {
+        *out_opt_dst_alpha_blend_factor_ptr = props_iterator->second.dst_alpha_blend_factor;
+    }
+
+    if (out_opt_channel_write_mask_ptr != nullptr)
+    {
+        *out_opt_channel_write_mask_ptr = props_iterator->second.channel_write_mask;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_depth_bias_state(GraphicsPipelineID graphics_pipeline_id,
+                                                          bool*              out_opt_is_enabled_ptr,
+                                                          float*             out_opt_depth_bias_constant_factor_ptr,
+                                                          float*             out_opt_depth_bias_clamp_ptr,
+                                                          float*             out_opt_depth_bias_slope_factor_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_is_enabled_ptr != nullptr)
+    {
+        *out_opt_is_enabled_ptr = pipeline_config_ptr->depth_bias_enabled;
+    }
+
+    if (out_opt_depth_bias_constant_factor_ptr != nullptr)
+    {
+        *out_opt_depth_bias_constant_factor_ptr = pipeline_config_ptr->depth_bias_constant_factor;
+    }
+
+    if (out_opt_depth_bias_clamp_ptr != nullptr)
+    {
+        *out_opt_depth_bias_clamp_ptr = pipeline_config_ptr->depth_bias_clamp;
+    }
+
+    if (out_opt_depth_bias_slope_factor_ptr != nullptr)
+    {
+        *out_opt_depth_bias_slope_factor_ptr = pipeline_config_ptr->depth_bias_slope_factor;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_depth_bounds_state(GraphicsPipelineID graphics_pipeline_id,
+                                                            bool*              out_opt_is_enabled_ptr,
+                                                            float*             out_opt_min_depth_bounds_ptr,
+                                                            float*             out_opt_max_depth_bounds_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_is_enabled_ptr != nullptr)
+    {
+        *out_opt_is_enabled_ptr = pipeline_config_ptr->depth_bounds_test_enabled;
+    }
+
+    if (out_opt_min_depth_bounds_ptr != nullptr)
+    {
+        *out_opt_min_depth_bounds_ptr = pipeline_config_ptr->min_depth_bounds;
+    }
+
+    if (out_opt_max_depth_bounds_ptr != nullptr)
+    {
+        *out_opt_max_depth_bounds_ptr = pipeline_config_ptr->max_depth_bounds;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_depth_clamp_state(GraphicsPipelineID graphics_pipeline_id,
+                                                           bool*              out_opt_is_enabled_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_is_enabled_ptr != nullptr)
+    {
+        *out_opt_is_enabled_ptr = pipeline_config_ptr->depth_clamp_enabled;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_depth_test_state(GraphicsPipelineID graphics_pipeline_id,
+                                                          bool*              out_opt_is_enabled_ptr,
+                                                          VkCompareOp*       out_opt_compare_op_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_is_enabled_ptr != nullptr)
+    {
+        *out_opt_is_enabled_ptr = pipeline_config_ptr->depth_test_enabled;
+    }
+
+    if (out_opt_compare_op_ptr != nullptr)
+    {
+        *out_opt_compare_op_ptr = pipeline_config_ptr->depth_test_compare_op;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_depth_write_state(GraphicsPipelineID graphics_pipeline_id,
+                                                           bool*              out_opt_is_enabled_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_is_enabled_ptr != nullptr)
+    {
+        *out_opt_is_enabled_ptr = pipeline_config_ptr->depth_writes_enabled;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_dynamic_scissor_state_properties(GraphicsPipelineID graphics_pipeline_id,
+                                                                          uint32_t*          out_opt_n_dynamic_scissor_boxes_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_n_dynamic_scissor_boxes_ptr != nullptr)
+    {
+        *out_opt_n_dynamic_scissor_boxes_ptr = pipeline_config_ptr->n_dynamic_scissor_boxes;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_dynamic_states(GraphicsPipelineID    graphics_pipeline_id,
+                                                        DynamicStateBitfield* out_opt_enabled_dynamic_states_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_enabled_dynamic_states_ptr != nullptr)
+    {
+        *out_opt_enabled_dynamic_states_ptr = pipeline_config_ptr->enabled_dynamic_states;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_dynamic_viewport_state_properties(GraphicsPipelineID graphics_pipeline_id,
+                                                                           uint32_t*          out_n_dynamic_viewports_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_n_dynamic_viewports_ptr!= nullptr)
+    {
+        *out_n_dynamic_viewports_ptr = pipeline_config_ptr->n_dynamic_viewports;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_graphics_pipeline_properties(Anvil::GraphicsPipelineID    graphics_pipeline_id,
+                                                                      uint32_t*                    out_opt_n_scissors_ptr,
+                                                                      uint32_t*                    out_opt_n_viewports_ptr,
+                                                                      uint32_t*                    out_opt_n_vertex_input_attributes_ptr,
+                                                                      uint32_t*                    out_opt_n_vertex_input_bindings_ptr,
+                                                                      std::shared_ptr<RenderPass>* out_opt_renderpass_ptr,
+                                                                      SubPassID*                   out_opt_subpass_id_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_n_scissors_ptr != nullptr)
+    {
+        *out_opt_n_scissors_ptr = static_cast<uint32_t>(pipeline_config_ptr->scissor_boxes.size() );
+    }
+
+    if (out_opt_n_viewports_ptr != nullptr)
+    {
+        *out_opt_n_viewports_ptr = static_cast<uint32_t>(pipeline_config_ptr->viewports.size() );
+    }
+
+    if (out_opt_n_vertex_input_attributes_ptr != nullptr)
+    {
+        *out_opt_n_vertex_input_attributes_ptr = static_cast<uint32_t>(pipeline_config_ptr->vk_input_attributes.size() );
+    }
+
+    if (out_opt_n_vertex_input_bindings_ptr != nullptr)
+    {
+        *out_opt_n_vertex_input_bindings_ptr = static_cast<uint32_t>(pipeline_config_ptr->vk_input_bindings.size() );
+    }
+
+    if (out_opt_renderpass_ptr != nullptr)
+    {
+        *out_opt_renderpass_ptr = pipeline_config_ptr->renderpass_ptr;
+    }
+
+    if (out_opt_subpass_id_ptr != nullptr)
+    {
+        *out_opt_subpass_id_ptr = pipeline_config_ptr->subpass_id;
+    }
+
+    /* All done */
+    result = true;
+end:
+    return result;
+}
+
 /* Please see header for specification */
 VkPipeline Anvil::GraphicsPipelineManager::get_graphics_pipeline(GraphicsPipelineID pipeline_id)
 {
     auto       pipeline_iterator = m_pipelines.find(pipeline_id);
-    bool       result;
-    VkPipeline result_pipeline = VK_NULL_HANDLE;
+    bool       result            = false;
+    VkPipeline result_pipeline   = VK_NULL_HANDLE;
+
+    ANVIL_REDUNDANT_VARIABLE(result);
 
     if (pipeline_iterator == m_pipelines.end() )
     {
@@ -1178,6 +1686,664 @@ end:
 std::shared_ptr<Anvil::PipelineLayout> Anvil::GraphicsPipelineManager::get_graphics_pipeline_layout(GraphicsPipelineID pipeline_id)
 {
     return get_pipeline_layout(pipeline_id);
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_input_assembly_properties(GraphicsPipelineID   graphics_pipeline_id,
+                                                                   VkPrimitiveTopology* out_opt_primitive_topology_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_primitive_topology_ptr != nullptr)
+    {
+        *out_opt_primitive_topology_ptr = pipeline_config_ptr->primitive_topology;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_logic_op_state(GraphicsPipelineID graphics_pipeline_id,
+                                                        bool*              out_opt_is_enabled_ptr,
+                                                        VkLogicOp*         out_opt_logic_op_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_is_enabled_ptr != nullptr)
+    {
+        *out_opt_is_enabled_ptr = pipeline_config_ptr->logic_op_enabled;
+    }
+
+    if (out_opt_logic_op_ptr != nullptr)
+    {
+        *out_opt_logic_op_ptr = pipeline_config_ptr->logic_op;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_multisampling_properties(GraphicsPipelineID  graphics_pipeline_id,
+                                                                  VkSampleCountFlags* out_opt_sample_count_ptr,
+                                                                  VkSampleMask*       out_opt_sample_mask_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_sample_count_ptr != nullptr)
+    {
+        *out_opt_sample_count_ptr = pipeline_config_ptr->sample_count;
+    }
+
+    if (out_opt_sample_mask_ptr != nullptr)
+    {
+        *out_opt_sample_mask_ptr = pipeline_config_ptr->sample_mask;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_primitive_restart_state(GraphicsPipelineID graphics_pipeline_id,
+                                                                 bool*              out_opt_is_enabled_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_is_enabled_ptr != nullptr)
+    {
+        *out_opt_is_enabled_ptr = pipeline_config_ptr->primitive_restart_enabled;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_rasterization_order(GraphicsPipelineID       graphics_pipeline_id,
+                                                             VkRasterizationOrderAMD* out_opt_rasterization_order_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_rasterization_order_ptr != nullptr)
+    {
+        *out_opt_rasterization_order_ptr = pipeline_config_ptr->rasterization_order;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_rasterizer_discard_state(GraphicsPipelineID graphics_pipeline_id,
+                                                                  bool*              out_opt_is_enabled_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_is_enabled_ptr != nullptr)
+    {
+        *out_opt_is_enabled_ptr = pipeline_config_ptr->rasterizer_discard_enabled;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_rasterization_properties(GraphicsPipelineID graphics_pipeline_id,
+                                                                  VkPolygonMode*     out_opt_polygon_mode_ptr,
+                                                                  VkCullModeFlags*   out_opt_cull_mode_ptr,
+                                                                  VkFrontFace*       out_opt_front_face_ptr,
+                                                                  float*             out_opt_line_width_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_polygon_mode_ptr != nullptr)
+    {
+        *out_opt_polygon_mode_ptr = pipeline_config_ptr->polygon_mode;
+    }
+
+    if (out_opt_cull_mode_ptr != nullptr)
+    {
+        *out_opt_cull_mode_ptr = pipeline_config_ptr->cull_mode;
+    }
+
+    if (out_opt_front_face_ptr != nullptr)
+    {
+        *out_opt_front_face_ptr = pipeline_config_ptr->front_face;
+    }
+
+    if (out_opt_line_width_ptr != nullptr)
+    {
+        *out_opt_line_width_ptr = pipeline_config_ptr->line_width;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_sample_shading_state(GraphicsPipelineID graphics_pipeline_id,
+                                                              bool*              out_opt_is_enabled_ptr,
+                                                              float*             out_opt_min_sample_shading_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_is_enabled_ptr != nullptr)
+    {
+        *out_opt_is_enabled_ptr = pipeline_config_ptr->sample_shading_enabled;
+    }
+
+    if (out_opt_min_sample_shading_ptr != nullptr)
+    {
+        *out_opt_min_sample_shading_ptr = pipeline_config_ptr->min_sample_shading;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_scissor_box_properties(GraphicsPipelineID graphics_pipeline_id,
+                                                                uint32_t           n_scissor_box,
+                                                                int32_t*           out_opt_x_ptr,
+                                                                int32_t*           out_opt_y_ptr,
+                                                                uint32_t*          out_opt_width_ptr,
+                                                                uint32_t*          out_opt_height_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+    const InternalScissorBox*                      scissor_box_props_ptr    = nullptr;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (pipeline_config_ptr->scissor_boxes.find(n_scissor_box) == pipeline_config_ptr->scissor_boxes.end() )
+    {
+        anvil_assert(!(pipeline_config_ptr->scissor_boxes.find(n_scissor_box) == pipeline_config_ptr->scissor_boxes.end()) );
+
+        goto end;
+    }
+    else
+    {
+        scissor_box_props_ptr = &pipeline_config_ptr->scissor_boxes.at(n_scissor_box);
+    }
+
+    if (out_opt_x_ptr != nullptr)
+    {
+        *out_opt_x_ptr = scissor_box_props_ptr->x;
+    }
+
+    if (out_opt_y_ptr != nullptr)
+    {
+        *out_opt_y_ptr = scissor_box_props_ptr->y;
+    }
+
+    if (out_opt_width_ptr != nullptr)
+    {
+        *out_opt_width_ptr = scissor_box_props_ptr->width;
+    }
+
+    if (out_opt_height_ptr != nullptr)
+    {
+        *out_opt_height_ptr = scissor_box_props_ptr->height;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_stencil_test_properties(GraphicsPipelineID graphics_pipeline_id,
+                                                                 bool*              out_opt_is_enabled_ptr,
+                                                                 VkStencilOp*       out_opt_front_stencil_fail_op_ptr,
+                                                                 VkStencilOp*       out_opt_front_stencil_pass_op_ptr,
+                                                                 VkStencilOp*       out_opt_front_stencil_depth_fail_op_ptr,
+                                                                 VkCompareOp*       out_opt_front_stencil_compare_op_ptr,
+                                                                 uint32_t*          out_opt_front_stencil_compare_mask_ptr,
+                                                                 uint32_t*          out_opt_front_stencil_write_mask_ptr,
+                                                                 uint32_t*          out_opt_front_stencil_reference_ptr,
+                                                                 VkStencilOp*       out_opt_back_stencil_fail_op_ptr,
+                                                                 VkStencilOp*       out_opt_back_stencil_pass_op_ptr,
+                                                                 VkStencilOp*       out_opt_back_stencil_depth_fail_op_ptr,
+                                                                 VkCompareOp*       out_opt_back_stencil_compare_op_ptr,
+                                                                 uint32_t*          out_opt_back_stencil_compare_mask_ptr,
+                                                                 uint32_t*          out_opt_back_stencil_write_mask_ptr,
+                                                                 uint32_t*          out_opt_back_stencil_reference_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_is_enabled_ptr != nullptr)
+    {
+        *out_opt_is_enabled_ptr = pipeline_config_ptr->stencil_test_enabled;
+    }
+
+    if (out_opt_front_stencil_fail_op_ptr != nullptr)
+    {
+        *out_opt_front_stencil_fail_op_ptr = pipeline_config_ptr->stencil_state_front_face.failOp;
+    }
+
+    if (out_opt_front_stencil_pass_op_ptr != nullptr)
+    {
+        *out_opt_front_stencil_pass_op_ptr = pipeline_config_ptr->stencil_state_front_face.passOp;
+    }
+
+    if (out_opt_front_stencil_depth_fail_op_ptr != nullptr)
+    {
+        *out_opt_front_stencil_depth_fail_op_ptr = pipeline_config_ptr->stencil_state_front_face.depthFailOp;
+    }
+
+    if (out_opt_front_stencil_compare_op_ptr != nullptr)
+    {
+        *out_opt_front_stencil_compare_op_ptr = pipeline_config_ptr->stencil_state_front_face.compareOp;
+    }
+
+    if (out_opt_front_stencil_compare_mask_ptr != nullptr)
+    {
+        *out_opt_front_stencil_compare_mask_ptr = pipeline_config_ptr->stencil_state_front_face.compareMask;
+    }
+
+    if (out_opt_front_stencil_write_mask_ptr != nullptr)
+    {
+        *out_opt_front_stencil_write_mask_ptr = pipeline_config_ptr->stencil_state_front_face.writeMask;
+    }
+
+    if (out_opt_front_stencil_reference_ptr != nullptr)
+    {
+        *out_opt_front_stencil_reference_ptr = pipeline_config_ptr->stencil_state_front_face.reference;
+    }
+
+    if (out_opt_back_stencil_fail_op_ptr != nullptr)
+    {
+        *out_opt_back_stencil_fail_op_ptr = pipeline_config_ptr->stencil_state_back_face.failOp;
+    }
+
+    if (out_opt_back_stencil_pass_op_ptr != nullptr)
+    {
+        *out_opt_back_stencil_pass_op_ptr = pipeline_config_ptr->stencil_state_back_face.passOp;
+    }
+
+    if (out_opt_back_stencil_depth_fail_op_ptr != nullptr)
+    {
+        *out_opt_back_stencil_depth_fail_op_ptr = pipeline_config_ptr->stencil_state_back_face.depthFailOp;
+    }
+
+    if (out_opt_back_stencil_compare_op_ptr != nullptr)
+    {
+        *out_opt_back_stencil_compare_op_ptr = pipeline_config_ptr->stencil_state_back_face.compareOp;
+    }
+
+    if (out_opt_back_stencil_compare_mask_ptr != nullptr)
+    {
+        *out_opt_back_stencil_compare_mask_ptr = pipeline_config_ptr->stencil_state_back_face.compareMask;
+    }
+
+    if (out_opt_back_stencil_write_mask_ptr != nullptr)
+    {
+        *out_opt_back_stencil_write_mask_ptr = pipeline_config_ptr->stencil_state_back_face.writeMask;
+    }
+
+    if (out_opt_back_stencil_reference_ptr != nullptr)
+    {
+        *out_opt_back_stencil_reference_ptr = pipeline_config_ptr->stencil_state_back_face.reference;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_tessellation_properties(GraphicsPipelineID graphics_pipeline_id,
+                                                                 uint32_t*          out_opt_n_patch_control_points_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (out_opt_n_patch_control_points_ptr != nullptr)
+    {
+        *out_opt_n_patch_control_points_ptr = pipeline_config_ptr->n_patch_control_points;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_vertex_input_attribute_properties(GraphicsPipelineID graphics_pipeline_id,
+                                                                           uint32_t           n_vertex_input_attribute,
+                                                                           uint32_t*          out_opt_location_ptr,
+                                                                           uint32_t*          out_opt_binding_ptr,
+                                                                           VkFormat*          out_opt_format_ptr,
+                                                                           uint32_t*          out_opt_offset_ptr) const
+{
+    VkVertexInputAttributeDescription*             attribute_ptr;
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (pipeline_config_ptr->vk_input_attributes.size() <= n_vertex_input_attribute)
+    {
+        anvil_assert(!(pipeline_config_ptr->vk_input_attributes.size() <= n_vertex_input_attribute) );
+
+        goto end;
+    }
+    else
+    {
+        attribute_ptr = &pipeline_config_ptr->vk_input_attributes.at(n_vertex_input_attribute);
+    }
+
+    if (out_opt_location_ptr != nullptr)
+    {
+        *out_opt_location_ptr = attribute_ptr->location;
+    }
+
+    if (out_opt_binding_ptr != nullptr)
+    {
+        *out_opt_binding_ptr = attribute_ptr->binding;
+    }
+
+    if (out_opt_format_ptr != nullptr)
+    {
+        *out_opt_format_ptr = attribute_ptr->format;
+    }
+
+    if (out_opt_offset_ptr != nullptr)
+    {
+        *out_opt_offset_ptr = attribute_ptr->offset;
+    }
+
+    /* All done */
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_vertex_input_binding_properties(GraphicsPipelineID graphics_pipeline_id,
+                                                                         uint32_t           n_vertex_input_binding,
+                                                                         uint32_t*          out_opt_binding_ptr,
+                                                                         uint32_t*          out_opt_stride_ptr,
+                                                                         VkVertexInputRate* out_opt_input_rate_ptr) const
+{
+    VkVertexInputBindingDescription*               binding_ptr;
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (pipeline_config_ptr->vk_input_bindings.size() <= n_vertex_input_binding)
+    {
+        anvil_assert(!(pipeline_config_ptr->vk_input_bindings.size() <= n_vertex_input_binding) );
+
+        goto end;
+    }
+    else
+    {
+        binding_ptr = &pipeline_config_ptr->vk_input_bindings.at(n_vertex_input_binding);
+    }
+
+    if (out_opt_binding_ptr != nullptr)
+    {
+        *out_opt_binding_ptr = binding_ptr->binding;
+    }
+
+    if (out_opt_stride_ptr != nullptr)
+    {
+        *out_opt_stride_ptr = binding_ptr->stride;
+    }
+
+    if (out_opt_input_rate_ptr != nullptr)
+    {
+        *out_opt_input_rate_ptr = binding_ptr->inputRate;
+    }
+
+    /* All done */
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_viewport_properties(GraphicsPipelineID graphics_pipeline_id,
+                                                             uint32_t           n_viewport,
+                                                             float*             out_opt_origin_x_ptr,
+                                                             float*             out_opt_origin_y_ptr,
+                                                             float*             out_opt_width_ptr,
+                                                             float*             out_opt_height_ptr,
+                                                             float*             out_opt_min_depth_ptr,
+                                                             float*             out_opt_max_depth_ptr) const
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    bool                                           result                   = false;
+    InternalViewport*                              viewport_props_ptr;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    if (pipeline_config_ptr->viewports.find(n_viewport) == pipeline_config_ptr->viewports.end() )
+    {
+        anvil_assert(!(pipeline_config_ptr->viewports.find(n_viewport) == pipeline_config_ptr->viewports.end()) );
+
+        goto end;
+    }
+    else
+    {
+        viewport_props_ptr = &pipeline_config_ptr->viewports.at(n_viewport);
+    }
+
+    if (out_opt_origin_x_ptr != nullptr)
+    {
+        *out_opt_origin_x_ptr = viewport_props_ptr->origin_x;
+    }
+
+    if (out_opt_origin_y_ptr != nullptr)
+    {
+        *out_opt_origin_y_ptr = viewport_props_ptr->origin_y;
+    }
+
+    if (out_opt_width_ptr != nullptr)
+    {
+        *out_opt_width_ptr = viewport_props_ptr->width;
+    }
+
+    if (out_opt_height_ptr != nullptr)
+    {
+        *out_opt_height_ptr = viewport_props_ptr->height;
+    }
+
+    if (out_opt_min_depth_ptr != nullptr)
+    {
+        *out_opt_min_depth_ptr = viewport_props_ptr->min_depth;
+    }
+
+    if (out_opt_max_depth_ptr != nullptr)
+    {
+        *out_opt_max_depth_ptr = viewport_props_ptr->max_depth;
+    }
+
+    result = true;
+end:
+    return result;
 }
 
 /* Please see header for specification */
@@ -1347,6 +2513,8 @@ void Anvil::GraphicsPipelineManager::set_multisampling_properties(GraphicsPipeli
     auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
     auto                                           pipeline_iterator        = m_pipelines.find              (graphics_pipeline_id);
 
+    anvil_assert(sample_count <= VK_SAMPLE_COUNT_32_BIT);
+
     if (pipeline_iterator        == m_pipelines.end()               ||
         pipeline_config_iterator == m_pipeline_configurations.end() )
     {
@@ -1438,7 +2606,7 @@ bool Anvil::GraphicsPipelineManager::set_pipeline_state_from_pipeline(GraphicsPi
                                                                       GraphicsPipelineID source_pipeline_id)
 {
     std::shared_ptr<RenderPass>                    cached_renderpass_ptr;
-    SubPassID                                      cached_subpass_id     = -1;
+    SubPassID                                      cached_subpass_id     = UINT32_MAX;
     bool                                           result                = false;
     std::shared_ptr<GraphicsPipelineConfiguration> source_pipeline_config_ptr;
 
@@ -1466,9 +2634,9 @@ bool Anvil::GraphicsPipelineManager::set_pipeline_state_from_pipeline(GraphicsPi
     cached_renderpass_ptr = m_pipeline_configurations[target_pipeline_id]->renderpass_ptr;
     cached_subpass_id     = m_pipeline_configurations[target_pipeline_id]->subpass_id;
 
-    m_pipeline_configurations[target_pipeline_id]                        = m_pipeline_configurations[source_pipeline_id];
-    m_pipelines              [target_pipeline_id]->descriptor_set_groups = m_pipelines[source_pipeline_id]->descriptor_set_groups;
-    m_pipelines              [target_pipeline_id]->dirty                 = true;
+    m_pipeline_configurations[target_pipeline_id]          = m_pipeline_configurations[source_pipeline_id];
+    m_pipelines              [target_pipeline_id]->dsg_ptr = m_pipelines[source_pipeline_id]->dsg_ptr;
+    m_pipelines              [target_pipeline_id]->dirty   = true;
 
     m_pipeline_configurations[target_pipeline_id]->renderpass_ptr = cached_renderpass_ptr;
     m_pipeline_configurations[target_pipeline_id]->subpass_id     = cached_subpass_id;
@@ -1548,8 +2716,8 @@ void Anvil::GraphicsPipelineManager::set_scissor_box_properties(GraphicsPipeline
                                                                 uint32_t           n_scissor_box,
                                                                 int32_t            x,
                                                                 int32_t            y,
-                                                                int32_t            width,
-                                                                int32_t            height)
+                                                                uint32_t           width,
+                                                                uint32_t           height)
 {
     std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
     auto                                           pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);

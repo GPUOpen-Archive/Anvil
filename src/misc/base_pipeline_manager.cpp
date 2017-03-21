@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +30,7 @@
 #include <algorithm>
 
 /** Please see header for specification */
-Anvil::BasePipelineManager::BasePipelineManager(std::weak_ptr<Anvil::Device>          device_ptr,
+Anvil::BasePipelineManager::BasePipelineManager(std::weak_ptr<Anvil::BaseDevice>      device_ptr,
                                                 bool                                  use_pipeline_cache,
                                                 std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr)
     :m_device_ptr      (device_ptr),
@@ -39,7 +39,8 @@ Anvil::BasePipelineManager::BasePipelineManager(std::weak_ptr<Anvil::Device>    
     anvil_assert(!use_pipeline_cache && pipeline_cache_to_reuse_ptr == nullptr ||
                  use_pipeline_cache);
 
-    m_pipeline_layout_manager_ptr = Anvil::PipelineLayoutManager::acquire(m_device_ptr);
+    m_pipeline_layout_manager_ptr = device_ptr.lock()->get_pipeline_layout_manager();
+    anvil_assert(m_pipeline_layout_manager_ptr != nullptr);
 
     if (pipeline_cache_to_reuse_ptr != nullptr)
     {
@@ -62,12 +63,7 @@ Anvil::BasePipelineManager::~BasePipelineManager()
 {
     anvil_assert(m_pipelines.size() == 0);
 
-   if (m_pipeline_layout_manager_ptr != nullptr)
-   {
-       m_pipeline_layout_manager_ptr->release();
-
-       m_pipeline_layout_manager_ptr.reset();
-   }
+   m_pipeline_layout_manager_ptr.reset();
 }
 
 
@@ -79,7 +75,7 @@ void Anvil::BasePipelineManager::Pipeline::release_vulkan_objects()
 {
     if (baked_pipeline != VK_NULL_HANDLE)
     {
-        std::shared_ptr<Anvil::Device> device_locked_ptr(device_ptr);
+        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(device_ptr);
 
         vkDestroyPipeline(device_locked_ptr->get_device_vk(),
                           baked_pipeline,
@@ -291,8 +287,8 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::BasePipelineManager::attach_dsg_to_pipeline(PipelineID                                 pipeline_id,
-                                                        std::shared_ptr<Anvil::DescriptorSetGroup> dsg_ptr)
+bool Anvil::BasePipelineManager::set_pipeline_dsg(PipelineID                                 pipeline_id,
+                                                  std::shared_ptr<Anvil::DescriptorSetGroup> dsg_ptr)
 {
     std::shared_ptr<Pipeline> pipeline_ptr;
     bool                      result = false;
@@ -317,20 +313,17 @@ bool Anvil::BasePipelineManager::attach_dsg_to_pipeline(PipelineID              
     }
 
     /* Make sure the DSG has not already been attached */
-    if (std::find(pipeline_ptr->descriptor_set_groups.begin(),
-                  pipeline_ptr->descriptor_set_groups.end(),
-                  dsg_ptr) != pipeline_ptr->descriptor_set_groups.end() )
+    if (pipeline_ptr->dsg_ptr == dsg_ptr)
     {
         anvil_assert(false);
 
         goto end;
     }
 
-    /* If we reached this place, we can attach the DSG */
+    /* If we reached this place, we can update the DSG */
     pipeline_ptr->dirty        = true;
+    pipeline_ptr->dsg_ptr      = dsg_ptr;
     pipeline_ptr->layout_dirty = true;
-
-    pipeline_ptr->descriptor_set_groups.push_back(dsg_ptr);
 
     /* All done */
     result = true;
@@ -421,9 +414,8 @@ void Anvil::BasePipelineManager::bake_specialization_info_vk(const Specializatio
 /* Please see header for specification */
 bool Anvil::BasePipelineManager::delete_pipeline(PipelineID pipeline_id)
 {
-    bool result = false;
-
     auto pipeline_iterator = m_pipelines.find(pipeline_id);
+    bool result = false;
 
     if (pipeline_iterator == m_pipelines.end() )
     {
@@ -431,6 +423,41 @@ bool Anvil::BasePipelineManager::delete_pipeline(PipelineID pipeline_id)
     }
 
     m_pipelines.erase(pipeline_iterator);
+
+    /* All done */
+    result = true;
+end:
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::BasePipelineManager::get_general_pipeline_properties(PipelineID pipeline_id,
+                                                                 bool*      out_opt_has_optimizations_disabled_ptr,
+                                                                 bool*      out_opt_allows_derivatives_ptr,
+                                                                 bool*      out_opt_is_a_derivative_ptr) const
+{
+    auto pipeline_iterator = m_pipelines.find(pipeline_id);
+    bool result = false;
+
+    if (pipeline_iterator == m_pipelines.end() )
+    {
+        goto end;
+    }
+
+    if (out_opt_has_optimizations_disabled_ptr != nullptr)
+    {
+        *out_opt_has_optimizations_disabled_ptr = pipeline_iterator->second->disable_optimizations;
+    }
+
+    if (out_opt_allows_derivatives_ptr != nullptr)
+    {
+        *out_opt_allows_derivatives_ptr = pipeline_iterator->second->allow_derivatives;
+    }
+
+    if (out_opt_is_a_derivative_ptr != nullptr)
+    {
+        *out_opt_is_a_derivative_ptr = pipeline_iterator->second->is_derivative;
+    }
 
     /* All done */
     result = true;
@@ -476,6 +503,31 @@ end:
 }
 
 /* Please see header for specification */
+bool Anvil::BasePipelineManager::get_pipeline_id_at_index(uint32_t    n_pipeline,
+                                                          PipelineID* out_pipeline_id_ptr) const
+{
+    Pipelines::const_iterator current_pipeline_it = m_pipelines.cbegin();
+    uint32_t                  n_current_pipeline  = 0;
+    bool                      result              = false;
+
+    if (m_pipelines.size() <= n_pipeline)
+    {
+        goto end;
+    }
+
+    while (n_current_pipeline != n_pipeline)
+    {
+        current_pipeline_it++;
+        n_current_pipeline ++;
+    }
+
+    *out_pipeline_id_ptr = current_pipeline_it->first;
+    result               = true;
+end:
+    return result;
+}
+
+/* Please see header for specification */
 std::shared_ptr<Anvil::PipelineLayout> Anvil::BasePipelineManager::get_pipeline_layout(PipelineID pipeline_id)
 {
     std::shared_ptr<Pipeline>              pipeline_ptr;
@@ -503,7 +555,7 @@ std::shared_ptr<Anvil::PipelineLayout> Anvil::BasePipelineManager::get_pipeline_
     {
         pipeline_ptr->layout_ptr.reset();
 
-        if (!m_pipeline_layout_manager_ptr->get_layout(pipeline_ptr->descriptor_set_groups,
+        if (!m_pipeline_layout_manager_ptr->get_layout(pipeline_ptr->dsg_ptr,
                                                        pipeline_ptr->push_constant_ranges,
                                                       &pipeline_ptr->layout_ptr) )
         {
@@ -519,6 +571,41 @@ std::shared_ptr<Anvil::PipelineLayout> Anvil::BasePipelineManager::get_pipeline_
 
 end:
     return result_ptr;
+}
+
+/* Please see header for specification */
+bool Anvil::BasePipelineManager::get_shader_stage_properties(PipelineID                   pipeline_id,
+                                                             Anvil::ShaderStage           shader_stage,
+                                                             ShaderModuleStageEntryPoint* opt_out_result_ptr) const
+{
+    auto pipeline_iterator = m_pipelines.find(pipeline_id);
+    bool result            = false;
+
+    if (pipeline_iterator == m_pipelines.end() )
+    {
+        anvil_assert(!(pipeline_iterator == m_pipelines.end()) );
+
+        goto end;
+    }
+
+    for (const auto& current_stage : pipeline_iterator->second->shader_stages)
+    {
+        if (current_stage.stage == shader_stage)
+        {
+            if (opt_out_result_ptr != nullptr)
+            {
+                *opt_out_result_ptr = current_stage;
+            }
+
+            result = true;
+
+            break;
+        }
+    }
+
+    /* All done */
+end:
+    return result;
 }
 
 /* Please see header for specification */

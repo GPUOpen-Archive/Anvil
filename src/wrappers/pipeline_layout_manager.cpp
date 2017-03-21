@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -28,15 +28,13 @@
 #include <algorithm>
 
 
-std::map<Anvil::Device*, Anvil::PipelineLayoutManager::PipelineLayoutManagerInfo> Anvil::PipelineLayoutManager::m_instance_map;
-
-
 /** Constructor. */
-Anvil::PipelineLayoutManager::PipelineLayoutManager(std::weak_ptr<Anvil::Device> device_ptr)
-    :m_device_ptr(device_ptr)
+Anvil::PipelineLayoutManager::PipelineLayoutManager(std::weak_ptr<Anvil::BaseDevice> device_ptr)
+    :m_device_ptr              (device_ptr),
+     m_pipeline_layouts_created(0)
 {
     /* Register the object */
-    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_PIPELINE_LAYOUT_MANAGER,
+    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_PIPELINE_LAYOUT_MANAGER,
                                                   this);
 }
 
@@ -44,40 +42,24 @@ Anvil::PipelineLayoutManager::PipelineLayoutManager(std::weak_ptr<Anvil::Device>
 Anvil::PipelineLayoutManager::~PipelineLayoutManager()
 {
     /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_PIPELINE_LAYOUT_MANAGER,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_PIPELINE_LAYOUT_MANAGER,
                                                     this);
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::PipelineLayoutManager> Anvil::PipelineLayoutManager::acquire(std::weak_ptr<Anvil::Device> device_ptr)
+std::shared_ptr<Anvil::PipelineLayoutManager> Anvil::PipelineLayoutManager::create(std::weak_ptr<Anvil::BaseDevice> device_ptr)
 {
-    std::shared_ptr<Anvil::Device>                device_locked_ptr(device_ptr);
-    auto                                          iterator         (m_instance_map.find(device_locked_ptr.get() ));
+    std::shared_ptr<Anvil::BaseDevice>            device_locked_ptr(device_ptr);
     std::shared_ptr<Anvil::PipelineLayoutManager> result_ptr;
 
-    if (iterator == m_instance_map.end() )
-    {
-        PipelineLayoutManagerInfo new_manager;
-
-        new_manager.instance_ptr.reset(new Anvil::PipelineLayoutManager(device_ptr));
-
-        m_instance_map[device_locked_ptr.get() ] = new_manager;
-        iterator                                 = m_instance_map.find(device_locked_ptr.get() );
-    }
-    else
-    {
-        /* TODO: This should be made atomic */
-        ++iterator->second.n_acquisitions;
-    }
-
-    result_ptr = iterator->second.instance_ptr;
+    result_ptr.reset(new Anvil::PipelineLayoutManager(device_ptr) );
     anvil_assert(result_ptr != nullptr);
 
     return result_ptr;
 }
 
 /* Please see header for specification */
-bool Anvil::PipelineLayoutManager::get_layout(const DescriptorSetGroups&              dsgs,
+bool Anvil::PipelineLayoutManager::get_layout(std::shared_ptr<DescriptorSetGroup>     dsg_ptr,
                                               const PushConstantRanges&               push_constant_ranges,
                                               std::shared_ptr<Anvil::PipelineLayout>* out_pipeline_layout_ptr_ptr)
 {
@@ -87,9 +69,14 @@ bool Anvil::PipelineLayoutManager::get_layout(const DescriptorSetGroups&        
               layout_iterator != m_pipeline_layouts.end();
             ++layout_iterator)
     {
-        std::shared_ptr<Anvil::PipelineLayout> current_pipeline_layout_ptr = *layout_iterator;
+        if (layout_iterator->second.expired() )
+        {
+            continue;
+        }
 
-        if (current_pipeline_layout_ptr->get_attached_dsgs()                 == dsgs                 &&
+        std::shared_ptr<Anvil::PipelineLayout> current_pipeline_layout_ptr = layout_iterator->second.lock();
+
+        if (current_pipeline_layout_ptr->get_attached_dsg()                  == dsg_ptr              &&
             current_pipeline_layout_ptr->get_attached_push_constant_ranges() == push_constant_ranges)
         {
             *out_pipeline_layout_ptr_ptr = current_pipeline_layout_ptr;
@@ -106,16 +93,11 @@ bool Anvil::PipelineLayoutManager::get_layout(const DescriptorSetGroups&        
         /* Try to create a new layout for the specified DSG + push constant range set */
         std::shared_ptr<Anvil::PipelineLayout> new_layout_ptr = Anvil::PipelineLayout::create(m_device_ptr);
 
-        for (auto dsg_iterator  = dsgs.begin();
-                  dsg_iterator != dsgs.end();
-                ++dsg_iterator)
-        {
-            result = new_layout_ptr->attach_dsg(*dsg_iterator);
+        result = new_layout_ptr->set_dsg(dsg_ptr);
 
-            if (!result)
-            {
-                goto end;
-            }
+        if (!result)
+        {
+            goto end;
         }
 
         for (auto push_constant_range_iterator  = push_constant_ranges.begin();
@@ -138,62 +120,63 @@ bool Anvil::PipelineLayoutManager::get_layout(const DescriptorSetGroups&        
 
         if (result)
         {
+            const PipelineLayoutID pipeline_layout_id = new_layout_ptr->get_id();
+
+            anvil_assert(m_pipeline_layouts.find(pipeline_layout_id) == m_pipeline_layouts.end() );
+
             new_layout_ptr->bake();
 
-            m_pipeline_layouts.push_back(new_layout_ptr);
-
-            *out_pipeline_layout_ptr_ptr = new_layout_ptr;
+            m_pipeline_layouts[pipeline_layout_id] = new_layout_ptr;
+            *out_pipeline_layout_ptr_ptr           = new_layout_ptr;
         }
     }
 end:
     return result;
 }
 
-/** Called back whenever a pipeline layout is released, but its reference counter is larger than 2, which indicates
- *  there are other users of the layout. As a result, the pipeline layout instance is not going to be physically
- *  released yet.
- **/
+/* Please see header for specification */
+std::shared_ptr<Anvil::PipelineLayout> Anvil::PipelineLayoutManager::get_layout_by_id(Anvil::PipelineLayoutID id) const
+{
+    if (m_pipeline_layouts.find(id) == m_pipeline_layouts.end() ||
+        m_pipeline_layouts.at(id).expired() )
+    {
+        return std::shared_ptr<Anvil::PipelineLayout>();
+    }
+    else
+    {
+        return m_pipeline_layouts.at(id).lock();
+    }
+}
+
+/** Called back whenever a pipeline layout is released **/
 void Anvil::PipelineLayoutManager::on_pipeline_layout_dropped(void* callback_arg,
                                                               void* user_arg)
 {
     PipelineLayouts::iterator     layout_iterator;
-    PipelineLayout*               layout_ptr         = static_cast<PipelineLayout*>       (callback_arg);
     Anvil::PipelineLayoutManager* layout_manager_ptr = static_cast<PipelineLayoutManager*>(user_arg);
+
+    ANVIL_REDUNDANT_ARGUMENT(callback_arg);
 
     /* Are we the last standing layout user? */
     for (layout_iterator  = layout_manager_ptr->m_pipeline_layouts.begin();
          layout_iterator != layout_manager_ptr->m_pipeline_layouts.end();
-       ++layout_iterator)
+        )
     {
-        if (layout_iterator->get() == layout_ptr)
+        if (layout_iterator->second.expired() )
         {
-            break;
-        }
-    }
+            layout_manager_ptr->m_pipeline_layouts.erase(layout_iterator);
 
-    if (layout_iterator              != layout_manager_ptr->m_pipeline_layouts.end() &&
-        layout_iterator->use_count() == 2)
-    {
-        layout_manager_ptr->m_pipeline_layouts.erase(layout_iterator);
+            layout_iterator = layout_manager_ptr->m_pipeline_layouts.begin();
+        }
+        else
+        {
+            ++layout_iterator;
+        }
     }
 }
 
 /* Please see header for specification */
-void Anvil::PipelineLayoutManager::release()
+Anvil::PipelineLayoutID Anvil::PipelineLayoutManager::reserve_pipeline_layout_id()
 {
-    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
-    auto                           iterator =       (m_instance_map.find(device_locked_ptr.get() ) );
-
-    anvil_assert(iterator                      != m_instance_map.end() );
-    anvil_assert(iterator->second.instance_ptr != nullptr);
-
-    if (iterator->second.n_acquisitions == 1)
-    {
-        m_instance_map.erase(iterator);
-    }
-    else
-    {
-        /* TODO: This should be made atomic */
-        --iterator->second.n_acquisitions;
-    }
+    return m_pipeline_layouts_created++;
 }

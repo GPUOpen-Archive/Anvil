@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -29,28 +29,14 @@ Anvil::Instance::Instance(const char*                  app_name,
                           const char*                  engine_name,
                           PFNINSTANCEDEBUGCALLBACKPROC opt_pfn_validation_callback_proc,
                           void*                        validation_proc_user_arg)
-    :m_app_name                                      (app_name),
-     m_debug_callback_data                           (0),
-     m_engine_name                                   (engine_name),
-     m_pfn_validation_callback_proc                  (opt_pfn_validation_callback_proc),
-     m_validation_proc_user_arg                      (validation_proc_user_arg),
-     m_vkCreateDebugReportCallbackEXT                (nullptr),
-#ifdef _WIN32
-     m_vkCreateWin32SurfaceKHR                       (nullptr),
-#else
-     m_vkCreateXcbSurfaceKHR                         (nullptr),
-#endif
-     m_vkDestroyDebugReportCallbackEXT               (nullptr),
-     m_vkDestroySurfaceKHR                           (nullptr),
-     m_vkGetPhysicalDeviceSurfaceCapabilitiesKHR     (nullptr),
-     m_vkGetPhysicalDeviceSurfaceFormatsKHR          (nullptr),
-     m_vkGetPhysicalDeviceSurfacePresentModesKHR     (nullptr),
-     m_vkGetPhysicalDeviceSurfaceSupportKHR          (nullptr)
-#ifdef _WIN32
-    ,m_vkGetPhysicalDeviceWin32PresentationSupportKHR(nullptr)
-#endif
+    :m_app_name                    (app_name),
+     m_debug_callback_data         (0),
+     m_engine_name                 (engine_name),
+     m_global_layer                (""),
+     m_pfn_validation_callback_proc(opt_pfn_validation_callback_proc),
+     m_validation_proc_user_arg    (validation_proc_user_arg)
 {
-    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_INSTANCE,
+    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_INSTANCE,
                                                   this);
 }
 
@@ -67,7 +53,7 @@ Anvil::Instance::~Instance()
         m_instance = VK_NULL_HANDLE;
     }
 
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_INSTANCE,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_INSTANCE,
                                                     this);
 }
 
@@ -110,6 +96,11 @@ VkBool32 VKAPI_PTR Anvil::Instance::debug_callback_pfn_proc(VkDebugReportFlagsEX
 {
     Anvil::Instance* instance_ptr = static_cast<Anvil::Instance*>(user_data);
 
+    ANVIL_REDUNDANT_ARGUMENT(src_object);
+    ANVIL_REDUNDANT_ARGUMENT(location);
+    ANVIL_REDUNDANT_ARGUMENT(msg_code);
+    ANVIL_REDUNDANT_ARGUMENT(user_data);
+
     return instance_ptr->m_pfn_validation_callback_proc(message_flags,
                                                         object_type,
                                                         layer_prefix_ptr,
@@ -122,9 +113,9 @@ void Anvil::Instance::destroy()
 {
     if (m_debug_callback_data != VK_NULL_HANDLE)
     {
-        m_vkDestroyDebugReportCallbackEXT(m_instance,
-                                          m_debug_callback_data,
-                                          nullptr /* pAllocator */);
+        m_ext_debug_report_entrypoints.vkDestroyDebugReportCallbackEXT(m_instance,
+                                                                       m_debug_callback_data,
+                                                                       nullptr /* pAllocator */);
 
         m_debug_callback_data = VK_NULL_HANDLE;
     }
@@ -140,7 +131,9 @@ void Anvil::Instance::enumerate_instance_layers()
 {
     std::vector<VkLayerProperties> layer_props;
     uint32_t                       n_layers    = 0;
-    VkResult                       result;
+    VkResult                       result      = VK_ERROR_INITIALIZATION_FAILED;
+
+    ANVIL_REDUNDANT_VARIABLE(result);
 
     /* Retrieve layer data */
     result = vkEnumerateInstanceLayerProperties(&n_layers,
@@ -156,7 +149,7 @@ void Anvil::Instance::enumerate_instance_layers()
 
     /* Convert raw layer props data to internal descriptors */
     for (uint32_t n_layer = 0;
-                  n_layer < n_layers;
+                  n_layer < n_layers + 1;
                 ++n_layer)
     {
         Anvil::Layer* layer_ptr = nullptr;
@@ -180,16 +173,24 @@ void Anvil::Instance::enumerate_instance_layers()
  **/
 void Anvil::Instance::enumerate_layer_extensions(Anvil::Layer* layer_ptr)
 {
-    uint32_t  n_extensions = 0;
-    VkResult  result;
+    uint32_t n_extensions = 0;
+    VkResult result       = VK_ERROR_INITIALIZATION_FAILED;
 
-    /* Check if the layer supports any extensions  at all*/
-    const char* layer_name = (layer_ptr != nullptr) ? layer_ptr->name.c_str()
-                                                    : nullptr;
+    ANVIL_REDUNDANT_VARIABLE(result);
 
-    result = vkEnumerateInstanceExtensionProperties(layer_name,
-                                                   &n_extensions,
-                                                    nullptr); /* pProperties */
+    /* Check if the layer supports any extensions at all */
+    const char* layer_name = nullptr;
+
+    if (layer_ptr == nullptr)
+    {
+        layer_ptr = &m_global_layer;
+    }
+
+    layer_name = layer_ptr->name.c_str();
+    result     = vkEnumerateInstanceExtensionProperties(layer_name,
+                                                       &n_extensions,
+                                                        nullptr); /* pProperties */
+
     anvil_assert_vk_call_succeeded(result);
 
     if (n_extensions > 0)
@@ -219,7 +220,9 @@ void Anvil::Instance::enumerate_physical_devices()
 {
     std::vector<VkPhysicalDevice> devices;
     uint32_t                      n_physical_devices = 0;
-    VkResult                      result;
+    VkResult                      result             = VK_ERROR_INITIALIZATION_FAILED;
+
+    ANVIL_REDUNDANT_VARIABLE(result);
 
     /* Retrieve physical device handles */
     result = vkEnumeratePhysicalDevices(m_instance,
@@ -263,15 +266,36 @@ void Anvil::Instance::enumerate_physical_devices()
     }
 }
 
+/** Please see header for specification */
+const Anvil::ExtensionKHRGetPhysicalDeviceProperties2& Anvil::Instance::get_extension_khr_get_physical_device_properties2_entrypoints() const
+{
+    anvil_assert(std::find(m_enabled_extensions.begin(),
+                           m_enabled_extensions.end(),
+                           "VK_KHR_get_physical_device_properties2") != m_enabled_extensions.end() );
+
+    return m_khr_get_physical_device_properties2_entrypoints;
+}
+
+/** Please see header for specification */
+const Anvil::ExtensionKHRSurfaceEntrypoints& Anvil::Instance::get_extension_khr_surface_entrypoints() const
+{
+    anvil_assert(std::find(m_enabled_extensions.begin(),
+                           m_enabled_extensions.end(),
+                           "VK_KHR_surface") != m_enabled_extensions.end() );
+
+    return m_khr_surface_entrypoints;
+}
+
 /** Initializes the wrapper. */
 void Anvil::Instance::init()
 {
-    VkApplicationInfo    app_info;
-    VkInstanceCreateInfo create_info;
-    const char**         enabled_layer_name_ptrs = nullptr;
-    uint32_t             n_required_extensions   = 0;
-    VkResult             result;
-    const char**         required_extensions     = nullptr;
+    VkApplicationInfo        app_info;
+    VkInstanceCreateInfo     create_info;
+    std::vector<const char*> enabled_layers;
+    size_t                   n_instance_layers = 0;
+    VkResult                 result            = VK_ERROR_INITIALIZATION_FAILED;
+
+    ANVIL_REDUNDANT_VARIABLE(result);
 
     /* Determine what extensions we need to request at instance creation time */
     static const char* required_extensions_with_validation[] =
@@ -299,15 +323,21 @@ void Anvil::Instance::init()
 
     if (m_pfn_validation_callback_proc != nullptr)
     {
-        n_required_extensions = sizeof(required_extensions_with_validation) /
-                                sizeof(required_extensions_with_validation[0]);
-        required_extensions   = required_extensions_with_validation;
+        for (uint32_t n_extension = 0;
+                      n_extension < sizeof(required_extensions_with_validation) / sizeof(required_extensions_with_validation[0]);
+                    ++n_extension)
+        {
+            m_enabled_extensions.push_back(required_extensions_with_validation[n_extension]);
+        }
     }
     else
     {
-        n_required_extensions = sizeof(required_extensions_without_validation) /
-                                sizeof(required_extensions_without_validation[0]);
-        required_extensions   = required_extensions_without_validation;
+        for (uint32_t n_extension = 0;
+                      n_extension < sizeof(required_extensions_without_validation) / sizeof(required_extensions_without_validation[0]);
+                    ++n_extension)
+        {
+            m_enabled_extensions.push_back(required_extensions_without_validation[n_extension]);
+        }
     }
 
     /* Set up the app info descriptor **/
@@ -324,80 +354,74 @@ void Anvil::Instance::init()
            0,
            sizeof(create_info) );
 
-    create_info.enabledExtensionCount = n_required_extensions;
+    /* Enumerate available layers */
+    enumerate_instance_layers();
 
-    if (m_pfn_validation_callback_proc != nullptr)
+    n_instance_layers = static_cast<uint32_t>(m_supported_layers.size() );
+
+    for (size_t  n_instance_layer = 0;
+                 n_instance_layer < n_instance_layers;
+               ++n_instance_layer)
     {
-        size_t   n_instance_layers = 0;
-        uint32_t n_reported_layers = 0;
+        const std::vector<Anvil::Extension>& layer_extensions = m_supported_layers[n_instance_layer].extensions;
+        const std::string&                   layer_name       = m_supported_layers[n_instance_layer].name;
 
-        /* Also set up the layer name array */
-        enumerate_instance_layers();
-
-        n_instance_layers = static_cast<uint32_t>(m_supported_layers.size() );
-
-        if (n_instance_layers > 0)
+        /* If validation is enabled and this is a layer which issues debug call-backs, cache it, so that
+         * we can request for it at vkCreateInstance() call time */
+        if (m_pfn_validation_callback_proc != nullptr                  &&
+            std::find(layer_extensions.begin(),
+                      layer_extensions.end(),
+                      "VK_EXT_debug_report") != layer_extensions.end() )
         {
-            enabled_layer_name_ptrs = new const char*[n_instance_layers];
-            anvil_assert(enabled_layer_name_ptrs != nullptr);
-
-            for (size_t  n_instance_layer = 0;
-                         n_instance_layer < n_instance_layers;
-                       ++n_instance_layer)
-            {
-                const std::vector<Anvil::Extension>& layer_extensions = m_supported_layers[n_instance_layer].extensions;
-                const std::string&                   layer_name       = m_supported_layers[n_instance_layer].name;
-
-                /* Is this really a validation layer? */
-                if (std::find(layer_extensions.begin(),
-                              layer_extensions.end(),
-                              "VK_EXT_debug_report") != layer_extensions.end() )
-                {
-                    enabled_layer_name_ptrs[n_reported_layers] = layer_name.c_str();
-
-                    n_reported_layers++;
-                }
-            }
+            enabled_layers.push_back(layer_name.c_str() );
         }
-
-        create_info.enabledLayerCount   = (uint32_t) n_reported_layers;
-        create_info.ppEnabledLayerNames = enabled_layer_name_ptrs;
     }
 
+    /* Enable known instance-level extensions by default */
+    if (is_instance_extension_supported("VK_KHR_get_physical_device_properties2") )
+    {
+        m_enabled_extensions.push_back("VK_KHR_get_physical_device_properties2");
+    }
+
+    /* We're ready to create a new Vulkan instance */
+    std::vector<const char*> enabled_extensions_raw;
+
+    for (auto& ext_name : m_enabled_extensions)
+    {
+        enabled_extensions_raw.push_back(ext_name.c_str() );
+    }
+
+    create_info.enabledExtensionCount   = static_cast<uint32_t>(m_enabled_extensions.size() );
+    create_info.enabledLayerCount       = static_cast<uint32_t>(enabled_layers.size() );
     create_info.flags                   = 0;
     create_info.pApplicationInfo        = &app_info;
     create_info.pNext                   = nullptr;
-    create_info.ppEnabledExtensionNames = required_extensions;
+    create_info.ppEnabledExtensionNames = (enabled_extensions_raw.size() > 0) ? &enabled_extensions_raw[0] : nullptr;
+    create_info.ppEnabledLayerNames     = (enabled_layers.size()         > 0) ? &enabled_layers        [0] : nullptr;
     create_info.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 
-    /* Create a new Vulkan instance */
     result = vkCreateInstance(&create_info,
                               nullptr, /* pAllocator */
                               &m_instance);
+
     anvil_assert_vk_call_succeeded(result);
 
     /* Continue initializing */
-    enumerate_physical_devices();
     init_func_pointers        ();
+    enumerate_physical_devices();
 
     if (m_pfn_validation_callback_proc != nullptr)
     {
         init_debug_callbacks();
-    }
-
-    /* Clean up */
-    if (enabled_layer_name_ptrs != nullptr)
-    {
-        delete [] enabled_layer_name_ptrs;
-
-        enabled_layer_name_ptrs = nullptr;
     }
 }
 
 /** Initializes debug callback support. */
 void Anvil::Instance::init_debug_callbacks()
 {
-    VkResult result;
+    VkResult result = VK_ERROR_INITIALIZATION_FAILED;
+
+    ANVIL_REDUNDANT_VARIABLE(result);
 
     /* Set up the debug call-backs, while we're at it */
     VkDebugReportCallbackCreateInfoEXT debug_report_callback_create_info;
@@ -408,64 +432,92 @@ void Anvil::Instance::init_debug_callbacks()
     debug_report_callback_create_info.pUserData   = this;
     debug_report_callback_create_info.sType       = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
 
-    result = m_vkCreateDebugReportCallbackEXT(m_instance,
-                                             &debug_report_callback_create_info,
-                                              nullptr, /* pAllocator */
-                                             &m_debug_callback_data);
+    result = m_ext_debug_report_entrypoints.vkCreateDebugReportCallbackEXT(m_instance,
+                                                                          &debug_report_callback_create_info,
+                                                                           nullptr, /* pAllocator */
+                                                                          &m_debug_callback_data);
     anvil_assert_vk_call_succeeded(result);
 }
 
 /** Initializes all required instance-level function pointers. */
 void Anvil::Instance::init_func_pointers()
 {
-    m_vkDestroySurfaceKHR                       = reinterpret_cast<PFN_vkDestroySurfaceKHR>                      (vkGetInstanceProcAddr(m_instance,
-                                                                                                                                        "vkDestroySurfaceKHR") );
-    m_vkGetPhysicalDeviceSurfaceCapabilitiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR>(vkGetInstanceProcAddr(m_instance,
-                                                                                                                                        "vkGetPhysicalDeviceSurfaceCapabilitiesKHR") );
-    m_vkGetPhysicalDeviceSurfaceFormatsKHR      = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceFormatsKHR>     (vkGetInstanceProcAddr(m_instance,
-                                                                                                                                        "vkGetPhysicalDeviceSurfaceFormatsKHR") );
-    m_vkGetPhysicalDeviceSurfacePresentModesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfacePresentModesKHR>(vkGetInstanceProcAddr(m_instance,
-                                                                                                                                        "vkGetPhysicalDeviceSurfacePresentModesKHR") );
-    m_vkGetPhysicalDeviceSurfaceSupportKHR      = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceSupportKHR>     (vkGetInstanceProcAddr(m_instance,
-                                                                                                                                        "vkGetPhysicalDeviceSurfaceSupportKHR") );
+    m_khr_surface_entrypoints.vkDestroySurfaceKHR                       = reinterpret_cast<PFN_vkDestroySurfaceKHR>                      (vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                "vkDestroySurfaceKHR") );
+    m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceCapabilitiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR>(vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                "vkGetPhysicalDeviceSurfaceCapabilitiesKHR") );
+    m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceFormatsKHR      = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceFormatsKHR>     (vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                "vkGetPhysicalDeviceSurfaceFormatsKHR") );
+    m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfacePresentModesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfacePresentModesKHR>(vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                "vkGetPhysicalDeviceSurfacePresentModesKHR") );
+    m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceSupportKHR      = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceSupportKHR>     (vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                "vkGetPhysicalDeviceSurfaceSupportKHR") );
 
-    m_vkCreateDebugReportCallbackEXT  = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT> (vkGetInstanceProcAddr(m_instance,
-                                                                                                                    "vkCreateDebugReportCallbackEXT") );
-    m_vkDestroyDebugReportCallbackEXT = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(vkGetInstanceProcAddr(m_instance,
-                                                                                                                    "vkDestroyDebugReportCallbackEXT") );
+    m_ext_debug_report_entrypoints.vkCreateDebugReportCallbackEXT  = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT> (vkGetInstanceProcAddr(m_instance,
+                                                                                                                           "vkCreateDebugReportCallbackEXT") );
+    m_ext_debug_report_entrypoints.vkDestroyDebugReportCallbackEXT = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(vkGetInstanceProcAddr(m_instance,
+                                                                                                                           "vkDestroyDebugReportCallbackEXT") );
 
-    anvil_assert(m_vkDestroySurfaceKHR                       != nullptr);
-    anvil_assert(m_vkGetPhysicalDeviceSurfaceCapabilitiesKHR != nullptr);
-    anvil_assert(m_vkGetPhysicalDeviceSurfaceFormatsKHR      != nullptr);
-    anvil_assert(m_vkGetPhysicalDeviceSurfacePresentModesKHR != nullptr);
-    anvil_assert(m_vkGetPhysicalDeviceSurfaceSupportKHR      != nullptr);
+    anvil_assert(m_khr_surface_entrypoints.vkDestroySurfaceKHR                       != nullptr);
+    anvil_assert(m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceCapabilitiesKHR != nullptr);
+    anvil_assert(m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceFormatsKHR      != nullptr);
+    anvil_assert(m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfacePresentModesKHR != nullptr);
+    anvil_assert(m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceSupportKHR      != nullptr);
 
     #ifdef _WIN32
     {
-        m_vkCreateWin32SurfaceKHR                        = reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>                       (vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                      "vkCreateWin32SurfaceKHR") );
-        m_vkGetPhysicalDeviceWin32PresentationSupportKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR>(vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                      "vkGetPhysicalDeviceWin32PresentationSupportKHR") );
+        m_khr_win32_surface_entrypoints.vkCreateWin32SurfaceKHR                        = reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>                       (vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                              "vkCreateWin32SurfaceKHR") );
+        m_khr_win32_surface_entrypoints.vkGetPhysicalDeviceWin32PresentationSupportKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR>(vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                              "vkGetPhysicalDeviceWin32PresentationSupportKHR") );
 
-        anvil_assert(m_vkCreateWin32SurfaceKHR                        != nullptr);
-        anvil_assert(m_vkGetPhysicalDeviceWin32PresentationSupportKHR != nullptr);
+        anvil_assert(m_khr_win32_surface_entrypoints.vkCreateWin32SurfaceKHR                        != nullptr);
+        anvil_assert(m_khr_win32_surface_entrypoints.vkGetPhysicalDeviceWin32PresentationSupportKHR != nullptr);
     }
     #else
     {
-        m_vkCreateXcbSurfaceKHR = reinterpret_cast<PFN_vkCreateXcbSurfaceKHR>(vkGetInstanceProcAddr(m_instance,
-                                                                                                    "vkCreateXcbSurfaceKHR") );
+        m_khr_xcb_surface_entrypoints.vkCreateXcbSurfaceKHR = reinterpret_cast<PFN_vkCreateXcbSurfaceKHR>(vkGetInstanceProcAddr(m_instance,
+                                                                                                                                "vkCreateXcbSurfaceKHR") );
 
-        anvil_assert(m_vkCreateXcbSurfaceKHR != nullptr);
+        anvil_assert(m_khr_xcb_surface_entrypoints.vkCreateXcbSurfaceKHR != nullptr);
     }
     #endif
+
+    if (std::find(m_enabled_extensions.begin(),
+                  m_enabled_extensions.end(),
+                  "VK_KHR_get_physical_device_properties2") != m_enabled_extensions.end() )
+    {
+        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceFeatures2KHR                    = reinterpret_cast<PFN_vkGetPhysicalDeviceFeatures2KHR>                   (vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                              "vkGetPhysicalDeviceFeatures2KHR") );
+        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceFormatProperties2KHR            = reinterpret_cast<PFN_vkGetPhysicalDeviceFormatProperties2KHR>           (vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                              "vkGetPhysicalDeviceFormatProperties2KHR") );
+        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceImageFormatProperties2KHR       = reinterpret_cast<PFN_vkGetPhysicalDeviceImageFormatProperties2KHR>      (vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                              "vkGetPhysicalDeviceImageFormatProperties2KHR") );
+        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceMemoryProperties2KHR            = reinterpret_cast<PFN_vkGetPhysicalDeviceMemoryProperties2KHR>           (vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                              "vkGetPhysicalDeviceMemoryProperties2KHR") );
+        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceProperties2KHR                  = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2KHR>                 (vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                              "vkGetPhysicalDeviceProperties2KHR") );
+        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceQueueFamilyProperties2KHR       = reinterpret_cast<PFN_vkGetPhysicalDeviceQueueFamilyProperties2KHR>      (vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                              "vkGetPhysicalDeviceQueueFamilyProperties2KHR") );
+        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceSparseImageFormatProperties2KHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSparseImageFormatProperties2KHR>(vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                              "vkGetPhysicalDeviceSparseImageFormatProperties2KHR") );
+
+        anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceFeatures2KHR                    != nullptr);
+        anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceFormatProperties2KHR            != nullptr);
+        anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceImageFormatProperties2KHR       != nullptr);
+        anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceMemoryProperties2KHR            != nullptr);
+        anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceProperties2KHR                  != nullptr);
+        anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceQueueFamilyProperties2KHR       != nullptr);
+        anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceSparseImageFormatProperties2KHR != nullptr);
+    }
 }
 
 /** Please see header for specification */
 bool Anvil::Instance::is_instance_extension_supported(const char* extension_name) const
 {
-    return std::find(m_extensions.begin(),
-                     m_extensions.end(),
-                     extension_name) != m_extensions.end();
+    return std::find(m_global_layer.extensions.begin(),
+                     m_global_layer.extensions.end(),
+                     extension_name) != m_global_layer.extensions.end();
 }
 
 /** Please see header for specification */

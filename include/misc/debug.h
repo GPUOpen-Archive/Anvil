@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,7 @@
 
 
 #define is_vk_call_successful(result) \
-    (result == VK_SUCCESS || result == VK_ERROR_VALIDATION_FAILED_EXT)
+    (result == VK_SUCCESS || result == VK_ERROR_VALIDATION_FAILED_EXT || result == VK_INCOMPLETE)
 
 #define anvil_assert_vk_call_succeeded(result) \
     anvil_assert( is_vk_call_successful(result) )

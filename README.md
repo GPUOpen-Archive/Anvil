@@ -1,6 +1,6 @@
 # Anvil
 
-This is a README file for Anvil v1.2, a framework for Vulkan&trade;.
+This is a README file for Anvil v1.3, a framework for Vulkan&trade;.
 The README is organized as a FAQ.
 
 What license governs Anvil usage?
@@ -16,7 +16,7 @@ The general idea we started from was to have a cross-platform tool, which would
 reduce the amount of time required to write portable Vulkan-based apps from
 scratch. We would then find ourselves adding new features & extending the
 existing codebase with new wrappers every now and then.
-  
+
 This eventually led to the library we have decided to release to the public.
 
 Why? Do we really need another wrapper library for Vulkan?
@@ -43,7 +43,7 @@ Anvil is **not** the right choice for developers who do not have a reasonable
 understanding of how Vulkan works. Its goal is not to provide a glBegin/glEnd-like
 level of abstraction, but rather to give a sensible environment,
 in which you can rapidly prototype Vulkan applications.
-  
+
 What platforms and hardware does it work on?
 ------
 Currently, Anvil has been confirmed to build and work correctly under:
@@ -55,7 +55,8 @@ What are Anvil's requirements?
 In order to build Anvil, you will need the following software:
 - C++11 compiler.
 - CMake
-- Vulkan SDK 1.0.13.0 or newer
+- Vulkan RT 1.0.39.1 or newer.
+- Vulkan SDK 1.0.13.0 or newer.
 
 To build Anvil on Linux, additional packages should be installed:
 - libxcb-keysyms (For ubuntu, use "apt-get install libxcb-keysyms1-dev")
@@ -108,7 +109,7 @@ This version of Anvil provides:
 
 * Miscellaneous functionality:
    - Format info reflection:               provides information about format properties.
-   - GLSL -> SPIR-V conversion:            provides glslang-based GLSL->SPIR-V conversion. The conversion is performed in run-time.
+   - GLSL -> SPIR-V conversion:            provides glslang-based GLSL->SPIR-V conversion. The conversion is performed in run-time. Disassembly can also be retrieved, if needed.
    - IO:                                   provides a number of functions to simplify directory- and file-related operations.
    - Object tracker:                       tracks object allocations and helps detect object leakage.
    - Time:                                 provides a way to query current time using high-performance system queries.

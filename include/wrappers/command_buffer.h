@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -138,24 +138,11 @@ namespace Anvil
 
     enum CommandBufferCallbackID
     {
-        /* Call-back issued whenever a vkCmdBeginRenderPass() is recorded.
-         *
-         * callback_arg: BeginRenderPassCommandRecordedCallback instance.
-         **/
-        COMMAND_BUFFER_CALLBACK_ID_BEGIN_RENDER_PASS_COMMAND_RECORDED,
-
-        /* Call-back issued whenever a vkCmdEndRenderPass() is recorded.
-         *
-         * callback_arg: EndRenderPassCommandRecordedCallback instance.
-         **/
-        COMMAND_BUFFER_CALLBACK_ID_END_RENDER_PASS_COMMAND_RECORDED,
-
         /* Call-back issued whenever a vkCmdPipelineBarrier() is recorded.
          *
          * callback_arg: PipelineBarrierCommandRecordedCallback instance.
          */
         COMMAND_BUFFER_CALLBACK_ID_PIPELINE_BARRIER_COMMAND_RECORDED,
-
 
         /* Always last */
         COMMAND_BUFFER_CALLBACK_ID_COUNT
@@ -169,11 +156,12 @@ namespace Anvil
      */
     typedef struct BeginRenderPassCommand : public Command
     {
-        std::vector<VkClearValue>           clear_values;
-        VkSubpassContents                   contents;
-        std::shared_ptr<Anvil::Framebuffer> fbo_ptr;
-        VkRect2D                            render_area;
-        std::shared_ptr<Anvil::RenderPass>  render_pass_ptr;
+        std::vector<VkClearValue>                          clear_values;
+        VkSubpassContents                                  contents;
+        std::shared_ptr<Anvil::Framebuffer>                fbo_ptr;
+        std::vector<std::weak_ptr<Anvil::PhysicalDevice> > physical_devices;
+        std::vector<VkRect2D>                              render_areas;
+        std::shared_ptr<Anvil::RenderPass>                 render_pass_ptr;
 
         /** Constructor.
          *
@@ -181,12 +169,14 @@ namespace Anvil
          *
          *  Arguments as per Vulkan API.
          **/
-        explicit BeginRenderPassCommand(uint32_t                            in_n_clear_values,
-                                        const VkClearValue*                 in_clear_value_ptrs,
-                                        std::shared_ptr<Anvil::Framebuffer> in_fbo_ptr,
-                                        VkRect2D                            in_render_area,
-                                        std::shared_ptr<Anvil::RenderPass>  in_render_pass_ptr,
-                                        VkSubpassContents                   in_contents);
+        explicit BeginRenderPassCommand(uint32_t                                    in_n_clear_values,
+                                        const VkClearValue*                         in_clear_value_ptrs,
+                                        std::shared_ptr<Anvil::Framebuffer>         in_fbo_ptr,
+                                        uint32_t                                    in_n_physical_devices,
+                                        const std::weak_ptr<Anvil::PhysicalDevice>* in_physical_devices,
+                                        const VkRect2D*                             in_render_areas,
+                                        std::shared_ptr<Anvil::RenderPass>          in_render_pass_ptr,
+                                        VkSubpassContents                           in_contents);
 
         /** Destructor.
          *
@@ -262,9 +252,10 @@ namespace Anvil
         std::vector<ImageBarrier>  image_barriers;
         std::vector<MemoryBarrier> memory_barriers;
 
-        VkBool32                   by_region;
-        VkPipelineStageFlagBits    dst_stage_mask;
-        VkPipelineStageFlagBits    src_stage_mask;
+        VkDependencyFlagsVariable(flags);
+
+        VkPipelineStageFlagsVariable(dst_stage_mask);
+        VkPipelineStageFlagsVariable(src_stage_mask);
 
         /** Constructor.
          *
@@ -274,7 +265,7 @@ namespace Anvil
          **/
         explicit PipelineBarrierCommand(VkPipelineStageFlags       in_src_stage_mask,
                                         VkPipelineStageFlags       in_dst_stage_mask,
-                                        VkBool32                   in_by_region,
+                                        VkDependencyFlags          in_flags,
                                         uint32_t                   in_memory_barrier_count,
                                         const MemoryBarrier* const in_memory_barriers_ptr_ptr,
                                         uint32_t                   in_buffer_memory_barrier_count,
@@ -319,21 +310,6 @@ namespace Anvil
     class CommandBufferBase : public CallbacksSupportProvider
     {
     public:
-        /* Public type definitions */
-
-        /** Defines, to what extent occlusion queries are going to be used.
-         *
-         *  Only used for second-level command buffer recording policy declaration.
-         **/
-        typedef enum
-        {
-            /** Occlusion queries are not going to be used */
-            OCCLUSION_QUERY_SUPPORT_SCOPE_NOT_REQUIRED,
-
-            /** Occlusion queries may be used by this second-level command buffer */
-            OCCLUSION_QUERY_SUPPORT_SCOPE_REQUIRED,
-        } OcclusionQuerySupportScope;
-
         /* Public functions */
 
         /* Disables internal command stashing which is enbled for builds created with
@@ -365,6 +341,7 @@ namespace Anvil
         {
             return m_type;
         }
+
 
         /** Issues a vkCmdBeginQuery() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -1255,8 +1232,9 @@ namespace Anvil
         /** Holds all arguments passed to a vkCmdBeginQuery() command */
         typedef struct BeginQueryCommand : public Command
         {
+            VkQueryControlFlagsVariable(flags);
+
             Anvil::QueryIndex                 entry;
-            VkQueryControlFlags               flags;
             std::shared_ptr<Anvil::QueryPool> query_pool_ptr;
 
             /** Constructor. */
@@ -1270,7 +1248,6 @@ namespace Anvil
                 /* Stub */
             }
         } BeginQueryCommand;
-
 
         /** Holds all arguments passed to a vkCmdBindDescriptorSets() command. */
         typedef struct BindDescriptorSetsCommand : public Command
@@ -1397,7 +1374,6 @@ namespace Anvil
             }
         } BindVertexBuffersCommand;
 
-
         /** Holds all arguments passed to a vkCmdBlitImage() command. */
         typedef struct BlitImageCommand : public Command
         {
@@ -1434,9 +1410,10 @@ namespace Anvil
         /* Holds a single attachment definition, as used by ClearAttachmentsCommand descriptor */
         typedef struct ClearAttachmentsCommandAttachment
         {
-            VkImageAspectFlags aspect_mask;
-            VkClearValue       clear_value;
-            uint32_t           color_attachment;
+            VkImageAspectFlagsVariable(aspect_mask);
+
+            VkClearValue clear_value;
+            uint32_t     color_attachment;
 
             /** Constructor. **/
             ClearAttachmentsCommandAttachment(VkImageAspectFlags in_aspect_mask,
@@ -1527,7 +1504,6 @@ namespace Anvil
         private:
             ClearDepthStencilImageCommand& operator=(const ClearDepthStencilImageCommand& in);
         } ClearDepthStencilImageCommand;
-
 
         /** Holds all arguments passed to a vkCmdCopyBuffer() command. */
         typedef struct CopyBufferCommand : public Command
@@ -1645,11 +1621,12 @@ namespace Anvil
         /** Holds all arguments passed to a vkCmdCopyQueryPoolResults() command. */
         typedef struct CopyQueryPoolResultsCommand : public Command
         {
+            VkQueryResultFlagsVariable(flags);
+
             VkBuffer                          dst_buffer;
             std::shared_ptr<Anvil::Buffer>    dst_buffer_ptr;
             VkDeviceSize                      dst_offset;
             VkDeviceSize                      dst_stride;
-            VkQueryResultFlags                flags;
             uint32_t                          query_count;
             std::shared_ptr<Anvil::QueryPool> query_pool_ptr;
             Anvil::QueryIndex                 start_query;
@@ -1893,7 +1870,6 @@ namespace Anvil
 
         } EndQueryCommand;
 
-
         /** Holds all arguments passed to a vkCmdExecuteCommands() command. */
         typedef struct ExecuteCommandsCommand : public Command
         {
@@ -1960,10 +1936,11 @@ namespace Anvil
         /** Holds all arguments passed to a vkCmdPushConstants() command. */
         typedef struct PushConstantsCommand : public Command
         {
+            VkShaderStageFlagsVariable(stage_flags);
+
             std::shared_ptr<Anvil::PipelineLayout> layout_ptr;
             uint32_t                               offset;
             uint32_t                               size;
-            VkShaderStageFlags                     stage_flags;
             const void*                            values;
 
             /** Constructor. **/
@@ -1984,9 +1961,10 @@ namespace Anvil
         /** Holds all arguments passed to a vkCmdResetEvent() command. **/
         typedef struct ResetEventCommand : public Command
         {
+            VkPipelineStageFlagsVariable(stage_mask);
+
             VkEvent                       event;
             std::shared_ptr<Anvil::Event> event_ptr;
-            VkPipelineStageFlags          stage_mask;
 
             /** Constructor. **/
             explicit ResetEventCommand(std::shared_ptr<Anvil::Event> in_event_ptr,
@@ -2106,13 +2084,13 @@ namespace Anvil
             }
         } SetDepthBoundsCommand;
 
-
         /** Holds all arguments passed to a vkCmdSetEvent() command. **/
         typedef struct SetEventCommand : public Command
         {
             VkEvent                       event;
             std::shared_ptr<Anvil::Event> event_ptr;
-            VkPipelineStageFlags          stage_mask;
+
+            VkPipelineStageFlagsVariable(stage_mask);
 
             /** Constructor. **/
             explicit SetEventCommand(std::shared_ptr<Anvil::Event> in_event_ptr,
@@ -2167,8 +2145,9 @@ namespace Anvil
         /** Holds all arguments passed to a vkCmdSetStencilCompareMask() command. **/
         typedef struct SetStencilCompareMaskCommand : public Command
         {
-            VkStencilFaceFlags face_mask;
-            uint32_t           stencil_compare_mask;
+            VkStencilFaceFlagsVariable(face_mask);
+
+            uint32_t stencil_compare_mask;
 
             /** Constructor. **/
             explicit SetStencilCompareMaskCommand(VkStencilFaceFlags in_face_mask,
@@ -2185,8 +2164,9 @@ namespace Anvil
         /** Holds all arguments passed to a vkCmdSetStencilReference() command. **/
         typedef struct SetStencilReferenceCommand : public Command
         {
-            VkStencilFaceFlags face_mask;
-            uint32_t           stencil_reference;
+            VkStencilFaceFlagsVariable(face_mask);
+
+            uint32_t stencil_reference;
 
             /** Constructor. **/
             explicit SetStencilReferenceCommand(VkStencilFaceFlags in_face_mask,
@@ -2203,8 +2183,9 @@ namespace Anvil
         /** Holds all arguments passed to a vkCmdSetStencilWriteMask() command. **/
         typedef struct SetStencilWriteMaskCommand : public Command
         {
-            VkStencilFaceFlags face_mask;
-            uint32_t           stencil_write_mask;
+            VkStencilFaceFlagsVariable(face_mask);
+
+            uint32_t stencil_write_mask;
 
             /** Constructor. **/
             explicit SetStencilWriteMaskCommand(VkStencilFaceFlags in_face_mask,
@@ -2216,7 +2197,6 @@ namespace Anvil
                 /* Stub */
             }
         } SetStencilWriteMaskCommand;
-
 
         /** Holds all arguments passed to a vkCmdSetViewport() command. **/
         typedef struct SetViewportCommand : public Command
@@ -2266,14 +2246,15 @@ namespace Anvil
         /** Holds all arguments passed to a vkCmdWaitEvents() command. **/
         typedef struct WaitEventsCommand : public Command
         {
+            VkPipelineStageFlagsVariable(dst_stage_mask);
+            VkPipelineStageFlagsVariable(src_stage_mask);
+
             std::vector<BufferBarrier>  buffer_barriers;
             std::vector<ImageBarrier>   image_barriers;
             std::vector<MemoryBarrier>  memory_barriers;
 
-            VkPipelineStageFlagBits                     dst_stage_mask;
             std::vector<VkEvent>                        events;
             std::vector<std::shared_ptr<Anvil::Event> > event_ptrs;
-            VkPipelineStageFlagBits                     src_stage_mask;
 
             /** Constructor **/
             explicit WaitEventsCommand(uint32_t                       in_event_count,
@@ -2301,8 +2282,9 @@ namespace Anvil
         /** Holds all arguments passed to a vkCmdWriteTimestamp() command. **/
         typedef struct WriteTimestampCommand : public Command
         {
+            VkPipelineStageFlagsVariable(pipeline_stage);
+
             Anvil::QueryIndex                 entry;
-            VkPipelineStageFlagBits           pipeline_stage;
             std::shared_ptr<Anvil::QueryPool> query_pool_ptr;
 
             /** Constructor. **/
@@ -2324,7 +2306,7 @@ namespace Anvil
         typedef std::vector<Command> Commands;
 
         /* Protected functions */
-        explicit CommandBufferBase(std::weak_ptr<Anvil::Device>        device_ptr,
+        explicit CommandBufferBase(std::weak_ptr<Anvil::BaseDevice>    device_ptr,
                                    std::shared_ptr<Anvil::CommandPool> parent_command_pool_ptr,
                                    CommandBufferType                   type);
 
@@ -2340,7 +2322,7 @@ namespace Anvil
         #endif
 
         VkCommandBuffer                   m_command_buffer;
-        std::weak_ptr<Anvil::Device>      m_device_ptr;
+        std::weak_ptr<Anvil::BaseDevice>  m_device_ptr;
         bool                              m_is_renderpass_active;
         std::weak_ptr<Anvil::CommandPool> m_parent_command_pool_ptr;
         bool                              m_recording_in_progress;
@@ -2459,8 +2441,8 @@ namespace Anvil
          *  @param parent_command_pool_ptr Command pool to use as a parent. Must not be nullptr.
          *
          **/
-        PrimaryCommandBuffer(std::weak_ptr<Anvil::Device> device_ptr,
-                             std::shared_ptr<CommandPool> parent_command_pool_ptr);
+        PrimaryCommandBuffer(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                             std::shared_ptr<CommandPool>     parent_command_pool_ptr);
 
     private:
         friend class Anvil::CommandPool;
@@ -2520,8 +2502,8 @@ namespace Anvil
          *  @param parent_command_pool_ptr Command pool to use as a parent. Must not be nullptr.
          *
          **/
-        SecondaryCommandBuffer(std::weak_ptr<Anvil::Device> device_ptr,
-                               std::shared_ptr<CommandPool> parent_command_pool_ptr); 
+        SecondaryCommandBuffer(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                               std::shared_ptr<CommandPool>     parent_command_pool_ptr); 
 
     private:
         friend class Anvil::CommandPool;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -69,23 +69,27 @@ namespace Anvil
          *
          *  This call invalidates internally-maintained Vulkan DS and DS layout instances.
          *
-         *  @param n_set         Index of the descriptor set the new binding should be created for.
-         *                       This number must not be equal to or larger than the number of sets
-         *                       specified for the DSG at creation time.
-         *  @param binding       Index of the binding to create. This index must not have been used earlier
-         *                       to create another binding.
-         *  @param type          Type of descriptor(s), which are going to be used to configure the binding.
-         *  @param n_elements    Binding array's size. Must be at least 1.
-         *  @param shader_stages A bitfield combination of shader stage bits, telling which shader stages
-         *                       this binding is going to be used for.
+         *  @param n_set                  Index of the descriptor set the new binding should be created for.
+         *                                This number must not be equal to or larger than the number of sets
+         *                                specified for the DSG at creation time.
+         *  @param binding                Index of the binding to create. This index must not have been used earlier
+         *                                to create another binding.
+         *  @param type                   Type of descriptor(s), which are going to be used to configure the binding.
+         *  @param n_elements             Binding array's size. Must be at least 1.
+         *  @param shader_stages          A bitfield combination of shader stage bits, telling which shader stages
+         *                                this binding is going to be used for.
+         *  @param immutable_sampler_ptrs If not nullptr, an array of @param n_elements samplers should
+         *                                be passed. The binding will then be considered immutable, as per spec language.
+         *                                May be nullptr.
          *
          *  @return true if the function executed successfully, false otherwise.
          ***/
-        bool add_binding(uint32_t           n_set,
-                         uint32_t           binding,
-                         VkDescriptorType   type,
-                         uint32_t           n_elements,
-                         VkShaderStageFlags shader_stages);
+        bool add_binding(uint32_t                               n_set,
+                         uint32_t                               binding,
+                         VkDescriptorType                       type,
+                         uint32_t                               n_elements,
+                         VkShaderStageFlags                     shader_stages,
+                         const std::shared_ptr<Anvil::Sampler>* opt_immutable_sampler_ptrs = nullptr);
 
         /** Creates a new DescriptorSetGroup instance.
          *
@@ -104,9 +108,9 @@ namespace Anvil
          *                          false otherwise.
          *  @param n_sets           Number of descriptor sets this instance should store information for.
          */
-        static std::shared_ptr<DescriptorSetGroup> create(std::weak_ptr<Anvil::Device> device_ptr,
-                                                          bool                         releaseable_sets,
-                                                          uint32_t                     n_sets);
+        static std::shared_ptr<DescriptorSetGroup> create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                                          bool                             releaseable_sets,
+                                                          uint32_t                         n_sets);
 
         /** Creates a new DescriptorSetGroup instance.
          *
@@ -270,9 +274,9 @@ namespace Anvil
         /* Private functions */
 
         /** Please see create() documentation for more details. */
-        DescriptorSetGroup(std::weak_ptr<Anvil::Device> device_ptr,
-                           bool                         releaseable_sets,
-                           uint32_t                     n_sets);
+        DescriptorSetGroup(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                           bool                             releaseable_sets,
+                           uint32_t                         n_sets);
 
         /** Please see create() documentation for more details. */
         DescriptorSetGroup(std::shared_ptr<DescriptorSetGroup> parent_dsg_ptr,
@@ -288,12 +292,11 @@ namespace Anvil
         std::vector<std::shared_ptr<Anvil::DescriptorSet> >       m_cached_ds;
         std::vector<std::shared_ptr<Anvil::DescriptorSetLayout> > m_cached_ds_layouts;
         std::vector<VkDescriptorSet>                              m_cached_ds_vk;
-        std::vector<std::shared_ptr<Anvil::Sampler> >             m_cached_immutable_samplers;
 
         bool                                   m_descriptor_pool_dirty;
         std::shared_ptr<Anvil::DescriptorPool> m_descriptor_pool_ptr;
         std::map<uint32_t, DescriptorSetInfo>  m_descriptor_sets;
-        std::weak_ptr<Anvil::Device>           m_device_ptr;
+        std::weak_ptr<Anvil::BaseDevice>       m_device_ptr;
         uint32_t                               m_overhead_allocations[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
 
         uint32_t                   m_n_instantiated_sets;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -46,25 +46,31 @@ namespace Anvil
         virtual void close();
         virtual void run();
 
-        /* Tells if it's a dummy window (offscreen rendering thus no WSI/swapchain involved) */
-        virtual bool            is_dummy()
+        /* Returns window's platform */
+        WindowPlatform get_platform() const
         {
-            return false;
+            return WINDOW_PLATFORM_SYSTEM;
         }
 
-        /* This function should never be called under windows */
-        virtual void*           get_connection() const
+        /* This function should never be called under Windows */
+        virtual void* get_connection() const
         {
             anvil_assert(0);
 
             return nullptr;
         }
 
+        /** Changes the window title.
+         *
+         *  @param new_title Null-terminated string, holding the new title. Must not be NULL.
+         */
+        void set_title(const char* new_title);
+
     private:
         /* Private functions */
 
         /** Creates a new system window and prepares it for usage. */
-        void                    init();
+        void init();
 
         static LRESULT CALLBACK msg_callback_pfn_proc(HWND   window_handle,
                                                       UINT   message_id,

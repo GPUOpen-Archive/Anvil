@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -51,7 +51,7 @@ namespace Anvil
          *  @param device_ptr          Device to use to instantiate the shader module. Must not be nullptr.
          *  @param spirv_generator_ptr SPIR-V generator, initialized with a GLSL shader body.
          **/
-        static std::shared_ptr<ShaderModule> create_from_spirv_generator(std::weak_ptr<Anvil::Device>                device_ptr,
+        static std::shared_ptr<ShaderModule> create_from_spirv_generator(std::weak_ptr<Anvil::BaseDevice>            device_ptr,
                                                                          std::shared_ptr<GLSLShaderToSPIRVGenerator> spirv_generator_ptr);
 
         /** Creates a new shader module instance from a raw SPIR-V blob.
@@ -75,15 +75,15 @@ namespace Anvil
          *  @param vs_entrypoint_name Vertex shader stage entry-point, if one is defined in the blob.
          *                            Otherwise, should be set to nullptr.
          **/
-        static std::shared_ptr<ShaderModule> create_from_spirv_blob(std::weak_ptr<Anvil::Device> device_ptr,
-                                                                    const char*                  spirv_blob,
-                                                                    uint32_t                     n_spirv_blob_bytes,
-                                                                    const char*                  cs_entrypoint_name,
-                                                                    const char*                  fs_entrypoint_name,
-                                                                    const char*                  gs_entrypoint_name,
-                                                                    const char*                  tc_entrypoint_name,
-                                                                    const char*                  te_entrypoint_name,
-                                                                    const char*                  vs_entrypoint_name);
+        static std::shared_ptr<ShaderModule> create_from_spirv_blob(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                                                    const char*                      spirv_blob,
+                                                                    uint32_t                         n_spirv_blob_bytes,
+                                                                    const char*                      cs_entrypoint_name,
+                                                                    const char*                      fs_entrypoint_name,
+                                                                    const char*                      gs_entrypoint_name,
+                                                                    const char*                      tc_entrypoint_name,
+                                                                    const char*                      te_entrypoint_name,
+                                                                    const char*                      vs_entrypoint_name);
 
         /** Destructor. Releases internally maintained Vulkan shader module instance. */
         virtual ~ShaderModule();
@@ -96,6 +96,17 @@ namespace Anvil
         {
             return m_cs_entrypoint_name;
         }
+
+#ifdef ANVIL_LINK_WITH_GLSLANG
+        /** Returns a disassembly of the SPIR-V blob.
+         *
+         *  Only returns a non-empty string if ANVIL_LINK_WITH_GLSLANG is enabled.
+         */
+        const std::string& get_disassembly() const
+        {
+            return m_disassembly;
+        }
+#endif
 
         /** Returns name of the fragment shader stage entry-point, as defined at construction time.
          *
@@ -154,9 +165,9 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. Please see create() for specification */
-        explicit ShaderModule(std::weak_ptr<Anvil::Device>                device_ptr,
+        explicit ShaderModule(std::weak_ptr<Anvil::BaseDevice>            device_ptr,
                               std::shared_ptr<GLSLShaderToSPIRVGenerator> spirv_generator_ptr);
-        explicit ShaderModule(std::weak_ptr<Anvil::Device>                device_ptr,
+        explicit ShaderModule(std::weak_ptr<Anvil::BaseDevice>            device_ptr,
                               const char*                                 spirv_blob,
                               uint32_t                                    n_spirv_blob_bytes,
                               const char*                                 cs_entrypoint_name,
@@ -188,8 +199,12 @@ namespace Anvil
         const char* m_te_entrypoint_name;
         const char* m_vs_entrypoint_name;
 
-        std::weak_ptr<Anvil::Device> m_device_ptr;
-        VkShaderModule               m_module;
+        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
+        VkShaderModule                   m_module;
+
+#ifdef ANVIL_LINK_WITH_GLSLANG
+        std::string                  m_disassembly;
+#endif
     };
 }; /* namespace Anvil */
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -26,13 +26,13 @@
 #include "wrappers/semaphore.h"
 
 /* Please see header for specification */
-Anvil::Semaphore::Semaphore(std::weak_ptr<Anvil::Device> device_ptr)
+Anvil::Semaphore::Semaphore(std::weak_ptr<Anvil::BaseDevice> device_ptr)
     :m_device_ptr(device_ptr),
      m_semaphore (VK_NULL_HANDLE)
 {
     reset();
 
-    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_SEMAPHORE,
+    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SEMAPHORE,
                                                   this);
 }
 
@@ -41,12 +41,12 @@ Anvil::Semaphore::~Semaphore()
 {
     release_semaphore();
 
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_SEMAPHORE,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_SEMAPHORE,
                                                     this);
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Semaphore> Anvil::Semaphore::create(std::weak_ptr<Anvil::Device> device_ptr)
+std::shared_ptr<Anvil::Semaphore> Anvil::Semaphore::create(std::weak_ptr<Anvil::BaseDevice> device_ptr)
 {
     std::shared_ptr<Anvil::Semaphore> result_ptr;
 
@@ -62,7 +62,7 @@ void Anvil::Semaphore::release_semaphore()
 {
     if (m_semaphore != VK_NULL_HANDLE)
     {
-        std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
+        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
         vkDestroySemaphore(device_locked_ptr->get_device_vk(),
                            m_semaphore,
@@ -75,9 +75,11 @@ void Anvil::Semaphore::release_semaphore()
 /* Please see header for specification */
 void Anvil::Semaphore::reset()
 {
-    std::shared_ptr<Anvil::Device> device_locked_ptr(m_device_ptr);
-    VkResult                       result;
-    VkSemaphoreCreateInfo          semaphore_create_info;
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr    (m_device_ptr);
+    VkResult                           result               (VK_ERROR_INITIALIZATION_FAILED);
+    VkSemaphoreCreateInfo              semaphore_create_info;
+
+    ANVIL_REDUNDANT_VARIABLE(result);
 
     release_semaphore();
 

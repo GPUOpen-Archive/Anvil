@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -49,9 +49,9 @@ namespace Anvil
          *                                  for this query pool.
          *
          **/
-        static std::shared_ptr<QueryPool> create_non_ps_query_pool(std::weak_ptr<Anvil::Device> device_ptr,
-                                                                   VkQueryType                  query_type,
-                                                                   uint32_t                     n_max_concurrent_queries);
+        static std::shared_ptr<QueryPool> create_non_ps_query_pool(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                                                   VkQueryType                      query_type,
+                                                                   uint32_t                         n_max_concurrent_queries);
 
         /** Creates a new pipeline statistics query pool.
          *
@@ -63,9 +63,9 @@ namespace Anvil
          *  @param n_max_concurrent_queries Number of queries to preallocate in the pool.
          *
          **/
-        static std::shared_ptr<QueryPool> create_ps_query_pool(std::weak_ptr<Anvil::Device>  device_ptr,
-                                                               VkQueryPipelineStatisticFlags pipeline_statistics,
-                                                               uint32_t                      n_max_concurrent_queries);
+        static std::shared_ptr<QueryPool> create_ps_query_pool(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                                               VkQueryPipelineStatisticFlags    pipeline_statistics,
+                                                               uint32_t                         n_max_concurrent_queries);
 
         /** Destructor */
         virtual ~QueryPool();
@@ -85,31 +85,33 @@ namespace Anvil
 
     private:
         /* Constructor. Please see corresponding create() for specification */
-        explicit QueryPool(std::weak_ptr<Anvil::Device> device_ptr,
-                           VkQueryType                  query_type,
-                           uint32_t                     n_max_concurrent_queries);
+        explicit QueryPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                           VkQueryType                      in_query_type,
+                           uint32_t                         in_n_max_concurrent_queries);
 
         /* Constructor. Please see corresponding create() for specification */
-        explicit QueryPool(std::weak_ptr<Anvil::Device>  device_ptr,
-                           VkQueryPipelineStatisticFlags pipeline_statistics,
-                           uint32_t                      n_max_concurrent_queries);
-        /** TODO
+        explicit QueryPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                           VkQueryType                      in_query_type,
+                           VkFlags                          in_query_flags,
+                           uint32_t                         in_n_max_concurrent_queries);
+
+        /** Initializes the Vulkan counterpart.
          *
-         *  @param device_ptr               Device to create the query pool for. Must not be nullptr.
-         *  @param query_type               Type of the query to instantiate the worker for.
-         *  @param ps_flags                 Pipeline Statistic flags to instantiate the worker with.
-         *  @param n_max_concurrent_queries Maximum number of queries which can be used concurrently with
-         *                                  the query pool.
+         *  @param in_device_ptr               Device to create the query pool for. Must not be nullptr.
+         *  @param in_query_type               Type of the query to instantiate the pool for.
+         *  @param in_flags                    Query flags to instantiate the pool with.
+         *  @param in_n_max_concurrent_queries Maximum number of queries which can be used concurrently with
+         *                                     the query pool.
          **/
-        void init(std::weak_ptr<Anvil::Device>  device_ptr,
-                  VkQueryType                   query_type,
-                  VkQueryPipelineStatisticFlags ps_flags,
-                  uint32_t                      n_max_concurrent_queries);
+        void init(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                  VkQueryType                      in_query_type,
+                  VkFlags                          in_flags,
+                  uint32_t                         in_n_max_concurrent_queries);
 
         /* Private variables */
-        std::weak_ptr<Anvil::Device> m_device_ptr;
-        uint32_t                     m_n_max_indices;
-        VkQueryPool                  m_query_pool_vk;
+        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
+        uint32_t                         m_n_max_indices;
+        VkQueryPool                      m_query_pool_vk;
     };
 }; /* namespace Anvil */
 

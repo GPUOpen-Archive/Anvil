@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -65,7 +65,7 @@ namespace Anvil
          *
          *  @param device_ptr Device the layout is being created for. Must not be nullptr.
          */
-        static std::shared_ptr<PipelineLayout> create(std::weak_ptr<Anvil::Device> device_ptr);
+        static std::shared_ptr<PipelineLayout> create(std::weak_ptr<Anvil::BaseDevice> device_ptr);
 
         /** Initializes a new wrapper instance with user-specified descriptor set groups (appended
          *  one after another, in the user-defined order) defined at creation time.
@@ -75,37 +75,20 @@ namespace Anvil
          *  will result in a failure.
          *
          *  @param device_ptr           Device to use. Must not be nullptr.
-         *  @param dsgs                 Descriptor set groups to define for the pipeline layout.
+         *  @param dsg_ptr              Descriptor set group to use for the pipeline layout.
          *  @param push_constant_ranges Push constant ranges to define for the pipeline layout.
          *  @param is_immutable         true if the wrapper instance should be made immutable; false otherwise.
          *
          **/
-        static std::shared_ptr<PipelineLayout> create(std::weak_ptr<Anvil::Device> device_ptr,
-                                                      const DescriptorSetGroups&   dsgs,
-                                                      const PushConstantRanges&    push_constant_ranges,
-                                                      bool                         is_immutable);
+        static std::shared_ptr<PipelineLayout> create(std::weak_ptr<Anvil::BaseDevice>           device_ptr,
+                                                      std::shared_ptr<Anvil::DescriptorSetGroup> dsg_ptr,
+                                                      const PushConstantRanges&                  push_constant_ranges,
+                                                      bool                                       is_immutable);
 
         /** Destructor. Releases all attached descriptor set groups, as well as
          *  the Vulkan pipeline layout object.
          **/
         virtual ~PipelineLayout();
-
-        /** Appends the specified Descriptor Set Group to the list of Descriptor Sets that will
-         *  be used to generate the descriptor set layout.
-         *
-         *  This function will fail if the instance is defined as immutable.
-         *
-         *  This function marks the pipeline layout as dirty, meaning it will be re-baked at
-         *  the next get_() call.
-         *
-         *  @param layout_id ID of the pipeline layout to perform the operation on. This
-         *                   ID must have been returned by a preceding create_layout() call.
-         *  @param dsg_ptr   Pointer to the DescriptorSetGroup instance to use for the operation.
-         *                   This object will be retained.
-         *
-         *  @return true if the operation was successful, false otherwise.
-         **/
-        bool attach_dsg(std::shared_ptr<DescriptorSetGroup> dsg_ptr);
 
         /** Appends a new push constant range to the list of push constant ranges that will be used
          *  when baking the layout object.
@@ -131,16 +114,22 @@ namespace Anvil
          **/
         bool bake();
 
-        /** Retrieves a vector of descriptor set groups, attached to the pipeline layout. **/
-        const DescriptorSetGroups& get_attached_dsgs() const
+        /** Retrieves a descriptor set group, as assigned to the pipeline layout. */
+        std::shared_ptr<Anvil::DescriptorSetGroup> get_attached_dsg() const
         {
-            return m_dsgs;
+            return m_dsg_ptr;
         }
 
         /** Retrieves a vector of push constant ranges, attached to the pipeline layout. */
         const PushConstantRanges& get_attached_push_constant_ranges() const
         {
             return m_push_constant_ranges;
+        }
+
+        /** Returns unique ID assigned to the pipeline layout instance */
+        PipelineLayoutID get_id() const
+        {
+            return m_id;
         }
 
         /** Retrieves a raw Vulkan pipeline layout handle.
@@ -159,29 +148,46 @@ namespace Anvil
             return m_layout_vk;
         }
 
+        /** Assigns the specified Descriptor Set Group to the pipeline layout.
+         *
+         *  This function will fail if the instance is defined as immutable.
+         *
+         *  This function marks the pipeline layout as dirty, meaning it will be re-baked at
+         *  the next get_() call.
+         *
+         *  @param layout_id ID of the pipeline layout to perform the operation on. This
+         *                   ID must have been returned by a preceding create_layout() call.
+         *  @param dsg_ptr   Pointer to the DescriptorSetGroup instance to use for the operation.
+         *                   This object will be retained.
+         *
+         *  @return true if the operation was successful, false otherwise.
+         **/
+        bool set_dsg(std::shared_ptr<DescriptorSetGroup> dsg_ptr);
+
     private:
         /* Private functions */
 
         /* Constructor. Please see create() for specification */
-        PipelineLayout(std::weak_ptr<Anvil::Device> device_ptr);
+        PipelineLayout(std::weak_ptr<Anvil::BaseDevice> device_ptr);
 
         /* Constructor. Please see create() for specification */
-        PipelineLayout(std::weak_ptr<Anvil::Device> device_ptr,
-                       const DescriptorSetGroups&   dsgs,
-                       const PushConstantRanges&    push_constant_ranges,
-                       bool                         is_immutable);
+        PipelineLayout(std::weak_ptr<Anvil::BaseDevice>           device_ptr,
+                       std::shared_ptr<Anvil::DescriptorSetGroup> dsg_ptr,
+                       const PushConstantRanges&                  push_constant_ranges,
+                       bool                                       is_immutable);
 
         PipelineLayout           (const PipelineLayout&);
         PipelineLayout& operator=(const PipelineLayout&);
 
         /* Private variables */
-        std::weak_ptr<Anvil::Device> m_device_ptr;
-        bool                         m_is_immutable;
+        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
+        bool                             m_is_immutable;
 
-        bool                m_dirty;
-        DescriptorSetGroups m_dsgs;
-        VkPipelineLayout    m_layout_vk;
-        PushConstantRanges  m_push_constant_ranges;
+        bool                                       m_dirty;
+        std::shared_ptr<Anvil::DescriptorSetGroup> m_dsg_ptr;
+        Anvil::PipelineLayoutID                    m_id;
+        VkPipelineLayout                           m_layout_vk;
+        PushConstantRanges                         m_push_constant_ranges;
     };
 
 }; /* namespace Anvil */

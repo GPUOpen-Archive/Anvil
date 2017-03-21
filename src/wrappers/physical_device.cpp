@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,13 @@
 #include <algorithm>
 
 /* Please see header for specification */
+bool Anvil::operator==(const std::shared_ptr<Anvil::PhysicalDevice>& physical_device_ptr,
+                       const VkPhysicalDevice&                       physical_device_vk)
+{
+    return (physical_device_ptr->get_physical_device() == physical_device_vk);
+}
+
+/* Please see header for specification */
 std::weak_ptr<Anvil::PhysicalDevice> Anvil::PhysicalDevice::create(std::shared_ptr<Anvil::Instance> instance_ptr,
                                                                    uint32_t                         index,
                                                                    VkPhysicalDevice                 physical_device)
@@ -39,7 +46,7 @@ std::weak_ptr<Anvil::PhysicalDevice> Anvil::PhysicalDevice::create(std::shared_p
     instance_ptr->register_physical_device(physical_device_ptr);
 
     /* Register the physical device instance */
-    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectTracker::OBJECT_TYPE_PHYSICAL_DEVICE,
+    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_PHYSICAL_DEVICE,
                                                  physical_device_ptr.get() );
 
     return physical_device_ptr;
@@ -50,7 +57,7 @@ Anvil::PhysicalDevice::~PhysicalDevice()
 {
     anvil_assert(m_destroyed);
 
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectTracker::OBJECT_TYPE_PHYSICAL_DEVICE,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_PHYSICAL_DEVICE,
                                                     this);
 }
 
@@ -82,7 +89,9 @@ void Anvil::PhysicalDevice::init()
     uint32_t                         n_extensions             = 0;
     uint32_t                         n_physical_device_layers = 0;
     uint32_t                         n_physical_device_queues = 0;
-    VkResult                         result;
+    VkResult                         result                   = VK_ERROR_INITIALIZATION_FAILED;
+
+    ANVIL_REDUNDANT_VARIABLE(result);
 
     anvil_assert(m_physical_device != VK_NULL_HANDLE);
 
@@ -91,15 +100,15 @@ void Anvil::PhysicalDevice::init()
                                &m_features);
 
     /* Retrieve device format properties */
-    for (VkFormat current_format = (VkFormat) 1; /* skip the _UNDEFINED format */
-                  current_format < VK_FORMAT_END_RANGE;
-          ++(int&)current_format)
+    for (VkFormat current_format = (VkFormat)1; /* skip the _UNDEFINED format */
+        current_format < VK_FORMAT_RANGE_SIZE;
+        ++(int&)current_format)
     {
         VkFormatProperties format_props;
 
         vkGetPhysicalDeviceFormatProperties(m_physical_device,
-                                            current_format,
-                                           &format_props);
+            current_format,
+            &format_props);
 
         m_format_properties[current_format] = FormatProperties(format_props);
     }
@@ -187,6 +196,46 @@ void Anvil::PhysicalDevice::init()
             m_extensions.push_back(Anvil::Extension(extension_props[n_extension]) );
         }
     }
+
+}
+
+/* Please see header for specification */
+bool Anvil::PhysicalDevice::get_sparse_image_format_properties(VkFormat                                    in_format,
+                                                               VkImageType                                 in_type,
+                                                               VkSampleCountFlagBits                       in_sample_count,
+                                                               VkImageUsageFlags                           in_usage,
+                                                               VkImageTiling                               in_tiling,
+                                                               std::vector<VkSparseImageFormatProperties>& out_result) const
+{
+    /* TODO: It might be a good idea to cache the retrieved properties */
+    uint32_t n_properties = 0;
+
+    out_result.clear();
+
+    vkGetPhysicalDeviceSparseImageFormatProperties(m_physical_device,
+                                                   in_format,
+                                                   in_type,
+                                                   in_sample_count,
+                                                   in_usage,
+                                                   in_tiling,
+                                                  &n_properties,
+                                                   nullptr); /* pProperties */
+
+    if (n_properties > 0)
+    {
+        out_result.resize(n_properties);
+
+        vkGetPhysicalDeviceSparseImageFormatProperties(m_physical_device,
+                                                   in_format,
+                                                   in_type,
+                                                   in_sample_count,
+                                                   in_usage,
+                                                   in_tiling,
+                                                  &n_properties,
+                                                  &out_result[0]);
+    }
+
+    return true;
 }
 
 /* Please see header for specification */
@@ -206,7 +255,7 @@ bool Anvil::PhysicalDevice::is_layer_supported(const char* layer_name) const
 }
 
 /* Please see header for specification */
-void Anvil::PhysicalDevice::register_device(std::shared_ptr<Anvil::Device> device_ptr)
+void Anvil::PhysicalDevice::register_device(std::shared_ptr<Anvil::BaseDevice> device_ptr)
 {
     auto device_iterator = std::find(m_cached_devices.begin(),
                                      m_cached_devices.end(),
@@ -221,7 +270,7 @@ void Anvil::PhysicalDevice::register_device(std::shared_ptr<Anvil::Device> devic
 }
 
 /* Please see header for specification */
-void Anvil::PhysicalDevice::unregister_device(std::shared_ptr<Anvil::Device> device_ptr)
+void Anvil::PhysicalDevice::unregister_device(std::shared_ptr<Anvil::BaseDevice> device_ptr)
 {
     auto device_iterator = std::find(m_cached_devices.begin(),
                                      m_cached_devices.end(),

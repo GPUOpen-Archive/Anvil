@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -64,7 +64,7 @@ namespace Anvil
         *                                     it will be used instead.
         *  @param pipeline_cache_to_reuse_ptr Please see above.
         **/
-       explicit BasePipelineManager(std::weak_ptr<Anvil::Device>          device_ptr,
+       explicit BasePipelineManager(std::weak_ptr<Anvil::BaseDevice>      device_ptr,
                                     bool                                  use_pipeline_cache          = false,
                                     std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr = std::shared_ptr<Anvil::PipelineCache>() );
 
@@ -89,8 +89,9 @@ namespace Anvil
                                                    uint32_t           size,
                                                    VkShaderStageFlags stages);
 
-       /** Appends all descriptor sets, in order as described by the specified DescriptorSetGroup instance, to the
-        *  list of descriptor sets which have been already defined for the specified pipeline object.
+       virtual bool bake() = 0;
+
+       /** Assigns DSes encapsulated in the user-specified DSG to the pipeline.
         *
         *  This function marks the pipeline as dirty, meaning it will be re-baked at the next get_*() call.
         *
@@ -99,10 +100,47 @@ namespace Anvil
         *
         *  @return true if successful, false otherwise.
         **/
-       bool attach_dsg_to_pipeline(PipelineID                                 pipeline_id,
-                                   std::shared_ptr<Anvil::DescriptorSetGroup> dsg_ptr);
+       bool set_pipeline_dsg(PipelineID                                 pipeline_id,
+                             std::shared_ptr<Anvil::DescriptorSetGroup> dsg_ptr);
 
-       virtual bool bake() = 0;
+       /** Retrieves general properties of a pipeline.
+        *
+        *  @param out_opt_has_optimizations_disabled_ptr If not NULL, deref will be set to true if the pipeline
+        *                                                has been created with enabled optimizations, or false
+        *                                                if optimizations have been explicitly disabled.
+        *  @param out_opt_allows_derivatives_ptr         If not NULL, deref will be set to true if the pipeline
+        *                                                has been created with support for derivative pipelines,
+        *                                                or false otherwise.
+        *  @param out_opt_is_a_derivative_ptr            If not NULL, deref will be set to true if the specified
+        *                                                pipeline is a derivative pipeline, or to false otherwise.
+        *
+        *  @return true if successful, false otherwise.
+        */
+       bool get_general_pipeline_properties(PipelineID pipeline_id,
+                                            bool*      out_opt_has_optimizations_disabled_ptr,
+                                            bool*      out_opt_allows_derivatives_ptr,
+                                            bool*      out_opt_is_a_derivative_ptr) const;
+
+       /** Returns the number of created pipelines */
+       uint32_t get_n_pipelines() const
+       {
+           return static_cast<uint32_t>(m_pipelines.size() );
+       }
+
+       /** Returns ID of a pipeline at user-specified index.
+        *
+        *  @param n_pipeline          Index of the pipeline to return ID of.
+        *  @param out_pipeline_id_ptr
+        *
+        *  @return true if successful, false otherwise.
+        **/
+       bool get_pipeline_id_at_index(uint32_t    n_pipeline,
+                                     PipelineID* out_pipeline_id_ptr) const;
+
+       /** Returns shader stage information for each stage, as specified at creation time */
+       bool get_shader_stage_properties(PipelineID                   pipeline_id,
+                                        Anvil::ShaderStage           shader_stage,
+                                        ShaderModuleStageEntryPoint* opt_out_result_ptr) const;
 
        /** By default, a pipeline is bakeable which means it may be baked even when the pipeline manager is
         *  requested to provide a Vulkan pipeline handle for another pipeline. In such cases, the manager
@@ -127,9 +165,9 @@ namespace Anvil
            /** Dummy constructor. Should only be used by STL containers. */
            SpecializationConstant()
            {
-               constant_id  = -1;
-               n_bytes      = -1;
-               start_offset = -1;
+               constant_id  = UINT32_MAX;
+               n_bytes      = UINT32_MAX;
+               start_offset = UINT32_MAX;
            }
 
            /** Constructor.
@@ -156,9 +194,9 @@ namespace Anvil
        {
            VkPipeline                base_pipeline;
            std::shared_ptr<Pipeline> base_pipeline_ptr;
-           std::weak_ptr<Device>     device_ptr;
+           std::weak_ptr<BaseDevice> device_ptr;
 
-           DescriptorSetGroups                     descriptor_set_groups;
+           std::shared_ptr<DescriptorSetGroup>     dsg_ptr;
            PushConstantRanges                      push_constant_ranges;
            std::vector<unsigned char>              specialization_constant_data_buffer;
            ShaderIndexToSpecializationConstantsMap specialization_constants_map;
@@ -173,6 +211,7 @@ namespace Anvil
            bool             dirty;
            bool             disable_optimizations;
            bool             is_bakeable;
+           bool             is_derivative;
            bool             is_proxy;
 
            /** Stores the specified shader modules and associates an empty specialization constant map for each
@@ -216,7 +255,7 @@ namespace Anvil
             *  @param in_shader_module_stage_entrypoint_ptrs Array of shader module stage entrypoint descriptors. Must hold
             *                                                @param in_n_shader_module_stage_entrypoints elements. Must not be nullptr.
             **/
-           Pipeline(std::weak_ptr<Anvil::Device>       in_device_ptr,
+           Pipeline(std::weak_ptr<Anvil::BaseDevice>   in_device_ptr,
                     bool                               in_disable_optimizations,
                     bool                               in_allow_derivatives,
                     std::shared_ptr<Pipeline>          in_base_pipeline_ptr,
@@ -231,6 +270,7 @@ namespace Anvil
                dirty                 = true;
                disable_optimizations = in_disable_optimizations;
                is_bakeable           = true;
+               is_derivative         = true;
                is_proxy              = false;
                layout_dirty          = true;
 
@@ -254,7 +294,7 @@ namespace Anvil
             *  @param in_shader_module_stage_entrypoint_ptrs Array of shader module stage entrypoint descriptors. Must hold
             *                                                @param in_n_shader_module_stage_entrypoints elements. Must not be nullptr.
             **/
-           Pipeline(std::weak_ptr<Anvil::Device>       in_device_ptr,
+           Pipeline(std::weak_ptr<Anvil::BaseDevice>   in_device_ptr,
                     bool                               in_disable_optimizations,
                     bool                               in_allow_derivatives,
                     VkPipeline                         in_base_pipeline,
@@ -268,6 +308,7 @@ namespace Anvil
                dirty                 = true;
                disable_optimizations = in_disable_optimizations;
                is_bakeable           = true;
+               is_derivative         = true;
                is_proxy              = false;
                layout_dirty          = true;
 
@@ -289,7 +330,7 @@ namespace Anvil
             *  @param in_is_proxy                            true if the created pipeline is a proxy pipeline; false otherwise.
             * 
             **/
-           Pipeline(std::weak_ptr<Anvil::Device>       in_device_ptr,
+           Pipeline(std::weak_ptr<Anvil::BaseDevice>   in_device_ptr,
                     bool                               in_disable_optimizations,
                     bool                               in_allow_derivatives,
                     uint32_t                           in_n_shader_module_stage_entrypoints,
@@ -303,6 +344,7 @@ namespace Anvil
                dirty                 = true;
                disable_optimizations = in_disable_optimizations;
                is_bakeable           = true;
+               is_derivative         = false;
                is_proxy              = in_is_proxy;
                layout_dirty          = true;
 
@@ -482,9 +524,9 @@ namespace Anvil
        std::shared_ptr<Anvil::PipelineLayout> get_pipeline_layout(PipelineID pipeline_id);
 
        /* Protected members */
-       std::weak_ptr<Anvil::Device> m_device_ptr;
-       uint32_t                     m_pipeline_counter;
-       Pipelines                    m_pipelines;
+       std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
+       uint32_t                         m_pipeline_counter;
+       Pipelines                        m_pipelines;
 
        std::shared_ptr<Anvil::PipelineCache>  m_pipeline_cache_ptr;
        std::shared_ptr<PipelineLayoutManager> m_pipeline_layout_manager_ptr;

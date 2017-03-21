@@ -1,11 +1,11 @@
 //
-//Copyright (C) 2014-2015 LunarG, Inc.
+// Copyright (C) 2014-2015 LunarG, Inc.
 //
-//All rights reserved.
+// All rights reserved.
 //
-//Redistribution and use in source and binary forms, with or without
-//modification, are permitted provided that the following conditions
-//are met:
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
 //
 //    Redistributions of source code must retain the above copyright
 //    notice, this list of conditions and the following disclaimer.
@@ -19,18 +19,18 @@
 //    contributors may be used to endorse or promote products derived
 //    from this software without specific prior written permission.
 //
-//THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-//INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-//BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-//LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-//CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-//LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-//ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-//POSSIBILITY OF SUCH DAMAGE.
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+// FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+// COPYRIGHT HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+// BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+// CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+// LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
 
 //
 // Disassembler for SPIR-V.
@@ -51,9 +51,11 @@ namespace spv {
     extern "C" {
         // Include C-based headers that don't have a namespace
         #include "GLSL.std.450.h"
-        #include "GLSL.ext.KHR.h"
 #ifdef AMD_EXTENSIONS
         #include "GLSL.ext.AMD.h"
+#endif
+#ifdef NV_EXTENSIONS
+        #include "GLSL.ext.NV.h"
 #endif
     }
 }
@@ -61,9 +63,12 @@ const char* GlslStd450DebugNames[spv::GLSLstd450Count];
 
 namespace spv {
 
-static const char* GLSLextKHRGetDebugNames(const char*, unsigned);
 #ifdef AMD_EXTENSIONS
 static const char* GLSLextAMDGetDebugNames(const char*, unsigned);
+#endif
+
+#ifdef NV_EXTENSIONS
+static const char* GLSLextNVGetDebugNames(const char*, unsigned);
 #endif
 
 static void Kill(std::ostream& out, const char* message)
@@ -75,9 +80,11 @@ static void Kill(std::ostream& out, const char* message)
 // used to identify the extended instruction library imported when printing
 enum ExtInstSet {
     GLSL450Inst,
-    GLSLextKHRInst,
 #ifdef AMD_EXTENSIONS
     GLSLextAMDInst,
+#endif
+#ifdef NV_EXTENSIONS
+    GLSLextNVInst,
 #endif
     OpenCLExtInst,
 };
@@ -220,10 +227,12 @@ void SpirvStream::outputIndent()
 
 void SpirvStream::formatId(Id id, std::stringstream& idStream)
 {
-    if (id >= bound)
-        Kill(out, "Bad <id>");
-
     if (id != 0) {
+        // On instructions with no IDs, this is called with "0", which does not
+        // have to be within ID bounds on null shaders.
+        if (id >= bound)
+            Kill(out, "Bad <id>");
+
         idStream << id;
         if (idDescriptor[id].size() > 0)
             idStream << "(" << idDescriptor[id] << ")";
@@ -337,7 +346,7 @@ void SpirvStream::disassembleInstruction(Id resultId, Id /*typeId*/, Op opCode, 
         idDescriptor[resultId] = (const char*)(&stream[word]);
     }
     else {
-        if (idDescriptor[resultId].size() == 0) {
+        if (resultId != 0 && idDescriptor[resultId].size() == 0) {
             switch (opCode) {
             case OpTypeInt:
                 idDescriptor[resultId] = "int";
@@ -464,8 +473,6 @@ void SpirvStream::disassembleInstruction(Id resultId, Id /*typeId*/, Op opCode, 
                 const char* name = idDescriptor[stream[word - 2]].c_str();
                 if (0 == memcmp("OpenCL", name, 6)) {
                     extInstSet = OpenCLExtInst;
-                } else if (strcmp(spv::E_SPV_ARB_shader_ballot, name) == 0) {
-                    extInstSet = GLSLextKHRInst;
 #ifdef AMD_EXTENSIONS
                 } else if (strcmp(spv::E_SPV_AMD_shader_ballot, name) == 0 ||
                            strcmp(spv::E_SPV_AMD_shader_trinary_minmax, name) == 0 ||
@@ -473,19 +480,27 @@ void SpirvStream::disassembleInstruction(Id resultId, Id /*typeId*/, Op opCode, 
                            strcmp(spv::E_SPV_AMD_gcn_shader, name) == 0) {
                     extInstSet = GLSLextAMDInst;
 #endif
+#ifdef NV_EXTENSIONS
+                }else if (strcmp(spv::E_SPV_NV_sample_mask_override_coverage, name) == 0 ||
+                          strcmp(spv::E_SPV_NV_geometry_shader_passthrough, name) == 0 ||
+                          strcmp(spv::E_SPV_NV_viewport_array2, name) == 0 ||
+                          strcmp(spv::E_SPV_NVX_multiview_per_view_attributes, name) == 0) {
+                    extInstSet = GLSLextNVInst;
+#endif
                 }
-
                 unsigned entrypoint = stream[word - 1];
                 if (extInstSet == GLSL450Inst) {
                     if (entrypoint < GLSLstd450Count) {
                         out << "(" << GlslStd450DebugNames[entrypoint] << ")";
                     }
-                }
-                else if (extInstSet = GLSLextKHRInst) {
-                    out << "(" << GLSLextKHRGetDebugNames(name, entrypoint) << ")";
 #ifdef AMD_EXTENSIONS
                 } else if (extInstSet == GLSLextAMDInst) {
                     out << "(" << GLSLextAMDGetDebugNames(name, entrypoint) << ")";
+#endif
+#ifdef NV_EXTENSIONS
+                }
+                else if (extInstSet == GLSLextNVInst) {
+                    out << "(" << GLSLextNVGetDebugNames(name, entrypoint) << ")";
 #endif
                 }
             }
@@ -594,21 +609,6 @@ static void GLSLstd450GetDebugNames(const char** names)
     names[GLSLstd450InterpolateAtOffset]     = "InterpolateAtOffset";
 }
 
-static const char* GLSLextKHRGetDebugNames(const char* name, unsigned entrypoint)
-{
-    if (strcmp(name, spv::E_SPV_ARB_shader_ballot) == 0)
-    {
-        switch (entrypoint) {
-        case BallotARB:                 return "BallotARB";
-        case ReadInvocationARB:         return "ReadInvocationARB";
-        case ReadFirstInvocationARB:    return "ReadFirstInvocationARB";
-        default:                        return "Bad";
-        }
-    }
-
-    return "Bad";
-}
-
 #ifdef AMD_EXTENSIONS
 static const char* GLSLextAMDGetDebugNames(const char* name, unsigned entrypoint)
 {
@@ -649,6 +649,36 @@ static const char* GLSLextAMDGetDebugNames(const char* name, unsigned entrypoint
         }
     }
 
+    return "Bad";
+}
+#endif
+
+
+#ifdef NV_EXTENSIONS
+static const char* GLSLextNVGetDebugNames(const char* name, unsigned entrypoint)
+{
+    if (strcmp(name, spv::E_SPV_NV_sample_mask_override_coverage) == 0 ||
+        strcmp(name, spv::E_SPV_NV_geometry_shader_passthrough) == 0 ||
+        strcmp(name, spv::E_ARB_shader_viewport_layer_array) == 0 ||
+        strcmp(name, spv::E_SPV_NV_viewport_array2) == 0 ||
+        strcmp(spv::E_SPV_NVX_multiview_per_view_attributes, name) == 0) {
+        switch (entrypoint) {
+        case DecorationOverrideCoverageNV:          return "OverrideCoverageNV";
+        case DecorationPassthroughNV:               return "PassthroughNV";
+        case CapabilityGeometryShaderPassthroughNV: return "GeometryShaderPassthroughNV";
+        case DecorationViewportRelativeNV:          return "ViewportRelativeNV";
+        case BuiltInViewportMaskNV:                 return "ViewportMaskNV";
+        case CapabilityShaderViewportMaskNV:        return "ShaderViewportMaskNV";
+        case DecorationSecondaryViewportRelativeNV: return "SecondaryViewportRelativeNV";
+        case BuiltInSecondaryPositionNV:            return "SecondaryPositionNV";
+        case BuiltInSecondaryViewportMaskNV:        return "SecondaryViewportMaskNV";
+        case CapabilityShaderStereoViewNV:          return "ShaderStereoViewNV";
+        case BuiltInPositionPerViewNV:              return "PositionPerViewNV";
+        case BuiltInViewportMaskPerViewNV:          return "ViewportMaskPerViewNV";
+        case CapabilityPerViewAttributesNV:         return "PerViewAttributesNV";
+        default:                                    return "Bad";
+        }
+    }
     return "Bad";
 }
 #endif

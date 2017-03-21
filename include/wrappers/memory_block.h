@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -56,13 +56,13 @@ namespace Anvil
          *                             which is host-visible. False, if the memory block is never going
          *                             to be mapped into process space.
          *  @param should_be_coherent  true if the underlying memory backing should come from a heap
-         *                             which support coherent accesses. false otherwise.
+         *                             which supports coherent accesses. false otherwise.
          **/
-         static std::shared_ptr<MemoryBlock> create(std::weak_ptr<Anvil::Device> device_ptr,
-                                                    uint32_t                     allowed_memory_bits,
-                                                    VkDeviceSize                 size,
-                                                    bool                         should_be_mappable,
-                                                    bool                         should_be_coherent);
+         static std::shared_ptr<MemoryBlock> create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                                    uint32_t                         allowed_memory_bits,
+                                                    VkDeviceSize                     size,
+                                                    bool                             should_be_mappable,
+                                                    bool                             should_be_coherent);
 
         /** Create a memory block whose storage space is maintained by another MemoryBlock instance.
          *
@@ -79,7 +79,7 @@ namespace Anvil
                                                            VkDeviceSize                 start_offset,
                                                            VkDeviceSize                 size);
 
-        /** TODO */
+        /** Releases the Vulkan counterpart and unregisters the wrapper instance from the object tracker */
         virtual ~MemoryBlock();
 
         /* Returns the underlying raw Vulkan VkDeviceMemory handle. */
@@ -95,6 +95,12 @@ namespace Anvil
             }
         }
 
+        /* Returns the assigned name */
+        const std::string& get_name() const
+        {
+            return m_name;
+        }
+
         /** Returns the memory type index the memory block was allocated from */
         uint32_t get_memory_type_index() const
         {
@@ -106,6 +112,12 @@ namespace Anvil
             {
                 return m_memory_type_index;
             }
+        }
+
+        /* Returns parent memory block, if one has been defined for this instance */
+        std::shared_ptr<Anvil::MemoryBlock> get_parent_memory_block() const
+        {
+            return m_parent_memory_block_ptr;
         }
 
         /* Returns the size of the memory block. */
@@ -189,6 +201,12 @@ namespace Anvil
                   VkDeviceSize size,
                   void*        out_result_ptr);
 
+        /** Assigns a new name to the memory block instance */
+        void set_name(std::string name)
+        {
+            m_name = name;
+        }
+
         /** Unmaps the mapped storage from the process space.
          *
          *  The call should only be made after a map() call.
@@ -216,13 +234,14 @@ namespace Anvil
 
     private:
         /* Private functions */
+        bool init();
 
         /** Please see create() for documentation */
-        MemoryBlock(std::weak_ptr<Anvil::Device> device_ptr,
-                    uint32_t                     allowed_memory_bits,
-                    VkDeviceSize                 size,
-                    bool                         should_be_mappable,
-                    bool                         should_be_coherent);
+        MemoryBlock(std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                    uint32_t                         allowed_memory_bits,
+                    VkDeviceSize                     size,
+                    bool                             should_be_mappable,
+                    bool                             should_be_coherent);
 
         /** Please see create() for documentation */
         MemoryBlock(std::shared_ptr<MemoryBlock> parent_memory_block_ptr,
@@ -240,17 +259,18 @@ namespace Anvil
                                               VkDeviceSize size);
 
         /* Private members */
-        void*                m_gpu_data_ptr;
-        bool                 m_gpu_data_user_mapped;
-        VkDeviceSize         m_gpu_data_user_size;
-        VkDeviceSize         m_gpu_data_user_start_offset;
+        void*        m_gpu_data_ptr;
+        bool         m_gpu_data_user_mapped;
+        VkDeviceSize m_gpu_data_user_size;
+        VkDeviceSize m_gpu_data_user_start_offset;
 
         uint32_t                            m_allowed_memory_bits;
-        std::weak_ptr<Anvil::Device>        m_device_ptr;
+        std::weak_ptr<Anvil::BaseDevice>    m_device_ptr;
         bool                                m_is_coherent;
         bool                                m_is_mappable;
         VkDeviceMemory                      m_memory;
         uint32_t                            m_memory_type_index;
+        std::string                         m_name;
         std::shared_ptr<Anvil::MemoryBlock> m_parent_memory_block_ptr;
         VkDeviceSize                        m_size;
         VkDeviceSize                        m_start_offset;

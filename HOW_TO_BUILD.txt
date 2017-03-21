@@ -22,4 +22,3 @@ This can be easily achieved by doing the following:
     For a list of IDEs supported by your cmake installation, simply run:
 
     cmake --help
-

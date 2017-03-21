@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -72,19 +72,15 @@ namespace Anvil
 
         /** Creates a single Vulkan rendering surface instance and registers the object in
          *  Object Tracker. */
-        static std::shared_ptr<RenderingSurface> create(std::weak_ptr<Anvil::Instance>                instance_ptr,
-                                                        std::weak_ptr<Anvil::PhysicalDevice>          physical_device_ptr,
-                                                        std::shared_ptr<Anvil::Window>                window_ptr,
+        static std::shared_ptr<RenderingSurface> create(std::weak_ptr<Anvil::Instance>             instance_ptr,
+                                                        std::weak_ptr<Anvil::BaseDevice>           device_ptr,
+                                                        std::shared_ptr<Anvil::Window>             window_ptr,
+                                                        const ExtensionKHRSurfaceEntrypoints&      khr_surface_entrypoints,
 #ifdef _WIN32
-                                                        PFN_vkCreateWin32SurfaceKHR                   pfn_create_win32_surface_khr_proc,
+                                                        const ExtensionKHRWin32SurfaceEntrypoints& khr_win32_surface_entrypoints);
 #else
-                                                        PFN_vkCreateXcbSurfaceKHR                     pfn_create_xcb_surface_khr_proc,
+                                                        const ExtensionKHRXcbSurfaceEntrypoints&   khr_xcb_surface_entrypoints);
 #endif
-                                                        PFN_vkDestroySurfaceKHR                       pfn_destroy_surface_khr_proc,
-                                                        PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR pfn_get_physical_device_surface_capabilities_khr_proc,
-                                                        PFN_vkGetPhysicalDeviceSurfaceFormatsKHR      pfn_get_physical_device_surface_formats_khr_proc,
-                                                        PFN_vkGetPhysicalDeviceSurfacePresentModesKHR pfn_get_physical_device_surface_present_modes_khr_proc,
-                                                        PFN_vkGetPhysicalDeviceSurfaceSupportKHR      pfn_get_physical_device_surface_support_khr_proc);
 
         /** Destructor
          *
@@ -94,10 +90,8 @@ namespace Anvil
         virtual ~RenderingSurface();
 
         /** Returns rendering surface capabilities */
-        const VkSurfaceCapabilitiesKHR& get_capabilities() const
-        {
-            return m_capabilities;
-        }
+        bool get_capabilities(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                              VkSurfaceCapabilitiesKHR*            out_surface_caps_ptr) const;
 
         /** Returns rendering surface's height */
         uint32_t get_height() const
@@ -107,29 +101,23 @@ namespace Anvil
             return m_height;
         }
 
-        /** Returns physical device which was used to create this surface */
-        std::weak_ptr<const Anvil::PhysicalDevice> get_physical_device() const
+        /** Returns logical device which was used to create this surface */
+        std::weak_ptr<const Anvil::BaseDevice> get_evice() const
         {
-            return m_physical_device_ptr;
+            return m_device_ptr;
         }
 
         /** Returns composite alpha modes supported by the rendering surface */
-        VkCompositeAlphaFlagsKHR get_supported_composite_alpha_flags() const
-        {
-            return static_cast<VkCompositeAlphaFlagsKHR>(m_supported_composite_alpha_flags);
-        }
+        bool get_supported_composite_alpha_flags(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                                                 VkCompositeAlphaFlagsKHR*            out_result_ptr) const;
 
         /** Returns transformations supported by the rendering surface */
-        VkSurfaceTransformFlagsKHR get_supported_transformations() const
-        {
-            return static_cast<VkSurfaceTransformFlagsKHR>(m_supported_transformations);
-        }
+        bool get_supported_transformations(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                                           VkSurfaceTransformFlagsKHR*          out_result_ptr) const;
 
         /** Returns flags corresponding to image usage supported by the rendering surface */
-        VkImageUsageFlags get_supported_usages() const
-        {
-            return static_cast<VkImageUsageFlags>(m_supported_usages);
-        }
+        bool get_supported_usages(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                                  VkImageUsageFlags*                   out_result_ptr) const;
 
         /** Retrieves a raw handle to the underlying Vulkan Rendering Surface */
         VkSurfaceKHR get_surface() const
@@ -153,51 +141,50 @@ namespace Anvil
 
         /* Tells whether the specified image format can be used for swapchain image initialization, using
          * this rendering surface. */
-        bool is_compatible_with_image_format(VkFormat image_format) const
-        {
-            return std::find(m_supported_formats.begin(),
-                             m_supported_formats.end(),
-                             image_format) != m_supported_formats.end();
-        }
-
-        /* Tells whether the rendering surface can be presented using the specified queue */
-        VkResult supports_presentation_for_queue(Anvil::Queue* queue_ptr,
-                                                 VkBool32*     out_result_ptr) const
-        {
-            std::shared_ptr<const Anvil::Device>         device_locked_ptr         (queue_ptr->get_parent_device() );
-            std::shared_ptr<const Anvil::PhysicalDevice> physical_device_locked_ptr(device_locked_ptr->get_physical_device() );
-
-            return m_vkGetPhysicalDeviceSurfaceSupportKHR(physical_device_locked_ptr->get_physical_device(),
-                                                          queue_ptr->get_queue_family_index(),
-                                                          m_surface,
-                                                          out_result_ptr);
-        }
+        bool is_compatible_with_image_format(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                                             VkFormat                             image_format,
+                                             bool*                                out_result_ptr) const;
 
         /* Tells whether the specified presentation mode is supported by the rendering surface */
-        bool supports_presentation_mode(VkPresentModeKHR presentation_mode) const
-        {
-            return std::find(m_supported_presentation_modes.begin(),
-                             m_supported_presentation_modes.end(),
-                             presentation_mode) != m_supported_presentation_modes.end();
-        }
+        bool supports_presentation_mode(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+                                        VkPresentModeKHR                     presentation_mode,
+                                        bool*                                out_result_ptr) const;
 
     private:
+        /* Private type definitions */
+        typedef uint32_t DeviceGroupIndex;
+
+        typedef struct PhysicalDeviceCapabilities
+        {
+            VkSurfaceCapabilitiesKHR            capabilities;
+            std::vector<RenderingSurfaceFormat> supported_formats;
+            std::vector<VkPresentModeKHR>       supported_presentation_modes;
+
+            VkCompositeAlphaFlagsKHRVariable  (supported_composite_alpha_flags);
+            VkSurfaceTransformFlagsKHRVariable(supported_transformations);
+            VkImageUsageFlagsVariable         (supported_usages);
+
+            PhysicalDeviceCapabilities()
+            {
+                memset(&capabilities,
+                       0,
+                       sizeof(capabilities) );
+            }
+        } PhysicalDeviceCapabilities;
+
         /* Private functions */
 
         /* Constructor. Please see create() for specification */
-        RenderingSurface(std::weak_ptr<Anvil::Instance>                instance_ptr,
-                         std::weak_ptr<Anvil::PhysicalDevice>          physical_device_ptr,
-                         std::shared_ptr<Anvil::Window>                window_ptr,
+        RenderingSurface(std::weak_ptr<Anvil::Instance>             instance_ptr,
+                         std::weak_ptr<Anvil::BaseDevice>           device_ptr,
+                         std::shared_ptr<Anvil::Window>             window_ptr,
+                         const ExtensionKHRSurfaceEntrypoints&      khr_surface_entrypoints,
 #ifdef _WIN32
-                         PFN_vkCreateWin32SurfaceKHR                   pfn_create_win32_surface_khr_proc,
+                         const ExtensionKHRWin32SurfaceEntrypoints& khr_win32_surface_entrypoints,
 #else
-                         PFN_vkCreateXcbSurfaceKHR                     pfn_create_xcb_surface_khr_proc,
+                         const ExtensionKHRXcbSurfaceEntrypoints&   khr_xcb_surface_entrypoints,
 #endif
-                         PFN_vkDestroySurfaceKHR                       pfn_destroy_surface_khr_proc,
-                         PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR pfn_get_physical_device_surface_capabilities_khr_proc,
-                         PFN_vkGetPhysicalDeviceSurfaceFormatsKHR      pfn_get_physical_device_surface_formats_khr_proc,
-                         PFN_vkGetPhysicalDeviceSurfacePresentModesKHR pfn_get_physical_device_surface_present_modes_khr_proc,
-                         PFN_vkGetPhysicalDeviceSurfaceSupportKHR      pfn_get_physical_device_surface_support_khr_proc);
+                         bool*                                      out_safe_to_use_ptr);
 
         RenderingSurface           (const RenderingSurface&);
         RenderingSurface& operator=(const RenderingSurface&);
@@ -205,32 +192,21 @@ namespace Anvil
         void cache_surface_properties(std::shared_ptr<Anvil::Window> window_ptr);
 
         /* Private variables */
-        std::shared_ptr<Anvil::Instance>     m_instance_ptr;
-        std::weak_ptr<Anvil::PhysicalDevice> m_physical_device_ptr;
+        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
+        std::shared_ptr<Anvil::Instance> m_instance_ptr;
 
-        VkSurfaceCapabilitiesKHR m_capabilities;
-        VkSurfaceKHR             m_surface;
+        uint32_t                                               m_height;
+        std::map<DeviceGroupIndex, PhysicalDeviceCapabilities> m_physical_device_capabilities;
+        VkSurfaceKHR                                           m_surface;
+        uint32_t                                               m_width;
 
-        std::vector<RenderingSurfaceFormat> m_supported_formats;
-        std::vector<VkPresentModeKHR>       m_supported_presentation_modes;
-
-        uint32_t                      m_height;
-        VkCompositeAlphaFlagBitsKHR   m_supported_composite_alpha_flags;
-        VkSurfaceTransformFlagBitsKHR m_supported_transformations;
-        VkImageUsageFlagBits          m_supported_usages;
-        uint32_t                      m_width;
+        ExtensionKHRSurfaceEntrypoints m_khr_surface_entrypoints;
 
         #ifdef _WIN32
-            PFN_vkCreateWin32SurfaceKHR m_vkCreateWin32SurfaceKHR;
+            ExtensionKHRWin32SurfaceEntrypoints m_khr_win32_surface_entrypoints;
         #else
-            PFN_vkCreateXcbSurfaceKHR   m_vkCreateXcbSurfaceKHR;
+            ExtensionKHRXcbSurfaceEntrypoints m_khr_xcb_surface_entrypoints;
         #endif
-
-        PFN_vkDestroySurfaceKHR                       m_vkDestroySurfaceKHR;
-        PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR m_vkGetPhysicalDeviceSurfaceCapabilitiesKHR;
-        PFN_vkGetPhysicalDeviceSurfaceFormatsKHR      m_vkGetPhysicalDeviceSurfaceFormatsKHR;
-        PFN_vkGetPhysicalDeviceSurfacePresentModesKHR m_vkGetPhysicalDeviceSurfacePresentModesKHR;
-        PFN_vkGetPhysicalDeviceSurfaceSupportKHR      m_vkGetPhysicalDeviceSurfaceSupportKHR;
     };
 }; /* namespace Anvil */
 
