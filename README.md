@@ -5,7 +5,7 @@ The README is organized as a FAQ.
 
 What license governs Anvil usage?
 ------
-MIT. See See `LICENSE.txt`.
+MIT. See `LICENSE.txt`.
 
 What is this?
 ------
@@ -118,11 +118,15 @@ We are planning to keep adding new features in the future.
 
 Are there any Anvil examples available which would present how to use the framework?
 ------
-Anvil currently comes with a single example application, which renders 10k
-teapots on screen. It uses various Anvil wrappers, so you can use it to get
-a better understanding of how various parts of the library can be used.
+Anvil comes with several example applications, including OutOfOrderRasterization,
+which renders 10k teapots on screen. It uses various Anvil wrappers, so you can
+use it to get a better understanding of how various parts of the library can be
+used.
 
 ...and its Vulkan-related code only takes ~45kbytes!
+
+OutOfOrderRasterization and the other example applications are located in the
+`examples` directory.
 
 What are the known issues?
 ------
