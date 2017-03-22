@@ -19,14 +19,60 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
-/** Implements a simple window wrapper for Linux (XCB) environments. *
+
+/** Implements a simple window wrapper for Linux (XCB) environments.
+ *
  *  NOTE: This wrapper does not support scaling (yet).
  **/
-#ifndef WINDOW_XCB_H#define WINDOW_XCB_H#include "misc/window.h"namespace Anvil
-{    class WindowXcb : public Window    {    public:        /* Public functions */                WindowXcb (const std::string&     title,                           unsigned int           width,                           unsigned int           height,                           PFNPRESENTCALLBACKPROC present_callback_func_ptr,                           void*                  present_callback_func_user_arg);        virtual ~WindowXcb();        virtual void close();        virtual void run();        /* Returns window's platform */
+#ifndef WINDOW_XCB_H
+#define WINDOW_XCB_H
+
+#include "misc/window.h"
+
+namespace Anvil
+{
+    class WindowXcb : public Window
+    {
+    public:
+        /* Public functions */
+                WindowXcb (const std::string&     title,
+                           unsigned int           width,
+                           unsigned int           height,
+                           PFNPRESENTCALLBACKPROC present_callback_func_ptr,
+                           void*                  present_callback_func_user_arg);
+        virtual ~WindowXcb();
+
+        virtual void close();
+        virtual void run();
+
+        /* Returns window's platform */
         WindowPlatform get_platform() const
         {
             return WINDOW_PLATFORM_XCB;
-        }        /* Tells if it's a dummy window (offscreen rendering thus no WSI/swapchain involved) */        virtual bool is_dummy()        {            return false;        }        /** Returns system XCB connection, should be used by linux only */        virtual void* get_connection() const        {            return m_connection_ptr;        }    private:        /** Creates a new system window and prepares it for usage. */        void init();        void init_connection();
-        /* Private variables */        xcb_intern_atom_reply_t* m_atom_wm_delete_window_ptr;        xcb_screen_t*            m_screen_ptr;        xcb_key_symbols_t*       m_key_symbols;        XCBLoaderForAnvil        m_xcb_loader;    };}; /* namespace Anvil */
+        }
+
+        /* Tells if it's a dummy window (offscreen rendering thus no WSI/swapchain involved) */
+        virtual bool is_dummy()
+        {
+            return false;
+        }
+
+        /** Returns system XCB connection, should be used by linux only */
+        virtual void* get_connection() const
+        {
+            return m_connection_ptr;
+        }
+
+    private:
+        /** Creates a new system window and prepares it for usage. */
+        void init();
+        void init_connection();
+        /* Private variables */
+        xcb_intern_atom_reply_t* m_atom_wm_delete_window_ptr;
+        xcb_screen_t*            m_screen_ptr;
+        xcb_key_symbols_t*       m_key_symbols;
+        XCBLoaderForAnvil        m_xcb_loader;
+    };
+}; /* namespace Anvil */
+
 #endif /* WINDOW_XCB_H */
