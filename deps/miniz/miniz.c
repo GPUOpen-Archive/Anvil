@@ -157,7 +157,7 @@
 */
 
 /* This miniz version has been modified in order not to generate any warnings  */
-#ifdef _WIN32
+#ifdef _MSC_VER
     #pragma warning(push, 0)
 #else
     #pragma GCC diagnostic push
@@ -1505,7 +1505,14 @@ tinfl_status tinfl_decompress(tinfl_decompressor *r, const mz_uint8 *pIn_buf_nex
       {
         mz_uint8 *p = r->m_tables[0].m_code_size; mz_uint i;
         r->m_table_sizes[0] = 288; r->m_table_sizes[1] = 32; TINFL_MEMSET(r->m_tables[1].m_code_size, 5, 32);
-        for ( i = 0; i <= 143; ++i) *p++ = 8; for ( ; i <= 255; ++i) *p++ = 9; for ( ; i <= 279; ++i) *p++ = 7; for ( ; i <= 287; ++i) *p++ = 8;
+        for ( i = 0; i <= 143; ++i)
+			*p++ = 8;
+		for ( ; i <= 255; ++i)
+			*p++ = 9;
+		for ( ; i <= 279; ++i)
+			*p++ = 7;
+		for ( ; i <= 287; ++i)
+			*p++ = 8;
       }
       else
       {
@@ -2289,7 +2296,10 @@ static MZ_FORCEINLINE void tdefl_find_match(tdefl_compressor *d, mz_uint lookahe
         if (TDEFL_READ_UNALIGNED_WORD(&d->m_dict[probe_pos + match_len - 1]) == c01) break;
       TDEFL_PROBE; TDEFL_PROBE; TDEFL_PROBE;
     }
-    if (!dist) break; q = (const mz_uint16*)(d->m_dict + probe_pos); if (TDEFL_READ_UNALIGNED_WORD(q) != s01) continue; p = s; probe_len = 32;
+    if (!dist) break;
+	q = (const mz_uint16*)(d->m_dict + probe_pos);
+	if (TDEFL_READ_UNALIGNED_WORD(q) != s01) continue;
+	p = s; probe_len = 32;
     do { } while ( (TDEFL_READ_UNALIGNED_WORD(++p) == TDEFL_READ_UNALIGNED_WORD(++q)) && (TDEFL_READ_UNALIGNED_WORD(++p) == TDEFL_READ_UNALIGNED_WORD(++q)) &&
                    (TDEFL_READ_UNALIGNED_WORD(++p) == TDEFL_READ_UNALIGNED_WORD(++q)) && (TDEFL_READ_UNALIGNED_WORD(++p) == TDEFL_READ_UNALIGNED_WORD(++q)) && (--probe_len > 0) );
     if (!probe_len)
@@ -4896,7 +4906,7 @@ void *mz_zip_extract_archive_file_to_heap(const char *pZip_filename, const char 
 
 #endif // MINIZ_HEADER_FILE_ONLY
 
-#ifdef _WIN32
+#ifdef _MSC_VER
     #pragma warning(pop)
 #else
     #pragma GCC diagnostic pop

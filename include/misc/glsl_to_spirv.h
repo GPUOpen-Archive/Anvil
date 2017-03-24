@@ -37,7 +37,7 @@
 #include <vector>
 
 #ifdef ANVIL_LINK_WITH_GLSLANG
-    #ifdef _WIN32
+    #ifdef _MSC_VER
         #pragma warning(push)
         #pragma warning(disable: 4619)
         #pragma warning(disable: 4464)
@@ -45,7 +45,7 @@
 
     #include "../../deps/glslang/glslang/Public/ShaderLang.h"
 
-    #ifdef _WIN32
+    #ifdef _MSC_VER
         #pragma warning(pop)
     #endif
 #endif
