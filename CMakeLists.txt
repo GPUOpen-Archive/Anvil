@@ -7,8 +7,10 @@ option(ANVIL_LINK_WITH_GLSLANG "Links with glslang, instead of spawning a new pr
 # Do not modify anything after this line, unless you know what you're doing.
 configure_file("include/config.h.in" "${Anvil_SOURCE_DIR}/include/config.h")
 
-include_directories("$(Anvil_SOURCE_DIR)/deps"
-                    "$(Anvil_SOURCE_DIR)/include")
+# This is temporary until miniz can be compiled with all the warnings enabled. PRs were submitted to upstream project.
+include_directories(SYSTEM "$(Anvil_SOURCE_DIR)/deps")
+
+include_directories("$(Anvil_SOURCE_DIR)/include")
 
 if (WIN32)
     include_directories($ENV{VK_SDK_PATH}/Include
