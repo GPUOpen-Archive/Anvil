@@ -856,7 +856,7 @@ void App::update_data_ub_contents()
     }
 
     m_data_buffer_ptr->write(0, /* start_offset */
-                             m_data_buffer_ptr->get_size(),
+                             sizeof(data),
                             &data);
 
     ++n_frames_rendered;
