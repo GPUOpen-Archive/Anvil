@@ -27,6 +27,7 @@
 // #define ENABLE_VALIDATION
 
 #include <string>
+#include <cmath>
 #include "misc/glsl_to_spirv.h"
 #include "misc/memory_allocator.h"
 #include "misc/object_tracker.h"
