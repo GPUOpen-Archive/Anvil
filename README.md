@@ -1,6 +1,6 @@
 # Anvil
 
-This is a README file for Anvil v1.3, a framework for Vulkan&trade;.
+This is a README file for Anvil v1.3.1, a framework for Vulkan&trade;.
 The README is organized as a FAQ.
 
 What license governs Anvil usage?
@@ -67,8 +67,8 @@ Anvil has *not* been designed with AMD hardware architecture in mind, but it
 is going to provide interface-level support for any extensions we may decide
 to release in the future.
 
-As such, it should (and has been verified to) work on any Windows Vulkan
-implementation and on AMDGPU-PRO Vulkan implementation on Linux.
+As such, it should (and has been verified to) work on any Linux/Windows Vulkan
+implementation.
 
 What can it do?
 ------
@@ -134,9 +134,9 @@ Just a handful:
 * All command queues are currently assigned a priority of 1.0.
 * DescriptorSetGroup wrapper does not leverage the <releaseable_sets> flag at
   baking time.
-* Per-attachment blending may not work correctly.
+* PRTs may not work correctly on Vulkan devices which use per-layer miptails.
 
-Some of these will definitely be addressed in the next Anvil release.
+These will be addressed at some point in the future.
 
 Who made it?
 ------

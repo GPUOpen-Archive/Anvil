@@ -1,5 +1,9 @@
 # Anvil Changelog
 
+### v1.3.1
+- Fixed an issue where builds with disabled ANVIL_LINK_WITH_GLSLANG option would not build correctly.
+- Fixed various compilation issues (community contribution)
+
 ### v1.3
 - Added four new example applications:
   * DynamicBuffers

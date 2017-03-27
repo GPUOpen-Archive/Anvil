@@ -36,9 +36,12 @@ if (WIN32)
     endif()
 else()
     include_directories($ENV{VK_SDK_PATH}/x86_64/include
-                        $ENV{VULKAN_SDK}/x86_64/include)
+                        $ENV{VULKAN_SDK}/x86_64/include
+                        $ENV{VULKAN_SDK}/include)
     link_directories   ($ENV{VK_SDK_PATH}/x86_64/lib
-                        $ENV{VULKAN_SDK}/x86_64/lib)
+                        $ENV{VULKAN_SDK}/x86_64/lib
+                        $ENV{VULKAN_SDK}/lib)
+
 endif()
 
 # Create the PushConstants project.
