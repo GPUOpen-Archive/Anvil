@@ -67,8 +67,8 @@ Anvil has *not* been designed with AMD hardware architecture in mind, but it
 is going to provide interface-level support for any extensions we may decide
 to release in the future.
 
-As such, it should (and has been verified to) work on any Linux/Windows Vulkan
-implementation.
+As such, it should (and has been verified to) work on any Windows Vulkan
+implementation and on AMDGPU-PRO Vulkan implementation on Linux.
 
 What can it do?
 ------
