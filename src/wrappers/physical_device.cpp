@@ -129,7 +129,7 @@ void Anvil::PhysicalDevice::init()
     /* Retrieve device format properties */
     for (VkFormat current_format = (VkFormat)1; /* skip the _UNDEFINED format */
         current_format < VK_FORMAT_RANGE_SIZE;
-        ++(int&)current_format)
+        current_format = static_cast<VkFormat>(current_format + 1))
     {
         VkFormatProperties format_props;
 
