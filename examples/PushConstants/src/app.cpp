@@ -291,7 +291,7 @@ void App::get_luminance_data(std::shared_ptr<float>* out_result_ptr,
 
     luminance_data_size = sizeof(float) * N_TRIANGLES;
 
-    luminance_data_ptr.reset(new float[luminance_data_size / sizeof(float)]);
+    luminance_data_ptr.reset(new float[luminance_data_size / sizeof(float)], std::default_delete<float[]>());
 
     luminance_data_raw_ptr = luminance_data_ptr.get();
 
@@ -856,7 +856,7 @@ void App::update_data_ub_contents()
     }
 
     m_data_buffer_ptr->write(0, /* start_offset */
-                             m_data_buffer_ptr->get_size(),
+                             sizeof(data),
                             &data);
 
     ++n_frames_rendered;

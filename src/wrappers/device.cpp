@@ -94,7 +94,7 @@ void Anvil::BaseDevice::destroy()
     /* Proceed with device-specific instances */
     for (Anvil::QueueFamilyType queue_family_type = Anvil::QUEUE_FAMILY_TYPE_FIRST;
                                 queue_family_type < Anvil::QUEUE_FAMILY_TYPE_COUNT + 1;
-                        ++(int&)queue_family_type)
+                                queue_family_type = static_cast<Anvil::QueueFamilyType>(queue_family_type + 1))
     {
         std::vector<std::shared_ptr<Anvil::Queue> >& queues = (queue_family_type == Anvil::QUEUE_FAMILY_TYPE_COMPUTE)           ? m_compute_queues
                                                             : (queue_family_type == Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL)         ? m_universal_queues
@@ -375,7 +375,7 @@ void Anvil::BaseDevice::init(const std::vector<const char*>& extensions,
     /* Spawn queue wrappers */
     for (Anvil::QueueFamilyType queue_family_type = Anvil::QUEUE_FAMILY_TYPE_FIRST;
                                 queue_family_type < Anvil::QUEUE_FAMILY_TYPE_COUNT;
-                        ++(int&)queue_family_type)
+                                queue_family_type = static_cast<Anvil::QueueFamilyType>(queue_family_type + 1))
     {
         const uint32_t                               n_queues = m_device_queue_families.n_queues[queue_family_type];
         std::vector<std::shared_ptr<Anvil::Queue> >& queues   = (queue_family_type == Anvil::QUEUE_FAMILY_TYPE_COMPUTE)   ? m_compute_queues
@@ -440,7 +440,7 @@ void Anvil::BaseDevice::init(const std::vector<const char*>& extensions,
     /* Instantiate per-queue family command pools */
     for (Anvil::QueueFamilyType queue_family_type = Anvil::QUEUE_FAMILY_TYPE_FIRST;
                                 queue_family_type < Anvil::QUEUE_FAMILY_TYPE_COUNT;
-                        ++(int&)queue_family_type)
+                                queue_family_type = static_cast<Anvil::QueueFamilyType>(queue_family_type + 1))
     {
         if (get_queue_family_index(queue_family_type) != UINT32_MAX)
         {

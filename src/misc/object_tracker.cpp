@@ -63,7 +63,7 @@ void Anvil::ObjectTracker::check_for_leaks() const
 {
     for (ObjectType current_object_type = OBJECT_TYPE_FIRST;
                     current_object_type < OBJECT_TYPE_COUNT;
-            ++(int&)current_object_type)
+                    current_object_type = static_cast<ObjectType>(current_object_type + 1))
     {
         const uint32_t n_object_allocations = (uint32_t) m_object_allocations[current_object_type].size();
 

@@ -235,7 +235,9 @@ Anvil::GLSLShaderToSPIRVGenerator::GLSLShaderToSPIRVGenerator(std::weak_ptr<Anvi
                                                               std::string                      data,
                                                               ShaderStage                      shader_stage)
     :m_data           (data),
+#ifdef ANVIL_LINK_WITH_GLSLANG
      m_limits         (device_ptr),
+#endif
      m_mode           (mode),
      m_shader_stage   (shader_stage),
      m_spirv_blob     (nullptr),
@@ -397,55 +399,42 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob()
             final_glsl_source_string.insert(glsl_source_string_second_line_index,
                                             new_line);
         }
+    }
 
-        /* Form a temporary file name we will use to write the modified GLSL shader to. */
-        #ifndef ANVIL_LINK_WITH_GLSLANG
+    if (m_mode == MODE_LOAD_SOURCE_FROM_FILE)
+    {
+        glsl_filename_is_temporary = false;
+        glsl_filename_with_path    = m_data;
+    }
+
+    /* Form a temporary file name we will use to write the modified GLSL shader to. */
+    #ifndef ANVIL_LINK_WITH_GLSLANG
+    {
+        switch (m_shader_stage)
         {
-            switch (m_shader_stage)
+            case SHADER_STAGE_COMPUTE:                 glsl_filename_with_path = "temp.comp"; break;
+            case SHADER_STAGE_FRAGMENT:                glsl_filename_with_path = "temp.frag"; break;
+            case SHADER_STAGE_GEOMETRY:                glsl_filename_with_path = "temp.geom"; break;
+            case SHADER_STAGE_TESSELLATION_CONTROL:    glsl_filename_with_path = "temp.tesc"; break;
+            case SHADER_STAGE_TESSELLATION_EVALUATION: glsl_filename_with_path = "temp.tese"; break;
+            case SHADER_STAGE_VERTEX:                  glsl_filename_with_path = "temp.vert"; break;
+
+            default:
             {
-                case SHADER_STAGE_COMPUTE:                 glsl_filename_with_path = "temp.comp"; break;
-                case SHADER_STAGE_FRAGMENT:                glsl_filename_with_path = "temp.frag"; break;
-                case SHADER_STAGE_GEOMETRY:                glsl_filename_with_path = "temp.geom"; break;
-                case SHADER_STAGE_TESSELLATION_CONTROL:    glsl_filename_with_path = "temp.tesc"; break;
-                case SHADER_STAGE_TESSELLATION_EVALUATION: glsl_filename_with_path = "temp.tese"; break;
-                case SHADER_STAGE_VERTEX:                  glsl_filename_with_path = "temp.vert"; break;
+                anvil_assert(false);
 
-                default:
-                {
-                    anvil_assert(false);
-
-                    goto end;
-                }
+                goto end;
             }
-
-            /* Write down the file to a temporary location */
-            Anvil::IO::write_file(glsl_filename_with_path,
-                                  final_glsl_source_string);
         }
-        #endif
+
+        /* Write down the file to a temporary location */
+        Anvil::IO::write_text_file(glsl_filename_with_path,
+                                   final_glsl_source_string);
 
         glsl_filename_is_temporary = true;
     }
-    else
-    {
-        if (m_mode == MODE_LOAD_SOURCE_FROM_FILE)
-        {
-            glsl_filename_is_temporary = false;
-            glsl_filename_with_path    = m_data;
-        }
-        else
-        {
-            #ifdef ANVIL_LINK_WITH_GLSLANG
-            {
-                /* That's fine, we don't need glsl_filename_with_path for this build */
-            }
-            #else
-            {
-                anvil_assert(false && "Unsupported mode specified for a GLSLShaderToSPIRVGenerator instance.");
-            }
-            #endif
-        }
-    }
+    #endif
+
 
     #ifdef ANVIL_LINK_WITH_GLSLANG
     {

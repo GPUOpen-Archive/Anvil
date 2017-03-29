@@ -95,6 +95,33 @@ void Anvil::PhysicalDevice::init()
 
     anvil_assert(m_physical_device != VK_NULL_HANDLE);
 
+    /* Retrieve device extensions */
+    result = vkEnumerateDeviceExtensionProperties(m_physical_device,
+                                                  nullptr, /* pLayerName */
+                                                 &n_extensions,
+                                                  nullptr); /* pProperties */
+    anvil_assert_vk_call_succeeded(result);
+
+    if (n_extensions > 0)
+    {
+        std::vector<VkExtensionProperties> extension_props;
+
+        extension_props.resize(n_extensions);
+
+        result = vkEnumerateDeviceExtensionProperties(m_physical_device,
+                                                      nullptr, /* pLayerName */
+                                                     &n_extensions,
+                                                     &extension_props[0]);
+        anvil_assert_vk_call_succeeded(result);
+
+        for (uint32_t n_extension = 0;
+                      n_extension < n_extensions;
+                    ++n_extension)
+        {
+            m_extensions.push_back(Anvil::Extension(extension_props[n_extension]) );
+        }
+    }
+
     /* Retrieve device features */
     vkGetPhysicalDeviceFeatures(m_physical_device,
                                &m_features);
@@ -102,7 +129,7 @@ void Anvil::PhysicalDevice::init()
     /* Retrieve device format properties */
     for (VkFormat current_format = (VkFormat)1; /* skip the _UNDEFINED format */
         current_format < VK_FORMAT_RANGE_SIZE;
-        ++(int&)current_format)
+        current_format = static_cast<VkFormat>(current_format + 1))
     {
         VkFormatProperties format_props;
 
@@ -119,8 +146,8 @@ void Anvil::PhysicalDevice::init()
 
     /* Retrieve device queue data */
     vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device,
-                                           &n_physical_device_queues, /* pCount                 */
-                                            nullptr);                    /* pQueueFamilyProperties */
+                                            &n_physical_device_queues, /* pCount                 */
+                                             nullptr);                 /* pQueueFamilyProperties */
 
     if (n_physical_device_queues > 0)
     {
@@ -169,34 +196,6 @@ void Anvil::PhysicalDevice::init()
             m_layers.push_back(Anvil::Layer(layer_props[n_layer]) );
         }
     }
-
-    /* Retrieve device extensions */
-    result = vkEnumerateDeviceExtensionProperties(m_physical_device,
-                                                  nullptr, /* pLayerName */
-                                                 &n_extensions,
-                                                  nullptr); /* pProperties */
-    anvil_assert_vk_call_succeeded(result);
-
-    if (n_extensions > 0)
-    {
-        std::vector<VkExtensionProperties> extension_props;
-
-        extension_props.resize(n_extensions);
-
-        result = vkEnumerateDeviceExtensionProperties(m_physical_device,
-                                                      nullptr, /* pLayerName */
-                                                     &n_extensions,
-                                                     &extension_props[0]);
-        anvil_assert_vk_call_succeeded(result);
-
-        for (uint32_t n_extension = 0;
-                      n_extension < n_extensions;
-                    ++n_extension)
-        {
-            m_extensions.push_back(Anvil::Extension(extension_props[n_extension]) );
-        }
-    }
-
 }
 
 /* Please see header for specification */
