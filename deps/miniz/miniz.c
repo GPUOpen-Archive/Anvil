@@ -157,7 +157,7 @@
 */
 
 /* This miniz version has been modified in order not to generate any warnings  */
-#ifdef _WIN32
+#ifdef _MSC_VER
 #pragma warning(push, 0)
 #else
 #pragma GCC diagnostic push
@@ -5866,7 +5866,7 @@ void *mz_zip_extract_archive_file_to_heap(const char *pZip_filename, const char 
 
 #endif // MINIZ_HEADER_FILE_ONLY
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #pragma warning(pop)
 #else
 #pragma GCC diagnostic pop

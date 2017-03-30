@@ -199,7 +199,6 @@ LRESULT CALLBACK Anvil::WindowWin3264::msg_callback_pfn_proc(HWND   window_handl
 void Anvil::WindowWin3264::run()
 {
     int done   = 0;
-    int result = 0;
 
     /* Run the message loop */
     while (!done)
@@ -215,7 +214,6 @@ void Anvil::WindowWin3264::run()
         if (msg.message == WM_QUIT)
         {
             done   = 1;
-            result = (int) msg.wParam;
         }
         else
         {

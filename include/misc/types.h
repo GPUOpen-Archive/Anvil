@@ -22,11 +22,12 @@
 
 #ifndef MISC_TYPES_H
 #define MISC_TYPES_H
+#include <cstdio>
 
 /* Disable some of the warnings we cannot work around because they are caused
  * by external dependencies (ie. Vulkan header)
  */
-#ifdef _WIN32
+#ifdef _MSC_VER
     #pragma warning(disable : 4063)
 #else
     #pragma GCC diagnostic ignored "-Wswitch"

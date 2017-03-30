@@ -36,7 +36,7 @@
 #ifdef ANVIL_LINK_WITH_GLSLANG
     #undef snprintf
 
-    #if defined(_WIN32)
+    #if defined(_MSC_VER)
         #pragma warning(push)
         #pragma warning(disable: 4100)
         #pragma warning(disable: 4365)
@@ -45,7 +45,7 @@
 
     #include "glslang/SPIRV/GlslangToSpv.h"
 
-    #ifdef _WIN32
+    #ifdef _MSC_VER
         #pragma warning(pop)
     #endif
 #endif
