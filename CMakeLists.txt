@@ -180,3 +180,6 @@ endif (MSVC)
 
 # Add all demo sub-projects
 MESSAGE(STATUS "Using Vulkan SDK at either " $ENV{VK_SDK_PATH} " or " $ENV{VULKAN_SDK})
+
+install(TARGETS Anvil
+		ARCHIVE DESTINATION lib)
