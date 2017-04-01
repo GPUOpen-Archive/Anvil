@@ -4,9 +4,9 @@ project (Anvil)
 option(ANVIL_LINK_WITH_GLSLANG
 	"Links with glslang, instead of spawning a new process whenever GLSL->SPIR-V conversion is required" ON)
 option(ANVIL_INSTALL_GLSLANG_HEADERS
-	"The required glslang headers will be installed in the install step." ON)
+	"The required glslang headers will be installed in the install step." OFF)
 option(ANVIL_INSTALL_VULKAN_HEADERS
-	"The required glslang headers will be installed in the install step." ON)
+	"The required glslang headers will be installed in the install step." OFF)
 
 SET(INCLUDE_INSTALL_DIR "include/anvil/" CACHE PATH "The subdirectory to the header prefix")
 
