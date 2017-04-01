@@ -51,8 +51,8 @@
 #ifndef WRAPPERS_DESCRIPTOR_SET_GROUP_H
 #define WRAPPERS_DESCRIPTOR_SET_GROUP_H
 
-#include "misc/types.h"
-#include "wrappers/descriptor_set.h"
+#include "../misc/types.h"
+#include "../wrappers/descriptor_set.h"
 
 namespace Anvil
 {

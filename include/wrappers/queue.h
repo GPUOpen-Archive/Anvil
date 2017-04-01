@@ -30,8 +30,8 @@
 #ifndef WRAPPERS_QUEUE_H
 #define WRAPPERS_QUEUE_H
 
-#include "misc/debug.h"
-#include "misc/types.h"
+#include "../misc/debug.h"
+#include "../misc/types.h"
 
 namespace Anvil
 {

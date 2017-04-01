@@ -59,7 +59,7 @@
 
     typedef HWND WindowHandle;
 #else
-    #include "xcb_loader_for_anvil.h"
+    #include "../misc/xcb_loader_for_anvil.h"
     #include <string.h>
 
     #ifndef nullptr
@@ -69,12 +69,12 @@
     typedef xcb_window_t WindowHandle;
 #endif
 
-#ifdef _WIN32
-    #include "vulkan\vulkan.h"
-    #include "vulkan\vk_platform.h"
+#ifdef ANVIL_INSTALL_VULKAN_HEADERS
+	#include "../vulkan/vulkan.h"
+	#include "../vulkan/vk_platform.h"
 #else
-    #include "vulkan/vulkan.h"
-    #include "vulkan/vk_platform.h"
+	#include "vulkan/vulkan.h"
+	#include "vulkan/vk_platform.h"
 #endif
 
 #include <map>

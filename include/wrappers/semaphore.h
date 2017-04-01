@@ -31,7 +31,7 @@
 #ifndef WRAPPERS_SEMAPHORE_H
 #define WRAPPERS_SEMAPHORE_H
 
-#include "misc/types.h"
+#include "../misc/types.h"
 
 namespace Anvil
 {

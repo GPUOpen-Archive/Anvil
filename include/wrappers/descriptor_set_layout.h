@@ -30,9 +30,9 @@
 #ifndef WRAPPERS_DESCRIPTOR_SET_LAYOUT_H
 #define WRAPPERS_DESCRIPTOR_SET_LAYOUT_H
 
-#include "misc/callbacks.h"
-#include "misc/types.h"
-#include "wrappers/sampler.h"
+#include "../misc/callbacks.h"
+#include "../misc/types.h"
+#include "../wrappers/sampler.h"
 #include <memory>
 
 namespace Anvil

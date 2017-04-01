@@ -27,7 +27,7 @@
 #ifndef DUMMY_WINDOW_H
 #define DUMMY_WINDOW_H
 
-#include "misc/window.h"
+#include "../misc/window.h"
 
 namespace Anvil
 {

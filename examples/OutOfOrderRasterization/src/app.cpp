@@ -53,8 +53,8 @@
 #include "wrappers/semaphore.h"
 #include "wrappers/shader_module.h"
 #include "wrappers/swapchain.h"
-#include "teapot_data.h"
-#include "app.h"
+#include "../include/teapot_data.h"
+#include "../include/app.h"
 
 /* Low-level #defines follow.. */
 

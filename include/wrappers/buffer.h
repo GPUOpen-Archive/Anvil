@@ -33,8 +33,8 @@
 #ifndef WRAPPERS_BUFFER_H
 #define WRAPPERS_BUFFER_H
 
-#include "misc/types.h"
-#include "misc/page_tracker.h"
+#include "../misc/types.h"
+#include "../misc/page_tracker.h"
 
 namespace Anvil
 {

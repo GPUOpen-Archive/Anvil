@@ -31,7 +31,7 @@
 #ifndef WRAPPERS_FENCE_H
 #define WRAPPERS_FENCE_H
 
-#include "misc/types.h"
+#include "../misc/types.h"
 
 namespace Anvil
 {

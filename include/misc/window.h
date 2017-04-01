@@ -27,11 +27,11 @@
 #ifndef MISC_WINDOW_H
 #define MISC_WINDOW_H
 
-#include "misc/callbacks.h"
-#include "misc/io.h"
-#include "misc/ref_counter.h"
-#include "misc/types.h"
-#include "misc/debug.h"
+#include "../misc/callbacks.h"
+#include "../misc/io.h"
+#include "../misc/ref_counter.h"
+#include "../misc/types.h"
+#include "../misc/debug.h"
 
 #ifdef _WIN32
     #include <Windows.h>

@@ -25,12 +25,12 @@
 #define WINDOW_FACTORY_H
 
 #ifdef _WIN32
-    #include "misc/window_win3264.h"
+    #include "../misc/window_win3264.h"
 #else
-    #include "misc/window_xcb.h"
+    #include "../misc/window_xcb.h"
 #endif /* _WIN32 */
 
-#include "misc/dummy_window.h"
+#include "../misc/dummy_window.h"
 
 namespace Anvil
 {

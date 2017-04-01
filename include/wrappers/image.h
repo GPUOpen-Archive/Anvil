@@ -29,8 +29,8 @@
 #ifndef WRAPPERS_IMAGE_H
 #define WRAPPERS_IMAGE_H
 
-#include "misc/types.h"
-#include "misc/page_tracker.h"
+#include "../misc/types.h"
+#include "../misc/page_tracker.h"
 
 namespace Anvil
 {

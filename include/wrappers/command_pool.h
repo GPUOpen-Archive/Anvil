@@ -29,7 +29,7 @@
 #ifndef WRAPPERS_COMMAND_POOL_H
 #define WRAPPERS_COMMAND_POOL_H
 
-#include "misc/types.h"
+#include "../misc/types.h"
 
 
 namespace Anvil

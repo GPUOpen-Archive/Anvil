@@ -52,7 +52,7 @@
 #include "wrappers/semaphore.h"
 #include "wrappers/shader_module.h"
 #include "wrappers/swapchain.h"
-#include "app.h"
+#include "../include/app.h"
 
 /* Low-level #defines follow.. */
 #define APP_NAME      "Occlusion query example application"

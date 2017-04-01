@@ -1,2 +1,6 @@
 /* Defined if glslangvalidator is statically linked with Anvil */
 #cmakedefine ANVIL_LINK_WITH_GLSLANG
+/* Defined if glslang headers have been installed with Anvil */
+#cmakedefine ANVIL_INSTALL_GLSLANG_HEADERS
+/* Defined if vulkan headers have been installed with Anvil */
+#cmakedefine ANVIL_INSTALL_VULKAN_HEADERS

@@ -34,7 +34,7 @@
 #ifndef WRAPPERS_DESCRIPTOR_SET_H
 #define WRAPPERS_DESCRIPTOR_SET_H
 
-#include "misc/types.h"
+#include "../misc/types.h"
 
 namespace Anvil
 {

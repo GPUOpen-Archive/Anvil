@@ -1,7 +1,14 @@
 cmake_minimum_required(VERSION 2.8)
 project (Anvil)
 
-option(ANVIL_LINK_WITH_GLSLANG "Links with glslang, instead of spawning a new process whenever GLSL->SPIR-V conversion is required" ON)
+option(ANVIL_LINK_WITH_GLSLANG
+	"Links with glslang, instead of spawning a new process whenever GLSL->SPIR-V conversion is required" ON)
+option(ANVIL_INSTALL_GLSLANG_HEADERS
+	"The required glslang headers will be installed in the install step." ON)
+option(ANVIL_INSTALL_VULKAN_HEADERS
+	"The required glslang headers will be installed in the install step." ON)
+
+SET(INCLUDE_INSTALL_DIR "include/anvil/" CACHE PATH "The subdirectory to the header prefix")
 
 
 # Do not modify anything after this line, unless you know what you're doing.
@@ -183,3 +190,29 @@ MESSAGE(STATUS "Using Vulkan SDK at either " $ENV{VK_SDK_PATH} " or " $ENV{VULKA
 
 install(TARGETS Anvil
 		ARCHIVE DESTINATION lib)
+
+install(DIRECTORY "${Anvil_SOURCE_DIR}/include/"
+	DESTINATION ${INCLUDE_INSTALL_DIR}
+	FILES_MATCHING
+		PATTERN "*.h"
+		PATTERN "CMakeFiles" EXCLUDE
+		PATTERN "vulkan*" EXCLUDE)
+
+if(ANVIL_INSTALL_GLSLANG_HEADERS)
+	install(DIRECTORY "${Anvil_SOURCE_DIR}/deps/glslang/glslang/"
+		DESTINATION "${INCLUDE_INSTALL_DIR}/glslang"
+		FILES_MATCHING
+			PATTERN "*.h"
+			PATTERN "GenericCodeGen" EXCLUDE
+			PATTERN "OSDependent" EXCLUDE
+			PATTERN "CMakeFiles" EXCLUDE)
+	add_definitions(-DANVIL_GLSLANG_USE_OLD_HEADERS)
+endif()
+
+if(ANVIL_INSTALL_VULKAN_HEADERS)
+	install(DIRECTORY "${Anvil_SOURCE_DIR}/include/vulkan/"
+		DESTINATION "${INCLUDE_INSTALL_DIR}/vulkan"
+		FILES_MATCHING
+			PATTERN "*.h"
+			PATTERN "*.hpp")
+endif()

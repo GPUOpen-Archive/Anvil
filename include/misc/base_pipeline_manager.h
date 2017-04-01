@@ -37,8 +37,8 @@
 #ifndef MISC_BASE_PIPELINE_MANAGER_H
 #define MISC_BASE_PIPELINE_MANAGER_H
 
-#include "misc/debug.h"
-#include "misc/types.h"
+#include "../misc/debug.h"
+#include "../misc/types.h"
 #include <memory>
 #include <vector>
 

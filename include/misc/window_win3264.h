@@ -27,7 +27,7 @@
 #ifndef WINDOW_WIN3264_H
 #define WINDOW_WIN3264_H
 
-#include "misc/window.h"
+#include "../misc/window.h"
 
 namespace Anvil
 {

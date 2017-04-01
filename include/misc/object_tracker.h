@@ -38,7 +38,7 @@
 #define MISC_OBJECT_TRACKER_H
 
 #include <vector>
-#include "misc/types.h"
+#include "../misc/types.h"
 
 namespace Anvil
 {

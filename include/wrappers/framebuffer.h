@@ -29,7 +29,7 @@
 #ifndef WRAPPERS_FRAMEBUFFER_H
 #define WRAPPERS_FRAMEBUFFER_H
 
-#include "misc/types.h"
+#include "../misc/types.h"
 
 namespace Anvil
 {
