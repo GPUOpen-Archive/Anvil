@@ -988,7 +988,7 @@ bool Anvil::GraphicsPipelineManager::bake()
 
     if (!is_vk_call_successful(result_vk) )
     {
-        anvil_assert(result_vk);
+        anvil_assert_vk_call_succeeded(result_vk);
 
         goto end;
     }
