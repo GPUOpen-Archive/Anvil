@@ -224,7 +224,7 @@ bool Anvil::BasePipelineManager::add_specialization_constant_to_pipeline(Pipelin
                                                                          ShaderIndex shader_index,
                                                                          uint32_t    constant_id,
                                                                          uint32_t    n_data_bytes,
-                                                                         void*       data_ptr)
+                                                                         const void* data_ptr)
 {
     std::shared_ptr<Pipeline> pipeline_ptr;
     uint32_t                  data_buffer_size = 0;
@@ -264,7 +264,7 @@ bool Anvil::BasePipelineManager::add_specialization_constant_to_pipeline(Pipelin
     }
 
     /* Append specialization constant data and add a new descriptor. */
-    data_buffer_size = (uint32_t) pipeline_ptr->specialization_constant_data_buffer.size();
+    data_buffer_size = static_cast<uint32_t>(pipeline_ptr->specialization_constant_data_buffer.size() );
 
 
     anvil_assert(pipeline_ptr->specialization_constants_map.find(shader_index) != pipeline_ptr->specialization_constants_map.end() );
@@ -273,10 +273,10 @@ bool Anvil::BasePipelineManager::add_specialization_constant_to_pipeline(Pipelin
                                                                                               n_data_bytes,
                                                                                               data_buffer_size));
 
-    pipeline_ptr->specialization_constant_data_buffer.reserve(data_buffer_size + n_data_bytes);
+    pipeline_ptr->specialization_constant_data_buffer.resize(data_buffer_size + n_data_bytes);
 
 
-    memcpy(&pipeline_ptr->specialization_constant_data_buffer[data_buffer_size],
+    memcpy(&pipeline_ptr->specialization_constant_data_buffer.at(data_buffer_size),
            data_ptr,
            n_data_bytes);
 

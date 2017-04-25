@@ -131,10 +131,10 @@ bool Anvil::ComputePipelineManager::bake()
 
         if (current_pipeline_ptr->specialization_constants_map[0].size() > 0)
         {
-            anvil_assert(current_pipeline_ptr->specialization_constant_data_buffer.size() == current_pipeline_ptr->specialization_constants_map.size());
+            anvil_assert(current_pipeline_ptr->specialization_constant_data_buffer.size() > 0);
 
-            bake_specialization_info_vk(current_pipeline_ptr->specialization_constants_map       [0],
-                                       &current_pipeline_ptr->specialization_constant_data_buffer[0],
+            bake_specialization_info_vk(current_pipeline_ptr->specialization_constants_map.at       (0),
+                                       &current_pipeline_ptr->specialization_constant_data_buffer.at(0),
                                        &specialization_map_entries_vk,
                                        &specialization_info);
         }

@@ -152,7 +152,7 @@ namespace Anvil
        bool add_specialization_constant_to_pipeline(ComputePipelineID pipeline_id,
                                                     uint32_t          constantID,
                                                     uint32_t          n_data_bytes,
-                                                    void*             data_ptr)
+                                                    const void*       data_ptr)
        {
            return BasePipelineManager::add_specialization_constant_to_pipeline(pipeline_id,
                                                                                0, /* shader_index */

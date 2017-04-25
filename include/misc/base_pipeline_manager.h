@@ -474,7 +474,7 @@ namespace Anvil
                                                     ShaderIndex shader_index,
                                                     uint32_t    constantID,
                                                     uint32_t    n_data_bytes,
-                                                    void*       data_ptr);
+                                                    const void* data_ptr);
 
        /** Fills & returns a VkSpecializationInfo descriptor. Any sub-descriptors, to which the baked descriptor
         *  is going to point at, are stored in a vector provided by the caller. It is caller's responsibility to

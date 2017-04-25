@@ -280,9 +280,8 @@ void App::draw_frame(void* app_raw_ptr)
     /* Determine the signal + wait semaphores to use for drawing this frame */
     app_ptr->m_n_last_semaphore_used = (app_ptr->m_n_last_semaphore_used + 1) % app_ptr->m_n_swapchain_images;
 
-
-    auto&       curr_frame_signal_semaphores             = app_ptr->m_frame_signal_semaphore_bundles.at(app_ptr->m_n_last_semaphore_used);
-    const auto& curr_frame_wait_semaphores               = app_ptr->m_frame_wait_semaphore_bundles.at  (app_ptr->m_n_last_semaphore_used);
+    auto&       curr_frame_signal_semaphores             = app_ptr->m_frame_signal_semaphore_bundles.at (app_ptr->m_n_last_semaphore_used);
+    const auto& curr_frame_wait_semaphores               = app_ptr->m_frame_wait_semaphore_bundles.at   (app_ptr->m_n_last_semaphore_used);
     const auto& curr_frame_acqusition_wait_semaphore_ptr = curr_frame_wait_semaphores.semaphores.at(0);
 
     const auto& present_wait_semaphores      = curr_frame_signal_semaphores;
