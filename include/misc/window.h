@@ -105,7 +105,8 @@ namespace Anvil
     #endif
 
         /* Always last */
-        WINDOW_PLATFORM_COUNT
+        WINDOW_PLATFORM_COUNT,
+        WINDOW_PLATFORM_UNKNOWN = WINDOW_PLATFORM_COUNT
     };
 
     class Window : public CallbacksSupportProvider

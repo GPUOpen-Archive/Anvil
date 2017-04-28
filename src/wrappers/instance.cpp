@@ -286,6 +286,28 @@ const Anvil::ExtensionKHRSurfaceEntrypoints& Anvil::Instance::get_extension_khr_
     return m_khr_surface_entrypoints;
 }
 
+#ifdef _WIN32
+    /** Please see header for specification */
+    const Anvil::ExtensionKHRWin32SurfaceEntrypoints& Anvil::Instance::get_extension_khr_win32_surface_entrypoints() const
+    {
+        anvil_assert(std::find(m_enabled_extensions.begin(),
+                               m_enabled_extensions.end(),
+                               VK_KHR_WIN32_SURFACE_EXTENSION_NAME) != m_enabled_extensions.end() );
+
+        return m_khr_win32_surface_entrypoints;
+    }
+#else
+    /** Please see header for specification */
+    const Anvil::ExtensionKHRXcbSurfaceEntrypoints& Anvil::Instance::get_extension_khr_xcb_surface_entrypoints() const
+    {
+        anvil_assert(std::find(m_enabled_extensions.begin(),
+                               m_enabled_extensions.end(),
+                               VK_KHR_XCB_SURFACE_EXTENSION_NAME) != m_enabled_extensions.end() );
+
+        return m_khr_xcb_surface_entrypoints;
+    }
+#endif
+
 /** Initializes the wrapper. */
 void Anvil::Instance::init()
 {

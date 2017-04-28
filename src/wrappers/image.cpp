@@ -1469,13 +1469,13 @@ void Anvil::Image::set_memory_sparse(VkDeviceSize                        resourc
     }
     else
     {
-        /* We can land here under two circumstances:
+        /* The following use cases are expected to make us reach this block:
          *
          * 1) Application is about to bind the same memory backing to all tiles OR unbind all
          *    memory backings at once, which means that the process of updating page occupancy data
          *    is fairly straightforward.
          *
-         * 2) Application wants to bind (or unbind) the same memory backing to all miptail tiles.
+         * 2) Application wants to bind (or unbind) a memory backing to/from miptail tile(s).
          *
          * 3) Anvil::Image has requested to bind memory to metadata aspect. We don't track this so the operation
          *    is a nop.
@@ -1512,8 +1512,33 @@ void Anvil::Image::set_memory_sparse(VkDeviceSize                        resourc
 
             ANVIL_REDUNDANT_VARIABLE_CONST(current_aspect_props);
 
-            anvil_assert(resource_offset == 0                                                                                   ||
-                         resource_offset == current_aspect_props.mip_tail_offset && size == current_aspect_props.mip_tail_size);
+            #ifdef _DEBUG
+            {
+                if (resource_offset != 0)
+                {
+                    bool is_call_valid = (size == current_aspect_props.mip_tail_size);
+
+                    if (is_call_valid)
+                    {
+                        is_call_valid = false;
+
+                        for (uint32_t n_layer = 0;
+                                      n_layer < m_n_layers;
+                                    ++n_layer)
+                        {
+                            if (resource_offset == current_aspect_props.mip_tail_offset + current_aspect_props.mip_tail_stride * n_layer)
+                            {
+                                is_call_valid = true;
+
+                                break;
+                            }
+                        }
+                    }
+
+                    anvil_assert(is_call_valid);
+                }
+            }
+            #endif
 
             for (auto& current_layer : occupancy_data_ptr->layers)
             {

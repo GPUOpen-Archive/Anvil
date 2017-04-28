@@ -134,7 +134,6 @@ Just a handful:
 * All command queues are currently assigned a priority of 1.0.
 * DescriptorSetGroup wrapper does not leverage the <releaseable_sets> flag at
   baking time.
-* PRTs may not work correctly on Vulkan devices which use per-layer miptails.
 
 These will be addressed at some point in the future.
 

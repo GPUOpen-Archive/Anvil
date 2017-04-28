@@ -80,30 +80,6 @@ namespace Anvil
                                                        PFNINSTANCEDEBUGCALLBACKPROC opt_pfn_validation_callback_proc,
                                                        void*                        validation_proc_user_arg);
 
-        /** Creates a new RenderingSurface wrapper instance.
-         *
-         *  @param physical_device_ptr Physical device to create the rendering surface for. Must not be nullptr.
-         *  @param window_ptr          Rendering window to initialize the rendering surface for.
-         *
-         *  @return As per description.
-         **/
-        std::shared_ptr<RenderingSurface> create_rendering_surface(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                                   std::shared_ptr<Anvil::Window>   window_ptr)
-        {
-            std::shared_ptr<RenderingSurface> result_ptr = Anvil::RenderingSurface::create(shared_from_this(),
-                                                                                           device_ptr,
-                                                                                           window_ptr,
-                                                                                           m_khr_surface_entrypoints,
-#ifdef _WIN32
-                                                                                           m_khr_win32_surface_entrypoints
-#else
-                                                                                           m_khr_xcb_surface_entrypoints
-#endif
-            );
-
-            return result_ptr;
-        }
-
         void destroy();
 
         /** Returns a container with entry-points to functions introduced by VK_KHR_get_physical_device_properties2.
@@ -117,6 +93,20 @@ namespace Anvil
          *  Will fire an assertion failure if the extension is not supported.
          **/
         const ExtensionKHRSurfaceEntrypoints& get_extension_khr_surface_entrypoints() const;
+
+#ifdef _WIN32
+        /** Returns a container with entry-points to functions introduced by VK_KHR_win32_surface.
+         *
+         *  Will fire an assertion failure if the extension is not supported.
+         **/
+        const ExtensionKHRWin32SurfaceEntrypoints& get_extension_khr_win32_surface_entrypoints() const;
+#else
+        /** Returns a container with entry-points to functions introduced by VK_KHR_xcb_surface.
+         *
+         *  Will fire an assertion failure if the extension is not supported.
+         **/
+        const ExtensionKHRXcbSurfaceEntrypoints& get_extension_khr_xcb_surface_entrypoints() const;
+#endif
 
         /** Returns a raw wrapped VkInstance handle. */
         VkInstance get_instance_vk() const

@@ -1519,12 +1519,12 @@ namespace Anvil
          *
          *  @param props Vulkan structure to use for initialization.
          **/
-        explicit QueueFamilyInfo(const VkQueueFamilyProperties& props)
+        explicit QueueFamilyInfo(const VkQueueFamilyProperties& in_props)
         {
-            flags                          = props.queueFlags;
-            min_image_transfer_granularity = props.minImageTransferGranularity;
-            n_queues                       = props.queueCount;
-            n_timestamp_bits               = props.timestampValidBits;
+            flags                          = in_props.queueFlags;
+            min_image_transfer_granularity = in_props.minImageTransferGranularity;
+            n_queues                       = in_props.queueCount;
+            n_timestamp_bits               = in_props.timestampValidBits;
         }
     } QueueFamilyInfo;
 
@@ -1605,6 +1605,11 @@ namespace Anvil
 
     /* Unique ID of a render-pass attachment within scope of a RenderPass instance. */
     typedef uint32_t RenderPassAttachmentID;
+
+    typedef enum
+    {
+        RENDERING_SURFACE_TYPE_GENERAL,
+    } RenderingSurfaceType;
 
     /* Specifies one of the compute / rendering pipeline stages. */
     typedef enum

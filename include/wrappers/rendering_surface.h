@@ -72,15 +72,9 @@ namespace Anvil
 
         /** Creates a single Vulkan rendering surface instance and registers the object in
          *  Object Tracker. */
-        static std::shared_ptr<RenderingSurface> create(std::weak_ptr<Anvil::Instance>             instance_ptr,
-                                                        std::weak_ptr<Anvil::BaseDevice>           device_ptr,
-                                                        std::shared_ptr<Anvil::Window>             window_ptr,
-                                                        const ExtensionKHRSurfaceEntrypoints&      khr_surface_entrypoints,
-#ifdef _WIN32
-                                                        const ExtensionKHRWin32SurfaceEntrypoints& khr_win32_surface_entrypoints);
-#else
-                                                        const ExtensionKHRXcbSurfaceEntrypoints&   khr_xcb_surface_entrypoints);
-#endif
+        static std::shared_ptr<RenderingSurface> create(std::weak_ptr<Anvil::Instance>   instance_ptr,
+                                                        std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                                                        std::shared_ptr<Anvil::Window>   window_ptr);
 
         /** Destructor
          *
@@ -102,7 +96,7 @@ namespace Anvil
         }
 
         /** Returns logical device which was used to create this surface */
-        std::weak_ptr<const Anvil::BaseDevice> get_evice() const
+        std::weak_ptr<const Anvil::BaseDevice> get_device() const
         {
             return m_device_ptr;
         }
@@ -129,6 +123,12 @@ namespace Anvil
         const VkSurfaceKHR* get_surface_ptr() const
         {
             return &m_surface;
+        }
+
+        /** Returns type of the rendering surface */
+        RenderingSurfaceType get_type() const
+        {
+            return m_type;
         }
 
         /** Returns rendering surface's width */
@@ -175,21 +175,16 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. Please see create() for specification */
-        RenderingSurface(std::weak_ptr<Anvil::Instance>             instance_ptr,
-                         std::weak_ptr<Anvil::BaseDevice>           device_ptr,
-                         std::shared_ptr<Anvil::Window>             window_ptr,
-                         const ExtensionKHRSurfaceEntrypoints&      khr_surface_entrypoints,
-#ifdef _WIN32
-                         const ExtensionKHRWin32SurfaceEntrypoints& khr_win32_surface_entrypoints,
-#else
-                         const ExtensionKHRXcbSurfaceEntrypoints&   khr_xcb_surface_entrypoints,
-#endif
-                         bool*                                      out_safe_to_use_ptr);
+        RenderingSurface(std::weak_ptr<Anvil::Instance>   instance_ptr,
+                         std::weak_ptr<Anvil::BaseDevice> device_ptr,
+                         std::shared_ptr<Anvil::Window>   window_ptr,
+                         bool*                            out_safe_to_use_ptr);
 
         RenderingSurface           (const RenderingSurface&);
         RenderingSurface& operator=(const RenderingSurface&);
 
-        void cache_surface_properties(std::shared_ptr<Anvil::Window> window_ptr);
+        void cache_surface_properties();
+        bool init                    ();
 
         /* Private variables */
         std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
@@ -198,15 +193,9 @@ namespace Anvil
         uint32_t                                               m_height;
         std::map<DeviceGroupIndex, PhysicalDeviceCapabilities> m_physical_device_capabilities;
         VkSurfaceKHR                                           m_surface;
+        RenderingSurfaceType                                   m_type;
         uint32_t                                               m_width;
-
-        ExtensionKHRSurfaceEntrypoints m_khr_surface_entrypoints;
-
-        #ifdef _WIN32
-            ExtensionKHRWin32SurfaceEntrypoints m_khr_win32_surface_entrypoints;
-        #else
-            ExtensionKHRXcbSurfaceEntrypoints m_khr_xcb_surface_entrypoints;
-        #endif
+        std::weak_ptr<Anvil::Window>                           m_window_ptr;
     };
 }; /* namespace Anvil */
 

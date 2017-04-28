@@ -788,8 +788,9 @@ void App::init_swapchain()
 {
     std::shared_ptr<Anvil::SGPUDevice> device_locked_ptr(m_device_ptr);
 
-    m_rendering_surface_ptr = m_instance_ptr->create_rendering_surface(m_device_ptr,
-                                                                       m_window_ptr);
+    m_rendering_surface_ptr = Anvil::RenderingSurface::create(m_instance_ptr,
+                                                              m_device_ptr,
+                                                              m_window_ptr);
 
     m_swapchain_ptr = device_locked_ptr->create_swapchain(m_rendering_surface_ptr,
                                                           m_window_ptr,

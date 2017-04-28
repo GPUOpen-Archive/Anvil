@@ -927,8 +927,9 @@ void App::init_swapchain()
     static const VkPresentModeKHR      swapchain_present_mode(VK_PRESENT_MODE_FIFO_KHR);
     static const VkImageUsageFlags     swapchain_usage       (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 
-    m_rendering_surface_ptr = m_instance_ptr->create_rendering_surface(m_device_ptr,
-                                                                       m_window_ptr);
+    m_rendering_surface_ptr = Anvil::RenderingSurface::create(m_instance_ptr,
+                                                              m_device_ptr,
+                                                              m_window_ptr);
 
     switch (device_locked_ptr->get_type() )
     {
