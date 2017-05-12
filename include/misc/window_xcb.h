@@ -35,11 +35,15 @@ namespace Anvil
     {
     public:
         /* Public functions */
-                WindowXcb (const std::string&     title,
-                           unsigned int           width,
-                           unsigned int           height,
-                           PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                           void*                  present_callback_func_user_arg);
+        static std::shared_ptr<Anvil::Window> create(const std::string&     title,
+                                                     unsigned int           width,
+                                                     unsigned int           height,
+                                                     PFNPRESENTCALLBACKPROC present_callback_func_ptr,
+                                                     void*                  present_callback_func_user_arg);
+
+        static std::shared_ptr<Anvil::Window> create(xcb_connection_t* connection_ptr,
+                                                     WindowHandle      window_handle);
+
         virtual ~WindowXcb();
 
         virtual void close();
@@ -64,11 +68,21 @@ namespace Anvil
         }
 
     private:
+        WindowXcb(const std::string&     title,
+                  unsigned int           width,
+                  unsigned int           height,
+                  PFNPRESENTCALLBACKPROC present_callback_func_ptr,
+                  void*                  present_callback_func_user_arg);
+        WindowXcb(xcb_connection_t*      connection_ptr,
+                  WindowHandle           window_handle);
+
         /** Creates a new system window and prepares it for usage. */
-        void init();
-        void init_connection();
+        bool init();
+        bool init_connection();
+
         /* Private variables */
         xcb_intern_atom_reply_t* m_atom_wm_delete_window_ptr;
+        xcb_connection_t*        m_connection_ptr;
         xcb_screen_t*            m_screen_ptr;
         xcb_key_symbols_t*       m_key_symbols;
         XCBLoaderForAnvil        m_xcb_loader;

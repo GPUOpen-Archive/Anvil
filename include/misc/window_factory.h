@@ -38,12 +38,42 @@ namespace Anvil
     {
     public:
         /* Public functions */
+
+        /* Creates a Window wrapper instance by opening a new system window.
+         *
+         * @param platform                       Window platform to use. See WindowPlatform documentation
+         *                                       for more details.
+         * @param title                          Title to use for the new window.
+         * @param width                          Width of the new window.
+         * @param height                         Height of the new window.
+         * @param present_callback_func_ptr      Callback function to use for rendering frame contents.
+         * @param present_callback_func_user_arg User argument to pass with the callback function invocation.
+         *
+         * @return A new Window wrapper instance if successful, null otherwise.
+         **/
         static std::shared_ptr<Window> create_window(WindowPlatform         platform,
                                                      const std::string&     title,
                                                      unsigned int           width,
                                                      unsigned int           height,
                                                      PFNPRESENTCALLBACKPROC present_callback_func_ptr,
                                                      void*                  present_callback_func_user_arg);
+
+        /* Creates a Window wrapper instance using app-managed window handle.
+         *
+         * NOTE: The following restrictions apply:
+         *
+         * 1) the application is going to run the message pump on its own.
+         * 2) the application is going to explicitly call the presentation callback function at expose/paint/etc. system requests.
+         * 3) the application only needs the wrapper instance for interaction with other Anvil wrappers (such as swapchains).
+         *    This means that the app should not call any of the window wrapper functions if this platform is used.
+         *
+         * @param platform       Window platform to use. Must NOT be one of the dummy window platforms.
+         * @param handle         Valid, existing window handle.
+         * @param xcb_connection Only relevant for XCB window platform; Pointer to xcb_connection_t which owns the window.
+         */
+        static std::shared_ptr<Window> create_window(WindowPlatform platform,
+                                                     WindowHandle   handle,
+                                                     void*          xcb_connection_ptr = nullptr);
 
     };
 }; /* namespace Anvil */

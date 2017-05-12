@@ -31,6 +31,34 @@
 #include "miniz/miniz.c"
 
 /** Please see header for specification */
+std::shared_ptr<Anvil::Window> Anvil::DummyWindow::create(const std::string&     title,
+                                                          unsigned int           width,
+                                                          unsigned int           height,
+                                                          PFNPRESENTCALLBACKPROC present_callback_func_ptr,
+                                                          void*                  present_callback_func_user_arg)
+{
+    std::shared_ptr<Anvil::DummyWindow> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::DummyWindow(title,
+                               width,
+                               height,
+                               present_callback_func_ptr,
+                               present_callback_func_user_arg)
+    );
+
+    if (result_ptr)
+    {
+        if (!result_ptr->init() )
+        {
+            result_ptr.reset();
+        }
+    }
+
+    return result_ptr;
+}
+
+/** Please see header for specification */
 Anvil::DummyWindow::DummyWindow(const std::string&     title,
                                 unsigned int           width,
                                 unsigned int           height,
@@ -42,7 +70,7 @@ Anvil::DummyWindow::DummyWindow(const std::string&     title,
              present_callback_func_ptr,
              present_callback_func_user_arg)
 {
-    init();
+    m_window_owned = true;
 }
 
 /** Please see header for specification */
@@ -55,9 +83,9 @@ void Anvil::DummyWindow::close()
 }
 
 /** Creates a new system window and prepares it for usage. */
-void Anvil::DummyWindow::init()
+bool Anvil::DummyWindow::init()
 {
-    /* Stub */
+    return true;
 }
 
 /* Please see header for specification */
@@ -75,6 +103,34 @@ void Anvil::DummyWindow::run()
 
 
 /** Please see header for specification */
+std::shared_ptr<Anvil::Window> Anvil::DummyWindowWithPNGSnapshots::create(const std::string&     title,
+                                                                          unsigned int           width,
+                                                                          unsigned int           height,
+                                                                          PFNPRESENTCALLBACKPROC present_callback_func_ptr,
+                                                                          void*                  present_callback_func_user_arg)
+{
+    std::shared_ptr<Anvil::DummyWindowWithPNGSnapshots> result_ptr;
+
+    result_ptr.reset(
+        new Anvil::DummyWindowWithPNGSnapshots(title,
+                                               width,
+                                               height,
+                                               present_callback_func_ptr,
+                                               present_callback_func_user_arg)
+    );
+
+    if (result_ptr)
+    {
+        if (!result_ptr->init() )
+        {
+            result_ptr.reset();
+        }
+    }
+
+    return result_ptr;
+}
+
+/** Please see header for specification */
 Anvil::DummyWindowWithPNGSnapshots::DummyWindowWithPNGSnapshots(const std::string&     title,
                                                                 unsigned int           width,
                                                                 unsigned int           height,
@@ -90,6 +146,7 @@ Anvil::DummyWindowWithPNGSnapshots::DummyWindowWithPNGSnapshots(const std::strin
     m_n_frames_presented = 0;
     m_title              = title;
     m_width              = width;
+    m_window_owned       = true;
 }
 
 /** Please see header for specification */

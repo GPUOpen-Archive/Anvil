@@ -795,6 +795,8 @@ void App::init_vulkan()
     m_physical_device_ptr = m_instance_ptr->get_physical_device(0);
 
     /* Determine which extensions we need to request for */
+    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_instance_ptr->get_physical_device(0) );
+
     required_extension_names.push_back("VK_KHR_swapchain");
 
     /* Create a Vulkan device */

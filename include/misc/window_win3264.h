@@ -35,11 +35,40 @@ namespace Anvil
     {
     public:
         /* Public functions */
-        WindowWin3264(const std::string&     title,
-                      unsigned int           width,
-                      unsigned int           height,
-                      PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                      void*                  present_callback_func_user_arg);
+
+        /* Creates a window wrapper instance by opening a new system window.
+         *
+         * NOTE: This function resets that last system error assigned to the calling thread.
+         *
+         * @param title                          Title to use for the window.
+         * @param width                          New window's width. Must not be 0.
+         * @param height                         New window's height. Must not be 0.
+         * @param present_callback_func_ptr      Func pointer to a function which is going to render frame contents to
+         *                                       the swapchain image. Must not be null.
+         * @param present_callback_func_user_arg User-specific argument to be passed with @param present_callback_func_ptr
+         *                                       invocation. May be null.
+         *
+         * @return New Anvil::Window instance if successful, or null otherwise.
+         */
+        static std::shared_ptr<Anvil::Window> create(const std::string&     title,
+                                                     unsigned int           width,
+                                                     unsigned int           height,
+                                                     PFNPRESENTCALLBACKPROC present_callback_func_ptr,
+                                                     void*                  present_callback_func_user_arg);
+
+        /* Creates a window wrapper instance from an existing window handle.
+         *
+         * It is assumed that:
+         * 1) the application is going to run the message pump on its own.
+         * 2) the application is going to explicitly call the presentation callback function at expose/paint/etc. system requests.
+         * 3) the application only needs the wrapper instance for interaction with other Anvil wrappers (such as swapchains).
+         *
+         *
+         * @param window_handle Existing, valid window handle.
+         *
+         * @return New Anvil::Window instance if successful, or null otherwise.
+         */
+        static std::shared_ptr<Anvil::Window> create(HWND window_handle);
 
         virtual ~WindowWin3264(){ /* Stub */ }
 
@@ -69,8 +98,20 @@ namespace Anvil
     private:
         /* Private functions */
 
+        WindowWin3264(const std::string&     title,
+                      unsigned int           width,
+                      unsigned int           height,
+                      PFNPRESENTCALLBACKPROC present_callback_func_ptr,
+                      void*                  present_callback_func_user_arg);
+        WindowWin3264(HWND                   handle,
+                      const std::string&     title,
+                      unsigned int           width,
+                      unsigned int           height,
+                      PFNPRESENTCALLBACKPROC present_callback_func_ptr,
+                      void*                  present_callback_func_user_arg);
+
         /** Creates a new system window and prepares it for usage. */
-        void init();
+        bool init();
 
         static LRESULT CALLBACK msg_callback_pfn_proc(HWND   window_handle,
                                                       UINT   message_id,

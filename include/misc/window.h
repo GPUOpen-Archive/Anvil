@@ -169,6 +169,7 @@ namespace Anvil
          *  This function will *block* the calling thread. To unblock it, call close().
          *
          *  This function can only be called once throughout Window instance's lifetime.
+         *  This function can only be called for window instances which have opened a system window.
          *
          **/
         virtual void run() = 0;
@@ -194,11 +195,9 @@ namespace Anvil
         unsigned int m_width;
         bool         m_window_should_close;
 
-        /* This member should be used by linux only */
-        void*        m_connection_ptr;
-
         /* Window handle */
         WindowHandle m_window;
+        bool         m_window_owned;
 
         /* protected functions */
         virtual ~Window();

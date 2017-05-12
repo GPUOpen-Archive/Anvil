@@ -35,9 +35,7 @@ Anvil::Window::Window(const std::string&     title,
      m_present_callback_func_user_arg(present_callback_func_user_arg),
      m_title                         (title),
      m_width                         (width),
-     m_window_should_close           (false),
-     m_connection_ptr                (nullptr)
-
+     m_window_should_close           (false)
 {
     /* Stub */
 }

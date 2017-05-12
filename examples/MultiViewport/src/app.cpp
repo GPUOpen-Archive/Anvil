@@ -63,6 +63,18 @@
  * rendered before leaving */
 #define N_FRAMES_TO_RENDER (1)
 
+static const uint32_t g_color1_attribute_binding  = 4;
+static const uint32_t g_color2_attribute_binding  = 3;
+static const uint32_t g_color3_attribute_binding  = 2;
+static const uint32_t g_color4_attribute_binding  = 1;
+static const uint32_t g_vertex_attribute_binding  = 0;
+static const uint32_t g_n_attribute_bindings      = 5;
+
+static const uint32_t g_color1_attribute_location = 0;
+static const uint32_t g_color2_attribute_location = 1;
+static const uint32_t g_color3_attribute_location = 2;
+static const uint32_t g_color4_attribute_location = 3;
+static const uint32_t g_vertex_attribute_location = 4;
 
 static const char* g_glsl_render_frag =
     "#version 430\n"
@@ -526,21 +538,26 @@ void App::init_command_buffers()
                                                      m_renderpass_ptr,
                                                      VK_SUBPASS_CONTENTS_INLINE);
             {
-                std::shared_ptr<Anvil::Buffer> mesh_data_buffer_per_binding[] =
+                std::shared_ptr<Anvil::Buffer> mesh_data_buffer_per_binding[g_n_attribute_bindings] =
                 {
                     m_mesh_data_buffer_ptr,
-                    m_mesh_data_buffer_ptr
+                    m_mesh_data_buffer_ptr,
+                    m_mesh_data_buffer_ptr,
+                    m_mesh_data_buffer_ptr,
+                    m_mesh_data_buffer_ptr,
                 };
-                VkDeviceSize mesh_data_buffer_data_offset_per_binding[] =
-                {
-                    0,
-                    0
-                };
+                VkDeviceSize mesh_data_buffer_data_offset_per_binding[g_n_attribute_bindings] = {0};
+
+                mesh_data_buffer_data_offset_per_binding[g_color1_attribute_binding] = get_mesh_color_data_start_offset (0 /* n_stream */);
+                mesh_data_buffer_data_offset_per_binding[g_color2_attribute_binding] = get_mesh_color_data_start_offset (1 /* n_stream */);
+                mesh_data_buffer_data_offset_per_binding[g_color3_attribute_binding] = get_mesh_color_data_start_offset (2 /* n_stream */);
+                mesh_data_buffer_data_offset_per_binding[g_color4_attribute_binding] = get_mesh_color_data_start_offset (3 /* n_stream */);
+                mesh_data_buffer_data_offset_per_binding[g_vertex_attribute_binding] = get_mesh_vertex_data_start_offset();
 
                 cmd_buffer_ptr->record_bind_pipeline      (VK_PIPELINE_BIND_POINT_GRAPHICS,
                                                            m_pipeline_id);
                 cmd_buffer_ptr->record_bind_vertex_buffers(0, /* startBinding */
-                                                           2, /* bindingCount */
+                                                           g_n_attribute_bindings,
                                                            mesh_data_buffer_per_binding,
                                                            mesh_data_buffer_data_offset_per_binding);
                 cmd_buffer_ptr->record_set_viewport       (0, /* in_first_viewport */
@@ -677,35 +694,41 @@ void App::init_gfx_pipelines()
                                                                     true /* should_enable */);
 
     result  = gfx_pipeline_manager_ptr->add_vertex_attribute(m_pipeline_id,
-                                                             4, /* location */
+                                                             g_vertex_attribute_location,
                                                              mesh_vertex_data_format,
-                                                             get_mesh_vertex_data_start_offset(),
+                                                             0,                                        /* offset_in_bytes */
                                                              sizeof(float) * n_mesh_vertex_components, /* stride_in_bytes */
-                                                             VK_VERTEX_INPUT_RATE_VERTEX);
+                                                             VK_VERTEX_INPUT_RATE_VERTEX,
+                                                             g_vertex_attribute_binding);
     result &= gfx_pipeline_manager_ptr->add_vertex_attribute(m_pipeline_id,
-                                                             0, /* location */
+                                                             g_color1_attribute_location,
                                                              mesh_color_data_format,
-                                                             get_mesh_color_data_start_offset(0),
+                                                             0,                                       /* offset_in_bytes */
                                                              sizeof(float) * n_mesh_color_components, /* stride_in_bytes */
-                                                             VK_VERTEX_INPUT_RATE_VERTEX);
+                                                             VK_VERTEX_INPUT_RATE_VERTEX,
+                                                             g_color1_attribute_binding);
     result &= gfx_pipeline_manager_ptr->add_vertex_attribute(m_pipeline_id,
-                                                             1, /* location */
+                                                             g_color2_attribute_location,
                                                              mesh_color_data_format,
-                                                             get_mesh_color_data_start_offset(1),
+                                                             0,                                       /* offset_in_bytes */
                                                              sizeof(float) * n_mesh_color_components, /* stride_in_bytes */
-                                                             VK_VERTEX_INPUT_RATE_VERTEX);
+                                                             VK_VERTEX_INPUT_RATE_VERTEX,
+                                                             g_color2_attribute_binding);
     result &= gfx_pipeline_manager_ptr->add_vertex_attribute(m_pipeline_id,
-                                                             2, /* location */
+                                                             g_color3_attribute_location,
                                                              mesh_color_data_format,
-                                                             get_mesh_color_data_start_offset(2),
+                                                             0,                                       /* offset_in_bytes */
                                                              sizeof(float) * n_mesh_color_components, /* stride_in_bytes */
-                                                             VK_VERTEX_INPUT_RATE_VERTEX);
+                                                             VK_VERTEX_INPUT_RATE_VERTEX,
+                                                             g_color3_attribute_binding);
     result &= gfx_pipeline_manager_ptr->add_vertex_attribute(m_pipeline_id,
-                                                             3, /* location */
+                                                             g_color4_attribute_location,
                                                              mesh_color_data_format,
-                                                             get_mesh_color_data_start_offset(3),
+                                                             0,                                       /* offset_in_bytes */
                                                              sizeof(float) * n_mesh_color_components, /* stride_in_bytes */
-                                                             VK_VERTEX_INPUT_RATE_VERTEX);
+                                                             VK_VERTEX_INPUT_RATE_VERTEX,
+                                                             g_color4_attribute_binding);
+
     anvil_assert(result);
 
     for (uint32_t n_scissor_box = 0;

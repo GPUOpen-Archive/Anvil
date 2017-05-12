@@ -255,18 +255,24 @@ namespace Anvil
         /** Adds a new vertex attribute descriptor to the specified graphics pipeline. This data will be used
          *  at baking time to configure input vertex attribute & bindings for the Vulkan pipeline object.
          *
-         *  NOTE: At baking time, Anvil will only assign a binding slot to vertex attributes, whose characteristics
-         *        are unique (ie. whose input rate & stride has not already been encountered before). User-specified
-         *        binding assignment is a TODO. If this is a problem, please raise a ticket.
+         *  By default, Anvil only assigns a unique binding to those vertex attributes, whose characteristics
+         *  are unique (ie. whose input rate & stride match). This works well for most of the use cases, the
+         *  only exception being when you need to associate a unique offset to a specific vertex binding. In
+         *  this case, you need to set @param explicit_binding_index to an index, under which your exclusive
+         *  binding is going to be stored.
+         *  When preparing the binding array, Anvil will not reuse user-specified "explicit" bindings for
+         *  attributes, for which "explicit" bindings have not been requested, even if their properties match. 
          *
-         *  @param graphics_pipeine_id ID of the graphics pipeline object, whose state should be changed. The ID
-         *                             must have been returned by one of the add_() functions, issued against the
-         *                             same GraphicsPipelineManager instance.
-         *  @param location            Vertex attribute location
-         *  @param format              Vertex attribute format.
-         *  @param offset_in_bytes     Start offset of the vertex attribute data.
-         *  @param stride_in_bytes     Stride of the vertex attribute data.
-         *  @param rate                Step rate to use for the vertex attribute data.
+         *
+         *  @param graphics_pipeine_id    ID of the graphics pipeline object, whose state should be changed. The ID
+         *                                must have been returned by one of the add_() functions, issued against the
+         *                                same GraphicsPipelineManager instance.
+         *  @param location               Vertex attribute location
+         *  @param format                 Vertex attribute format.
+         *  @param offset_in_bytes        Start offset of the vertex attribute data.
+         *  @param stride_in_bytes        Stride of the vertex attribute data.
+         *  @param step_rate              Step rate to use for the vertex attribute data.
+         *  @param explicit_binding_index Please see general description of the function for more details.
          *
          *  @return true if successful, false otherwise.
          **/
@@ -275,7 +281,8 @@ namespace Anvil
                                   VkFormat           format,
                                   uint32_t           offset_in_bytes,
                                   uint32_t           stride_in_bytes,
-                                  VkVertexInputRate  step_rate);
+                                  VkVertexInputRate  step_rate,
+                                  uint32_t           explicit_binding_index = UINT32_MAX);
 
         /** Generates a VkPipeline instance for each pipeline object marked as dirty. If a dirty pipeline
          *  has already been baked in the past, the former object instance is released.
@@ -719,6 +726,22 @@ namespace Anvil
                                                    uint32_t*          out_opt_binding_ptr,
                                                    VkFormat*          out_opt_format_ptr,
                                                    uint32_t*          out_opt_offset_ptr) const;
+
+        /** Tells which binding has been assigned to a vertex attribute at location @param input_vertex_attribute_location.
+         *
+         *  This function may trigger baking of one or more graphics pipelines, if the user-specified graphics pipeline
+         *  is marked as dirty.
+         *
+         *  @param graphics_pipeline_id                   ID of the graphics pipeline the query is being made for.
+         *  @param input_vertex_attribute_location        Location of the queried vertex attribute.
+         *  @param out_input_vertex_attribute_binding_ptr Deref will be set to the index of the input vertex binding,
+         *                                                assigned to the vertex attribute. Must not be null.
+         *
+         *  @return true if successful, false otherwise.
+         */
+        bool get_vertex_input_binding_for_attribute_location(GraphicsPipelineID graphics_pipeline_id,
+                                                             uint32_t           input_vertex_attribute_location,
+                                                             uint32_t*          out_input_vertex_binding_ptr);
 
         /** Returns properties of a vertex binding at a given index for the specified graphics pipeline.
          *
@@ -1332,6 +1355,7 @@ namespace Anvil
          */
         typedef struct InternalVertexAttribute
         {
+            uint32_t          explicit_binding_index;
             VkFormat          format;
             uint32_t          location;
             uint32_t          offset_in_bytes;
@@ -1341,11 +1365,12 @@ namespace Anvil
             /** Dummy constructor. Should only be used by STL. */
             InternalVertexAttribute()
             {
-                format          = VK_FORMAT_UNDEFINED;
-                location        = UINT32_MAX;
-                offset_in_bytes = UINT32_MAX;
-                rate            = VK_VERTEX_INPUT_RATE_MAX_ENUM;
-                stride_in_bytes = UINT32_MAX;
+                explicit_binding_index = UINT32_MAX;
+                format                 = VK_FORMAT_UNDEFINED;
+                location               = UINT32_MAX;
+                offset_in_bytes        = UINT32_MAX;
+                rate                   = VK_VERTEX_INPUT_RATE_MAX_ENUM;
+                stride_in_bytes        = UINT32_MAX;
             }
 
             /** Constructor.
@@ -1356,23 +1381,26 @@ namespace Anvil
              *  @param in_rate            Step rate.
              *  @param in_stride_in_bytes Stride in bytes.
              **/
-            InternalVertexAttribute(VkFormat          in_format,
+            InternalVertexAttribute(uint32_t          in_explicit_binding_index,
+                                    VkFormat          in_format,
                                     uint32_t          in_location,
                                     uint32_t          in_offset_in_bytes,
                                     VkVertexInputRate in_rate,
                                     uint32_t          in_stride_in_bytes)
             {
-                format          = in_format;
-                location        = in_location;
-                offset_in_bytes = in_offset_in_bytes;
-                rate            = in_rate;
-                stride_in_bytes = in_stride_in_bytes;
+                explicit_binding_index = in_explicit_binding_index;
+                format                 = in_format;
+                location               = in_location;
+                offset_in_bytes        = in_offset_in_bytes;
+                rate                   = in_rate;
+                stride_in_bytes        = in_stride_in_bytes;
             }
         } InternalVertexAttribute;
 
-        typedef std::vector<InternalVertexAttribute>     InternalVertexAttributes;
-        typedef std::map<uint32_t, InternalScissorBox>   InternalScissorBoxes;
-        typedef std::map<uint32_t, InternalViewport>     InternalViewports;
+        typedef std::map<uint32_t, uint32_t>           AttributeLocationToBindingIndexMap;
+        typedef std::map<uint32_t, InternalScissorBox> InternalScissorBoxes;
+        typedef std::vector<InternalVertexAttribute>   InternalVertexAttributes;
+        typedef std::map<uint32_t, InternalViewport>   InternalViewports;
 
         /** Descriptor which encapsulates all state of a single graphics pipeline.
          *
@@ -1383,6 +1411,7 @@ namespace Anvil
          */
         struct GraphicsPipelineConfiguration
         {
+            AttributeLocationToBindingIndexMap             attribute_location_to_binding_index_map;
             std::vector<VkVertexInputAttributeDescription> vk_input_attributes;
             std::vector<VkVertexInputBindingDescription>   vk_input_bindings;
 
@@ -1542,8 +1571,9 @@ namespace Anvil
             GraphicsPipelineConfiguration& operator=(const GraphicsPipelineConfiguration& in)
             {
                 /* NOTE: We leave window, renderpass & subpass ID intact. */
-                vk_input_attributes = in.vk_input_attributes;
-                vk_input_bindings   = in.vk_input_bindings;
+                attribute_location_to_binding_index_map = in.attribute_location_to_binding_index_map;
+                vk_input_attributes                     = in.vk_input_attributes;
+                vk_input_bindings                       = in.vk_input_bindings;
 
                 depth_bounds_test_enabled = in.depth_bounds_test_enabled;
                 max_depth_bounds          = in.max_depth_bounds;

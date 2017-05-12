@@ -32,6 +32,11 @@
 #include "wrappers/shader_module.h"
 #include "wrappers/swapchain.h"
 
+#if defined(max)
+    #undef max
+#endif
+
+
 /** When baking a graphics pipeline descriptor, we currently use STL vectors to maintain storage
  *  for various Vulkan descriptors. These need to be stored on heap because:
  *
@@ -220,7 +225,8 @@ bool Anvil::GraphicsPipelineManager::add_vertex_attribute(GraphicsPipelineID    
                                                           VkFormat              format,
                                                           uint32_t              offset_in_bytes,
                                                           uint32_t              stride_in_bytes,
-                                                          VkVertexInputRate     rate)
+                                                          VkVertexInputRate     rate,
+                                                          uint32_t              explicit_binding_index)
 {
     std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
     auto                                           pipeline_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
@@ -247,13 +253,32 @@ bool Anvil::GraphicsPipelineManager::add_vertex_attribute(GraphicsPipelineID    
         {
             anvil_assert(attribute_iterator->location != location);
         }
+
+        /* If an explicit binding has been requested for the new attribute, we need to make sure that any user-specified attributes
+         * that refer to this binding specify the same stride and input rate. */
+        if (explicit_binding_index != UINT32_MAX)
+        {
+            for (auto attribute_iterator  = pipeline_config_ptr->attributes.cbegin();
+                      attribute_iterator != pipeline_config_ptr->attributes.cend();
+                    ++attribute_iterator)
+            {
+                const auto& current_attribute = *attribute_iterator;
+
+                if (current_attribute.explicit_binding_index == explicit_binding_index)
+                {
+                    anvil_assert(current_attribute.rate            == rate);
+                    anvil_assert(current_attribute.stride_in_bytes == stride_in_bytes);
+                }
+            }
+        }
     }
     #endif
 
     /* Add a new vertex attribute descriptor. At this point, we do not differentiate between
      * attributes and bindings. Actual Vulkan attributes and bindings will be created at baking
      * time. */
-    pipeline_config_ptr->attributes.push_back(InternalVertexAttribute(format,
+    pipeline_config_ptr->attributes.push_back(InternalVertexAttribute(explicit_binding_index,
+                                                                      format,
                                                                       location,
                                                                       offset_in_bytes,
                                                                       rate,
@@ -409,7 +434,7 @@ bool Anvil::GraphicsPipelineManager::bake()
              subpass_n_color_attachments > 0)
         {
             VkPipelineColorBlendStateCreateInfo color_blend_state_create_info;
-            const uint32_t                      start_offset = (uint32_t) color_blend_attachment_states_vk_cache.size();
+            const uint32_t                      start_offset = static_cast<uint32_t>(color_blend_attachment_states_vk_cache.size() );
 
             color_blend_state_create_info.attachmentCount       = subpass_n_color_attachments;
             color_blend_state_create_info.flags                 = 0;
@@ -526,7 +551,7 @@ bool Anvil::GraphicsPipelineManager::bake()
         if (current_pipeline_config_ptr->enabled_dynamic_states != 0)
         {
             VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
-            const uint32_t                   start_offset = (uint32_t) enabled_dynamic_states_vk_cache.size();
+            const uint32_t                   start_offset = static_cast<uint32_t>(enabled_dynamic_states_vk_cache.size() );
 
             if ((current_pipeline_config_ptr->enabled_dynamic_states & DYNAMIC_STATE_BLEND_CONSTANTS_BIT) != 0)
             {
@@ -573,7 +598,7 @@ bool Anvil::GraphicsPipelineManager::bake()
                 enabled_dynamic_states_vk_cache.push_back(VK_DYNAMIC_STATE_VIEWPORT);
             }
 
-            dynamic_state_create_info.dynamicStateCount = (uint32_t) (enabled_dynamic_states_vk_cache.size() - start_offset);
+            dynamic_state_create_info.dynamicStateCount = static_cast<uint32_t>(enabled_dynamic_states_vk_cache.size() - start_offset);
             dynamic_state_create_info.flags             = 0;
             dynamic_state_create_info.pDynamicStates    = (dynamic_state_create_info.dynamicStateCount > 0) ? &enabled_dynamic_states_vk_cache[start_offset]
                                                                                                             : VK_NULL_HANDLE;
@@ -672,7 +697,7 @@ bool Anvil::GraphicsPipelineManager::bake()
         raster_state_create_info_items_vk_cache.push_back(raster_state_create_info);
 
         /* Form stage descriptors */
-        shader_stage_start_offset = (uint32_t) shader_stage_create_info_items_vk_cache.size();
+        shader_stage_start_offset = static_cast<uint32_t>(shader_stage_create_info_items_vk_cache.size() );
 
         for (uint32_t n_shader = 0;
                       n_shader < GRAPHICS_SHADER_STAGE_COUNT;
@@ -739,14 +764,14 @@ bool Anvil::GraphicsPipelineManager::bake()
         /* Form the vertex input state create info descriptor */
         bake_vk_attributes_and_bindings(current_pipeline_config_ptr);
 
-        vertex_input_state_create_info.vertexAttributeDescriptionCount = (uint32_t) current_pipeline_config_ptr->vk_input_attributes.size();
-        vertex_input_state_create_info.vertexBindingDescriptionCount   = (uint32_t) current_pipeline_config_ptr->vk_input_bindings.size();
+        vertex_input_state_create_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(current_pipeline_config_ptr->vk_input_attributes.size());
+        vertex_input_state_create_info.vertexBindingDescriptionCount   = static_cast<uint32_t>(current_pipeline_config_ptr->vk_input_bindings.size() );
 
         vertex_input_state_create_info.flags                        = 0;
         vertex_input_state_create_info.pNext                        = nullptr;
-        vertex_input_state_create_info.pVertexAttributeDescriptions = (vertex_input_state_create_info.vertexAttributeDescriptionCount > 0) ? &current_pipeline_config_ptr->vk_input_attributes[0]
+        vertex_input_state_create_info.pVertexAttributeDescriptions = (vertex_input_state_create_info.vertexAttributeDescriptionCount > 0) ? &current_pipeline_config_ptr->vk_input_attributes.at(0)
                                                                                                                                            : nullptr;
-        vertex_input_state_create_info.pVertexBindingDescriptions   = (vertex_input_state_create_info.vertexBindingDescriptionCount   > 0) ? &current_pipeline_config_ptr->vk_input_bindings[0]
+        vertex_input_state_create_info.pVertexBindingDescriptions   = (vertex_input_state_create_info.vertexBindingDescriptionCount   > 0) ? &current_pipeline_config_ptr->vk_input_bindings.at(0)
                                                                                                                                            : nullptr;
         vertex_input_state_create_info.sType                        = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
@@ -755,16 +780,16 @@ bool Anvil::GraphicsPipelineManager::bake()
         /* Form the viewport state create info descriptor, if needed */
         if (!current_pipeline_config_ptr->rasterizer_discard_enabled)
         {
-            const uint32_t                    scissor_boxes_start_offset = (uint32_t) scissor_boxes_vk_cache.size();
-            const uint32_t                    viewports_start_offset     = (uint32_t) viewports_vk_cache.size();
+            const uint32_t                    scissor_boxes_start_offset = static_cast<uint32_t>(scissor_boxes_vk_cache.size() );
+            const uint32_t                    viewports_start_offset     = static_cast<uint32_t>(viewports_vk_cache.size() );
             VkPipelineViewportStateCreateInfo viewport_state_create_info;
 
             #ifdef _DEBUG
             {
                 const uint32_t n_scissor_boxes = (current_pipeline_config_ptr->enabled_dynamic_states & DYNAMIC_STATE_SCISSOR_BIT)  ? current_pipeline_config_ptr->n_dynamic_scissor_boxes
-                                                                                                                                    : (uint32_t) current_pipeline_config_ptr->scissor_boxes.size();
+                                                                                                                                    : static_cast<uint32_t>(current_pipeline_config_ptr->scissor_boxes.size() );
                 const uint32_t n_viewports     = (current_pipeline_config_ptr->enabled_dynamic_states & DYNAMIC_STATE_VIEWPORT_BIT) ? current_pipeline_config_ptr->n_dynamic_viewports
-                                                                                                                                    : (uint32_t) current_pipeline_config_ptr->viewports.size();
+                                                                                                                                    : static_cast<uint32_t>(current_pipeline_config_ptr->viewports.size() );
 
                 anvil_assert(n_scissor_boxes == n_viewports);
             }
@@ -830,10 +855,10 @@ bool Anvil::GraphicsPipelineManager::bake()
             viewport_state_create_info.pViewports    = ((current_pipeline_config_ptr->enabled_dynamic_states & DYNAMIC_STATE_VIEWPORT_BIT) != 0) ? VK_NULL_HANDLE
                                                                                                                                                  : &viewports_vk_cache    [viewports_start_offset];
             viewport_state_create_info.scissorCount  = ((current_pipeline_config_ptr->enabled_dynamic_states & DYNAMIC_STATE_SCISSOR_BIT)  != 0) ? current_pipeline_config_ptr->n_dynamic_scissor_boxes 
-                                                                                                                                                 : (uint32_t) current_pipeline_config_ptr->scissor_boxes.size();
+                                                                                                                                                 : static_cast<uint32_t>(current_pipeline_config_ptr->scissor_boxes.size() );
             viewport_state_create_info.sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
             viewport_state_create_info.viewportCount = ((current_pipeline_config_ptr->enabled_dynamic_states & DYNAMIC_STATE_VIEWPORT_BIT) != 0) ? current_pipeline_config_ptr->n_dynamic_viewports
-                                                                                                                                                 : (uint32_t) current_pipeline_config_ptr->viewports.size();
+                                                                                                                                                 : static_cast<uint32_t>(current_pipeline_config_ptr->viewports.size() );
 
             anvil_assert(viewport_state_create_info.scissorCount == viewport_state_create_info.viewportCount);
 
@@ -922,7 +947,7 @@ bool Anvil::GraphicsPipelineManager::bake()
         graphics_pipeline_create_info.pViewportState      = (viewport_state_used)       ? &viewport_state_create_info_items_vk_cache[viewport_state_create_info_items_vk_cache.size() - 1]
                                                                                         : VK_NULL_HANDLE;
         graphics_pipeline_create_info.renderPass          = current_pipeline_config_ptr->renderpass_ptr->get_render_pass();
-        graphics_pipeline_create_info.stageCount          = (uint32_t) shader_stage_create_info_items_vk_cache.size() - shader_stage_start_offset;
+        graphics_pipeline_create_info.stageCount          = static_cast<uint32_t>(shader_stage_create_info_items_vk_cache.size() - shader_stage_start_offset);
         graphics_pipeline_create_info.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         graphics_pipeline_create_info.subpass             = current_pipeline_config_ptr->subpass_id;
 
@@ -981,7 +1006,7 @@ bool Anvil::GraphicsPipelineManager::bake()
 
     result_vk = vkCreateGraphicsPipelines(device_locked_ptr->get_device_vk(),
                                           m_pipeline_cache_ptr->get_pipeline_cache(),
-                                          (uint32_t) graphics_pipeline_create_info_items_vk_cache.size(),
+                                          static_cast<uint32_t>(graphics_pipeline_create_info_items_vk_cache.size() ),
                                          &graphics_pipeline_create_info_items_vk_cache[0],
                                           nullptr, /* pAllocator */
                                          &result_graphics_pipelines[0]);
@@ -1029,7 +1054,7 @@ bool Anvil::GraphicsPipelineManager::bake()
         current_pipeline_ptr->dirty                      = false;
     }
 
-    anvil_assert(n_consumed_graphics_pipelines == (uint32_t) result_graphics_pipelines.size() );
+    anvil_assert(n_consumed_graphics_pipelines == static_cast<uint32_t>(result_graphics_pipelines.size() ));
 
     /* All done */
     result = true;
@@ -1046,6 +1071,7 @@ end:
  */
 void Anvil::GraphicsPipelineManager::bake_vk_attributes_and_bindings(std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr)
 {
+    pipeline_config_ptr->attribute_location_to_binding_index_map.clear();
     pipeline_config_ptr->vk_input_attributes.clear();
     pipeline_config_ptr->vk_input_bindings.clear();
 
@@ -1053,23 +1079,34 @@ void Anvil::GraphicsPipelineManager::bake_vk_attributes_and_bindings(std::shared
               attribute_iterator != pipeline_config_ptr->attributes.cend();
             ++attribute_iterator)
     {
-        /* Identify the binding index we should use for the attribute */
+        /* Identify the binding index we should use for the attribute.
+         *
+         * If an explicit binding has been specified by the application, this step can be skipped */
+        const auto&                       current_attribute   = *attribute_iterator;
         VkVertexInputAttributeDescription current_attribute_vk;
         uint32_t                          n_attribute_binding = UINT32_MAX;
         bool                              has_found           = false;
 
-        for (auto vk_input_binding_iterator  = pipeline_config_ptr->vk_input_bindings.begin();
-                  vk_input_binding_iterator != pipeline_config_ptr->vk_input_bindings.end();
-                ++vk_input_binding_iterator)
+        if (current_attribute.explicit_binding_index == UINT32_MAX)
         {
-            if (vk_input_binding_iterator->inputRate == attribute_iterator->rate           &&
-                vk_input_binding_iterator->stride    == attribute_iterator->stride_in_bytes)
+            for (auto vk_input_binding_iterator  = pipeline_config_ptr->vk_input_bindings.begin();
+                      vk_input_binding_iterator != pipeline_config_ptr->vk_input_bindings.end();
+                    ++vk_input_binding_iterator)
             {
-                has_found           = true;
-                n_attribute_binding = (uint32_t) (vk_input_binding_iterator - pipeline_config_ptr->vk_input_bindings.begin());
+                if (vk_input_binding_iterator->inputRate == attribute_iterator->rate            &&
+                    vk_input_binding_iterator->stride    == attribute_iterator->stride_in_bytes)
+                {
+                    has_found           = true;
+                    n_attribute_binding = static_cast<uint32_t>(vk_input_binding_iterator - pipeline_config_ptr->vk_input_bindings.begin());
 
-                break;
+                    break;
+                }
             }
+        }
+        else
+        {
+            has_found           = false;
+            n_attribute_binding = current_attribute.explicit_binding_index;
         }
 
         if (!has_found)
@@ -1077,7 +1114,8 @@ void Anvil::GraphicsPipelineManager::bake_vk_attributes_and_bindings(std::shared
             /* Got to create a new binding descriptor .. */
             VkVertexInputBindingDescription new_binding_vk;
 
-            new_binding_vk.binding   = (uint32_t) pipeline_config_ptr->vk_input_bindings.size();
+            new_binding_vk.binding   = (current_attribute.explicit_binding_index == UINT32_MAX) ? static_cast<uint32_t>(pipeline_config_ptr->vk_input_bindings.size() )
+                                                                                                : current_attribute.explicit_binding_index;
             new_binding_vk.inputRate = attribute_iterator->rate;
             new_binding_vk.stride    = attribute_iterator->stride_in_bytes;
 
@@ -1092,6 +1130,11 @@ void Anvil::GraphicsPipelineManager::bake_vk_attributes_and_bindings(std::shared
         current_attribute_vk.location = attribute_iterator->location;
         current_attribute_vk.offset   = attribute_iterator->offset_in_bytes;
 
+        /* Associate attribute locations with assigned bindings */
+        anvil_assert(pipeline_config_ptr->attribute_location_to_binding_index_map.find(attribute_iterator->location) == pipeline_config_ptr->attribute_location_to_binding_index_map.end() );
+        pipeline_config_ptr->attribute_location_to_binding_index_map[attribute_iterator->location] = current_attribute_vk.binding;
+
+        /* Cache the descriptor */
         pipeline_config_ptr->vk_input_attributes.push_back(current_attribute_vk);
     }
 }
@@ -2215,6 +2258,62 @@ bool Anvil::GraphicsPipelineManager::get_vertex_input_attribute_properties(Graph
 
     /* All done */
     result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+bool Anvil::GraphicsPipelineManager::get_vertex_input_binding_for_attribute_location(GraphicsPipelineID graphics_pipeline_id,
+                                                                                     uint32_t           input_vertex_attribute_location,
+                                                                                     uint32_t*          out_input_vertex_binding_ptr)
+{
+    AttributeLocationToBindingIndexMap::const_iterator    attribute_location_iterator;
+    auto                                                  pipeline_config_iterator = m_pipeline_configurations.find(graphics_pipeline_id);
+    std::shared_ptr<GraphicsPipelineConfiguration>        pipeline_config_ptr;
+    auto                                                  pipeline_iterator        = m_pipelines.find              (graphics_pipeline_id);
+    std::shared_ptr<Anvil::BasePipelineManager::Pipeline> pipeline_ptr;
+    bool                                                  result                   = false;
+
+    if (pipeline_config_iterator == m_pipeline_configurations.end() ||
+        pipeline_iterator        == m_pipelines.end() )
+    {
+        anvil_assert(!(pipeline_config_iterator == m_pipeline_configurations.end() ));
+        anvil_assert(!(pipeline_iterator        == m_pipelines.end() ));
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+        pipeline_ptr        = pipeline_iterator->second;
+    }
+
+    if (pipeline_ptr->dirty)
+    {
+        const bool has_been_successfully_baked = bake();
+
+        if (!has_been_successfully_baked)
+        {
+            anvil_assert(has_been_successfully_baked);
+
+            goto end;
+        }
+
+        anvil_assert(!pipeline_ptr->dirty);
+    }
+
+    if ( (attribute_location_iterator = pipeline_config_ptr->attribute_location_to_binding_index_map.find(input_vertex_attribute_location)) == pipeline_config_ptr->attribute_location_to_binding_index_map.end() )
+    {
+        anvil_assert(!(attribute_location_iterator == pipeline_config_ptr->attribute_location_to_binding_index_map.end() ));
+
+        goto end;
+    }
+    else
+    {
+        *out_input_vertex_binding_ptr = attribute_location_iterator->second;
+        result                        = true;
+    }
+
 end:
     return result;
 }

@@ -35,11 +35,11 @@ namespace Anvil
     {
     public:
         /* Public functions */
-        DummyWindow(const std::string&     title,
-                    unsigned int           width,
-                    unsigned int           height,
-                    PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                    void*                  present_callback_func_user_arg);
+        static std::shared_ptr<Anvil::Window> create(const std::string&     title,
+                                                     unsigned int           width,
+                                                     unsigned int           height,
+                                                     PFNPRESENTCALLBACKPROC present_callback_func_ptr,
+                                                     void*                  present_callback_func_user_arg);
 
         virtual ~DummyWindow()
         {
@@ -68,20 +68,25 @@ namespace Anvil
             return nullptr;
         }
 
-    private:
-        /** Creates a new system window and prepares it for usage. */
-        void init();
+    protected:
+        DummyWindow(const std::string&     title,
+                    unsigned int           width,
+                    unsigned int           height,
+                    PFNPRESENTCALLBACKPROC present_callback_func_ptr,
+                    void*                  present_callback_func_user_arg);
+
+        bool init();
     };
 
     class DummyWindowWithPNGSnapshots : public DummyWindow
     {
     public:
         /* Public methods */
-        DummyWindowWithPNGSnapshots(const std::string&     title,
-                                    unsigned int           width,
-                                    unsigned int           height,
-                                    PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                    void*                  present_callback_func_user_arg);
+        static std::shared_ptr<Anvil::Window> create(const std::string&     title,
+                                                     unsigned int           width,
+                                                     unsigned int           height,
+                                                     PFNPRESENTCALLBACKPROC present_callback_func_ptr,
+                                                     void*                  present_callback_func_user_arg);
 
         /** Destructor */
         virtual ~DummyWindowWithPNGSnapshots()
@@ -107,6 +112,11 @@ namespace Anvil
 
     private:
         /* Private functions */
+        DummyWindowWithPNGSnapshots(const std::string&     title,
+                                    unsigned int           width,
+                                    unsigned int           height,
+                                    PFNPRESENTCALLBACKPROC present_callback_func_ptr,
+                                    void*                  present_callback_func_user_arg);
 
         /** Grabs contents of the specified swapchain image and returns them in a raw R8G8B8A8_UNORM
          *  format.

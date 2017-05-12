@@ -72,12 +72,13 @@ Anvil::ComputePipelineManager::~ComputePipelineManager()
  **/
 bool Anvil::ComputePipelineManager::bake()
 {
-    std::shared_ptr<Anvil::BaseDevice>       locked_device_ptr(m_device_ptr);
-    std::vector<VkComputePipelineCreateInfo> pipeline_create_info_items_vk;
-    bool                                     result = false;
-    std::vector<VkPipeline>                  result_pipeline_items_vk;
-    VkResult                                 result_vk;
-    std::vector<VkSpecializationMapEntry>    specialization_map_entries_vk;
+    std::shared_ptr<Anvil::BaseDevice>                  locked_device_ptr(m_device_ptr);
+    std::vector<VkComputePipelineCreateInfo>            pipeline_create_info_items_vk;
+    bool                                                result = false;
+    std::vector<VkPipeline>                             result_pipeline_items_vk;
+    VkResult                                            result_vk;
+    std::vector<std::vector<VkSpecializationMapEntry> > specialization_map_entries_vk(m_pipelines.size() );
+    std::vector<VkSpecializationInfo>                   specialization_info_vk(m_pipelines.size());
 
     typedef struct _bake_item
     {
@@ -98,16 +99,16 @@ bool Anvil::ComputePipelineManager::bake()
     } _bake_item;
 
     std::map<VkPipelineLayout, std::vector<_bake_item> > layout_to_bake_item_map;
+    uint32_t                                             n_current_pipeline      = 0;
 
     /* Iterate over all compute pipelines and identify the ones marked as dirty. Only these
      * need to be re-created */
     for (auto pipeline_iterator  = m_pipelines.begin();
               pipeline_iterator != m_pipelines.end();
-            ++pipeline_iterator)
+            ++pipeline_iterator, ++n_current_pipeline)
     {
         std::shared_ptr<Pipeline>   current_pipeline_ptr  = pipeline_iterator->second;
         VkComputePipelineCreateInfo pipeline_create_info;
-        VkSpecializationInfo        specialization_info;
 
         if (!current_pipeline_ptr->dirty     ||
              current_pipeline_ptr->is_proxy)
@@ -135,8 +136,8 @@ bool Anvil::ComputePipelineManager::bake()
 
             bake_specialization_info_vk(current_pipeline_ptr->specialization_constants_map.at       (0),
                                        &current_pipeline_ptr->specialization_constant_data_buffer.at(0),
-                                       &specialization_map_entries_vk,
-                                       &specialization_info);
+                                       &specialization_map_entries_vk[n_current_pipeline],
+                                       &specialization_info_vk[n_current_pipeline]);
         }
 
         /* Prepare the Vulkan create info descriptor & store it in the map for later baking */
@@ -200,7 +201,7 @@ bool Anvil::ComputePipelineManager::bake()
         pipeline_create_info.stage.flags               = 0;
         pipeline_create_info.stage.pName               = current_pipeline_ptr->shader_stages[0].name;
         pipeline_create_info.stage.pNext               = nullptr;
-        pipeline_create_info.stage.pSpecializationInfo = (current_pipeline_ptr->specialization_constants_map[0].size() > 0) ? &specialization_info
+        pipeline_create_info.stage.pSpecializationInfo = (current_pipeline_ptr->specialization_constants_map[0].size() > 0) ? &specialization_info_vk[n_current_pipeline]
                                                                                                                             : VK_NULL_HANDLE;
         pipeline_create_info.stage.stage               = VK_SHADER_STAGE_COMPUTE_BIT;
         pipeline_create_info.stage.sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;

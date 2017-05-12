@@ -129,10 +129,6 @@ const Anvil::ExtensionAMDDrawIndirectCountEntrypoints& Anvil::BaseDevice::get_ex
 /** Please see header for specification */
 const Anvil::ExtensionKHRSwapchainEntrypoints& Anvil::BaseDevice::get_extension_khr_swapchain_entrypoints() const
 {
-    anvil_assert(std::find(m_enabled_extensions.begin(),
-                           m_enabled_extensions.end(),
-                           "VK_KHR_swapchain") != m_enabled_extensions.end() );
-
     return m_khr_swapchain_entrypoints;
 }
 
