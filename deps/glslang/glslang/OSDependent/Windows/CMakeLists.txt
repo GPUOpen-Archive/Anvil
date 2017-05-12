@@ -13,5 +13,5 @@ if(WIN32)
     source_group("Source" FILES ${SOURCES})
 endif(WIN32)
 
-install(TARGETS OSDependent 
-        ARCHIVE DESTINATION lib)
+install(TARGETS OSDependent
+		ARCHIVE DESTINATION lib)

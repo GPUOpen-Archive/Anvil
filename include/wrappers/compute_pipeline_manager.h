@@ -29,8 +29,8 @@
 #ifndef WRAPPERS_COMPUTE_PIPELINE_MANAGER_H
 #define WRAPPERS_COMPUTE_PIPELINE_MANAGER_H
 
-#include "misc/base_pipeline_manager.h"
-#include "misc/types.h"
+#include "../misc/base_pipeline_manager.h"
+#include "../misc/types.h"
 #include <memory>
 
 namespace Anvil

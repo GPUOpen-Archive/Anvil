@@ -31,14 +31,14 @@
 #ifndef MISC_CALLBACKS_H
 #define MISC_CALLBACKS_H
 
-#include "misc/debug.h"
+#include "../misc/debug.h"
 #include <stdint.h>
 #include <vector>
 #ifndef _WIN32
     #include <unistd.h>
 #endif
 
-#include "misc/types.h"
+#include "../misc/types.h"
 
 namespace Anvil
 {

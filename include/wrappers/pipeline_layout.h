@@ -30,8 +30,8 @@
 #ifndef WRAPPERS_PIPELINE_LAYOUT_H
 #define WRAPPERS_PIPELINE_LAYOUT_H
 
-#include "misc/callbacks.h"
-#include "misc/types.h"
+#include "../misc/callbacks.h"
+#include "../misc/types.h"
 
 namespace Anvil
 {

@@ -32,12 +32,12 @@
 #ifndef WRAPPERS_SWAPCHAIN_H
 #define WRAPPERS_SWAPCHAIN_H
 
-#include "misc/types.h"
-#include "wrappers/device.h"
-#include "wrappers/fence.h"
-#include "wrappers/image.h"
-#include "wrappers/image_view.h"
-#include "wrappers/rendering_surface.h"
+#include "../misc/types.h"
+#include "../wrappers/device.h"
+#include "../wrappers/fence.h"
+#include "../wrappers/image.h"
+#include "../wrappers/image_view.h"
+#include "../wrappers/rendering_surface.h"
 
 namespace Anvil
 {

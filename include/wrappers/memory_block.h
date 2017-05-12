@@ -36,7 +36,7 @@
 #ifndef WRAPPERS_MEMORY_BLOCK_H
 #define WRAPPERS_MEMORY_BLOCK_H
 
-#include "misc/types.h"
+#include "../misc/types.h"
 
 
 namespace Anvil

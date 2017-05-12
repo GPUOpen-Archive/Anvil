@@ -31,7 +31,7 @@
 #ifndef WRAPPERS_EVENT_H
 #define WRAPPERS_EVENT_H
 
-#include "misc/types.h"
+#include "../misc/types.h"
 
 namespace Anvil
 {

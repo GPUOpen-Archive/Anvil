@@ -31,8 +31,8 @@
 #ifndef WRAPPERS_DEVICE_H
 #define WRAPPERS_DEVICE_H
 
-#include "misc/debug.h"
-#include "misc/types.h"
+#include "../misc/debug.h"
+#include "../misc/types.h"
 #include <algorithm>
 
 namespace Anvil

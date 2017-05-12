@@ -31,7 +31,7 @@
 #ifndef WRAPPERS_PIPELINE_CACHE_H
 #define WRAPPERS_PIPELINE_CACHE_H
 
-#include "misc/types.h"
+#include "../misc/types.h"
 
 
 namespace Anvil

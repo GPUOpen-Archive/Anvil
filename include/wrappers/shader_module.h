@@ -30,7 +30,7 @@
 #ifndef WRAPPERS_SHADER_MODULE_H
 #define WRAPPERS_SHADER_MODULE_H
 
-#include "misc/types.h"
+#include "../misc/types.h"
 
 namespace Anvil
 {

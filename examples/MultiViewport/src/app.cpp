@@ -51,7 +51,7 @@
 #include "wrappers/semaphore.h"
 #include "wrappers/shader_module.h"
 #include "wrappers/swapchain.h"
-#include "app.h"
+#include "../include/app.h"
 
 #define APP_NAME                "MultiViewport example application"
 #define N_SUBDIVISION_TRIANGLES (128)

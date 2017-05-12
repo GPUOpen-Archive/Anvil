@@ -30,10 +30,10 @@
 #ifndef WRAPPERS_RENDERING_SURFACE_H
 #define WRAPPERS_RENDERING_SURFACE_H
 
-#include "misc/types.h"
-#include "wrappers/device.h"
-#include "wrappers/physical_device.h"
-#include "wrappers/queue.h"
+#include "../misc/types.h"
+#include "../wrappers/device.h"
+#include "../wrappers/physical_device.h"
+#include "../wrappers/queue.h"
 #include <algorithm>
 
 namespace Anvil

@@ -35,8 +35,8 @@
 #ifndef WRAPPERS_COMMAND_BUFFER_H
 #define WRAPPERS_COMMAND_BUFFER_H
 
-#include "misc/callbacks.h"
-#include "misc/types.h"
+#include "../misc/callbacks.h"
+#include "../misc/types.h"
 
 #ifdef _DEBUG
     #define STORE_COMMAND_BUFFER_COMMANDS

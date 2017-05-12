@@ -23,9 +23,9 @@
 #ifndef WRAPPERS_QUERY_POOL_H
 #define WRAPPERS_QUERY_POOL_H
 
-#include "misc/ref_counter.h"
-#include "misc/pools.h"
-#include "misc/types.h"
+#include "../misc/ref_counter.h"
+#include "../misc/pools.h"
+#include "../misc/types.h"
 
 
 namespace Anvil

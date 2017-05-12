@@ -28,7 +28,7 @@
 #ifndef WRAPPERS_IMAGE_VIEW_H
 #define WRAPPERS_IMAGE_VIEW_H
 
-#include "misc/types.h"
+#include "../misc/types.h"
 
 namespace Anvil
 {

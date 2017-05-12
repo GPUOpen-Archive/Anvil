@@ -31,8 +31,8 @@
 #ifndef WRAPPERS_INSTANCE_H
 #define WRAPPERS_INSTANCE_H
 
-#include "misc/types.h"
-#include "wrappers/rendering_surface.h"
+#include "../misc/types.h"
+#include "../wrappers/rendering_surface.h"
 
 namespace Anvil
 {

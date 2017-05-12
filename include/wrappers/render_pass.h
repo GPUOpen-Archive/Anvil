@@ -31,8 +31,8 @@
 #ifndef WRAPPERS_RENDER_PASS_H
 #define WRAPPERS_RENDER_PASS_H
 
-#include "misc/callbacks.h"
-#include "misc/types.h"
+#include "../misc/callbacks.h"
+#include "../misc/types.h"
 
 namespace Anvil
 {

@@ -31,8 +31,8 @@
 #ifndef WRAPPERS_PHYSICAL_DEVICE_H
 #define WRAPPERS_PHYSICAL_DEVICE_H
 
-#include "misc/debug.h"
-#include "misc/types.h"
+#include "../misc/debug.h"
+#include "../misc/types.h"
 
 namespace Anvil
 {

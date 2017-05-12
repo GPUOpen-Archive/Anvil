@@ -27,7 +27,7 @@
 #ifndef WINDOW_XCB_H
 #define WINDOW_XCB_H
 
-#include "misc/window.h"
+#include "../misc/window.h"
 
 namespace Anvil
 {

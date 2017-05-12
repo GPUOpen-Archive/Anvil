@@ -70,9 +70,9 @@
 #ifndef WRAPPERS_GRAPHICS_PIPELINE_MANAGER_H
 #define WRAPPERS_GRAPHICS_PIPELINE_MANAGER_H
 
-#include "misc/base_pipeline_manager.h"
-#include "misc/types.h"
-#include "wrappers/render_pass.h"
+#include "../misc/base_pipeline_manager.h"
+#include "../misc/types.h"
+#include "../wrappers/render_pass.h"
 #include <map>
 
 namespace Anvil

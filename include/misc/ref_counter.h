@@ -23,6 +23,6 @@
 #ifndef MISC_REF_COUNTER_H
 #define MISC_REF_COUNTER_H
 
-#include "misc/types.h"
+#include "../misc/types.h"
 
 #endif /* MISC_REF_COUNTER_H */

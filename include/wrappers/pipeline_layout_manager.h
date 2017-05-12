@@ -29,7 +29,7 @@
 #ifndef PIPELINE_LAYOUT_MANAGER_H
 #define PIPELINE_LAYOUT_MANAGER_H
 
-#include "misc/types.h"
+#include "../misc/types.h"
 #include <memory>
 
 namespace Anvil

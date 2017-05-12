@@ -30,7 +30,7 @@
 #ifndef WRAPPERS_BUFFER_VIEW_H
 #define WRAPPERS_BUFFER_VIEW_H
 
-#include "misc/types.h"
+#include "../misc/types.h"
 
 namespace Anvil
 {

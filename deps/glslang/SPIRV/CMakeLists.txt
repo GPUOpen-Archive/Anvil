@@ -49,3 +49,8 @@ if(WIN32)
     source_group("Source" FILES ${SOURCES} ${HEADERS})
     source_group("Source" FILES ${SPVREMAP_SOURCES} ${SPVREMAP_HEADERS})
 endif(WIN32)
+
+install(TARGETS SPIRV
+		ARCHIVE DESTINATION lib)
+install(TARGETS SPVRemapper
+		ARCHIVE DESTINATION lib)

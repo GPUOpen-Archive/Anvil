@@ -28,9 +28,9 @@
 #ifndef MISC_GLSL_TO_SPIRV_H
 #define MISC_GLSL_TO_SPIRV_H
 
-#include "config.h"
-#include "misc/debug.h"
-#include "misc/types.h"
+#include "../config.h"
+#include "../misc/debug.h"
+#include "../misc/types.h"
 #include <map>
 #include <memory>
 #include <sstream>
@@ -43,7 +43,11 @@
         #pragma warning(disable: 4464)
     #endif
 
-    #include "../../deps/glslang/glslang/Public/ShaderLang.h"
+	#if (defined(ANVIL_GLSLANG_USE_OLD_HEADERS)) || (!defined(ANVIL_INSTALL_GLSLANG_HEADERS))
+		#include "../../deps/glslang/glslang/Public/ShaderLang.h"
+	#else
+		#include "../glslang/Public/ShaderLang.h"
+	#endif
 
     #ifdef _MSC_VER
         #pragma warning(pop)
