@@ -412,18 +412,6 @@ namespace Anvil
          **/
         bool set_memory(std::shared_ptr<Anvil::MemoryBlock> memory_block_ptr);
 
-        /** Binds memory of swapchain image, specified at creation time, to this Image instance.
-         *
-         *  NOTE: This function must NOT be used for sparse images.
-         *
-         *  NOTE: It is illegal to change the memory backing, after one has been associated with an Image instance.
-         *
-         *  @param swapchain_image_index TODO
-         *
-         *  TODO
-         **/
-        bool set_memory(uint32_t swapchain_image_index);
-
         /** Assigns a name to the image. Used by DOT serializer. */
         void set_name(std::string name)
         {
@@ -679,6 +667,12 @@ namespace Anvil
         void transition_to_post_create_image_layout(VkAccessFlags src_access_mask,
                                                     VkImageLayout src_layout);
 
+        /** TODO.
+         *
+         *  Does NOT set ::pQueueFamilyIndices and ::queueFamilyIndexCount!
+         */
+        static VkImageCreateInfo get_create_info_for_swapchain(std::shared_ptr<const Anvil::Swapchain> swapchain_ptr);
+
         /* Private members */
         VkSampleCountFlagsVariable(m_sample_count);
         VkImageUsageFlagsVariable (m_usage);
@@ -712,8 +706,6 @@ namespace Anvil
         Anvil::SparseResidencyScope            m_residency_scope;
         VkSharingMode                          m_sharing_mode;
         VkDeviceSize                           m_storage_size;
-        bool                                   m_swapchain_memory_assigned; /* only used for images which can be bound swapchain memory */
-        std::shared_ptr<Anvil::Swapchain>      m_swapchain_ptr;             /* only used for images which can be bound a swapchain      */
         VkImageTiling                          m_tiling;
         VkImageType                            m_type;
         bool                                   m_uses_full_mipmap_chain;

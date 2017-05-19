@@ -74,7 +74,6 @@ Anvil::Image::Image(std::weak_ptr<Anvil::BaseDevice>  device_ptr,
      m_sample_count                          (sample_count),
      m_sharing_mode                          (sharing_mode),
      m_storage_size                          (0),
-     m_swapchain_memory_assigned             (false),
      m_tiling                                (tiling),
      m_type                                  (type),
      m_usage                                 (static_cast<VkImageUsageFlagBits>(usage)),
@@ -133,7 +132,6 @@ Anvil::Image::Image(std::weak_ptr<Anvil::BaseDevice>  device_ptr,
      m_sample_count                          (sample_count),
      m_sharing_mode                          (sharing_mode),
      m_storage_size                          (0),
-     m_swapchain_memory_assigned             (false),
      m_tiling                                (tiling),
      m_type                                  (type),
      m_usage                                 (static_cast<VkImageUsageFlagBits>(usage)),
@@ -190,7 +188,6 @@ Anvil::Image::Image(std::weak_ptr<Anvil::BaseDevice>  device_ptr,
      m_sample_count                          (sample_count),
      m_sharing_mode                          (sharing_mode),
      m_storage_size                          (UINT64_MAX),
-     m_swapchain_memory_assigned             (false),
      m_tiling                                (tiling),
      m_type                                  (VK_IMAGE_TYPE_MAX_ENUM),
      m_usage                                 (static_cast<VkImageUsageFlagBits>(usage)),
@@ -241,7 +238,6 @@ Anvil::Image::Image(std::weak_ptr<Anvil::BaseDevice> device_ptr,
      m_sample_count                          (sample_count),
      m_sharing_mode                          (sharing_mode),
      m_storage_size                          (UINT64_MAX),
-     m_swapchain_memory_assigned             (false),
      m_tiling                                (tiling),
      m_type                                  (type),
      m_usage                                 (static_cast<VkImageUsageFlagBits>(usage)),
@@ -734,23 +730,14 @@ void Anvil::Image::init(bool                 use_full_mipmap_chain,
     m_n_mipmaps = image_create_info.mipLevels;
     m_n_slices  = (m_type == VK_IMAGE_TYPE_3D) ? m_depth : 1;
 
-    if (m_swapchain_ptr == nullptr)
-    {
-        /* Extract various image properties we're going to need later */
-        vkGetImageMemoryRequirements(device_locked_ptr->get_device_vk(),
-                                     m_image,
-                                    &m_memory_reqs);
+    /* Extract various image properties we're going to need later */
+    vkGetImageMemoryRequirements(device_locked_ptr->get_device_vk(),
+                                 m_image,
+                                &m_memory_reqs);
 
-        m_alignment    = m_memory_reqs.alignment;
-        m_memory_types = m_memory_reqs.memoryTypeBits;
-        m_storage_size = m_memory_reqs.size;
-    }
-    else
-    {
-        m_alignment    = UINT64_MAX;
-        m_memory_types = 0;
-        m_storage_size = 0;
-    }
+    m_alignment    = m_memory_reqs.alignment;
+    m_memory_types = m_memory_reqs.memoryTypeBits;
+    m_storage_size = m_memory_reqs.size;
 
     /* Cache aspect subresource properties if we're dealing with a linear image */
     if (m_tiling == VK_IMAGE_TILING_LINEAR)
@@ -797,8 +784,6 @@ void Anvil::Image::init(bool                 use_full_mipmap_chain,
     {
         uint32_t                                     n_reqs                  = 0;
         std::vector<VkSparseImageMemoryRequirements> sparse_image_memory_reqs;
-
-        anvil_assert(m_swapchain_ptr == nullptr);
 
         /* Retrieve image aspect properties. Since Vulkan lets a single props structure to refer to more than
          * just a single aspect, we first cache the exposed info in a vec and then distribute the information to
@@ -1146,6 +1131,34 @@ end:
     return result;
 }
 
+/** TODO */
+VkImageCreateInfo Anvil::Image::get_create_info_for_swapchain(std::shared_ptr<const Anvil::Swapchain> swapchain_ptr)
+{
+    VkImageCreateInfo result;
+
+    swapchain_ptr->get_image(0)->get_image_mipmap_size(0, /* n_mipmap */
+                                                       &result.extent.width,
+                                                       &result.extent.height,
+                                                       &result.arrayLayers);
+
+    result.extent.depth          = 1;
+    result.flags                 = swapchain_ptr->get_flags();
+    result.format                = swapchain_ptr->get_image_format();
+    result.imageType             = VK_IMAGE_TYPE_2D;
+    result.initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED;
+    result.mipLevels             = 1;
+    result.pNext                 = nullptr;
+    result.pQueueFamilyIndices   = nullptr;
+    result.queueFamilyIndexCount = UINT32_MAX;
+    result.samples               = VK_SAMPLE_COUNT_1_BIT;
+    result.sharingMode           = swapchain_ptr->get_image(0)->get_image_sharing_mode();
+    result.sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    result.tiling                = VK_IMAGE_TILING_OPTIMAL;
+    result.usage                 = swapchain_ptr->get_image(0)->get_image_usage();
+
+    return result;
+}
+
 /** Please see header for specification */
 VkImageSubresourceRange Anvil::Image::get_subresource_range() const
 {
@@ -1394,7 +1407,6 @@ bool Anvil::Image::set_memory(std::shared_ptr<Anvil::MemoryBlock> memory_block_p
     anvil_assert(!m_is_sparse);
     anvil_assert(m_mipmaps.size()   >  0);
     anvil_assert(m_memory_block_ptr == nullptr);
-    anvil_assert(m_swapchain_ptr    == nullptr);
 
     /* Bind the memory object to the image object */
     if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)

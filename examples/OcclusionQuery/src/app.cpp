@@ -26,6 +26,7 @@
 /* Uncomment the #define below to enable validation */
 // #define ENABLE_VALIDATION
 
+#include "config.h"
 #include <string>
 #include "misc/glsl_to_spirv.h"
 #include "misc/io.h"
@@ -53,6 +54,18 @@
 #include "wrappers/shader_module.h"
 #include "wrappers/swapchain.h"
 #include "app.h"
+
+/* Sanity checks */
+#if defined(_WIN32)
+    #if !defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT) && !defined(ENABLE_OFFSCREEN_RENDERING)
+        #error Anvil has not been built with Win32/64 window system support. The application can only be built in offscreen rendering mode.
+    #endif
+#else
+    #if !defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT) && !defined(ENABLE_OFFSCREEN_RENDERING)
+        #error Anvil has not been built with XCB window system support. The application can only be built in offscreen rendering mode.
+    #endif
+#endif
+
 
 /* Low-level #defines follow.. */
 #define APP_NAME      "Occlusion query example application"

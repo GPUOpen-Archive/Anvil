@@ -102,6 +102,8 @@ bool Anvil::MemoryAllocator::add_buffer_internal(std::shared_ptr<Anvil::Buffer> 
                            in_required_memory_features) );
 
 end:
+    anvil_assert(result);
+
     return result;
 }
 

@@ -1,2 +1,8 @@
-/* Defined if glslangvalidator is statically linked with Anvil */
+/* Defined if glslangvalidator is to be statically linked with Anvil */
 #cmakedefine ANVIL_LINK_WITH_GLSLANG
+
+/* Defined if Windows window system support is to be included in Anvil */
+#cmakedefine ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT
+
+/* Defined if XCB window system support is to be included in Anvil */
+#cmakedefine ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT

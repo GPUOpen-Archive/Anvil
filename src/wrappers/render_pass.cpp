@@ -673,7 +673,7 @@ bool Anvil::RenderPass::bake()
         uint32_t n_max_preserve_attachments;
     } SubPassAttachmentSet;
 
-    std::vector<SubPassAttachmentSet*> subpass_attachment_sets;
+    std::vector<std::shared_ptr<SubPassAttachmentSet> > subpass_attachment_sets;
 
     /* If this is not first baking request, release the previously created render pass instance */
     if (m_render_pass != VK_NULL_HANDLE)
@@ -736,12 +736,13 @@ bool Anvil::RenderPass::bake()
               subpass_iterator != m_subpasses.cend();
             ++subpass_iterator)
     {
-        SubPassAttachmentSet* current_subpass_attachment_set_ptr        = nullptr;
-        uint32_t              highest_subpass_color_attachment_location = UINT32_MAX;
-        uint32_t              highest_subpass_input_attachment_index    = UINT32_MAX;
-        bool                  need_resolve_attachments                  = false;
-        VkSubpassDescription  subpass_vk;
-        VkAttachmentReference unused_reference;
+        std::shared_ptr<SubPassAttachmentSet> current_subpass_attachment_set_ptr;
+        uint32_t                              highest_subpass_color_attachment_location = UINT32_MAX;
+        uint32_t                              highest_subpass_input_attachment_index    = UINT32_MAX;
+        bool                                  need_resolve_attachments                  = false;
+        const uint32_t                        subpass_index                             = static_cast<uint32_t>(subpass_iterator - m_subpasses.begin() );
+        VkSubpassDescription                  subpass_vk;
+        VkAttachmentReference                 unused_reference;
 
         unused_reference.attachment = VK_ATTACHMENT_UNUSED;
         unused_reference.layout     = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -783,9 +784,11 @@ bool Anvil::RenderPass::bake()
         }
 
         /* Instantiate a new subpass attachment set for current subpass */
-        current_subpass_attachment_set_ptr = new SubPassAttachmentSet(highest_subpass_color_attachment_location + 1,                /* n_max_color_attachments */
-                                                                      (uint32_t) (*subpass_iterator)->input_attachments_map.size(), /* n_max_input_attachments */
-                                                                      (uint32_t) (*subpass_iterator)->preserved_attachments.size()  /* n_max_preserved_attachments */);
+        current_subpass_attachment_set_ptr.reset(
+            new SubPassAttachmentSet(highest_subpass_color_attachment_location + 1,                /* n_max_color_attachments */
+                                     (uint32_t) (*subpass_iterator)->input_attachments_map.size(), /* n_max_input_attachments */
+                                     (uint32_t) (*subpass_iterator)->preserved_attachments.size()  /* n_max_preserved_attachments */)
+        );
 
         /* Prepare unused VK color, depth, input & resolve attachment descriptors */
         for (uint32_t n_color_attachment = 0;
@@ -855,17 +858,17 @@ bool Anvil::RenderPass::bake()
         subpass_vk.colorAttachmentCount              = n_color_attachments;
         subpass_vk.flags                             = 0;
         subpass_vk.inputAttachmentCount              = n_input_attachments;
-        subpass_vk.pColorAttachments                 = (n_color_attachments > 0)                                              ? &current_subpass_attachment_set_ptr->color_attachments_vk[0]
-                                                                                                                              : nullptr;
+        subpass_vk.pColorAttachments                 = (n_color_attachments > 0)                                                 ? &current_subpass_attachment_set_ptr->color_attachments_vk.at(0)
+                                                                                                                                 : nullptr;
         subpass_vk.pDepthStencilAttachment           = ((*subpass_iterator)->depth_stencil_attachment.attachment_ptr != nullptr) ? &current_subpass_attachment_set_ptr->depth_attachment_vk
-                                                                                                                              : nullptr;
-        subpass_vk.pInputAttachments                 = (n_input_attachments > 0)                                              ? &current_subpass_attachment_set_ptr->input_attachments_vk[0]
-                                                                                                                              : nullptr;
+                                                                                                                                 : nullptr;
+        subpass_vk.pInputAttachments                 = (n_input_attachments > 0)                                                 ? &current_subpass_attachment_set_ptr->input_attachments_vk.at(0)
+                                                                                                                                 : nullptr;
         subpass_vk.pipelineBindPoint                 = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass_vk.pPreserveAttachments              = (n_preserved_attachments > 0) ? &current_subpass_attachment_set_ptr->preserve_attachments_vk[0]
+        subpass_vk.pPreserveAttachments              = (n_preserved_attachments > 0) ? &current_subpass_attachment_set_ptr->preserve_attachments_vk.at(0)
                                                                                      : nullptr;
         subpass_vk.preserveAttachmentCount           = n_preserved_attachments;
-        subpass_vk.pResolveAttachments               = (n_resolved_attachments > 0) ? &current_subpass_attachment_set_ptr->resolve_attachments_vk[0]
+        subpass_vk.pResolveAttachments               = (n_resolved_attachments > 0) ? &current_subpass_attachment_set_ptr->resolve_attachments_vk.at(0)
                                                                                     : nullptr;
 
         current_subpass_attachment_set_ptr->do_sanity_checks();
@@ -875,16 +878,16 @@ bool Anvil::RenderPass::bake()
     }
 
     /* Set up a create info descriptor and spawn a new Vulkan RenderPass object. */
-    render_pass_create_info.attachmentCount = (uint32_t) m_attachments.size();
-    render_pass_create_info.dependencyCount = (uint32_t) m_subpass_dependencies.size();
-    render_pass_create_info.subpassCount    = (uint32_t) m_subpasses.size();
+    render_pass_create_info.attachmentCount = static_cast<uint32_t>(m_attachments.size() );
+    render_pass_create_info.dependencyCount = static_cast<uint32_t>(m_subpass_dependencies.size() );
+    render_pass_create_info.subpassCount    = static_cast<uint32_t>(m_subpasses.size() );
     render_pass_create_info.flags           = 0;
-    render_pass_create_info.pAttachments    = (render_pass_create_info.attachmentCount > 0) ? &renderpass_color_attachments_vk[0]
+    render_pass_create_info.pAttachments    = (render_pass_create_info.attachmentCount > 0) ? &renderpass_color_attachments_vk.at(0)
                                                                                             : nullptr;
-    render_pass_create_info.pDependencies   = (render_pass_create_info.dependencyCount > 0) ? &subpass_dependencies_vk[0]
+    render_pass_create_info.pDependencies   = (render_pass_create_info.dependencyCount > 0) ? &subpass_dependencies_vk.at(0)
                                                                                             : nullptr;
     render_pass_create_info.pNext           = nullptr;
-    render_pass_create_info.pSubpasses      = (render_pass_create_info.subpassCount > 0) ? &subpass_descriptions_vk[0]
+    render_pass_create_info.pSubpasses      = (render_pass_create_info.subpassCount > 0) ? &subpass_descriptions_vk.at(0)
                                                                                          : nullptr;
     render_pass_create_info.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 
@@ -902,17 +905,8 @@ bool Anvil::RenderPass::bake()
 
     m_dirty = false;
     result  = true;
+
 end:
-    /* Clean up */
-    while (subpass_attachment_sets.size() > 0)
-    {
-        SubPassAttachmentSet* current_set_ptr = subpass_attachment_sets.back();
-
-        delete current_set_ptr;
-        current_set_ptr = nullptr;
-
-        subpass_attachment_sets.pop_back();
-    }
     return result;
 }
 

@@ -28,6 +28,7 @@
 
 #include <string>
 #include <cmath>
+#include "config.h"
 #include "misc/glsl_to_spirv.h"
 #include "misc/memory_allocator.h"
 #include "misc/object_tracker.h"
@@ -53,6 +54,19 @@
 #include "wrappers/swapchain.h"
 #include "app.h"
 
+/* Sanity checks */
+#if defined(_WIN32)
+    #if !defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT) && !defined(ENABLE_OFFSCREEN_RENDERING)
+        #error Anvil has not been built with Win32/64 window system support. The application can only be built in offscreen rendering mode.
+    #endif
+#else
+    #if !defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT) && !defined(ENABLE_OFFSCREEN_RENDERING)
+        #error Anvil has not been built with XCB window system support. The application can only be built in offscreen rendering mode.
+    #endif
+#endif
+
+
+/* Low-level #defines follow */
 #define APP_NAME                "MultiViewport example application"
 #define N_SUBDIVISION_TRIANGLES (128)
 #define N_VIEWPORTS             (4)

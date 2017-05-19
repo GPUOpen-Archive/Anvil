@@ -57,28 +57,31 @@ std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatfor
 
 #ifdef _WIN32
 
-        case WINDOW_PLATFORM_SYSTEM:
-        {
-            result_ptr = Anvil::WindowWin3264::create(title,
+        #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+            case WINDOW_PLATFORM_SYSTEM:
+            {
+                result_ptr = Anvil::WindowWin3264::create(title,
+                                                          width,
+                                                          height,
+                                                          present_callback_func_ptr,
+                                                          present_callback_func_user_arg);
+
+                break;
+            }
+        #endif
+#else
+        #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+            case WINDOW_PLATFORM_XCB:
+            {
+                result_ptr = Anvil::WindowXcb::create(title,
                                                       width,
                                                       height,
                                                       present_callback_func_ptr,
                                                       present_callback_func_user_arg);
 
-            break;
-        }
-
-#else
-        case WINDOW_PLATFORM_XCB:
-        {
-            result_ptr = Anvil::WindowXcb::create(title,
-                                                  width,
-                                                  height,
-                                                  present_callback_func_ptr,
-                                                  present_callback_func_user_arg);
-
-            break;
-        }
+                break;
+            }
+        #endif
 
         case WINDOW_PLATFORM_XLIB:
         case WINDOW_PLATFORM_WAYLAND:
@@ -102,6 +105,10 @@ std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatfor
 {
     std::shared_ptr<Anvil::Window> result_ptr;
 
+    /* NOTE: These arguments may not be used at all, depending on ANVIL_INCLUDE_*_WINDOW_SYSTEM_SUPPORT configuration */
+    ANVIL_REDUNDANT_ARGUMENT(handle);
+    ANVIL_REDUNDANT_ARGUMENT(xcb_connection_ptr);
+
     #ifdef _WIN32
     {
         ANVIL_REDUNDANT_ARGUMENT(xcb_connection_ptr);
@@ -112,21 +119,25 @@ std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatfor
     {
 #ifdef _WIN32
 
-        case WINDOW_PLATFORM_SYSTEM:
-        {
-            result_ptr = Anvil::WindowWin3264::create(handle);
+        #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+            case WINDOW_PLATFORM_SYSTEM:
+            {
+                result_ptr = Anvil::WindowWin3264::create(handle);
 
-            break;
-        }
+                break;
+            }
+        #endif
 
 #else
-        case WINDOW_PLATFORM_XCB:
-        {
-            result_ptr = Anvil::WindowXcb::create(static_cast<xcb_connection_t*>(xcb_connection_ptr),
-                                                  handle);
+        #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+            case WINDOW_PLATFORM_XCB:
+            {
+                result_ptr = Anvil::WindowXcb::create(static_cast<xcb_connection_t*>(xcb_connection_ptr),
+                                                      handle);
 
-            break;
-        }
+                break;
+            }
+        #endif
 
         case WINDOW_PLATFORM_XLIB:
         case WINDOW_PLATFORM_WAYLAND:

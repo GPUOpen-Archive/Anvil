@@ -24,10 +24,17 @@
 #ifndef WINDOW_FACTORY_H
 #define WINDOW_FACTORY_H
 
+#include "config.h"
+
+
 #ifdef _WIN32
-    #include "misc/window_win3264.h"
+    #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+        #include "misc/window_win3264.h"
+    #endif
 #else
-    #include "misc/window_xcb.h"
+    #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+        #include "misc/window_xcb.h"
+    #endif
 #endif /* _WIN32 */
 
 #include "misc/dummy_window.h"

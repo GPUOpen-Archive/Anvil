@@ -861,6 +861,7 @@ bool Anvil::GraphicsPipelineManager::bake()
                                                                                                                                                  : static_cast<uint32_t>(current_pipeline_config_ptr->viewports.size() );
 
             anvil_assert(viewport_state_create_info.scissorCount == viewport_state_create_info.viewportCount);
+            anvil_assert(viewport_state_create_info.scissorCount != 0);
 
             viewport_state_used = true;
 

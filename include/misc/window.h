@@ -91,11 +91,15 @@ namespace Anvil
 
     #ifdef _WIN32
         /* win32 */
-        WINDOW_PLATFORM_SYSTEM,
+        #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+            WINDOW_PLATFORM_SYSTEM,
+        #endif
 
     #else
-        /* linux xcb */
-        WINDOW_PLATFORM_XCB,
+        #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+            /* linux xcb */
+            WINDOW_PLATFORM_XCB,
+        #endif
 
         /* linux xlib */
         WINDOW_PLATFORM_XLIB,

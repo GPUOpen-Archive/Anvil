@@ -472,12 +472,8 @@ bool Anvil::Buffer::read(VkDeviceSize start_offset,
             goto end;
         }
 
-        if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
-        {
-            copy_cmdbuf_ptr->start_recording(true,   /* one_time_submit          */
-                                             false); /* simultaneous_use_allowed */
-        }
-
+        copy_cmdbuf_ptr->start_recording(true,   /* one_time_submit          */
+                                         false); /* simultaneous_use_allowed */
         {
             Anvil::BufferBarrier buffer_barrier(VK_ACCESS_TRANSFER_WRITE_BIT,
                                                 VK_ACCESS_HOST_READ_BIT,

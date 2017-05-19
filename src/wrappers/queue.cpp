@@ -363,10 +363,9 @@ void Anvil::Queue::submit_command_buffers(uint32_t                              
     ANVIL_REDUNDANT_VARIABLE(result);
 
     /* Sanity checks */
-    anvil_assert(m_device_ptr.lock()->get_type() == Anvil::DEVICE_TYPE_SINGLE_GPU);
-    anvil_assert(n_command_buffers               <  sizeof(cmd_buffers_vk)       / sizeof(cmd_buffers_vk      [0]) );
-    anvil_assert(n_semaphores_to_signal          <  sizeof(signal_semaphores_vk) / sizeof(signal_semaphores_vk[0]) );
-    anvil_assert(n_semaphores_to_wait_on         <  sizeof(wait_semaphores_vk)   / sizeof(wait_semaphores_vk  [0]) );
+    anvil_assert(n_command_buffers       < sizeof(cmd_buffers_vk)       / sizeof(cmd_buffers_vk      [0]) );
+    anvil_assert(n_semaphores_to_signal  < sizeof(signal_semaphores_vk) / sizeof(signal_semaphores_vk[0]) );
+    anvil_assert(n_semaphores_to_wait_on < sizeof(wait_semaphores_vk)   / sizeof(wait_semaphores_vk  [0]) );
 
     /* Prepare for the submission */
     if (opt_fence_ptr == nullptr &&
@@ -418,13 +417,12 @@ void Anvil::Queue::submit_command_buffers(uint32_t                              
     if (should_block)
     {
         /* Wait till initialization finishes GPU-side */
-        std::shared_ptr<Anvil::SGPUDevice> sgpu_device_locked_ptr(std::dynamic_pointer_cast<Anvil::SGPUDevice>(m_device_ptr.lock() ) );
-
-        result = vkWaitForFences(sgpu_device_locked_ptr->get_device_vk(),
+        result = vkWaitForFences(m_device_ptr.lock()->get_device_vk(),
                                  1, /* fenceCount */
                                  opt_fence_ptr->get_fence_ptr(),
                                  VK_TRUE,     /* waitAll */
                                  UINT64_MAX); /* timeout */
+
         anvil_assert_vk_call_succeeded(result);
     }
 }
