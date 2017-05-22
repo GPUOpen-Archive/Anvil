@@ -33,10 +33,6 @@
 #include "misc/types.h"
 #include "misc/debug.h"
 
-#ifdef _WIN32
-    #include <Windows.h>
-#endif
-
 namespace Anvil
 {
     /** Prototype of a function, which renders frame contents & presents it */

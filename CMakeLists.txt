@@ -172,10 +172,8 @@ endif()
 # Add dependendencies
 if (WIN32)
     add_subdirectory("deps\\glslang")
-    add_subdirectory("deps\\glslang\\OGLCompilersDLL")
 else()
     add_subdirectory("deps/glslang")
-    add_subdirectory("deps/glslang/OGLCompilersDLL")
 endif()
 
 # Enable level-4 warnings

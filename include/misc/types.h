@@ -19,10 +19,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
-
 #ifndef MISC_TYPES_H
 #define MISC_TYPES_H
+
 #include <cstdio>
+#include <string>
 
 #include "config.h"
 
@@ -43,11 +44,15 @@
     #define ANVIL_LITTLE_ENDIAN
 #endif
 
-/* The following #define is required to include Vulkan entry-point prototypes. */
+/* The following #define is required to include Vulkan entry-point prototype declarations. */
 #ifdef _WIN32
-    #define VK_USE_PLATFORM_WIN32_KHR
+    #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+        #define VK_USE_PLATFORM_WIN32_KHR
+    #endif
 #else
-    #define VK_USE_PLATFORM_XCB_KHR
+    #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+        #define VK_USE_PLATFORM_XCB_KHR
+    #endif
 #endif
 
 
@@ -60,24 +65,30 @@
 
     #include <windows.h>
 
-    typedef HWND WindowHandle;
+    #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+        typedef HWND WindowHandle;
+    #else
+        typedef void* WindowHandle;
+    #endif
 #else
-    #include "xcb_loader_for_anvil.h"
+    #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+        #include "xcb_loader_for_anvil.h"
+
+        typedef xcb_window_t WindowHandle;
+    #else
+        typedef void* WindowHandle;
+    #endif
+
     #include <string.h>
 
     #ifndef nullptr
         #define nullptr NULL
     #endif
-
-    typedef xcb_window_t WindowHandle;
 #endif
 
 #ifdef _WIN32
     #include "vulkan\vulkan.h"
     #include "vulkan\vk_platform.h"
-#else
-    #include "vulkan/vulkan.h"
-    #include "vulkan/vk_platform.h"
 #endif
 
 #include <map>
@@ -760,27 +771,31 @@ namespace Anvil
     } ExtensionKHRSwapchainEntrypoints;
 
     #ifdef _WIN32
-        typedef struct ExtensionKHRWin32SurfaceEntrypoints
-        {
-            PFN_vkCreateWin32SurfaceKHR                        vkCreateWin32SurfaceKHR;
-            PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR vkGetPhysicalDeviceWin32PresentationSupportKHR;
-
-            ExtensionKHRWin32SurfaceEntrypoints()
+        #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+            typedef struct ExtensionKHRWin32SurfaceEntrypoints
             {
-                vkCreateWin32SurfaceKHR                        = nullptr;
-                vkGetPhysicalDeviceWin32PresentationSupportKHR = nullptr;
-            }
-        } ExtensionKHRWin32SurfaceEntrypoints;
+                PFN_vkCreateWin32SurfaceKHR                        vkCreateWin32SurfaceKHR;
+                PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR vkGetPhysicalDeviceWin32PresentationSupportKHR;
+
+                ExtensionKHRWin32SurfaceEntrypoints()
+                {
+                    vkCreateWin32SurfaceKHR                        = nullptr;
+                    vkGetPhysicalDeviceWin32PresentationSupportKHR = nullptr;
+                }
+            } ExtensionKHRWin32SurfaceEntrypoints;
+        #endif
     #else
-        typedef struct ExtensionKHRXcbSurfaceEntrypoints
-        {
-            PFN_vkCreateXcbSurfaceKHR vkCreateXcbSurfaceKHR;
-
-            ExtensionKHRXcbSurfaceEntrypoints()
+        #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+            typedef struct ExtensionKHRXcbSurfaceEntrypoints
             {
-                vkCreateXcbSurfaceKHR = nullptr;
-            }
-        } ExtensionKHRXcbSurfaceEntrypoints;
+                PFN_vkCreateXcbSurfaceKHR vkCreateXcbSurfaceKHR;
+
+                ExtensionKHRXcbSurfaceEntrypoints()
+                {
+                    vkCreateXcbSurfaceKHR = nullptr;
+                }
+            } ExtensionKHRXcbSurfaceEntrypoints;
+        #endif
     #endif
 
     /** Holds driver-specific format capabilities */

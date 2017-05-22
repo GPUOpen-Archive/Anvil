@@ -76,7 +76,9 @@ TORT (INCLUDING NEGLIGENCE), STRICT LIABILITY OR OTHERWISE, EVEN IF
 NVIDIA HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 \****************************************************************************/
 
+#ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
+#endif
 
 #include <sstream>
 #include <cstdlib>
@@ -776,8 +778,12 @@ int TPpContext::CPPversion(TPpToken* ppToken)
 {
     int token = scanToken(ppToken);
 
-    if (errorOnVersion || versionSeen)
-        parseContext.ppError(ppToken->loc, "must occur first in shader", "#version", "");
+    if (errorOnVersion || versionSeen) {
+        if (parseContext.isReadingHLSL())
+            parseContext.ppError(ppToken->loc, "invalid preprocessor command", "#version", "");
+        else
+            parseContext.ppError(ppToken->loc, "must occur first in shader", "#version", "");
+    }
     versionSeen = true;
 
     if (token == '\n') {

@@ -232,18 +232,10 @@ void Anvil::Instance::enumerate_physical_devices()
 
     if (n_physical_devices == 0)
     {
-#ifdef _WIN32
-        MessageBox(HWND_DESKTOP,
-                   "No physical devices reported for the Vulkan instance",
-                   "Error",
-                   MB_OK | MB_ICONERROR);
-
-        exit(1);
-#else
         fprintf(stderr,"No physical devices reported for the Vulkan instance");
-        fflush(stderr);
-        exit(1);
-#endif
+        fflush (stderr);
+
+        anvil_assert(false);
     }
 
     devices.resize(n_physical_devices);
@@ -287,25 +279,29 @@ const Anvil::ExtensionKHRSurfaceEntrypoints& Anvil::Instance::get_extension_khr_
 }
 
 #ifdef _WIN32
-    /** Please see header for specification */
-    const Anvil::ExtensionKHRWin32SurfaceEntrypoints& Anvil::Instance::get_extension_khr_win32_surface_entrypoints() const
-    {
-        anvil_assert(std::find(m_enabled_extensions.begin(),
-                               m_enabled_extensions.end(),
-                               VK_KHR_WIN32_SURFACE_EXTENSION_NAME) != m_enabled_extensions.end() );
+    #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+        /** Please see header for specification */
+        const Anvil::ExtensionKHRWin32SurfaceEntrypoints& Anvil::Instance::get_extension_khr_win32_surface_entrypoints() const
+        {
+            anvil_assert(std::find(m_enabled_extensions.begin(),
+                                   m_enabled_extensions.end(),
+                                   VK_KHR_WIN32_SURFACE_EXTENSION_NAME) != m_enabled_extensions.end() );
 
-        return m_khr_win32_surface_entrypoints;
-    }
+            return m_khr_win32_surface_entrypoints;
+        }
+    #endif
 #else
-    /** Please see header for specification */
-    const Anvil::ExtensionKHRXcbSurfaceEntrypoints& Anvil::Instance::get_extension_khr_xcb_surface_entrypoints() const
-    {
-        anvil_assert(std::find(m_enabled_extensions.begin(),
-                               m_enabled_extensions.end(),
-                               VK_KHR_XCB_SURFACE_EXTENSION_NAME) != m_enabled_extensions.end() );
+    #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+        /** Please see header for specification */
+        const Anvil::ExtensionKHRXcbSurfaceEntrypoints& Anvil::Instance::get_extension_khr_xcb_surface_entrypoints() const
+        {
+            anvil_assert(std::find(m_enabled_extensions.begin(),
+                                   m_enabled_extensions.end(),
+                                   VK_KHR_XCB_SURFACE_EXTENSION_NAME) != m_enabled_extensions.end() );
 
-        return m_khr_xcb_surface_entrypoints;
-    }
+            return m_khr_xcb_surface_entrypoints;
+        }
+    #endif
 #endif
 
 /** Initializes the wrapper. */
@@ -325,9 +321,13 @@ void Anvil::Instance::init()
         VK_KHR_SURFACE_EXTENSION_NAME,
 
         #ifdef _WIN32
-            VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
+            #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+                VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
+            #endif
         #else
-            VK_KHR_XCB_SURFACE_EXTENSION_NAME,
+            #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+                VK_KHR_XCB_SURFACE_EXTENSION_NAME,
+            #endif
         #endif
 
         VK_EXT_DEBUG_REPORT_EXTENSION_NAME
@@ -337,9 +337,13 @@ void Anvil::Instance::init()
         VK_KHR_SURFACE_EXTENSION_NAME,
 
         #ifdef _WIN32
-            VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
+            #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+                VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
+            #endif
         #else
-            VK_KHR_XCB_SURFACE_EXTENSION_NAME,
+            #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+                VK_KHR_XCB_SURFACE_EXTENSION_NAME,
+            #endif
         #endif
     };
 
@@ -488,20 +492,28 @@ void Anvil::Instance::init_func_pointers()
 
     #ifdef _WIN32
     {
-        m_khr_win32_surface_entrypoints.vkCreateWin32SurfaceKHR                        = reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>                       (vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                              "vkCreateWin32SurfaceKHR") );
-        m_khr_win32_surface_entrypoints.vkGetPhysicalDeviceWin32PresentationSupportKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR>(vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                              "vkGetPhysicalDeviceWin32PresentationSupportKHR") );
+        #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+        {
+            m_khr_win32_surface_entrypoints.vkCreateWin32SurfaceKHR                        = reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>                       (vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                  "vkCreateWin32SurfaceKHR") );
+            m_khr_win32_surface_entrypoints.vkGetPhysicalDeviceWin32PresentationSupportKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR>(vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                  "vkGetPhysicalDeviceWin32PresentationSupportKHR") );
 
-        anvil_assert(m_khr_win32_surface_entrypoints.vkCreateWin32SurfaceKHR                        != nullptr);
-        anvil_assert(m_khr_win32_surface_entrypoints.vkGetPhysicalDeviceWin32PresentationSupportKHR != nullptr);
+            anvil_assert(m_khr_win32_surface_entrypoints.vkCreateWin32SurfaceKHR                        != nullptr);
+            anvil_assert(m_khr_win32_surface_entrypoints.vkGetPhysicalDeviceWin32PresentationSupportKHR != nullptr);
+        }
+        #endif
     }
     #else
     {
-        m_khr_xcb_surface_entrypoints.vkCreateXcbSurfaceKHR = reinterpret_cast<PFN_vkCreateXcbSurfaceKHR>(vkGetInstanceProcAddr(m_instance,
-                                                                                                                                "vkCreateXcbSurfaceKHR") );
+        #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+        {
+            m_khr_xcb_surface_entrypoints.vkCreateXcbSurfaceKHR = reinterpret_cast<PFN_vkCreateXcbSurfaceKHR>(vkGetInstanceProcAddr(m_instance,
+                                                                                                                                    "vkCreateXcbSurfaceKHR") );
 
-        anvil_assert(m_khr_xcb_surface_entrypoints.vkCreateXcbSurfaceKHR != nullptr);
+            anvil_assert(m_khr_xcb_surface_entrypoints.vkCreateXcbSurfaceKHR != nullptr);
+        }
+        #endif
     }
     #endif
 

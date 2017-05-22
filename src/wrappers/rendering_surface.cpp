@@ -292,42 +292,44 @@ bool Anvil::RenderingSurface::init()
 
         switch (m_type)
         {
-            case RENDERING_SURFACE_TYPE_GENERAL:
-            {
-                #ifdef _WIN32
+            #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT) || defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+                case RENDERING_SURFACE_TYPE_GENERAL:
                 {
-                    VkWin32SurfaceCreateInfoKHR surface_create_info;
+                    #ifdef _WIN32
+                    {
+                        VkWin32SurfaceCreateInfoKHR surface_create_info;
 
-                    surface_create_info.flags     = 0;
-                    surface_create_info.hinstance = GetModuleHandle(nullptr);
-                    surface_create_info.hwnd      = m_window_ptr.lock()->get_handle();
-                    surface_create_info.pNext     = nullptr;
-                    surface_create_info.sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+                        surface_create_info.flags     = 0;
+                        surface_create_info.hinstance = GetModuleHandle(nullptr);
+                        surface_create_info.hwnd      = m_window_ptr.lock()->get_handle();
+                        surface_create_info.pNext     = nullptr;
+                        surface_create_info.sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
 
-                    result = m_instance_ptr->get_extension_khr_win32_surface_entrypoints().vkCreateWin32SurfaceKHR(instance_locked_ptr->get_instance_vk(),
+                        result = m_instance_ptr->get_extension_khr_win32_surface_entrypoints().vkCreateWin32SurfaceKHR(instance_locked_ptr->get_instance_vk(),
+                                                                                                                      &surface_create_info,
+                                                                                                                       nullptr, /* pAllocator */
+                                                                                                                      &m_surface);
+                    }
+                    #else
+                    {
+                        VkXcbSurfaceCreateInfoKHR surface_create_info;
+
+                        surface_create_info.flags       = 0;
+                        surface_create_info.window      = m_window_ptr.lock()->get_handle();
+                        surface_create_info.connection  = static_cast<xcb_connection_t*>(m_window_ptr.lock()->get_connection());
+                        surface_create_info.pNext       = nullptr;
+                        surface_create_info.sType       = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+
+                        result = m_instance_ptr->get_extension_khr_xcb_surface_entrypoints().vkCreateXcbSurfaceKHR(instance_locked_ptr->get_instance_vk(),
                                                                                                                   &surface_create_info,
                                                                                                                    nullptr, /* pAllocator */
                                                                                                                   &m_surface);
+                    }
+                    #endif
+
+                    break;
                 }
-                #else
-                {
-                    VkXcbSurfaceCreateInfoKHR surface_create_info;
-
-                    surface_create_info.flags       = 0;
-                    surface_create_info.window      = m_window_ptr.lock()->get_handle();
-                    surface_create_info.connection  = static_cast<xcb_connection_t*>(m_window_ptr.lock()->get_connection());
-                    surface_create_info.pNext       = nullptr;
-                    surface_create_info.sType       = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
-
-                    result = m_instance_ptr->get_extension_khr_xcb_surface_entrypoints().vkCreateXcbSurfaceKHR(instance_locked_ptr->get_instance_vk(),
-                                                                                                              &surface_create_info,
-                                                                                                               nullptr, /* pAllocator */
-                                                                                                              &m_surface);
-                }
-                #endif
-
-                break;
-            }
+            #endif
 
             default:
             {

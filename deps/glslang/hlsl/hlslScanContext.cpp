@@ -331,8 +331,11 @@ void HlslScanContext::fillInKeywordMap()
     (*KeywordMap)["class"] =                   EHTokClass;
     (*KeywordMap)["struct"] =                  EHTokStruct;
     (*KeywordMap)["cbuffer"] =                 EHTokCBuffer;
+    (*KeywordMap)["ConstantBuffer"] =          EHTokConstantBuffer;
     (*KeywordMap)["tbuffer"] =                 EHTokTBuffer;
     (*KeywordMap)["typedef"] =                 EHTokTypedef;
+    (*KeywordMap)["this"] =                    EHTokThis;
+    (*KeywordMap)["namespace"] =               EHTokNamespace;
 
     (*KeywordMap)["true"] =                    EHTokBoolConstant;
     (*KeywordMap)["false"] =                   EHTokBoolConstant;
@@ -374,7 +377,6 @@ void HlslScanContext::fillInKeywordMap()
     ReservedSet->insert("sizeof");
     ReservedSet->insert("static_cast");
     ReservedSet->insert("template");
-    ReservedSet->insert("this");
     ReservedSet->insert("throw");
     ReservedSet->insert("try");
     ReservedSet->insert("typename");
@@ -826,7 +828,10 @@ EHlslTokenClass HlslScanContext::tokenizeIdentifier()
     case EHTokStruct:
     case EHTokTypedef:
     case EHTokCBuffer:
+    case EHTokConstantBuffer:
     case EHTokTBuffer:
+    case EHTokThis:
+    case EHTokNamespace:
         return keyword;
 
     case EHTokBoolConstant:
@@ -873,30 +878,6 @@ EHlslTokenClass HlslScanContext::reservedWord()
         parseContext.error(loc, "Reserved word.", tokenText, "", "");
 
     return EHTokNone;
-}
-
-EHlslTokenClass HlslScanContext::identifierOrReserved(bool reserved)
-{
-    if (reserved) {
-        reservedWord();
-
-        return EHTokNone;
-    }
-
-    if (parseContext.forwardCompatible)
-        parseContext.warn(loc, "using future reserved keyword", tokenText, "");
-
-    return identifierOrType();
-}
-
-// For a keyword that was never reserved, until it suddenly
-// showed up.
-EHlslTokenClass HlslScanContext::nonreservedKeyword(int version)
-{
-    if (parseContext.version < version)
-        return identifierOrType();
-
-    return keyword;
 }
 
 } // end namespace glslang

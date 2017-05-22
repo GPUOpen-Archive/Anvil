@@ -28,6 +28,7 @@
 #include "wrappers/render_pass.h"
 #include "wrappers/swapchain.h"
 #include <algorithm>
+#include <cmath>
 
 
 /** Contsructor. Initializes the Renderpass instance with default values. */
@@ -740,7 +741,6 @@ bool Anvil::RenderPass::bake()
         uint32_t                              highest_subpass_color_attachment_location = UINT32_MAX;
         uint32_t                              highest_subpass_input_attachment_index    = UINT32_MAX;
         bool                                  need_resolve_attachments                  = false;
-        const uint32_t                        subpass_index                             = static_cast<uint32_t>(subpass_iterator - m_subpasses.begin() );
         VkSubpassDescription                  subpass_vk;
         VkAttachmentReference                 unused_reference;
 

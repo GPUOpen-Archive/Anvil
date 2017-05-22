@@ -94,18 +94,22 @@ namespace Anvil
          **/
         const ExtensionKHRSurfaceEntrypoints& get_extension_khr_surface_entrypoints() const;
 
-#ifdef _WIN32
+#if defined(_WIN32)
+    #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
         /** Returns a container with entry-points to functions introduced by VK_KHR_win32_surface.
          *
          *  Will fire an assertion failure if the extension is not supported.
          **/
         const ExtensionKHRWin32SurfaceEntrypoints& get_extension_khr_win32_surface_entrypoints() const;
+    #endif
 #else
+    #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
         /** Returns a container with entry-points to functions introduced by VK_KHR_xcb_surface.
          *
          *  Will fire an assertion failure if the extension is not supported.
          **/
         const ExtensionKHRXcbSurfaceEntrypoints& get_extension_khr_xcb_surface_entrypoints() const;
+    #endif
 #endif
 
         /** Returns a raw wrapped VkInstance handle. */
@@ -189,9 +193,13 @@ namespace Anvil
         ExtensionKHRSurfaceEntrypoints           m_khr_surface_entrypoints;
 
         #ifdef _WIN32
-            ExtensionKHRWin32SurfaceEntrypoints m_khr_win32_surface_entrypoints;
+            #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+                ExtensionKHRWin32SurfaceEntrypoints m_khr_win32_surface_entrypoints;
+            #endif
         #else
-            ExtensionKHRXcbSurfaceEntrypoints m_khr_xcb_surface_entrypoints;
+            #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+                ExtensionKHRXcbSurfaceEntrypoints m_khr_xcb_surface_entrypoints;
+            #endif
         #endif
 
         const char*                  m_app_name;

@@ -49,11 +49,11 @@ endif()
 
 # Create the DynamicBuffers project.
 add_executable (DynamicBuffers include/app.h
-                                        include/app.h
-                                            src/app.cpp)
+                               include/app.h
+                               src/app.cpp)
 
 # Add linking dependencies for the example projects
-add_dependencies     (DynamicBuffers Anvil)
+add_dependencies(DynamicBuffers Anvil)
 
 if (WIN32)
     target_link_libraries(DynamicBuffers Anvil)

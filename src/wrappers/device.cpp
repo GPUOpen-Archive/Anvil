@@ -333,26 +333,11 @@ void Anvil::BaseDevice::init(const std::vector<const char*>& extensions,
                      sizeof(temp),
                      "Device extension [%s] is unsupported",
                      extension_name);
+            fprintf(stderr,
+                    "%s",
+                    temp);
 
-            #ifdef _WIN32
-            {
-                MessageBoxA(HWND_DESKTOP,
-                            temp,
-                            "Error",
-                            MB_OK | MB_ICONERROR);
-
-                exit(1);
-            }
-            #else
-            {
-                fprintf(stderr,
-                        "%s",
-                        temp);
-
-                fflush(stderr);
-                exit(1);
-            }
-            #endif
+            anvil_assert(false);
         }
     }
 

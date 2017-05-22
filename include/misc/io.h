@@ -27,12 +27,16 @@
 #include <string>
 #include <vector>
 
+#include "config.h"
+
 #ifdef _WIN32
     #include <windows.h>
 #else
-    #include <X11/keysym.h>
-    #include <xcb/xcb.h>
-    #include <xcb/xcb_keysyms.h>
+    #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+        #include <X11/keysym.h>
+        #include <xcb/xcb.h>
+        #include <xcb/xcb_keysyms.h>
+    #endif
 #endif
 
 namespace Anvil
@@ -47,18 +51,25 @@ namespace Anvil
     typedef enum
     {
 #ifdef _WIN32
-        KEY_ID_ESCAPE = ANVIL_KEY_HELPER(ESCAPE),
-        KEY_ID_LEFT   = ANVIL_KEY_HELPER(LEFT),
-        KEY_ID_RETURN = ANVIL_KEY_HELPER(RETURN),
-        KEY_ID_RIGHT  = ANVIL_KEY_HELPER(RIGHT),
-        KEY_ID_SPACE  = ANVIL_KEY_HELPER(SPACE)
+        #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+            KEY_ID_ESCAPE = ANVIL_KEY_HELPER(ESCAPE),
+            KEY_ID_LEFT   = ANVIL_KEY_HELPER(LEFT),
+            KEY_ID_RETURN = ANVIL_KEY_HELPER(RETURN),
+            KEY_ID_RIGHT  = ANVIL_KEY_HELPER(RIGHT),
+            KEY_ID_SPACE  = ANVIL_KEY_HELPER(SPACE),
+        #endif
 #else
-        KEY_ID_ESCAPE = ANVIL_KEY_HELPER(Escape),
-        KEY_ID_LEFT   = ANVIL_KEY_HELPER(Left),
-        KEY_ID_RETURN = ANVIL_KEY_HELPER(Return),
-        KEY_ID_RIGHT  = ANVIL_KEY_HELPER(Right),
-        KEY_ID_SPACE  = ANVIL_KEY_HELPER(space)
+        #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+            KEY_ID_ESCAPE = ANVIL_KEY_HELPER(Escape),
+            KEY_ID_LEFT   = ANVIL_KEY_HELPER(Left),
+            KEY_ID_RETURN = ANVIL_KEY_HELPER(Return),
+            KEY_ID_RIGHT  = ANVIL_KEY_HELPER(Right),
+            KEY_ID_SPACE  = ANVIL_KEY_HELPER(space),
+        #endif
 #endif
+        KEY_ID_COUNT,
+
+        KEY_ID_UNKNOWN = KEY_ID_COUNT
     } KeyID;
 
     class IO

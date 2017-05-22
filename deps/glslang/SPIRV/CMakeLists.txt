@@ -40,12 +40,21 @@ if(ENABLE_NV_EXTENSIONS)
 endif(ENABLE_NV_EXTENSIONS)
 
 add_library(SPIRV STATIC ${SOURCES} ${HEADERS})
-set_property(TARGET SPIRV PROPERTY FOLDER glslang)
+set_property(TARGET SPIRV PROPERTY FOLDER glslang POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(SPIRV glslang)
 
 add_library(SPVRemapper STATIC ${SPVREMAP_SOURCES} ${SPVREMAP_HEADERS})
-set_property(TARGET SPVRemapper PROPERTY FOLDER glslang)
+set_property(TARGET SPVRemapper PROPERTY FOLDER glslang POSITION_INDEPENDENT_CODE ON)
 
 if(WIN32)
     source_group("Source" FILES ${SOURCES} ${HEADERS})
     source_group("Source" FILES ${SPVREMAP_SOURCES} ${SPVREMAP_HEADERS})
 endif(WIN32)
+
+# Disabled for Anvil:
+#>>
+#install(TARGETS SPIRV SPVRemapper
+#        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+#
+#install(FILES ${HEADERS} ${SPVREMAP_HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/SPIRV/)
+#<<

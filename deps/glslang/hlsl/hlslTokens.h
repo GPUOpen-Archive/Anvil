@@ -273,6 +273,9 @@ enum EHlslTokenClass {
     EHTokCBuffer,
     EHTokTBuffer,
     EHTokTypedef,
+    EHTokThis,
+    EHTokNamespace,
+    EHTokConstantBuffer,
 
     // constant
     EHTokFloatConstant,
