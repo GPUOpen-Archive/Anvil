@@ -182,7 +182,7 @@ if (MSVC)
 endif(MSVC)
 
 if (CMAKE_COMPILER_IS_GNUCC)
-    target_compile_options(Anvil PRIVATE "-Wall" "-Werror")
+    target_compile_options(Anvil PRIVATE "-Wall" "-Werror" "-Wno-misleading-indentation" "-Wno-strict-aliasing")
 endif (CMAKE_COMPILER_IS_GNUCC)
 if (MSVC)
     target_compile_options(Anvil PRIVATE "/Wall" "/WX" "/wd4191" "/wd4350" "/wd4668" "/wd4820" "/wd4514" "/wd4061" "/wd4710" "/wd4711" "/wd4548" "/wd4555")
