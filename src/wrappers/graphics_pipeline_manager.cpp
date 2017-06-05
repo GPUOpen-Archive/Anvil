@@ -2734,9 +2734,10 @@ bool Anvil::GraphicsPipelineManager::set_pipeline_state_from_pipeline(GraphicsPi
     cached_renderpass_ptr = m_pipeline_configurations[target_pipeline_id]->renderpass_ptr;
     cached_subpass_id     = m_pipeline_configurations[target_pipeline_id]->subpass_id;
 
-    m_pipeline_configurations[target_pipeline_id]          = m_pipeline_configurations[source_pipeline_id];
-    m_pipelines              [target_pipeline_id]->dsg_ptr = m_pipelines[source_pipeline_id]->dsg_ptr;
-    m_pipelines              [target_pipeline_id]->dirty   = true;
+    m_pipeline_configurations[target_pipeline_id]                       = m_pipeline_configurations[source_pipeline_id];
+    m_pipelines              [target_pipeline_id]->dsg_ptr              = m_pipelines[source_pipeline_id]->dsg_ptr;
+    m_pipelines              [target_pipeline_id]->dirty                = true;
+    m_pipelines              [target_pipeline_id]->push_constant_ranges = m_pipelines[source_pipeline_id]->push_constant_ranges;
 
     m_pipeline_configurations[target_pipeline_id]->renderpass_ptr = cached_renderpass_ptr;
     m_pipeline_configurations[target_pipeline_id]->subpass_id     = cached_subpass_id;

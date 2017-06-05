@@ -337,6 +337,9 @@ bool Anvil::BasePipelineManager::attach_push_constant_range_to_pipeline(Pipeline
                                                                         uint32_t           size,
                                                                         VkShaderStageFlags stages)
 {
+    const auto                new_descriptor = Anvil::PushConstantRange(offset,
+                                                                        size,
+                                                                        stages);
     std::shared_ptr<Pipeline> pipeline_ptr;
     bool                      result = false;
 
@@ -352,19 +355,14 @@ bool Anvil::BasePipelineManager::attach_push_constant_range_to_pipeline(Pipeline
         pipeline_ptr = m_pipelines[pipeline_id];
     }
 
-    if (pipeline_ptr->is_proxy)
-    {
-        anvil_assert(!pipeline_ptr->is_proxy);
-
-        goto end;
-    }
-
     pipeline_ptr->dirty        = true;
     pipeline_ptr->layout_dirty = true;
 
-    pipeline_ptr->push_constant_ranges.push_back(Anvil::PushConstantRange(offset,
-                                                                           size,
-                                                                           stages) );
+    anvil_assert(std::find(pipeline_ptr->push_constant_ranges.begin(),
+                           pipeline_ptr->push_constant_ranges.end(),
+                           new_descriptor) == pipeline_ptr->push_constant_ranges.end());
+
+    pipeline_ptr->push_constant_ranges.push_back(new_descriptor);
 
     /* All done */
     result = true;

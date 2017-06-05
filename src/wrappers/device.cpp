@@ -208,32 +208,6 @@ void Anvil::BaseDevice::get_queue_family_indices_for_physical_device(std::weak_p
     out_device_queue_family_info_ptr->n_queues[Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL] = result_n_universal_queues;
 }
 
-/** Returns a vector filled with float values of 1.0, with as many elements as there are queue families described
- *  under @param device_queue_families_ptr.
- */
-std::vector<float> Anvil::BaseDevice::get_queue_priorities(const DeviceQueueFamilyInfo* device_queue_families_ptr)
-{
-    /* TODO: Queue priority support */
-    uint32_t           n_max_queue_priorities_needed = 0;
-    std::vector<float> result;
-
-    for (uint32_t n_queue_family = 0;
-                  n_queue_family < Anvil::QUEUE_FAMILY_TYPE_COUNT;
-                ++n_queue_family)
-    {
-        if (device_queue_families_ptr->n_queues[n_queue_family] > n_max_queue_priorities_needed)
-        {
-            n_max_queue_priorities_needed = device_queue_families_ptr->n_queues[n_queue_family];
-        }
-    }
-
-    /* Prepare a dummy queue priority array */
-    result.resize(n_max_queue_priorities_needed,
-                  1.0f);
-
-    return result;
-}
-
 /* Please see header for specification */
 std::shared_ptr<Anvil::Queue> Anvil::BaseDevice::get_sparse_binding_queue(uint32_t     n_queue,
                                                                           VkQueueFlags opt_required_queue_flags) const
@@ -353,6 +327,36 @@ void Anvil::BaseDevice::init(const std::vector<const char*>& extensions,
     }
     anvil_assert(m_device != VK_NULL_HANDLE);
 
+    /* Cache the enabled extensions */
+    for (auto extension : extensions)
+    {
+        m_enabled_extensions.push_back(extension);
+    }
+
+    /* Retrieve device-specific func pointers */
+    m_khr_swapchain_entrypoints.vkAcquireNextImageKHR   = reinterpret_cast<PFN_vkAcquireNextImageKHR>  (get_proc_address("vkAcquireNextImageKHR") );
+    m_khr_swapchain_entrypoints.vkCreateSwapchainKHR    = reinterpret_cast<PFN_vkCreateSwapchainKHR>   (get_proc_address("vkCreateSwapchainKHR") );
+    m_khr_swapchain_entrypoints.vkDestroySwapchainKHR   = reinterpret_cast<PFN_vkDestroySwapchainKHR>  (get_proc_address("vkDestroySwapchainKHR") );
+    m_khr_swapchain_entrypoints.vkGetSwapchainImagesKHR = reinterpret_cast<PFN_vkGetSwapchainImagesKHR>(get_proc_address("vkGetSwapchainImagesKHR") );
+    m_khr_swapchain_entrypoints.vkQueuePresentKHR       = reinterpret_cast<PFN_vkQueuePresentKHR>      (get_proc_address("vkQueuePresentKHR") );
+
+    anvil_assert(m_khr_swapchain_entrypoints.vkAcquireNextImageKHR   != nullptr);
+    anvil_assert(m_khr_swapchain_entrypoints.vkCreateSwapchainKHR    != nullptr);
+    anvil_assert(m_khr_swapchain_entrypoints.vkDestroySwapchainKHR   != nullptr);
+    anvil_assert(m_khr_swapchain_entrypoints.vkGetSwapchainImagesKHR != nullptr);
+    anvil_assert(m_khr_swapchain_entrypoints.vkQueuePresentKHR       != nullptr);
+
+    if (std::find(m_enabled_extensions.begin(),
+                  m_enabled_extensions.end(),
+                  "VK_AMD_draw_indirect_count") != m_enabled_extensions.end() )
+    {
+        m_amd_draw_indirect_count_extension_entrypoints.vkCmdDrawIndexedIndirectCountAMD = reinterpret_cast<PFN_vkCmdDrawIndexedIndirectCountAMD>(get_proc_address("vkCmdDrawIndexedIndirectCountAMD") );
+        m_amd_draw_indirect_count_extension_entrypoints.vkCmdDrawIndirectCountAMD        = reinterpret_cast<PFN_vkCmdDrawIndirectCountAMD>       (get_proc_address("vkCmdDrawIndirectCountAMD") );
+
+        anvil_assert(m_amd_draw_indirect_count_extension_entrypoints.vkCmdDrawIndexedIndirectCountAMD != nullptr);
+        anvil_assert(m_amd_draw_indirect_count_extension_entrypoints.vkCmdDrawIndirectCountAMD        != nullptr);
+    }
+
     /* Spawn queue wrappers */
     for (Anvil::QueueFamilyType queue_family_type = Anvil::QUEUE_FAMILY_TYPE_FIRST;
                                 queue_family_type < Anvil::QUEUE_FAMILY_TYPE_COUNT;
@@ -386,36 +390,6 @@ void Anvil::BaseDevice::init(const std::vector<const char*>& extensions,
                 m_sparse_binding_queues.push_back(new_queue_ptr);
             }
         }
-    }
-
-    /* Cache the enabled extensions */
-    for (auto extension : extensions)
-    {
-        m_enabled_extensions.push_back(extension);
-    }
-
-    /* Retrieve device-specific func pointers */
-    m_khr_swapchain_entrypoints.vkAcquireNextImageKHR   = reinterpret_cast<PFN_vkAcquireNextImageKHR>  (get_proc_address("vkAcquireNextImageKHR") );
-    m_khr_swapchain_entrypoints.vkCreateSwapchainKHR    = reinterpret_cast<PFN_vkCreateSwapchainKHR>   (get_proc_address("vkCreateSwapchainKHR") );
-    m_khr_swapchain_entrypoints.vkDestroySwapchainKHR   = reinterpret_cast<PFN_vkDestroySwapchainKHR>  (get_proc_address("vkDestroySwapchainKHR") );
-    m_khr_swapchain_entrypoints.vkGetSwapchainImagesKHR = reinterpret_cast<PFN_vkGetSwapchainImagesKHR>(get_proc_address("vkGetSwapchainImagesKHR") );
-    m_khr_swapchain_entrypoints.vkQueuePresentKHR       = reinterpret_cast<PFN_vkQueuePresentKHR>      (get_proc_address("vkQueuePresentKHR") );
-
-    anvil_assert(m_khr_swapchain_entrypoints.vkAcquireNextImageKHR   != nullptr);
-    anvil_assert(m_khr_swapchain_entrypoints.vkCreateSwapchainKHR    != nullptr);
-    anvil_assert(m_khr_swapchain_entrypoints.vkDestroySwapchainKHR   != nullptr);
-    anvil_assert(m_khr_swapchain_entrypoints.vkGetSwapchainImagesKHR != nullptr);
-    anvil_assert(m_khr_swapchain_entrypoints.vkQueuePresentKHR       != nullptr);
-
-    if (std::find(m_enabled_extensions.begin(),
-                  m_enabled_extensions.end(),
-                  "VK_AMD_draw_indirect_count") != m_enabled_extensions.end() )
-    {
-        m_amd_draw_indirect_count_extension_entrypoints.vkCmdDrawIndexedIndirectCountAMD = reinterpret_cast<PFN_vkCmdDrawIndexedIndirectCountAMD>(get_proc_address("vkCmdDrawIndexedIndirectCountAMD") );
-        m_amd_draw_indirect_count_extension_entrypoints.vkCmdDrawIndirectCountAMD        = reinterpret_cast<PFN_vkCmdDrawIndirectCountAMD>       (get_proc_address("vkCmdDrawIndirectCountAMD") );
-
-        anvil_assert(m_amd_draw_indirect_count_extension_entrypoints.vkCmdDrawIndexedIndirectCountAMD != nullptr);
-        anvil_assert(m_amd_draw_indirect_count_extension_entrypoints.vkCmdDrawIndirectCountAMD        != nullptr);
     }
 
     /* Instantiate per-queue family command pools */
@@ -510,32 +484,35 @@ void Anvil::SGPUDevice::create_device(const std::vector<const char*>& extensions
 {
     VkDeviceCreateInfo                     create_info;
     std::vector<VkDeviceQueueCreateInfo>   device_queue_create_info_items;
-    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr     (m_parent_physical_device_ptr);
-    VkResult                               result                         (VK_ERROR_INITIALIZATION_FAILED);
+    std::vector<float>                     device_queue_priorities;
+    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_parent_physical_device_ptr);
+    const auto&                            physical_device_queue_fams(physical_device_locked_ptr->get_queue_families() );
+    VkResult                               result                    (VK_ERROR_INITIALIZATION_FAILED);
 
     ANVIL_REDUNDANT_VARIABLE(result);
 
-    /* Set up queue create info structure. */
-    DeviceQueueFamilyInfo device_queue_families;
-    std::vector<float>    device_queue_priorities;
-
-    get_queue_family_indices(&device_queue_families);
-
-    device_queue_priorities = get_queue_priorities(&device_queue_families);
-
-    for (uint32_t n_queue_family = 0;
-                  n_queue_family < Anvil::QUEUE_FAMILY_TYPE_COUNT;
-                ++n_queue_family)
+    /* Set up queue create info structure instances.
+     *
+     * Use up all available queues.
+     */
+    for (uint32_t n_queue_fam = 0;
+                  n_queue_fam < static_cast<uint32_t>(physical_device_queue_fams.size() );
+                ++n_queue_fam)
     {
-        if (device_queue_families.n_queues[n_queue_family] > 0)
+        const auto& current_queue_fam(physical_device_queue_fams.at(n_queue_fam) );
+
+        if (current_queue_fam.n_queues > 0)
         {
             VkDeviceQueueCreateInfo queue_create_info;
+
+            device_queue_priorities.resize(current_queue_fam.n_queues,
+                                           1.0f);
 
             queue_create_info.flags            = 0;
             queue_create_info.pNext            = nullptr;
             queue_create_info.pQueuePriorities = &device_queue_priorities[0];
-            queue_create_info.queueCount       = device_queue_families.n_queues    [n_queue_family];
-            queue_create_info.queueFamilyIndex = device_queue_families.family_index[n_queue_family];
+            queue_create_info.queueCount       = current_queue_fam.n_queues;
+            queue_create_info.queueFamilyIndex = n_queue_fam;
             queue_create_info.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 
             device_queue_create_info_items.push_back(queue_create_info);
@@ -554,13 +531,14 @@ void Anvil::SGPUDevice::create_device(const std::vector<const char*>& extensions
     create_info.queueCreateInfoCount    = static_cast<uint32_t>(device_queue_create_info_items.size() );
     create_info.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
-    result = vkCreateDevice(physical_device_locked_ptr->get_physical_device(),
+    result = vkCreateDevice(m_parent_physical_device_ptr.lock()->get_physical_device(),
                            &create_info,
                             nullptr, /* pAllocator */
                            &m_device);
     anvil_assert_vk_call_succeeded(result);
 
-    *out_queue_families_ptr = device_queue_families;
+    /* Now that all queues are available, assign them to queue families Anvil recognizes. */
+    get_queue_family_indices(out_queue_families_ptr);
 }
 
 /** Please see header for specification */

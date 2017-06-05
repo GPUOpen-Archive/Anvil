@@ -118,6 +118,8 @@ void Anvil::RenderingSurface::cache_surface_properties()
                                                                                          VK_IMAGE_USAGE_TRANSFER_SRC_BIT     |
                                                                                          VK_IMAGE_USAGE_TRANSFER_DST_BIT     |
                                                                                          VK_IMAGE_USAGE_STORAGE_BIT);
+
+        goto end;
     }
 
     const VkPhysicalDevice physical_device_vk = physical_device_locked_ptr->get_physical_device();
@@ -179,6 +181,9 @@ void Anvil::RenderingSurface::cache_surface_properties()
                                                                               &n_supported_presentation_modes,
                                                                               &result_caps.supported_presentation_modes[0]);
     anvil_assert_vk_call_succeeded(result);
+
+end:
+    ;
 }
 
 /* Please see header for specification */

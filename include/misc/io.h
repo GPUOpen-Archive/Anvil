@@ -88,10 +88,11 @@ namespace Anvil
          *  @param filename Name of the file to delete.
          *
          **/
-        static void delete_file(std::string filename);
+        static bool delete_file(std::string filename);
 
         /** Enumerates files under user-specified directory. */
         static bool enumerate_files_in_directory(const std::string&        path,
+                                                 bool                      recursive,
                                                  std::vector<std::string>* out_result_ptr);
 
         /** Tells whether the specified path exists and is a directory. */
@@ -111,7 +112,7 @@ namespace Anvil
          *  @return Read data, or nullptr if an error occurred. Make sure to release the returned buffer
          *          with delete[], when no longer needed.
          **/
-        static void read_file(std::string filename,
+        static bool read_file(std::string filename,
                               bool        is_text_file,
                               char**      out_result_ptr,
                               size_t*     out_opt_size_ptr);
@@ -127,11 +128,11 @@ namespace Anvil
          *  @param should_append True if new contents should be appended to the file;
          *                       false to purge existing contents (if any).
          **/
-        static void write_binary_file(std::string  filename,
+        static bool write_binary_file(std::string  filename,
                                       const void*  data,
                                       unsigned int data_size,
                                       bool         should_append = false);
-        static void write_text_file  (std::string  filename,
+        static bool write_text_file  (std::string  filename,
                                       std::string  contents,
                                       bool         should_append = false);
     };

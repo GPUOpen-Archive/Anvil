@@ -81,7 +81,8 @@ namespace Anvil
             return m_queue_family_index;
         }
 
-        /** Presents the specified swapchain image using this queue.
+        /** Presents the specified swapchain image using this queue. This queue must support presentation
+         *  for the swapchain's rendering surface in order for this call to succeed.
          *
          *  This function will only succeed if supports_presentation() returns true.
          *

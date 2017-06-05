@@ -385,7 +385,7 @@ namespace Anvil
         /* Protected functions */
         virtual ~BaseDevice();
 
-        std::vector<float> get_queue_priorities(const DeviceQueueFamilyInfo*      device_queue_families_ptr);
+        std::vector<float> get_queue_priorities(const QueueFamilyInfo*            queue_family_info_ptr) const;
         void               init                (const std::vector<const char*>&   extensions,
                                                 const std::vector<const char*>&   layers,
                                                 bool                              transient_command_buffer_allocs_only,

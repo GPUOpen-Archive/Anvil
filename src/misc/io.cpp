@@ -118,66 +118,127 @@ bool Anvil::IO::create_directory(std::string name)
  *
  *  @param filename Name of the file to remove.
  **/
-void Anvil::IO::delete_file(std::string filename)
+bool Anvil::IO::delete_file(std::string filename)
 {
-    remove(filename.c_str());
+    return (remove(filename.c_str()) == 0);
 }
 
 /* Please see header for specification */
 bool Anvil::IO::enumerate_files_in_directory(const std::string&        path,
+                                             bool                      recursive,
                                              std::vector<std::string>* out_result_ptr)
 {
     bool result = false;
 
     #ifdef _WIN32
     {
-        HANDLE             file_finder(INVALID_HANDLE_VALUE);
-        WIN32_FIND_DATAW   find_data;
-        const std::string  path_expanded     (path + "//*");
-        const std::wstring path_expanded_wide(path_expanded.begin(), path_expanded.end() );
+        std::vector<std::wstring> outstanding_directories;
+        HANDLE                    file_finder(INVALID_HANDLE_VALUE);
+        WIN32_FIND_DATAW          find_data;
 
-        if ( (file_finder = ::FindFirstFileW(path_expanded_wide.c_str(),
-                                            &find_data)) == INVALID_HANDLE_VALUE)
         {
-            goto end;
+            const std::string  path_expanded     (path + "//");
+            const std::wstring path_expanded_wide(path_expanded.begin(), path_expanded.end() );
+
+            outstanding_directories.push_back(path_expanded_wide);
         }
 
-        do
+        while (!outstanding_directories.empty() )
         {
-            if (find_data.dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE)
-            {
-                std::wstring file_name_wide(find_data.cFileName);
-                std::string  file_name     (file_name_wide.begin(), file_name_wide.end() );
+            std::wstring current_path_wide               = outstanding_directories.back();
+            std::wstring current_path_with_wildcard_wide = current_path_wide + L"*";
 
-                out_result_ptr->push_back(file_name);
+            outstanding_directories.pop_back();
+
+            if ( (file_finder = ::FindFirstFileW(current_path_with_wildcard_wide.c_str(),
+                                                &find_data)) == INVALID_HANDLE_VALUE)
+            {
+                goto end;
+            }
+
+            do
+            {
+                if (find_data.dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE)
+                {
+                    std::wstring file_name_wide          (find_data.cFileName);
+                    std::wstring file_name_with_path_wide(current_path_wide + file_name_wide);
+                    std::string  file_name               (file_name_with_path_wide.begin(), file_name_with_path_wide.end() );
+
+                    out_result_ptr->push_back(file_name);
+                }
+                else
+                if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
+                    recursive)
+                {
+                    std::wstring dir_name_wide(find_data.cFileName);
+
+                    if ((dir_name_wide != L".") &&
+                        (dir_name_wide != L"..") )
+                    {
+                        std::wstring base_path_wide   (current_path_wide.begin(), current_path_wide.end() );
+                        std::wstring new_path_expanded(base_path_wide + dir_name_wide + L"//");
+
+                        outstanding_directories.push_back(new_path_expanded);
+                    }
+                }
+            }
+            while (::FindNextFileW(file_finder,
+                                  &find_data) );
+
+            if (file_finder != INVALID_HANDLE_VALUE)
+            {
+                ::FindClose(file_finder);
             }
         }
-        while (::FindNextFileW(file_finder,
-                              &find_data) );
 
-        if (file_finder != INVALID_HANDLE_VALUE)
-        {
-            ::FindClose(file_finder);
-
-            result = true;
-        }
+        result = true;
     }
     #else
     {
-        struct dirent* dir_ptr     = nullptr;
-        DIR*           file_finder = nullptr;
 
-        file_finder = opendir(path.c_str() );
+        struct dirent*           dir_ptr     = nullptr;
+        DIR*                     file_finder = nullptr;
+        std::vector<std::string> outstanding_directories;
 
-        if (file_finder != nullptr)
+        outstanding_directories.push_back(path);
+
+        while (!outstanding_directories.empty() )
         {
-            while ( (dir_ptr = readdir(file_finder) ) != nullptr)
-            {
-                out_result_ptr->push_back(dir_ptr->d_name);
-            }
+            std::string current_path;
 
-            closedir(file_finder);
-            result = true;
+            current_path = outstanding_directories.back();
+            outstanding_directories.pop_back();
+
+            file_finder = opendir(current_path.c_str() );
+
+            if (file_finder != nullptr)
+            {
+                while ( (dir_ptr = readdir(file_finder) ) != nullptr)
+                {
+                    if (dir_ptr->d_type != DT_DIR)
+                    {
+                        const std::string current_file_name = dir_ptr->d_name;
+
+                        out_result_ptr->push_back(current_path + "/" + current_file_name);
+                    }
+                    else
+                    if (recursive)
+                    {
+                        const std::string dir_name_string = std::string(dir_ptr->d_name);
+
+                        if ((dir_name_string != ".")  &&
+                            (dir_name_string != "..") )
+                        {
+                            outstanding_directories.push_back(current_path + "/" + dir_name_string);
+
+                            continue;
+                        }
+                    }
+                }
+
+                closedir(file_finder);
+                result = true;
+            }
         }
     }
     #endif
@@ -216,45 +277,62 @@ bool Anvil::IO::is_directory(const std::string& path)
  *  @param out_opt_size_ptr Deref will be set to the number of bytes allocated for @param out_result_ptr.
  *                          May be nullptr.
  **/
-void Anvil::IO::read_file(std::string filename,
+bool Anvil::IO::read_file(std::string filename,
                             bool      is_text_file,
                             char**    out_result_ptr,
                             size_t*   out_opt_size_ptr)
 {
-    FILE*  file_handle = nullptr;
-    size_t file_size   = 0;
-    char*  result      = nullptr;
+    FILE*  file_handle  = nullptr;
+    size_t file_size    = 0;
+    size_t n_bytes_read = 0;
+    char*  result       = nullptr;
+    bool   result_bool  = false;
 
     file_handle = fopen(filename.c_str(),
                         (is_text_file) ? "rt" : "rb");
-    anvil_assert(file_handle != 0);
 
-    fseek(file_handle,
-          0,
-          SEEK_END);
+    if (file_handle == 0)
+    {
+        goto end;
+    }
+
+    if (fseek(file_handle,
+              0,
+              SEEK_END) != 0)
+    {
+        goto end;
+    }
 
     file_size = static_cast<size_t>(ftell(file_handle) );
 
-    anvil_assert(file_size != -1 &&
-                 file_size !=  0);
+    if (file_size == static_cast<size_t>(-1) ||
+        file_size == static_cast<size_t>(0) )
+    {
+        goto end;
+    }
 
-    fseek(file_handle,
-          0,
-          SEEK_SET);
+    if (fseek(file_handle,
+              0,
+              SEEK_SET) != 0)
+    {
+        goto end;
+    }
 
     result = new char[file_size + 1];
-    anvil_assert(result != nullptr);
+
+    if (result == nullptr)
+    {
+        goto end;
+    }
 
     memset(result,
            0,
            file_size + 1);
 
-    size_t n_bytes_read = fread(result,
-                                1,
-                                file_size,
-                                file_handle);
-
-    fclose(file_handle);
+    n_bytes_read = fread(result,
+                         1,
+                         file_size,
+                         file_handle);
 
     result[n_bytes_read] = 0;
 
@@ -263,52 +341,93 @@ void Anvil::IO::read_file(std::string filename,
 
     if (out_opt_size_ptr != nullptr)
     {
-        *out_opt_size_ptr = file_size;
+        *out_opt_size_ptr = n_bytes_read;
     }
+
+    result_bool = true;
+end:
+    if (file_handle != 0)
+    {
+        fclose(file_handle);
+    }
+
+    if (!result_bool)
+    {
+        if (result != nullptr)
+        {
+            delete [] result;
+        }
+    }
+
+    return result_bool;
 }
 
 /** Please see header for specification */
-void Anvil::IO::write_binary_file(std::string  filename,
+bool Anvil::IO::write_binary_file(std::string  filename,
                                   const void*  data,
                                   unsigned int data_size,
                                   bool         should_append)
 {
     FILE* file_handle = nullptr;
+    bool  result      = false;
 
     file_handle = fopen(filename.c_str(),
                         (should_append) ? "ab" : "wb");
-    anvil_assert(file_handle != 0);
+
+    if (file_handle == 0)
+    {
+        goto end;
+    }
 
     if (fwrite(data,
                data_size,
                1, /* count */
                file_handle) != 1)
     {
-        anvil_assert(false);
+        goto end;
     }
 
-    fclose(file_handle);
+    result = true;
+end:
+    if (file_handle != 0)
+    {
+        fclose(file_handle);
+    }
+
+    return result;
 }
 
 /** Please see header for specification */
-void Anvil::IO::write_text_file(std::string filename,
+bool Anvil::IO::write_text_file(std::string filename,
                                 std::string contents,
                                 bool        should_append)
 {
     FILE* file_handle = nullptr;
+    bool  result      = false;
 
     file_handle = fopen(filename.c_str(),
                         (should_append) ? "a" : "wt");
-    anvil_assert(file_handle != 0);
+
+    if (file_handle == 0)
+    {
+        goto end;
+    }
 
     if (fwrite(contents.c_str(),
                strlen(contents.c_str() ),
                1, /* count */
                file_handle) != 1)
     {
-        anvil_assert(false);
+        goto end;
     }
 
-    fclose(file_handle);
+    result = true;
+end:
+    if (file_handle != 0)
+    {
+        fclose(file_handle);
+    }
+
+    return result;
 }
  
