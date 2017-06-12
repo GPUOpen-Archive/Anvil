@@ -27,11 +27,13 @@
 #include <algorithm>
 
 /* Please see header for specification */
-Anvil::Fence::Fence(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                    bool                             create_signalled)
-    :m_device_ptr  (device_ptr),
-     m_fence       (VK_NULL_HANDLE),
-     m_possibly_set(false)
+Anvil::Fence::Fence(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                    bool                             in_create_signalled)
+    :DebugMarkerSupportProvider(in_device_ptr,
+                                VK_DEBUG_REPORT_OBJECT_TYPE_FENCE_EXT),
+     m_device_ptr              (in_device_ptr),
+     m_fence                   (VK_NULL_HANDLE),
+     m_possibly_set            (false)
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
     VkFenceCreateInfo                  fence_create_info;
@@ -40,8 +42,8 @@ Anvil::Fence::Fence(std::weak_ptr<Anvil::BaseDevice> device_ptr,
     ANVIL_REDUNDANT_VARIABLE(result);
 
     /* Spawn a new fence */
-    fence_create_info.flags = (create_signalled) ? VK_FENCE_CREATE_SIGNALED_BIT
-                                                 : 0u;
+    fence_create_info.flags = (in_create_signalled) ? VK_FENCE_CREATE_SIGNALED_BIT
+                                                    : 0u;
     fence_create_info.pNext = nullptr;
     fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 
@@ -49,7 +51,12 @@ Anvil::Fence::Fence(std::weak_ptr<Anvil::BaseDevice> device_ptr,
                           &fence_create_info,
                            nullptr, /* pAllocator */
                           &m_fence);
+
     anvil_assert_vk_call_succeeded(result);
+    if (is_vk_call_successful(result) )
+    {
+        set_vk_handle(m_fence);
+    }
 
     /* Register the event instance */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_FENCE,
@@ -66,14 +73,14 @@ Anvil::Fence::~Fence()
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::Fence> Anvil::Fence::create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                   bool                             create_signalled)
+std::shared_ptr<Anvil::Fence> Anvil::Fence::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                   bool                             in_create_signalled)
 {
     std::shared_ptr<Anvil::Fence> result_ptr;
 
     result_ptr.reset(
-        new Anvil::Fence(device_ptr,
-                         create_signalled)
+        new Anvil::Fence(in_device_ptr,
+                         in_create_signalled)
     );
 
     return result_ptr;
@@ -126,8 +133,8 @@ bool Anvil::Fence::reset()
 }
 
 /* Please see header for specification */
-bool Anvil::Fence::reset_fences(const uint32_t n_fences,
-                                Fence*         fences)
+bool Anvil::Fence::reset_fences(const uint32_t in_n_fences,
+                                Fence*         in_fences)
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr;
     VkFence                            fence_cache[32];
@@ -135,22 +142,22 @@ bool Anvil::Fence::reset_fences(const uint32_t n_fences,
     bool                               result               = true;
     VkResult                           result_vk;
 
-    if (n_fences == 0)
+    if (in_n_fences == 0)
     {
         goto end;
     }
 
     for (uint32_t n_fence_batch = 0;
-                  n_fence_batch < 1 + n_fences / fence_cache_capacity;
+                  n_fence_batch < 1 + in_n_fences / fence_cache_capacity;
                 ++n_fence_batch)
     {
-        const uint32_t n_fences_remaining = n_fences - n_fence_batch * fence_cache_capacity;
+        const uint32_t n_fences_remaining = in_n_fences - n_fence_batch * fence_cache_capacity;
 
         for (uint32_t n_fence = 0;
                       n_fence < n_fences_remaining;
                     ++n_fence)
         {
-            Anvil::Fence& current_fence = fences[n_fence_batch * fence_cache_capacity + n_fence];
+            Anvil::Fence& current_fence = in_fences[n_fence_batch * fence_cache_capacity + n_fence];
 
             anvil_assert(device_locked_ptr == nullptr                                          ||
                          device_locked_ptr != nullptr && !current_fence.m_device_ptr.expired());

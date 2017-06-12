@@ -339,12 +339,13 @@ void App::init_buffers()
 void App::init_command_buffers()
 {
     VkClearValue                                    clear_values[2];
-    std::shared_ptr<Anvil::SGPUDevice>              device_locked_ptr       (m_device_ptr);
-    std::shared_ptr<Anvil::GraphicsPipelineManager> gfx_pipeline_manager_ptr(device_locked_ptr->get_graphics_pipeline_manager() );
+    std::shared_ptr<Anvil::SGPUDevice>              device_locked_ptr            (m_device_ptr);
+    std::shared_ptr<Anvil::GraphicsPipelineManager> gfx_pipeline_manager_ptr     (device_locked_ptr->get_graphics_pipeline_manager() );
+    const bool                                      is_ext_debug_marker_supported(device_locked_ptr->is_ext_debug_marker_extension_enabled() );
     VkRect2D                                        render_area;
-    std::shared_ptr<Anvil::DescriptorSet>           tri_1stpass_ds0_ptr     (m_1stpass_dsg_ptr->get_descriptor_set     (0) );
-    std::shared_ptr<Anvil::DescriptorSet>           quad_2ndpass_ds0_ptr    (m_2ndpass_quad_dsg_ptr->get_descriptor_set(0) );
-    std::shared_ptr<Anvil::DescriptorSet>           tri_2ndpass_ds0_ptr     (m_2ndpass_tri_dsg_ptr->get_descriptor_set (0) );
+    std::shared_ptr<Anvil::DescriptorSet>           tri_1stpass_ds0_ptr          (m_1stpass_dsg_ptr->get_descriptor_set     (0) );
+    std::shared_ptr<Anvil::DescriptorSet>           quad_2ndpass_ds0_ptr         (m_2ndpass_quad_dsg_ptr->get_descriptor_set(0) );
+    std::shared_ptr<Anvil::DescriptorSet>           tri_2ndpass_ds0_ptr          (m_2ndpass_tri_dsg_ptr->get_descriptor_set (0) );
 
     clear_values[0].color.float32[0]   = 1.0f;
     clear_values[0].color.float32[1]   = 1.0f;
@@ -383,6 +384,12 @@ void App::init_command_buffers()
                                                                                       m_renderpass_tris_ptr,
                                                                                       VK_SUBPASS_CONTENTS_INLINE);
             {
+                if (is_ext_debug_marker_supported)
+                {
+                    render_tri1_and_generate_ot_data_cmd_buffer_ptr->record_debug_marker_begin_EXT("Render left triangle",
+                                                                                                   nullptr); /* in_opt_color */
+                }
+
                 /* Draw the left triangle. */
                 render_tri1_and_generate_ot_data_cmd_buffer_ptr->record_bind_pipeline       (VK_PIPELINE_BIND_POINT_GRAPHICS,
                                                                                              m_1stpass_depth_test_always_pipeline_id);
@@ -399,10 +406,21 @@ void App::init_command_buffers()
                                                                              0,  /* in_first_vertex   */
                                                                              0); /* in_first_instance */
 
+                if (is_ext_debug_marker_supported)
+                {
+                    render_tri1_and_generate_ot_data_cmd_buffer_ptr->record_debug_marker_end_EXT();
+                }
+
                 /* Proceed to the next subpass, where we render the right triangle with depth test configured to EQUAL. 
                  * At the same time, we count how many fragments passed the test. We're going to use that data to
                  * determine the shade of the quad underneath two triangles. */
                 render_tri1_and_generate_ot_data_cmd_buffer_ptr->record_next_subpass(VK_SUBPASS_CONTENTS_INLINE);
+
+                if (is_ext_debug_marker_supported)
+                {
+                    render_tri1_and_generate_ot_data_cmd_buffer_ptr->record_debug_marker_begin_EXT("Render an invisible right triangle with occlusion queries enabled",
+                                                                                                   nullptr); /* in_opt_color */
+                }
 
                 render_tri1_and_generate_ot_data_cmd_buffer_ptr->record_bind_pipeline(VK_PIPELINE_BIND_POINT_GRAPHICS,
                                                                                       m_1stpass_depth_test_equal_pipeline_id);
@@ -418,6 +436,11 @@ void App::init_command_buffers()
                 }                                
                 render_tri1_and_generate_ot_data_cmd_buffer_ptr->record_end_query(m_query_pool_ptr,
                                                                                   n_command_buffer);
+
+                if (is_ext_debug_marker_supported)
+                {
+                    render_tri1_and_generate_ot_data_cmd_buffer_ptr->record_debug_marker_end_EXT();
+                }
             }
             render_tri1_and_generate_ot_data_cmd_buffer_ptr->record_end_render_pass();
 
@@ -455,6 +478,12 @@ void App::init_command_buffers()
                                                                    &query_data_barrier,
                                                                     0,        /* in_image_memory_barrier_count */
                                                                     nullptr); /* in_image_memory_barriers_ptr  */
+
+            if (is_ext_debug_marker_supported)
+            {
+                render_tri2_and_quad_cmd_buffer_ptr->record_debug_marker_begin_EXT("Rasterize the right triangle using occlusion query data",
+                                                                                   nullptr); /* in_opt_color_ptr */
+            }
 
             /* Rasterize the right triangle */
             render_tri2_and_quad_cmd_buffer_ptr->record_begin_render_pass(0,       /* in_n_clear_values   */
@@ -498,6 +527,11 @@ void App::init_command_buffers()
                                                                  0); /* in_first_instance */
             }
             render_tri2_and_quad_cmd_buffer_ptr->record_end_render_pass();
+
+            if (is_ext_debug_marker_supported)
+            {
+                render_tri2_and_quad_cmd_buffer_ptr->record_debug_marker_end_EXT();
+            }
         }
         render_tri2_and_quad_cmd_buffer_ptr->stop_recording();
     }
@@ -548,6 +582,8 @@ void App::init_dsgs()
 void App::init_events()
 {
     m_query_data_copied_event = Anvil::Event::create(m_device_ptr);
+
+    m_query_data_copied_event->set_name("Query data copied event");
 }
 
 void App::init_framebuffers()
@@ -560,6 +596,9 @@ void App::init_framebuffers()
                                                                WINDOW_WIDTH,
                                                                WINDOW_HEIGHT,
                                                                1); /* n_layers */
+
+        m_fbos[n_swapchain_image]->set_name_formatted("Framebuffer for swapchain image [%d]",
+                                                      n_swapchain_image);
 
         m_fbos[n_swapchain_image]->add_attachment(m_swapchain_ptr->get_image_view(n_swapchain_image),
                                                   nullptr); /* out_opt_attachment_id_ptr */
@@ -628,6 +667,9 @@ void App::init_renderpasses()
         
         renderpass_ptr = Anvil::RenderPass::create(m_device_ptr,
                                                    m_swapchain_ptr);
+
+        renderpass_ptr->set_name( (n_renderpass == 0) ? "Quad renderpass"
+                                                      : "Triangle renderpass");
 
         renderpass_ptr->add_color_attachment(m_swapchain_ptr->get_image_format(),
                                              VK_SAMPLE_COUNT_1_BIT,
@@ -789,6 +831,11 @@ void App::init_semaphores()
         std::shared_ptr<Anvil::Semaphore> new_signal_semaphore_ptr = Anvil::Semaphore::create(m_device_ptr);
         std::shared_ptr<Anvil::Semaphore> new_wait_semaphore_ptr   = Anvil::Semaphore::create(m_device_ptr);
 
+        new_signal_semaphore_ptr->set_name_formatted("Frame signal semaphore [%d]",
+                                                     n_semaphore);
+        new_wait_semaphore_ptr->set_name_formatted   ("Frame wait semaphore [%d]",
+                                                     n_semaphore);
+
         m_frame_signal_semaphores.push_back(new_signal_semaphore_ptr);
         m_frame_wait_semaphores.push_back  (new_wait_semaphore_ptr);
     }
@@ -835,6 +882,12 @@ void App::init_shaders()
     vs_tri_module_ptr  = Anvil::ShaderModule::create_from_spirv_generator(m_device_ptr,
                                                                           vs_tri_glsl_ptr);
 
+    fs_quad_module_ptr->set_name("Quad fragment shader module");
+    fs_tri_module_ptr->set_name ("Triangle fragment shader module");
+    vs_quad_module_ptr->set_name("Quad vertex shader module");
+    vs_tri_module_ptr->set_name ("Triangle vertex shader module");
+                       
+
     m_quad_fs_ptr.reset(
         new Anvil::ShaderModuleStageEntryPoint(
             "main",
@@ -869,12 +922,17 @@ void App::init_swapchain()
                                                               m_device_ptr,
                                                               m_window_ptr);
 
+    m_rendering_surface_ptr->set_name("Main rendering surface");
+
+
     m_swapchain_ptr = device_locked_ptr->create_swapchain(m_rendering_surface_ptr,
                                                           m_window_ptr,
                                                           VK_FORMAT_B8G8R8A8_UNORM,
                                                           VK_PRESENT_MODE_FIFO_KHR,
                                                           VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                                                           m_n_swapchain_images);
+
+    m_swapchain_ptr->set_name("Main swapchain");
 }
 
 void App::init_window()
@@ -916,6 +974,11 @@ void App::init_vulkan()
 
     /* Determine which extensions we need to request for */
     required_extension_names.push_back("VK_KHR_swapchain");
+
+    if (m_physical_device_ptr.lock()->is_device_extension_supported(VK_EXT_DEBUG_MARKER_EXTENSION_NAME) )
+    {
+        required_extension_names.push_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
+    }
 
     /* Create a Vulkan device */
     m_device_ptr = Anvil::SGPUDevice::create(m_physical_device_ptr,

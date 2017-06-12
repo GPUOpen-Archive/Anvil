@@ -27,23 +27,23 @@
 #include <algorithm>
 
 /* Please see header for specification */
-bool Anvil::operator==(const std::shared_ptr<Anvil::PhysicalDevice>& physical_device_ptr,
-                       const VkPhysicalDevice&                       physical_device_vk)
+bool Anvil::operator==(const std::shared_ptr<Anvil::PhysicalDevice>& in_physical_device_ptr,
+                       const VkPhysicalDevice&                       in_physical_device_vk)
 {
-    return (physical_device_ptr->get_physical_device() == physical_device_vk);
+    return (in_physical_device_ptr->get_physical_device() == in_physical_device_vk);
 }
 
 /* Please see header for specification */
-std::weak_ptr<Anvil::PhysicalDevice> Anvil::PhysicalDevice::create(std::shared_ptr<Anvil::Instance> instance_ptr,
-                                                                   uint32_t                         index,
-                                                                   VkPhysicalDevice                 physical_device)
+std::weak_ptr<Anvil::PhysicalDevice> Anvil::PhysicalDevice::create(std::shared_ptr<Anvil::Instance> in_instance_ptr,
+                                                                   uint32_t                         in_index,
+                                                                   VkPhysicalDevice                 in_physical_device)
 {
-    std::shared_ptr<Anvil::PhysicalDevice> physical_device_ptr(new Anvil::PhysicalDevice(instance_ptr,
-                                                                                         index,
-                                                                                         physical_device) );
+    std::shared_ptr<Anvil::PhysicalDevice> physical_device_ptr(new Anvil::PhysicalDevice(in_instance_ptr,
+                                                                                         in_index,
+                                                                                         in_physical_device) );
 
-    physical_device_ptr->init             ();
-    instance_ptr->register_physical_device(physical_device_ptr);
+    physical_device_ptr->init                ();
+    in_instance_ptr->register_physical_device(physical_device_ptr);
 
     /* Register the physical device instance */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_PHYSICAL_DEVICE,
@@ -238,42 +238,42 @@ bool Anvil::PhysicalDevice::get_sparse_image_format_properties(VkFormat         
 }
 
 /* Please see header for specification */
-bool Anvil::PhysicalDevice::is_device_extension_supported(const char* extension_name) const
+bool Anvil::PhysicalDevice::is_device_extension_supported(const char* in_extension_name) const
 {
     return std::find(m_extensions.begin(),
                      m_extensions.end(),
-                     extension_name) != m_extensions.end();
+                     in_extension_name) != m_extensions.end();
 }
 
 /* Please see header for specification */
-bool Anvil::PhysicalDevice::is_layer_supported(const char* layer_name) const
+bool Anvil::PhysicalDevice::is_layer_supported(const char* in_layer_name) const
 {
     return std::find(m_layers .begin(),
                      m_layers.end(),
-                     layer_name) != m_layers.end();
+                     in_layer_name) != m_layers.end();
 }
 
 /* Please see header for specification */
-void Anvil::PhysicalDevice::register_device(std::shared_ptr<Anvil::BaseDevice> device_ptr)
+void Anvil::PhysicalDevice::register_device(std::shared_ptr<Anvil::BaseDevice> in_device_ptr)
 {
     auto device_iterator = std::find(m_cached_devices.begin(),
                                      m_cached_devices.end(),
-                                     device_ptr);
+                                     in_device_ptr);
 
     anvil_assert(device_iterator == m_cached_devices.end() );
 
     if (device_iterator == m_cached_devices.end() )
     {
-        m_cached_devices.push_back(device_ptr);
+        m_cached_devices.push_back(in_device_ptr);
     }
 }
 
 /* Please see header for specification */
-void Anvil::PhysicalDevice::unregister_device(std::shared_ptr<Anvil::BaseDevice> device_ptr)
+void Anvil::PhysicalDevice::unregister_device(std::shared_ptr<Anvil::BaseDevice> in_device_ptr)
 {
     auto device_iterator = std::find(m_cached_devices.begin(),
                                      m_cached_devices.end(),
-                                     device_ptr);
+                                     in_device_ptr);
 
     anvil_assert(device_iterator != m_cached_devices.end() );
 

@@ -26,50 +26,50 @@
 
 
 /* See create() for documentation */
-Anvil::WindowWin3264::WindowWin3264(const std::string&     title,
-                                    unsigned int           width,
-                                    unsigned int           height,
-                                    PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                    void*                  present_callback_func_user_arg)
-    :Window(title,
-            width,
-            height,
-            present_callback_func_ptr,
-            present_callback_func_user_arg)
+Anvil::WindowWin3264::WindowWin3264(const std::string&     in_title,
+                                    unsigned int           in_width,
+                                    unsigned int           in_height,
+                                    PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                                    void*                  in_present_callback_func_user_arg)
+    :Window(in_title,
+            in_width,
+            in_height,
+            in_present_callback_func_ptr,
+            in_present_callback_func_user_arg)
 {
     m_window_owned = true;
 }
 
 /* See create() for documentation */
-Anvil::WindowWin3264::WindowWin3264(HWND                   handle,
-                                    const std::string&     title,
-                                    unsigned int           width,
-                                    unsigned int           height,
-                                    PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                    void*                  present_callback_func_user_arg)
-    :Window(title,
-            width,
-            height,
-            present_callback_func_ptr,
-            present_callback_func_user_arg)
+Anvil::WindowWin3264::WindowWin3264(HWND                   in_handle,
+                                    const std::string&     in_title,
+                                    unsigned int           in_width,
+                                    unsigned int           in_height,
+                                    PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                                    void*                  in_present_callback_func_user_arg)
+    :Window(in_title,
+            in_width,
+            in_height,
+            in_present_callback_func_ptr,
+            in_present_callback_func_user_arg)
 {
-    m_window       = handle;
+    m_window       = in_handle;
     m_window_owned = false;
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Window> Anvil::WindowWin3264::create(const std::string&     title,
-                                                            unsigned int           width,
-                                                            unsigned int           height,
-                                                            PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                                            void*                  present_callback_func_user_arg)
+std::shared_ptr<Anvil::Window> Anvil::WindowWin3264::create(const std::string&     in_title,
+                                                            unsigned int           in_width,
+                                                            unsigned int           in_height,
+                                                            PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                                                            void*                  in_present_callback_func_user_arg)
 {
     std::shared_ptr<Anvil::WindowWin3264> result_ptr(
-        new Anvil::WindowWin3264(title,
-                                 width,
-                                 height,
-                                 present_callback_func_ptr,
-                                 present_callback_func_user_arg)
+        new Anvil::WindowWin3264(in_title,
+                                 in_width,
+                                 in_height,
+                                 in_present_callback_func_ptr,
+                                 in_present_callback_func_user_arg)
     );
 
     if (result_ptr)
@@ -84,7 +84,7 @@ std::shared_ptr<Anvil::Window> Anvil::WindowWin3264::create(const std::string&  
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Window> Anvil::WindowWin3264::create(HWND window_handle)
+std::shared_ptr<Anvil::Window> Anvil::WindowWin3264::create(HWND in_window_handle)
 {
     std::shared_ptr<Anvil::WindowWin3264> result_ptr;
     RECT                                  window_rect;
@@ -95,17 +95,17 @@ std::shared_ptr<Anvil::Window> Anvil::WindowWin3264::create(HWND window_handle)
     /* The window has already been spawned by the user. Gather all the info we need in order to instantiate
      * the wrapper instance.
      */
-    if (::IsWindow(window_handle) == 0)
+    if (::IsWindow(in_window_handle) == 0)
     {
-        anvil_assert(false);
+        anvil_assert_fail();
 
         goto end;
     }
 
-    if (::GetClientRect(window_handle,
+    if (::GetClientRect(in_window_handle,
                        &window_rect) == 0)
     {
-        anvil_assert(false);
+        anvil_assert_fail();
 
         goto end;
     }
@@ -113,20 +113,20 @@ std::shared_ptr<Anvil::Window> Anvil::WindowWin3264::create(HWND window_handle)
     window_size[0] = static_cast<uint32_t>(window_rect.right  - window_rect.left);
     window_size[1] = static_cast<uint32_t>(window_rect.bottom - window_rect.top);
 
-    window_title_length = static_cast<uint32_t>(::GetWindowTextLength(window_handle) );
+    window_title_length = static_cast<uint32_t>(::GetWindowTextLength(in_window_handle) );
 
     if (window_title_length != 0)
     {
         window_title.resize(window_title_length);
 
-        ::GetWindowText(window_handle,
+        ::GetWindowText(in_window_handle,
                         static_cast<LPSTR>(&window_title.at(0) ),
                         static_cast<int>  (window_title_length) );
     }
 
     /* Go ahead and create the window wrapper instance */
     result_ptr.reset(
-        new Anvil::WindowWin3264(window_handle,
+        new Anvil::WindowWin3264(in_window_handle,
                                  std::string(&window_title.at(0) ),
                                  window_size[0],
                                  window_size[1],
@@ -213,7 +213,7 @@ bool Anvil::WindowWin3264::init()
                                WS_OVERLAPPEDWINDOW,
                                FALSE /* bMenu */) == 0)
         {
-            anvil_assert(false);
+            anvil_assert_fail();
 
             goto end;
         }
@@ -233,7 +233,7 @@ bool Anvil::WindowWin3264::init()
 
         if (m_window == nullptr)
         {
-            anvil_assert(false);
+            anvil_assert_fail();
 
             goto end;
         }
@@ -247,7 +247,7 @@ bool Anvil::WindowWin3264::init()
                             reinterpret_cast<LONG_PTR>(this) ) == 0) &&
         (::GetLastError    ()                                  != 0) )
     {
-        anvil_assert(false);
+        anvil_assert_fail();
 
         goto end;
     }
@@ -259,22 +259,22 @@ end:
 
 /** Window message handler.
  *
- *  @param window_handle Window handle.
- *  @param message_id    Message ID
- *  @param param_wide    Wide window message parameter.
- *  @param param_long    Long window message parameter.
+ *  @param in_window_handle Window handle.
+ *  @param in_message_id    Message ID
+ *  @param in_param_wide    Wide window message parameter.
+ *  @param in_param_long    Long window message parameter.
  *
  *  @return Window message-specific return value.
  **/
-LRESULT CALLBACK Anvil::WindowWin3264::msg_callback_pfn_proc(HWND   window_handle,
-                                                             UINT   message_id,
-                                                             WPARAM param_wide,
-                                                             LPARAM param_long)
+LRESULT CALLBACK Anvil::WindowWin3264::msg_callback_pfn_proc(HWND   in_window_handle,
+                                                             UINT   in_message_id,
+                                                             WPARAM in_param_wide,
+                                                             LPARAM in_param_long)
 {
-    WindowWin3264* window_ptr = reinterpret_cast<WindowWin3264*>(::GetWindowLongPtr(window_handle,
+    WindowWin3264* window_ptr = reinterpret_cast<WindowWin3264*>(::GetWindowLongPtr(in_window_handle,
                                                                                     GWLP_USERDATA) );
 
-    switch (message_id)
+    switch (in_message_id)
     {
         case WM_DESTROY:
         {
@@ -295,7 +295,7 @@ LRESULT CALLBACK Anvil::WindowWin3264::msg_callback_pfn_proc(HWND   window_handl
         case WM_KEYUP:
         {
             KeypressReleasedCallbackData callback_data(window_ptr,
-                                                       static_cast<Anvil::KeyID>(LOWORD(param_wide) & 0xFF) );
+                                                       static_cast<Anvil::KeyID>(LOWORD(in_param_wide) & 0xFF) );
 
             window_ptr->callback(WINDOW_CALLBACK_ID_KEYPRESS_RELEASED,
                                 &callback_data);
@@ -319,10 +319,10 @@ LRESULT CALLBACK Anvil::WindowWin3264::msg_callback_pfn_proc(HWND   window_handl
         }
     }
 
-    return DefWindowProc(window_handle,
-                         message_id,
-                         param_wide,
-                         param_long);
+    return DefWindowProc(in_window_handle,
+                         in_message_id,
+                         in_param_wide,
+                         in_param_long);
 }
 
 /* Please see header for specification */
@@ -357,11 +357,11 @@ void Anvil::WindowWin3264::run()
     }
 }
 
-void Anvil::WindowWin3264::set_title(const char* new_title)
+void Anvil::WindowWin3264::set_title(const char* in_new_title)
 {
     /* This function should only be called for wrapper instances which have created the window! */
     anvil_assert(m_window_owned);
 
     ::SetWindowText(m_window,
-                    new_title);
+                    in_new_title);
 }

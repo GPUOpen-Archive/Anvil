@@ -43,27 +43,27 @@
  *
  *  @return true if the operation succeeded, false otherwise.
  **/
-bool Anvil::IO::create_directory(std::string name)
+bool Anvil::IO::create_directory(std::string in_name)
 {
 #ifdef _WIN32
-    wchar_t      buffer[32767]; /* as per MSDN documentation */
-    std::wstring buffer_string;
-    std::wstring full_path_wide;
-    std::wstring name_wide   = std::wstring(name.begin(), name.end() );
-    std::string  prefix      = std::string ("\x5C\x5C?\x5C");
-    std::wstring prefix_wide = std::wstring(prefix.begin(), prefix.end() );
+    std::vector<wchar_t> buffer(32767); /* as per MSDN documentation */
+    std::wstring         buffer_string;
+    std::wstring         full_path_wide;
+    std::wstring         name_wide   = std::wstring(in_name.begin(), in_name.end() );
+    std::string          prefix      = std::string ("\x5C\x5C?\x5C");
+    std::wstring         prefix_wide = std::wstring(prefix.begin(), prefix.end() );
 
     /* CreateDirectory*() require us to pass the full path to the directory
      * we want to create. Form a string that contains this data. */
-    memset(buffer,
+    memset(&buffer.at(0),
            0,
-           sizeof(buffer) );
+           buffer.size() * sizeof(wchar_t) );
 
-    GetCurrentDirectoryW(sizeof(buffer),
-                         buffer);
+    GetCurrentDirectoryW(static_cast<DWORD>(buffer.size()) / sizeof(wchar_t),
+                        &buffer.at(0) );
 
-    buffer_string  = std::wstring(buffer);
-    full_path_wide = prefix_wide + buffer + std::wstring(L"\\") + name_wide;
+    buffer_string  = std::wstring(&buffer.at(0) );
+    full_path_wide = prefix_wide + &buffer.at(0) + std::wstring(L"\\") + name_wide;
 
     return (CreateDirectoryW(full_path_wide.c_str(),
                              nullptr /* lpSecurityAttributes */) != 0);
@@ -79,7 +79,7 @@ bool Anvil::IO::create_directory(std::string name)
 
         if (nullptr == getcwd(buffer, max_size))
         {
-           anvil_assert(false);
+           anvil_assert_fail();
         }
 
         absolute_path = std::string(buffer);
@@ -87,7 +87,7 @@ bool Anvil::IO::create_directory(std::string name)
         if (*absolute_path.rbegin() != '/')
             absolute_path.append("/");
 
-        absolute_path += name;
+        absolute_path += in_name;
     }
 
     struct stat  st;
@@ -107,7 +107,7 @@ bool Anvil::IO::create_directory(std::string name)
 
     if (status == false)
     {
-        anvil_assert(false);
+        anvil_assert_fail();
     }
 
     return status;
@@ -118,14 +118,14 @@ bool Anvil::IO::create_directory(std::string name)
  *
  *  @param filename Name of the file to remove.
  **/
-bool Anvil::IO::delete_file(std::string filename)
+bool Anvil::IO::delete_file(std::string in_filename)
 {
-    return (remove(filename.c_str()) == 0);
+    return (remove(in_filename.c_str()) == 0);
 }
 
 /* Please see header for specification */
-bool Anvil::IO::enumerate_files_in_directory(const std::string&        path,
-                                             bool                      recursive,
+bool Anvil::IO::enumerate_files_in_directory(const std::string&        in_path,
+                                             bool                      in_recursive,
                                              std::vector<std::string>* out_result_ptr)
 {
     bool result = false;
@@ -137,7 +137,7 @@ bool Anvil::IO::enumerate_files_in_directory(const std::string&        path,
         WIN32_FIND_DATAW          find_data;
 
         {
-            const std::string  path_expanded     (path + "//");
+            const std::string  path_expanded     (in_path + "//");
             const std::wstring path_expanded_wide(path_expanded.begin(), path_expanded.end() );
 
             outstanding_directories.push_back(path_expanded_wide);
@@ -150,8 +150,9 @@ bool Anvil::IO::enumerate_files_in_directory(const std::string&        path,
 
             outstanding_directories.pop_back();
 
-            if ( (file_finder = ::FindFirstFileW(current_path_with_wildcard_wide.c_str(),
-                                                &find_data)) == INVALID_HANDLE_VALUE)
+            if ( ((file_finder = ::FindFirstFileW(current_path_with_wildcard_wide.c_str(),
+                                                 &find_data)) == INVALID_HANDLE_VALUE) ||
+                  (file_finder == nullptr) )
             {
                 goto end;
             }
@@ -168,7 +169,7 @@ bool Anvil::IO::enumerate_files_in_directory(const std::string&        path,
                 }
                 else
                 if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
-                    recursive)
+                    in_recursive)
                 {
                     std::wstring dir_name_wide(find_data.cFileName);
 
@@ -200,7 +201,7 @@ bool Anvil::IO::enumerate_files_in_directory(const std::string&        path,
         DIR*                     file_finder = nullptr;
         std::vector<std::string> outstanding_directories;
 
-        outstanding_directories.push_back(path);
+        outstanding_directories.push_back(in_path);
 
         while (!outstanding_directories.empty() )
         {
@@ -222,7 +223,7 @@ bool Anvil::IO::enumerate_files_in_directory(const std::string&        path,
                         out_result_ptr->push_back(current_path + "/" + current_file_name);
                     }
                     else
-                    if (recursive)
+                    if (in_recursive)
                     {
                         const std::string dir_name_string = std::string(dir_ptr->d_name);
 
@@ -251,12 +252,12 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::IO::is_directory(const std::string& path)
+bool Anvil::IO::is_directory(const std::string& in_path)
 {
     bool        result    = false;
     struct stat stat_data = {0};
 
-    if ((stat(path.c_str(),
+    if ((stat(in_path.c_str(),
              &stat_data)             == 0)      &&
         (stat_data.st_mode & S_IFMT) == S_IFDIR)
     {
@@ -268,8 +269,8 @@ bool Anvil::IO::is_directory(const std::string& path)
 
 /** Reads contents of a file with user-specified name and returns it to the caller.
  *
- *  @param filename         Name of the file to use for the operation.
- *  @param is_text_file     true if the file should be treated as a text file; false
+ *  @param in_filename      Name of the file to use for the operation.
+ *  @param in_is_text_file  true if the file should be treated as a text file; false
  *                          if it should be considered a binary file.
  *  @param out_result_ptr   Deref will be set to an array, holding the read file contents.
  *                          The array must be deleted with a delete[] operator when no
@@ -277,8 +278,8 @@ bool Anvil::IO::is_directory(const std::string& path)
  *  @param out_opt_size_ptr Deref will be set to the number of bytes allocated for @param out_result_ptr.
  *                          May be nullptr.
  **/
-bool Anvil::IO::read_file(std::string filename,
-                            bool      is_text_file,
+bool Anvil::IO::read_file(std::string in_filename,
+                            bool      in_is_text_file,
                             char**    out_result_ptr,
                             size_t*   out_opt_size_ptr)
 {
@@ -288,8 +289,8 @@ bool Anvil::IO::read_file(std::string filename,
     char*  result       = nullptr;
     bool   result_bool  = false;
 
-    file_handle = fopen(filename.c_str(),
-                        (is_text_file) ? "rt" : "rb");
+    file_handle = fopen(in_filename.c_str(),
+                        (in_is_text_file) ? "rt" : "rb");
 
     if (file_handle == 0)
     {
@@ -363,24 +364,24 @@ end:
 }
 
 /** Please see header for specification */
-bool Anvil::IO::write_binary_file(std::string  filename,
-                                  const void*  data,
-                                  unsigned int data_size,
-                                  bool         should_append)
+bool Anvil::IO::write_binary_file(std::string  in_filename,
+                                  const void*  in_data,
+                                  unsigned int in_data_size,
+                                  bool         in_should_append)
 {
     FILE* file_handle = nullptr;
     bool  result      = false;
 
-    file_handle = fopen(filename.c_str(),
-                        (should_append) ? "ab" : "wb");
+    file_handle = fopen(in_filename.c_str(),
+                        (in_should_append) ? "ab" : "wb");
 
     if (file_handle == 0)
     {
         goto end;
     }
 
-    if (fwrite(data,
-               data_size,
+    if (fwrite(in_data,
+               in_data_size,
                1, /* count */
                file_handle) != 1)
     {
@@ -398,23 +399,23 @@ end:
 }
 
 /** Please see header for specification */
-bool Anvil::IO::write_text_file(std::string filename,
-                                std::string contents,
-                                bool        should_append)
+bool Anvil::IO::write_text_file(std::string in_filename,
+                                std::string in_contents,
+                                bool        in_should_append)
 {
     FILE* file_handle = nullptr;
     bool  result      = false;
 
-    file_handle = fopen(filename.c_str(),
-                        (should_append) ? "a" : "wt");
+    file_handle = fopen(in_filename.c_str(),
+                        (in_should_append) ? "a" : "wt");
 
     if (file_handle == 0)
     {
         goto end;
     }
 
-    if (fwrite(contents.c_str(),
-               strlen(contents.c_str() ),
+    if (fwrite(in_contents.c_str(),
+               strlen(in_contents.c_str() ),
                1, /* count */
                file_handle) != 1)
     {

@@ -48,21 +48,21 @@ namespace Anvil
          *  If the function returns a Anvil::PipelineLayout instance, it is caller's responsibility to release it
          *  in order for the object to be correctly deleted when its reference counter drops to zero.
          *
-         *  @param dsg_ptr                 A DescriptorSetGroup instance, holding the set of descriptor sets which the
+         *  @param in_dsg_ptr              A DescriptorSetGroup instance, holding the set of descriptor sets which the
          *                                 layout should describe.
-         *  @param push_constant_ranges    A vector of PushConstantRange descriptor, describing the push constant ranges
+         *  @param in_push_constant_ranges A vector of PushConstantRange descriptor, describing the push constant ranges
          *                                 the layout should define.
          *  @param out_pipeline_layout_ptr Deref will be set to a ptr to the pipeline layout wrapper instance, matching the described
          *                                 requirements. Must not be nullptr.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_layout(std::shared_ptr<DescriptorSetGroup>     dsg_ptr,
-                        const PushConstantRanges&               push_constant_ranges,
+        bool get_layout(std::shared_ptr<DescriptorSetGroup>     in_dsg_ptr,
+                        const PushConstantRanges&               in_push_constant_ranges,
                         std::shared_ptr<Anvil::PipelineLayout>* out_pipeline_layout_ptr);
 
         /** Retrieves a PipelineLayout instance, assigned to the specific pipeline layout ID */
-        std::shared_ptr<Anvil::PipelineLayout> get_layout_by_id(Anvil::PipelineLayoutID id) const;
+        std::shared_ptr<Anvil::PipelineLayout> get_layout_by_id(Anvil::PipelineLayoutID in_id) const;
 
     protected:
         /* Protected functions */
@@ -82,7 +82,7 @@ namespace Anvil
         typedef std::map<Anvil::PipelineLayoutID, std::weak_ptr<Anvil::PipelineLayout> > PipelineLayouts;
 
         /* Private functions */
-        PipelineLayoutManager(std::weak_ptr<Anvil::BaseDevice> device_ptr);
+        PipelineLayoutManager(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
 
         PipelineLayoutManager           (const PipelineLayoutManager&);
         PipelineLayoutManager& operator=(const PipelineLayoutManager&);
@@ -91,14 +91,14 @@ namespace Anvil
          *
          *  NOTE: This function should only be used by Device.
          *
-         *  @param device_ptr Device to initialize the manager for.
+         *  @param in_device_ptr Device to initialize the manager for.
          *
          *  @return PipelineLayoutManager instance, or nullptr if the function failed.
          **/
-        static std::shared_ptr<PipelineLayoutManager> create(std::weak_ptr<Anvil::BaseDevice> device_ptr);
+        static std::shared_ptr<PipelineLayoutManager> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
 
-        static void on_pipeline_layout_dropped(void* callback_arg,
-                                               void* user_arg);
+        static void on_pipeline_layout_dropped(void* in_callback_arg,
+                                               void* in_user_arg);
 
         /* Private members */
         std::weak_ptr<Anvil::BaseDevice> m_device_ptr;

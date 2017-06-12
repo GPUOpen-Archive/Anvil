@@ -399,6 +399,8 @@ void App::init_buffers()
                                                         VK_SHARING_MODE_EXCLUSIVE,
                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
+    m_data_buffer_ptr->set_name("Data buffer");
+
     allocator_ptr->add_buffer(m_data_buffer_ptr,
                               0); /* in_required_memory_features */
 
@@ -409,6 +411,8 @@ void App::init_buffers()
         Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
         VK_SHARING_MODE_EXCLUSIVE,
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+
+    m_mesh_data_buffer_ptr->set_name("Mesh vertexdata buffer");
 
     allocator_ptr->add_buffer(m_mesh_data_buffer_ptr,
                               0); /* in_required_memory_features */
@@ -595,6 +599,9 @@ void App::init_framebuffers()
             WINDOW_HEIGHT,
             1 /* n_layers */);
 
+        m_fbos[n_fbo]->set_name_formatted("Framebuffer for swapchain image [%d]",
+                                          n_fbo);
+
         result = m_fbos[n_fbo]->add_attachment(attachment_image_view_ptr,
                                                nullptr /* out_opt_attachment_id_ptr */);
 
@@ -614,6 +621,8 @@ void App::init_gfx_pipelines()
 
     m_renderpass_ptr = Anvil::RenderPass::create(m_device_ptr,
                                                  m_swapchain_ptr);
+
+    m_renderpass_ptr->set_name("Main renderpass");
 
     result = m_renderpass_ptr->add_color_attachment(m_swapchain_ptr->get_image_format(),
                                                      VK_SAMPLE_COUNT_1_BIT,
@@ -708,6 +717,11 @@ void App::init_semaphores()
         std::shared_ptr<Anvil::Semaphore> new_signal_semaphore_ptr = Anvil::Semaphore::create(m_device_ptr);
         std::shared_ptr<Anvil::Semaphore> new_wait_semaphore_ptr   = Anvil::Semaphore::create(m_device_ptr);
 
+        new_signal_semaphore_ptr->set_name_formatted("Signal semaphore [%d]",
+                                                     n_semaphore);
+        new_wait_semaphore_ptr->set_name_formatted  ("Wait semaphore [%d]",
+                                                     n_semaphore);
+
         m_frame_signal_semaphores.push_back(new_signal_semaphore_ptr);
         m_frame_wait_semaphores.push_back  (new_wait_semaphore_ptr);
     }
@@ -740,6 +754,9 @@ void App::init_shaders()
     vertex_shader_module_ptr   = Anvil::ShaderModule::create_from_spirv_generator(m_device_ptr,
                                                                                   vertex_shader_ptr);
 
+    fragment_shader_module_ptr->set_name("Fragment shader module");
+    vertex_shader_module_ptr->set_name  ("Vertex shader module");
+
     m_fs_ptr.reset(
         new Anvil::ShaderModuleStageEntryPoint(
             "main",
@@ -762,12 +779,17 @@ void App::init_swapchain()
                                                               m_device_ptr,
                                                               m_window_ptr);
 
+    m_rendering_surface_ptr->set_name("Main rendering surface");
+
+
     m_swapchain_ptr = device_locked_ptr->create_swapchain(m_rendering_surface_ptr,
                                                           m_window_ptr,
                                                           VK_FORMAT_B8G8R8A8_UNORM,
                                                           VK_PRESENT_MODE_FIFO_KHR,
                                                           VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                                                           m_n_swapchain_images);
+
+    m_swapchain_ptr->set_name("Main swapchain");
 }
 
 void App::init_window()

@@ -62,9 +62,9 @@ namespace Anvil
             /* Stub */
         }
 
-        virtual PoolItem create_item ()                  = 0;
-        virtual void     release_item(PoolItem item_ptr) = 0;
-        virtual void     reset_item  (PoolItem item_ptr) = 0;
+        virtual PoolItem create_item ()                     = 0;
+        virtual void     release_item(PoolItem in_item_ptr) = 0;
+        virtual void     reset_item  (PoolItem in_item_ptr) = 0;
     };
 
     /** Generic pool implementation  */
@@ -83,9 +83,9 @@ namespace Anvil
             item = in_item;
         }
 
-        bool operator==(const PoolItemType* item_ptr) const
+        bool operator==(const PoolItemType* in_item_ptr) const
         {
-            return item.get() == item_ptr;
+            return item.get() == in_item_ptr;
         }
     };
 
@@ -111,9 +111,9 @@ namespace Anvil
             pool_ptr = in_pool_ptr;
         }
 
-        void operator()(PoolItemType* item)
+        void operator()(PoolItemType* in_item)
         {
-            pool_ptr->return_item(item);
+            pool_ptr->return_item(in_item);
         }
 
     private:
@@ -227,7 +227,7 @@ namespace Anvil
         }
 
         /** Stores the provided instance back in the pool. */
-        void return_item(PoolItemType* item_ptr)
+        void return_item(PoolItemType* in_item_ptr)
         {
             PoolItemContainer<PoolItemType, PoolItemPtrType> container;
             bool                                             has_found = false;
@@ -238,7 +238,7 @@ namespace Anvil
                       iterator != m_active_pool_item_containers.end();
                     ++iterator)
             {
-                if (iterator->item.get() == item_ptr)
+                if (iterator->item.get() == in_item_ptr)
                 {
                     container = *iterator;
                     has_found = true;
@@ -286,13 +286,13 @@ namespace Anvil
 
         /** Constructor.
          *
-         *  Retains @param parent_command_pool_ptr.
+         *  Retains @param in_parent_command_pool_ptr.
          *
-         *  @param parent_command_pool_ptr Command pool instance, from which command buffers
-         *                                 should be spawned. Must not be nullptr.
+         *  @param in_parent_command_pool_ptr Command pool instance, from which command buffers
+         *                                    should be spawned. Must not be nullptr.
          **/
-        CommandBufferPoolWorker(std::shared_ptr<Anvil::CommandPool> parent_command_pool_ptr)
-            :m_parent_command_pool_ptr(parent_command_pool_ptr)
+        CommandBufferPoolWorker(std::shared_ptr<Anvil::CommandPool> in_parent_command_pool_ptr)
+            :m_parent_command_pool_ptr(in_parent_command_pool_ptr)
         {
             anvil_assert(m_parent_command_pool_ptr != nullptr)
         }
@@ -312,12 +312,12 @@ namespace Anvil
 
         /** Resets contents of the specified command buffer.
          *
-         *  @param item_ptr Command buffer to reset. Must not be nullptr.
+         *  @param in_item_ptr Command buffer to reset. Must not be nullptr.
          **/
-        virtual void reset_item(std::shared_ptr<CommandBuffer> item_ptr) = 0;
+        virtual void reset_item(std::shared_ptr<CommandBuffer> in_item_ptr) = 0;
 
         /** Releases the specified command buffer. **/
-        void release_item(std::shared_ptr<CommandBuffer> item_ptr)
+        void release_item(std::shared_ptr<CommandBuffer> in_item_ptr)
         {
             /* Nop */
         }
@@ -335,8 +335,8 @@ namespace Anvil
     class PrimaryCommandBufferPoolWorker : public CommandBufferPoolWorker<Anvil::PrimaryCommandBuffer>
     {
     public:
-        PrimaryCommandBufferPoolWorker(std::shared_ptr<Anvil::CommandPool> parent_command_pool_ptr)
-            :CommandBufferPoolWorker(parent_command_pool_ptr)
+        PrimaryCommandBufferPoolWorker(std::shared_ptr<Anvil::CommandPool> in_parent_command_pool_ptr)
+            :CommandBufferPoolWorker(in_parent_command_pool_ptr)
         {
             /* Stub */
         }
@@ -347,7 +347,7 @@ namespace Anvil
         }
 
         std::shared_ptr<Anvil::PrimaryCommandBuffer> create_item();
-        void                                         reset_item (std::shared_ptr<Anvil::PrimaryCommandBuffer> item_ptr);
+        void                                         reset_item (std::shared_ptr<Anvil::PrimaryCommandBuffer> in_item_ptr);
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(PrimaryCommandBufferPoolWorker);
         ANVIL_DISABLE_COPY_CONSTRUCTOR   (PrimaryCommandBufferPoolWorker);
@@ -356,8 +356,8 @@ namespace Anvil
     class SecondaryCommandBufferPoolWorker : public CommandBufferPoolWorker<Anvil::SecondaryCommandBuffer>
     {
     public:
-        SecondaryCommandBufferPoolWorker(std::shared_ptr<Anvil::CommandPool> parent_command_pool_ptr)
-            :CommandBufferPoolWorker(parent_command_pool_ptr)
+        SecondaryCommandBufferPoolWorker(std::shared_ptr<Anvil::CommandPool> in_parent_command_pool_ptr)
+            :CommandBufferPoolWorker(in_parent_command_pool_ptr)
         {
             /* Stub */
         }
@@ -368,7 +368,7 @@ namespace Anvil
         }
 
         std::shared_ptr<Anvil::SecondaryCommandBuffer> create_item();
-        void                                           reset_item (std::shared_ptr<Anvil::SecondaryCommandBuffer> item_ptr);
+        void                                           reset_item (std::shared_ptr<Anvil::SecondaryCommandBuffer> in_item_ptr);
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(SecondaryCommandBufferPoolWorker);
         ANVIL_DISABLE_COPY_CONSTRUCTOR   (SecondaryCommandBufferPoolWorker);
@@ -381,20 +381,20 @@ namespace Anvil
     public:
         /** Constructor
          *
-         *  @param parent_command_pool_ptr Command pool instance, from which command buffers
-         *                                 should be spawned. Must not be nullptr.
-         *  @param n_preallocated_items    Number of command buffers to preallocate at creation time.
+         *  @param in_parent_command_pool_ptr Command pool instance, from which command buffers
+         *                                    should be spawned. Must not be nullptr.
+         *  @param in_n_preallocated_items    Number of command buffers to preallocate at creation time.
          *
          **/
-        static std::shared_ptr<CommandBufferPool<PoolWorker, CommandBufferType, CommandBufferPtrType> > create(std::shared_ptr<Anvil::CommandPool> parent_command_pool_ptr,
-                                                                                                               uint32_t                            n_preallocated_items)
+        static std::shared_ptr<CommandBufferPool<PoolWorker, CommandBufferType, CommandBufferPtrType> > create(std::shared_ptr<Anvil::CommandPool> in_parent_command_pool_ptr,
+                                                                                                               uint32_t                            in_n_preallocated_items)
         {
             std::shared_ptr<CommandBufferPool<PoolWorker, CommandBufferType, CommandBufferPtrType> > result_ptr;
 
             result_ptr.reset(
-                new CommandBufferPool<PoolWorker, CommandBufferType, CommandBufferPtrType>(parent_command_pool_ptr,
-                                                                                           n_preallocated_items,
-                                                                                           new PoolWorker(parent_command_pool_ptr))
+                new CommandBufferPool<PoolWorker, CommandBufferType, CommandBufferPtrType>(in_parent_command_pool_ptr,
+                                                                                           in_n_preallocated_items,
+                                                                                           new PoolWorker(in_parent_command_pool_ptr))
             );
 
             return result_ptr;
@@ -409,11 +409,11 @@ namespace Anvil
     private:
 
         /* Constructor. Please see create() for documentation */
-        CommandBufferPool(std::shared_ptr<Anvil::CommandPool> parent_command_pool_ptr,
-                          uint32_t                            n_preallocated_items,
-                          PoolWorker*                         pool_worker_ptr)
-            :GenericPool<CommandBufferType, CommandBufferPtrType>(n_preallocated_items,
-                                                                  pool_worker_ptr)
+        CommandBufferPool(std::shared_ptr<Anvil::CommandPool> in_parent_command_pool_ptr,
+                          uint32_t                            in_n_preallocated_items,
+                          PoolWorker*                         in_pool_worker_ptr)
+            :GenericPool<CommandBufferType, CommandBufferPtrType>(in_n_preallocated_items,
+                                                                  in_pool_worker_ptr)
         {
             /* Stub */
         }

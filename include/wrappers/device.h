@@ -50,13 +50,13 @@ namespace Anvil
 
         /** Retrieves a command pool, created for the specified queue family type.
          *
-         *  @param queue_family_type Queue family to retrieve the command pool for.
+         *  @param in_queue_family_type Queue family to retrieve the command pool for.
          *
          *  @return As per description
          **/
-        std::shared_ptr<Anvil::CommandPool> get_command_pool(Anvil::QueueFamilyType queue_family_type) const
+        std::shared_ptr<Anvil::CommandPool> get_command_pool(Anvil::QueueFamilyType in_queue_family_type) const
         {
-            return m_command_pool_ptrs[queue_family_type];
+            return m_command_pool_ptrs[in_queue_family_type];
         }
 
         /** Retrieves a compute pipeline manager, created for this device instance.
@@ -68,19 +68,19 @@ namespace Anvil
             return m_compute_pipeline_manager_ptr;
         }
 
-        /** Returns a Queue instance, corresponding to a compute queue at index @param n_queue
+        /** Returns a Queue instance, corresponding to a compute queue at index @param in_n_queue
          *
-         *  @param n_queue Index of the compute queue to retrieve the wrapper instance for.
+         *  @param in_n_queue Index of the compute queue to retrieve the wrapper instance for.
          *
          *  @return As per description
          **/
-        std::shared_ptr<Anvil::Queue> get_compute_queue(uint32_t n_queue) const
+        std::shared_ptr<Anvil::Queue> get_compute_queue(uint32_t in_n_queue) const
         {
             std::shared_ptr<Anvil::Queue> result_ptr;
 
-            if (m_compute_queues.size() > n_queue)
+            if (m_compute_queues.size() > in_n_queue)
             {
-                result_ptr = m_compute_queues[n_queue];
+                result_ptr = m_compute_queues[in_n_queue];
             }
 
             return result_ptr;
@@ -114,6 +114,12 @@ namespace Anvil
          **/
         const ExtensionAMDDrawIndirectCountEntrypoints& get_extension_amd_draw_indirect_count_entrypoints() const;
 
+        /** Returns a container with entry-points to functions introduced by VK_EXT_debug_marker extension.
+         *
+         *  Will fire an assertion failure if the extension is not supported.
+         **/
+        const ExtensionEXTDebugMarkerEntrypoints& get_extension_ext_debug_marker_entrypoints() const;
+
         /** Returns a container with entry-points to functions introduced by VK_KHR_swapchain extension.
          *
          *  Will fire an assertion failure if the extension was not requested at device creation time.
@@ -140,15 +146,15 @@ namespace Anvil
 
         /** Returns the number of queues available for the specified queue family type
          *
-         *  @param queue_family_type Queue family type to use for the query.
+         *  @param in_family_type Queue family type to use for the query.
          *
          *  @return As per description.
          **/
-        uint32_t get_n_queues(QueueFamilyType family_type) const
+        uint32_t get_n_queues(QueueFamilyType in_family_type) const
         {
             uint32_t result = 0;
 
-            switch (family_type)
+            switch (in_family_type)
             {
                 case QUEUE_FAMILY_TYPE_COMPUTE:           result = static_cast<uint32_t>(m_compute_queues.size() );           break;
                 case QUEUE_FAMILY_TYPE_TRANSFER:          result = static_cast<uint32_t>(m_transfer_queues.size() );          break;
@@ -157,7 +163,7 @@ namespace Anvil
                 default:
                 {
                     /* Invalid queue family type */
-                    anvil_assert(false);
+                    anvil_assert_fail();
                 }
             }
 
@@ -285,74 +291,74 @@ namespace Anvil
         /** Calls the device-specific implementaton of vkGetDeviceProcAddr(), using this device
          *  instance and user-specified arguments.
          *
-         *  @param name Func name to use for the query. Must not be nullptr.
+         *  @param in_name Func name to use for the query. Must not be nullptr.
          *
          *  @return As per description
          **/
-        PFN_vkVoidFunction get_proc_address(const char* name) const
+        PFN_vkVoidFunction get_proc_address(const char* in_name) const
         {
             return vkGetDeviceProcAddr(m_device,
-                                       name);
+                                       in_name);
         }
 
         /** Returns a index of the specified queue family type.
          *
-         *  @param queue_family_type
+         *  @param in_family_type TODO
          *
          *  @return The requested queue family index, or -1 if the specified queue family type is
          *          not supported on this device.
          **/
-        uint32_t get_queue_family_index(Anvil::QueueFamilyType family_type) const
+        uint32_t get_queue_family_index(Anvil::QueueFamilyType in_family_type) const
         {
-            return m_device_queue_families.family_index[family_type];
+            return m_device_queue_families.family_index[in_family_type];
         }
 
-        /** Returns detailed queue family information for a queue family at index @param queue_family_index . */
-        virtual const Anvil::QueueFamilyInfo* get_queue_family_info(uint32_t queue_family_index) const = 0;
+        /** Returns detailed queue family information for a queue family at index @param in_queue_family_index . */
+        virtual const Anvil::QueueFamilyInfo* get_queue_family_info(uint32_t in_queue_family_index) const = 0;
 
-        /** Returns a Queue instance, corresponding to a sparse binding-capable queue at index @param n_queue,
+        /** Returns a Queue instance, corresponding to a sparse binding-capable queue at index @param in_n_queue,
          *  which supports queue family capabilities specified with @param opt_required_queue_flags.
          *
-         *  @param n_queue                  Index of the queue to retrieve the wrapper instance for.
-         *  @param opt_required_queue_flags Additional queue family bits the returned queue needs to support.
-         *                                  0 by default.
+         *  @param in_n_queue                  Index of the queue to retrieve the wrapper instance for.
+         *  @param in_opt_required_queue_flags Additional queue family bits the returned queue needs to support.
+         *                                     0 by default.
          *
          *  @return As per description
          **/
-        std::shared_ptr<Anvil::Queue> get_sparse_binding_queue(uint32_t     n_queue,
-                                                               VkQueueFlags opt_required_queue_flags = 0) const;
+        std::shared_ptr<Anvil::Queue> get_sparse_binding_queue(uint32_t     in_n_queue,
+                                                               VkQueueFlags in_opt_required_queue_flags = 0) const;
 
-        /** Returns a Queue instance, corresponding to a transfer queue at index @param n_queue
+        /** Returns a Queue instance, corresponding to a transfer queue at index @param in_n_queue
          *
-         *  @param n_queue Index of the transfer queue to retrieve the wrapper instance for.
+         *  @param in_n_queue Index of the transfer queue to retrieve the wrapper instance for.
          *
          *  @return As per description
          **/
-        std::shared_ptr<Anvil::Queue> get_transfer_queue(uint32_t n_queue) const
+        std::shared_ptr<Anvil::Queue> get_transfer_queue(uint32_t in_n_queue) const
         {
             std::shared_ptr<Anvil::Queue> result_ptr;
 
-            if (m_transfer_queues.size() > n_queue)
+            if (m_transfer_queues.size() > in_n_queue)
             {
-                result_ptr = m_transfer_queues[n_queue];
+                result_ptr = m_transfer_queues[in_n_queue];
             }
 
             return result_ptr;
         }
 
-        /** Returns a Queue instance, corresponding to a universal queue at index @param n_queue
+        /** Returns a Queue instance, corresponding to a universal queue at index @param in_n_queue
          *
-         *  @param n_queue Index of the universal queue to retrieve the wrapper instance for.
+         *  @param in_n_queue Index of the universal queue to retrieve the wrapper instance for.
          *
          *  @return As per description
          **/
-        std::shared_ptr<Anvil::Queue> get_universal_queue(uint32_t n_queue) const
+        std::shared_ptr<Anvil::Queue> get_universal_queue(uint32_t in_n_queue) const
         {
             std::shared_ptr<Anvil::Queue> result_ptr;
 
-            if (m_universal_queues.size() > n_queue)
+            if (m_universal_queues.size() > in_n_queue)
             {
-                result_ptr = m_universal_queues[n_queue];
+                result_ptr = m_universal_queues[in_n_queue];
             }
 
             return result_ptr;
@@ -363,15 +369,20 @@ namespace Anvil
 
         /* Tells whether the device has been created with the specified extension enabled.
          *
-         * @param extension_name Null-terminated name of the extension. Must not be null.
+         * @param in_extension_name Null-terminated name of the extension. Must not be null.
          *
          * @return true if the device has been created with the extension enabled, false otherwise.
          **/
-        bool is_extension_enabled(const char* extension_name) const
+        bool is_extension_enabled(const char* in_extension_name) const
         {
             return std::find(m_enabled_extensions.begin(),
                              m_enabled_extensions.end(),
-                             extension_name) != m_enabled_extensions.end();
+                             in_extension_name) != m_enabled_extensions.end();
+        }
+
+        bool is_ext_debug_marker_extension_enabled() const
+        {
+            return m_ext_debug_marker_enabled;
         }
 
     protected:
@@ -385,31 +396,31 @@ namespace Anvil
         /* Protected functions */
         virtual ~BaseDevice();
 
-        std::vector<float> get_queue_priorities(const QueueFamilyInfo*            queue_family_info_ptr) const;
-        void               init                (const std::vector<const char*>&   extensions,
-                                                const std::vector<const char*>&   layers,
-                                                bool                              transient_command_buffer_allocs_only,
-                                                bool                              support_resettable_command_buffer_allocs);
+        std::vector<float> get_queue_priorities(const QueueFamilyInfo*            in_queue_family_info_ptr) const;
+        void               init                (const std::vector<const char*>&   in_extensions,
+                                                const std::vector<const char*>&   in_layers,
+                                                bool                              in_transient_command_buffer_allocs_only,
+                                                bool                              in_support_resettable_command_buffer_allocs);
 
         BaseDevice& operator=(const BaseDevice&);
         BaseDevice           (const BaseDevice&);
 
         /** Retrieves family indices of compute, DMA, graphics, transfer queue families for the specified physical device.
          *
-         *  @param physical_device_ptr              Physical device to use for the query.
+         *  @param in_physical_device_ptr           Physical device to use for the query.
          *  @param out_device_queue_family_info_ptr Deref will be used to store the result info. Must not be null.
          *
          **/
-        void get_queue_family_indices_for_physical_device(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+        void get_queue_family_indices_for_physical_device(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
                                                           DeviceQueueFamilyInfo*               out_device_queue_family_info_ptr) const;
 
-        virtual void create_device                         (const std::vector<const char*>& extensions,
-                                                            const std::vector<const char*>& layers,
-                                                            const VkPhysicalDeviceFeatures& features,
+        virtual void create_device                         (const std::vector<const char*>& in_extensions,
+                                                            const std::vector<const char*>& in_layers,
+                                                            const VkPhysicalDeviceFeatures& in_features,
                                                             DeviceQueueFamilyInfo*          out_queue_families_ptr)       = 0;
         virtual void init_device                           ()                                                             = 0;
-        virtual bool is_layer_supported                    (const char*                     layer_name)             const = 0;
-        virtual bool is_physical_device_extension_supported(const char*                     extension_name)         const = 0;
+        virtual bool is_layer_supported                    (const char*                     in_layer_name)          const = 0;
+        virtual bool is_physical_device_extension_supported(const char*                     in_extension_name)      const = 0;
 
         /* Protected variables */
         std::vector<std::shared_ptr<Anvil::Queue> > m_compute_queues;
@@ -423,6 +434,7 @@ namespace Anvil
         VkDevice m_device;
 
         ExtensionAMDDrawIndirectCountEntrypoints m_amd_draw_indirect_count_extension_entrypoints;
+        ExtensionEXTDebugMarkerEntrypoints       m_ext_debug_marker_extension_entrypoints;
         ExtensionKHRSurfaceEntrypoints           m_khr_surface_entrypoints;
         ExtensionKHRSwapchainEntrypoints         m_khr_swapchain_entrypoints;
 
@@ -431,8 +443,9 @@ namespace Anvil
         std::shared_ptr<Anvil::ComputePipelineManager>  m_compute_pipeline_manager_ptr;
         std::shared_ptr<Anvil::DescriptorSetGroup>      m_dummy_dsg_ptr;
         std::vector<std::string>                        m_enabled_extensions;
+        bool                                            m_ext_debug_marker_enabled;
         std::shared_ptr<Anvil::GraphicsPipelineManager> m_graphics_pipeline_manager_ptr;
-        std::weak_ptr<Anvil::Instance>                  m_parent_instance_ptr;
+        std::shared_ptr<Anvil::Instance>                m_parent_instance_ptr;
         std::shared_ptr<Anvil::PipelineCache>           m_pipeline_cache_ptr;
         std::shared_ptr<Anvil::PipelineLayoutManager>   m_pipeline_layout_manager_ptr;
         uint32_t                                        m_queue_family_index[Anvil::QUEUE_FAMILY_TYPE_COUNT];
@@ -452,42 +465,42 @@ namespace Anvil
          *
          *  To release a device instance, please call destroy().
          *
-         *  @param physical_device_ptr                      Physical device to create this device from. Must not be nullptr.
-         *  @param extensions                               A vector of extension names to be used when creating the device.
-         *                                                  Can be empty.
-         *  @param layers                                   A vector of layer names to be used when creating the device.
-         *                                                  Can be empty.
-         *  @param transient_command_buffer_allocs_only     True if the command pools, which are going to be initialized after
-         *                                                  the device is created, should be set up for transient command buffer
-         *                                                  support.
-         *  @param support_resettable_command_buffer_allocs True if the command pools should be configured for resettable command
-         *                                                  buffer support.
+         *  @param in_physical_device_ptr                      Physical device to create this device from. Must not be nullptr.
+         *  @param in_extensions                               A vector of extension names to be used when creating the device.
+         *                                                     Can be empty.
+         *  @param in_layers                                   A vector of layer names to be used when creating the device.
+         *                                                     Can be empty.
+         *  @param in_transient_command_buffer_allocs_only     True if the command pools, which are going to be initialized after
+         *                                                     the device is created, should be set up for transient command buffer
+         *                                                     support.
+         *  @param in_support_resettable_command_buffer_allocs True if the command pools should be configured for resettable command
+         *                                                     buffer support.
          *
          *  @return A new Device instance.
          **/
-        static std::weak_ptr<Anvil::SGPUDevice> create(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
-                                                       const std::vector<const char*>&      extensions,
-                                                       const std::vector<const char*>&      layers,
-                                                       bool                                 transient_command_buffer_allocs_only,
-                                                       bool                                 support_resettable_command_buffer_allocs);
+        static std::weak_ptr<Anvil::SGPUDevice> create(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
+                                                       const std::vector<const char*>&      in_extensions,
+                                                       const std::vector<const char*>&      in_layers,
+                                                       bool                                 in_transient_command_buffer_allocs_only,
+                                                       bool                                 in_support_resettable_command_buffer_allocs);
 
         /** Creates a new swapchain instance for the device.
          *
-         *  @param parent_surface_ptr Rendering surface to create the swapchain for. Must not be nullptr.
-         *  @param window_ptr         current window to create the swapchain for. Must not be nullptr.
-         *  @param image_format       Format which the swap-chain should use.
-         *  @param present_mode       Presentation mode which the swap-chain should use.
-         *  @param usage              Image usage flags describing how the swap-chain is going to be used.
-         *  @param n_swapchain_images Number of images the swap-chain should use.
+         *  @param in_parent_surface_ptr Rendering surface to create the swapchain for. Must not be nullptr.
+         *  @param in_window_ptr         current window to create the swapchain for. Must not be nullptr.
+         *  @param in_image_format       Format which the swap-chain should use.
+         *  @param in_present_mode       Presentation mode which the swap-chain should use.
+         *  @param in_usage              Image usage flags describing how the swap-chain is going to be used.
+         *  @param in_n_swapchain_images Number of images the swap-chain should use.
          *
          *  @return A new Swapchain instance.
          **/
-        std::shared_ptr<Anvil::Swapchain> create_swapchain(std::shared_ptr<Anvil::RenderingSurface> parent_surface_ptr,
-                                                           std::shared_ptr<Anvil::Window>           window_ptr,
-                                                           VkFormat                                 image_format,
-                                                           VkPresentModeKHR                         present_mode,
-                                                           VkImageUsageFlags                        usage,
-                                                           uint32_t                                 n_swapchain_images);
+        std::shared_ptr<Anvil::Swapchain> create_swapchain(std::shared_ptr<Anvil::RenderingSurface> in_parent_surface_ptr,
+                                                           std::shared_ptr<Anvil::Window>           in_window_ptr,
+                                                           VkFormat                                 in_image_format,
+                                                           VkPresentModeKHR                         in_present_mode,
+                                                           VkImageUsageFlags                        in_usage,
+                                                           uint32_t                                 in_n_swapchain_images);
 
         /** Releases all children queues and unregisters itself from the owning physical device. */
         virtual void destroy();
@@ -533,7 +546,7 @@ namespace Anvil
                                                                 std::vector<VkSparseImageFormatProperties>& out_result) const;
 
         /** See documentation in BaseDevice for more details */
-        const Anvil::QueueFamilyInfo* get_queue_family_info(uint32_t queue_family_index) const;
+        const Anvil::QueueFamilyInfo* get_queue_family_info(uint32_t in_queue_family_index) const;
 
         /* Tells what type this device instance is */
         DeviceType get_type() const
@@ -543,22 +556,22 @@ namespace Anvil
 
     protected:
         /* Protected functions */
-        void create_device                         (const std::vector<const char*>& extensions,
-                                                    const std::vector<const char*>& layers,
-                                                    const VkPhysicalDeviceFeatures& features,
+        void create_device                         (const std::vector<const char*>& in_extensions,
+                                                    const std::vector<const char*>& in_layers,
+                                                    const VkPhysicalDeviceFeatures& in_features,
                                                     DeviceQueueFamilyInfo*          out_queue_families_ptr);
         void get_queue_family_indices              (DeviceQueueFamilyInfo*          out_device_queue_family_info_ptr) const;
         void init_device                           ();
-        bool is_layer_supported                    (const char*                     layer_name)     const;
-        bool is_physical_device_extension_supported(const char*                     extension_name) const;
+        bool is_layer_supported                    (const char*                     in_layer_name)     const;
+        bool is_physical_device_extension_supported(const char*                     in_extension_name) const;
 
     private:
         /* Private type definitions */
         struct SGPUDeviceDeleter
         {
-            void operator()(SGPUDevice* device_ptr)
+            void operator()(SGPUDevice* in_device_ptr)
             {
-                delete device_ptr;
+                delete in_device_ptr;
             }
         };
 
@@ -566,7 +579,7 @@ namespace Anvil
         virtual ~SGPUDevice();
 
         /** Private constructor. Please use create() instead. */
-        SGPUDevice(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr);
+        SGPUDevice(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr);
 
         /* Private variables */
         std::weak_ptr<Anvil::PhysicalDevice> m_parent_physical_device_ptr;

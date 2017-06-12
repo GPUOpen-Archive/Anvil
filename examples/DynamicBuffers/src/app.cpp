@@ -26,7 +26,6 @@
 /* Uncomment the #define below to enable validation */
 // #define ENABLE_VALIDATION
 
-
 #include <string>
 #include <cmath>
 #include "config.h"
@@ -402,6 +401,8 @@ void App::init_buffers()
                                                                     VK_SHARING_MODE_CONCURRENT,
                                                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
+    m_sine_offset_data_buffer_ptr->set_name("Sine offset data buffer");
+
     memory_allocator_ptr->add_buffer(m_sine_offset_data_buffer_ptr,
                                      0); /* in_required_memory_features */
 
@@ -438,6 +439,8 @@ void App::init_buffers()
                                                              VK_SHARING_MODE_CONCURRENT,
                                                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
+    m_sine_data_buffer_ptr->set_name("Sine data buffer");
+
     memory_allocator_ptr->add_buffer(m_sine_data_buffer_ptr,
                                      0); /* in_required_memory_features */
 
@@ -449,6 +452,8 @@ void App::init_buffers()
                                                                    Anvil::QUEUE_FAMILY_COMPUTE_BIT | Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
                                                                    VK_SHARING_MODE_CONCURRENT,
                                                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+
+    m_sine_props_data_buffer_ptr->set_name("Sine properties data buffer");
 
     memory_allocator_ptr->add_buffer(m_sine_props_data_buffer_ptr,
                                      Anvil::MEMORY_FEATURE_FLAG_MAPPABLE);
@@ -482,6 +487,8 @@ void App::init_buffers()
                                                               VK_SHARING_MODE_EXCLUSIVE,
                                                               VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 
+    m_sine_color_buffer_ptr->set_name("Sine color data buffer");
+
     memory_allocator_ptr->add_buffer(m_sine_color_buffer_ptr,
                                      0); /* in_required_memory_features */
 
@@ -502,6 +509,7 @@ void App::init_command_buffers()
 {
     std::shared_ptr<Anvil::SGPUDevice>              device_locked_ptr           (m_device_ptr);
     std::shared_ptr<Anvil::GraphicsPipelineManager> gfx_pipeline_manager_ptr    (device_locked_ptr->get_graphics_pipeline_manager() );
+    const bool                                      is_debug_marker_ext_present (device_locked_ptr->is_ext_debug_marker_extension_enabled() );
     std::shared_ptr<Anvil::PipelineLayout>          producer_pipeline_layout_ptr;
     VkImageSubresourceRange                         subresource_range;
     std::shared_ptr<Anvil::Queue>                   universal_queue_ptr         (device_locked_ptr->get_universal_queue(0) );
@@ -577,6 +585,19 @@ void App::init_command_buffers()
         draw_cmd_buffer_ptr->record_bind_pipeline(VK_PIPELINE_BIND_POINT_COMPUTE,
                                                   m_producer_pipeline_id);
 
+        if (is_debug_marker_ext_present)
+        {
+            static const float region_color[4] =
+            {
+                0.0f,
+                1.0f,
+                0.0f,
+                1.0f
+            };
+            draw_cmd_buffer_ptr->record_debug_marker_begin_EXT("Sine offset data computation",
+                                                               region_color);
+        }
+
         for (unsigned int n_sine_pair = 0;
                           n_sine_pair < N_SINE_PAIRS;
                         ++n_sine_pair)
@@ -613,6 +634,11 @@ void App::init_command_buffers()
             draw_cmd_buffer_ptr->record_dispatch(2,  /* x */
                                                  1,  /* y */
                                                  1); /* z */
+        }
+
+        if (is_debug_marker_ext_present)
+        {
+            draw_cmd_buffer_ptr->record_debug_marker_end_EXT();
         }
 
         /* Before we proceed with drawing, we need to flush the buffer data. This step is needed in order to ensure
@@ -693,6 +719,17 @@ void App::init_command_buffers()
                 if (new_line_width > max_line_width)
                 {
                     new_line_width = max_line_width;
+                }
+
+                if (is_debug_marker_ext_present)
+                {
+                    std::stringstream marker_name_sstream;
+
+                    marker_name_sstream << "Draw sine pair "
+                                        << n_sine_pair;
+
+                    draw_cmd_buffer_ptr->record_debug_marker_insert_EXT(marker_name_sstream.str().c_str(),
+                                                                        nullptr);
                 }
 
                 get_buffer_memory_offsets(n_sine_pair,
@@ -836,6 +873,9 @@ void App::init_framebuffers()
                                                    WINDOW_HEIGHT,
                                                    1); /* n_layers */
 
+        result_fb_ptr->set_name_formatted("Framebuffer for swapchain image [%d]",
+                                          n_swapchain_image);
+
         result = result_fb_ptr->add_attachment(m_swapchain_ptr->get_image_view(n_swapchain_image),
                                                nullptr); /* out_opt_attachment_id_ptr */
         anvil_assert(result);
@@ -866,6 +906,8 @@ void App::init_gfx_pipelines()
 
     m_consumer_render_pass_ptr = Anvil::RenderPass::create(m_device_ptr,
                                                            m_swapchain_ptr);
+
+    m_consumer_render_pass_ptr->set_name("Consumer renderpass");
 
     result = m_consumer_render_pass_ptr->add_color_attachment(m_swapchain_ptr->get_image_format(),
                                                               VK_SAMPLE_COUNT_1_BIT,
@@ -973,6 +1015,11 @@ void App::init_images()
                                                                          VK_COMPONENT_SWIZZLE_IDENTITY,
                                                                          VK_COMPONENT_SWIZZLE_IDENTITY,
                                                                          VK_COMPONENT_SWIZZLE_IDENTITY);
+
+        m_depth_images     [n_depth_image]->set_name_formatted("Depth image [%d]",
+                                                               n_depth_image);
+        m_depth_image_views[n_depth_image]->set_name_formatted("Depth image view [%d]",
+                                                               n_depth_image);
     }
 }
 
@@ -984,6 +1031,11 @@ void App::init_semaphores()
     {
         std::shared_ptr<Anvil::Semaphore> new_signal_semaphore_ptr = Anvil::Semaphore::create(m_device_ptr);
         std::shared_ptr<Anvil::Semaphore> new_wait_semaphore_ptr   = Anvil::Semaphore::create(m_device_ptr);
+
+        new_signal_semaphore_ptr->set_name_formatted("Signal semaphore [%d]",
+                                                     n_semaphore);
+        new_wait_semaphore_ptr->set_name_formatted  ("Wait semaphore [%d]",
+                                                     n_semaphore);
 
         m_frame_signal_semaphores.push_back(new_signal_semaphore_ptr);
         m_frame_wait_semaphores.push_back  (new_wait_semaphore_ptr);
@@ -1029,6 +1081,10 @@ void App::init_shaders()
     vs_module_ptr = Anvil::ShaderModule::create_from_spirv_generator(m_device_ptr,
                                                                      vs_ptr);
 
+    cs_module_ptr->set_name("Compute shader module");
+    fs_module_ptr->set_name("Fragment shader module");
+    vs_module_ptr->set_name("Vertex shader module");
+
     /* Prepare entrypoint descriptors. */
     m_producer_cs_ptr.reset(
         new Anvil::ShaderModuleStageEntryPoint("main",
@@ -1055,12 +1111,17 @@ void App::init_swapchain()
                                                               m_device_ptr,
                                                               m_window_ptr);
 
+    m_rendering_surface_ptr->set_name("Main rendering surface");
+
+
     m_swapchain_ptr = device_locked_ptr->create_swapchain(m_rendering_surface_ptr,
                                                           m_window_ptr,
                                                           VK_FORMAT_B8G8R8A8_UNORM,
                                                           VK_PRESENT_MODE_FIFO_KHR,
                                                           VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                                                           m_n_swapchain_images);
+
+    m_swapchain_ptr->set_name("Main swapchain");
 }
 
 void App::init_window()
@@ -1102,6 +1163,11 @@ void App::init_vulkan()
 
     /* Determine which device-level extensions we need to request */
     required_extension_names.push_back("VK_KHR_swapchain");
+
+    if (m_physical_device_ptr.lock()->is_device_extension_supported(VK_EXT_DEBUG_MARKER_EXTENSION_NAME) )
+    {
+        required_extension_names.push_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
+    }
 
     /* Create a Vulkan device */
     m_device_ptr = Anvil::SGPUDevice::create(m_physical_device_ptr,

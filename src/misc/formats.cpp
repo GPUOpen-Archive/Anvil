@@ -263,12 +263,12 @@ static uint32_t layout_to_n_components[] =
 };
 
 /** Please see header for specification */
-VkFormat Anvil::Formats::get_format(ComponentLayout component_layout,
-                                    FormatType      format_type,
-                                    uint32_t        n_component0_bits,
-                                    uint32_t        n_component1_bits,
-                                    uint32_t        n_component2_bits,
-                                    uint32_t        n_component3_bits)
+VkFormat Anvil::Formats::get_format(ComponentLayout in_component_layout,
+                                    FormatType      in_format_type,
+                                    uint32_t        in_n_component0_bits,
+                                    uint32_t        in_n_component1_bits,
+                                    uint32_t        in_n_component2_bits,
+                                    uint32_t        in_n_component3_bits)
 {
     static const uint32_t n_available_formats = sizeof(formats) / sizeof(formats[0]);
     VkFormat              result              = VK_FORMAT_UNDEFINED;
@@ -279,12 +279,12 @@ VkFormat Anvil::Formats::get_format(ComponentLayout component_layout,
     {
         const FormatInfo& current_format_info = formats[n_format];
 
-        if (current_format_info.component_layout  == component_layout  &&
-            current_format_info.format_type       == format_type       &&
-            current_format_info.component_bits[0] == n_component0_bits &&
-            current_format_info.component_bits[1] == n_component1_bits &&
-            current_format_info.component_bits[2] == n_component2_bits &&
-            current_format_info.component_bits[3] == n_component3_bits)
+        if (current_format_info.component_layout  == in_component_layout  &&
+            current_format_info.format_type       == in_format_type       &&
+            current_format_info.component_bits[0] == in_n_component0_bits &&
+            current_format_info.component_bits[1] == in_n_component1_bits &&
+            current_format_info.component_bits[2] == in_n_component2_bits &&
+            current_format_info.component_bits[3] == in_n_component3_bits)
         {
             result = current_format_info.format;
 
@@ -296,7 +296,7 @@ VkFormat Anvil::Formats::get_format(ComponentLayout component_layout,
 }
 
 /** Please see header for specification */
-bool Anvil::Formats::get_format_aspects(VkFormat                         format,
+bool Anvil::Formats::get_format_aspects(VkFormat                         in_format,
                                         std::vector<VkImageAspectFlags>* out_aspects_ptr)
 {
     bool result = false;
@@ -304,7 +304,7 @@ bool Anvil::Formats::get_format_aspects(VkFormat                         format,
     out_aspects_ptr->clear();
 
     /* This image can hold color and/or depth and/or stencil aspects only */
-    const Anvil::ComponentLayout format_layout = Anvil::Formats::get_format_component_layout(format);
+    const Anvil::ComponentLayout format_layout = Anvil::Formats::get_format_component_layout(in_format);
 
     if (format_layout == Anvil::COMPONENT_LAYOUT_ABGR ||
         format_layout == Anvil::COMPONENT_LAYOUT_ARGB ||
@@ -337,25 +337,25 @@ bool Anvil::Formats::get_format_aspects(VkFormat                         format,
 
 
 /** Please see header for specification */
-Anvil::ComponentLayout Anvil::Formats::get_format_component_layout(VkFormat format)
+Anvil::ComponentLayout Anvil::Formats::get_format_component_layout(VkFormat in_format)
 {
     static_assert(sizeof(formats) / sizeof(formats[0]) == VK_FORMAT_RANGE_SIZE, "");
 
-    anvil_assert(format < VK_FORMAT_RANGE_SIZE);
+    anvil_assert(in_format < VK_FORMAT_RANGE_SIZE);
 
-    return formats[format].component_layout;
+    return formats[in_format].component_layout;
 }
 
 /** Please see header for specification */
-uint32_t Anvil::Formats::get_format_n_components(VkFormat format)
+uint32_t Anvil::Formats::get_format_n_components(VkFormat in_format)
 {
-    anvil_assert(format < VK_FORMAT_RANGE_SIZE);
+    anvil_assert(in_format < VK_FORMAT_RANGE_SIZE);
 
-    return layout_to_n_components[formats[format].component_layout];
+    return layout_to_n_components[formats[in_format].component_layout];
 }
 
 /** Please see header for specification */
-void Anvil::Formats::get_format_n_component_bits(VkFormat  format,
+void Anvil::Formats::get_format_n_component_bits(VkFormat  in_format,
                                                  uint32_t* out_channel0_bits_ptr,
                                                  uint32_t* out_channel1_bits_ptr,
                                                  uint32_t* out_channel2_bits_ptr,
@@ -363,9 +363,9 @@ void Anvil::Formats::get_format_n_component_bits(VkFormat  format,
 {
     FormatInfo* format_props_ptr = nullptr;
 
-    anvil_assert(format < VK_FORMAT_RANGE_SIZE);
+    anvil_assert(in_format < VK_FORMAT_RANGE_SIZE);
 
-    format_props_ptr = formats + format;
+    format_props_ptr = formats + in_format;
 
     *out_channel0_bits_ptr = format_props_ptr->component_bits[0];
     *out_channel1_bits_ptr = format_props_ptr->component_bits[1];
@@ -374,28 +374,28 @@ void Anvil::Formats::get_format_n_component_bits(VkFormat  format,
 }
 
 /** Please see header for specification */
-const char* Anvil::Formats::get_format_name(VkFormat format)
+const char* Anvil::Formats::get_format_name(VkFormat in_format)
 {
-    anvil_assert(format < VK_FORMAT_RANGE_SIZE);
+    anvil_assert(in_format < VK_FORMAT_RANGE_SIZE);
 
-    return formats[format].name;
+    return formats[in_format].name;
 }
 
 /** Please see header for specification */
-Anvil::FormatType Anvil::Formats::get_format_type(VkFormat format)
+Anvil::FormatType Anvil::Formats::get_format_type(VkFormat in_format)
 {
-    anvil_assert(format < VK_FORMAT_RANGE_SIZE);
+    anvil_assert(in_format < VK_FORMAT_RANGE_SIZE);
 
-    return formats[format].format_type;
+    return formats[in_format].format_type;
 }
 
 /** Please see header for specification */
-bool Anvil::Formats::is_format_compressed(VkFormat format)
+bool Anvil::Formats::is_format_compressed(VkFormat in_format)
 {
-    anvil_assert(format < VK_FORMAT_RANGE_SIZE);
+    anvil_assert(in_format < VK_FORMAT_RANGE_SIZE);
 
-    return (formats[format].component_bits[0] == formats[format].component_bits[1]) &&
-           (formats[format].component_bits[1] == formats[format].component_bits[2]) &&
-           (formats[format].component_bits[2] == formats[format].component_bits[3]) &&
-           (formats[format].component_bits[0] == 0);
+    return (formats[in_format].component_bits[0] == formats[in_format].component_bits[1]) &&
+           (formats[in_format].component_bits[1] == formats[in_format].component_bits[2]) &&
+           (formats[in_format].component_bits[2] == formats[in_format].component_bits[3]) &&
+           (formats[in_format].component_bits[0] == 0);
 }

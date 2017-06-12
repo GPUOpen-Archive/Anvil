@@ -30,9 +30,9 @@ std::shared_ptr<Anvil::PrimaryCommandBuffer> Anvil::PrimaryCommandBufferPoolWork
     return m_parent_command_pool_ptr->alloc_primary_level_command_buffer();
 }
 
-void Anvil::PrimaryCommandBufferPoolWorker::reset_item(std::shared_ptr<Anvil::PrimaryCommandBuffer> item_ptr)
+void Anvil::PrimaryCommandBufferPoolWorker::reset_item(std::shared_ptr<Anvil::PrimaryCommandBuffer> in_item_ptr)
 {
-    item_ptr->reset(false /* should_release_resources */);
+    in_item_ptr->reset(false /* should_release_resources */);
 }
 
 
@@ -41,7 +41,7 @@ std::shared_ptr<Anvil::SecondaryCommandBuffer> Anvil::SecondaryCommandBufferPool
     return m_parent_command_pool_ptr->alloc_secondary_level_command_buffer();
 }
 
-void Anvil::SecondaryCommandBufferPoolWorker::reset_item(std::shared_ptr<Anvil::SecondaryCommandBuffer> item_ptr)
+void Anvil::SecondaryCommandBufferPoolWorker::reset_item(std::shared_ptr<Anvil::SecondaryCommandBuffer> in_item_ptr)
 {
-    item_ptr->reset(false /* should_release_resources */);
+    in_item_ptr->reset(false /* should_release_resources */);
 }

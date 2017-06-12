@@ -31,9 +31,7 @@ set(SOURCES
     MachineIndependent/preprocessor/Pp.cpp
     MachineIndependent/preprocessor/PpAtom.cpp
     MachineIndependent/preprocessor/PpContext.cpp
-    MachineIndependent/preprocessor/PpMemory.cpp
     MachineIndependent/preprocessor/PpScanner.cpp
-    MachineIndependent/preprocessor/PpSymbols.cpp
     MachineIndependent/preprocessor/PpTokens.cpp
     MachineIndependent/propagateNoContraction.cpp
     GenericCodeGen/CodeGen.cpp
@@ -95,8 +93,7 @@ if(WIN32)
     source_group("MachineIndependent\\Preprocessor" REGULAR_EXPRESSION "MachineIndependent/preprocessor/*")
 endif(WIN32)
 
-# Disabled for Anvil:
-#>>
+#>> Disabled for Anvil
 #install(TARGETS glslang
 #        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 #

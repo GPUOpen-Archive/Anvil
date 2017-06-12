@@ -36,6 +36,7 @@
 #define WRAPPERS_COMMAND_BUFFER_H
 
 #include "misc/callbacks.h"
+#include "misc/debug_marker.h"
 #include "misc/types.h"
 
 #ifdef _DEBUG
@@ -73,6 +74,9 @@ namespace Anvil
         COMMAND_TYPE_COPY_IMAGE,
         COMMAND_TYPE_COPY_IMAGE_TO_BUFFER,
         COMMAND_TYPE_COPY_QUERY_POOL_RESULTS,
+        COMMAND_TYPE_DEBUG_MARKER_BEGIN_EXT,
+        COMMAND_TYPE_DEBUG_MARKER_END_EXT,
+        COMMAND_TYPE_DEBUG_MARKER_INSERT_EXT,
         COMMAND_TYPE_DISPATCH,
         COMMAND_TYPE_DISPATCH_INDIRECT,
         COMMAND_TYPE_DRAW,
@@ -307,7 +311,8 @@ namespace Anvil
      *
      *  Provides core functionality for the PrimaryCommandBuffer and SecondaryCommandBuffer classes.
      */
-    class CommandBufferBase : public CallbacksSupportProvider
+    class CommandBufferBase : public DebugMarkerSupportProvider<CommandBufferBase>,
+                              public CallbacksSupportProvider
     {
     public:
         /* Public functions */
@@ -638,6 +643,47 @@ namespace Anvil
                                             VkDeviceSize                      in_dst_stride,
                                             VkQueryResultFlags                in_flags);
 
+        /** Issues a vkCmdDebugMarkerBeginEXT() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  Argument meaning is as per VK_EXT_debug_marker specification.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_debug_marker_begin_EXT(const char*  in_marker_name,
+                                           const float* in_opt_color);
+
+        /** Issues a vkCmdDebugMarkerEndEXT() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  Argument meaning is as per VK_EXT_debug_marker specification.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_debug_marker_end_EXT();
+
+        /** Issues a vkCmdDebugMarkerInsertEXT() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  Argument meaning is as per VK_EXT_debug_marker specification.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_debug_marker_insert_EXT(const char*  in_marker_name,
+                                            const float* in_opt_color);
+
         /** Issues a vkCmdDispatch() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
          *  #define enabled).
@@ -924,7 +970,7 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_reset_query_pool(std::shared_ptr<Anvil::QueryPool> query_pool_ptr,
+        bool record_reset_query_pool(std::shared_ptr<Anvil::QueryPool> in_query_pool_ptr,
                                      Anvil::QueryIndex                 in_start_query,
                                      uint32_t                          in_query_count);
 
@@ -1162,17 +1208,17 @@ namespace Anvil
          **/
         bool record_write_timestamp(VkPipelineStageFlagBits           in_pipeline_stage,
                                     std::shared_ptr<Anvil::QueryPool> in_query_pool_ptr,
-                                    Anvil::QueryIndex                  in_entry);
+                                    Anvil::QueryIndex                 in_entry);
 
         /** Resets the underlying Vulkan command buffer and clears the internally managed vector of
          *  recorded commands, if STORE_COMMAND_BUFFER_COMMANDS has been defined for the build.
          *
-         *  @param should_release_resources true if the vkResetCommandBuffer() should be made with the
-         *                                  VK_CMD_BUFFER_RESET_RELEASE_RESOURCES_BIT flag set.
+         *  @param in_should_release_resources true if the vkResetCommandBuffer() should be made with the
+         *                                     VK_CMD_BUFFER_RESET_RELEASE_RESOURCES_BIT flag set.
          *
          *  @return true if the request was handled successfully, false otherwise.
          **/
-        bool reset(bool should_release_resources);
+        bool reset(bool in_should_release_resources);
 
         /** Stops an ongoing command recording process.
          *
@@ -1199,6 +1245,8 @@ namespace Anvil
         struct CopyImageCommand;
         struct CopyImageToBufferCommand;
         struct CopyQueryPoolResultsCommand;
+        struct DebugMarkerBeginEXTCommand;
+        struct DebugMarkerEndEXTCommand;
         struct DispatchCommand;
         struct DispatchIndirectCommand;
         struct DrawCommand;
@@ -1489,7 +1537,7 @@ namespace Anvil
             std::vector<VkImageSubresourceRange> ranges;
 
             /** Constructor. **/
-            explicit ClearDepthStencilImageCommand(std::shared_ptr<Anvil::Image>  in_image_ptr,
+            explicit ClearDepthStencilImageCommand(std::shared_ptr<Anvil::Image>   in_image_ptr,
                                                    VkImageLayout                   in_image_layout,
                                                    const VkClearDepthStencilValue* in_depth_stencil_ptr,
                                                    uint32_t                        in_range_count,
@@ -1544,9 +1592,9 @@ namespace Anvil
             /** Constructor. **/
             explicit CopyBufferToImageCommand(std::shared_ptr<Anvil::Buffer> in_src_buffer_ptr,
                                               std::shared_ptr<Anvil::Image>  in_dst_image_ptr,
-                                              VkImageLayout            in_dst_image_layout,
-                                              uint32_t                 in_region_count,
-                                              const VkBufferImageCopy* in_region_ptrs);
+                                              VkImageLayout                  in_dst_image_layout,
+                                              uint32_t                       in_region_count,
+                                              const VkBufferImageCopy*       in_region_ptrs);
 
             /** Destructor. */
             virtual ~CopyBufferToImageCommand()
@@ -1650,6 +1698,35 @@ namespace Anvil
             CopyQueryPoolResultsCommand& operator=(const CopyQueryPoolResultsCommand&);
         } CopyQueryPoolResultsCommand;
 
+
+        /** Holds all arguments passed to a vkCmdDebugMarkerBeginEXT() command. */
+        typedef struct DebugMarkerBeginEXTCommand : public Command
+        {
+            float       color[4];
+            std::string marker_name;
+
+            /** Constructor. */
+            explicit DebugMarkerBeginEXTCommand(const char*  in_marker_name,
+                                                const float* in_color);
+        } DebugMarkerBeginEXTCommand;
+
+        /** Holds all arguments passed to a vkCmdDebugMarkerEndEXT() command. */
+        typedef struct DebugMarkerEndEXTCommand : public Command
+        {
+            /* Constructor. */
+            explicit DebugMarkerEndEXTCommand();
+        } DebugMarkerEndEXTCommand;
+
+        /** Holds all arguments passed to a vkCmdDebugMarkerInsertEXT() command. */
+        typedef struct DebugMarkerInsertEXTCommand : public Command
+        {
+            float       color[4];
+            std::string marker_name;
+
+            /** Constructor. */
+            explicit DebugMarkerInsertEXTCommand(const char*  in_marker_name,
+                                                 const float* in_color);
+        } DebugMarkerInsertEXTCommand;
 
         /** Holds all arguments passed to a vkCmdDispatch() command. */
         typedef struct DispatchCommand : public Command
@@ -2037,7 +2114,7 @@ namespace Anvil
             float blend_constants[4];
 
             /** Constructor. **/
-            explicit SetBlendConstantsCommand(const float blend_constants[4]);
+            explicit SetBlendConstantsCommand(const float in_blend_constants[4]);
 
             /** Destructor. */
             virtual ~SetBlendConstantsCommand()
@@ -2306,9 +2383,9 @@ namespace Anvil
         typedef std::vector<Command> Commands;
 
         /* Protected functions */
-        explicit CommandBufferBase(std::weak_ptr<Anvil::BaseDevice>    device_ptr,
-                                   std::shared_ptr<Anvil::CommandPool> parent_command_pool_ptr,
-                                   CommandBufferType                   type);
+        explicit CommandBufferBase(std::weak_ptr<Anvil::BaseDevice>    in_device_ptr,
+                                   std::shared_ptr<Anvil::CommandPool> in_parent_command_pool_ptr,
+                                   CommandBufferType                   in_type);
 
         virtual ~CommandBufferBase();
 
@@ -2421,15 +2498,15 @@ namespace Anvil
          *
          *  It is an error to invoke this function if recording is already in progress.
          *
-         *  @param one_time_submit          true if the VK_CMD_BUFFER_OPTIMIZE_ONE_TIME_SUBMIT_BIT flag should
-         *                                  be used for the Vulkan API call.
-         *  @param simultaneous_use_allowed true if the VK_CMD_BUFFER_OPTIMIZE_NO_SIMULTANEOUS_USE_BIT flag should
-         *                                  be used for the Vulkan API call.
+         *  @param in_one_time_submit          true if the VK_CMD_BUFFER_OPTIMIZE_ONE_TIME_SUBMIT_BIT flag should
+         *                                     be used for the Vulkan API call.
+         *  @param in_simultaneous_use_allowed true if the VK_CMD_BUFFER_OPTIMIZE_NO_SIMULTANEOUS_USE_BIT flag should
+         *                                     be used for the Vulkan API call.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool start_recording(bool one_time_submit,
-                             bool simultaneous_use_allowed);
+        bool start_recording(bool in_one_time_submit,
+                             bool in_simultaneous_use_allowed);
 
     protected:
         /** Constructor. Should be used to instantiate primary-level command buffers.
@@ -2437,12 +2514,12 @@ namespace Anvil
          *  NOTE: In order to create a command buffer, please call relevant alloc() functions
          *        from Anvil::CommandPool().
          *
-         *  @param device_ptr              Device to use.
-         *  @param parent_command_pool_ptr Command pool to use as a parent. Must not be nullptr.
+         *  @param in_device_ptr              Device to use.
+         *  @param in_parent_command_pool_ptr Command pool to use as a parent. Must not be nullptr.
          *
          **/
-        PrimaryCommandBuffer(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                             std::shared_ptr<CommandPool>     parent_command_pool_ptr);
+        PrimaryCommandBuffer(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                             std::shared_ptr<CommandPool>     in_parent_command_pool_ptr);
 
     private:
         friend class Anvil::CommandPool;
@@ -2463,32 +2540,32 @@ namespace Anvil
          *
          *  The difference between this function and ::start_recording() is that this entrypoint should be
          *  used to start recording a secondary-level command buffer which will live within the specified
-         *  subpass and will only render to a renderpass compatible with @param render-pass_ptr.
+         *  subpass and will only render to a renderpass compatible with @param in_render_pass_ptr.
          *
          *  It is an error to invoke this function if recording is already in progress.
          *
-         *  @param one_time_submit                        true if the VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT flag should
-         *                                                be used for the Vulkan API call.
-         *  @param simultaneous_use_allowed               true if the VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT flag should
-         *                                                be used for the Vulkan API call.
-         *  @param renderpass_usage_only                  true if the VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT flag should
-         *                                                be used for the Vulkan API call.
-         *  @param framebuffer_ptr                        Meaning as per Vulkan API specification.
-         *  @param render_pass_ptr                        Meaning as per Vulkan API specification.
-         *  @param subpass_id                             Meaning as per Vulkan API specification.
-         *  @param required_occlusion_query_support_scope Meaning as per OcclusionQuerySupportScope documentation.
-         *  @param required_pipeline_statistics_scope     Meaning as per Vulkan API specification.
+         *  @param in_one_time_submit                        true if the VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT flag should
+         *                                                   be used for the Vulkan API call.
+         *  @param in_simultaneous_use_allowed               true if the VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT flag should
+         *                                                   be used for the Vulkan API call.
+         *  @param in_renderpass_usage_only                  true if the VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT flag should
+         *                                                   be used for the Vulkan API call.
+         *  @param in_framebuffer_ptr                        Meaning as per Vulkan API specification.
+         *  @param in_render_pass_ptr                        Meaning as per Vulkan API specification.
+         *  @param in_subpass_id                             Meaning as per Vulkan API specification.
+         *  @param in_required_occlusion_query_support_scope Meaning as per OcclusionQuerySupportScope documentation.
+         *  @param in_required_pipeline_statistics_scope     Meaning as per Vulkan API specification.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool start_recording(bool                          one_time_submit,
-                             bool                          simultaneous_use_allowed,
-                             bool                          renderpass_usage_only,
-                             std::shared_ptr<Framebuffer>  framebuffer_ptr,
-                             std::shared_ptr<RenderPass>   render_pass_ptr,
-                             SubPassID                     subpass_id,
-                             OcclusionQuerySupportScope    required_occlusion_query_support_scope,
-                             VkQueryPipelineStatisticFlags required_pipeline_statistics_scope);
+        bool start_recording(bool                          in_one_time_submit,
+                             bool                          in_simultaneous_use_allowed,
+                             bool                          in_renderpass_usage_only,
+                             std::shared_ptr<Framebuffer>  in_framebuffer_ptr,
+                             std::shared_ptr<RenderPass>   in_render_pass_ptr,
+                             SubPassID                     in_subpass_id,
+                             OcclusionQuerySupportScope    in_required_occlusion_query_support_scope,
+                             VkQueryPipelineStatisticFlags in_required_pipeline_statistics_scope);
 
         /* Destructor */
         virtual ~SecondaryCommandBuffer()
@@ -2498,12 +2575,12 @@ namespace Anvil
     protected:
         /** Constructor. Should be used to instantiate secondary-level command buffers.
          *
-         *  @param device_ptr              Device to use.
-         *  @param parent_command_pool_ptr Command pool to use as a parent. Must not be nullptr.
+         *  @param in_device_ptr              Device to use.
+         *  @param in_parent_command_pool_ptr Command pool to use as a parent. Must not be nullptr.
          *
          **/
-        SecondaryCommandBuffer(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                               std::shared_ptr<CommandPool>     parent_command_pool_ptr); 
+        SecondaryCommandBuffer(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                               std::shared_ptr<CommandPool>     in_parent_command_pool_ptr); 
 
     private:
         friend class Anvil::CommandPool;

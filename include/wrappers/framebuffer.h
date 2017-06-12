@@ -29,11 +29,12 @@
 #ifndef WRAPPERS_FRAMEBUFFER_H
 #define WRAPPERS_FRAMEBUFFER_H
 
+#include "misc/debug_marker.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
-    class Framebuffer
+    class Framebuffer : public DebugMarkerSupportProvider<Framebuffer>
     {
     public:
         /* Public functions */
@@ -42,15 +43,15 @@ namespace Anvil
          *
          *  Verifies input arguments and initializes the internal ref counter to 1.
          *
-         *  @param device_ptr Device to use.
-         *  @param width      Framebuffer width. Must be at least 1.
-         *  @param height     Framebuffer height. Must be at least 1.
-         *  @param n_layers   Number of layers the framebuffer should use. Must be at least 1.
+         *  @param in_device_ptr Device to use.
+         *  @param in_width      Framebuffer width. Must be at least 1.
+         *  @param in_height     Framebuffer height. Must be at least 1.
+         *  @param in_n_layers   Number of layers the framebuffer should use. Must be at least 1.
          **/
-        static std::shared_ptr<Framebuffer> create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                   uint32_t                         width,
-                                                   uint32_t                         height,
-                                                   uint32_t                         n_layers);
+        static std::shared_ptr<Framebuffer> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                   uint32_t                         in_width,
+                                                   uint32_t                         in_height,
+                                                   uint32_t                         in_n_layers);
 
         /** Destructor.
          *
@@ -64,14 +65,14 @@ namespace Anvil
          *  re-created. Instead, the user should either call bake() at a suitable moment, or expect
          *  it to be called at the next get_framebuffer() call.
          *
-         *  @param image_view_ptr            Image view instance to use as a framebuffer attachment.
+         *  @param in_image_view_ptr         Image view instance to use as a framebuffer attachment.
          *                                   Must not be nullptr. This object will be retained.
          *  @param out_opt_attachment_id_ptr If not nullptr, deref will be set to a unique ID, under which
          *                                   the attachment can be accessed.
          *
          *  @return true if the function was successful, false otherwise.
          **/
-        bool add_attachment(std::shared_ptr<ImageView> image_view_ptr,
+        bool add_attachment(std::shared_ptr<ImageView> in_image_view_ptr,
                             FramebufferAttachmentID*   out_opt_attachment_id_ptr);
 
         /** Re-creates a Vulkan framebuffer object for the specified render pass instance. If a FB
@@ -79,21 +80,21 @@ namespace Anvil
          *
          *  At least one attachment must be defined for this function to succeed.
          *
-         *  @param render_pass_ptr Render pass instance to create the new Vulkan framebuffer object
-         *                         for. Must not be nullptr.
+         *  @param in_render_pass_ptr Render pass instance to create the new Vulkan framebuffer object
+         *                            for. Must not be nullptr.
          *
          *  @return true if the function was successful, false otherwise.
          * */
-        bool bake(std::shared_ptr<Anvil::RenderPass> render_pass_ptr);
+        bool bake(std::shared_ptr<Anvil::RenderPass> in_render_pass_ptr);
 
         /* Returns an attachment at user-specified index */
-        bool get_attachment_at_index(uint32_t                    attachment_index,
+        bool get_attachment_at_index(uint32_t                    in_attachment_index,
                                      std::shared_ptr<ImageView>* out_image_view_ptr) const;
 
         /** Checks if an attachment has already been created for the specified image view and, if so,
          *  returns the attachment's ID.
          *
-         *  @param image_view_ptr        Image view to use for the query. Must not be nullptr.
+         *  @param in_image_view_ptr     Image view to use for the query. Must not be nullptr.
          *  @param out_attachment_id_ptr If the function executes successfully, deref will be set to
          *                               the found attachment's ID, in which case the pointer must not
          *                               be nullptr. Otherwise, ignored.
@@ -101,7 +102,7 @@ namespace Anvil
          *  @return true if successful (eg. the attachment corresponding to the specified image view was
          *          found), false otherwise.
          **/
-        bool get_attachment_id_for_image_view(std::shared_ptr<ImageView> image_view_ptr,
+        bool get_attachment_id_for_image_view(std::shared_ptr<ImageView> in_image_view_ptr,
                                               FramebufferAttachmentID*   out_attachment_id_ptr);
 
         /** Returns a Vulkan framebuffer object instance for the specified render pass instance.
@@ -110,28 +111,16 @@ namespace Anvil
          *  baking time, or if the object is being requested for the first time), a bake() call
          *  will be made automatically.
          *
-         *  @param render_pass Render pass to return the framebuffer for.
+         *  @param in_render_pass_ptr Render pass to return the framebuffer for.
          *
          *  @return Raw Vulkan framebuffer handle or VK_NULL_HANDLE, if the function failed.
          **/
-        const VkFramebuffer get_framebuffer(std::shared_ptr<Anvil::RenderPass> render_pass_ptr);
-
-        /** Returns name assigned to the framebuffer instance */
-        const std::string& get_name() const
-        {
-            return m_name;
-        }
+        const VkFramebuffer get_framebuffer(std::shared_ptr<Anvil::RenderPass> in_render_pass_ptr);
 
         /** Returns framebuffer size, specified at creation time */
         void get_size(uint32_t* out_framebuffer_width_ptr,
                       uint32_t* out_framebuffer_height_ptr,
                       uint32_t* out_framebuffer_depth_ptr) const;
-
-        /** Assigns a new name to the framebuffer instance */
-        void set_name(const std::string& in_name)
-        {
-            m_name = in_name;
-        }
 
     private:
         /* Private type declarations */
@@ -178,11 +167,8 @@ namespace Anvil
 
         struct RenderPassComparator
         {
-            bool operator()(std::shared_ptr<Anvil::RenderPass> a,
-                            std::shared_ptr<Anvil::RenderPass> b) const
-            {
-                return a < b;
-            }
+            bool operator()(std::shared_ptr<Anvil::RenderPass> in_a_ptr,
+                            std::shared_ptr<Anvil::RenderPass> in_b_ptr) const;
         };
 
         typedef std::map<std::shared_ptr<Anvil::RenderPass>, BakedFramebufferData, RenderPassComparator> BakedFramebufferMap;
@@ -191,23 +177,22 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. Please see specification of create() for more details */
-        Framebuffer(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                    uint32_t                         width,
-                    uint32_t                         height,
-                    uint32_t                         n_layers);
+        Framebuffer(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                    uint32_t                         in_width,
+                    uint32_t                         in_height,
+                    uint32_t                         in_n_layers);
 
         Framebuffer& operator=(const Framebuffer&);
         Framebuffer           (const Framebuffer&);
 
-        static void on_renderpass_changed(void* raw_renderpass_ptr,
-                                          void* raw_framebuffer_ptr);
+        static void on_renderpass_changed(void* in_raw_renderpass_ptr,
+                                          void* in_raw_framebuffer_ptr);
 
         /* Private members */
         FramebufferAttachments           m_attachments;
         BakedFramebufferMap              m_baked_framebuffers;
         std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
         uint32_t                         m_framebuffer_size[3];
-        std::string                      m_name;
     };
 };
 

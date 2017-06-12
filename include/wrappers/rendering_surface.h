@@ -30,6 +30,7 @@
 #ifndef WRAPPERS_RENDERING_SURFACE_H
 #define WRAPPERS_RENDERING_SURFACE_H
 
+#include "misc/debug_marker.h"
 #include "misc/types.h"
 #include "wrappers/device.h"
 #include "wrappers/physical_device.h"
@@ -39,7 +40,7 @@
 namespace Anvil
 {
     /* Wrapper class for Vulkan rendering surfaces */
-    class RenderingSurface
+    class RenderingSurface : public DebugMarkerSupportProvider<RenderingSurface>
     {
     public:
         /* Public type definitions */
@@ -72,9 +73,9 @@ namespace Anvil
 
         /** Creates a single Vulkan rendering surface instance and registers the object in
          *  Object Tracker. */
-        static std::shared_ptr<RenderingSurface> create(std::weak_ptr<Anvil::Instance>   instance_ptr,
-                                                        std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                        std::shared_ptr<Anvil::Window>   window_ptr);
+        static std::shared_ptr<RenderingSurface> create(std::weak_ptr<Anvil::Instance>   in_instance_ptr,
+                                                        std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                        std::shared_ptr<Anvil::Window>   in_window_ptr);
 
         /** Destructor
          *
@@ -84,7 +85,7 @@ namespace Anvil
         virtual ~RenderingSurface();
 
         /** Returns rendering surface capabilities */
-        bool get_capabilities(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+        bool get_capabilities(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
                               VkSurfaceCapabilitiesKHR*            out_surface_caps_ptr) const;
 
         /** Returns rendering surface's height */
@@ -102,15 +103,15 @@ namespace Anvil
         }
 
         /** Returns composite alpha modes supported by the rendering surface */
-        bool get_supported_composite_alpha_flags(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+        bool get_supported_composite_alpha_flags(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
                                                  VkCompositeAlphaFlagsKHR*            out_result_ptr) const;
 
         /** Returns transformations supported by the rendering surface */
-        bool get_supported_transformations(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+        bool get_supported_transformations(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
                                            VkSurfaceTransformFlagsKHR*          out_result_ptr) const;
 
         /** Returns flags corresponding to image usage supported by the rendering surface */
-        bool get_supported_usages(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+        bool get_supported_usages(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
                                   VkImageUsageFlags*                   out_result_ptr) const;
 
         /** Retrieves a raw handle to the underlying Vulkan Rendering Surface */
@@ -141,13 +142,13 @@ namespace Anvil
 
         /* Tells whether the specified image format can be used for swapchain image initialization, using
          * this rendering surface. */
-        bool is_compatible_with_image_format(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
-                                             VkFormat                             image_format,
+        bool is_compatible_with_image_format(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
+                                             VkFormat                             in_image_format,
                                              bool*                                out_result_ptr) const;
 
         /* Tells whether the specified presentation mode is supported by the rendering surface */
-        bool supports_presentation_mode(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
-                                        VkPresentModeKHR                     presentation_mode,
+        bool supports_presentation_mode(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
+                                        VkPresentModeKHR                     in_presentation_mode,
                                         bool*                                out_result_ptr) const;
 
     private:
@@ -175,9 +176,9 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. Please see create() for specification */
-        RenderingSurface(std::weak_ptr<Anvil::Instance>   instance_ptr,
-                         std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                         std::shared_ptr<Anvil::Window>   window_ptr,
+        RenderingSurface(std::weak_ptr<Anvil::Instance>   in_instance_ptr,
+                         std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                         std::shared_ptr<Anvil::Window>   in_window_ptr,
                          bool*                            out_safe_to_use_ptr);
 
         RenderingSurface           (const RenderingSurface&);

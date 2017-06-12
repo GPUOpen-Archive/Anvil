@@ -42,9 +42,9 @@ namespace Anvil
     {
     public:
         /* Public functions */
-       static std::shared_ptr<ComputePipelineManager> create(std::weak_ptr<Anvil::BaseDevice>      device_ptr,
-                                                             bool                                  use_pipeline_cache          = false,
-                                                             std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr = nullptr);
+       static std::shared_ptr<ComputePipelineManager> create(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
+                                                             bool                                  in_use_pipeline_cache          = false,
+                                                             std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr = nullptr);
 
        ~ComputePipelineManager();
 
@@ -120,7 +120,7 @@ namespace Anvil
         *  @param in_allow_derivatives                    If true, the pipeline will be created with the
         *                                                 VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT flag.
         *  @param in_compute_shader_stage_entrypoint_info Compute shader stage info.
-        *  @param out_pipeline_id_ptr                     Deref will be set to the ID of the result pipeline object. Must not be nullptr.
+        *  @param out_compute_pipeline_id_ptr             Deref will be set to the ID of the result pipeline object. Must not be nullptr.
         *
         *  @return true if the function executed successfully, false otherwise.
         **/
@@ -140,38 +140,38 @@ namespace Anvil
          *
          *  This function marks the pipeline as dirty, meaning it will be rebaked at the next get_() call.
          *
-         *  @param pipeline_id  ID of the pipeline to add the constant to. Must be an ID returned
-         *                      by one of the add_() functions.
-         *  @param constant_id  ID of the specialization constant to assign data for.
-         *  @param n_data_bytes Number of bytes under @param data_ptr to assign to the specialization constant.
-         *  @param data_ptr     A buffer holding the data to be assigned to the constant. Must hold at least
-         *                      @param n_data_bytes bytes that will be read by the function.
+         *  @param in_pipeline_id  ID of the pipeline to add the constant to. Must be an ID returned
+         *                         by one of the add_() functions.
+         *  @param in_constant_id  ID of the specialization constant to assign data for.
+         *  @param in_n_data_bytes Number of bytes under @param in_data_ptr to assign to the specialization constant.
+         *  @param in_data_ptr     A buffer holding the data to be assigned to the constant. Must hold at least
+         *                         @param in_n_data_bytes bytes that will be read by the function.
          *
          *  @return true if successful, false otherwise.
          **/
-       bool add_specialization_constant_to_pipeline(ComputePipelineID pipeline_id,
-                                                    uint32_t          constantID,
-                                                    uint32_t          n_data_bytes,
-                                                    const void*       data_ptr)
+       bool add_specialization_constant_to_pipeline(ComputePipelineID in_pipeline_id,
+                                                    uint32_t          in_constant_id,
+                                                    uint32_t          in_n_data_bytes,
+                                                    const void*       in_data_ptr)
        {
-           return BasePipelineManager::add_specialization_constant_to_pipeline(pipeline_id,
+           return BasePipelineManager::add_specialization_constant_to_pipeline(in_pipeline_id,
                                                                                0, /* shader_index */
-                                                                               constantID,
-                                                                               n_data_bytes,
-                                                                               data_ptr);
+                                                                               in_constant_id,
+                                                                               in_n_data_bytes,
+                                                                               in_data_ptr);
        }
 
        bool bake();
 
        /** Deletes an existing pipeline.
         *
-        *  @param pipeline_id ID of a pipeline to delete.
+        *  @param in_pipeline_id ID of a pipeline to delete.
         *
         *  @return true if successful, false otherwise.
         **/
-       bool delete_pipeline(ComputePipelineID pipeline_id)
+       bool delete_pipeline(ComputePipelineID in_pipeline_id)
        {
-           return BasePipelineManager::delete_pipeline(pipeline_id);
+           return BasePipelineManager::delete_pipeline(in_pipeline_id);
        }
 
        /** Retrieves a VkPipeline instance associated with the specified pipeline ID.
@@ -179,13 +179,13 @@ namespace Anvil
         *  The function will bake a pipeline object (and, possibly, a pipeline layout object, too) if
         *  the specified pipeline is marked as dirty.
         *
-        *  @param pipeline_id ID of the pipeline to return the raw Vulkan pipeline handle for.
+        *  @param in_pipeline_id ID of the pipeline to return the raw Vulkan pipeline handle for.
         *
         *  @return VkPipeline handle or nullptr if the function failed.
         **/
-       VkPipeline get_compute_pipeline(ComputePipelineID pipeline_id)
+       VkPipeline get_compute_pipeline(ComputePipelineID in_pipeline_id)
        {
-           return BasePipelineManager::get_pipeline(pipeline_id);
+           return BasePipelineManager::get_pipeline(in_pipeline_id);
        }
 
        /** Retrieves a PipelineLayout instance associated with the specified pipeline ID.
@@ -193,21 +193,21 @@ namespace Anvil
         *  The function will bake a pipeline object (and, possibly, a pipeline layout object, too) if
         *  the specified pipeline is marked as dirty.
         *
-        *  @param pipeline_id ID of the pipeline to return the wrapper instance for.
-        *                     Must not describe a proxy pipeline.
+        *  @param in_pipeline_id ID of the pipeline to return the wrapper instance for.
+        *                        Must not describe a proxy pipeline.
         *
         *  @return Ptr to a PipelineLayout instance or nullptr if the function failed.
         **/
-       std::shared_ptr<Anvil::PipelineLayout> get_compute_pipeline_layout(ComputePipelineID pipeline_id)
+       std::shared_ptr<Anvil::PipelineLayout> get_compute_pipeline_layout(ComputePipelineID in_pipeline_id)
        {
-           return BasePipelineManager::get_pipeline_layout(pipeline_id);
+           return BasePipelineManager::get_pipeline_layout(in_pipeline_id);
        }
 
        private:
            /* Constructor */
-           explicit ComputePipelineManager(std::weak_ptr<Anvil::BaseDevice>      device_ptr,
-                                           bool                                  use_pipeline_cache          = false,
-                                           std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr = nullptr);
+           explicit ComputePipelineManager(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
+                                           bool                                  in_use_pipeline_cache          = false,
+                                           std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr = nullptr);
 
 
            ANVIL_DISABLE_ASSIGNMENT_OPERATOR(ComputePipelineManager);

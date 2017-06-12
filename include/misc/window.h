@@ -36,7 +36,7 @@
 namespace Anvil
 {
     /** Prototype of a function, which renders frame contents & presents it */
-    typedef void (*PFNPRESENTCALLBACKPROC)(void* user_arg);
+    typedef void (*PFNPRESENTCALLBACKPROC)(void* in_user_arg);
 
     /* Structure passed as a WINDOW_CALLBACK_ID_KEYPRESS_RELEASED call-back argument */
     typedef struct KeypressReleasedCallbackData
@@ -122,20 +122,20 @@ namespace Anvil
          *  A window instance should be created in the same thread, from which the run() function
          *  is going to be invoked.
          *
-         *  @param title                          Name to use for the window's title bar.
-         *  @param width                          Window's width. Note that this value should not exceed screen's width.
-         *  @param height                         Window's height. Note that this value should not exceed screen's height.
-         *  @param present_callback_func_ptr      Call-back to use in order to render & present the updated frame contents.
-         *                                        Must not be nullptr.
-         *  @param present_callback_func_user_arg Argument to pass to the @param present_callback_func_ptr call-back. May
-         *                                        be nullptr.
+         *  @param in_title                          Name to use for the window's title bar.
+         *  @param in_width                          Window's width. Note that this value should not exceed screen's width.
+         *  @param in_height                         Window's height. Note that this value should not exceed screen's height.
+         *  @param in_present_callback_func_ptr      Call-back to use in order to render & present the updated frame contents.
+         *                                           Must not be nullptr.
+         *  @param in_present_callback_func_user_arg Argument to pass to the @param in_present_callback_func_ptr call-back. May
+         *                                           be nullptr.
          *
          **/
-        Window(const std::string&     title,
-               unsigned int           width,
-               unsigned int           height,
-               PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-               void*                  present_callback_func_user_arg);
+        Window(const std::string&     in_title,
+               unsigned int           in_width,
+               unsigned int           in_height,
+               PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+               void*                  in_present_callback_func_user_arg);
 
         /** Closes the window and unblocks the thread executing the message pump. */
         virtual void close() { /* Stub */ }
@@ -178,9 +178,9 @@ namespace Anvil
          *
          *  @param new_title Null-terminated string, holding the new title. Must not be NULL.
          */
-        virtual void set_title(const char* new_title)
+        virtual void set_title(const char* in_new_title)
         {
-            ANVIL_REDUNDANT_ARGUMENT(new_title);
+            ANVIL_REDUNDANT_ARGUMENT(in_new_title);
 
             /* Nop by default */
         }

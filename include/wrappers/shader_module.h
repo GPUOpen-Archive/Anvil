@@ -30,6 +30,7 @@
 #ifndef WRAPPERS_SHADER_MODULE_H
 #define WRAPPERS_SHADER_MODULE_H
 
+#include "misc/debug_marker.h"
 #include "misc/types.h"
 
 namespace Anvil
@@ -37,7 +38,7 @@ namespace Anvil
     /* Forward declarations */
     class GLSLShaderToSPIRVGenerator;
 
-    class ShaderModule
+    class ShaderModule : public DebugMarkerSupportProvider<ShaderModule>
     {
     public:
         /* Public functions */
@@ -48,42 +49,42 @@ namespace Anvil
          *  via the main() entry-point, the created shader module will only expose one
          *  entry-point for one shader stage.
          *
-         *  @param device_ptr          Device to use to instantiate the shader module. Must not be nullptr.
-         *  @param spirv_generator_ptr SPIR-V generator, initialized with a GLSL shader body.
+         *  @param in_device_ptr          Device to use to instantiate the shader module. Must not be nullptr.
+         *  @param in_spirv_generator_ptr SPIR-V generator, initialized with a GLSL shader body.
          **/
-        static std::shared_ptr<ShaderModule> create_from_spirv_generator(std::weak_ptr<Anvil::BaseDevice>            device_ptr,
-                                                                         std::shared_ptr<GLSLShaderToSPIRVGenerator> spirv_generator_ptr);
+        static std::shared_ptr<ShaderModule> create_from_spirv_generator(std::weak_ptr<Anvil::BaseDevice>            in_device_ptr,
+                                                                         std::shared_ptr<GLSLShaderToSPIRVGenerator> in_spirv_generator_ptr);
 
         /** Creates a new shader module instance from a raw SPIR-V blob.
          *
-         *  @param device_ptr         Device to use to instantiate the shader module instance. Must
-         *                            not be nullptr.
-         *  @param spirv_blob         Buffer holding raw SPIR-V blob contents. Must hold at least
-         *                            @param n_spirv_blob_bytes bytes. Must not be nullptr.
-         *  @param n_spirv_blob_bytes Number of bytes available for reading under @param spirv_blob.
-         *  @param cs_entrypoint_name Compute shader stage entry-point, if one is defined in the blob.
-         *                            Otherwise, should be set to nullptr.
-         *  @param fs_entrypoint_name Fragment shader stage entry-point, if one is defined in the blob.
-         *                            Otherwise, should be set to nullptr.
-         *  @param gs_entrypoint_name Geometry shader stage entry-point, if one is defined in the blob.
-         *                            Otherwise, should be set to nullptr.
-         *  @param tc_entrypoint_name Tessellation control shader stage entry-point, if one is defined
-         *                            in the blob. Otherwise, should be set to nullptr.
-         *  @param te_entrypoint_name Tessellation evaluation shader stage entry-point, if one is defined
-         *                            in the blob. Otherwise, should be set to nullptr.
-         *                            Otherwise, should be set to nullptr.
-         *  @param vs_entrypoint_name Vertex shader stage entry-point, if one is defined in the blob.
-         *                            Otherwise, should be set to nullptr.
+         *  @param in_device_ptr             Device to use to instantiate the shader module instance. Must
+         *                                   not be nullptr.
+         *  @param in_spirv_blob             Buffer holding raw SPIR-V blob contents. Must hold at least
+         *                                   @param n_spirv_blob_bytes bytes. Must not be nullptr.
+         *  @param in_n_spirv_blob_bytes     Number of bytes available for reading under @param in_spirv_blob.
+         *  @param in_opt_cs_entrypoint_name Compute shader stage entry-point, if one is defined in the blob.
+         *                                   Otherwise, should be set to nullptr.
+         *  @param in_opt_fs_entrypoint_name Fragment shader stage entry-point, if one is defined in the blob.
+         *                                   Otherwise, should be set to nullptr.
+         *  @param in_opt_gs_entrypoint_name Geometry shader stage entry-point, if one is defined in the blob.
+         *                                   Otherwise, should be set to nullptr.
+         *  @param in_opt_tc_entrypoint_name Tessellation control shader stage entry-point, if one is defined
+         *                                   in the blob. Otherwise, should be set to nullptr.
+         *  @param in_opt_te_entrypoint_name Tessellation evaluation shader stage entry-point, if one is defined
+         *                                   in the blob. Otherwise, should be set to nullptr.
+         *                                   Otherwise, should be set to nullptr.
+         *  @param in_opt_vs_entrypoint_name Vertex shader stage entry-point, if one is defined in the blob.
+         *                                   Otherwise, should be set to nullptr.
          **/
-        static std::shared_ptr<ShaderModule> create_from_spirv_blob(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                                    const char*                      spirv_blob,
-                                                                    uint32_t                         n_spirv_blob_bytes,
-                                                                    const char*                      cs_entrypoint_name,
-                                                                    const char*                      fs_entrypoint_name,
-                                                                    const char*                      gs_entrypoint_name,
-                                                                    const char*                      tc_entrypoint_name,
-                                                                    const char*                      te_entrypoint_name,
-                                                                    const char*                      vs_entrypoint_name);
+        static std::shared_ptr<ShaderModule> create_from_spirv_blob(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                                    const char*                      in_spirv_blob,
+                                                                    uint32_t                         in_n_spirv_blob_bytes,
+                                                                    const char*                      in_opt_cs_entrypoint_name,
+                                                                    const char*                      in_opt_fs_entrypoint_name,
+                                                                    const char*                      in_opt_gs_entrypoint_name,
+                                                                    const char*                      in_opt_tc_entrypoint_name,
+                                                                    const char*                      in_opt_te_entrypoint_name,
+                                                                    const char*                      in_opt_vs_entrypoint_name);
 
         /** Destructor. Releases internally maintained Vulkan shader module instance. */
         virtual ~ShaderModule();
@@ -165,31 +166,31 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. Please see create() for specification */
-        explicit ShaderModule(std::weak_ptr<Anvil::BaseDevice>            device_ptr,
-                              std::shared_ptr<GLSLShaderToSPIRVGenerator> spirv_generator_ptr);
-        explicit ShaderModule(std::weak_ptr<Anvil::BaseDevice>            device_ptr,
-                              const char*                                 spirv_blob,
-                              uint32_t                                    n_spirv_blob_bytes,
-                              const char*                                 cs_entrypoint_name,
-                              const char*                                 fs_entrypoint_name,
-                              const char*                                 gs_entrypoint_name,
-                              const char*                                 tc_entrypoint_name,
-                              const char*                                 te_entrypoint_name,
-                              const char*                                 vs_entrypoint_name);
+        explicit ShaderModule(std::weak_ptr<Anvil::BaseDevice>            in_device_ptr,
+                              std::shared_ptr<GLSLShaderToSPIRVGenerator> in_spirv_generator_ptr);
+        explicit ShaderModule(std::weak_ptr<Anvil::BaseDevice>            in_device_ptr,
+                              const char*                                 in_spirv_blob,
+                              uint32_t                                    in_n_spirv_blob_bytes,
+                              const char*                                 in_opt_cs_entrypoint_name,
+                              const char*                                 in_opt_fs_entrypoint_name,
+                              const char*                                 in_opt_gs_entrypoint_name,
+                              const char*                                 in_opt_tc_entrypoint_name,
+                              const char*                                 in_opt_te_entrypoint_name,
+                              const char*                                 in_opt_vs_entrypoint_name);
 
         ShaderModule           (const ShaderModule&);
         ShaderModule& operator=(const ShaderModule&);
 
         /** Creates a Vulkan shader module instance, using the specified buffer holding SPIR-V blob data.
          *
-         *  @param spirv_blob         Buffer holding raw SPIR-V blob contents. Must hold at least
-         *                            @param n_spirv_blob_bytes bytes. Must not be nullptr.
-         *  @param n_spirv_blob_bytes Number of bytes available for reading under @param spirv_blob.
+         *  @param in_spirv_blob         Buffer holding raw SPIR-V blob contents. Must hold at least
+         *                               @param n_spirv_blob_bytes bytes. Must not be nullptr.
+         *  @param in_n_spirv_blob_bytes Number of bytes available for reading under @param in_spirv_blob.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool init_from_spirv_blob(const char* spirv_blob,
-                                  uint32_t    n_spirv_blob_bytes);
+        bool init_from_spirv_blob(const char* in_spirv_blob,
+                                  uint32_t    in_n_spirv_blob_bytes);
 
         /* Private variables */
         const char* m_cs_entrypoint_name;

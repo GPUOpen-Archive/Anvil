@@ -131,20 +131,20 @@ namespace Anvil
 
     namespace Utils
     {
-        float32_t fp16_to_fp32_fast      (float16_t h);
-        float32_t fp16_to_fp32_fast2     (float16_t h);
-        float32_t fp16_to_fp32_fast3     (float16_t h);
-        float32_t fp16_to_fp32_fast4     (float16_t h);
-        float32_t fp16_to_fp32_fast5     (float16_t h);
-        float32_t fp16_to_fp32_full      (float16_t h);
-        float16_t fp32_to_fp16_approx    (float32_t f);
-        float16_t fp32_to_fp16_fast      (float32_t f);
-        float16_t fp32_to_fp16_fast2     (float32_t f);
-        float16_t fp32_to_fp16_fast3     (float32_t f);
-        float16_t fp32_to_fp16_fast3_rtne(float32_t f);
-        float16_t fp32_to_fp16_foxtk     (float32_t f);
-        float16_t fp32_to_fp16_full      (float32_t f);
-        float16_t fp32_to_fp16_full_rtne (float32_t f);
+        float32_t fp16_to_fp32_fast      (float16_t in_h);
+        float32_t fp16_to_fp32_fast2     (float16_t in_h);
+        float32_t fp16_to_fp32_fast3     (float16_t in_h);
+        float32_t fp16_to_fp32_fast4     (float16_t in_h);
+        float32_t fp16_to_fp32_fast5     (float16_t in_h);
+        float32_t fp16_to_fp32_full      (float16_t in_h);
+        float16_t fp32_to_fp16_approx    (float32_t in_f);
+        float16_t fp32_to_fp16_fast      (float32_t in_f);
+        float16_t fp32_to_fp16_fast2     (float32_t in_f);
+        float16_t fp32_to_fp16_fast3     (float32_t in_f);
+        float16_t fp32_to_fp16_fast3_rtne(float32_t in_f);
+        float16_t fp32_to_fp16_foxtk     (float32_t in_f);
+        float16_t fp32_to_fp16_full      (float32_t in_f);
+        float16_t fp32_to_fp16_full_rtne (float32_t in_f);
     };
 };
 

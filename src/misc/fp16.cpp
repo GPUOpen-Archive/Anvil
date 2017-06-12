@@ -113,20 +113,23 @@ static struct PrecalcedData
 } precalc;
 
 
-Anvil::float32_t Anvil::Utils::fp16_to_fp32_full(Anvil::float16_t h)
+Anvil::float32_t Anvil::Utils::fp16_to_fp32_full(Anvil::float16_t in_h)
 {
     Anvil::float32_t o = { 0 };
 
     // From ISPC ref code
-    if (h.fields.Exponent == 0 && h.fields.Mantissa == 0) // (Signed) zero
-        o.fields.Sign = h.fields.Sign;
+    if (in_h.fields.Exponent == 0 &&
+        in_h.fields.Mantissa == 0) // (Signed) zero
+    {
+        o.fields.Sign = in_h.fields.Sign;
+    }
     else
     {
-        if (h.fields.Exponent == 0) // Denormal (will convert to normalized)
+        if (in_h.fields.Exponent == 0) // Denormal (will convert to normalized)
         {
             // Adjust mantissa so it's normalized (and keep track of exp adjust)
             int      e = -1;
-            uint32_t m = h.fields.Mantissa;
+            uint32_t m = in_h.fields.Mantissa;
 
             do
             {
@@ -137,72 +140,81 @@ Anvil::float32_t Anvil::Utils::fp16_to_fp32_full(Anvil::float16_t h)
 
             o.fields.Mantissa = (m & 0x3ff) << 13;
             o.fields.Exponent = static_cast<uint32_t>(127 - 15 - e);
-            o.fields.Sign     = h.fields.Sign;
+            o.fields.Sign     = in_h.fields.Sign;
         }
-        else if (h.fields.Exponent == 0x1f) // Inf/NaN
+        else
+        if (in_h.fields.Exponent == 0x1f) // Inf/NaN
         {
             // NOTE: It's safe to treat both with the same code path by just truncating
             // lower Mantissa bits in NaNs (this is valid).
-            o.fields.Mantissa = static_cast<uint32_t>(h.fields.Mantissa << 13);
+            o.fields.Mantissa = static_cast<uint32_t>(in_h.fields.Mantissa << 13);
             o.fields.Exponent = 255u;
-            o.fields.Sign     = h.fields.Sign;
+            o.fields.Sign     = in_h.fields.Sign;
         }
         else // Normalized number
         {
-            o.fields.Mantissa = static_cast<uint32_t>(h.fields.Mantissa << 13);
-            o.fields.Exponent = static_cast<uint32_t>(127 - 15 + h.fields.Exponent); 
-            o.fields.Sign     = h.fields.Sign;
+            o.fields.Mantissa = static_cast<uint32_t>(in_h.fields.Mantissa << 13);
+            o.fields.Exponent = static_cast<uint32_t>(127 - 15 + in_h.fields.Exponent); 
+            o.fields.Sign     = in_h.fields.Sign;
         }
     }
 
     return o;
 }
 
-Anvil::float32_t Anvil::Utils::fp16_to_fp32_fast(Anvil::float16_t h)
+Anvil::float32_t Anvil::Utils::fp16_to_fp32_fast(Anvil::float16_t in_h)
 {
     Anvil::float32_t o;
 
-    if (h.u & 0x7f00)
-        o.u = precalc.tab1[h.u >> 8] + precalc.tab2[h.u >> 8] * (h.u & 0xff);
+    if (in_h.u & 0x7f00)
+    {
+        o.u = precalc.tab1[in_h.u >> 8] + precalc.tab2[in_h.u >> 8] * (in_h.u & 0xff);
+    }
     else
-        o.u = ((h.u & 0x8000) << 16) | precalc.tab3[h.u & 0xff];
+    {
+        o.u = ((in_h.u & 0x8000) << 16) | precalc.tab3[in_h.u & 0xff];
+    }
 
     return o;
 }
 
-Anvil::float32_t Anvil::Utils::fp16_to_fp32_fast2(Anvil::float16_t h)
+Anvil::float32_t Anvil::Utils::fp16_to_fp32_fast2(Anvil::float16_t in_h)
 {
     const Anvil::float32_t magic = { 126 << 23 };
     Anvil::float32_t       o;
 
-    if (h.fields.Exponent == 0) // Zero / Denormal
+    if (in_h.fields.Exponent == 0) // Zero / Denormal
     {
-        o.u  = magic.u + h.fields.Mantissa;
+        o.u  = magic.u + in_h.fields.Mantissa;
         o.f -= magic.f;
     }
     else
     {
-        o.fields.Mantissa = static_cast<uint32_t>(h.fields.Mantissa << 13);
+        o.fields.Mantissa = static_cast<uint32_t>(in_h.fields.Mantissa << 13);
 
-        if (h.fields.Exponent == 0x1f) // Inf/NaN
+        if (in_h.fields.Exponent == 0x1f) // Inf/NaN
+        {
             o.fields.Exponent = 255;
+        }
         else
-            o.fields.Exponent = static_cast<uint32_t>(127 - 15 + h.fields.Exponent);
+        {
+            o.fields.Exponent = static_cast<uint32_t>(127 - 15 + in_h.fields.Exponent);
+        }
     }
 
-    o.fields.Sign = h.fields.Sign;
+    o.fields.Sign = in_h.fields.Sign;
 
     return o;
 }
 
-Anvil::float32_t Anvil::Utils::fp16_to_fp32_fast3(Anvil::float16_t h)
+Anvil::float32_t Anvil::Utils::fp16_to_fp32_fast3(Anvil::float16_t in_h)
 {
     const Anvil::float32_t magic       = { 113 << 23 };
     const uint32_t         shifted_exp = 0x7c00 << 13; // exponent mask after shift
     Anvil::float32_t       o;
 
     // mantissa+exponent
-    uint32_t shifted  = (h.u & 0x7fffu) << 13u;
+    uint32_t shifted  = (in_h.u & 0x7fffu) << 13u;
     uint32_t exponent = shifted & shifted_exp;
 
     // exponent cases
@@ -215,21 +227,26 @@ Anvil::float32_t Anvil::Utils::fp16_to_fp32_fast3(Anvil::float16_t h)
     }
     else
     if (exponent == shifted_exp) // Inf/NaN
+    {
         o.u += (255 - 31) << 23;
+    }
     else
+    {
         o.u += (127 - 15) << 23;
+    }
 
-    o.u |= (h.u & 0x8000) << 16; // copy sign bit
+    o.u |= (in_h.u & 0x8000) << 16; // copy sign bit
+
     return o;
 }
 
-Anvil::float32_t Anvil::Utils::fp16_to_fp32_fast4(Anvil::float16_t h)
+Anvil::float32_t Anvil::Utils::fp16_to_fp32_fast4(Anvil::float16_t in_h)
 {
     const Anvil::float32_t magic       = { 113 << 23 };
     const uint32_t         shifted_exp = 0x7c00 << 13; // exponent mask after shift
     Anvil::float32_t       o;
 
-    o.u = (h.u & 0x7fffu) << 13u;     // exponent/mantissa bits
+    o.u = (in_h.u & 0x7fffu) << 13u;     // exponent/mantissa bits
 
     uint32_t exp = shifted_exp & o.u; // just the exponent
 
@@ -237,7 +254,9 @@ Anvil::float32_t Anvil::Utils::fp16_to_fp32_fast4(Anvil::float16_t h)
 
     // handle exponent special cases
     if (exp == shifted_exp) // Inf/NaN?
+    {
         o.u += (128 - 16) << 23;    // extra exp adjust
+    }
     else
     if (exp == 0) // Zero/Denormal?
     {
@@ -245,102 +264,117 @@ Anvil::float32_t Anvil::Utils::fp16_to_fp32_fast4(Anvil::float16_t h)
         o.f -= magic.f;             // renormalize
     }
 
-    o.u |= (h.u & 0x8000) << 16;    // sign bit
+    o.u |= (in_h.u & 0x8000) << 16;    // sign bit
+
     return o;
 }
 
-Anvil::float32_t Anvil::Utils::fp16_to_fp32_fast5(Anvil::float16_t h)
+Anvil::float32_t Anvil::Utils::fp16_to_fp32_fast5(Anvil::float16_t in_h)
 {
     const Anvil::float32_t magic      = { (254 - 15) << 23 };
     const Anvil::float32_t was_infnan = { (127 + 16) << 23 };
     Anvil::float32_t       o;
 
-    o.u = (h.u & 0x7fffu) << 13u;   // exponent/mantissa bits
+    o.u = (in_h.u & 0x7fffu) << 13u;// exponent/mantissa bits
     o.f *= magic.f;                 // exponent adjust
 
-    if (o.f >= was_infnan.f)        // make sure Inf/NaN survive
+    if (o.f >= was_infnan.f) // make sure Inf/NaN survive
+    {
         o.u |= 255 << 23;
+    }
 
-    o.u |= (h.u & 0x8000) << 16;    // sign bit
+    o.u |= (in_h.u & 0x8000) << 16;    // sign bit
 
     return o;
 }
 
 // Original ISPC reference version; this always rounds ties up.
-Anvil::float16_t Anvil::Utils::fp32_to_fp16_full(Anvil::float32_t f)
+Anvil::float16_t Anvil::Utils::fp32_to_fp16_full(Anvil::float32_t in_f)
 {
     Anvil::float16_t o;
 
     // Based on ISPC reference code (with minor modifications)
-    if (f.fields.Exponent == 0) // Signed zero/denormal (which will underflow)
+    if (in_f.fields.Exponent == 0) // Signed zero/denormal (which will underflow)
+    {
         o.fields.Exponent = 0;
+    }
     else
-    if (f.fields.Exponent == 255) // Inf or NaN (all exponent bits set)
+    if (in_f.fields.Exponent == 255) // Inf or NaN (all exponent bits set)
     {
         o.fields.Exponent = 31;
-        o.fields.Mantissa = f.fields.Mantissa ? 0x200u : 0u; // NaN->qNaN and Inf->Inf
+        o.fields.Mantissa = in_f.fields.Mantissa ? 0x200u : 0u; // NaN->qNaN and Inf->Inf
     }
     else // Normalized number
     {
         // Exponent unbias the single, then bias the halfp
-        int newexp = static_cast<int>(f.fields.Exponent - 127 + 15);
+        int newexp = static_cast<int>(in_f.fields.Exponent - 127 + 15);
 
         if (newexp >= 31) // Overflow, return signed infinity
+        {
             o.fields.Exponent = 31;
+        }
         else
         if (newexp <= 0) // Underflow
         {
             if ((14 - newexp) <= 24) // Mantissa might be non-zero
             {
-                uint32_t mant = f.fields.Mantissa | 0x800000; // Hidden 1 bit
+                uint32_t mant = in_f.fields.Mantissa | 0x800000; // Hidden 1 bit
 
                 o.fields.Mantissa = mant >> (14 - newexp);
 
                 if ((mant >> (13 - newexp)) & 1) // Check for rounding
+                {
                     o.u++; // Round, might overflow into exp bit, but this is OK
+                }
             }
         }
         else
         {
             o.fields.Exponent = static_cast<uint16_t>(newexp);
-            o.fields.Mantissa = f.fields.Mantissa >> 13;
+            o.fields.Mantissa = in_f.fields.Mantissa >> 13;
 
-            if (f.fields.Mantissa & 0x1000) // Check for rounding
+            if (in_f.fields.Mantissa & 0x1000) // Check for rounding
+            {
                 o.u++; // Round, might overflow to inf, this is OK
+            }
         }
     }
 
-    o.fields.Sign = f.fields.Sign;
+    o.fields.Sign = in_f.fields.Sign;
+
     return o;
 }
 
 // Same as above, but with full round-to-nearest-even.
-Anvil::float16_t Anvil::Utils::fp32_to_fp16_full_rtne(Anvil::float32_t f)
+Anvil::float16_t Anvil::Utils::fp32_to_fp16_full_rtne(Anvil::float32_t in_f)
 {
     Anvil::float16_t o;
 
     // Based on ISPC reference code (with minor modifications)
-    if (f.fields.Exponent == 0) // Signed zero/denormal (which will underflow)
+    if (in_f.fields.Exponent == 0) // Signed zero/denormal (which will underflow)
+    {
         o.fields.Exponent = 0;
+    }
     else
-    if (f.fields.Exponent == 255) // Inf or NaN (all exponent bits set)
+    if (in_f.fields.Exponent == 255) // Inf or NaN (all exponent bits set)
     {
         o.fields.Exponent = 31;
-        o.fields.Mantissa = f.fields.Mantissa ? 0x200u : 0u; // NaN->qNaN and Inf->Inf
+        o.fields.Mantissa = in_f.fields.Mantissa ? 0x200u : 0u; // NaN->qNaN and Inf->Inf
     }
     else // Normalized number
     {
         // Exponent unbias the single, then bias the halfp
-        int newexp = static_cast<int>(f.fields.Exponent - 127 + 15);
+        int newexp = static_cast<int>(in_f.fields.Exponent - 127 + 15);
 
         if (newexp >= 31) // Overflow, return signed infinity
+        {
             o.fields.Exponent = 31;
-
+        }
         else if (newexp <= 0) // Underflow
         {
             if ((14 - newexp) <= 24) // Mantissa might be non-zero
             {
-                uint32_t mant  = f.fields.Mantissa | 0x800000; // Hidden 1 bit
+                uint32_t mant  = in_f.fields.Mantissa | 0x800000; // Hidden 1 bit
                 uint32_t shift = static_cast<uint32_t>(14 - newexp);
 
                 o.fields.Mantissa = mant >> shift;
@@ -351,90 +385,103 @@ Anvil::float16_t Anvil::Utils::fp32_to_fp16_full_rtne(Anvil::float32_t f)
                 if (lowmant >= halfway) // Check for rounding
                 {
                     if (lowmant > halfway || (o.fields.Mantissa & 1)) // if above halfway point or unrounded result is odd
+                    {
                         o.u++; // Round, might overflow into exp bit, but this is OK
+                    }
                 }
             }
         }
         else
         {
             o.fields.Exponent = static_cast<uint16_t>(newexp);
-            o.fields.Mantissa = f.fields.Mantissa >> 13;
+            o.fields.Mantissa = in_f.fields.Mantissa >> 13;
 
-            if (f.fields.Mantissa & 0x1000) // Check for rounding
+            if (in_f.fields.Mantissa & 0x1000) // Check for rounding
             {
-                if (((f.fields.Mantissa & 0x1fff) > 0x1000) || (o.fields.Mantissa & 1)) // if above halfway point or unrounded result is odd
+                if (((in_f.fields.Mantissa & 0x1fff) > 0x1000) || (o.fields.Mantissa & 1)) // if above halfway point or unrounded result is odd
+                {
                     o.u++; // Round, might overflow to inf, this is OK
+                }
             }
         }
     }
 
-    o.fields.Sign = f.fields.Sign;
+    o.fields.Sign = in_f.fields.Sign;
+
     return o;
 }
 
-Anvil::float16_t Anvil::Utils::fp32_to_fp16_fast(Anvil::float32_t f)
+Anvil::float16_t Anvil::Utils::fp32_to_fp16_fast(Anvil::float32_t in_f)
 {
     Anvil::float16_t o;
 
     // Based on ISPC reference code (with minor modifications)
-    if (f.fields.Exponent == 255) // Inf or NaN (all exponent bits set)
+    if (in_f.fields.Exponent == 255) // Inf or NaN (all exponent bits set)
     {
         o.fields.Exponent = 31;
-        o.fields.Mantissa = f.fields.Mantissa ? 0x200u : 0u; // NaN->qNaN and Inf->Inf
+        o.fields.Mantissa = in_f.fields.Mantissa ? 0x200u : 0u; // NaN->qNaN and Inf->Inf
     }
     else // Normalized number
     {
         // Exponent unbias the single, then bias the halfp
-        int newexp = static_cast<int>(f.fields.Exponent - 127 + 15);
+        int newexp = static_cast<int>(in_f.fields.Exponent - 127 + 15);
 
         if (newexp >= 31) // Overflow, return signed infinity
+        {
             o.fields.Exponent = 31;
+        }
 
         else if (newexp <= 0) // Underflow
         {
             if ((14 - newexp) <= 24) // Mantissa might be non-zero
             {
-                uint32_t mant = f.fields.Mantissa | 0x800000; // Hidden 1 bit
+                uint32_t mant = in_f.fields.Mantissa | 0x800000; // Hidden 1 bit
 
                 o.fields.Mantissa = mant >> (14 - newexp);
 
                 if ((mant >> (13 - newexp)) & 1) // Check for rounding
+                {
                     o.u++; // Round, might overflow into exp bit, but this is OK
+                }
             }
         }
         else
         {
             o.fields.Exponent = static_cast<uint16_t>(newexp);
-            o.fields.Mantissa = f.fields.Mantissa >> 13;
+            o.fields.Mantissa = in_f.fields.Mantissa >> 13;
 
-            if (f.fields.Mantissa & 0x1000) // Check for rounding
+            if (in_f.fields.Mantissa & 0x1000) // Check for rounding
+            {
                 o.u++; // Round, might overflow to inf, this is OK
+            }
         }
     }
 
-    o.fields.Sign = f.fields.Sign;
+    o.fields.Sign = in_f.fields.Sign;
+
     return o;
 }
 
-Anvil::float16_t Anvil::Utils::fp32_to_fp16_fast2(Anvil::float32_t f)
+Anvil::float16_t Anvil::Utils::fp32_to_fp16_fast2(Anvil::float32_t in_f)
 {
     Anvil::float32_t infty = { 31 << 23 };
     Anvil::float32_t magic = { 15 << 23 };
     Anvil::float16_t o;
 
-    uint32_t sign = f.fields.Sign;
+    uint32_t sign = in_f.fields.Sign;
 
-    f.fields.Sign = 0;
+    in_f.fields.Sign = 0;
 
     // Based on ISPC reference code (with minor modifications)
-    if (f.fields.Exponent == 255) // Inf or NaN (all exponent bits set)
+    if (in_f.fields.Exponent == 255) // Inf or NaN (all exponent bits set)
     {
         o.fields.Exponent = 31;
-        o.fields.Mantissa = f.fields.Mantissa ? 0x200u : 0u; // NaN->qNaN and Inf->Inf
+        o.fields.Mantissa = in_f.fields.Mantissa ? 0x200u : 0u; // NaN->qNaN and Inf->Inf
     }
     else // (De)normalized number or zero
     {
-        f.u &= ~0xfff; // Make sure we don't get sticky bits
+        in_f.u &= ~0xfff; // Make sure we don't get sticky bits
+
         // Not necessarily the best move in terms of accuracy, but matches behavior
         // of other versions.
 
@@ -454,20 +501,23 @@ Anvil::float16_t Anvil::Utils::fp32_to_fp16_fast2(Anvil::float32_t f)
         //   like recursive filters in DSP - not a typical half-float application. Whether
         //   FP16 denormals are rare in practice, I don't know. Whatever slow path your HW
         //   may or may not have for denormals, this may well hit it.
-        f.f *= magic.f;
+        in_f.f *= magic.f;
 
-        f.u += 0x1000; // Rounding bias
+        in_f.u += 0x1000; // Rounding bias
 
-        if (f.u > infty.u) f.u = infty.u; // Clamp to signed infinity if overflowed
+        if (in_f.u > infty.u)
+        {
+            in_f.u = infty.u; // Clamp to signed infinity if overflowed
+        }
 
-        o.u = static_cast<unsigned short>(f.u >> 13); // Take the bits!
+        o.u = static_cast<unsigned short>(in_f.u >> 13); // Take the bits!
     }
 
     o.fields.Sign = sign;
     return o;
 }
 
-Anvil::float16_t Anvil::Utils::fp32_to_fp16_fast3(Anvil::float32_t f)
+Anvil::float16_t Anvil::Utils::fp32_to_fp16_fast3(Anvil::float32_t in_f)
 {
     Anvil::float32_t f32infty   = { 255 << 23 };
     Anvil::float32_t f16infty   = { 31 << 23 };
@@ -476,33 +526,39 @@ Anvil::float16_t Anvil::Utils::fp32_to_fp16_fast3(Anvil::float32_t f)
     uint32_t         round_mask = ~0xfffu; 
     Anvil::float16_t o;
 
-    uint32_t sign = f.u & sign_mask;
-    f.u ^= sign;
+    uint32_t sign = in_f.u & sign_mask;
+    in_f.u ^= sign;
 
     // NOTE all the integer compares in this function can be safely
     // compiled into signed compares since all operands are below
     // 0x80000000. Important if you want fast straight SSE2 code
     // (since there's no unsigned PCMPGTD).
 
-    if (f.u >= f32infty.u) // Inf or NaN (all exponent bits set)
-        o.u = (f.u > f32infty.u) ? 0x7e00u : 0x7c00u; // NaN->qNaN and Inf->Inf
+    if (in_f.u >= f32infty.u) // Inf or NaN (all exponent bits set)
+    {
+        o.u = (in_f.u > f32infty.u) ? 0x7e00u : 0x7c00u; // NaN->qNaN and Inf->Inf
+    }
     else // (De)normalized number or zero
     {
-        f.u &= round_mask;
-        f.f *= magic.f;
-        f.u -= round_mask;
+        in_f.u &= round_mask;
+        in_f.f *= magic.f;
+        in_f.u -= round_mask;
 
-        if (f.u > f16infty.u) f.u = f16infty.u; // Clamp to signed infinity if overflowed
+        if (in_f.u > f16infty.u)
+        {
+            in_f.u = f16infty.u; // Clamp to signed infinity if overflowed
+        }
 
-        o.u = static_cast<unsigned short>(f.u >> 13); // Take the bits!
+        o.u = static_cast<unsigned short>(in_f.u >> 13); // Take the bits!
     }
 
     o.u |= sign >> 16;
+
     return o;
 }
 
 // Same, but rounding ties to nearest even instead of towards +inf
-Anvil::float16_t Anvil::Utils::fp32_to_fp16_fast3_rtne(Anvil::float32_t f)
+Anvil::float16_t Anvil::Utils::fp32_to_fp16_fast3_rtne(Anvil::float32_t in_f)
 {
     Anvil::float32_t f32infty     = { 255 << 23 };
     Anvil::float32_t f16max       = { (127 + 16) << 23 };
@@ -510,49 +566,52 @@ Anvil::float16_t Anvil::Utils::fp32_to_fp16_fast3_rtne(Anvil::float32_t f)
     uint32_t         sign_mask    = 0x80000000u;
     Anvil::float16_t o;
 
-    uint32_t sign = f.u & sign_mask;
+    uint32_t sign = in_f.u & sign_mask;
 
-    f.u ^= sign;
+    in_f.u ^= sign;
 
     // NOTE all the integer compares in this function can be safely
     // compiled into signed compares since all operands are below
     // 0x80000000. Important if you want fast straight SSE2 code
     // (since there's no unsigned PCMPGTD).
 
-    if (f.u >= f16max.u) // result is Inf or NaN (all exponent bits set)
-        o.u = (f.u > f32infty.u) ? 0x7e00u : 0x7c00u; // NaN->qNaN and Inf->Inf
+    if (in_f.u >= f16max.u) // result is Inf or NaN (all exponent bits set)
+    {
+        o.u = (in_f.u > f32infty.u) ? 0x7e00u : 0x7c00u; // NaN->qNaN and Inf->Inf
+    }
     else // (De)normalized number or zero
     {
-        if (f.u < (113 << 23)) // resulting FP16 is subnormal or zero
+        if (in_f.u < (113 << 23)) // resulting FP16 is subnormal or zero
         {
             // use a magic value to align our 10 mantissa bits at the bottom of
             // the float. as long as FP addition is round-to-nearest-even this
             // just works.
-            f.f += denorm_magic.f;
+            in_f.f += denorm_magic.f;
 
             // and one integer subtract of the bias later, we have our final float!
-            o.u = static_cast<unsigned short>(f.u - denorm_magic.u);
+            o.u = static_cast<unsigned short>(in_f.u - denorm_magic.u);
         }
         else
         {
-            uint32_t mant_odd = (f.u >> 13) & 1; // resulting mantissa is odd
+            uint32_t mant_odd = (in_f.u >> 13) & 1; // resulting mantissa is odd
 
             // update exponent, rounding bias part 1
-            f.u += static_cast<uint32_t>(((15 - 127) << 23) + 0xfff);
+            in_f.u += static_cast<uint32_t>(((15 - 127) << 23) + 0xfff);
             // rounding bias part 2
-            f.u += mant_odd;
+            in_f.u += mant_odd;
             // take the bits!
-            o.u = static_cast<unsigned short>(f.u >> 13);
+            o.u = static_cast<unsigned short>(in_f.u >> 13);
         }
     }
 
     o.u |= sign >> 16;
+
     return o;
 }
 
-Anvil::float16_t Anvil::Utils::fp32_to_fp16_foxtk(Anvil::float32_t f)
+Anvil::float16_t Anvil::Utils::fp32_to_fp16_foxtk(Anvil::float32_t in_f)
 {
-    int32_t          f_i32 = *reinterpret_cast<int32_t*>(&f);
+    int32_t          f_i32 = *reinterpret_cast<int32_t*>(&in_f);
     Anvil::float16_t o;
 
     o.u = static_cast<unsigned short>(precalc.basetable[ (f_i32>>23) & 0x1ff]
@@ -563,7 +622,7 @@ Anvil::float16_t Anvil::Utils::fp32_to_fp16_foxtk(Anvil::float32_t f)
 
 // Approximate solution. This is faster but converts some sNaNs to
 // infinity and doesn't round correctly. Handle with care.
-Anvil::float16_t Anvil::Utils::fp32_to_fp16_approx(Anvil::float32_t f)
+Anvil::float16_t Anvil::Utils::fp32_to_fp16_approx(Anvil::float32_t in_f)
 {
     Anvil::float32_t f32infty  = { 255 << 23 };
     Anvil::float32_t f16max    = { (127 + 16) << 23 };
@@ -572,19 +631,25 @@ Anvil::float16_t Anvil::Utils::fp32_to_fp16_approx(Anvil::float32_t f)
     uint32_t         sign_mask = 0x80000000u;
     Anvil::float16_t o;
 
-    uint32_t sign = f.u & sign_mask;
+    uint32_t sign = in_f.u & sign_mask;
 
-    f.u ^= sign;
+    in_f.u ^= sign;
 
-    if (!(f.f < f32infty.u)) // Inf or NaN
-        o.u = static_cast<unsigned short>(f.u ^ expinf.u);
+    if (!(in_f.f < f32infty.u)) // Inf or NaN
+    {
+        o.u = static_cast<unsigned short>(in_f.u ^ expinf.u);
+    }
     else
     {
-        if (f.f > f16max.f) f.f = f16max.f;
-        f.f *= magic.f;
+        if (in_f.f > f16max.f)
+        {
+            in_f.f = f16max.f;
+        }
+
+        in_f.f *= magic.f;
     }
 
-    o.u = static_cast<unsigned short>(f.u >> 13); // Take the mantissa bits
+    o.u = static_cast<unsigned short>(in_f.u >> 13); // Take the mantissa bits
     o.u |= sign >> 16;
 
     return o;

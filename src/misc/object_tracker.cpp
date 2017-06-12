@@ -95,7 +95,7 @@ void Anvil::ObjectTracker::check_for_leaks() const
  *
  *  @return As per description.
  **/
-const char* Anvil::ObjectTracker::get_object_type_name(ObjectType object_type) const
+const char* Anvil::ObjectTracker::get_object_type_name(ObjectType in_object_type) const
 {
     static const char* result_array[] =
     {
@@ -137,52 +137,52 @@ const char* Anvil::ObjectTracker::get_object_type_name(ObjectType object_type) c
     static_assert(sizeof(result_array) / sizeof(result_array[0]) == OBJECT_TYPE_COUNT,
                   "Number of object types change detected - update result_array.");
 
-    return result_array[object_type];
+    return result_array[in_object_type];
 }
 
 /* Please see header for specification */
-const void* Anvil::ObjectTracker::get_object_at_index(ObjectType object_type,
-                                                      uint32_t   alloc_index) const
+const void* Anvil::ObjectTracker::get_object_at_index(ObjectType in_object_type,
+                                                      uint32_t   in_alloc_index) const
 {
     const void* result = nullptr;
 
-    anvil_assert(object_type < OBJECT_TYPE_COUNT);
+    anvil_assert(in_object_type < OBJECT_TYPE_COUNT);
 
-    if (m_object_allocations[object_type].size() > alloc_index)
+    if (m_object_allocations[in_object_type].size() > in_alloc_index)
     {
-        result = m_object_allocations[object_type][alloc_index].object_ptr;
+        result = m_object_allocations[in_object_type][in_alloc_index].object_ptr;
     }
 
     return result;
 }
 
 /* Please see header for specification */
-void Anvil::ObjectTracker::register_object(ObjectType object_type,
-                                           void*      object_ptr)
+void Anvil::ObjectTracker::register_object(ObjectType in_object_type,
+                                           void*      in_object_ptr)
 {
-    anvil_assert(object_ptr  != nullptr);
-    anvil_assert(object_type <  OBJECT_TYPE_COUNT);
+    anvil_assert(in_object_ptr  != nullptr);
+    anvil_assert(in_object_type <  OBJECT_TYPE_COUNT);
 
-    m_object_allocations[object_type].push_back(ObjectAllocation(m_n_objects_allocated_array[object_type]++,
-                                                                 object_ptr) );
+    m_object_allocations[in_object_type].push_back(ObjectAllocation(m_n_objects_allocated_array[in_object_type]++,
+                                                                    in_object_ptr) );
 }
 
 /* Please see header for specification */
-void Anvil::ObjectTracker::unregister_object(ObjectType object_type,
-                                             void*      object_ptr)
+void Anvil::ObjectTracker::unregister_object(ObjectType in_object_type,
+                                             void*      in_object_ptr)
 {
-    auto object_allocation_iterator = std::find(m_object_allocations[object_type].begin(),
-                                                m_object_allocations[object_type].end(),
-                                                object_ptr);
+    auto object_allocation_iterator = std::find(m_object_allocations[in_object_type].begin(),
+                                                m_object_allocations[in_object_type].end(),
+                                                in_object_ptr);
 
-    if (object_allocation_iterator == m_object_allocations[object_type].end() )
+    if (object_allocation_iterator == m_object_allocations[in_object_type].end() )
     {
-        anvil_assert(false);
+        anvil_assert_fail();
 
         goto end;
     }
 
-    m_object_allocations[object_type].erase(object_allocation_iterator);
+    m_object_allocations[in_object_type].erase(object_allocation_iterator);
 
 end:
     ;

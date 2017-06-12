@@ -36,8 +36,8 @@
 
 namespace Anvil
 {
-    typedef void (*PFNMEMORYALLOCATORBAKECALLBACKPROC)(Anvil::MemoryAllocator* memory_allocator_ptr,
-                                                       void*                   user_arg);
+    typedef void (*PFNMEMORYALLOCATORBAKECALLBACKPROC)(Anvil::MemoryAllocator* in_memory_allocator_ptr,
+                                                       void*                   in_user_arg);
 
     /** Implements a simple memory allocator. For more details, please see the header. */
     class MemoryAllocator
@@ -159,7 +159,7 @@ namespace Anvil
 
         /** Creates a new MemoryAllocator instance.
          *
-         *  @param device_ptr Device to use.
+         *  @param in_device_ptr Device to use.
          **/
         static std::shared_ptr<MemoryAllocator> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
 
@@ -169,12 +169,12 @@ namespace Anvil
          *  Calling this function more than once for the same MemoryAllocator instance will trigger
          *  an assertion failure.
          *
-         *  @param pfn_post_bake_callback_ptr Function pointer to assign. Must not be null.
-         *  @param callback_user_arg          User argument to pass with the callback. Can be null.
+         *  @param in_pfn_post_bake_callback_ptr Function pointer to assign. Must not be null.
+         *  @param in_callback_user_arg          User argument to pass with the callback. Can be null.
          *
          */
-        void set_post_bake_callback(PFNMEMORYALLOCATORBAKECALLBACKPROC pfn_post_bake_callback,
-                                    void*                              callback_user_arg);
+        void set_post_bake_callback(PFNMEMORYALLOCATORBAKECALLBACKPROC in_pfn_post_bake_callback,
+                                    void*                              in_callback_user_arg);
 
          /** Destructor.
           *
@@ -307,7 +307,7 @@ namespace Anvil
                                  MemoryFeatureFlags             in_required_memory_features);
         bool is_alloc_supported (uint32_t                       in_memory_types,
                                  MemoryFeatureFlags             in_memory_features,
-                                 uint32_t*                      opt_out_filtered_memory_types_ptr) const;
+                                 uint32_t*                      out_opt_filtered_memory_types_ptr) const;
 
         /** Constructor.
          *

@@ -39,6 +39,7 @@ endif()
 SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/base_pipeline_manager.h"
               "${Anvil_SOURCE_DIR}/include/misc/callbacks.h"
               "${Anvil_SOURCE_DIR}/include/misc/debug.h"
+              "${Anvil_SOURCE_DIR}/include/misc/debug_marker.h"
               "${Anvil_SOURCE_DIR}/include/misc/dummy_window.h"
               "${Anvil_SOURCE_DIR}/include/misc/formats.h"
               "${Anvil_SOURCE_DIR}/include/misc/fp16.h"
@@ -86,6 +87,7 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/base_pipeline_manager.h"
 
               "${Anvil_SOURCE_DIR}/src/misc/base_pipeline_manager.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/debug.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/debug_marker.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/dummy_window.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/formats.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/fp16.cpp"
@@ -140,8 +142,8 @@ if(WIN32)
 else()
     if (ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
         list (APPEND SRC_LIST
-                              "${Anvil_SOURCE_DIR}/include/misc/xcb_loader_for_anvil.h"
-                              "${Anvil_SOURCE_DIR}/src/misc/xcb_loader_for_anvil.cpp"
+                              "${Anvil_SOURCE_DIR}/include/misc/xcb_loader.h"
+                              "${Anvil_SOURCE_DIR}/src/misc/xcb_loader.cpp"
                               "${Anvil_SOURCE_DIR}/include/misc/window_xcb.h"
                               "${Anvil_SOURCE_DIR}/src/misc/window_xcb.cpp")
     endif()
@@ -185,7 +187,7 @@ if (CMAKE_COMPILER_IS_GNUCC)
     target_compile_options(Anvil PRIVATE "-Wall" "-Werror")
 endif (CMAKE_COMPILER_IS_GNUCC)
 if (MSVC)
-    target_compile_options(Anvil PRIVATE "/Wall" "/WX" "/wd4191" "/wd4350" "/wd4668" "/wd4820" "/wd4514" "/wd4061" "/wd4710" "/wd4711" "/wd4548" "/wd4555")
+    target_compile_options(Anvil PRIVATE "/W4" "/WX" "/wd4191" "/wd4350" "/wd4668" "/wd4820" "/wd4514" "/wd4061" "/wd4710" "/wd4711" "/wd4548" "/wd4555")
 endif (MSVC)
 
 # Add all demo sub-projects

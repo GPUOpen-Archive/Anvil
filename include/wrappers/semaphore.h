@@ -31,18 +31,19 @@
 #ifndef WRAPPERS_SEMAPHORE_H
 #define WRAPPERS_SEMAPHORE_H
 
+#include "misc/debug_marker.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
     /* Wrapper class for Vulkan semaphores */
-    class Semaphore
+    class Semaphore : public DebugMarkerSupportProvider<Semaphore>
     {
     public:
         /* Public functions */
 
         /** Creates a single Vulkan semaphore instance and registers the object in Object Tracker. */
-        static std::shared_ptr<Anvil::Semaphore> create(std::weak_ptr<Anvil::BaseDevice> device_ptr);
+        static std::shared_ptr<Anvil::Semaphore> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
 
         /** Destructor.
          *
@@ -70,7 +71,7 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. Please see create() for specification */
-        Semaphore(std::weak_ptr<Anvil::BaseDevice> device_ptr);
+        Semaphore(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
 
         Semaphore           (const Semaphore&);
         Semaphore& operator=(const Semaphore&);

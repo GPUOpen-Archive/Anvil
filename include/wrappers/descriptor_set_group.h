@@ -69,27 +69,27 @@ namespace Anvil
          *
          *  This call invalidates internally-maintained Vulkan DS and DS layout instances.
          *
-         *  @param n_set                  Index of the descriptor set the new binding should be created for.
-         *                                This number must not be equal to or larger than the number of sets
-         *                                specified for the DSG at creation time.
-         *  @param binding                Index of the binding to create. This index must not have been used earlier
-         *                                to create another binding.
-         *  @param type                   Type of descriptor(s), which are going to be used to configure the binding.
-         *  @param n_elements             Binding array's size. Must be at least 1.
-         *  @param shader_stages          A bitfield combination of shader stage bits, telling which shader stages
-         *                                this binding is going to be used for.
-         *  @param immutable_sampler_ptrs If not nullptr, an array of @param n_elements samplers should
-         *                                be passed. The binding will then be considered immutable, as per spec language.
-         *                                May be nullptr.
+         *  @param in_n_set                      Index of the descriptor set the new binding should be created for.
+         *                                       This number must not be equal to or larger than the number of sets
+         *                                       specified for the DSG at creation time.
+         *  @param in_binding                    Index of the binding to create. This index must not have been used earlier
+         *                                       to create another binding.
+         *  @param in_type                       Type of descriptor(s), which are going to be used to configure the binding.
+         *  @param in_n_elements                 Binding array's size. Must be at least 1.
+         *  @param in_shader_stages              A bitfield combination of shader stage bits, telling which shader stages
+         *                                       this binding is going to be used for.
+         *  @param in_opt_immutable_sampler_ptrs If not nullptr, an array of @param in_n_elements samplers should
+         *                                       be passed. The binding will then be considered immutable, as per spec language.
+         *                                       May be nullptr.
          *
          *  @return true if the function executed successfully, false otherwise.
          ***/
-        bool add_binding(uint32_t                               n_set,
-                         uint32_t                               binding,
-                         VkDescriptorType                       type,
-                         uint32_t                               n_elements,
-                         VkShaderStageFlags                     shader_stages,
-                         const std::shared_ptr<Anvil::Sampler>* opt_immutable_sampler_ptrs = nullptr);
+        bool add_binding(uint32_t                               in_n_set,
+                         uint32_t                               in_binding,
+                         VkDescriptorType                       in_type,
+                         uint32_t                               in_n_elements,
+                         VkShaderStageFlags                     in_shader_stages,
+                         const std::shared_ptr<Anvil::Sampler>* in_opt_immutable_sampler_ptrs = nullptr);
 
         /** Creates a new DescriptorSetGroup instance.
          *
@@ -102,15 +102,15 @@ namespace Anvil
          *  takes a ptr to DescriptorSetGroup instance, causing objects created in such fashion to treat the
          *  specified DescriptorSetGroup instance as a parent.
          *
-         *  @param device_ptr       Device to use.
-         *  @param releaseable_sets true if the created VkDescriptorSet instances should be releaseable
-         *                          to the internal descriptor pool by invoking vkFreeDescriptorSets().
-         *                          false otherwise.
-         *  @param n_sets           Number of descriptor sets this instance should store information for.
+         *  @param in_device_ptr       Device to use.
+         *  @param in_releaseable_sets true if the created VkDescriptorSet instances should be releaseable
+         *                             to the internal descriptor pool by invoking vkFreeDescriptorSets().
+         *                             false otherwise.
+         *  @param in_n_sets           Number of descriptor sets this instance should store information for.
          */
-        static std::shared_ptr<DescriptorSetGroup> create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                          bool                             releaseable_sets,
-                                                          uint32_t                         n_sets);
+        static std::shared_ptr<DescriptorSetGroup> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                          bool                             in_releaseable_sets,
+                                                          uint32_t                         in_n_sets);
 
         /** Creates a new DescriptorSetGroup instance.
          *
@@ -118,35 +118,35 @@ namespace Anvil
          *  to re-use layout of another DSG. This is useful if you'd like to re-use the same layout with
          *  a different combination of descriptor sets.
          *
-         *  @param parent_dsg_ptr   Pointer to a DSG without a parent. Must not be nullptr.
-         *  @param releaseable_sets See the documentation above for more details.
+         *  @param in_parent_dsg_ptr   Pointer to a DSG without a parent. Must not be nullptr.
+         *  @param in_releaseable_sets See the documentation above for more details.
          **/
-        static std::shared_ptr<DescriptorSetGroup> create(std::shared_ptr<DescriptorSetGroup> parent_dsg_ptr,
-                                                          bool                                releaseable_sets);
+        static std::shared_ptr<DescriptorSetGroup> create(std::shared_ptr<DescriptorSetGroup> in_parent_dsg_ptr,
+                                                          bool                                in_releaseable_sets);
 
         /** Retrieves a Vulkan instance of the descriptor set, as configured for the DSG instance's set
-         *  at index @param n_set.
+         *  at index @param in_n_set.
          *
          *  This function may re-create internal Vulkan DS and DS layout instances if the DSG's configuration
          *  has been altered since the last time a get_() call has been made.
          *
-         *  @param n_set As per description.
+         *  @param in_n_set As per description.
          *
          *  @return Pointer to the requested Anvil::DescriptorSet instance.
          **/
-        std::shared_ptr<Anvil::DescriptorSet> get_descriptor_set(uint32_t n_set);
+        std::shared_ptr<Anvil::DescriptorSet> get_descriptor_set(uint32_t in_n_set);
 
-        /** Returns a descriptor set binding index for a descriptor set at index @param n_set. */
-        uint32_t get_descriptor_set_binding_index(uint32_t n_set) const;
+        /** Returns a descriptor set binding index for a descriptor set at index @param in_n_set. */
+        uint32_t get_descriptor_set_binding_index(uint32_t in_n_set) const;
 
         /** Retrieves a Vulkan instace of the descriptor set layout, as configured for the DSG instance's
-         *  set at index @param n_set.
+         *  set at index @param in_n_set.
          *
          *  @param n_set As per description.
          *
          *  @return Requested Anvil::DescriptorSetLayout instance.
          */
-        std::shared_ptr<Anvil::DescriptorSetLayout> get_descriptor_set_layout(uint32_t n_set);
+        std::shared_ptr<Anvil::DescriptorSetLayout> get_descriptor_set_layout(uint32_t in_n_set);
 
         /** Returns the total number of added descriptor sets.
          *
@@ -162,10 +162,10 @@ namespace Anvil
         }
 
         /** This function should be set to assign physical Vulkan objects to a descriptor binding
-         *  at index @param binding_index for descriptor set @param n_set.
+         *  at index @param in_binding_index for descriptor set @param in_n_set.
          *  Each binding can hold one or more objects. Which slots the specified objects should take can
-         *  be configured by passing the right values to @param element_range.
-         *  Objects are passed via @param elements argument. The argument must be one of the following
+         *  be configured by passing the right values to @param in_element_range.
+         *  Objects are passed via @param in_elements argument. The argument must be one of the following
          *  types, depending on what object is to be attached to the specified descriptor binding:
          *
          *  CombinedImageSamplerBindingElement - for combined image+sampler bindings.
@@ -180,34 +180,34 @@ namespace Anvil
          *  UniformBufferBindingElement        - for uniform buffer bindings.
          *  UniformTexelBufferBindingElement   - for storage uniform buffer bindings.
          *
-         *  @param n_set         As per documentation. Must not be equal to or larger than the number
-         *                       of sets, specified for the DSG.
-         *  @param binding_index As per documentation. Must correspond to a binding which has earlier
-         *                       been added by calling add_binding() function.
-         *  @param element_range As per documentation. Must not be equal to or larger than the array size,
-         *                       specified when calling add_binding() function.
-         *  @param elements      As per documentation. Must not be nullptr.
+         *  @param in_n_set         As per documentation. Must not be equal to or larger than the number
+         *                          of sets, specified for the DSG.
+         *  @param in_binding_index As per documentation. Must correspond to a binding which has earlier
+         *                          been added by calling add_binding() function.
+         *  @param in_element_range As per documentation. Must not be equal to or larger than the array size,
+         *                          specified when calling add_binding() function.
+         *  @param in_elements      As per documentation. Must not be nullptr.
          *
          *  @return true if the function executed successfully, false otherwise.
          **/
         template<typename BindingElementType>
-        bool set_binding_array_items(uint32_t                  n_set,
-                                     BindingIndex              binding_index,
-                                     BindingElementArrayRange  element_range,
-                                     const BindingElementType* elements)
+        bool set_binding_array_items(uint32_t                  in_n_set,
+                                     BindingIndex              in_binding_index,
+                                     BindingElementArrayRange  in_element_range,
+                                     const BindingElementType* in_elements)
         {
-            anvil_assert(m_descriptor_sets.find(n_set) != m_descriptor_sets.end() );
+            anvil_assert(m_descriptor_sets.find(in_n_set) != m_descriptor_sets.end() );
 
-            if (m_descriptor_sets[n_set].descriptor_set_ptr == nullptr)
+            if (m_descriptor_sets[in_n_set].descriptor_set_ptr == nullptr)
             {
                 bake_descriptor_sets();
 
-                anvil_assert(m_descriptor_sets[n_set].descriptor_set_ptr != nullptr);
+                anvil_assert(m_descriptor_sets[in_n_set].descriptor_set_ptr != nullptr);
             }
 
-            m_descriptor_sets[n_set].descriptor_set_ptr->set_binding_array_items(binding_index,
-                                                                                 element_range,
-                                                                                 elements);
+            m_descriptor_sets[in_n_set].descriptor_set_ptr->set_binding_array_items(in_binding_index,
+                                                                                    in_element_range,
+                                                                                    in_elements);
 
             return true;
         }
@@ -216,24 +216,24 @@ namespace Anvil
          *  attached to the specified descriptor set's binding.
          */
         template<typename BindingElementType>
-        bool set_binding_item(uint32_t                  n_set,
-                              BindingIndex              binding_index,
-                              const BindingElementType& element)
+        bool set_binding_item(uint32_t                  in_n_set,
+                              BindingIndex              in_binding_index,
+                              const BindingElementType& in_element)
         {
-            return set_binding_array_items(n_set,
-                                           binding_index,
+            return set_binding_array_items(in_n_set,
+                                           in_binding_index,
                                            BindingElementArrayRange(0,  /* StartBindingElementIndex */
                                                                     1), /* NumberOfBindingElements  */
-                                          &element);
+                                          &in_element);
         }
 
         /** Configures how many overhead allocations should be requested from the descriptor pool.
          *
-         *  @param descriptor_type        Descriptor type to increase the number of requested descriptor allocations for.
-         *  @param n_overhead_allocations Value specifying how many additional allocations should be made. 0 by default.
+         *  @param in_descriptor_type        Descriptor type to increase the number of requested descriptor allocations for.
+         *  @param in_n_overhead_allocations Value specifying how many additional allocations should be made. 0 by default.
          **/
-        void set_descriptor_pool_overhead_allocations(VkDescriptorType descriptor_type,
-                                                      uint32_t         n_overhead_allocations);
+        void set_descriptor_pool_overhead_allocations(VkDescriptorType in_descriptor_type,
+                                                      uint32_t         in_n_overhead_allocations);
 
     private:
         /* Private type declarations */
@@ -274,13 +274,13 @@ namespace Anvil
         /* Private functions */
 
         /** Please see create() documentation for more details. */
-        DescriptorSetGroup(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                           bool                             releaseable_sets,
-                           uint32_t                         n_sets);
+        DescriptorSetGroup(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                           bool                             in_releaseable_sets,
+                           uint32_t                         in_n_sets);
 
         /** Please see create() documentation for more details. */
-        DescriptorSetGroup(std::shared_ptr<DescriptorSetGroup> parent_dsg_ptr,
-                           bool                                releaseable_sets);
+        DescriptorSetGroup(std::shared_ptr<DescriptorSetGroup> in_parent_dsg_ptr,
+                           bool                                in_releaseable_sets);
 
         DescriptorSetGroup           (const DescriptorSetGroup&);
         DescriptorSetGroup& operator=(const DescriptorSetGroup&);

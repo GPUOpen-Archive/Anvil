@@ -30,30 +30,32 @@
 #include <algorithm>
 
 /* Please see header for specification */
-Anvil::CommandPool::CommandPool(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                bool                             transient_allocations_friendly,
-                                bool                             support_per_cmdbuf_reset_ops,
-                                Anvil::QueueFamilyType           queue_family)
+Anvil::CommandPool::CommandPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                bool                             in_transient_allocations_friendly,
+                                bool                             in_support_per_cmdbuf_reset_ops,
+                                Anvil::QueueFamilyType           in_queue_family)
 
-    :m_command_pool                     (VK_NULL_HANDLE),
-     m_device_ptr                       (device_ptr),
-     m_is_transient_allocations_friendly(transient_allocations_friendly),
-     m_queue_family                     (queue_family),
-     m_supports_per_cmdbuf_reset_ops    (support_per_cmdbuf_reset_ops)
+    :DebugMarkerSupportProvider         (in_device_ptr,
+                                         VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_POOL_EXT),
+     m_command_pool                     (VK_NULL_HANDLE),
+     m_device_ptr                       (in_device_ptr),
+     m_is_transient_allocations_friendly(in_transient_allocations_friendly),
+     m_queue_family                     (in_queue_family),
+     m_supports_per_cmdbuf_reset_ops    (in_support_per_cmdbuf_reset_ops)
 {
     VkCommandPoolCreateInfo            command_pool_create_info;
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr       (device_ptr);
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr       (in_device_ptr);
     uint32_t                           queue_family_index      (UINT32_MAX);
     VkResult                           result_vk               (VK_ERROR_INITIALIZATION_FAILED);
 
     ANVIL_REDUNDANT_VARIABLE(result_vk);
 
-    queue_family_index = (device_locked_ptr->get_queue_family_index(queue_family) );
+    queue_family_index = (device_locked_ptr->get_queue_family_index(in_queue_family) );
     anvil_assert(queue_family_index != UINT32_MAX);
 
     /* Go on and create the command pool */
-    command_pool_create_info.flags            = ((transient_allocations_friendly) ? VK_COMMAND_POOL_CREATE_TRANSIENT_BIT            : 0u) |
-                                                ((support_per_cmdbuf_reset_ops)   ? VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT : 0u);
+    command_pool_create_info.flags            = ((in_transient_allocations_friendly) ? VK_COMMAND_POOL_CREATE_TRANSIENT_BIT            : 0u) |
+                                                ((in_support_per_cmdbuf_reset_ops)   ? VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT : 0u);
     command_pool_create_info.pNext            = nullptr;
     command_pool_create_info.queueFamilyIndex = queue_family_index;
     command_pool_create_info.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -64,6 +66,10 @@ Anvil::CommandPool::CommandPool(std::weak_ptr<Anvil::BaseDevice> device_ptr,
                                    &m_command_pool);
 
     anvil_assert_vk_call_succeeded(result_vk);
+    if (is_vk_call_successful(result_vk) )
+    {
+        set_vk_handle(m_command_pool);
+    }
 
     /* Register the command pool instance */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_COMMAND_POOL,
@@ -109,32 +115,32 @@ std::shared_ptr<Anvil::SecondaryCommandBuffer> Anvil::CommandPool::alloc_seconda
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::CommandPool> Anvil::CommandPool::create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                               bool                             transient_allocations_friendly,
-                                                               bool                             support_per_cmdbuf_reset_ops,
-                                                               Anvil::QueueFamilyType           queue_family)
+std::shared_ptr<Anvil::CommandPool> Anvil::CommandPool::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                               bool                             in_transient_allocations_friendly,
+                                                               bool                             in_support_per_cmdbuf_reset_ops,
+                                                               Anvil::QueueFamilyType           in_queue_family)
 {
     std::shared_ptr<Anvil::CommandPool> result_ptr;
 
     result_ptr.reset(
-        new Anvil::CommandPool(device_ptr,
-                               transient_allocations_friendly,
-                               support_per_cmdbuf_reset_ops,
-                               queue_family)
+        new Anvil::CommandPool(in_device_ptr,
+                               in_transient_allocations_friendly,
+                               in_support_per_cmdbuf_reset_ops,
+                               in_queue_family)
     );
 
     return result_ptr;
 }
 
 /* Please see header for specification */
-bool Anvil::CommandPool::reset(bool release_resources)
+bool Anvil::CommandPool::reset(bool in_release_resources)
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
     VkResult                           result_vk;
 
     result_vk = vkResetCommandPool(device_locked_ptr->get_device_vk(),
                                    m_command_pool,
-                                   ((release_resources) ? VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT : 0u) );
+                                   ((in_release_resources) ? VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT : 0u) );
 
     anvil_assert_vk_call_succeeded(result_vk);
 

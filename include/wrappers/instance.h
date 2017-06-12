@@ -37,11 +37,11 @@
 namespace Anvil
 {
     /** Debug call-back function prototype */
-    typedef VkBool32 (*PFNINSTANCEDEBUGCALLBACKPROC)(VkDebugReportFlagsEXT      message_flags,
-                                                     VkDebugReportObjectTypeEXT object_type,
-                                                     const char*                layer_prefix,
-                                                     const char*                message,
-                                                     void*                      user_arg);
+    typedef VkBool32 (*PFNINSTANCEDEBUGCALLBACKPROC)(VkDebugReportFlagsEXT      in_message_flags,
+                                                     VkDebugReportObjectTypeEXT in_object_type,
+                                                     const char*                in_layer_prefix,
+                                                     const char*                in_message,
+                                                     void*                      in_user_arg);
 
     class Instance : public std::enable_shared_from_this<Instance>
     {
@@ -64,21 +64,21 @@ namespace Anvil
          *        destroyed correctly.
          *
          *
-         *  @param app_name                 Name of the application, to be passed in VkCreateInstanceInfo
-         *                                  structure.
-         *  @param engine_name              Name of the engine, to be passed in VkCreateInstanceInfo
-         *                                  structure.
-         *  @param opt_pfn_validation_proc  If not nullptr, the specified handled will be called whenever
-         *                                  a call-back from any of the validation layers is received.
-         *                                  Ignored otherwise.
-         *  @param validation_proc_user_arg If @param opt_pfn_validation_proc is not nullptr, this argument
-         *                                  will be passed to @param opt_pfn_validation_proc every time
-         *                                  a debug callback is received. Ignored otherwise.
+         *  @param in_app_name                 Name of the application, to be passed in VkCreateInstanceInfo
+         *                                     structure.
+         *  @param in_engine_name              Name of the engine, to be passed in VkCreateInstanceInfo
+         *                                     structure.
+         *  @param in_opt_pfn_validation_proc  If not nullptr, the specified handled will be called whenever
+         *                                     a call-back from any of the validation layers is received.
+         *                                     Ignored otherwise.
+         *  @param in_validation_proc_user_arg If @param opt_pfn_validation_proc is not nullptr, this argument
+         *                                     will be passed to @param opt_pfn_validation_proc every time
+         *                                     a debug callback is received. Ignored otherwise.
          **/
-        static std::shared_ptr<Anvil::Instance> create(const char*                  app_name,
-                                                       const char*                  engine_name,
-                                                       PFNINSTANCEDEBUGCALLBACKPROC opt_pfn_validation_callback_proc,
-                                                       void*                        validation_proc_user_arg);
+        static std::shared_ptr<Anvil::Instance> create(const char*                  in_app_name,
+                                                       const char*                  in_engine_name,
+                                                       PFNINSTANCEDEBUGCALLBACKPROC in_opt_pfn_validation_callback_proc,
+                                                       void*                        in_validation_proc_user_arg);
 
         void destroy();
 
@@ -118,17 +118,17 @@ namespace Anvil
             return m_instance;
         }
 
-        /** Returns a PhysicalDevice wrapper for a physical device at index @param n_device.
+        /** Returns a PhysicalDevice wrapper for a physical device at index @param in_n_device.
          *
-         *  @param n_device Index of the physical device to retrieve the wrapper instance for.
-         *                  This value must NOT be equal or larger than the value reported by
-         *                  get_n_physical_devices().
+         *  @param in_n_device Index of the physical device to retrieve the wrapper instance for.
+         *                     This value must NOT be equal or larger than the value reported by
+         *                     get_n_physical_devices().
          *
          ** @return As per description.
          **/
-        std::weak_ptr<Anvil::PhysicalDevice> get_physical_device(uint32_t n_device) const
+        std::weak_ptr<Anvil::PhysicalDevice> get_physical_device(uint32_t in_n_device) const
         {
-            return m_physical_devices[n_device];
+            return m_physical_devices.at(in_n_device);
         }
 
         /** Returns the total number of physical devices supported on the running platform. */
@@ -139,11 +139,11 @@ namespace Anvil
 
         /** Tells whether the specified instance extension is supported.
          *
-         *  @param extension_name Name of the extension to use for the query.
+         *  @param in_extension_name Name of the extension to use for the query.
          *
          *  @return true if the extension was reported as supported, false otherwise.
          **/
-        bool is_instance_extension_supported(const char* extension_name) const;
+        bool is_instance_extension_supported(const char* in_extension_name) const;
 
         /** Tells if validation support has been requested for this Vulkan Instance wrapper */
         bool is_validation_enabled() const
@@ -155,16 +155,16 @@ namespace Anvil
         /* Private functions */
 
         /** Private constructor. Please use create() function instead. */
-        Instance(const char*                  app_name,
-                 const char*                  engine_name,
-                 PFNINSTANCEDEBUGCALLBACKPROC opt_pfn_validation_callback_proc,
-                 void*                        validation_proc_user_arg);
+        Instance(const char*                  in_app_name,
+                 const char*                  in_engine_name,
+                 PFNINSTANCEDEBUGCALLBACKPROC in_opt_pfn_validation_callback_proc,
+                 void*                        in_validation_proc_user_arg);
 
         Instance& operator=(const Instance&);
         Instance           (const Instance&);
 
-        void register_physical_device  (std::shared_ptr<Anvil::PhysicalDevice> physical_device_ptr);
-        void unregister_physical_device(std::shared_ptr<Anvil::PhysicalDevice> physical_device_ptr);
+        void register_physical_device  (std::shared_ptr<Anvil::PhysicalDevice> in_physical_device_ptr);
+        void unregister_physical_device(std::shared_ptr<Anvil::PhysicalDevice> in_physical_device_ptr);
 
         void enumerate_instance_layers ();
         void enumerate_layer_extensions(Anvil::Layer* layer_ptr);
@@ -173,14 +173,14 @@ namespace Anvil
         void init_debug_callbacks      ();
         void init_func_pointers        ();
 
-        static VkBool32 VKAPI_PTR debug_callback_pfn_proc(VkDebugReportFlagsEXT      message_flags,
-                                                          VkDebugReportObjectTypeEXT object_type,
-                                                          uint64_t                   src_object,
-                                                          size_t                     location,
-                                                          int32_t                    msg_code,
-                                                          const char*                layer_prefix_ptr,
-                                                          const char*                message_ptr,
-                                                          void*                      user_data);
+        static VkBool32 VKAPI_PTR debug_callback_pfn_proc(VkDebugReportFlagsEXT      in_message_flags,
+                                                          VkDebugReportObjectTypeEXT in_object_type,
+                                                          uint64_t                   in_src_object,
+                                                          size_t                     in_location,
+                                                          int32_t                    in_msg_code,
+                                                          const char*                in_layer_prefix_ptr,
+                                                          const char*                in_message_ptr,
+                                                          void*                      in_user_data);
 
         /* Private variables */
         VkInstance m_instance;

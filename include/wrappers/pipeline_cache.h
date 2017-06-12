@@ -31,26 +31,27 @@
 #ifndef WRAPPERS_PIPELINE_CACHE_H
 #define WRAPPERS_PIPELINE_CACHE_H
 
+#include "misc/debug_marker.h"
 #include "misc/types.h"
 
 
 namespace Anvil
 {
-    class PipelineCache
+    class PipelineCache : public DebugMarkerSupportProvider<PipelineCache>
     {
     public:
         /* Public functions */
 
         /** Constructor.
          *
-         *  @param device_ptr        Vulkan device to initialize the pipeline cache with.
-         *  @param initial_data_size Number of bytes available under @param initial_data. Can be 0.
-         *  @param initial_data      Initial data to initialize the new pipeline cache instance with.
-         *                           May be nullptr if @param initial_data_size is 0.
+         *  @param in_device_ptr        Vulkan device to initialize the pipeline cache with.
+         *  @param in_initial_data_size Number of bytes available under @param in_initial_data. Can be 0.
+         *  @param in_initial_data      Initial data to initialize the new pipeline cache instance with.
+         *                              May be nullptr if @param in_initial_data_size is 0.
          **/
-        static std::shared_ptr<Anvil::PipelineCache> create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                            size_t                           initial_data_size = 0,
-                                                            const void*                      initial_data      = nullptr);
+        static std::shared_ptr<Anvil::PipelineCache> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                            size_t                           in_initial_data_size = 0,
+                                                            const void*                      in_initial_data      = nullptr);
 
         /** Destroys the Vulkan counterpart and unregisters the wrapper instance from the object tracker. */
         virtual ~PipelineCache();
@@ -72,23 +73,23 @@ namespace Anvil
             return m_pipeline_cache;
         }
 
-        /** Adds cached pipelines in @param src_cache_ptrs to this pipeline instance.
+        /** Adds cached pipelines in @param in_src_cache_ptrs to this pipeline instance.
          *
-         *  @param n_pipeline_caches Number of pipeline caches under @param src_cache_ptrs.
-         *  @param src_cache_ptrs    Pipeline caches to merge with. Must not be nullptr.
+         *  @param in_n_pipeline_caches Number of pipeline caches under @param in_src_cache_ptrs.
+         *  @param in_src_cache_ptrs    Pipeline caches to merge with. Must not be nullptr.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool merge(uint32_t                                           n_pipeline_caches,
-                   std::shared_ptr<const Anvil::PipelineCache> const* src_cache_ptrs);
+        bool merge(uint32_t                                           in_n_pipeline_caches,
+                   std::shared_ptr<const Anvil::PipelineCache> const* in_src_cache_ptrs);
 
     private:
         /* Private functions */
 
         /* Constructor. See create() for specification */
-        PipelineCache(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                      size_t                           initial_data_size,
-                      const void*                      initial_data);
+        PipelineCache(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                      size_t                           in_initial_data_size,
+                      const void*                      in_initial_data);
 
         PipelineCache           (const PipelineCache&);
         PipelineCache& operator=(const PipelineCache&);

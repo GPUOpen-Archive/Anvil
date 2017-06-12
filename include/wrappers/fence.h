@@ -31,12 +31,13 @@
 #ifndef WRAPPERS_FENCE_H
 #define WRAPPERS_FENCE_H
 
+#include "misc/debug_marker.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
     /* Wrapper class for Vulkan fences */
-    class Fence
+    class Fence : public DebugMarkerSupportProvider<Fence>
     {
     public:
         /* Public functions */
@@ -51,12 +52,12 @@ namespace Anvil
          *
          *  Creates a single Vulkan fence instance and registers the object in Object Tracker.
          *
-         *  @param device_ptr       Device to use.
-         *  @param create_signalled true if the fence should be created as a signalled entity.
-         *                          False to make it unsignalled at creation time.
+         *  @param in_device_ptr       Device to use.
+         *  @param in_create_signalled true if the fence should be created as a signalled entity.
+         *                             False to make it unsignalled at creation time.
          */
-        static std::shared_ptr<Fence> create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                      bool                                    create_signalled);
+        static std::shared_ptr<Fence> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                      bool                                    in_create_signalled);
 
         /** Retrieves a raw handle to the underlying Vulkan fence instance */
         VkFence get_fence() const
@@ -86,17 +87,17 @@ namespace Anvil
 
         /** Resets the specified number of Vulkan fences.
          *
-         *  This function is expected to be more efficient than calling reset() for @param n_fences
-         *  times, assuming @param n_fences is larger than 1.
+         *  This function is expected to be more efficient than calling reset() for @param in_n_fences
+         *  times, assuming @param in_n_fences is larger than 1.
          *
-         *  @param n_fences Number of Fence instances accessible under @param fences.
-         *  @param fences   An array of @param n_fences Fence instances to reset. Must not be nullptr,
-         *                  unless @param n_fences is 0.
+         *  @param in_n_fences Number of Fence instances accessible under @param in_fences.
+         *  @param in_fences   An array of @param in_n_fences Fence instances to reset. Must not be nullptr,
+         *                     unless @param in_n_fences is 0.
          *
          *  @return true if the function executed successfully, false otherwise.
          **/
-        static bool reset_fences(const uint32_t n_fences,
-                                 Fence*         fences);
+        static bool reset_fences(const uint32_t in_n_fences,
+                                 Fence*         in_fences);
 
     private:
         /* Private functions */
@@ -105,8 +106,8 @@ namespace Anvil
          *
          *  Please see documentation of create() for specification
          */
-        Fence(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-              bool                             create_signalled);
+        Fence(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+              bool                             in_create_signalled);
 
         Fence           (const Fence&);
         Fence& operator=(const Fence&);

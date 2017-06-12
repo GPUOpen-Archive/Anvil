@@ -97,9 +97,9 @@ namespace Anvil
         typedef uint32_t DynamicStateBitfield;
 
         /* Prototype for a call-back function, invoked right after vkCreateGraphicsPipelines() call returns. **/
-        typedef void (*PFNPIPELINEPOSTBAKECALLBACKPROC)(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                        GraphicsPipelineID               pipeline_id,
-                                                        void*                            user_arg);
+        typedef void (*PFNPIPELINEPOSTBAKECALLBACKPROC)(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                        GraphicsPipelineID               in_pipeline_id,
+                                                        void*                            in_user_arg);
 
         /* Prototype for a call-back function, invoked before a Vulkan graphics pipeline is created.
          *
@@ -107,27 +107,27 @@ namespace Anvil
          * Anvil::GraphicsPipelineManager will not adjust its internal state to sync with user-modified
          * fields.
          **/
-        typedef void (*PFNPIPELINEPREBAKECALLBACKPROC)(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                       GraphicsPipelineID               pipeline_id,
-                                                       VkGraphicsPipelineCreateInfo*    graphics_pipeline_create_info_ptr,
-                                                       void*                            user_arg);
+        typedef void (*PFNPIPELINEPREBAKECALLBACKPROC)(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                       GraphicsPipelineID               in_pipeline_id,
+                                                       VkGraphicsPipelineCreateInfo*    in_graphics_pipeline_create_info_ptr,
+                                                       void*                            in_user_arg);
 
         /* Public functions */
 
         /** Creates a new GraphicsPipelineManager instance.
          *
-         *  @param device_ptr                  Device to use.
-         *  @param use_pipeline_cache          true if the manager should use a pipeline cache instance. false
-         *                                     to pass nullptr whenever a Vulkan descriptor requires us to specify
-         *                                     one.
-         *  @param pipeline_cache_to_reuse_ptr if @param use_pipeline_cache is true, this argument can be optionally
-         *                                     set to a non-nullptr value to point at an already allocated pipeline cache.
-         *                                     If one is not provided and the other argument is set as described,
-         *                                     a new pipeline cache with size 0 will be allocated.
+         *  @param in_device_ptr                  Device to use.
+         *  @param in_use_pipeline_cache          true if the manager should use a pipeline cache instance. false
+         *                                        to pass nullptr whenever a Vulkan descriptor requires us to specify
+         *                                        one.
+         *  @param in_pipeline_cache_to_reuse_ptr if @param use_pipeline_cache is true, this argument can be optionally
+         *                                        set to a non-nullptr value to point at an already allocated pipeline cache.
+         *                                        If one is not provided and the other argument is set as described,
+         *                                        a new pipeline cache with size 0 will be allocated.
          **/
-        static std::shared_ptr<GraphicsPipelineManager> create(std::weak_ptr<Anvil::BaseDevice>      device_ptr,
-                                                               bool                                  use_pipeline_cache          = false,
-                                                               std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr = std::shared_ptr<Anvil::PipelineCache>() );
+        static std::shared_ptr<GraphicsPipelineManager> create(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
+                                                               bool                                  in_use_pipeline_cache          = false,
+                                                               std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr = std::shared_ptr<Anvil::PipelineCache>() );
 
         /** Destructor. */
         ~GraphicsPipelineManager();
@@ -135,72 +135,72 @@ namespace Anvil
         /** Adds a new derivative pipeline, to be used the specified renderpass' subpass. All states of the base pipeline
          *  will be copied to the new pipeline.
          *
-         *  @param disable_optimizations                        If true, the pipeline will be created with the 
-         *                                                      VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT flag.
-         *  @param allow_derivatives                            If true, the pipeline will be created with the
-         *                                                      VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT flag.
-         *  @param renderpass_ptr                               Renderpass instance the pipeline is to be created for. Must not be nullptr.
-         *                                                      The renderpass instance will be implicitly retained.
-         *  @param subpass_id                                   ID of the subpass the pipeline is to be created for.
-         *  @param fragment_shader_stage_entrypoint_info        Fragment shader to use for the pipeline. Pass an instance initialized with
-         *                                                      dummy constructor if the stage is irrelevant.
-         *  @param geometry_shader_stage_entrypoint_info        Geometry shader to use for the pipeline. Pass an instance initialized with
-         *                                                      dummy constructor if the stage is irrelevant.
-         *  @param tess_control_shader_stage_entrypoint_info    Tessellation control shader to use for the pipeline. Pass an instance initialized with
-         *                                                      dummy constructor if the stage is irrelevant.
-         *  @param tess_evaluation_shader_stage_entrypoint_info Tessellation evaluation shader to use for the pipeline. Pass an instance initialized
-         *                                                      with dummy constructor if the stage is irrelevant.
-         *  @param vertex_shader_stage_entrypoint_info          Vertex shader to use for the pipeline. Must not be a dummy shader stage entrypoint
-         *                                                      descriptor.
-         *  @param base_pipeline_id                             Graphics pipeline ID of the base graphics pipeline. The ID must have been returned
-         *                                                      by one of the preceding add_() calls, issued against the same GraphicsPipelineManager
-         *                                                      instance. Must not refer to a proxy pipeline.
-         *  @param out_graphics_pipeline_id_ptr                 Deref will be set to the new graphics pipeline's ID. Must not be nullptr.
+         *  @param in_disable_optimizations                        If true, the pipeline will be created with the 
+         *                                                         VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT flag.
+         *  @param in_allow_derivatives                            If true, the pipeline will be created with the
+         *                                                         VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT flag.
+         *  @param in_renderpass_ptr                               Renderpass instance the pipeline is to be created for. Must not be nullptr.
+         *                                                         The renderpass instance will be implicitly retained.
+         *  @param in_subpass_id                                   ID of the subpass the pipeline is to be created for.
+         *  @param in_fragment_shader_stage_entrypoint_info        Fragment shader to use for the pipeline. Pass an instance initialized with
+         *                                                         dummy constructor if the stage is irrelevant.
+         *  @param in_geometry_shader_stage_entrypoint_info        Geometry shader to use for the pipeline. Pass an instance initialized with
+         *                                                         dummy constructor if the stage is irrelevant.
+         *  @param in_tess_control_shader_stage_entrypoint_info    Tessellation control shader to use for the pipeline. Pass an instance initialized with
+         *                                                         dummy constructor if the stage is irrelevant.
+         *  @param in_tess_evaluation_shader_stage_entrypoint_info Tessellation evaluation shader to use for the pipeline. Pass an instance initialized
+         *                                                         with dummy constructor if the stage is irrelevant.
+         *  @param in_vertex_shader_stage_entrypoint_info          Vertex shader to use for the pipeline. Must not be a dummy shader stage entrypoint
+         *                                                         descriptor.
+         *  @param in_base_pipeline_id                             Graphics pipeline ID of the base graphics pipeline. The ID must have been returned
+         *                                                         by one of the preceding add_() calls, issued against the same GraphicsPipelineManager
+         *                                                         instance. Must not refer to a proxy pipeline.
+         *  @param out_graphics_pipeline_id_ptr                    Deref will be set to the new graphics pipeline's ID. Must not be nullptr.
          **/
-        bool add_derivative_pipeline_from_sibling_pipeline(bool                               disable_optimizations,
-                                                           bool                               allow_derivatives,
-                                                           std::shared_ptr<RenderPass>        renderpass_ptr,
-                                                           SubPassID                          subpass_id,
-                                                           const ShaderModuleStageEntryPoint& fragment_shader_stage_entrypoint_info,
-                                                           const ShaderModuleStageEntryPoint& geometry_shader_stage_entrypoint_info,
-                                                           const ShaderModuleStageEntryPoint& tess_control_shader_stage_entrypoint_info,
-                                                           const ShaderModuleStageEntryPoint& tess_evaluation_shader_stage_entrypoint_info,
-                                                           const ShaderModuleStageEntryPoint& vertex_shader_shader_stage_entrypoint_info,
-                                                           GraphicsPipelineID                 base_pipeline_id,
+        bool add_derivative_pipeline_from_sibling_pipeline(bool                               in_disable_optimizations,
+                                                           bool                               in_allow_derivatives,
+                                                           std::shared_ptr<RenderPass>        in_renderpass_ptr,
+                                                           SubPassID                          in_subpass_id,
+                                                           const ShaderModuleStageEntryPoint& in_fragment_shader_stage_entrypoint_info,
+                                                           const ShaderModuleStageEntryPoint& in_geometry_shader_stage_entrypoint_info,
+                                                           const ShaderModuleStageEntryPoint& in_tess_control_shader_stage_entrypoint_info,
+                                                           const ShaderModuleStageEntryPoint& in_tess_evaluation_shader_stage_entrypoint_info,
+                                                           const ShaderModuleStageEntryPoint& in_vertex_shader_shader_stage_entrypoint_info,
+                                                           GraphicsPipelineID                 in_base_pipeline_id,
                                                            GraphicsPipelineID*                out_graphics_pipeline_id_ptr);
 
         /** Adds a new derivative pipeline, to be used the specified renderpass' subpass. Since the base pipeline is
          *  a Vulkan object, its state values are NOT automatically copied to the new derivative pipeline.
          *
-         *  @param disable_optimizations                        If true, the pipeline will be created with the 
-         *                                                      VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT flag.
-         *  @param allow_derivatives                            If true, the pipeline will be created with the
-         *                                                      VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT flag.
-         *  @param renderpass_ptr                               Renderpass instance the pipeline is to be created for. Must not be nullptr.
-         *                                                      The renderpass instance will be implicitly retained.
-         *  @param subpass_id                                   ID of the subpass the pipeline is to be created for.
-         *  @param fragment_shader_stage_entrypoint_info        Fragment shader to use for the pipeline. Pass an instance initialized with
-         *                                                      dummy constructor if the stage is irrelevant.
-         *  @param geometry_shader_stage_entrypoint_info        Geometry shader to use for the pipeline. Pass an instance initialized with
-         *                                                      dummy constructor if the stage is irrelevant.
-         *  @param tess_control_shader_stage_entrypoint_info    Tessellation control shader to use for the pipeline. Pass an instance initialized with
-         *                                                      dummy constructor if the stage is irrelevant.
-         *  @param tess_evaluation_shader_stage_entrypoint_info Tessellation evaluation shader to use for the pipeline. Pass an instance initialized
-         *                                                      with dummy constructor if the stage is irrelevant.
-         *  @param vertex_shader_stage_entrypoint_info          Vertex shader to use for the pipeline. Must not be a dummy shader stage descriptor.
-         *  @param base_pipeline                                Base graphics pipeline. Must not be nullptr.
-         *  @param out_graphics_pipeline_id_ptr                 Deref will be set to the new graphics pipeline's ID. Must not be nullptr.
+         *  @param in_disable_optimizations                        If true, the pipeline will be created with the 
+         *                                                         VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT flag.
+         *  @param in_allow_derivatives                            If true, the pipeline will be created with the
+         *                                                         VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT flag.
+         *  @param in_renderpass_ptr                               Renderpass instance the pipeline is to be created for. Must not be nullptr.
+         *                                                         The renderpass instance will be implicitly retained.
+         *  @param in_subpass_id                                   ID of the subpass the pipeline is to be created for.
+         *  @param in_fragment_shader_stage_entrypoint_info        Fragment shader to use for the pipeline. Pass an instance initialized with
+         *                                                         dummy constructor if the stage is irrelevant.
+         *  @param in_geometry_shader_stage_entrypoint_info        Geometry shader to use for the pipeline. Pass an instance initialized with
+         *                                                         dummy constructor if the stage is irrelevant.
+         *  @param in_tess_control_shader_stage_entrypoint_info    Tessellation control shader to use for the pipeline. Pass an instance initialized with
+         *                                                         dummy constructor if the stage is irrelevant.
+         *  @param in_tess_evaluation_shader_stage_entrypoint_info Tessellation evaluation shader to use for the pipeline. Pass an instance initialized
+         *                                                         with dummy constructor if the stage is irrelevant.
+         *  @param in_vertex_shader_stage_entrypoint_info          Vertex shader to use for the pipeline. Must not be a dummy shader stage descriptor.
+         *  @param in_base_pipeline                                Base graphics pipeline. Must not be nullptr.
+         *  @param out_graphics_pipeline_id_ptr                    Deref will be set to the new graphics pipeline's ID. Must not be nullptr.
         **/
-        bool add_derivative_pipeline_from_pipeline(bool                               disable_optimizations,
-                                                   bool                               allow_derivatives,
-                                                   std::shared_ptr<RenderPass>        renderpass_ptr,
-                                                   SubPassID                          subpass_id,
-                                                   const ShaderModuleStageEntryPoint& fragment_shader_stage_entrypoint_info,
-                                                   const ShaderModuleStageEntryPoint& geometry_shader_stage_entrypoint_info,
-                                                   const ShaderModuleStageEntryPoint& tess_control_shader_stage_entrypoint_info,
-                                                   const ShaderModuleStageEntryPoint& tess_evaluation_shader_stage_entrypoint_info,
-                                                   const ShaderModuleStageEntryPoint& vertex_shader_shader_stage_entrypoint_info,
-                                                   VkPipeline                         base_pipeline,
+        bool add_derivative_pipeline_from_pipeline(bool                               in_disable_optimizations,
+                                                   bool                               in_allow_derivatives,
+                                                   std::shared_ptr<RenderPass>        in_renderpass_ptr,
+                                                   SubPassID                          in_subpass_id,
+                                                   const ShaderModuleStageEntryPoint& in_fragment_shader_stage_entrypoint_info,
+                                                   const ShaderModuleStageEntryPoint& in_geometry_shader_stage_entrypoint_info,
+                                                   const ShaderModuleStageEntryPoint& in_tess_control_shader_stage_entrypoint_info,
+                                                   const ShaderModuleStageEntryPoint& in_tess_evaluation_shader_stage_entrypoint_info,
+                                                   const ShaderModuleStageEntryPoint& in_vertex_shader_shader_stage_entrypoint_info,
+                                                   VkPipeline                         in_base_pipeline,
                                                    GraphicsPipelineID*                out_graphics_pipeline_id_ptr);
 
         /**  Registers a new proxy pipeline. A proxy pipeline cannot be baked, but it can hold state data and act
@@ -215,42 +215,42 @@ namespace Anvil
 
         /** Adds a new non-derivative pipeline, to be used the specified renderpass' subpass.
          *
-         *  @param disable_optimizations                        If true, the pipeline will be created with the 
-         *                                                      VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT flag.
-         *  @param allow_derivatives                            If true, the pipeline will be created with the
-         *                                                      VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT flag.
-         *  @param renderpass_ptr                               Renderpass instance the pipeline is to be created for. Must not be nullptr.
-         *                                                      The renderpass instance will be implicitly retained.
-         *  @param subpass_id                                   ID of the subpass the pipeline is to be created for.
-         *  @param fragment_shader_stage_entrypoint_info        Fragment shader to use for the pipeline. Pass an instance initialized with
-         *                                                      dummy constructor if the stage is irrelevant.
-         *  @param geometry_shader_stage_entrypoint_info        Geometry shader to use for the pipeline. Pass an instance initialized with
-         *                                                      dummy constructor if the stage is irrelevant.
-         *  @param tess_control_shader_stage_entrypoint_info    Tessellation control shader to use for the pipeline. Pass an instance initialized with
-         *                                                      dummy constructor if the stage is irrelevant.
-         *  @param tess_evaluation_shader_stage_entrypoint_info Tessellation evaluation shader to use for the pipeline. Pass an instance initialized
-         *                                                      with dummy constructor if the stage is irrelevant.
-         *  @param vertex_shader_stage_entrypoint_info          Vertex shader to use for the pipeline. Must not be a dummy shader stage descriptor.
-         *  @param out_graphics_pipeline_id_ptr                 Deref will be set to the new graphics pipeline's ID. Must not be nullptr.
+         *  @param in_disable_optimizations                        If true, the pipeline will be created with the 
+         *                                                         VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT flag.
+         *  @param in_allow_derivatives                            If true, the pipeline will be created with the
+         *                                                         VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT flag.
+         *  @param in_renderpass_ptr                               Renderpass instance the pipeline is to be created for. Must not be nullptr.
+         *                                                         The renderpass instance will be implicitly retained.
+         *  @param in_subpass_id                                   ID of the subpass the pipeline is to be created for.
+         *  @param in_fragment_shader_stage_entrypoint_info        Fragment shader to use for the pipeline. Pass an instance initialized with
+         *                                                         dummy constructor if the stage is irrelevant.
+         *  @param in_geometry_shader_stage_entrypoint_info        Geometry shader to use for the pipeline. Pass an instance initialized with
+         *                                                         dummy constructor if the stage is irrelevant.
+         *  @param in_tess_control_shader_stage_entrypoint_info    Tessellation control shader to use for the pipeline. Pass an instance initialized with
+         *                                                         dummy constructor if the stage is irrelevant.
+         *  @param in_tess_evaluation_shader_stage_entrypoint_info Tessellation evaluation shader to use for the pipeline. Pass an instance initialized
+         *                                                         with dummy constructor if the stage is irrelevant.
+         *  @param in_vertex_shader_stage_entrypoint_info          Vertex shader to use for the pipeline. Must not be a dummy shader stage descriptor.
+         *  @param out_graphics_pipeline_id_ptr                    Deref will be set to the new graphics pipeline's ID. Must not be nullptr.
          **/
-        bool add_regular_pipeline(bool                               disable_optimizations,
-                                  bool                               allow_derivatives,
-                                  std::shared_ptr<RenderPass>        renderpass_ptr,
-                                  SubPassID                          subpass_id,
-                                  const ShaderModuleStageEntryPoint& fragment_shader_stage_entrypoint_info,
-                                  const ShaderModuleStageEntryPoint& geometry_shader_stage_entrypoint_info,
-                                  const ShaderModuleStageEntryPoint& tess_control_shader_stage_entrypoint_info,
-                                  const ShaderModuleStageEntryPoint& tess_evaluation_shader_stage_entrypoint_info,
-                                  const ShaderModuleStageEntryPoint& vertex_shader_shader_stage_entrypoint_info,
+        bool add_regular_pipeline(bool                               in_disable_optimizations,
+                                  bool                               in_allow_derivatives,
+                                  std::shared_ptr<RenderPass>        in_renderpass_ptr,
+                                  SubPassID                          in_subpass_id,
+                                  const ShaderModuleStageEntryPoint& in_fragment_shader_stage_entrypoint_info,
+                                  const ShaderModuleStageEntryPoint& in_geometry_shader_stage_entrypoint_info,
+                                  const ShaderModuleStageEntryPoint& in_tess_control_shader_stage_entrypoint_info,
+                                  const ShaderModuleStageEntryPoint& in_tess_evaluation_shader_stage_entrypoint_info,
+                                  const ShaderModuleStageEntryPoint& in_vertex_shader_shader_stage_entrypoint_info,
                                   GraphicsPipelineID*                out_graphics_pipeline_id_ptr);
 
         /** Deletes an existing pipeline.
         *
-        *  @param pipeline_id ID of a pipeline to delete.
+        *  @param in_graphics_pipeline_id ID of a pipeline to delete.
         *
         *  @return true if successful, false otherwise.
         **/
-        bool delete_pipeline(GraphicsPipelineID graphics_pipeline_id);
+        bool delete_pipeline(GraphicsPipelineID in_graphics_pipeline_id);
 
         /** Adds a new vertex attribute descriptor to the specified graphics pipeline. This data will be used
          *  at baking time to configure input vertex attribute & bindings for the Vulkan pipeline object.
@@ -258,31 +258,31 @@ namespace Anvil
          *  By default, Anvil only assigns a unique binding to those vertex attributes, whose characteristics
          *  are unique (ie. whose input rate & stride match). This works well for most of the use cases, the
          *  only exception being when you need to associate a unique offset to a specific vertex binding. In
-         *  this case, you need to set @param explicit_binding_index to an index, under which your exclusive
+         *  this case, you need to set @param in_explicit_binding_index to an index, under which your exclusive
          *  binding is going to be stored.
          *  When preparing the binding array, Anvil will not reuse user-specified "explicit" bindings for
          *  attributes, for which "explicit" bindings have not been requested, even if their properties match. 
          *
          *
-         *  @param graphics_pipeine_id    ID of the graphics pipeline object, whose state should be changed. The ID
-         *                                must have been returned by one of the add_() functions, issued against the
-         *                                same GraphicsPipelineManager instance.
-         *  @param location               Vertex attribute location
-         *  @param format                 Vertex attribute format.
-         *  @param offset_in_bytes        Start offset of the vertex attribute data.
-         *  @param stride_in_bytes        Stride of the vertex attribute data.
-         *  @param step_rate              Step rate to use for the vertex attribute data.
-         *  @param explicit_binding_index Please see general description of the function for more details.
+         *  @param in_graphics_pipeine_id    ID of the graphics pipeline object, whose state should be changed. The ID
+         *                                   must have been returned by one of the add_() functions, issued against the
+         *                                   same GraphicsPipelineManager instance.
+         *  @param in_location               Vertex attribute location
+         *  @param in_format                 Vertex attribute format.
+         *  @param in_offset_in_bytes        Start offset of the vertex attribute data.
+         *  @param in_stride_in_bytes        Stride of the vertex attribute data.
+         *  @param in_step_rate              Step rate to use for the vertex attribute data.
+         *  @param in_explicit_binding_index Please see general description of the function for more details.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool add_vertex_attribute(GraphicsPipelineID graphics_pipeline_id,
-                                  uint32_t           location,
-                                  VkFormat           format,
-                                  uint32_t           offset_in_bytes,
-                                  uint32_t           stride_in_bytes,
-                                  VkVertexInputRate  step_rate,
-                                  uint32_t           explicit_binding_index = UINT32_MAX);
+        bool add_vertex_attribute(GraphicsPipelineID in_graphics_pipeline_id,
+                                  uint32_t           in_location,
+                                  VkFormat           in_format,
+                                  uint32_t           in_offset_in_bytes,
+                                  uint32_t           in_stride_in_bytes,
+                                  VkVertexInputRate  in_step_rate,
+                                  uint32_t           in_explicit_binding_index = UINT32_MAX);
 
         /** Generates a VkPipeline instance for each pipeline object marked as dirty. If a dirty pipeline
          *  has already been baked in the past, the former object instance is released.
@@ -293,29 +293,29 @@ namespace Anvil
 
         /** Tells whether the graphics pipeline has been created with enabled alpha-to-coverage mode.
          *
-         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
-         *  @param out_opt_is_enabled_ptr If not NULL, deref will be set to true if the mode has been
-         *                                enabled for the pipeline, or to false otherwise.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr  If not NULL, deref will be set to true if the mode has been
+         *                                 enabled for the pipeline, or to false otherwise.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_alpha_to_coverage_state(GraphicsPipelineID graphics_pipeline_id,
+        bool get_alpha_to_coverage_state(GraphicsPipelineID in_graphics_pipeline_id,
                                          bool*              out_opt_is_enabled_ptr) const;
 
         /** Tells whether the graphics pipeline has been created with enabled alpha-to-one mode.
          *
-         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
-         *  @param out_opt_is_enabled_ptr If not NULL, deref will be set to true if the mode has been
-         *                                enabled for the pipeline, or to false otherwise.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr  If not NULL, deref will be set to true if the mode has been
+         *                                 enabled for the pipeline, or to false otherwise.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_alpha_to_one_state(GraphicsPipelineID graphics_pipeline_id,
+        bool get_alpha_to_one_state(GraphicsPipelineID in_graphics_pipeline_id,
                                     bool*              out_opt_is_enabled_ptr) const;
 
         /** Retrieves blending properties of the specified graphics pipeline.
          *
-         *  @param graphics_pipeline_id            ID of the graphics pipeline the query is being made for.
+         *  @param in_graphics_pipeline_id         ID of the graphics pipeline the query is being made for.
          *  @param out_opt_blend_constant_vec4_ptr If not NULL, deref will be assigned four float values
          *                                         representing the blend constant.
          *  @param out_opt_n_blend_attachments_ptr If not NULL, deref will be set to the number of blend
@@ -323,15 +323,15 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise
          **/
-        bool get_blending_properties(GraphicsPipelineID graphics_pipeline_id,
+        bool get_blending_properties(GraphicsPipelineID in_graphics_pipeline_id,
                                      float*             out_opt_blend_constant_vec4_ptr,
                                      uint32_t*          out_opt_n_blend_attachments_ptr) const;
 
         /** Retrieves color blend attachment properties for the specified graphics pipeline and subpass
          *  attachment.
          *
-         *  @param graphics_pipeline_id               ID of the graphics pipeline the query is being made for.
-         *  @param attachment_id                      ID of the attachment the query is being made for.
+         *  @param in_graphics_pipeline_id            ID of the graphics pipeline the query is being made for.
+         *  @param in_attachment_id                   ID of the attachment the query is being made for.
          *  @param out_opt_blending_enabled_ptr       If not null, deref will be set to true if blending has been
          *                                            enabled for this pipeline, or to false otherwise.
          *  @param out_opt_blend_op_color_ptr         If not null, deref will be set to the specified attachment's
@@ -351,8 +351,8 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          */
-        bool get_color_blend_attachment_properties(GraphicsPipelineID     graphics_pipeline_id,
-                                                   SubPassAttachmentID    attachment_id,
+        bool get_color_blend_attachment_properties(GraphicsPipelineID     in_graphics_pipeline_id,
+                                                   SubPassAttachmentID    in_attachment_id,
                                                    bool*                  out_opt_blending_enabled_ptr,
                                                    VkBlendOp*             out_opt_blend_op_color_ptr,
                                                    VkBlendOp*             out_opt_blend_op_alpha_ptr,
@@ -364,7 +364,7 @@ namespace Anvil
 
         /** Retrieves depth bias-related state configuration for the specified graphics pipeline.
          *
-         *  @param graphics_pipeline_id                   ID of the graphics pipeline the query is being made for.
+         *  @param in_graphics_pipeline_id                ID of the graphics pipeline the query is being made for.
          *  @param out_opt_is_enabled_ptr                 If not null, deref will be set to true if depth bias has
          *                                                been enabled for the pipeline, or to false otherwise.
          *  @param out_opt_depth_bias_constant_factor_ptr If not null, deref will be set to the depth bias constant factor
@@ -376,7 +376,7 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_depth_bias_state(GraphicsPipelineID graphics_pipeline_id,
+        bool get_depth_bias_state(GraphicsPipelineID in_graphics_pipeline_id,
                                   bool*              out_opt_is_enabled_ptr,
                                   float*             out_opt_depth_bias_constant_factor_ptr,
                                   float*             out_opt_depth_bias_clamp_ptr,
@@ -384,7 +384,7 @@ namespace Anvil
 
         /** Retrieves depth bounds-related state configuration for the specified graphics pipeline.
          *
-         *  @param graphics_pipeline_id         ID of the graphics pipeline the query is being made for.
+         *  @param in_graphics_pipeline_id      ID of the graphics pipeline the query is being made for.
          *  @param out_opt_is_enabled_ptr       If not null, deref will be set to true if depth bounds mode
          *                                      has been enabled for the pipeline, or to false otherwise.
          *  @param out_opt_min_depth_bounds_ptr If not null, deref will be set to the minimum depth bound value
@@ -394,85 +394,85 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_depth_bounds_state(GraphicsPipelineID graphics_pipeline_id,
+        bool get_depth_bounds_state(GraphicsPipelineID in_graphics_pipeline_id,
                                     bool*              out_opt_is_enabled_ptr,
                                     float*             out_opt_min_depth_bounds_ptr,
                                     float*             out_opt_max_depth_bounds_ptr) const;
 
         /** Tells whether the graphics pipeline has been created with enabled depth clamping.
          *
-         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
-         *  @param out_opt_is_enabled_ptr If not NULL, deref will be set to true if depth clampnig has
-         *                                been enabled for the pipeline, or to false otherwise.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr  If not NULL, deref will be set to true if depth clampnig has
+         *                                 been enabled for the pipeline, or to false otherwise.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_depth_clamp_state(GraphicsPipelineID graphics_pipeline_id,
+        bool get_depth_clamp_state(GraphicsPipelineID in_graphics_pipeline_id,
                                    bool*              out_opt_is_enabled_ptr) const;
 
         /** Retrieves depth test-related state configuration for the specified graphics pipeline.
          *
-         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
-         *  @param out_opt_is_enabled_ptr If not null, deref will be set to true if depth test has been
-         *                                enabled for the pipeline, or to false otherwise.
-         *  @param out_opt_compare_op_ptr If not null, deref will be set to the depth compare op assigned
-         *                                to the pipeline.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr  If not null, deref will be set to true if depth test has been
+         *                                 enabled for the pipeline, or to false otherwise.
+         *  @param out_opt_compare_op_ptr  If not null, deref will be set to the depth compare op assigned
+         *                                 to the pipeline.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_depth_test_state(GraphicsPipelineID graphics_pipeline_id,
+        bool get_depth_test_state(GraphicsPipelineID in_graphics_pipeline_id,
                                   bool*              out_opt_is_enabled_ptr,
                                   VkCompareOp*       out_opt_compare_op_ptr) const;
 
         /** Tells whether the graphics pipeline has been created with enabled depth writes.
          *
-         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
-         *  @param out_opt_is_enabled_ptr If not NULL, deref will be set to true if depth writes have
-         *                                been enabled for the pipeline, or to false otherwise.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr  If not NULL, deref will be set to true if depth writes have
+         *                                 been enabled for the pipeline, or to false otherwise.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_depth_write_state(GraphicsPipelineID graphics_pipeline_id,
+        bool get_depth_write_state(GraphicsPipelineID in_graphics_pipeline_id,
                                    bool*              out_opt_is_enabled_ptr) const;
 
         /** Tells the number of dynamic scissor boxes, as specified at graphics pipeline instantiation time
          *
-         *  @param graphics_pipeline_id                ID of the graphics pipeline the query is being made for.
+         *  @param in_graphics_pipeline_id             ID of the graphics pipeline the query is being made for.
          *  @param out_opt_n_dynamic_scissor_boxes_ptr If not null, deref will be set to the number of dynamic
          *                                             scissor boxes used by the pipeline.
          *
          *  @return true if successful, false otherwise.
          *
          **/
-        bool get_dynamic_scissor_state_properties(GraphicsPipelineID graphics_pipeline_id,
+        bool get_dynamic_scissor_state_properties(GraphicsPipelineID in_graphics_pipeline_id,
                                                   uint32_t*          out_opt_n_dynamic_scissor_boxes_ptr) const;
 
         /** Tells what dynamic states have been enabled for the specified graphics pipeline.
          *
-         *  @param graphics_pipeline_id               ID of the graphics pipeline the query is being made for.
+         *  @param in_graphics_pipeline_id            ID of the graphics pipeline the query is being made for.
          *  @param out_opt_enabled_dynamic_states_ptr If not null, deref will be updated with a bitfield value,
          *                                            telling which dynamic states have been enabled for the pipeline.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_dynamic_states(GraphicsPipelineID    graphics_pipeline_id,
+        bool get_dynamic_states(GraphicsPipelineID    in_graphics_pipeline_id,
                                 DynamicStateBitfield* out_opt_enabled_dynamic_states_ptr) const;
 
         /** Tells the number of dynamic viewports, as specified at graphics pipeline instantiation time
          *
-         *  @param graphics_pipeline_id            ID of the graphics pipeline the query is being made for.
+         *  @param in_graphics_pipeline_id         ID of the graphics pipeline the query is being made for.
          *  @param out_opt_n_dynamic_viewports_ptr If not null, deref will be set to the number of dynamic viewports
          *                                         used by the pipeline.
          *
          *  @return true if successful, false otherwise.
          *
          **/
-        bool get_dynamic_viewport_state_properties(GraphicsPipelineID graphics_pipeline_id,
+        bool get_dynamic_viewport_state_properties(GraphicsPipelineID in_graphics_pipeline_id,
                                                    uint32_t*          out_n_dynamic_viewports_ptr) const;
 
         /** Retrieves general pipeline properties
          *
-         *  @param graphics_pipeline_id                  ID of the graphics pipeline the query is being made for.
+         *  @param in_graphics_pipeline_id               ID of the graphics pipeline the query is being made for.
          *  @param out_opt_n_scissors_ptr                If not null, deref will be set to the number of scissors used
          *                                               by the pipeline.
          *  @param out_opt_n_viewports_ptr               If not null, deref will be set to the number of viewports used
@@ -488,7 +488,7 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_graphics_pipeline_properties(Anvil::GraphicsPipelineID    graphics_pipeline_id,
+        bool get_graphics_pipeline_properties(Anvil::GraphicsPipelineID    in_graphics_pipeline_id,
                                               uint32_t*                    out_opt_n_scissors_ptr,
                                               uint32_t*                    out_opt_n_viewports_ptr,
                                               uint32_t*                    out_opt_n_vertex_input_attributes_ptr,
@@ -499,53 +499,53 @@ namespace Anvil
         /** Returns a VkPipeline instance for the specified graphics pipeline ID. If the pipeline is marked as dirty,
          *  the Vulkan object will be created before returning after former instance is released.
          *
-         *  @param pipeline_id ID of the pipeline to return the VkPipeline instance for. Must not describe
-         *                     a proxy pipeline.
+         *  @param in_pipeline_id ID of the pipeline to return the VkPipeline instance for. Must not describe
+         *                        a proxy pipeline.
          *
          *  @return As per description.
          **/
-        VkPipeline get_graphics_pipeline(GraphicsPipelineID pipeline_id);
+        VkPipeline get_graphics_pipeline(GraphicsPipelineID in_pipeline_id);
 
         /** Retrieves a PipelineLayout instance associated with the specified pipeline ID.
          *
          *  The function will bake a pipeline object (and, possibly, a pipeline layout object, too) if
          *  the specified pipeline is marked as dirty.
          *
-         *  @param pipeline_id ID of the pipeline to return the wrapper instance for.
-         *                     Must not describe a proxy pipeline.
+         *  @param in_pipeline_id ID of the pipeline to return the wrapper instance for.
+         *                        Must not describe a proxy pipeline.
          *
          *  @return Ptr to a PipelineLayout instance or nullptr if the function failed.
          **/
-        std::shared_ptr<Anvil::PipelineLayout> get_graphics_pipeline_layout(GraphicsPipelineID pipeline_id);
+        std::shared_ptr<Anvil::PipelineLayout> get_graphics_pipeline_layout(GraphicsPipelineID in_pipeline_id);
 
         /** Tells what primitive topology the specified graphics pipeline has been created for.
          *
-         *  @param graphics_pipeline_id           ID of the graphics pipeline the query is being made for.
+         *  @param in_graphics_pipeline_id        ID of the graphics pipeline the query is being made for.
          *  @param out_opt_primitive_topology_ptr If not null, deref will be set to primitive topology, as specified
          *                                        at creation time.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_input_assembly_properties(GraphicsPipelineID   graphics_pipeline_id,
+        bool get_input_assembly_properties(GraphicsPipelineID   in_graphics_pipeline_id,
                                            VkPrimitiveTopology* out_opt_primitive_topology_ptr) const;
 
         /** Retrieves logic op-related state configuration for the specified graphics pipeline.
          *
-         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
-         *  @param out_opt_is_enabled_ptr If not null, deref will be set to true if the logic op has
-         *                                been enabled for the pipeline, or to false otherwise.
-         *  @param out_opt_logic_op_ptr   If not null, deref will be set to the logic op enum, specified
-         *                                at creation time.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr  If not null, deref will be set to true if the logic op has
+         *                                 been enabled for the pipeline, or to false otherwise.
+         *  @param out_opt_logic_op_ptr    If not null, deref will be set to the logic op enum, specified
+         *                                 at creation time.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_logic_op_state(GraphicsPipelineID graphics_pipeline_id,
+        bool get_logic_op_state(GraphicsPipelineID in_graphics_pipeline_id,
                                 bool*              out_opt_is_enabled_ptr,
                                 VkLogicOp*         out_opt_logic_op_ptr) const;
 
         /** Retrieves multisampling-related state configuration for the specified graphics pipeline.
          *
-         *  @param graphics_pipeline_id     ID of the graphics pipeline the query is being made for.
+         *  @param in_graphics_pipeline_id  ID of the graphics pipeline the query is being made for.
          *  @param out_opt_sample_count_ptr If not null, deref will be set to the enum value telling
          *                                  the sample count assigned to the pipeline.
          *  @param out_opt_sample_mask_ptr  If not null, deref will be set to the sample mask assigned
@@ -553,47 +553,47 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_multisampling_properties(GraphicsPipelineID  graphics_pipeline_id,
+        bool get_multisampling_properties(GraphicsPipelineID  in_graphics_pipeline_id,
                                           VkSampleCountFlags* out_opt_sample_count_ptr,
                                           VkSampleMask*       out_opt_sample_mask_ptr) const;
 
         /** Tells whether the graphics pipeline has been created with enabled primitive restart mode.
          *
-         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
-         *  @param out_opt_is_enabled_ptr If not NULL, deref will be set to true if primitive restart has
-         *                                been enabled for the pipeline, or to false otherwise.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr  If not NULL, deref will be set to true if primitive restart has
+         *                                 been enabled for the pipeline, or to false otherwise.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_primitive_restart_state(GraphicsPipelineID graphics_pipeline_id,
+        bool get_primitive_restart_state(GraphicsPipelineID in_graphics_pipeline_id,
                                          bool*              out_opt_is_enabled_ptr) const;
 
         /** Tells what rasterization order the graphics pipeline has been created for.
          *
-         *  @param graphics_pipeline_id            ID of the graphics pipeline the query is being made for.
+         *  @param in_graphics_pipeline_id         ID of the graphics pipeline the query is being made for.
          *  @param out_opt_rasterization_order_ptr If not null, deref will be set to the rasterization order
          *                                         assigned to the pipeline.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_rasterization_order(GraphicsPipelineID       graphics_pipeline_id,
+        bool get_rasterization_order(GraphicsPipelineID       in_graphics_pipeline_id,
                                      VkRasterizationOrderAMD* out_opt_rasterization_order_ptr) const;
 
         /** Tells whether the graphics pipeline has been created with enabled rasterizer discard mode.
          *
-         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
-         *  @param out_opt_is_enabled_ptr If not NULL, deref will be set to true if the mode has been
-         *                                enabled for the pipeline, or to false otherwise.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline the query is being made for.
+         *  @param out_opt_is_enabled_ptr  If not NULL, deref will be set to true if the mode has been
+         *                                 enabled for the pipeline, or to false otherwise.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_rasterizer_discard_state(GraphicsPipelineID graphics_pipeline_id,
+        bool get_rasterizer_discard_state(GraphicsPipelineID in_graphics_pipeline_id,
                                           bool*              out_opt_is_enabled_ptr) const;
 
         /** Retrieves various properties of the specified graphics pipeline which are related to
          *  rasterization.
          *
-         *  @param graphics_pipeline_id     ID of the graphics pipeline the query is being made for.
+         *  @param in_graphics_pipeline_id  ID of the graphics pipeline the query is being made for.
          *  @param out_opt_polygon_mode_ptr If not null, deref will be set to polygon mode used by the
          *                                  pipeline.
          *  @param out_opt_cull_mode_ptr    If not null, deref will be set to cull mode used by the
@@ -605,7 +605,7 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_rasterization_properties(GraphicsPipelineID graphics_pipeline_id,
+        bool get_rasterization_properties(GraphicsPipelineID in_graphics_pipeline_id,
                                           VkPolygonMode*     out_opt_polygon_mode_ptr,
                                           VkCullModeFlags*   out_opt_cull_mode_ptr,
                                           VkFrontFace*       out_opt_front_face_ptr,
@@ -613,7 +613,7 @@ namespace Anvil
 
         /** Retrieves state configuration related to per-sample shading for the specified graphics pipeline.
          *
-         *  @param graphics_pipeline_id           ID of the graphics pipeline the query is being made for.
+         *  @param in_graphics_pipeline_id        ID of the graphics pipeline the query is being made for.
          *  @param out_opt_is_enabled_ptr         If not null, deref will be set to true if per-sample shading
          *                                        is enabled for the pipeline.
          *  @param out_opt_min_sample_shading_ptr If not null, deref will be set to the minimum sample shading value,
@@ -621,23 +621,23 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_sample_shading_state(GraphicsPipelineID graphics_pipeline_id,
+        bool get_sample_shading_state(GraphicsPipelineID in_graphics_pipeline_id,
                                       bool*              out_opt_is_enabled_ptr,
                                       float*             out_opt_min_sample_shading_ptr) const;
 
         /** Retrieves properties of a scissor box at a given index for the specified graphics pipeline.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline the query is being made for.
-         *  @param n_scissor_box        Index of the scissor box to retrieve data of.
-         *  @param out_opt_x_ptr        If not null, deref will be set to X offset of the scissor box.
-         *  @param out_opt_y_ptr        If not null, deref will be set to Y offset of the scissor box.
-         *  @param out_opt_width_ptr    If not null, deref will be set to width of the scissor box.
-         *  @param out_opt_height_ptr   If not null, deref will be set to height of the scissor box.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline the query is being made for.
+         *  @param in_n_scissor_box        Index of the scissor box to retrieve data of.
+         *  @param out_opt_x_ptr           If not null, deref will be set to X offset of the scissor box.
+         *  @param out_opt_y_ptr           If not null, deref will be set to Y offset of the scissor box.
+         *  @param out_opt_width_ptr       If not null, deref will be set to width of the scissor box.
+         *  @param out_opt_height_ptr      If not null, deref will be set to height of the scissor box.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_scissor_box_properties(GraphicsPipelineID graphics_pipeline_id,
-                                        uint32_t           n_scissor_box,
+        bool get_scissor_box_properties(GraphicsPipelineID in_graphics_pipeline_id,
+                                        uint32_t           in_n_scissor_box,
                                         int32_t*           out_opt_x_ptr,
                                         int32_t*           out_opt_y_ptr,
                                         uint32_t*          out_opt_width_ptr,
@@ -645,7 +645,7 @@ namespace Anvil
 
         /** Retrieves stencil test-related state configuration for the specified graphics pipeline.
          *
-         *  @param graphics_pipeline_id                    ID of the graphics pipeline the query is being
+         *  @param in_graphics_pipeline_id                 ID of the graphics pipeline the query is being
          *                                                 made for.
          *  @param out_opt_is_enabled_ptr                  If not null, deref will be set to true if stencil test
          *                                                 has been enabled for the pipeline.
@@ -680,7 +680,7 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_stencil_test_properties(GraphicsPipelineID graphics_pipeline_id,
+        bool get_stencil_test_properties(GraphicsPipelineID in_graphics_pipeline_id,
                                          bool*              out_opt_is_enabled_ptr,
                                          VkStencilOp*       out_opt_front_stencil_fail_op_ptr,
                                          VkStencilOp*       out_opt_front_stencil_pass_op_ptr,
@@ -700,28 +700,28 @@ namespace Anvil
         /** Tells the number of patch control points, as specified at creation time for the specified
          *  graphics pipeline.
          *
-         *  @param graphics_pipeline_id               ID of the graphics pipeline the query is being made for.
+         *  @param in_graphics_pipeline_id            ID of the graphics pipeline the query is being made for.
          *  @param out_opt_n_patch_control_points_ptr If not null, deref will be set to the number of patch control points,
          *                                            as specified at creation time.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_tessellation_properties(GraphicsPipelineID graphics_pipeline_id,
+        bool get_tessellation_properties(GraphicsPipelineID in_graphics_pipeline_id,
                                          uint32_t*          out_opt_n_patch_control_points_ptr) const;
 
         /** Returns properties of a vertex attribute at a given index for the specified graphics pipeline.
          *
-         *  @param graphics_pipeline_id     ID of the graphics pipeline the query is being made for.
-         *  @param n_vertex_input_attribute Index of the vertex attribute to retrieve info of.
-         *  @param out_opt_location_ptr     If not null, deref will be set to the specified attribute's location.
-         *  @param out_opt_binding_ptr      If not null, deref will be set to the specified attribute's binding index.
-         *  @param out_opt_format_ptr       If not null, deref will be set to the specified attribute's format.
-         *  @param out_opt_offset_ptr       If not null, deref will be set to the specified attribute's start offset.
+         *  @param in_graphics_pipeline_id     ID of the graphics pipeline the query is being made for.
+         *  @param in_n_vertex_input_attribute Index of the vertex attribute to retrieve info of.
+         *  @param out_opt_location_ptr        If not null, deref will be set to the specified attribute's location.
+         *  @param out_opt_binding_ptr         If not null, deref will be set to the specified attribute's binding index.
+         *  @param out_opt_format_ptr          If not null, deref will be set to the specified attribute's format.
+         *  @param out_opt_offset_ptr          If not null, deref will be set to the specified attribute's start offset.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_vertex_input_attribute_properties(GraphicsPipelineID graphics_pipeline_id,
-                                                   uint32_t           n_vertex_input_attribute,
+        bool get_vertex_input_attribute_properties(GraphicsPipelineID in_graphics_pipeline_id,
+                                                   uint32_t           in_n_vertex_input_attribute,
                                                    uint32_t*          out_opt_location_ptr,
                                                    uint32_t*          out_opt_binding_ptr,
                                                    VkFormat*          out_opt_format_ptr,
@@ -732,48 +732,48 @@ namespace Anvil
          *  This function may trigger baking of one or more graphics pipelines, if the user-specified graphics pipeline
          *  is marked as dirty.
          *
-         *  @param graphics_pipeline_id                   ID of the graphics pipeline the query is being made for.
-         *  @param input_vertex_attribute_location        Location of the queried vertex attribute.
+         *  @param in_graphics_pipeline_id                ID of the graphics pipeline the query is being made for.
+         *  @param in_input_vertex_attribute_location     Location of the queried vertex attribute.
          *  @param out_input_vertex_attribute_binding_ptr Deref will be set to the index of the input vertex binding,
          *                                                assigned to the vertex attribute. Must not be null.
          *
          *  @return true if successful, false otherwise.
          */
-        bool get_vertex_input_binding_for_attribute_location(GraphicsPipelineID graphics_pipeline_id,
-                                                             uint32_t           input_vertex_attribute_location,
+        bool get_vertex_input_binding_for_attribute_location(GraphicsPipelineID in_graphics_pipeline_id,
+                                                             uint32_t           in_input_vertex_attribute_location,
                                                              uint32_t*          out_input_vertex_binding_ptr);
 
         /** Returns properties of a vertex binding at a given index for the specified graphics pipeline.
          *
-         *  @param graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
-         *  @param n_vertex_input_binding Index of the vertex binding to retrieve info of.
-         *  @param out_opt_binding_ptr    If not null, deref will be set to the specified binding's index.
-         *  @param out_opt_stride_ptr     If not null, deref will be set to the specified binding's stride.
-         *  @param out_opt_input_rate_ptr If not null, deref will be set to the specified binding's input rate.
+         *  @param in_graphics_pipeline_id   ID of the graphics pipeline the query is being made for.
+         *  @param in_n_vertex_input_binding Index of the vertex binding to retrieve info of.
+         *  @param out_opt_binding_ptr       If not null, deref will be set to the specified binding's index.
+         *  @param out_opt_stride_ptr        If not null, deref will be set to the specified binding's stride.
+         *  @param out_opt_input_rate_ptr    If not null, deref will be set to the specified binding's input rate.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_vertex_input_binding_properties(GraphicsPipelineID graphics_pipeline_id,
-                                                 uint32_t           n_vertex_input_binding,
+        bool get_vertex_input_binding_properties(GraphicsPipelineID in_graphics_pipeline_id,
+                                                 uint32_t           in_n_vertex_input_binding,
                                                  uint32_t*          out_opt_binding_ptr,
                                                  uint32_t*          out_opt_stride_ptr,
                                                  VkVertexInputRate* out_opt_input_rate_ptr) const;
 
         /** Retrieves properties of a viewport at a given index for the specified graphics pipeline.
          *
-         *  @param graphics_pipeline_id  ID of the graphics pipeline the query is being made for.
-         *  @param n_viewport            Index of the viewport to retrieve properties of.
-         *  @param out_opt_origin_x_ptr  If not null, deref will be set to the viewport's X origin.
-         *  @param out_opt_origin_y_ptr  If not null, deref will be set to the viewport's Y origin.
-         *  @param out_opt_width_ptr     If not null, deref will be set to the viewport's width.
-         *  @param out_opt_height_ptr    If not null, deref will be set to the viewport's height.
-         *  @param out_opt_min_depth_ptr If not null, deref will be set to the viewport's minimum depth value.
-         *  @param out_opt_max_depth_ptr If not null, deref will be set to the viewport's maximum depth value.
+         *  @param in_graphics_pipeline_id  ID of the graphics pipeline the query is being made for.
+         *  @param in_n_viewport            Index of the viewport to retrieve properties of.
+         *  @param out_opt_origin_x_ptr     If not null, deref will be set to the viewport's X origin.
+         *  @param out_opt_origin_y_ptr     If not null, deref will be set to the viewport's Y origin.
+         *  @param out_opt_width_ptr        If not null, deref will be set to the viewport's width.
+         *  @param out_opt_height_ptr       If not null, deref will be set to the viewport's height.
+         *  @param out_opt_min_depth_ptr    If not null, deref will be set to the viewport's minimum depth value.
+         *  @param out_opt_max_depth_ptr    If not null, deref will be set to the viewport's maximum depth value.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_viewport_properties(GraphicsPipelineID graphics_pipeline_id,
-                                     uint32_t           n_viewport,
+        bool get_viewport_properties(GraphicsPipelineID in_graphics_pipeline_id,
+                                     uint32_t           in_n_viewport,
                                      float*             out_opt_origin_x_ptr,
                                      float*             out_opt_origin_y_ptr,
                                      float*             out_opt_width_ptr,
@@ -783,79 +783,79 @@ namespace Anvil
 
         /** Sets a new blend constant for the specified graphics pipeline and marks the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param blend_constant_vec4  4 floats, specifying the constant. Must not be nullptr.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_blend_constant_vec4  4 floats, specifying the constant. Must not be nullptr.
          *
          **/
-        void set_blending_properties(GraphicsPipelineID graphics_pipeline_id,
-                                     const float*       blend_constant_vec4);
+        void set_blending_properties(GraphicsPipelineID in_graphics_pipeline_id,
+                                     const float*       in_blend_constant_vec4);
 
         /** Updates color blend properties for the specified sub-pass attachment, and marks the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id    ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                                 call, issued against the same GraphicsPipelineManager instance.
-         *  @param attachment_id           ID of the subpass attachment, for which the color blend properties should be applied.
-         *  @param blending_enabled        true if blending should be enabled for the specified attachment, false otherwise.
-         *  @param blend_op_color          Blend operation color to use for the attachment.
-         *  @param blend_op_alpha          Blend operation alpha to use for the attachment.
-         *  @param src_color_blend_factor  Source blend factor for color components.
-         *  @param dst_color_blend_factor  Destination blend factor for color components.
-         *  @param src_alpha_blend_factor  Source blend factor for the alpha component.
-         *  @param dst_alpha_blend_factor  Destination blend factor for the alpha component.
-         *  @param channel_write_mask      Component write mask to use for the attachment.
+         *  @param in_graphics_pipeline_id    ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                    call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_attachment_id           ID of the subpass attachment, for which the color blend properties should be applied.
+         *  @param in_blending_enabled        true if blending should be enabled for the specified attachment, false otherwise.
+         *  @param in_blend_op_color          Blend operation color to use for the attachment.
+         *  @param in_blend_op_alpha          Blend operation alpha to use for the attachment.
+         *  @param in_src_color_blend_factor  Source blend factor for color components.
+         *  @param in_dst_color_blend_factor  Destination blend factor for color components.
+         *  @param in_src_alpha_blend_factor  Source blend factor for the alpha component.
+         *  @param in_dst_alpha_blend_factor  Destination blend factor for the alpha component.
+         *  @param in_channel_write_mask      Component write mask to use for the attachment.
          *
          **/
-        void set_color_blend_attachment_properties(GraphicsPipelineID    graphics_pipeline_id,
-                                                   SubPassAttachmentID   attachment_id,
-                                                   bool                  blending_enabled,
-                                                   VkBlendOp             blend_op_color,
-                                                   VkBlendOp             blend_op_alpha,
-                                                   VkBlendFactor         src_color_blend_factor,
-                                                   VkBlendFactor         dst_color_blend_factor,
-                                                   VkBlendFactor         src_alpha_blend_factor,
-                                                   VkBlendFactor         dst_alpha_blend_factor,
-                                                   VkColorComponentFlags channel_write_mask);
+        void set_color_blend_attachment_properties(GraphicsPipelineID    in_graphics_pipeline_id,
+                                                   SubPassAttachmentID   in_attachment_id,
+                                                   bool                  in_blending_enabled,
+                                                   VkBlendOp             in_blend_op_color,
+                                                   VkBlendOp             in_blend_op_alpha,
+                                                   VkBlendFactor         in_src_color_blend_factor,
+                                                   VkBlendFactor         in_dst_color_blend_factor,
+                                                   VkBlendFactor         in_src_alpha_blend_factor,
+                                                   VkBlendFactor         in_dst_alpha_blend_factor,
+                                                   VkColorComponentFlags in_channel_write_mask);
 
         /** Updates the number of scissor boxes to be used, when dynamic scissor state is enabled.
          *
-         *  @param graphics_pipeline_id    ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                                 call, issued against the same GraphicsPipelineManager instance.
-         *  @param n_dynamic_scissor_boxes As per description.
+         *  @param in_graphics_pipeline_id    ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                    call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_n_dynamic_scissor_boxes As per description.
          */
-        void set_dynamic_scissor_state_properties(GraphicsPipelineID graphics_pipeline_id,
-                                                  uint32_t           n_dynamic_scissor_boxes);
+        void set_dynamic_scissor_state_properties(GraphicsPipelineID in_graphics_pipeline_id,
+                                                  uint32_t           in_n_dynamic_scissor_boxes);
 
         /** Updates the number of viewports to be used, when dynamic viewport state is enabled.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param n_dynamic_viewports  As per description.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_n_dynamic_viewports  As per description.
          */
-        void set_dynamic_viewport_state_properties(GraphicsPipelineID graphics_pipeline_id,
-                                                   uint32_t           n_dynamic_viewports);
+        void set_dynamic_viewport_state_properties(GraphicsPipelineID in_graphics_pipeline_id,
+                                                   uint32_t           in_n_dynamic_viewports);
 
         /** Sets the primitive topology to be used for the pipeline, and marks the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param primitive_topology   As per description.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_primitive_topology   As per description.
          */
-        void set_input_assembly_properties(GraphicsPipelineID  graphics_pipeline_id,
-                                           VkPrimitiveTopology primitive_topology);
+        void set_input_assembly_properties(GraphicsPipelineID  in_graphics_pipeline_id,
+                                           VkPrimitiveTopology in_primitive_topology);
 
         /** Sets a number of multisampling properties to be used for the pipeline, and marks the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param sample_count         Number of rasterization samples to be used (expressed as one of the enum values).
-         *  @param min_sample_shading   Minimum number of unique samples to shade for each fragment.
-         *  @param sample_mask          Sample mask to use.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_sample_count         Number of rasterization samples to be used (expressed as one of the enum values).
+         *  @param in_min_sample_shading   Minimum number of unique samples to shade for each fragment.
+         *  @param in_sample_mask          Sample mask to use.
          */
-        void set_multisampling_properties(GraphicsPipelineID    graphics_pipeline_id,
-                                          VkSampleCountFlagBits sample_count,
-                                          float                 min_sample_shading,
-                                          const VkSampleMask    sample_mask);
+        void set_multisampling_properties(GraphicsPipelineID    in_graphics_pipeline_id,
+                                          VkSampleCountFlagBits in_sample_count,
+                                          float                 in_min_sample_shading,
+                                          const VkSampleMask    in_sample_mask);
 
         /** Sets a call-back, which GFX pipeline manager will invoke right after a vkCreateGraphicsPipeline() call is made.
          *
@@ -863,15 +863,15 @@ namespace Anvil
          *
          *  This call overwrites any previous set_pipeline_post_bake_callback() calls.
          *
-         *  @param graphics_pipeline_id       ID of the graphics pipeline to set the call-back for.
-         *  @param pfn_pipeline_pre_bake_proc Function to call back. Must not be nullptr.
-         *  @param user_arg                   User argument to pass with the call-back. May be nullptr.
+         *  @param in_graphics_pipeline_id       ID of the graphics pipeline to set the call-back for.
+         *  @param in_pfn_pipeline_pre_bake_proc Function to call back. Must not be nullptr.
+         *  @param in_user_arg                   User argument to pass with the call-back. May be nullptr.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool set_pipeline_post_bake_callback(GraphicsPipelineID              graphics_pipeline_id,
-                                             PFNPIPELINEPOSTBAKECALLBACKPROC pfn_pipeline_post_bake_proc,
-                                             void*                           user_arg);
+        bool set_pipeline_post_bake_callback(GraphicsPipelineID              in_graphics_pipeline_id,
+                                             PFNPIPELINEPOSTBAKECALLBACKPROC in_pfn_pipeline_post_bake_proc,
+                                             void*                           in_user_arg);
 
         /** Sets a call-back, which GFX pipeline manager will invoke right before a vkCreateGraphicsPipeline() call is made.
          *  This allows the callee to adjust the VkGraphicsPipelineCreateInfo instance, eg. by modifying pNext to user-defined
@@ -881,53 +881,53 @@ namespace Anvil
          *
          *  This call overwrites any previous set_pipeline_pre_bake_callback() calls.
          *
-         *  @param graphics_pipeline_id       ID of the graphics pipeline to set the call-back for.
-         *  @param pfn_pipeline_pre_bake_proc Function to call back. Must not be nullptr.
-         *  @param user_arg                   User argument to pass with the call-back. May be nullptr.
+         *  @param in_graphics_pipeline_id       ID of the graphics pipeline to set the call-back for.
+         *  @param in_pfn_pipeline_pre_bake_proc Function to call back. Must not be nullptr.
+         *  @param in_user_arg                   User argument to pass with the call-back. May be nullptr.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool set_pipeline_pre_bake_callback(GraphicsPipelineID             graphics_pipeline_id,
-                                            PFNPIPELINEPREBAKECALLBACKPROC pfn_pipeline_pre_bake_proc,
-                                            void*                          user_arg);
+        bool set_pipeline_pre_bake_callback(GraphicsPipelineID             in_graphics_pipeline_id,
+                                            PFNPIPELINEPREBAKECALLBACKPROC in_pfn_pipeline_pre_bake_proc,
+                                            void*                          in_user_arg);
 
-        /** Copies graphics state from @param source_pipeline_id to @param target_pipeline_id, leaving
+        /** Copies graphics state from @param in_source_pipeline_id to @param in_target_pipeline_id, leaving
          *  the originally assigned renderpass, as well as the subpass ID, unaffected.
          *
-         *  @param target_pipeline_id ID of a graphics pipeline, to which state should be copied.
-         *  @param source_pipeline_id ID of a graphics pipeline, from which state should be copied.
+         *  @param in_target_pipeline_id ID of a graphics pipeline, to which state should be copied.
+         *  @param in_source_pipeline_id ID of a graphics pipeline, from which state should be copied.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool set_pipeline_state_from_pipeline(GraphicsPipelineID target_pipeline_id,
-                                              GraphicsPipelineID source_pipeline_id);
+        bool set_pipeline_state_from_pipeline(GraphicsPipelineID in_target_pipeline_id,
+                                              GraphicsPipelineID in_source_pipeline_id);
 
         /** Configures the rasterization order for the pipeline if the VK_AMD_rasterization_order extension
          *  is supported by the device, for which the pipeline has been created.
          *
          *  On drivers which do not support the extension, the call has no effect.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param rasterization_order  Rasterization order to use.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_rasterization_order  Rasterization order to use.
          **/
-        void set_rasterization_order(GraphicsPipelineID      graphics_pipeline_id,
-                                     VkRasterizationOrderAMD rasterization_order);
+        void set_rasterization_order(GraphicsPipelineID      in_graphics_pipeline_id,
+                                     VkRasterizationOrderAMD in_rasterization_order);
 
         /** Sets a number of rasterization properties to be used for the pipeline, and marks the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param polygon_mode         Polygon mode to use.
-         *  @param cull_mode            Cull mode to use.
-         *  @param front_face           Front face to use.
-         *  @param line_width           Line width to use.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_polygon_mode         Polygon mode to use.
+         *  @param in_cull_mode            Cull mode to use.
+         *  @param in_front_face           Front face to use.
+         *  @param in_line_width           Line width to use.
          **/
-        void set_rasterization_properties(GraphicsPipelineID graphics_pipeline_id,
-                                          VkPolygonMode      polygon_mode,
-                                          VkCullModeFlags    cull_mode,
-                                          VkFrontFace        front_face,
-                                          float              line_width);
+        void set_rasterization_properties(GraphicsPipelineID in_graphics_pipeline_id,
+                                          VkPolygonMode      in_polygon_mode,
+                                          VkCullModeFlags    in_cull_mode,
+                                          VkFrontFace        in_front_face,
+                                          float              in_line_width);
 
         /** Sets properties of a scissor box at the specified index, and marks the pipeline as dirty.
          *
@@ -935,216 +935,216 @@ namespace Anvil
          *  prior to baking. Number of scissor boxes must match the number of viewports defined for the
          *  pipeline.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param n_scissor_box        Index of the scissor box to be updated.
-         *  @param x                    X offset of the scissor box.
-         *  @param y                    Y offset of the scissor box.
-         *  @param width                Width of the scissor box.
-         *  @param height               Height of the scissor box.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_n_scissor_box        Index of the scissor box to be updated.
+         *  @param in_x                    X offset of the scissor box.
+         *  @param in_y                    Y offset of the scissor box.
+         *  @param in_width                Width of the scissor box.
+         *  @param in_height               Height of the scissor box.
          **/
-        void set_scissor_box_properties(GraphicsPipelineID graphics_pipeline_id,
-                                        uint32_t           n_scissor_box,
-                                        int32_t            x,
-                                        int32_t            y,
-                                        uint32_t           width,
-                                        uint32_t           height);
+        void set_scissor_box_properties(GraphicsPipelineID in_graphics_pipeline_id,
+                                        uint32_t           in_n_scissor_box,
+                                        int32_t            in_x,
+                                        int32_t            in_y,
+                                        uint32_t           in_width,
+                                        uint32_t           in_height);
 
         /** Sets a number of stencil test properties to be used for the pipeline, and marks the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id    ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                                 call, issued against the same GraphicsPipelineManager instance.
-         *  @param update_front_face_state true if the front face stencil states should be updated; false to update the
-         *                                 back stencil states instead.
-         *  @param stencil_fail_op         Stencil fail operation to use.
-         *  @param stencil_pass_op         Stencil pass operation to use.
-         *  @param stencil_depth_fail_op   Stencil depth fail operation to use.
-         *  @param stencil_compare_op      Stencil compare operation to use.
-         *  @param stencil_compare_mask    Stencil compare mask to use.
-         *  @param stencil_write_mask      Stencil write mask to use.
-         *  @param stencil_reference       Stencil reference value to use.
+         *  @param in_graphics_pipeline_id    ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                    call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_update_front_face_state true if the front face stencil states should be updated; false to update the
+         *                                    back stencil states instead.
+         *  @param in_stencil_fail_op         Stencil fail operation to use.
+         *  @param in_stencil_pass_op         Stencil pass operation to use.
+         *  @param in_stencil_depth_fail_op   Stencil depth fail operation to use.
+         *  @param in_stencil_compare_op      Stencil compare operation to use.
+         *  @param in_stencil_compare_mask    Stencil compare mask to use.
+         *  @param in_stencil_write_mask      Stencil write mask to use.
+         *  @param in_stencil_reference       Stencil reference value to use.
          **/
-        void set_stencil_test_properties(GraphicsPipelineID graphics_pipeline_id,
-                                         bool               update_front_face_state,
-                                         VkStencilOp        stencil_fail_op,
-                                         VkStencilOp        stencil_pass_op,
-                                         VkStencilOp        stencil_depth_fail_op,
-                                         VkCompareOp        stencil_compare_op,
-                                         uint32_t           stencil_compare_mask,
-                                         uint32_t           stencil_write_mask,
-                                         uint32_t           stencil_reference);
+        void set_stencil_test_properties(GraphicsPipelineID in_graphics_pipeline_id,
+                                         bool               in_update_front_face_state,
+                                         VkStencilOp        in_stencil_fail_op,
+                                         VkStencilOp        in_stencil_pass_op,
+                                         VkStencilOp        in_stencil_depth_fail_op,
+                                         VkCompareOp        in_stencil_compare_op,
+                                         uint32_t           in_stencil_compare_mask,
+                                         uint32_t           in_stencil_write_mask,
+                                         uint32_t           in_stencil_reference);
 
         /** Updates the number of tessellation patch points to be used for the pipeline, and marks the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id   ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                                call, issued against the same GraphicsPipelineManager instance.
-         *  @param n_patch_control_points As per description.
+         *  @param in_graphics_pipeline_id   ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                   call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_n_patch_control_points As per description.
          **/
-        void set_tessellation_properties(GraphicsPipelineID graphics_pipeline_id,
-                                         uint32_t           n_patch_control_points);
+        void set_tessellation_properties(GraphicsPipelineID in_graphics_pipeline_id,
+                                         uint32_t           in_n_patch_control_points);
 
         /** Sets properties of a viewport at the specified index, and marks the pipeline as dirty.
          *
-         *  If @param n_viewport is larger than 1, all previous viewports must also be defined
+         *  If @param in_n_viewport is larger than 1, all previous viewports must also be defined
          *  prior to baking. Number of scissor boxes must match the number of viewports defined for the
          *  pipeline.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param n_viewport           Index of the viewport, whose properties should be changed.
-         *  @param origin_x             X offset to use for the viewport's origin.
-         *  @param origin_y             Y offset to use for the viewport's origin.
-         *  @param width                Width of the viewport.
-         *  @param height               Height of the viewport.
-         *  @param min_depth            Minimum depth value to use for the viewport.
-         *  @param max_depth            Maximum depth value to use for the viewport.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_n_viewport           Index of the viewport, whose properties should be changed.
+         *  @param in_origin_x             X offset to use for the viewport's origin.
+         *  @param in_origin_y             Y offset to use for the viewport's origin.
+         *  @param in_width                Width of the viewport.
+         *  @param in_height               Height of the viewport.
+         *  @param in_min_depth            Minimum depth value to use for the viewport.
+         *  @param in_max_depth            Maximum depth value to use for the viewport.
          **/
-        void set_viewport_properties(GraphicsPipelineID graphics_pipeline_id,
-                                     uint32_t           n_viewport,
-                                     float              origin_x,
-                                     float              origin_y,
-                                     float              width,
-                                     float              height,
-                                     float              min_depth,
-                                     float              max_depth);
+        void set_viewport_properties(GraphicsPipelineID in_graphics_pipeline_id,
+                                     uint32_t           in_n_viewport,
+                                     float              in_origin_x,
+                                     float              in_origin_y,
+                                     float              in_width,
+                                     float              in_height,
+                                     float              in_min_depth,
+                                     float              in_max_depth);
 
         /** Enables or disables the "alpha to coverage" test, and marks the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param should_enable        true to enable the test; false to disable it.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_should_enable        true to enable the test; false to disable it.
          */
-        void toggle_alpha_to_coverage(GraphicsPipelineID graphics_pipeline_id,
-                                      bool               should_enable);
+        void toggle_alpha_to_coverage(GraphicsPipelineID in_graphics_pipeline_id,
+                                      bool               in_should_enable);
 
         /** Enables or disables the "alpha to one" test, and marks the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param should_enable        true to enable the test; false to disable it.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_should_enable        true to enable the test; false to disable it.
          */
-        void toggle_alpha_to_one(GraphicsPipelineID graphics_pipeline_id,
-                                 bool               should_enable);
+        void toggle_alpha_to_one(GraphicsPipelineID in_graphics_pipeline_id,
+                                 bool               in_should_enable);
 
         /** Enables or disables the "depth bias" mode, updates related state values, and marks
          *  the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id       ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                                    call, issued against the same GraphicsPipelineManager instance.
-         *  @param should_enable              true to enable the mode; false to disable it.
-         *  @param depth_bias_constant_factor Depth bias constant factor to use for the mode.
-         *  @param depth_bias_clamp           Depth bias clamp to use for the mode.
-         *  @param depth_bias_slope_factor    Slope scale for the depth bias to use for the mode.
+         *  @param in_graphics_pipeline_id       ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                       call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_should_enable              true to enable the mode; false to disable it.
+         *  @param in_depth_bias_constant_factor Depth bias constant factor to use for the mode.
+         *  @param in_depth_bias_clamp           Depth bias clamp to use for the mode.
+         *  @param in_depth_bias_slope_factor    Slope scale for the depth bias to use for the mode.
          */
-        void toggle_depth_bias(GraphicsPipelineID graphics_pipeline_id,
-                               bool               should_enable,
-                               float              depth_bias_constant_factor,
-                               float              depth_bias_clamp,
-                               float              depth_bias_slope_factor);
+        void toggle_depth_bias(GraphicsPipelineID in_graphics_pipeline_id,
+                               bool               in_should_enable,
+                               float              in_depth_bias_constant_factor,
+                               float              in_depth_bias_clamp,
+                               float              in_depth_bias_slope_factor);
 
         /** Enables or disables the "depth bounds" test, updates related state values, and marks
          *  the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param should_enable        true to enable the test; false to disable it.
-         *  @param min_depth_bounds     Minimum boundary value to use for the test.
-         *  @param max_depth_bounds     Maximum boundary value to use for the test. 
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_should_enable        true to enable the test; false to disable it.
+         *  @param in_min_depth_bounds     Minimum boundary value to use for the test.
+         *  @param in_max_depth_bounds     Maximum boundary value to use for the test. 
          */
-        void toggle_depth_bounds_test(GraphicsPipelineID graphics_pipeline_id,
-                                      bool               should_enable,
-                                      float              min_depth_bounds,
-                                      float              max_depth_bounds);
+        void toggle_depth_bounds_test(GraphicsPipelineID in_graphics_pipeline_id,
+                                      bool               in_should_enable,
+                                      float              in_min_depth_bounds,
+                                      float              in_max_depth_bounds);
 
         /** Enables or disables the "depth clamp" test, and marks the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param should_enable        true to enable the test; false to disable it.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_should_enable        true to enable the test; false to disable it.
          */
-        void toggle_depth_clamp(GraphicsPipelineID graphics_pipeline_id,
-                                bool               should_enable);
+        void toggle_depth_clamp(GraphicsPipelineID in_graphics_pipeline_id,
+                                bool               in_should_enable);
 
         /** Enables or disables the depth test, updates related state values, and marks the
          *  pipeline as dirty.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param should_enable        true to enable the mode; false to disable it.
-         *  @param compare_op           Compare operation to use for the test.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_should_enable        true to enable the mode; false to disable it.
+         *  @param in_compare_op           Compare operation to use for the test.
          */
-        void toggle_depth_test(GraphicsPipelineID graphics_pipeline_id,
-                               bool               should_enable,
-                               VkCompareOp        compare_op);
+        void toggle_depth_test(GraphicsPipelineID in_graphics_pipeline_id,
+                               bool               in_should_enable,
+                               VkCompareOp        in_compare_op);
 
         /** Enables or disables depth writes, and marks the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param should_enable        true to enable the writes; false to disable them.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_should_enable        true to enable the writes; false to disable them.
          */
-        void toggle_depth_writes(GraphicsPipelineID graphics_pipeline_id,
-                                 bool               should_enable);
+        void toggle_depth_writes(GraphicsPipelineID in_graphics_pipeline_id,
+                                 bool               in_should_enable);
 
         /** Enables or disables the specified dynamic states, and marks the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param should_enable        true to enable the dynamic state(s) specified by @param dynamic_state_bits, false
-         *                              disable them if already enabled.
-         *  @param dynamic_state_bits   An integer whose individual bits correspond to dynamic states which should either
-         *                              be enabled or disabled.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_should_enable        true to enable the dynamic state(s) specified by @param in_dynamic_state_bits, false
+         *                                 disable them if already enabled.
+         *  @param in_dynamic_state_bits   An integer whose individual bits correspond to dynamic states which should either
+         *                                 be enabled or disabled.
          **/
-        void toggle_dynamic_states (GraphicsPipelineID   graphics_pipeline_id,
-                                    bool                 should_enable,
-                                    DynamicStateBitfield dynamic_state_bits);
+        void toggle_dynamic_states (GraphicsPipelineID   in_graphics_pipeline_id,
+                                    bool                 in_should_enable,
+                                    DynamicStateBitfield in_dynamic_state_bits);
 
         /** Enables or disables logic ops, specifies which logic op should be used, and marks the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param should_enable        true to enable the mode; false to disable it.
-         *  @param logic_op             Logic operation type to use.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_should_enable        true to enable the mode; false to disable it.
+         *  @param in_logic_op             Logic operation type to use.
          */
-        void toggle_logic_op(GraphicsPipelineID graphics_pipeline_id,
-                             bool               should_enable,
-                             VkLogicOp          logic_op);
+        void toggle_logic_op(GraphicsPipelineID in_graphics_pipeline_id,
+                             bool               in_should_enable,
+                             VkLogicOp          in_logic_op);
 
         /** Enables or disables the "primitive restart" mode, and marks the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param should_enable        true to enable the mode; false to disable it.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_should_enable        true to enable the mode; false to disable it.
          */
-        void toggle_primitive_restart(GraphicsPipelineID graphics_pipeline_id,
-                                      bool               should_enable);
+        void toggle_primitive_restart(GraphicsPipelineID in_graphics_pipeline_id,
+                                      bool               in_should_enable);
 
         /** Enables or disables the "rasterizer discard" mode, and marks the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param should_enable        true to enable the test; false to disable it.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_should_enable        true to enable the test; false to disable it.
          */
-        void toggle_rasterizer_discard(GraphicsPipelineID graphics_pipeline_id,
-                                       bool               should_enable);
+        void toggle_rasterizer_discard(GraphicsPipelineID in_graphics_pipeline_id,
+                                       bool               in_should_enable);
 
         /** Enables or disables the "per-sample shading" mode, and marks the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param should_enable        true to enable the test; false to disable it.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_should_enable        true to enable the test; false to disable it.
          */
-        void toggle_sample_shading(GraphicsPipelineID graphics_pipeline_id,
-                                   bool               should_enable);
+        void toggle_sample_shading(GraphicsPipelineID in_graphics_pipeline_id,
+                                   bool               in_should_enable);
 
         /** Enables or disables the stencil test test, and marks the pipeline as dirty.
          *
-         *  @param graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
-         *                              call, issued against the same GraphicsPipelineManager instance.
-         *  @param should_enable        true to enable the test; false to disable it.
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_should_enable        true to enable the test; false to disable it.
          */
-        void toggle_stencil_test(GraphicsPipelineID graphics_pipeline_id,
-                                 bool               should_enable);
+        void toggle_stencil_test(GraphicsPipelineID in_graphics_pipeline_id,
+                                 bool               in_should_enable);
 
     private:
         /* Private type declarations */
@@ -1638,11 +1638,11 @@ namespace Anvil
         typedef std::map<GraphicsPipelineID, std::shared_ptr<GraphicsPipelineConfiguration> > GraphicsPipelineConfigurations;
 
         /* Private functions */
-        explicit GraphicsPipelineManager(std::weak_ptr<Anvil::BaseDevice>      device_ptr,
-                                         bool                                  use_pipeline_cache,
-                                         std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr);
+        explicit GraphicsPipelineManager(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
+                                         bool                                  in_use_pipeline_cache,
+                                         std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr);
 
-        void bake_vk_attributes_and_bindings(std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr);
+        void bake_vk_attributes_and_bindings(std::shared_ptr<GraphicsPipelineConfiguration> inout_pipeline_config_ptr);
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(GraphicsPipelineManager);
         ANVIL_DISABLE_COPY_CONSTRUCTOR   (GraphicsPipelineManager);

@@ -71,9 +71,9 @@
     };
 
     /* Constructor. */
-    Anvil::GLSLangLimits::GLSLangLimits(std::weak_ptr<Anvil::BaseDevice> device_ptr)
+    Anvil::GLSLangLimits::GLSLangLimits(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
     {
-        const VkPhysicalDeviceLimits& limits                         = device_ptr.lock()->get_physical_device_properties().limits;
+        const VkPhysicalDeviceLimits& limits                         = in_device_ptr.lock()->get_physical_device_properties().limits;
         VkSampleCountFlags            max_sampled_image_sample_count;
         int32_t                       max_sampled_image_samples      = 0;
         VkSampleCountFlags            max_storage_image_sample_count = limits.storageImageSampleCounts;
@@ -230,16 +230,16 @@
 
 
 /* Please see header for specification */
-Anvil::GLSLShaderToSPIRVGenerator::GLSLShaderToSPIRVGenerator(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                              const Mode&                      mode,
-                                                              std::string                      data,
-                                                              ShaderStage                      shader_stage)
-    :m_data           (data),
+Anvil::GLSLShaderToSPIRVGenerator::GLSLShaderToSPIRVGenerator(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                              const Mode&                      in_mode,
+                                                              std::string                      in_data,
+                                                              ShaderStage                      in_shader_stage)
+    :m_data           (in_data),
 #ifdef ANVIL_LINK_WITH_GLSLANG
-     m_limits         (device_ptr),
+     m_limits         (in_device_ptr),
 #endif
-     m_mode           (mode),
-     m_shader_stage   (shader_stage),
+     m_mode           (in_mode),
+     m_shader_stage   (in_shader_stage),
      m_spirv_blob     (nullptr),
      m_spirv_blob_size(0)
 {
@@ -258,26 +258,26 @@ Anvil::GLSLShaderToSPIRVGenerator::~GLSLShaderToSPIRVGenerator()
 }
 
 /* Please see header for specification */
-bool Anvil::GLSLShaderToSPIRVGenerator::add_empty_definition(std::string definition_name)
+bool Anvil::GLSLShaderToSPIRVGenerator::add_empty_definition(std::string in_definition_name)
 {
-    return add_definition_value_pair(definition_name,
+    return add_definition_value_pair(in_definition_name,
                                      "");
 }
 
 /* Please see header for specification */
-bool Anvil::GLSLShaderToSPIRVGenerator::add_extension_behavior(std::string       extension_name,
-                                                               ExtensionBehavior behavior)
+bool Anvil::GLSLShaderToSPIRVGenerator::add_extension_behavior(std::string       in_extension_name,
+                                                               ExtensionBehavior in_behavior)
 {
     bool result = false;
 
-    if (m_extension_behaviors.find(extension_name) != m_extension_behaviors.end() )
+    if (m_extension_behaviors.find(in_extension_name) != m_extension_behaviors.end() )
     {
-        anvil_assert(false);
+        anvil_assert_fail();
 
         goto end;
     }
 
-    m_extension_behaviors[extension_name] = behavior;
+    m_extension_behaviors[in_extension_name] = in_behavior;
 
     /* All done */
     result = true;
@@ -286,19 +286,19 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::GLSLShaderToSPIRVGenerator::add_definition_value_pair(std::string definition_name,
-                                                                  std::string value)
+bool Anvil::GLSLShaderToSPIRVGenerator::add_definition_value_pair(std::string in_definition_name,
+                                                                  std::string in_value)
 {
     bool result = false;
 
-    if (m_definition_values.find(definition_name) != m_definition_values.end() )
+    if (m_definition_values.find(in_definition_name) != m_definition_values.end() )
     {
-        anvil_assert(false);
+        anvil_assert_fail();
 
         goto end;
     }
 
-    m_definition_values[definition_name] = value;
+    m_definition_values[in_definition_name] = in_value;
 
     /* All done */
     result = true;
@@ -353,7 +353,7 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob()
             default:
             {
                 /* Unrecognized mode specified for a GLSLShaderToSPIRVGenerator instance. */
-                anvil_assert(false);
+                anvil_assert_fail();
             }
         }
     }
@@ -421,7 +421,7 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob()
 
             default:
             {
-                anvil_assert(false);
+                anvil_assert_fail();
 
                 goto end;
             }
@@ -460,7 +460,7 @@ end:
      *
      *  @return true if successful, false otherwise.
      **/
-    bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob_by_calling_glslang(const char* body)
+    bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob_by_calling_glslang(const char* in_body)
     {
         const EShLanguage         glslang_shader_stage = get_glslang_shader_stage();
         glslang::TIntermediate*   intermediate_ptr     = nullptr;
@@ -476,7 +476,7 @@ end:
             new_shader_ptr  != nullptr)
         {
             /* Try to compile the shader */
-            new_shader_ptr->setStrings(&body,
+            new_shader_ptr->setStrings(&in_body,
                                        1);
 
             result = new_shader_ptr->parse(m_limits.get_resource_ptr(),
@@ -576,7 +576,7 @@ end:
 
             default:
             {
-                anvil_assert(false);
+                anvil_assert_fail();
             }
         }
 
@@ -592,8 +592,8 @@ end:
      *
      *  @return true if successful, false otherwise.
      **/
-    bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob_by_spawning_glslang_process(const std::string& glsl_filename_with_path,
-                                                                                        const std::string& spirv_filename_with_path)
+    bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob_by_spawning_glslang_process(const std::string& in_glsl_filename_with_path,
+                                                                                        const std::string& in_spirv_filename_with_path)
     {
         std::string glslangvalidator_params;
         bool        result                  = false;
@@ -605,7 +605,7 @@ end:
             PROCESS_INFORMATION process_info;
             STARTUPINFO         startup_info;
 
-            glslangvalidator_params = "dummy -V -o \"" + spirv_filename_with_path + "\" \"" + glsl_filename_with_path + "\"";
+            glslangvalidator_params = "dummy -V -o \"" + in_spirv_filename_with_path + "\" \"" + in_glsl_filename_with_path + "\"";
 
             memset(&process_info,
                    0,
@@ -627,7 +627,7 @@ end:
                                &startup_info,
                                &process_info) )
             {
-                anvil_assert(false);
+                anvil_assert_fail();
 
                 goto end;
             }
@@ -636,7 +636,7 @@ end:
             if (WaitForSingleObject(process_info.hProcess,
                                     INFINITE) != WAIT_OBJECT_0)
             {
-                anvil_assert(false);
+                anvil_assert_fail();
 
                 goto end;
             }
@@ -653,10 +653,10 @@ end:
                 char* argv[6] = {(char*)"-S", (char*)"-V", (char*)"-o"};
 
                 char  spirv_file_name[SPIRV_FILE_NAME_LEN];
-                char  glsl_file_name[SPIRV_FILE_NAME_LEN];
+                char  glsl_file_name [SPIRV_FILE_NAME_LEN];
 
-                strcpy(spirv_file_name, spirv_filename_with_path.c_str());
-                strcpy(glsl_file_name, glsl_filename_with_path.c_str());
+                strcpy(spirv_file_name, in_spirv_filename_with_path.c_str());
+                strcpy(glsl_file_name,  in_glsl_filename_with_path.c_str());
 
                 argv[3] = spirv_file_name;
                 argv[4] = glsl_file_name;
@@ -665,7 +665,7 @@ end:
                 int32_t flag = execv("./glslangValidator", (char* const*)argv);
                 if (flag == -1)
                 {
-                    anvil_assert(false);
+                    anvil_assert_fail();
                     goto end;
                 }
             }
@@ -676,7 +676,7 @@ end:
                     pid_t wpid = waitpid(child_pid, &status, WUNTRACED | WCONTINUED);
                     if (wpid == -1)
                     {
-                        anvil_assert(false);
+                        anvil_assert_fail();
                         goto end;
                     }
                 } while (!WIFEXITED(status) && !WIFSIGNALED(status));
@@ -685,7 +685,7 @@ end:
         #endif
 
         /* Now, read the SPIR-V file contents */
-        Anvil::IO::read_file(spirv_filename_with_path.c_str(),
+        Anvil::IO::read_file(in_spirv_filename_with_path.c_str(),
                              false, /* is_text_file */
                             &m_spirv_blob,
                             &spirv_file_size);
@@ -705,7 +705,7 @@ end:
         }
 
         /* No need to keep the file any more. */
-        Anvil::IO::delete_file(spirv_filename_with_path);
+        Anvil::IO::delete_file(in_spirv_filename_with_path);
 
         m_spirv_blob_size = (uint32_t) spirv_file_size;
         result            = true;
@@ -716,29 +716,29 @@ end:
 #endif
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::GLSLShaderToSPIRVGenerator> Anvil::GLSLShaderToSPIRVGenerator::create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                                                             const Mode&                      mode,
-                                                                                             std::string                      data,
-                                                                                             ShaderStage                      shader_stage)
+std::shared_ptr<Anvil::GLSLShaderToSPIRVGenerator> Anvil::GLSLShaderToSPIRVGenerator::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                                                             const Mode&                      in_mode,
+                                                                                             std::string                      in_data,
+                                                                                             ShaderStage                      in_shader_stage)
 {
     std::shared_ptr<Anvil::GLSLShaderToSPIRVGenerator> result_ptr;
 
     result_ptr.reset(
-        new Anvil::GLSLShaderToSPIRVGenerator(device_ptr,
-                                              mode,
-                                              data,
-                                              shader_stage)
+        new Anvil::GLSLShaderToSPIRVGenerator(in_device_ptr,
+                                              in_mode,
+                                              in_data,
+                                              in_shader_stage)
     );
 
     return result_ptr;
 }
 
 /* Please see header for specification */
-std::string Anvil::GLSLShaderToSPIRVGenerator::get_extension_behavior_glsl_code(const ExtensionBehavior& value) const
+std::string Anvil::GLSLShaderToSPIRVGenerator::get_extension_behavior_glsl_code(const ExtensionBehavior& in_value) const
 {
     std::string result;
 
-    switch (value)
+    switch (in_value)
     {
         case EXTENSION_BEHAVIOR_DISABLE: result = "disable"; break;
         case EXTENSION_BEHAVIOR_ENABLE:  result = "enable";  break;
@@ -747,7 +747,7 @@ std::string Anvil::GLSLShaderToSPIRVGenerator::get_extension_behavior_glsl_code(
 
         default:
         {
-            anvil_assert(false);
+            anvil_assert_fail();
         }
     }
 

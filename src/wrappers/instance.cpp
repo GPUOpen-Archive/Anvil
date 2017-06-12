@@ -25,16 +25,16 @@
 #include "wrappers/instance.h"
 
 /** Please see header for specification */
-Anvil::Instance::Instance(const char*                  app_name,
-                          const char*                  engine_name,
-                          PFNINSTANCEDEBUGCALLBACKPROC opt_pfn_validation_callback_proc,
-                          void*                        validation_proc_user_arg)
-    :m_app_name                    (app_name),
+Anvil::Instance::Instance(const char*                  in_app_name,
+                          const char*                  in_engine_name,
+                          PFNINSTANCEDEBUGCALLBACKPROC in_opt_pfn_validation_callback_proc,
+                          void*                        in_validation_proc_user_arg)
+    :m_app_name                    (in_app_name),
      m_debug_callback_data         (0),
-     m_engine_name                 (engine_name),
+     m_engine_name                 (in_engine_name),
      m_global_layer                (""),
-     m_pfn_validation_callback_proc(opt_pfn_validation_callback_proc),
-     m_validation_proc_user_arg    (validation_proc_user_arg)
+     m_pfn_validation_callback_proc(in_opt_pfn_validation_callback_proc),
+     m_validation_proc_user_arg    (in_validation_proc_user_arg)
 {
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_INSTANCE,
                                                   this);
@@ -58,22 +58,22 @@ Anvil::Instance::~Instance()
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Instance> Anvil::Instance::create(const char*                  app_name,
-                                                         const char*                  engine_name,
-                                                         PFNINSTANCEDEBUGCALLBACKPROC opt_pfn_validation_callback_proc,
-                                                         void*                        validation_proc_user_arg)
+std::shared_ptr<Anvil::Instance> Anvil::Instance::create(const char*                  in_app_name,
+                                                         const char*                  in_engine_name,
+                                                         PFNINSTANCEDEBUGCALLBACKPROC in_opt_pfn_validation_callback_proc,
+                                                         void*                        in_validation_proc_user_arg)
 {
     std::shared_ptr<Anvil::Instance> new_instance_ptr;
 
-    anvil_assert(app_name    != nullptr);
-    anvil_assert(engine_name != nullptr);
+    anvil_assert(in_app_name    != nullptr);
+    anvil_assert(in_engine_name != nullptr);
 
     new_instance_ptr = std::shared_ptr<Anvil::Instance>(
         new Instance(
-            app_name,
-            engine_name,
-            opt_pfn_validation_callback_proc,
-            validation_proc_user_arg)
+            in_app_name,
+            in_engine_name,
+            in_opt_pfn_validation_callback_proc,
+            in_validation_proc_user_arg)
     );
 
     new_instance_ptr->init();
@@ -85,26 +85,26 @@ std::shared_ptr<Anvil::Instance> Anvil::Instance::create(const char*            
  *
  *  For argument discussion, please see the extension specification
  **/
-VkBool32 VKAPI_PTR Anvil::Instance::debug_callback_pfn_proc(VkDebugReportFlagsEXT      message_flags,
-                                                            VkDebugReportObjectTypeEXT object_type,
-                                                            uint64_t                   src_object,
-                                                            size_t                     location,
-                                                            int32_t                    msg_code,
-                                                            const char*                layer_prefix_ptr,
-                                                            const char*                message_ptr,
-                                                            void*                      user_data)
+VkBool32 VKAPI_PTR Anvil::Instance::debug_callback_pfn_proc(VkDebugReportFlagsEXT      in_message_flags,
+                                                            VkDebugReportObjectTypeEXT in_object_type,
+                                                            uint64_t                   in_src_object,
+                                                            size_t                     in_location,
+                                                            int32_t                    in_msg_code,
+                                                            const char*                in_layer_prefix_ptr,
+                                                            const char*                in_message_ptr,
+                                                            void*                      in_user_data)
 {
-    Anvil::Instance* instance_ptr = static_cast<Anvil::Instance*>(user_data);
+    Anvil::Instance* instance_ptr = static_cast<Anvil::Instance*>(in_user_data);
 
-    ANVIL_REDUNDANT_ARGUMENT(src_object);
-    ANVIL_REDUNDANT_ARGUMENT(location);
-    ANVIL_REDUNDANT_ARGUMENT(msg_code);
-    ANVIL_REDUNDANT_ARGUMENT(user_data);
+    ANVIL_REDUNDANT_ARGUMENT(in_src_object);
+    ANVIL_REDUNDANT_ARGUMENT(in_location);
+    ANVIL_REDUNDANT_ARGUMENT(in_msg_code);
+    ANVIL_REDUNDANT_ARGUMENT(in_user_data);
 
-    return instance_ptr->m_pfn_validation_callback_proc(message_flags,
-                                                        object_type,
-                                                        layer_prefix_ptr,
-                                                        message_ptr,
+    return instance_ptr->m_pfn_validation_callback_proc(in_message_flags,
+                                                        in_object_type,
+                                                        in_layer_prefix_ptr,
+                                                        in_message_ptr,
                                                         instance_ptr->m_validation_proc_user_arg);
 }
 
@@ -168,10 +168,10 @@ void Anvil::Instance::enumerate_instance_layers()
 /** Enumerates all available layer extensions. The enumerated extensions will be stored
  *  in the specified _vulkan_layer descriptor.
  *
- *  @param layer_ptr Layer to enumerate the extensions for. If nullptr, device extensions
- *                   will be retrieved instead.
+ *  @param in_layer_ptr Layer to enumerate the extensions for. If nullptr, device extensions
+ *                      will be retrieved instead.
  **/
-void Anvil::Instance::enumerate_layer_extensions(Anvil::Layer* layer_ptr)
+void Anvil::Instance::enumerate_layer_extensions(Anvil::Layer* in_layer_ptr)
 {
     uint32_t n_extensions = 0;
     VkResult result       = VK_ERROR_INITIALIZATION_FAILED;
@@ -181,12 +181,12 @@ void Anvil::Instance::enumerate_layer_extensions(Anvil::Layer* layer_ptr)
     /* Check if the layer supports any extensions at all */
     const char* layer_name = nullptr;
 
-    if (layer_ptr == nullptr)
+    if (in_layer_ptr == nullptr)
     {
-        layer_ptr = &m_global_layer;
+        in_layer_ptr = &m_global_layer;
     }
 
-    layer_name = layer_ptr->name.c_str();
+    layer_name = in_layer_ptr->name.c_str();
     result     = vkEnumerateInstanceExtensionProperties(layer_name,
                                                        &n_extensions,
                                                         nullptr); /* pProperties */
@@ -210,7 +210,7 @@ void Anvil::Instance::enumerate_layer_extensions(Anvil::Layer* layer_ptr)
                       n_extension < n_extensions;
                     ++n_extension)
         {
-            layer_ptr->extensions.push_back(Anvil::Extension(extension_props[n_extension]) );
+            in_layer_ptr->extensions.push_back(Anvil::Extension(extension_props[n_extension]) );
         }
     }
 }
@@ -235,7 +235,7 @@ void Anvil::Instance::enumerate_physical_devices()
         fprintf(stderr,"No physical devices reported for the Vulkan instance");
         fflush (stderr);
 
-        anvil_assert(false);
+        anvil_assert_fail();
     }
 
     devices.resize(n_physical_devices);
@@ -263,7 +263,7 @@ const Anvil::ExtensionKHRGetPhysicalDeviceProperties2& Anvil::Instance::get_exte
 {
     anvil_assert(std::find(m_enabled_extensions.begin(),
                            m_enabled_extensions.end(),
-                           "VK_KHR_get_physical_device_properties2") != m_enabled_extensions.end() );
+                           VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) != m_enabled_extensions.end() );
 
     return m_khr_get_physical_device_properties2_entrypoints;
 }
@@ -273,7 +273,7 @@ const Anvil::ExtensionKHRSurfaceEntrypoints& Anvil::Instance::get_extension_khr_
 {
     anvil_assert(std::find(m_enabled_extensions.begin(),
                            m_enabled_extensions.end(),
-                           "VK_KHR_surface") != m_enabled_extensions.end() );
+                           VK_KHR_SURFACE_EXTENSION_NAME) != m_enabled_extensions.end() );
 
     return m_khr_surface_entrypoints;
 }
@@ -397,16 +397,16 @@ void Anvil::Instance::init()
         if (m_pfn_validation_callback_proc != nullptr                  &&
             std::find(layer_extensions.begin(),
                       layer_extensions.end(),
-                      "VK_EXT_debug_report") != layer_extensions.end() )
+                      VK_EXT_DEBUG_REPORT_EXTENSION_NAME) != layer_extensions.end() )
         {
             enabled_layers.push_back(layer_name.c_str() );
         }
     }
 
     /* Enable known instance-level extensions by default */
-    if (is_instance_extension_supported("VK_KHR_get_physical_device_properties2") )
+    if (is_instance_extension_supported(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) )
     {
-        m_enabled_extensions.push_back("VK_KHR_get_physical_device_properties2");
+        m_enabled_extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
     }
 
     /* We're ready to create a new Vulkan instance */
@@ -519,7 +519,7 @@ void Anvil::Instance::init_func_pointers()
 
     if (std::find(m_enabled_extensions.begin(),
                   m_enabled_extensions.end(),
-                  "VK_KHR_get_physical_device_properties2") != m_enabled_extensions.end() )
+                  VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) != m_enabled_extensions.end() )
     {
         m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceFeatures2KHR                    = reinterpret_cast<PFN_vkGetPhysicalDeviceFeatures2KHR>                   (vkGetInstanceProcAddr(m_instance,
                                                                                                                                                                                                               "vkGetPhysicalDeviceFeatures2KHR") );
@@ -547,34 +547,34 @@ void Anvil::Instance::init_func_pointers()
 }
 
 /** Please see header for specification */
-bool Anvil::Instance::is_instance_extension_supported(const char* extension_name) const
+bool Anvil::Instance::is_instance_extension_supported(const char* in_extension_name) const
 {
     return std::find(m_global_layer.extensions.begin(),
                      m_global_layer.extensions.end(),
-                     extension_name) != m_global_layer.extensions.end();
+                     in_extension_name) != m_global_layer.extensions.end();
 }
 
 /** Please see header for specification */
-void Anvil::Instance::register_physical_device(std::shared_ptr<Anvil::PhysicalDevice> physical_device_ptr)
+void Anvil::Instance::register_physical_device(std::shared_ptr<Anvil::PhysicalDevice> in_physical_device_ptr)
 {
     auto iterator = std::find(m_physical_devices.begin(),
                               m_physical_devices.end(),
-                              physical_device_ptr);
+                              in_physical_device_ptr);
 
     anvil_assert(iterator == m_physical_devices.end() );
 
     if (iterator == m_physical_devices.end() )
     {
-        m_physical_devices.push_back(physical_device_ptr);
+        m_physical_devices.push_back(in_physical_device_ptr);
     }
 }
 
 /** Please see header for specification */
-void Anvil::Instance::unregister_physical_device(std::shared_ptr<Anvil::PhysicalDevice> physical_device_ptr)
+void Anvil::Instance::unregister_physical_device(std::shared_ptr<Anvil::PhysicalDevice> in_physical_device_ptr)
 {
     auto iterator = std::find(m_physical_devices.begin(),
                               m_physical_devices.end(),
-                              physical_device_ptr);
+                              in_physical_device_ptr);
 
     anvil_assert(iterator != m_physical_devices.end() );
 

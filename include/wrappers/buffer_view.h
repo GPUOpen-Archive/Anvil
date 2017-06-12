@@ -35,18 +35,18 @@
 namespace Anvil
 {
     /** Wrapper class for Vulkan buffer views */
-    class BufferView
+    class BufferView : public DebugMarkerSupportProvider<BufferView>
     {
     public:
         /* Public functions */
 
         /** Creates a single Vulkan buffer view instance and registers the object in Object Tracker.
          *  For argument documentation, please see Vulkan API specification. */
-        static std::shared_ptr<BufferView> create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                  std::shared_ptr<Anvil::Buffer>   buffer_ptr,
-                                                  VkFormat                         format,
-                                                  VkDeviceSize                     start_offset,
-                                                  VkDeviceSize                    size);
+        static std::shared_ptr<BufferView> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                  std::shared_ptr<Anvil::Buffer>   in_buffer_ptr,
+                                                  VkFormat                         in_format,
+                                                  VkDeviceSize                     in_start_offset,
+                                                  VkDeviceSize                     in_size);
 
         /** Destructor */
         virtual ~BufferView();
@@ -69,12 +69,6 @@ namespace Anvil
             return m_format;
         }
 
-        /** Returns name assigned to the buffer view instance */
-        const std::string& get_name() const
-        {
-            return m_name;
-        }
-
         /** Returns pointer to the parent buffer instance */
         std::shared_ptr<Anvil::Buffer> get_parent_buffer() const
         {
@@ -93,19 +87,13 @@ namespace Anvil
             return m_start_offset;
         }
 
-        /** Assigns a new name to the buffer view instance */
-        void set_name(const std::string& in_name)
-        {
-            m_name = in_name;
-        }
-
     private:
         /* Private functions */
-        BufferView(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                   std::shared_ptr<Anvil::Buffer>   buffer_ptr,
-                   VkFormat                         format,
-                   VkDeviceSize                     start_offset,
-                   VkDeviceSize                     size);
+        BufferView(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                   std::shared_ptr<Anvil::Buffer>   in_buffer_ptr,
+                   VkFormat                         in_format,
+                   VkDeviceSize                     in_start_offset,
+                   VkDeviceSize                     in_size);
 
         BufferView           (const BufferView&);
         BufferView& operator=(const BufferView&);
@@ -115,7 +103,6 @@ namespace Anvil
         VkBufferView                     m_buffer_view;
         std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
         VkFormat                         m_format;
-        std::string                      m_name;
         VkDeviceSize                     m_size;
         VkDeviceSize                     m_start_offset;
     };

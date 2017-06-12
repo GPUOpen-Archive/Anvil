@@ -314,8 +314,8 @@ public:
     void setAllocator(TPoolAllocator* a) { allocator = *a; }
     TPoolAllocator& getAllocator() const { return allocator; }
 
-protected:
     pool_allocator& operator=(const pool_allocator&) { return *this; }
+protected:
     TPoolAllocator& allocator;
 };
 

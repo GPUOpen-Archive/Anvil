@@ -58,7 +58,7 @@ namespace Anvil
         {
         public:
             /* Constructor. */
-            explicit GLSLangLimits(std::weak_ptr<Anvil::BaseDevice> device_ptr);
+            explicit GLSLangLimits(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
 
             /* Destructor */
             ~GLSLangLimits()
@@ -107,20 +107,20 @@ namespace Anvil
 
         /** Creates a new GLSLShaderToSPIRVGenerator instance.
          *
-         *  @param evice_ptr    Logical device, whose limit values should be passed to glslang. Must not
-         *                      be NULL.
-         *  @param mode         Defines type of contents specified under @param data.
-         *  @param data         If @param mode is MODE_LOAD_SOURCE_FROM_FILE, @param data holds the name
-         *                      of the file (possibly including path) where the GLSL source code is stored.
-         *                      If @param mode is MODE_USE_SPECIFIED_SOURCE, @param data holds GLSL source code
-         *                      which should be used. This mode is NOT supported if ANVIL_LINK_WITH_GLSLANG
-         *                      macro is undefined.
-         *  @param shader_stage Shader stage described by the file.
+         *  @param in_device_ptr   Logical device, whose limit values should be passed to glslang. Must not
+         *                         be NULL.
+         *  @param in_mode         Defines type of contents specified under @param in_data.
+         *  @param in_data         If @param in_mode is MODE_LOAD_SOURCE_FROM_FILE, @param in_data holds the name
+         *                         of the file (possibly including path) where the GLSL source code is stored.
+         *                         If @param in_mode is MODE_USE_SPECIFIED_SOURCE, @param in_data holds GLSL source code
+         *                         which should be used. This mode is NOT supported if ANVIL_LINK_WITH_GLSLANG
+         *                         macro is undefined.
+         *  @param in_shader_stage Shader stage described by the file.
          **/
-         static std::shared_ptr<GLSLShaderToSPIRVGenerator> create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                                   const Mode&                      mode,
-                                                                   std::string                      data,
-                                                                   ShaderStage                      shader_stage);
+         static std::shared_ptr<GLSLShaderToSPIRVGenerator> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                                   const Mode&                      in_mode,
+                                                                   std::string                      in_data,
+                                                                   ShaderStage                      in_shader_stage);
 
          /** Destructor. Releases all created Vulkan objects, as well as the SPIR-V blob data. */
          ~GLSLShaderToSPIRVGenerator();
@@ -131,13 +131,13 @@ namespace Anvil
           *  The definition will be inserted AFTER extensions, if any have been requested by using
           *  the add_extension_behavior() mechanism.
           *
-          *  @param definition_name As specified above.
-          *  @param value           As specified above.
+          *  @param in_definition_name As specified above.
+          *  @param in_value           As specified above.
           *
           *  @return true if the function succeeded, false otherwise.
           **/
-         bool add_definition_value_pair(std::string definition_name,
-                                        std::string value);
+         bool add_definition_value_pair(std::string in_definition_name,
+                                        std::string in_value);
 
          /** Adds a "#define [definition_name] [value]" line after the first newline found in the
           *  source code.
@@ -145,20 +145,20 @@ namespace Anvil
           *  The definitions will be inserted AFTER extensions, if any have been requested by using
           *  the add_extension_behavior() mechanism.
           *
-          *  @param definition_name As specified above.
-          *  @param value           As specified above.
+          *  @param in_definition_name As specified above.
+          *  @param in_value           As specified above.
           *
           *  @return true if the function succeeded, false otherwise.
           **/
          template <typename T>
-         bool add_definition_value_pair(std::string definition_name,
-                                        T           value)
+         bool add_definition_value_pair(std::string in_definition_name,
+                                        T           in_value)
          {
             std::stringstream value_sstream;
 
-            value_sstream << value;
+            value_sstream << in_value;
 
-            return add_definition_value_pair(definition_name,
+            return add_definition_value_pair(in_definition_name,
                                              value_sstream.str() );
          }
 
@@ -167,25 +167,25 @@ namespace Anvil
           *  The definition will be inserted AFTER extensions, if any have been requested by using
           *  the add_extension_behavior() mechanism.
           *
-          *  @param definition_name As specified above.
+          *  @param in_definition_name As specified above.
           *
           *  @return true if the function succeeded, false otherwise.
           **/
-         bool add_empty_definition(std::string definition_name);
+         bool add_empty_definition(std::string in_definition_name);
 
          /* Registers a new extension behavior specification.
           *
           * At baking time, a new line, specifying the extension behavior, will be added
           * at the beginning of the shader.
           *
-          * @param extension_name Name of the GLSL extension
-          * @param behavior       Behavior to use for the extension. See documentation of
-          *                       the enum for more details.
+          * @param in_extension_name Name of the GLSL extension
+          * @param in_behavior       Behavior to use for the extension. See documentation of
+          *                          the enum for more details.
           *
           * @return true if successful, false otherwise.
           **/
-         bool add_extension_behavior(std::string       extension_name,
-                                     ExtensionBehavior behavior);
+         bool add_extension_behavior(std::string       in_extension_name,
+                                     ExtensionBehavior in_behavior);
 
          /* Loads the GLSL source code, injects the requested #defines and writes the result code
           * to a temporary file. Then, the func invokes glslangvalidator to build a SPIR-V blob
@@ -196,7 +196,7 @@ namespace Anvil
          bool bake_spirv_blob();
 
          /* Converts a ExtensionBehavior enum value to a corresponding GLSL definition */
-         std::string get_extension_behavior_glsl_code(const ExtensionBehavior& value) const;
+         std::string get_extension_behavior_glsl_code(const ExtensionBehavior& in_value) const;
 
          /** Tells what shader stage the encapsulated GLSL shader descirbes. */
          ShaderStage get_shader_stage() const
@@ -254,17 +254,17 @@ namespace Anvil
         ANVIL_DISABLE_COPY_CONSTRUCTOR   (GLSLShaderToSPIRVGenerator);
 
         /* Constructor. Please see create() documentation for specification */
-        explicit GLSLShaderToSPIRVGenerator(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                            const Mode&                      mode,
-                                            std::string                      data,
-                                            ShaderStage                      shader_stage);
+        explicit GLSLShaderToSPIRVGenerator(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                            const Mode&                      in_mode,
+                                            std::string                      in_data,
+                                            ShaderStage                      in_shader_stage);
 
         #ifdef ANVIL_LINK_WITH_GLSLANG
-            bool        bake_spirv_blob_by_calling_glslang(const char* body);
+            bool        bake_spirv_blob_by_calling_glslang(const char* in_body);
             EShLanguage get_glslang_shader_stage          () const;
         #else
-            bool bake_spirv_blob_by_spawning_glslang_process(const std::string& glsl_filename_with_path,
-                                                             const std::string& spirv_filename_with_path);
+            bool bake_spirv_blob_by_spawning_glslang_process(const std::string& in_glsl_filename_with_path,
+                                                             const std::string& in_spirv_filename_with_path);
         #endif
 
         /* Private members */

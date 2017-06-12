@@ -46,14 +46,14 @@ namespace Anvil
          *
          *  Retrieves properties & capabilities of a physical device at user-specified index.
          *
-         *  @param instance_ptr    Vulkan instance this object is being spawned for. Must
-         *                         not be nullptr.
-         *  @param index           Index of the physical device to initialize the wrapper for.
-         *  @param physical_device Raw Vulkan physical device handle to encapsulate.
+         *  @param in_instance_ptr    Vulkan instance this object is being spawned for. Must
+         *                            not be nullptr.
+         *  @param in_index           Index of the physical device to initialize the wrapper for.
+         *  @param in_physical_device Raw Vulkan physical device handle to encapsulate.
          */
-        static std::weak_ptr<Anvil::PhysicalDevice> create(std::shared_ptr<Anvil::Instance> instance_ptr,
-                                                           uint32_t                         index,
-                                                           VkPhysicalDevice                 physical_device);
+        static std::weak_ptr<Anvil::PhysicalDevice> create(std::shared_ptr<Anvil::Instance> in_instance_ptr,
+                                                           uint32_t                         in_index,
+                                                           VkPhysicalDevice                 in_physical_device);
 
         /** Destructor */
         virtual ~PhysicalDevice();
@@ -74,13 +74,13 @@ namespace Anvil
 
         /** Retrieves format properties, as reported by the wrapped physical device.
          *
-         *  @param format Vulkan format to retrieve the filled structure for.
+         *  @param in_format Vulkan format to retrieve the filled structure for.
          *
          *  @return As per description.
          **/
-        const FormatProperties& get_format_properties(VkFormat format) const
+        const FormatProperties& get_format_properties(VkFormat in_format) const
         {
-            auto format_props_iterator = m_format_properties.find(format);
+            auto format_props_iterator = m_format_properties.find(in_format);
 
             if (format_props_iterator != m_format_properties.end() )
             {
@@ -88,7 +88,7 @@ namespace Anvil
             }
             else
             {
-                anvil_assert(false);
+                anvil_assert_fail();
 
                 return m_dummy;
             }
@@ -156,21 +156,21 @@ namespace Anvil
 
         /** Tells whether user-specified extension is supported by the physical device.
          *
-         *  @param extension_name Name of the extension to use for the query. Must not be
-         *                        nullptr.
+         *  @param in_extension_name Name of the extension to use for the query. Must not be
+         *                           nullptr.
          *
          *  @return As per description.
          **/
-        bool is_device_extension_supported(const char* extension_name) const;
+        bool is_device_extension_supported(const char* in_extension_name) const;
 
         /** Tells whether user-specified layer is supported by the physical device.
          *
-         *  @param layer_name Name of the layer to use for the query. Must not be
-         *                    nullptr.
+         *  @param in_layer_name Name of the layer to use for the query. Must not be
+         *                       nullptr.
          *
          *  @return As per description.
          **/
-        bool is_layer_supported(const char* layer_name) const;
+        bool is_layer_supported(const char* in_layer_name) const;
 
     private:
         /* Private type definitions */
@@ -181,20 +181,20 @@ namespace Anvil
         /** Constructor. Retrieves properties & capabilities of a physical device at
          *  user-specified index.
          *
-         *  @param instance_ptr    Vulkan instance this object is being spawned for. Must
-         *                         not be nullptr.
-         *  @param index           Index of the physical device to initialize the wrapper for.
-         *  @param physical_device Raw Vulkan physical device handle to encapsulate.
+         *  @param in_instance_ptr    Vulkan instance this object is being spawned for. Must
+         *                            not be nullptr.
+         *  @param in_index           Index of the physical device to initialize the wrapper for.
+         *  @param in_physical_device Raw Vulkan physical device handle to encapsulate.
          */
-        explicit PhysicalDevice(std::weak_ptr<Anvil::Instance> instance_ptr,
-                                uint32_t                       index,
-                                VkPhysicalDevice               physical_device)
+        explicit PhysicalDevice(std::weak_ptr<Anvil::Instance> in_instance_ptr,
+                                uint32_t                       in_index,
+                                VkPhysicalDevice               in_physical_device)
             :m_destroyed      (false),
-             m_index          (index),
-             m_instance_ptr   (instance_ptr),
-             m_physical_device(physical_device)
+             m_index          (in_index),
+             m_instance_ptr   (in_instance_ptr),
+             m_physical_device(in_physical_device)
         {
-            anvil_assert(physical_device != VK_NULL_HANDLE);
+            anvil_assert(in_physical_device != VK_NULL_HANDLE);
         }
 
         PhysicalDevice           (const PhysicalDevice&);
@@ -202,8 +202,8 @@ namespace Anvil
 
         void destroy          ();
         void init             ();
-        void register_device  (std::shared_ptr<Anvil::BaseDevice> device_ptr);
-        void unregister_device(std::shared_ptr<Anvil::BaseDevice> device_ptr);
+        void register_device  (std::shared_ptr<Anvil::BaseDevice> in_device_ptr);
+        void unregister_device(std::shared_ptr<Anvil::BaseDevice> in_device_ptr);
 
         /* Private variables */
         bool             m_destroyed;
@@ -228,13 +228,13 @@ namespace Anvil
 
     /** Tells whether the specified Anvil PhysicalDevice wrapper encapsulates given Vulkan physical device.
      *
-     *  @param physical_device_ptr Anvil physical device wrapper. Must not be null.
-     *  @param physical_device_vk  Raw Vulkan physical device handle.
+     *  @param in_physical_device_ptr Anvil physical device wrapper. Must not be null.
+     *  @param in_physical_device_vk  Raw Vulkan physical device handle.
      *
      *  @return true if objects match, false otherwise.
      **/
-    bool operator==(const std::shared_ptr<Anvil::PhysicalDevice>& physical_device_ptr,
-                    const VkPhysicalDevice&                       physical_device_vk);
+    bool operator==(const std::shared_ptr<Anvil::PhysicalDevice>& in_physical_device_ptr,
+                    const VkPhysicalDevice&                       in_physical_device_vk);
 
 }; /* namespace Anvil */
 

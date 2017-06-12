@@ -31,20 +31,20 @@
 #include "miniz/miniz.c"
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Window> Anvil::DummyWindow::create(const std::string&     title,
-                                                          unsigned int           width,
-                                                          unsigned int           height,
-                                                          PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                                          void*                  present_callback_func_user_arg)
+std::shared_ptr<Anvil::Window> Anvil::DummyWindow::create(const std::string&     in_title,
+                                                          unsigned int           in_width,
+                                                          unsigned int           in_height,
+                                                          PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                                                          void*                  in_present_callback_func_user_arg)
 {
     std::shared_ptr<Anvil::DummyWindow> result_ptr;
 
     result_ptr.reset(
-        new Anvil::DummyWindow(title,
-                               width,
-                               height,
-                               present_callback_func_ptr,
-                               present_callback_func_user_arg)
+        new Anvil::DummyWindow(in_title,
+                               in_width,
+                               in_height,
+                               in_present_callback_func_ptr,
+                               in_present_callback_func_user_arg)
     );
 
     if (result_ptr)
@@ -59,16 +59,16 @@ std::shared_ptr<Anvil::Window> Anvil::DummyWindow::create(const std::string&    
 }
 
 /** Please see header for specification */
-Anvil::DummyWindow::DummyWindow(const std::string&     title,
-                                unsigned int           width,
-                                unsigned int           height,
-                                PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                void*                  present_callback_func_user_arg)
-    : Window(title,
-             width,
-             height,
-             present_callback_func_ptr,
-             present_callback_func_user_arg)
+Anvil::DummyWindow::DummyWindow(const std::string&     in_title,
+                                unsigned int           in_width,
+                                unsigned int           in_height,
+                                PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                                void*                  in_present_callback_func_user_arg)
+    : Window(in_title,
+             in_width,
+             in_height,
+             in_present_callback_func_ptr,
+             in_present_callback_func_user_arg)
 {
     m_window_owned = true;
 }
@@ -103,20 +103,20 @@ void Anvil::DummyWindow::run()
 
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Window> Anvil::DummyWindowWithPNGSnapshots::create(const std::string&     title,
-                                                                          unsigned int           width,
-                                                                          unsigned int           height,
-                                                                          PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                                                          void*                  present_callback_func_user_arg)
+std::shared_ptr<Anvil::Window> Anvil::DummyWindowWithPNGSnapshots::create(const std::string&     in_title,
+                                                                          unsigned int           in_width,
+                                                                          unsigned int           in_height,
+                                                                          PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                                                                          void*                  in_present_callback_func_user_arg)
 {
     std::shared_ptr<Anvil::DummyWindowWithPNGSnapshots> result_ptr;
 
     result_ptr.reset(
-        new Anvil::DummyWindowWithPNGSnapshots(title,
-                                               width,
-                                               height,
-                                               present_callback_func_ptr,
-                                               present_callback_func_user_arg)
+        new Anvil::DummyWindowWithPNGSnapshots(in_title,
+                                               in_width,
+                                               in_height,
+                                               in_present_callback_func_ptr,
+                                               in_present_callback_func_user_arg)
     );
 
     if (result_ptr)
@@ -131,31 +131,31 @@ std::shared_ptr<Anvil::Window> Anvil::DummyWindowWithPNGSnapshots::create(const 
 }
 
 /** Please see header for specification */
-Anvil::DummyWindowWithPNGSnapshots::DummyWindowWithPNGSnapshots(const std::string&     title,
-                                                                unsigned int           width,
-                                                                unsigned int           height,
-                                                                PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                                                void*                  present_callback_func_user_arg)
-    :DummyWindow(title,
-                 width,
-                 height,
-                 present_callback_func_ptr,
-                 present_callback_func_user_arg)
+Anvil::DummyWindowWithPNGSnapshots::DummyWindowWithPNGSnapshots(const std::string&     in_title,
+                                                                unsigned int           in_width,
+                                                                unsigned int           in_height,
+                                                                PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                                                                void*                  in_present_callback_func_user_arg)
+    :DummyWindow(in_title,
+                 in_width,
+                 in_height,
+                 in_present_callback_func_ptr,
+                 in_present_callback_func_user_arg)
 {
-    m_height             = height;
+    m_height             = in_height;
     m_n_frames_presented = 0;
-    m_title              = title;
-    m_width              = width;
+    m_title              = in_title;
+    m_width              = in_width;
     m_window_owned       = true;
 }
 
 /** Please see header for specification */
-std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_image_raw_r8g8b8a8_unorm_data(std::shared_ptr<Anvil::Image> swapchain_image_ptr)
+std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_image_raw_r8g8b8a8_unorm_data(std::shared_ptr<Anvil::Image> in_swapchain_image_ptr)
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr                (m_swapchain_ptr.lock()->get_device() );
     std::shared_ptr<unsigned char>     result_ptr;
-    VkFormat                           swapchain_image_format           (swapchain_image_ptr->get_image_format     () );
-    const VkImageSubresourceRange      swapchain_image_subresource_range(swapchain_image_ptr->get_subresource_range() );
+    VkFormat                           swapchain_image_format           (in_swapchain_image_ptr->get_image_format     () );
+    const VkImageSubresourceRange      swapchain_image_subresource_range(in_swapchain_image_ptr->get_subresource_range() );
 
     /* Sanity checks .. */
     ANVIL_REDUNDANT_VARIABLE(swapchain_image_format);
@@ -170,10 +170,10 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
     uint32_t                       swapchain_image_height = 0;
     uint32_t                       swapchain_image_width  = 0;
 
-    swapchain_image_ptr->get_image_mipmap_size(0, /* n_mipmap */
-                                              &swapchain_image_width,
-                                              &swapchain_image_height,
-                                              nullptr); /* opt_out_depth_ptr */
+    in_swapchain_image_ptr->get_image_mipmap_size(0, /* n_mipmap */
+                                                 &swapchain_image_width,
+                                                 &swapchain_image_height,
+                                                 nullptr); /* out_opt_depth_ptr */
 
     raw_image_size = 4 /* RGBA8 */ * swapchain_image_width * swapchain_image_height;
 
@@ -234,7 +234,7 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
             universal_queue_family_index,
             universal_queue_family_index,
-            swapchain_image_ptr,
+            in_swapchain_image_ptr,
             swapchain_image_subresource_range
         );
 
@@ -257,7 +257,7 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
             VK_IMAGE_LAYOUT_GENERAL,
             universal_queue_family_index,
             universal_queue_family_index,
-            swapchain_image_ptr,
+            in_swapchain_image_ptr,
             swapchain_image_subresource_range);
 
         command_buffer_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, /* src_stage_mask                 */
@@ -284,7 +284,7 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
         intermediate_image_blit.srcOffsets[1]                 = intermediate_image_blit.dstOffsets[1];
         intermediate_image_blit.srcSubresource                = intermediate_image_blit.dstSubresource;
 
-        command_buffer_ptr->record_blit_image(swapchain_image_ptr,
+        command_buffer_ptr->record_blit_image(in_swapchain_image_ptr,
                                               VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                               intermediate_image_ptr,
                                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -385,7 +385,7 @@ void Anvil::DummyWindowWithPNGSnapshots::store_swapchain_frame()
     swapchain_image_ptr->get_image_mipmap_size(0, /* n_mipmap */
                                                swapchain_image_size + 0,
                                                swapchain_image_size + 1,
-                                               nullptr); /* opt_out_depth_ptr */
+                                               nullptr); /* out_opt_depth_ptr */
 
     /* Determine what name should be used for the snapshot file */
     std::stringstream snapshot_file_name_sstream;

@@ -23,6 +23,7 @@
 #ifndef WRAPPERS_QUERY_POOL_H
 #define WRAPPERS_QUERY_POOL_H
 
+#include "misc/debug_marker.h"
 #include "misc/ref_counter.h"
 #include "misc/pools.h"
 #include "misc/types.h"
@@ -31,7 +32,7 @@
 namespace Anvil
 {
     /* Implements a query pool wrapper. */
-    class QueryPool
+    class QueryPool : public DebugMarkerSupportProvider<QueryPool>
     {
     public:
         /* Public functions */
@@ -41,31 +42,31 @@ namespace Anvil
          *  Note that a query pool preallocates the requested number of queries. This number
          *  cannot be increased after the object is spawned.
          *
-         *  @param device_ptr               Device to use.
-         *  @param query_type               Type of the query to create the query pool for. May
-         *                                  either be VK_QUERY_TYPE_OCCLUSION or
-         *                                  VK_QUERY_TYPE_PIPELINE_STATISTICS.
-         *  @param n_max_concurrent_queries Maximum number of queries which are going to be in-flight
-         *                                  for this query pool.
+         *  @param in_device_ptr               Device to use.
+         *  @param in_query_type               Type of the query to create the query pool for. May
+         *                                     either be VK_QUERY_TYPE_OCCLUSION or
+         *                                     VK_QUERY_TYPE_PIPELINE_STATISTICS.
+         *  @param in_n_max_concurrent_queries Maximum number of queries which are going to be in-flight
+         *                                     for this query pool.
          *
          **/
-        static std::shared_ptr<QueryPool> create_non_ps_query_pool(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                                   VkQueryType                      query_type,
-                                                                   uint32_t                         n_max_concurrent_queries);
+        static std::shared_ptr<QueryPool> create_non_ps_query_pool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                                   VkQueryType                      in_query_type,
+                                                                   uint32_t                         in_n_max_concurrent_queries);
 
         /** Creates a new pipeline statistics query pool.
          *
          *  Note that a query pool preallocates the requested number of queries. This number
          *  cannot be increased after the object is spawned.
          *
-         *  @param device_ptr               Device to use.
-         *  @param pipeline_statistics      Pipeline statistics flags the query should support.
-         *  @param n_max_concurrent_queries Number of queries to preallocate in the pool.
+         *  @param in_device_ptr               Device to use.
+         *  @param in_pipeline_statistics      Pipeline statistics flags the query should support.
+         *  @param in_n_max_concurrent_queries Number of queries to preallocate in the pool.
          *
          **/
-        static std::shared_ptr<QueryPool> create_ps_query_pool(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                               VkQueryPipelineStatisticFlags    pipeline_statistics,
-                                                               uint32_t                         n_max_concurrent_queries);
+        static std::shared_ptr<QueryPool> create_ps_query_pool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                               VkQueryPipelineStatisticFlags    in_pipeline_statistics,
+                                                               uint32_t                         in_n_max_concurrent_queries);
 
         /** Destructor */
         virtual ~QueryPool();

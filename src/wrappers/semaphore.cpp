@@ -26,9 +26,11 @@
 #include "wrappers/semaphore.h"
 
 /* Please see header for specification */
-Anvil::Semaphore::Semaphore(std::weak_ptr<Anvil::BaseDevice> device_ptr)
-    :m_device_ptr(device_ptr),
-     m_semaphore (VK_NULL_HANDLE)
+Anvil::Semaphore::Semaphore(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
+    :DebugMarkerSupportProvider(in_device_ptr,
+                                VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT),
+     m_device_ptr              (in_device_ptr),
+     m_semaphore               (VK_NULL_HANDLE)
 {
     reset();
 
@@ -46,12 +48,12 @@ Anvil::Semaphore::~Semaphore()
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Semaphore> Anvil::Semaphore::create(std::weak_ptr<Anvil::BaseDevice> device_ptr)
+std::shared_ptr<Anvil::Semaphore> Anvil::Semaphore::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
 {
     std::shared_ptr<Anvil::Semaphore> result_ptr;
 
     result_ptr.reset(
-        new Anvil::Semaphore(device_ptr)
+        new Anvil::Semaphore(in_device_ptr)
     );
 
     return result_ptr;
@@ -92,5 +94,10 @@ void Anvil::Semaphore::reset()
                               &semaphore_create_info,
                                nullptr, /* pAllocator */
                               &m_semaphore);
+
     anvil_assert_vk_call_succeeded(result);
+    if (is_vk_call_successful(result) )
+    {
+        set_vk_handle(m_semaphore);
+    }
 }

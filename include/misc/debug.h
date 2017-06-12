@@ -32,8 +32,14 @@
                                         __LINE__,    \
                                         #assertion); \
         }
+
+    #define anvil_assert_fail()                                      \
+        Anvil::on_assertion_failed(__FILE__,                         \
+                                   __LINE__,                         \
+                                   "Unexpected condition detected");
 #else
     #define anvil_assert(assertion)
+    #define anvil_assert_fail()
 #endif
 
 
@@ -48,34 +54,34 @@ namespace Anvil
 {
     /** Function prototype of an assertion failure handler.
      *
-     *  @param filename File, from which the assertion failure originated.
-     *  @param line     Line index
-     *  @param message  Null-terminated text string holding the tokenized condition which failed.
+     *  @param in_filename File, from which the assertion failure originated.
+     *  @param in_line     Line index
+     *  @param in_message  Null-terminated text string holding the tokenized condition which failed.
      **/
-    typedef void (*PFNASSERTIONFAILEDCALLBACKPROC)(const char*  filename,
-                                                   unsigned int line,
-                                                   const char*  message);
+    typedef void (*PFNASSERTIONFAILEDCALLBACKPROC)(const char*  in_filename,
+                                                   unsigned int in_line,
+                                                   const char*  in_message);
 
     /** Assertion failure interceptor.
      *
      *  Calls the default or the user-specified assertion failure handler (if one was defined
      *  by the app with a set_assertion_failure_handler() invocation).
      *
-     *  @param filename File, from which the assertion failure originated.
-     *  @param line     Line index
-     *  @param message  Null-terminated text string holding the tokenized condition which failed.
+     *  @param in_filename File, from which the assertion failure originated.
+     *  @param in_line     Line index
+     *  @param in_message  Null-terminated text string holding the tokenized condition which failed.
      **/
-    void on_assertion_failed(const char*  filename,
-                             unsigned int line,
-                             const char*  message);
+    void on_assertion_failed(const char*  in_filename,
+                             unsigned int in_line,
+                             const char*  in_message);
 
     /** Modifies the assertion failure handler entry-point, which is going to be used by Anvil in case
      *  an assertion failure occurs.
      *
-     *  @param new_callback_func_ptr New entry-point to use. Must not be nullptr.
+     *  @param in_new_callback_func_ptr New entry-point to use. Must not be nullptr.
      *
      **/
-    void set_assertion_failure_handler(PFNASSERTIONFAILEDCALLBACKPROC new_callback_func_ptr);
+    void set_assertion_failure_handler(PFNASSERTIONFAILEDCALLBACKPROC in_new_callback_func_ptr);
 };
 
 #endif /* MISC_DEBUG_H */

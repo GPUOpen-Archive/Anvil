@@ -29,8 +29,8 @@
 
 
 /** Constructor. */
-Anvil::PipelineLayoutManager::PipelineLayoutManager(std::weak_ptr<Anvil::BaseDevice> device_ptr)
-    :m_device_ptr              (device_ptr),
+Anvil::PipelineLayoutManager::PipelineLayoutManager(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
+    :m_device_ptr              (in_device_ptr),
      m_pipeline_layouts_created(0)
 {
     /* Register the object */
@@ -47,20 +47,20 @@ Anvil::PipelineLayoutManager::~PipelineLayoutManager()
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::PipelineLayoutManager> Anvil::PipelineLayoutManager::create(std::weak_ptr<Anvil::BaseDevice> device_ptr)
+std::shared_ptr<Anvil::PipelineLayoutManager> Anvil::PipelineLayoutManager::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
 {
-    std::shared_ptr<Anvil::BaseDevice>            device_locked_ptr(device_ptr);
+    std::shared_ptr<Anvil::BaseDevice>            device_locked_ptr(in_device_ptr);
     std::shared_ptr<Anvil::PipelineLayoutManager> result_ptr;
 
-    result_ptr.reset(new Anvil::PipelineLayoutManager(device_ptr) );
+    result_ptr.reset(new Anvil::PipelineLayoutManager(in_device_ptr) );
     anvil_assert(result_ptr != nullptr);
 
     return result_ptr;
 }
 
 /* Please see header for specification */
-bool Anvil::PipelineLayoutManager::get_layout(std::shared_ptr<DescriptorSetGroup>     dsg_ptr,
-                                              const PushConstantRanges&               push_constant_ranges,
+bool Anvil::PipelineLayoutManager::get_layout(std::shared_ptr<DescriptorSetGroup>     in_dsg_ptr,
+                                              const PushConstantRanges&               in_push_constant_ranges,
                                               std::shared_ptr<Anvil::PipelineLayout>* out_pipeline_layout_ptr_ptr)
 {
     bool result = false;
@@ -76,8 +76,8 @@ bool Anvil::PipelineLayoutManager::get_layout(std::shared_ptr<DescriptorSetGroup
 
         std::shared_ptr<Anvil::PipelineLayout> current_pipeline_layout_ptr = layout_iterator->second.lock();
 
-        if (current_pipeline_layout_ptr->get_attached_dsg()                  == dsg_ptr              &&
-            current_pipeline_layout_ptr->get_attached_push_constant_ranges() == push_constant_ranges)
+        if (current_pipeline_layout_ptr->get_attached_dsg()                  == in_dsg_ptr              &&
+            current_pipeline_layout_ptr->get_attached_push_constant_ranges() == in_push_constant_ranges)
         {
             *out_pipeline_layout_ptr_ptr = current_pipeline_layout_ptr;
             result                       = true;
@@ -93,15 +93,15 @@ bool Anvil::PipelineLayoutManager::get_layout(std::shared_ptr<DescriptorSetGroup
         /* Try to create a new layout for the specified DSG + push constant range set */
         std::shared_ptr<Anvil::PipelineLayout> new_layout_ptr = Anvil::PipelineLayout::create(m_device_ptr);
 
-        result = new_layout_ptr->set_dsg(dsg_ptr);
+        result = new_layout_ptr->set_dsg(in_dsg_ptr);
 
         if (!result)
         {
             goto end;
         }
 
-        for (auto push_constant_range_iterator  = push_constant_ranges.begin();
-                  push_constant_range_iterator != push_constant_ranges.end();
+        for (auto push_constant_range_iterator  = in_push_constant_ranges.begin();
+                  push_constant_range_iterator != in_push_constant_ranges.end();
                 ++push_constant_range_iterator)
         {
             result = new_layout_ptr->attach_push_constant_range((*push_constant_range_iterator).offset,
@@ -135,27 +135,27 @@ end:
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::PipelineLayout> Anvil::PipelineLayoutManager::get_layout_by_id(Anvil::PipelineLayoutID id) const
+std::shared_ptr<Anvil::PipelineLayout> Anvil::PipelineLayoutManager::get_layout_by_id(Anvil::PipelineLayoutID in_id) const
 {
-    if (m_pipeline_layouts.find(id) == m_pipeline_layouts.end() ||
-        m_pipeline_layouts.at(id).expired() )
+    if (m_pipeline_layouts.find(in_id) == m_pipeline_layouts.end() ||
+        m_pipeline_layouts.at  (in_id).expired() )
     {
         return std::shared_ptr<Anvil::PipelineLayout>();
     }
     else
     {
-        return m_pipeline_layouts.at(id).lock();
+        return m_pipeline_layouts.at(in_id).lock();
     }
 }
 
 /** Called back whenever a pipeline layout is released **/
-void Anvil::PipelineLayoutManager::on_pipeline_layout_dropped(void* callback_arg,
-                                                              void* user_arg)
+void Anvil::PipelineLayoutManager::on_pipeline_layout_dropped(void* in_callback_arg,
+                                                              void* in_user_arg)
 {
     PipelineLayouts::iterator     layout_iterator;
-    Anvil::PipelineLayoutManager* layout_manager_ptr = static_cast<PipelineLayoutManager*>(user_arg);
+    Anvil::PipelineLayoutManager* layout_manager_ptr = static_cast<PipelineLayoutManager*>(in_user_arg);
 
-    ANVIL_REDUNDANT_ARGUMENT(callback_arg);
+    ANVIL_REDUNDANT_ARGUMENT(in_callback_arg);
 
     /* Are we the last standing layout user? */
     for (layout_iterator  = layout_manager_ptr->m_pipeline_layouts.begin();

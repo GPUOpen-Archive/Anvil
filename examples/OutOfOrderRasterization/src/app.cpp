@@ -413,6 +413,10 @@ void App::init_buffers()
                                                           VK_SHARING_MODE_EXCLUSIVE,
                                                           VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 
+    m_index_buffer_ptr->set_name        ("Teapot index buffer");
+    m_query_results_buffer_ptr->set_name("Query results buffer");
+    m_vertex_buffer_ptr->set_name       ("Teapot vertex buffer");
+
     allocator_ptr->add_buffer(m_query_results_buffer_ptr,
                               Anvil::MEMORY_FEATURE_FLAG_MAPPABLE);
 
@@ -432,6 +436,8 @@ void App::init_buffers()
                                                          Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
                                                          VK_SHARING_MODE_EXCLUSIVE,
                                                          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+
+        new_buffer_ptr->set_name("Properties buffer");
 
         allocator_ptr->add_buffer(new_buffer_ptr,
                                   0); /* in_required_memory_features */
@@ -458,7 +464,7 @@ void App::init_command_buffers()
     const Anvil::DeviceType                         device_type        = device_locked_ptr->get_type();
     std::shared_ptr<Anvil::GraphicsPipelineManager> gfx_manager_ptr    = device_locked_ptr->get_graphics_pipeline_manager();
     const uint32_t                                  n_swapchain_images = m_swapchain_ptr->get_n_images();
-    std::shared_ptr<Anvil::Buffer>                  vertex_buffers[] =
+    std::shared_ptr<Anvil::Buffer>                  vertex_buffers[]   =
     {
         m_vertex_buffer_ptr
     };
@@ -533,6 +539,9 @@ void App::init_command_buffers()
 
 
                 cmdbuffer_ptr = device_locked_ptr->get_command_pool(Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL)->alloc_primary_level_command_buffer();
+
+                cmdbuffer_ptr->set_name_formatted("Rendering command buffer (OoO:%s)",
+                                                  ((n_ooo_iteration == 0) ? "off" : "on") );
 
                 cmdbuffer_ptr->start_recording(false,  /* one_time_submit          */
                                                true);  /* simultaneous_use_allowed */
@@ -777,6 +786,9 @@ void App::init_renderpasses()
         renderpass_ptr = Anvil::RenderPass::create(m_device_ptr,
                                                    m_swapchain_ptr);
 
+        renderpass_ptr->set_name_formatted("Renderpass for swapchain image [%d]",
+                                           n_swapchain_image);
+
         renderpass_ptr->add_color_attachment(m_swapchain_ptr->get_image_format(),
                                              VK_SAMPLE_COUNT_1_BIT,
                                              VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -855,6 +867,8 @@ void App::init_renderpasses()
                                                      m_window_ptr->get_height(),
                                                      1); /* n_layers */
 
+        framebuffer_ptr->set_name("Main framebuffer");
+
         framebuffer_ptr->add_attachment(m_swapchain_ptr->get_image_view(n_swapchain_image),
                                         nullptr);
         framebuffer_ptr->add_attachment(m_depth_image_view_ptr,
@@ -877,12 +891,20 @@ void App::init_semaphores()
         SemaphoreBundle                   signal_semaphore_bundle;
         SemaphoreBundle                   wait_semaphore_bundle;
 
+        new_frame_acquisition_wait_semaphore_ptr->set_name_formatted("New frame acquisition wait semaphore [%d]",
+                                                                     n_swapchain_image);
+
         for (uint32_t n_physical_device = 0;
                       n_physical_device < n_physical_devices;
                     ++n_physical_device)
         {
             std::shared_ptr<Anvil::Semaphore> new_signal_semaphore_ptr = Anvil::Semaphore::create(m_device_ptr);
             std::shared_ptr<Anvil::Semaphore> new_wait_semaphore_ptr   = Anvil::Semaphore::create(m_device_ptr);
+
+            new_signal_semaphore_ptr->set_name_formatted("Signal semaphore [%d]",
+                                                         n_swapchain_image);
+            new_wait_semaphore_ptr->set_name_formatted  ("Wait semaphore [%d]",
+                                                         n_swapchain_image);
 
             signal_semaphore_bundle.semaphores.push_back(new_signal_semaphore_ptr);
             wait_semaphore_bundle.semaphores.push_back  (new_wait_semaphore_ptr);
@@ -923,6 +945,8 @@ void App::init_shaders()
     vs_sm_ptr = Anvil::ShaderModule::create_from_spirv_generator(m_device_ptr,
                                                                  vs_ptr);
 
+    fs_sm_ptr->set_name("Fragment shader");
+    vs_sm_ptr->set_name("Vertex shader");
 
     m_fs_entrypoint_ptr.reset(new Anvil::ShaderModuleStageEntryPoint("main",
                                                                      fs_sm_ptr,
@@ -944,12 +968,17 @@ void App::init_swapchain()
                                                               m_device_ptr,
                                                               m_window_ptr);
 
+    m_rendering_surface_ptr->set_name("Main rendering surface");
+
+
     m_swapchain_ptr = sgpu_device_locked_ptr->create_swapchain(m_rendering_surface_ptr,
                                                                m_window_ptr,
                                                                swapchain_format,
                                                                swapchain_present_mode,
                                                                swapchain_usage,
                                                                m_n_swapchain_images);
+
+    m_swapchain_ptr->set_name("Main swapchain");
 }
 
 void App::init_window()
@@ -1001,6 +1030,11 @@ void App::init_vulkan()
     }
 
     required_extension_names.push_back("VK_KHR_swapchain");
+
+    if (physical_device_locked_ptr->is_device_extension_supported(VK_EXT_DEBUG_MARKER_EXTENSION_NAME) )
+    {
+        required_extension_names.push_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
+    }
 
     /* Create a Vulkan device */
     m_device_ptr = Anvil::SGPUDevice::create(physical_device_locked_ptr,

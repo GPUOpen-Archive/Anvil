@@ -56,17 +56,17 @@ namespace Anvil
 
        /** Constructor. Initializes base layer of a pipeline manager.
         *
-        *  @param device_ptr                  Device to use.
-        *  @param use_pipeline_cache          true if a pipeline cache should be used to spawn new pipeline objects.
-        *                                     What pipeline cache ends up being used depends on @param pipeline_cache_to_reuse_ptr -
-        *                                     if a nullptr object is passed via this argument, a new pipeline cache instance will
-        *                                     be created, and later released by the destructor. If a non-nullptr object is passed,
-        *                                     it will be used instead.
-        *  @param pipeline_cache_to_reuse_ptr Please see above.
+        *  @param in_device_ptr                  Device to use.
+        *  @param in_use_pipeline_cache          true if a pipeline cache should be used to spawn new pipeline objects.
+        *                                        What pipeline cache ends up being used depends on @param in_pipeline_cache_to_reuse_ptr -
+        *                                        if a nullptr object is passed via this argument, a new pipeline cache instance will
+        *                                        be created, and later released by the destructor. If a non-nullptr object is passed,
+        *                                        it will be used instead.
+        *  @param in_pipeline_cache_to_reuse_ptr Please see above.
         **/
-       explicit BasePipelineManager(std::weak_ptr<Anvil::BaseDevice>      device_ptr,
-                                    bool                                  use_pipeline_cache          = false,
-                                    std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr = std::shared_ptr<Anvil::PipelineCache>() );
+       explicit BasePipelineManager(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
+                                    bool                                  in_use_pipeline_cache          = false,
+                                    std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr = std::shared_ptr<Anvil::PipelineCache>() );
 
        /** Destructor. Releases internally managed objects. */
        virtual ~BasePipelineManager();
@@ -76,18 +76,18 @@ namespace Anvil
         *
         *  The function marks the specified pipeline as dirty, meaning it will be re-baked at the next get_() call time.
         *
-        *  @param pipeline_id ID of the pipeline to append the push constant range to. Must not describe a proxy
-        *                     pipeline.
-        *  @param offset      Start offset, at which the push constant data will start.
-        *  @param size        Size of the push constant data.
-        *  @param stages      Pipeline stages the push constant data should be accessible to.
+        *  @param in_pipeline_id ID of the pipeline to append the push constant range to. Must not describe a proxy
+        *                        pipeline.
+        *  @param in_offset      Start offset, at which the push constant data will start.
+        *  @param in_size        Size of the push constant data.
+        *  @param in_stages      Pipeline stages the push constant data should be accessible to.
         *
         *  @return true if successful, false otherwise.
         **/
-       bool attach_push_constant_range_to_pipeline(PipelineID         pipeline_id,
-                                                   uint32_t           offset,
-                                                   uint32_t           size,
-                                                   VkShaderStageFlags stages);
+       bool attach_push_constant_range_to_pipeline(PipelineID         in_pipeline_id,
+                                                   uint32_t           in_offset,
+                                                   uint32_t           in_size,
+                                                   VkShaderStageFlags in_stages);
 
        virtual bool bake() = 0;
 
@@ -95,13 +95,13 @@ namespace Anvil
         *
         *  This function marks the pipeline as dirty, meaning it will be re-baked at the next get_*() call.
         *
-        *  @param pipeline_id ID of the compute pipeline to attach the descriptor sets defined by the group to.
-        *  @param dsg_ptr     Descriptor set group instance, whose descriptor sets should be appended.
+        *  @param in_pipeline_id ID of the compute pipeline to attach the descriptor sets defined by the group to.
+        *  @param in_dsg_ptr     Descriptor set group instance, whose descriptor sets should be appended.
         *
         *  @return true if successful, false otherwise.
         **/
-       bool set_pipeline_dsg(PipelineID                                 pipeline_id,
-                             std::shared_ptr<Anvil::DescriptorSetGroup> dsg_ptr);
+       bool set_pipeline_dsg(PipelineID                                 in_pipeline_id,
+                             std::shared_ptr<Anvil::DescriptorSetGroup> in_dsg_ptr);
 
        /** Retrieves general properties of a pipeline.
         *
@@ -116,7 +116,7 @@ namespace Anvil
         *
         *  @return true if successful, false otherwise.
         */
-       bool get_general_pipeline_properties(PipelineID pipeline_id,
+       bool get_general_pipeline_properties(PipelineID in_pipeline_id,
                                             bool*      out_opt_has_optimizations_disabled_ptr,
                                             bool*      out_opt_allows_derivatives_ptr,
                                             bool*      out_opt_is_a_derivative_ptr) const;
@@ -129,18 +129,18 @@ namespace Anvil
 
        /** Returns ID of a pipeline at user-specified index.
         *
-        *  @param n_pipeline          Index of the pipeline to return ID of.
-        *  @param out_pipeline_id_ptr
+        *  @param in_n_pipeline       Index of the pipeline to return ID of.
+        *  @param out_pipeline_id_ptr TODO
         *
         *  @return true if successful, false otherwise.
         **/
-       bool get_pipeline_id_at_index(uint32_t    n_pipeline,
+       bool get_pipeline_id_at_index(uint32_t    in_n_pipeline,
                                      PipelineID* out_pipeline_id_ptr) const;
 
        /** Returns shader stage information for each stage, as specified at creation time */
-       bool get_shader_stage_properties(PipelineID                   pipeline_id,
-                                        Anvil::ShaderStage           shader_stage,
-                                        ShaderModuleStageEntryPoint* opt_out_result_ptr) const;
+       bool get_shader_stage_properties(PipelineID                   in_pipeline_id,
+                                        Anvil::ShaderStage           in_shader_stage,
+                                        ShaderModuleStageEntryPoint* out_opt_result_ptr) const;
 
        /** By default, a pipeline is bakeable which means it may be baked even when the pipeline manager is
         *  requested to provide a Vulkan pipeline handle for another pipeline. In such cases, the manager
@@ -151,8 +151,8 @@ namespace Anvil
         *  Therefore, some manager users may mark certain pipelines as unbakeable and defer baking as long
         *  as needed. This needs to be done *explicitly*.
         **/
-       bool set_pipeline_bakeability(PipelineID pipeline_id,
-                                     bool       bakeable);
+       bool set_pipeline_bakeability(PipelineID in_pipeline_id,
+                                     bool       in_bakeable);
 
     protected:
        /* Protected type declarations */
@@ -376,25 +376,25 @@ namespace Anvil
         *  The function does not automatically bake the new pipeline. This action can either be explicitly
         *  requested by calling bake(), or by calling one of the get_*() functions.
         *
-        *  @param disable_optimizations               If true, the pipeline will be created with the 
-        *                                             VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT flag.
-        *  @param allow_derivatives                   If true, the pipeline will be created with the
-        *                                             VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT flag.
-        *  @param n_shader_module_stage_entrypoints   Number of shader module stage entrypoint descriptors available under
-        *                                             @param in_shader_module_stage_entrypoint_ptrs. Must be >= 1.
-        *  @param shader_module_stage_entrypoint_ptrs Array of shader module stage entrypoint descriptors. Must hold
-        *                                             @param in_n_shader_module_stage_entrypoints elements. Must not be nullptr.
-        *  @param base_pipeline_id                    ID of the pipeline, which should be used as base for the new pipeline
-        *                                             object. Must be an ID earlier returned by one of the other add_() functions.
-        *  @param out_pipeline_id_ptr                 Deref will be set to the ID of the result pipeline object. Must not be nullptr.
+        *  @param in_disable_optimizations               If true, the pipeline will be created with the 
+        *                                                VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT flag.
+        *  @param in_allow_derivatives                   If true, the pipeline will be created with the
+        *                                                VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT flag.
+        *  @param in_n_shader_module_stage_entrypoints   Number of shader module stage entrypoint descriptors available under
+        *                                                @param in_shader_module_stage_entrypoint_ptrs. Must be >= 1.
+        *  @param in_shader_module_stage_entrypoint_ptrs Array of shader module stage entrypoint descriptors. Must hold
+        *                                                @param in_n_shader_module_stage_entrypoints elements. Must not be nullptr.
+        *  @param in_base_pipeline_id                    ID of the pipeline, which should be used as base for the new pipeline
+        *                                                object. Must be an ID earlier returned by one of the other add_() functions.
+        *  @param out_pipeline_id_ptr                    Deref will be set to the ID of the result pipeline object. Must not be nullptr.
         *
         *  @return true if the function executed successfully, false otherwise.
         **/
-       bool add_derivative_pipeline_from_sibling_pipeline(bool                               disable_optimizations,
-                                                          bool                               allow_derivatives,
-                                                          uint32_t                           n_shader_module_stage_entrypoints,
-                                                          const ShaderModuleStageEntryPoint* shader_module_stage_entrypoint_ptrs,
-                                                          PipelineID                         base_pipeline_id,
+       bool add_derivative_pipeline_from_sibling_pipeline(bool                               in_disable_optimizations,
+                                                          bool                               in_allow_derivatives,
+                                                          uint32_t                           in_n_shader_module_stage_entrypoints,
+                                                          const ShaderModuleStageEntryPoint* in_shader_module_stage_entrypoint_ptrs,
+                                                          PipelineID                         in_base_pipeline_id,
                                                           PipelineID*                        out_pipeline_id_ptr);
 
        /** Registers a new derivative pipeline which is going to inherit its state from another Vulkan pipeline object.
@@ -402,25 +402,25 @@ namespace Anvil
         *  The function does not automatically bake the new pipeline. This action can either be explicitly
         *  requested by calling bake(), or by calling one of the get_*() functions.
         *
-        *  @param disable_optimizations               If true, the pipeline will be created with the 
-        *                                             VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT flag.
-        *  @param allow_derivatives                   If true, the pipeline will be created with the
-        *                                             VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT flag.
-        *  @param n_shader_module_stage_entrypoints   Number of shader module stage entrypoint descriptors available under
-        *                                             @param in_shader_module_stage_entrypoint_ptrs. Must be >= 1.
-        *  @param shader_module_stage_entrypoint_ptrs Array of shader module stage entrypoint descriptors. Must hold
-        *                                             @param in_n_shader_module_stage_entrypoints elements. Must not be nullptr.
-        *  @param base_pipeline                       Handle of the pipeline, which should be used as base for the new pipeline
-        *                                             object. Must not be nullptr.
-        *  @param out_pipeline_id_ptr                 Deref will be set to the ID of the result pipeline object. Must not be nullptr.
+        *  @param in_disable_optimizations               If true, the pipeline will be created with the 
+        *                                                VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT flag.
+        *  @param in_allow_derivatives                   If true, the pipeline will be created with the
+        *                                                VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT flag.
+        *  @param in_n_shader_module_stage_entrypoints   Number of shader module stage entrypoint descriptors available under
+        *                                                @param in_shader_module_stage_entrypoint_ptrs. Must be >= 1.
+        *  @param in_shader_module_stage_entrypoint_ptrs Array of shader module stage entrypoint descriptors. Must hold
+        *                                                @param in_n_shader_module_stage_entrypoints elements. Must not be nullptr.
+        *  @param in_base_pipeline                       Handle of the pipeline, which should be used as base for the new pipeline
+        *                                                object. Must not be nullptr.
+        *  @param out_pipeline_id_ptr                    Deref will be set to the ID of the result pipeline object. Must not be nullptr.
         *
         *  @return true if the function executed successfully, false otherwise.
         **/
-       bool add_derivative_pipeline_from_pipeline(bool                               disable_optimizations,
-                                                  bool                               allow_derivatives,
-                                                  uint32_t                           n_shader_module_stage_entrypoints,
-                                                  const ShaderModuleStageEntryPoint* shader_module_stage_entrypoint_ptrs,
-                                                  VkPipeline                         base_pipeline,
+       bool add_derivative_pipeline_from_pipeline(bool                               in_disable_optimizations,
+                                                  bool                               in_allow_derivatives,
+                                                  uint32_t                           in_n_shader_module_stage_entrypoints,
+                                                  const ShaderModuleStageEntryPoint* in_shader_module_stage_entrypoint_ptrs,
+                                                  VkPipeline                         in_base_pipeline,
                                                   PipelineID*                        out_pipeline_id_ptr);
 
        /**  Registers a new proxy pipeline. A proxy pipeline cannot be baked, but it can hold state data and act
@@ -437,91 +437,91 @@ namespace Anvil
         *  The function does not automatically bake the new pipeline. This action can either be explicitly
         *  requested by calling bake(), or by calling one of the get_*() functions.
         *
-        *  @param disable_optimizations               If true, the pipeline will be created with the 
-        *                                             VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT flag.
-        *  @param allow_derivatives                   If true, the pipeline will be created with the
-        *                                             VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT flag.
-        *  @param n_shader_module_stage_entrypoints   Number of shader module stage entrypoint descriptors available under
-        *                                             @param in_shader_module_stage_entrypoint_ptrs. Must be >= 1.
-        *  @param shader_module_stage_entrypoint_ptrs Array of shader module stage entrypoint descriptors. Must hold
-        *                                             @param in_n_shader_module_stage_entrypoints elements. Must not be nullptr.
-        *  @param out_pipeline_id_ptr                 Deref will be set to the ID of the result pipeline object. Must not be nullptr.
+        *  @param in_disable_optimizations               If true, the pipeline will be created with the 
+        *                                                VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT flag.
+        *  @param in_allow_derivatives                   If true, the pipeline will be created with the
+        *                                                VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT flag.
+        *  @param in_n_shader_module_stage_entrypoints   Number of shader module stage entrypoint descriptors available under
+        *                                                @param in_shader_module_stage_entrypoint_ptrs. Must be >= 1.
+        *  @param in_shader_module_stage_entrypoint_ptrs Array of shader module stage entrypoint descriptors. Must hold
+        *                                                @param in_n_shader_module_stage_entrypoints elements. Must not be nullptr.
+        *  @param out_pipeline_id_ptr                    Deref will be set to the ID of the result pipeline object. Must not be nullptr.
         *
         *  @return true if the function executed successfully, false otherwise.
         **/
-       bool add_regular_pipeline(bool                               disable_optimizations,
-                                 bool                               allow_derivatives,
-                                 uint32_t                           n_shader_module_stage_entrypoints,
-                                 const ShaderModuleStageEntryPoint* shader_module_stage_entrypoint_ptrs,
+       bool add_regular_pipeline(bool                               in_disable_optimizations,
+                                 bool                               in_allow_derivatives,
+                                 uint32_t                           in_n_shader_module_stage_entrypoints,
+                                 const ShaderModuleStageEntryPoint* in_shader_module_stage_entrypoint_ptrs,
                                  PipelineID*                        out_pipeline_id_ptr);
 
        /** Adds a new specialization constant to the specified pipeline object.
         *
         *  This function marks the pipeline as dirty, meaning it will be rebaked at the next get_() call.
         *
-        *  @param pipeline_id  ID of the pipeline to add the constant to. Must be an ID returned
-        *                      by one of the add_() functions. Must not describe a proxy pipeline.
-        *  @param shader_index Index of the shader, with which the new specialization constant should be
-        *                      associated.
-        *  @param constant_id  ID of the specialization constant to assign data for.
-        *  @param n_data_bytes Number of bytes under @param data_ptr to assign to the specialization constant.
-        *  @param data_ptr     A buffer holding the data to be assigned to the constant. Must hold at least
-        *                      @param n_data_bytes bytes that will be read by the function.
+        *  @param in_pipeline_id  ID of the pipeline to add the constant to. Must be an ID returned
+        *                         by one of the add_() functions. Must not describe a proxy pipeline.
+        *  @param in_shader_index Index of the shader, with which the new specialization constant should be
+        *                         associated.
+        *  @param in_constant_id  ID of the specialization constant to assign data for.
+        *  @param in_n_data_bytes Number of bytes under @param in_data_ptr to assign to the specialization constant.
+        *  @param in_data_ptr     A buffer holding the data to be assigned to the constant. Must hold at least
+        *                         @param in_n_data_bytes bytes that will be read by the function.
         *
         *  @return true if successful, false otherwise.
         **/
-       bool add_specialization_constant_to_pipeline(PipelineID  pipeline_id,
-                                                    ShaderIndex shader_index,
-                                                    uint32_t    constantID,
-                                                    uint32_t    n_data_bytes,
-                                                    const void* data_ptr);
+       bool add_specialization_constant_to_pipeline(PipelineID  in_pipeline_id,
+                                                    ShaderIndex in_shader_index,
+                                                    uint32_t    in_constantID,
+                                                    uint32_t    in_n_data_bytes,
+                                                    const void* in_data_ptr);
 
        /** Fills & returns a VkSpecializationInfo descriptor. Any sub-descriptors, to which the baked descriptor
         *  is going to point at, are stored in a vector provided by the caller. It is caller's responsibility to
         *  ensure the vector is not released before pipeline baking occurs.
         *
-        *  @param specialization_constants                 Vector of internal specialization constant descriptors, which should be
-        *                                                  baked into the Vulkan descriptor.
-        *  @param specialization_constant_data_ptr         Buffer which holds specialization constant data.
-        *  @param inout_specialization_map_entry_vk_vector As per description. Must not be nullptr.
-        *  @param out_specialization_info_ptr              Deref will be set to the baked Vulkan descriptor. Must not be nullptr.
+        *  @param in_specialization_constants            Vector of internal specialization constant descriptors, which should be
+        *                                                baked into the Vulkan descriptor.
+        *  @param in_specialization_constant_data_ptr    Buffer which holds specialization constant data.
+        *  @param out_specialization_map_entry_vk_vector As per description. Must not be nullptr.
+        *  @param out_specialization_info_ptr            Deref will be set to the baked Vulkan descriptor. Must not be nullptr.
         **/
-       void bake_specialization_info_vk(const SpecializationConstants&         specialization_constants,
-                                        const unsigned char*                   specialization_constant_data_ptr,
+       void bake_specialization_info_vk(const SpecializationConstants&         in_specialization_constants,
+                                        const unsigned char*                   in_specialization_constant_data_ptr,
                                         std::vector<VkSpecializationMapEntry>* out_specialization_map_entry_vk_vector,
                                         VkSpecializationInfo*                  out_specialization_info_ptr);
 
        /** Deletes an existing pipeline.
         *
-        *  @param pipeline_id ID of a pipeline to delete.
+        *  @param in_pipeline_id ID of a pipeline to delete.
         *
         *  @return true if successful, false otherwise.
         **/
-       bool delete_pipeline(PipelineID pipeline_id);
+       bool delete_pipeline(PipelineID in_pipeline_id);
 
        /** Retrieves a VkPipeline instance associated with the specified pipeline ID.
         *
         *  The function will bake a pipeline object (and, possibly, a pipeline layout object, too) if
         *  the specified pipeline is marked as dirty.
         *
-        *  @param pipeline_id ID of the pipeline to return the raw Vulkan pipeline handle for. Must not
-        *                     describe a proxy pipeline.
+        *  @param in_pipeline_id ID of the pipeline to return the raw Vulkan pipeline handle for. Must not
+        *                        describe a proxy pipeline.
         *
         *  @return VkPipeline handle or nullptr if the function failed.
         **/
-       VkPipeline get_pipeline(PipelineID pipeline_id);
+       VkPipeline get_pipeline(PipelineID in_pipeline_id);
 
        /** Retrieves a PipelineLayout instance associated with the specified pipeline ID.
         *
         *  The function will bake a pipeline object (and, possibly, a pipeline layout object, too) if
         *  the specified pipeline is marked as dirty.
         *
-        *  @param pipeline_id ID of the pipeline to return the wrapper instance for.
-        *                     Must not describe a proxy pipeline.
+        *  @param in_pipeline_id ID of the pipeline to return the wrapper instance for.
+        *                        Must not describe a proxy pipeline.
         *
         *  @return Ptr to a PipelineLayout instance or nullptr if the function failed.
         **/
-       std::shared_ptr<Anvil::PipelineLayout> get_pipeline_layout(PipelineID pipeline_id);
+       std::shared_ptr<Anvil::PipelineLayout> get_pipeline_layout(PipelineID in_pipeline_id);
 
        /* Protected members */
        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;

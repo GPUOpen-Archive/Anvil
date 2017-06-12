@@ -25,33 +25,33 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static void default_assertion_failure_handler(const char*  filename,
-                                              unsigned int line,
-                                              const char*  message);
+static void default_assertion_failure_handler(const char*  in_filename,
+                                              unsigned int in_line,
+                                              const char*  in_message);
 
 
 Anvil::PFNASSERTIONFAILEDCALLBACKPROC g_anvil_assertion_check_failed_func_ptr = default_assertion_failure_handler;
 
 
 /** Please see header for specification */
-void default_assertion_failure_handler(const char*  filename,
-                                       unsigned int line,
-                                       const char*  message)
+void default_assertion_failure_handler(const char*  in_filename,
+                                       unsigned int in_line,
+                                       const char*  in_message)
 {
     fprintf(stderr,
              "Assertion failed in [%s:%d]: %s",
-             filename,
-             line,
-             message);
+             in_filename,
+             in_line,
+             in_message);
     fflush  (stderr);
 
     exit(-1);
 }
 
 /** Please see header for specification */
-void Anvil::on_assertion_failed(const char*  filename,
-                                unsigned int line,
-                                const char*  message)
+void Anvil::on_assertion_failed(const char*  in_filename,
+                                unsigned int in_line,
+                                const char*  in_message)
 {
     #if defined(_WIN32) && defined(_DEBUG)
     {
@@ -59,13 +59,13 @@ void Anvil::on_assertion_failed(const char*  filename,
     }
     #endif
 
-    g_anvil_assertion_check_failed_func_ptr(filename,
-                                            line,
-                                            message);
+    g_anvil_assertion_check_failed_func_ptr(in_filename,
+                                            in_line,
+                                            in_message);
 }
 
 /** Please see header for specification */
-void Anvil::set_assertion_failure_handler(Anvil::PFNASSERTIONFAILEDCALLBACKPROC new_callback_func_ptr)
+void Anvil::set_assertion_failure_handler(Anvil::PFNASSERTIONFAILEDCALLBACKPROC in_new_callback_func_ptr)
 {
-    g_anvil_assertion_check_failed_func_ptr = new_callback_func_ptr;
+    g_anvil_assertion_check_failed_func_ptr = in_new_callback_func_ptr;
 }

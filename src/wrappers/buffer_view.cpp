@@ -27,30 +27,32 @@
 #include "wrappers/device.h"
 
 /** Please see header for specification */
-Anvil::BufferView::BufferView(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                              std::shared_ptr<Anvil::Buffer>   buffer_ptr,
-                              VkFormat                         format,
-                              VkDeviceSize                     start_offset,
-                              VkDeviceSize                     size)
-    :m_buffer_ptr  (buffer_ptr),
-     m_device_ptr  (device_ptr),
-     m_format      (format),
-     m_size        (size),
-     m_start_offset(start_offset)
+Anvil::BufferView::BufferView(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                              std::shared_ptr<Anvil::Buffer>   in_buffer_ptr,
+                              VkFormat                         in_format,
+                              VkDeviceSize                     in_start_offset,
+                              VkDeviceSize                     in_size)
+    :DebugMarkerSupportProvider<BufferView>(in_device_ptr,
+                                            VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_VIEW_EXT),
+     m_buffer_ptr  (in_buffer_ptr),
+     m_device_ptr  (in_device_ptr),
+     m_format      (in_format),
+     m_size        (in_size),
+     m_start_offset(in_start_offset)
 {
     VkBufferViewCreateInfo             buffer_view_create_info;
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(device_ptr);
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(in_device_ptr);
     VkResult                           result           (VK_ERROR_INITIALIZATION_FAILED);
 
     ANVIL_REDUNDANT_VARIABLE(result);
 
     /* Spawn a new Vulkan buffer view */
-    buffer_view_create_info.buffer = buffer_ptr->get_buffer();
+    buffer_view_create_info.buffer = in_buffer_ptr->get_buffer();
     buffer_view_create_info.flags  = 0;
-    buffer_view_create_info.format = format;
-    buffer_view_create_info.offset = start_offset;
+    buffer_view_create_info.format = in_format;
+    buffer_view_create_info.offset = in_start_offset;
     buffer_view_create_info.pNext  = nullptr;
-    buffer_view_create_info.range  = size;
+    buffer_view_create_info.range  = in_size;
     buffer_view_create_info.sType  = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
 
     result = vkCreateBufferView(device_locked_ptr->get_device_vk(),
@@ -59,6 +61,10 @@ Anvil::BufferView::BufferView(std::weak_ptr<Anvil::BaseDevice> device_ptr,
                                &m_buffer_view);
 
     anvil_assert_vk_call_succeeded(result);
+    if (is_vk_call_successful(result) )
+    {
+        set_vk_handle(m_buffer_view);
+    }
 }
 
 /** Destructor.
@@ -81,22 +87,22 @@ Anvil::BufferView::~BufferView()
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::BufferView> Anvil::BufferView::create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                             std::shared_ptr<Anvil::Buffer>   buffer_ptr,
-                                                             VkFormat                         format,
-                                                             VkDeviceSize                     start_offset,
-                                                             VkDeviceSize                     size)
+std::shared_ptr<Anvil::BufferView> Anvil::BufferView::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                             std::shared_ptr<Anvil::Buffer>   in_buffer_ptr,
+                                                             VkFormat                         in_format,
+                                                             VkDeviceSize                     in_start_offset,
+                                                             VkDeviceSize                     in_size)
 {
     std::shared_ptr<Anvil::BufferView> result_ptr;
 
     /* Instantiate the object */
     result_ptr.reset(
         new BufferView(
-            device_ptr,
-            buffer_ptr,
-            format,
-            start_offset,
-            size)
+            in_device_ptr,
+            in_buffer_ptr,
+            in_format,
+            in_start_offset,
+            in_size)
     );
 
     /* Register the buffer view instance */

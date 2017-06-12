@@ -34,11 +34,12 @@
 #ifndef WRAPPERS_DESCRIPTOR_SET_H
 #define WRAPPERS_DESCRIPTOR_SET_H
 
+#include "misc/debug_marker.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
-    class DescriptorSet
+    class DescriptorSet : public DebugMarkerSupportProvider<DescriptorSet>
     {
     public:
         /** Represents a single buffer object, which can be bound to a specific descriptor set slot */
@@ -261,16 +262,16 @@ namespace Anvil
 
         /** Creates a new DescriptorSet instance.
          *
-         *  @param device_ptr      Device the descriptor set has been initialized for.
-         *  @param parent_pool_ptr Pool, from which the descriptor set has been allocated from.
-         *                         Must not be nullptr.
-         *  @param layout_ptr      Layout which has been used at descriptor set construction time.
-         *  @param descriptor_set  Raw Vulkan handle the wrapper instance is being created for.
+         *  @param in_device_ptr      Device the descriptor set has been initialized for.
+         *  @param in_parent_pool_ptr Pool, from which the descriptor set has been allocated from.
+         *                            Must not be nullptr.
+         *  @param in_layout_ptr      Layout which has been used at descriptor set construction time.
+         *  @param in_descriptor_set  Raw Vulkan handle the wrapper instance is being created for.
          **/
-        static std::shared_ptr<DescriptorSet> create(std::weak_ptr<Anvil::BaseDevice>            device_ptr,
-                                                     std::shared_ptr<Anvil::DescriptorPool>      parent_pool_ptr,
-                                                     std::shared_ptr<Anvil::DescriptorSetLayout> layout_ptr,
-                                                     VkDescriptorSet                             descriptor_set);
+        static std::shared_ptr<DescriptorSet> create(std::weak_ptr<Anvil::BaseDevice>            in_device_ptr,
+                                                     std::shared_ptr<Anvil::DescriptorPool>      in_parent_pool_ptr,
+                                                     std::shared_ptr<Anvil::DescriptorSetLayout> in_layout_ptr,
+                                                     VkDescriptorSet                             in_descriptor_set);
 
         /** Retrieves raw Vulkan handle of the encapsulated descriptor set.
          *
@@ -304,10 +305,10 @@ namespace Anvil
         }
 
         /** This function should be set to assign physical Vulkan objects to a descriptor binding
-         *  at index @param binding_index for descriptor set @param n_set.
+         *  at index @param in_binding_index for descriptor set @param in_n_set.
          *  Each binding can hold one or more objects. Which slots the specified objects should take can
-         *  be configured by passing the right values to @param element_range.
-         *  Objects are passed via @param elements argument. The argument must be passed an object of
+         *  be configured by passing the right values to @param in_element_range.
+         *  Objects are passed via @param in_elements argument. The argument must be passed an object of
          *  one of the following types, depending on what object is to be attached to the specified
          *  descriptor binding:
          *
@@ -323,32 +324,32 @@ namespace Anvil
          *  UniformBufferBindingElement        - for uniform buffer bindings.
          *  UniformTexelBufferBindingElement   - for storage uniform buffer bindings.
          *
-         *  @param binding_index As per documentation. Must correspond to a binding which has earlier
-         *                       been added by calling add_binding() function.
-         *  @param element_range As per documentation. Must not be equal to or larger than the array size,
-         *                       specified when calling add_binding() function.
-         *  @param elements      As per documentation. Must not be nullptr.
+         *  @param in_binding_index As per documentation. Must correspond to a binding which has earlier
+         *                          been added by calling add_binding() function.
+         *  @param in_element_range As per documentation. Must not be equal to or larger than the array size,
+         *                          specified when calling add_binding() function.
+         *  @param in_elements      As per documentation. Must not be nullptr.
          *
          *  @return true if the function executed successfully, false otherwise.
          **/
         template<typename BindingElementType>
-        bool set_binding_array_items(BindingIndex              binding_index,
-                                     BindingElementArrayRange  element_range,
-                                     const BindingElementType* elements)
+        bool set_binding_array_items(BindingIndex              in_binding_index,
+                                     BindingElementArrayRange  in_element_range,
+                                     const BindingElementType* in_elements)
         {
-            anvil_assert(elements   != nullptr);
-            anvil_assert(m_unusable == false);
+            anvil_assert(in_elements != nullptr);
+            anvil_assert(m_unusable   == false);
 
-            BindingItems&  binding_items      = m_bindings[binding_index];
-            const uint32_t last_element_index = element_range.second + element_range.first;
+            BindingItems&  binding_items      = m_bindings[in_binding_index];
+            const uint32_t last_element_index = in_element_range.second + in_element_range.first;
 
-            for (BindingElementIndex current_element_index = element_range.first;
+            for (BindingElementIndex current_element_index = in_element_range.first;
                                      current_element_index < last_element_index;
                                    ++current_element_index)
             {
-                m_dirty |= !(binding_items[current_element_index] == elements[current_element_index - element_range.first]);
+                m_dirty |= !(binding_items[current_element_index] == in_elements[current_element_index - in_element_range.first]);
 
-                binding_items[current_element_index] = elements[current_element_index - element_range.first];
+                binding_items[current_element_index] = in_elements[current_element_index - in_element_range.first];
             }
 
             return true;
@@ -358,13 +359,13 @@ namespace Anvil
          *  attached to the specified descriptor set's binding.
          */
         template<typename BindingElementType>
-        bool set_binding_item(BindingIndex              binding_index,
-                              const BindingElementType& element)
+        bool set_binding_item(BindingIndex              in_binding_index,
+                              const BindingElementType& in_element)
         {
-            return set_binding_array_items(binding_index,
+            return set_binding_array_items(in_binding_index,
                                            BindingElementArrayRange(0,  /* StartBindingElementIndex */
                                                                     1), /* NumberOfBindingElements  */
-                                          &element);
+                                          &in_element);
         }
 
         /** Assigns a new Vulkan descriptor set handle to the wrapper instance.
@@ -376,9 +377,9 @@ namespace Anvil
          *  Furthermore, all cached binding information will be automatically writtne to the descriptor set at
          *  next baking time.
          *
-         *  @param ds New Vulkan handle to use. Must not be VK_NULL_HANDLE.
+         *  @param in_ds New Vulkan handle to use. Must not be VK_NULL_HANDLE.
          **/
-        void set_new_vk_handle(VkDescriptorSet ds);
+        void set_new_vk_handle(VkDescriptorSet in_ds);
 
     private:
         /* Private type declarations */
@@ -432,33 +433,33 @@ namespace Anvil
 
             /* Copy assignment operator.
              *
-             * Retains the buffer instance embedded in @param element
+             * Retains the buffer instance embedded in @param in_element
              **/
-            BindingItem& operator=(const BufferBindingElement& element);
+            BindingItem& operator=(const BufferBindingElement& in_element);
 
             /* Copy assignment operator.
              *
-             * Retains the image view & sampler instances embedded in @param element
+             * Retains the image view & sampler instances embedded in @param in_element
              **/
-            BindingItem& operator=(const CombinedImageSamplerBindingElement& element);
+            BindingItem& operator=(const CombinedImageSamplerBindingElement& in_element);
 
             /* Copy assignment operator.
              *
-             * Retains the image view instance embedded in @param element
+             * Retains the image view instance embedded in @param in_element
              **/
-            BindingItem& operator=(const ImageBindingElement& element);
+            BindingItem& operator=(const ImageBindingElement& in_element);
 
             /* Copy assignment operator.
              *
-             * Retains the sampler instance embedded in @param element
+             * Retains the sampler instance embedded in @param in_element
              **/
-            BindingItem& operator=(const SamplerBindingElement& element);
+            BindingItem& operator=(const SamplerBindingElement& in_element);
 
             /* Copy assignment operator.
              *
-             * Retains the buffer view instance embedded in @param element
+             * Retains the buffer view instance embedded in @param in_element
              **/
-            BindingItem& operator=(const TexelBufferBindingElement& element);
+            BindingItem& operator=(const TexelBufferBindingElement& in_element);
 
             /* Default dummy constructor. */ 
             BindingItem()
@@ -481,18 +482,18 @@ namespace Anvil
         /* Private functions */
 
         /** Please see create() documentation for argument discussion */
-        DescriptorSet(std::weak_ptr<Anvil::BaseDevice>            device_ptr,
-                      std::shared_ptr<Anvil::DescriptorPool>      parent_pool_ptr,
-                      std::shared_ptr<Anvil::DescriptorSetLayout> layout_ptr,
-                      VkDescriptorSet                             descriptor_set);
+        DescriptorSet(std::weak_ptr<Anvil::BaseDevice>            in_device_ptr,
+                      std::shared_ptr<Anvil::DescriptorPool>      in_parent_pool_ptr,
+                      std::shared_ptr<Anvil::DescriptorSetLayout> in_layout_ptr,
+                      VkDescriptorSet                             in_descriptor_set);
 
         DescriptorSet           (const DescriptorSet&);
         DescriptorSet& operator=(const DescriptorSet&);
 
-        static void on_binding_added_to_layout(void* layout_raw_ptr,
-                                               void* ds_raw_ptr);
-        static void on_parent_pool_reset      (void* pool_raw_ptr,
-                                               void* ds_raw_ptr);
+        static void on_binding_added_to_layout(void* in_layout_raw_ptr,
+                                               void* in_ds_raw_ptr);
+        static void on_parent_pool_reset      (void* in_pool_raw_ptr,
+                                               void* in_ds_raw_ptr);
 
         void alloc_bindings();
 

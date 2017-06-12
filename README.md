@@ -108,6 +108,8 @@ This version of Anvil provides:
    - Pipeline layout manager:              caches all created pipeline layouts to avoid instantiating duplicate layout instances.
 
 * Miscellaneous functionality:
+   - Debug markers:                        names and tags can be optionally assigned to any of the created objects. If VK_EXT_debug_marker is enabled, these
+                                           will be automatically patched through to layers that implement the extension on the running platform.
    - Format info reflection:               provides information about format properties.
    - GLSL -> SPIR-V conversion:            provides glslang-based GLSL->SPIR-V conversion. The conversion is performed in run-time. Disassembly can also be retrieved, if needed.
    - IO:                                   provides a number of functions to simplify directory- and file-related operations.

@@ -40,9 +40,10 @@
 
 /* Please see header for specification */
 Anvil::BaseDevice::BaseDevice(std::weak_ptr<Anvil::Instance> in_parent_instance_ptr)
-    :m_destroyed          (false),
-     m_device             (VK_NULL_HANDLE),
-     m_parent_instance_ptr(in_parent_instance_ptr)
+    :m_destroyed               (false),
+     m_device                  (VK_NULL_HANDLE),
+     m_ext_debug_marker_enabled(false),
+     m_parent_instance_ptr     (in_parent_instance_ptr)
 {
     std::shared_ptr<Anvil::Instance> instance_locked_ptr(in_parent_instance_ptr);
 
@@ -121,9 +122,19 @@ const Anvil::ExtensionAMDDrawIndirectCountEntrypoints& Anvil::BaseDevice::get_ex
 {
     anvil_assert(std::find(m_enabled_extensions.begin(),
                            m_enabled_extensions.end(),
-                           "VK_AMD_draw_indirect_count") != m_enabled_extensions.end() );
+                           VK_AMD_DRAW_INDIRECT_COUNT_EXTENSION_NAME) != m_enabled_extensions.end() );
 
     return m_amd_draw_indirect_count_extension_entrypoints;
+}
+
+/** Please see header for specification */
+const Anvil::ExtensionEXTDebugMarkerEntrypoints& Anvil::BaseDevice::get_extension_ext_debug_marker_entrypoints() const
+{
+    anvil_assert(std::find(m_enabled_extensions.begin(),
+                           m_enabled_extensions.end(),
+                           VK_EXT_DEBUG_MARKER_EXTENSION_NAME) != m_enabled_extensions.end() );
+
+    return m_ext_debug_marker_extension_entrypoints;
 }
 
 /** Please see header for specification */
@@ -133,10 +144,10 @@ const Anvil::ExtensionKHRSwapchainEntrypoints& Anvil::BaseDevice::get_extension_
 }
 
 /* Please see header for specification */
-void Anvil::BaseDevice::get_queue_family_indices_for_physical_device(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
+void Anvil::BaseDevice::get_queue_family_indices_for_physical_device(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
                                                                      DeviceQueueFamilyInfo*               out_device_queue_family_info_ptr) const
 {
-    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(physical_device_ptr);
+    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(in_physical_device_ptr);
 
     /* Retrieve a compute-only queue, and then look for another queue which can handle graphics tasks. */
     const size_t   n_queue_families                    = physical_device_locked_ptr->get_queue_families().size();
@@ -209,8 +220,8 @@ void Anvil::BaseDevice::get_queue_family_indices_for_physical_device(std::weak_p
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::Queue> Anvil::BaseDevice::get_sparse_binding_queue(uint32_t     n_queue,
-                                                                          VkQueueFlags opt_required_queue_flags) const
+std::shared_ptr<Anvil::Queue> Anvil::BaseDevice::get_sparse_binding_queue(uint32_t     in_n_queue,
+                                                                          VkQueueFlags in_opt_required_queue_flags) const
 {
     uint32_t                      n_queues_found = 0;
     std::shared_ptr<Anvil::Queue> result_ptr;
@@ -220,9 +231,9 @@ std::shared_ptr<Anvil::Queue> Anvil::BaseDevice::get_sparse_binding_queue(uint32
         const uint32_t queue_family_index    = queue_ptr->get_queue_family_index();
         const auto&    queue_family_info_ptr = get_queue_family_info            (queue_family_index);
 
-        if ((queue_family_info_ptr->flags & opt_required_queue_flags) == opt_required_queue_flags)
+        if ((queue_family_info_ptr->flags & in_opt_required_queue_flags) == in_opt_required_queue_flags)
         {
-            if (n_queues_found == n_queue)
+            if (n_queues_found == in_n_queue)
             {
                 result_ptr = queue_ptr;
                 break;
@@ -238,10 +249,10 @@ std::shared_ptr<Anvil::Queue> Anvil::BaseDevice::get_sparse_binding_queue(uint32
 }
 
 /* Initializes a new Device instance */
-void Anvil::BaseDevice::init(const std::vector<const char*>& extensions,
-                             const std::vector<const char*>& layers,
-                             bool                            transient_command_buffer_allocs_only,
-                             bool                            support_resettable_command_buffer_allocs)
+void Anvil::BaseDevice::init(const std::vector<const char*>& in_extensions,
+                             const std::vector<const char*>& in_layers,
+                             bool                            in_transient_command_buffer_allocs_only,
+                             bool                            in_support_resettable_command_buffer_allocs)
 {
 
     VkPhysicalDeviceFeatures         features_to_enable;
@@ -251,7 +262,7 @@ void Anvil::BaseDevice::init(const std::vector<const char*>& extensions,
 
     /* If validation is enabled, retrieve names of all suported validation layers and
      * append them to the list of layers the user has alreaedy specified. **/
-    layers_final = layers;
+    layers_final = in_layers;
 
     if (is_validation_enabled)
     {
@@ -297,21 +308,29 @@ void Anvil::BaseDevice::init(const std::vector<const char*>& extensions,
     }
 
     /* Make sure all required device extensions are supported */
-    for (auto extension_name : extensions)
+    for (auto extension_name : in_extensions)
     {
         if (!is_physical_device_extension_supported(extension_name) )
         {
             char temp[1024];
 
-            snprintf(temp,
-                     sizeof(temp),
-                     "Device extension [%s] is unsupported",
-                     extension_name);
-            fprintf(stderr,
-                    "%s",
-                    temp);
+            if (snprintf(temp,
+                         sizeof(temp),
+                         "Device extension [%s] is unsupported",
+                         extension_name) > 0)
+            {
+                fprintf(stderr,
+                        "%s",
+                        temp);
+            }
 
-            anvil_assert(false);
+            anvil_assert_fail();
+        }
+
+        if (strcmp(extension_name,
+                   VK_EXT_DEBUG_MARKER_EXTENSION_NAME) == 0)
+        {
+            m_ext_debug_marker_enabled = true;
         }
     }
 
@@ -320,15 +339,15 @@ void Anvil::BaseDevice::init(const std::vector<const char*>& extensions,
 
     anvil_assert(m_device == VK_NULL_HANDLE);
     {
-        create_device(extensions,
-                    layers_final,
-                    features_to_enable,
-                   &m_device_queue_families);
+        create_device(in_extensions,
+                      layers_final,
+                      features_to_enable,
+                     &m_device_queue_families);
     }
     anvil_assert(m_device != VK_NULL_HANDLE);
 
     /* Cache the enabled extensions */
-    for (auto extension : extensions)
+    for (auto extension : in_extensions)
     {
         m_enabled_extensions.push_back(extension);
     }
@@ -348,13 +367,30 @@ void Anvil::BaseDevice::init(const std::vector<const char*>& extensions,
 
     if (std::find(m_enabled_extensions.begin(),
                   m_enabled_extensions.end(),
-                  "VK_AMD_draw_indirect_count") != m_enabled_extensions.end() )
+                  VK_AMD_DRAW_INDIRECT_COUNT_EXTENSION_NAME) != m_enabled_extensions.end() )
     {
         m_amd_draw_indirect_count_extension_entrypoints.vkCmdDrawIndexedIndirectCountAMD = reinterpret_cast<PFN_vkCmdDrawIndexedIndirectCountAMD>(get_proc_address("vkCmdDrawIndexedIndirectCountAMD") );
         m_amd_draw_indirect_count_extension_entrypoints.vkCmdDrawIndirectCountAMD        = reinterpret_cast<PFN_vkCmdDrawIndirectCountAMD>       (get_proc_address("vkCmdDrawIndirectCountAMD") );
 
         anvil_assert(m_amd_draw_indirect_count_extension_entrypoints.vkCmdDrawIndexedIndirectCountAMD != nullptr);
         anvil_assert(m_amd_draw_indirect_count_extension_entrypoints.vkCmdDrawIndirectCountAMD        != nullptr);
+    }
+
+    if (std::find(m_enabled_extensions.begin(),
+                  m_enabled_extensions.end(),
+                  VK_EXT_DEBUG_MARKER_EXTENSION_NAME) != m_enabled_extensions.end() )
+    {
+        m_ext_debug_marker_extension_entrypoints.vkCmdDebugMarkerBeginEXT      = reinterpret_cast<PFN_vkCmdDebugMarkerBeginEXT>     (get_proc_address("vkCmdDebugMarkerBeginEXT") );
+        m_ext_debug_marker_extension_entrypoints.vkCmdDebugMarkerEndEXT        = reinterpret_cast<PFN_vkCmdDebugMarkerEndEXT>       (get_proc_address("vkCmdDebugMarkerEndEXT") );
+        m_ext_debug_marker_extension_entrypoints.vkCmdDebugMarkerInsertEXT     = reinterpret_cast<PFN_vkCmdDebugMarkerInsertEXT>    (get_proc_address("vkCmdDebugMarkerInsertEXT") );
+        m_ext_debug_marker_extension_entrypoints.vkDebugMarkerSetObjectNameEXT = reinterpret_cast<PFN_vkDebugMarkerSetObjectNameEXT>(get_proc_address("vkDebugMarkerSetObjectNameEXT") );
+        m_ext_debug_marker_extension_entrypoints.vkDebugMarkerSetObjectTagEXT  = reinterpret_cast<PFN_vkDebugMarkerSetObjectTagEXT> (get_proc_address("vkDebugMarkerSetObjectTagEXT") );
+
+        anvil_assert(m_ext_debug_marker_extension_entrypoints.vkCmdDebugMarkerBeginEXT      != nullptr);
+        anvil_assert(m_ext_debug_marker_extension_entrypoints.vkCmdDebugMarkerEndEXT        != nullptr);
+        anvil_assert(m_ext_debug_marker_extension_entrypoints.vkCmdDebugMarkerInsertEXT     != nullptr);
+        anvil_assert(m_ext_debug_marker_extension_entrypoints.vkDebugMarkerSetObjectNameEXT != nullptr);
+        anvil_assert(m_ext_debug_marker_extension_entrypoints.vkDebugMarkerSetObjectTagEXT  != nullptr);
     }
 
     /* Spawn queue wrappers */
@@ -400,8 +436,8 @@ void Anvil::BaseDevice::init(const std::vector<const char*>& extensions,
         if (get_queue_family_index(queue_family_type) != UINT32_MAX)
         {
             m_command_pool_ptrs[queue_family_type] = Anvil::CommandPool::create(shared_from_this(),
-                                                                                transient_command_buffer_allocs_only,
-                                                                                support_resettable_command_buffer_allocs,
+                                                                                in_transient_command_buffer_allocs_only,
+                                                                                in_support_resettable_command_buffer_allocs,
                                                                                 queue_family_type);
         }
     }
@@ -442,9 +478,9 @@ void Anvil::BaseDevice::init(const std::vector<const char*>& extensions,
 
 
 /* Please see header for specification */
-Anvil::SGPUDevice::SGPUDevice(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr)
-    :BaseDevice(physical_device_ptr.lock()->get_instance() ),
-     m_parent_physical_device_ptr(physical_device_ptr)
+Anvil::SGPUDevice::SGPUDevice(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr)
+    :BaseDevice                  (in_physical_device_ptr.lock()->get_instance() ),
+     m_parent_physical_device_ptr(in_physical_device_ptr)
 {
     /* Stub */
 }
@@ -457,29 +493,29 @@ Anvil::SGPUDevice::~SGPUDevice()
 
 
 /* Please see header for specification */
-std::weak_ptr<Anvil::SGPUDevice> Anvil::SGPUDevice::create(std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr,
-                                                           const std::vector<const char*>&      extensions,
-                                                           const std::vector<const char*>&      layers,
-                                                           bool                                 transient_command_buffer_allocs_only,
-                                                           bool                                 support_resettable_command_buffer_allocs)
+std::weak_ptr<Anvil::SGPUDevice> Anvil::SGPUDevice::create(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
+                                                           const std::vector<const char*>&      in_extensions,
+                                                           const std::vector<const char*>&      in_layers,
+                                                           bool                                 in_transient_command_buffer_allocs_only,
+                                                           bool                                 in_support_resettable_command_buffer_allocs)
 {
     std::shared_ptr<Anvil::SGPUDevice> result_ptr;
 
-    result_ptr = std::shared_ptr<Anvil::SGPUDevice>(new Anvil::SGPUDevice(physical_device_ptr),
+    result_ptr = std::shared_ptr<Anvil::SGPUDevice>(new Anvil::SGPUDevice(in_physical_device_ptr),
                                                     Anvil::SGPUDevice::SGPUDeviceDeleter() );
 
-    result_ptr->init(extensions,
-                     layers,
-                     transient_command_buffer_allocs_only,
-                     support_resettable_command_buffer_allocs);
+    result_ptr->init(in_extensions,
+                     in_layers,
+                     in_transient_command_buffer_allocs_only,
+                     in_support_resettable_command_buffer_allocs);
 
     return result_ptr;
 }
 
 /** Please see header for specification */
-void Anvil::SGPUDevice::create_device(const std::vector<const char*>& extensions,
-                                      const std::vector<const char*>& layers,
-                                      const VkPhysicalDeviceFeatures& features,
+void Anvil::SGPUDevice::create_device(const std::vector<const char*>& in_extensions,
+                                      const std::vector<const char*>& in_layers,
+                                      const VkPhysicalDeviceFeatures& in_features,
                                       DeviceQueueFamilyInfo*          out_queue_families_ptr)
 {
     VkDeviceCreateInfo                     create_info;
@@ -520,13 +556,13 @@ void Anvil::SGPUDevice::create_device(const std::vector<const char*>& extensions
     }
 
     /* Set up the device create info descriptor. Enable all features available. */
-    create_info.enabledExtensionCount   = static_cast<uint32_t>(extensions.size() );
-    create_info.enabledLayerCount       = static_cast<uint32_t>(layers.size() );
+    create_info.enabledExtensionCount   = static_cast<uint32_t>(in_extensions.size() );
+    create_info.enabledLayerCount       = static_cast<uint32_t>(in_layers.size() );
     create_info.flags                   = 0;
-    create_info.pEnabledFeatures        = &features;
+    create_info.pEnabledFeatures        = &in_features;
     create_info.pNext                   = nullptr;
-    create_info.ppEnabledExtensionNames = (extensions.size() > 0) ? &extensions[0] : nullptr;
-    create_info.ppEnabledLayerNames     = (layers.size()     > 0) ? &layers    [0] : nullptr;
+    create_info.ppEnabledExtensionNames = (in_extensions.size() > 0) ? &in_extensions[0] : nullptr;
+    create_info.ppEnabledLayerNames     = (in_layers.size()     > 0) ? &in_layers    [0] : nullptr;
     create_info.pQueueCreateInfos       = &device_queue_create_info_items[0];
     create_info.queueCreateInfoCount    = static_cast<uint32_t>(device_queue_create_info_items.size() );
     create_info.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -542,22 +578,22 @@ void Anvil::SGPUDevice::create_device(const std::vector<const char*>& extensions
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Swapchain> Anvil::SGPUDevice::create_swapchain(std::shared_ptr<Anvil::RenderingSurface> parent_surface_ptr,
-                                                                      std::shared_ptr<Anvil::Window>           window_ptr,
-                                                                      VkFormat                                 image_format,
-                                                                      VkPresentModeKHR                         present_mode,
-                                                                      VkImageUsageFlags                        usage,
-                                                                      uint32_t                                 n_swapchain_images)
+std::shared_ptr<Anvil::Swapchain> Anvil::SGPUDevice::create_swapchain(std::shared_ptr<Anvil::RenderingSurface> in_parent_surface_ptr,
+                                                                      std::shared_ptr<Anvil::Window>           in_window_ptr,
+                                                                      VkFormat                                 in_image_format,
+                                                                      VkPresentModeKHR                         in_present_mode,
+                                                                      VkImageUsageFlags                        in_usage,
+                                                                      uint32_t                                 in_n_swapchain_images)
 {
     std::shared_ptr<Anvil::Swapchain> result_ptr;
 
     result_ptr = Anvil::Swapchain::create(shared_from_this(),
-                                          parent_surface_ptr,
-                                          window_ptr,
-                                          image_format,
-                                          present_mode,
-                                          usage,
-                                          n_swapchain_images,
+                                          in_parent_surface_ptr,
+                                          in_window_ptr,
+                                          in_image_format,
+                                          in_present_mode,
+                                          in_usage,
+                                          in_n_swapchain_images,
                                           m_khr_swapchain_entrypoints);
 
     return result_ptr;
@@ -682,15 +718,15 @@ void Anvil::SGPUDevice::get_queue_family_indices(DeviceQueueFamilyInfo* out_devi
 }
 
 /** Please see header for specification */
-const Anvil::QueueFamilyInfo* Anvil::SGPUDevice::get_queue_family_info(uint32_t queue_family_index) const
+const Anvil::QueueFamilyInfo* Anvil::SGPUDevice::get_queue_family_info(uint32_t in_queue_family_index) const
 {
     std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_parent_physical_device_ptr);
     const auto&                            queue_fams                (physical_device_locked_ptr->get_queue_families() );
     const Anvil::QueueFamilyInfo*          result_ptr                (nullptr);
 
-    if (queue_fams.size() > queue_family_index)
+    if (queue_fams.size() > in_queue_family_index)
     {
-        result_ptr = &queue_fams.at(queue_family_index);
+        result_ptr = &queue_fams.at(in_queue_family_index);
     }
 
     return result_ptr;
@@ -710,17 +746,17 @@ void Anvil::SGPUDevice::init_device()
 }
 
 /** Please see header for specification */
-bool Anvil::SGPUDevice::is_layer_supported(const char* layer_name) const
+bool Anvil::SGPUDevice::is_layer_supported(const char* in_layer_name) const
 {
     std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_parent_physical_device_ptr);
 
-    return physical_device_locked_ptr->is_layer_supported(layer_name);
+    return physical_device_locked_ptr->is_layer_supported(in_layer_name);
 }
 
 /** Please see header for specification */
-bool Anvil::SGPUDevice::is_physical_device_extension_supported(const char* extension_name) const
+bool Anvil::SGPUDevice::is_physical_device_extension_supported(const char* in_extension_name) const
 {
     std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_parent_physical_device_ptr);
 
-    return physical_device_locked_ptr->is_device_extension_supported(extension_name);
+    return physical_device_locked_ptr->is_device_extension_supported(in_extension_name);
 }

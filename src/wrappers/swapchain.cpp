@@ -30,40 +30,42 @@
 #include "wrappers/swapchain.h"
 
 /** Please see header for specification */
-Anvil::Swapchain::Swapchain(std::weak_ptr<Anvil::BaseDevice>         device_ptr,
-                            std::shared_ptr<Anvil::RenderingSurface> parent_surface_ptr,
-                            std::shared_ptr<Anvil::Window>           window_ptr,
-                            VkFormat                                 format,
-                            VkPresentModeKHR                         present_mode,
-                            VkImageUsageFlags                        usage_flags,
-                            VkSwapchainCreateFlagsKHR                flags,
-                            uint32_t                                 n_images,
-                            const ExtensionKHRSwapchainEntrypoints&  khr_swapchain_entrypoints)
-    :m_device_ptr               (device_ptr),
-     m_flags                    (flags),
-     m_image_format             (format),
+Anvil::Swapchain::Swapchain(std::weak_ptr<Anvil::BaseDevice>         in_device_ptr,
+                            std::shared_ptr<Anvil::RenderingSurface> in_parent_surface_ptr,
+                            std::shared_ptr<Anvil::Window>           in_window_ptr,
+                            VkFormat                                 in_format,
+                            VkPresentModeKHR                         in_present_mode,
+                            VkImageUsageFlags                        in_usage_flags,
+                            VkSwapchainCreateFlagsKHR                in_flags,
+                            uint32_t                                 in_n_images,
+                            const ExtensionKHRSwapchainEntrypoints&  in_khr_swapchain_entrypoints)
+    :DebugMarkerSupportProvider (in_device_ptr,
+                                 VK_DEBUG_REPORT_OBJECT_TYPE_SWAPCHAIN_KHR_EXT),
+     m_device_ptr               (in_device_ptr),
+     m_flags                    (in_flags),
+     m_image_format             (in_format),
      m_last_acquired_image_index(UINT32_MAX),
      m_n_acquire_counter        (0),
-     m_n_swapchain_images       (n_images),
-     m_parent_surface_ptr       (parent_surface_ptr),
-     m_present_mode             (present_mode),
+     m_n_swapchain_images       (in_n_images),
+     m_parent_surface_ptr       (in_parent_surface_ptr),
+     m_present_mode             (in_present_mode),
      m_swapchain                (0),
-     m_window_ptr               (window_ptr),
-     m_usage_flags              (static_cast<VkImageUsageFlagBits>(usage_flags) ),
-     m_khr_swapchain_entrypoints(khr_swapchain_entrypoints)
+     m_window_ptr               (in_window_ptr),
+     m_usage_flags              (static_cast<VkImageUsageFlagBits>(in_usage_flags) ),
+     m_khr_swapchain_entrypoints(in_khr_swapchain_entrypoints)
 {
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(device_ptr);
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(in_device_ptr);
 
-    anvil_assert(n_images           >  0);
-    anvil_assert(parent_surface_ptr != nullptr);
-    anvil_assert(usage_flags        != 0);
+    anvil_assert(in_n_images           >  0);
+    anvil_assert(in_parent_surface_ptr != nullptr);
+    anvil_assert(in_usage_flags        != 0);
 
-    m_image_available_fence_ptrs.resize(n_images);
-    m_image_ptrs.resize                (n_images);
-    m_image_view_ptrs.resize           (n_images);
+    m_image_available_fence_ptrs.resize(in_n_images);
+    m_image_ptrs.resize                (in_n_images);
+    m_image_view_ptrs.resize           (in_n_images);
 
     for (uint32_t n_fence = 0;
-                  n_fence < n_images;
+                  n_fence < in_n_images;
                 ++n_fence)
     {
         m_image_available_fence_ptrs[n_fence] = Anvil::Fence::create(m_device_ptr,
@@ -120,18 +122,14 @@ uint32_t Anvil::Swapchain::acquire_image_by_blocking()
     if (!is_offscreen_rendering_enabled)
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-        const Anvil::DeviceType            device_type      (device_locked_ptr->get_type());
         static const uint64_t              timeout          (UINT64_MAX);
 
-        if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
-        {
-            result_vk = m_khr_swapchain_entrypoints.vkAcquireNextImageKHR(device_locked_ptr->get_device_vk(),
-                                                                          m_swapchain,
-                                                                          timeout,
-                                                                          VK_NULL_HANDLE, /* semaphore */
-                                                                          m_image_available_fence_ptrs[m_n_acquire_counter]->get_fence(),
-                                                                         &result);
-        }
+        result_vk = m_khr_swapchain_entrypoints.vkAcquireNextImageKHR(device_locked_ptr->get_device_vk(),
+                                                                      m_swapchain,
+                                                                      timeout,
+                                                                      VK_NULL_HANDLE, /* semaphore */
+                                                                      m_image_available_fence_ptrs[m_n_acquire_counter]->get_fence(),
+                                                                     &result);
 
         anvil_assert_vk_call_succeeded(result_vk);
 
@@ -157,29 +155,27 @@ uint32_t Anvil::Swapchain::acquire_image_by_blocking()
 }
 
 /** Please see header for specification */
-uint32_t Anvil::Swapchain::acquire_image_by_setting_semaphore(std::shared_ptr<Anvil::Semaphore> semaphore_ptr)
+uint32_t Anvil::Swapchain::acquire_image_by_setting_semaphore(std::shared_ptr<Anvil::Semaphore> in_semaphore_ptr)
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr              = m_device_ptr.lock();
-    const Anvil::DeviceType            device_type                    = device_locked_ptr->get_type();
+    const RenderingSurfaceType         rendering_surface              = m_parent_surface_ptr->get_type();
     uint32_t                           result                         = UINT32_MAX;
     VkResult                           result_vk                      = VK_ERROR_INITIALIZATION_FAILED;
     const WindowPlatform               window_platform                = m_window_ptr->get_platform();
-    const bool                         is_offscreen_rendering_enabled = (window_platform == WINDOW_PLATFORM_DUMMY                    ||
-                                                                         window_platform == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS);
+    const bool                         is_offscreen_rendering_enabled = (window_platform   == WINDOW_PLATFORM_DUMMY                     ||
+                                                                         window_platform   == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS) &&
+                                                                        (rendering_surface == Anvil::RENDERING_SURFACE_TYPE_GENERAL);
 
     ANVIL_REDUNDANT_VARIABLE(result_vk);
 
     if (!is_offscreen_rendering_enabled)
     {
-        if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
-        {
-            result_vk = m_khr_swapchain_entrypoints.vkAcquireNextImageKHR(device_locked_ptr->get_device_vk(),
-                                                                          m_swapchain,
-                                                                          UINT64_MAX,
-                                                                          semaphore_ptr->get_semaphore(),
-                                                                          VK_NULL_HANDLE,
-                                                                         &result);
-        }
+        result_vk = m_khr_swapchain_entrypoints.vkAcquireNextImageKHR(device_locked_ptr->get_device_vk(),
+                                                                      m_swapchain,
+                                                                      UINT64_MAX,
+                                                                      in_semaphore_ptr->get_semaphore(),
+                                                                      VK_NULL_HANDLE,
+                                                                     &result);
 
         anvil_assert_vk_call_succeeded(result_vk);
     }
@@ -188,7 +184,7 @@ uint32_t Anvil::Swapchain::acquire_image_by_setting_semaphore(std::shared_ptr<An
         /* We need to set the semaphore manually in this scenario */
         device_locked_ptr->get_universal_queue(0)->submit_command_buffer_with_signal_semaphores(nullptr, /* cmd_buffer_ptr         */
                                                                                                 1,       /* n_semaphores_to_signal */
-                                                                                               &semaphore_ptr,
+                                                                                               &in_semaphore_ptr,
                                                                                                 true); /* should_block */
     }
 
@@ -205,53 +201,53 @@ uint32_t Anvil::Swapchain::acquire_image_by_setting_semaphore(std::shared_ptr<An
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Swapchain> Anvil::Swapchain::create(std::weak_ptr<Anvil::BaseDevice>         device_ptr,
-                                                           std::shared_ptr<Anvil::RenderingSurface> parent_surface_ptr,
-                                                           std::shared_ptr<Anvil::Window>           window_ptr,
-                                                           VkFormat                                 format,
-                                                           VkPresentModeKHR                         present_mode,
-                                                           VkImageUsageFlags                        usage_flags,
-                                                           uint32_t                                 n_images,
-                                                           const ExtensionKHRSwapchainEntrypoints&  khr_swapchain_entrypoints,
-                                                           VkSwapchainCreateFlagsKHR                flags)
+std::shared_ptr<Anvil::Swapchain> Anvil::Swapchain::create(std::weak_ptr<Anvil::BaseDevice>         in_device_ptr,
+                                                           std::shared_ptr<Anvil::RenderingSurface> in_parent_surface_ptr,
+                                                           std::shared_ptr<Anvil::Window>           in_window_ptr,
+                                                           VkFormat                                 in_format,
+                                                           VkPresentModeKHR                         in_present_mode,
+                                                           VkImageUsageFlags                        in_usage_flags,
+                                                           uint32_t                                 in_n_images,
+                                                           const ExtensionKHRSwapchainEntrypoints&  in_khr_swapchain_entrypoints,
+                                                           VkSwapchainCreateFlagsKHR                in_flags)
 {
     std::shared_ptr<Anvil::Swapchain> result_ptr;
 
     result_ptr.reset(
-        new Anvil::Swapchain(device_ptr,
-                             parent_surface_ptr,
-                             window_ptr,
-                             format,
-                             present_mode,
-                             usage_flags,
-                             flags,
-                             n_images,
-                             khr_swapchain_entrypoints)
+        new Anvil::Swapchain(in_device_ptr,
+                             in_parent_surface_ptr,
+                             in_window_ptr,
+                             in_format,
+                             in_present_mode,
+                             in_usage_flags,
+                             in_flags,
+                             in_n_images,
+                             in_khr_swapchain_entrypoints)
     );
 
-    if (window_ptr                 != nullptr                                  &&
-        window_ptr->get_platform() == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS)
+    if (in_window_ptr                 != nullptr                                  &&
+        in_window_ptr->get_platform() == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS)
     {
-        std::dynamic_pointer_cast<Anvil::DummyWindowWithPNGSnapshots>(window_ptr)->set_swapchain(result_ptr);
+        std::dynamic_pointer_cast<Anvil::DummyWindowWithPNGSnapshots>(in_window_ptr)->set_swapchain(result_ptr);
     }
 
     return result_ptr;
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Image> Anvil::Swapchain::get_image(uint32_t n_swapchain_image) const
+std::shared_ptr<Anvil::Image> Anvil::Swapchain::get_image(uint32_t in_n_swapchain_image) const
 {
-    anvil_assert(n_swapchain_image < m_n_swapchain_images);
+    anvil_assert(in_n_swapchain_image < m_n_swapchain_images);
 
-    return m_image_ptrs[n_swapchain_image];
+    return m_image_ptrs[in_n_swapchain_image];
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::ImageView> Anvil::Swapchain::get_image_view(uint32_t n_swapchain_image) const
+std::shared_ptr<Anvil::ImageView> Anvil::Swapchain::get_image_view(uint32_t in_n_swapchain_image) const
 {
-    anvil_assert(n_swapchain_image < m_n_swapchain_images);
+    anvil_assert(in_n_swapchain_image < m_n_swapchain_images);
 
-    return m_image_view_ptrs[n_swapchain_image];
+    return m_image_view_ptrs[in_n_swapchain_image];
 }
 
 /** Initializes the swapchain object. */
@@ -260,17 +256,19 @@ void Anvil::Swapchain::init()
     VkSwapchainCreateInfoKHR            create_info;
     uint32_t                            n_swapchain_images             = 0;
     VkResult                            result                         = VK_ERROR_INITIALIZATION_FAILED;
+    const RenderingSurfaceType          rendering_surface              = m_parent_surface_ptr->get_type();
     std::vector<VkImage>                swapchain_images;
     const VkSurfaceTransformFlagBitsKHR swapchain_transformation       = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
     const WindowPlatform                window_platform                = m_window_ptr->get_platform();
-    const bool                          is_offscreen_rendering_enabled = (window_platform == WINDOW_PLATFORM_DUMMY                    ||
-                                                                          window_platform == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS);
+    const bool                          is_offscreen_rendering_enabled = (window_platform   == WINDOW_PLATFORM_DUMMY                     ||
+                                                                          window_platform   == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS) &&
+                                                                         (rendering_surface == Anvil::RENDERING_SURFACE_TYPE_GENERAL);
 
     ANVIL_REDUNDANT_VARIABLE(result);
 
     m_image_view_format = m_image_format;
 
-    /* not offscreen rendering */
+    /* not doing offscreen rendering */
     if (!is_offscreen_rendering_enabled)
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr     (m_device_ptr);
@@ -343,8 +341,11 @@ void Anvil::Swapchain::init()
                                                                  &create_info,
                                                                   nullptr, /* pAllocator */
                                                                  &m_swapchain);
-
         anvil_assert_vk_call_succeeded(result);
+        if (is_vk_call_successful(result) )
+        {
+            set_vk_handle(m_swapchain);
+        }
 
         /* Retrieve swap-chain images */
         result = m_khr_swapchain_entrypoints.vkGetSwapchainImagesKHR(device_locked_ptr->get_device_vk(),
@@ -423,11 +424,11 @@ void Anvil::Swapchain::init()
 }
 
 /** Please see header for specification */
-void Anvil::Swapchain::set_image_view_format(VkFormat new_view_format)
+void Anvil::Swapchain::set_image_view_format(VkFormat in_new_view_format)
 {
-    if (new_view_format != m_image_view_format)
+    if (in_new_view_format != m_image_view_format)
     {
-        m_image_view_format = new_view_format;
+        m_image_view_format = in_new_view_format;
 
         for (uint32_t n_image_view = 0;
                       n_image_view < m_n_swapchain_images;

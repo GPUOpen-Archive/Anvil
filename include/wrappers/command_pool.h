@@ -29,13 +29,15 @@
 #ifndef WRAPPERS_COMMAND_POOL_H
 #define WRAPPERS_COMMAND_POOL_H
 
+#include "misc/debug_marker.h"
 #include "misc/types.h"
 
 
 namespace Anvil
 {
     /** Implements a command pool wrapper */
-    class CommandPool : public std::enable_shared_from_this<CommandPool>
+    class CommandPool : public DebugMarkerSupportProvider<CommandPool>,
+                        public std::enable_shared_from_this<CommandPool>
     {
     public:
         /* Public functions */
@@ -61,17 +63,17 @@ namespace Anvil
 
         /** Creates a new CommandPool object.
          *
-         *  @param device_ptr                     Device to create the command pool for. Must not be nullptr.
-         *  @param transient_allocations_friendly Set to true if the command pool should be created with the
-         *                                        VK_COMMAND_POOL_CREATE_TRANSIENT_BIT flag set on.
-         *  @param support_per_cmdbuf_reset_ops   Set to true if the command pool should be created with the
-         *                                        VK_COMMAND_POOL_RESET_COMMAND_BUFFER_BIT flag set on.
-         *  @param queue_family                   Index of the queue family the command pool should be created for.
+         *  @param in_device_ptr                     Device to create the command pool for. Must not be nullptr.
+         *  @param in_transient_allocations_friendly Set to true if the command pool should be created with the
+         *                                           VK_COMMAND_POOL_CREATE_TRANSIENT_BIT flag set on.
+         *  @param in_support_per_cmdbuf_reset_ops   Set to true if the command pool should be created with the
+         *                                           VK_COMMAND_POOL_RESET_COMMAND_BUFFER_BIT flag set on.
+         *  @param in_queue_family                   Index of the queue family the command pool should be created for.
          **/
-        static std::shared_ptr<CommandPool> create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                   bool                             transient_allocations_friendly,
-                                                   bool                             support_per_cmdbuf_reset_ops,
-                                                   Anvil::QueueFamilyType           queue_family);
+        static std::shared_ptr<CommandPool> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                   bool                             in_transient_allocations_friendly,
+                                                   bool                             in_support_per_cmdbuf_reset_ops,
+                                                   Anvil::QueueFamilyType           in_queue_family);
 
         /** Retrieves the raw Vulkan handle for the encapsulated command pool */
         VkCommandPool get_command_pool() const
@@ -95,12 +97,12 @@ namespace Anvil
 
         /** Reset the command pool.
          *
-         *  @param release_resources true if the vkResetCommandPool() call should be invoked with
-         *                           the VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT flag.
+         *  @param in_release_resources true if the vkResetCommandPool() call should be invoked with
+         *                              the VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT flag.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool reset(bool release_resources);
+        bool reset(bool in_release_resources);
 
         /** Tells whether the command buffers, allocated from this command pool, support reset operations */
         bool supports_per_cmdbuf_reset_ops() const
@@ -112,10 +114,10 @@ namespace Anvil
         /* Private functions */
 
         /* Please seee create() documentation for more details */
-        explicit CommandPool(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                             bool                             transient_allocations_friendly,
-                             bool                             support_per_cmdbuf_reset_ops,
-                             Anvil::QueueFamilyType           queue_family);
+        explicit CommandPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                             bool                             in_transient_allocations_friendly,
+                             bool                             in_support_per_cmdbuf_reset_ops,
+                             Anvil::QueueFamilyType           in_queue_family);
 
         CommandPool           (const CommandPool&);
         CommandPool& operator=(const CommandPool&);

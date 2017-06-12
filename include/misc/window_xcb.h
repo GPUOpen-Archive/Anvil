@@ -35,14 +35,14 @@ namespace Anvil
     {
     public:
         /* Public functions */
-        static std::shared_ptr<Anvil::Window> create(const std::string&     title,
-                                                     unsigned int           width,
-                                                     unsigned int           height,
-                                                     PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                                     void*                  present_callback_func_user_arg);
+        static std::shared_ptr<Anvil::Window> create(const std::string&     in_title,
+                                                     unsigned int           in_width,
+                                                     unsigned int           in_height,
+                                                     PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                                                     void*                  in_present_callback_func_user_arg);
 
-        static std::shared_ptr<Anvil::Window> create(xcb_connection_t* connection_ptr,
-                                                     WindowHandle      window_handle);
+        static std::shared_ptr<Anvil::Window> create(xcb_connection_t* in_connection_ptr,
+                                                     WindowHandle      in_window_handle);
 
         virtual ~WindowXcb();
 
@@ -68,13 +68,13 @@ namespace Anvil
         }
 
     private:
-        WindowXcb(const std::string&     title,
-                  unsigned int           width,
-                  unsigned int           height,
-                  PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                  void*                  present_callback_func_user_arg);
-        WindowXcb(xcb_connection_t*      connection_ptr,
-                  WindowHandle           window_handle);
+        WindowXcb(const std::string&     in_title,
+                  unsigned int           in_width,
+                  unsigned int           in_height,
+                  PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                  void*                  in_present_callback_func_user_arg);
+        WindowXcb(xcb_connection_t*      in_connection_ptr,
+                  WindowHandle           in_window_handle);
 
         /** Creates a new system window and prepares it for usage. */
         bool init();
@@ -85,7 +85,7 @@ namespace Anvil
         xcb_connection_t*        m_connection_ptr;
         xcb_screen_t*            m_screen_ptr;
         xcb_key_symbols_t*       m_key_symbols;
-        XCBLoaderForAnvil        m_xcb_loader;
+        XCBLoader                m_xcb_loader;
     };
 }; /* namespace Anvil */
 

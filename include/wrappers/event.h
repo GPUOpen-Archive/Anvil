@@ -31,12 +31,13 @@
 #ifndef WRAPPERS_EVENT_H
 #define WRAPPERS_EVENT_H
 
+#include "misc/debug_marker.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
     /** Wrapper class for Vulkan events */
-    class Event
+    class Event : public DebugMarkerSupportProvider<Event>
     {
     public:
         /* Public functions */
@@ -45,9 +46,9 @@ namespace Anvil
          *
          *  Creates a single Vulkan event instance and registers the object in Object Tracker.
          *
-         *  @param device_ptr Device to use.
+         *  @param in_device_ptr Device to use.
          */
-        static std::shared_ptr<Event> create(std::weak_ptr<Anvil::BaseDevice> device_ptr);
+        static std::shared_ptr<Event> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
 
         /** Destructor.
          *
@@ -88,7 +89,7 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. */
-        Event(std::weak_ptr<Anvil::BaseDevice> device_ptr);
+        Event(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
 
         Event           (const Event&);
         Event& operator=(const Event&);

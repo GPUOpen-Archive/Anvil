@@ -32,29 +32,29 @@
 #include "wrappers/sampler.h"
 
 /** Please see header for specification */
-Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(const BufferBindingElement& element)
+Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(const BufferBindingElement& in_element)
 {
-    buffer_ptr      = element.buffer_ptr;
+    buffer_ptr      = in_element.buffer_ptr;
     buffer_view_ptr = nullptr;
     dirty           = true;
     image_layout    = VK_IMAGE_LAYOUT_UNDEFINED;
     image_view_ptr  = nullptr;
     sampler_ptr     = nullptr;
-    size            = element.size;
-    start_offset    = element.start_offset;
+    size            = in_element.size;
+    start_offset    = in_element.start_offset;
 
     return *this;
 }
 
 /** Please see header for specification */
-Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(const CombinedImageSamplerBindingElement& element)
+Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(const CombinedImageSamplerBindingElement& in_element)
 {
     buffer_ptr      = nullptr;
     buffer_view_ptr = nullptr;
     dirty           = true;
-    image_layout    = element.image_layout;
-    image_view_ptr  = element.image_view_ptr;
-    sampler_ptr     = element.sampler_ptr;
+    image_layout    = in_element.image_layout;
+    image_view_ptr  = in_element.image_view_ptr;
+    sampler_ptr     = in_element.sampler_ptr;
     size            = UINT64_MAX;
     start_offset    = UINT64_MAX;
 
@@ -62,13 +62,13 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
 }
 
 /** Please see header for specification */
-Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(const ImageBindingElement& element)
+Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(const ImageBindingElement& in_element)
 {
     buffer_ptr      = nullptr;
     buffer_view_ptr = nullptr;
     dirty           = true;
-    image_layout    = element.image_layout;
-    image_view_ptr  = element.image_view_ptr;
+    image_layout    = in_element.image_layout;
+    image_view_ptr  = in_element.image_view_ptr;
     sampler_ptr     = nullptr;
     size            = UINT64_MAX;
     start_offset    = UINT64_MAX;
@@ -77,14 +77,14 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
 }
 
 /** Please see header for specification */
-Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(const SamplerBindingElement& element)
+Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(const SamplerBindingElement& in_element)
 {
     buffer_ptr      = nullptr;
     buffer_view_ptr = nullptr;
     dirty           = true;
     image_layout    = VK_IMAGE_LAYOUT_UNDEFINED;
     image_view_ptr  = nullptr;
-    sampler_ptr     = element.sampler_ptr;
+    sampler_ptr     = in_element.sampler_ptr;
     size            = UINT64_MAX;
     start_offset    = UINT64_MAX;
 
@@ -92,10 +92,10 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
 }
 
 /** Please see header for specification */
-Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(const TexelBufferBindingElement& element)
+Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(const TexelBufferBindingElement& in_element)
 {
     buffer_ptr      = nullptr;
-    buffer_view_ptr = element.buffer_view_ptr;
+    buffer_view_ptr = in_element.buffer_view_ptr;
     dirty           = true;
     image_layout    = VK_IMAGE_LAYOUT_UNDEFINED;
     image_view_ptr  = nullptr;
@@ -241,20 +241,22 @@ Anvil::DescriptorSet::TexelBufferBindingElement::TexelBufferBindingElement(const
 }
 
 /** Please see header for specification */
-Anvil::DescriptorSet::DescriptorSet(std::weak_ptr<Anvil::BaseDevice>            device_ptr,
-                                    std::shared_ptr<Anvil::DescriptorPool>      parent_pool_ptr,
-                                    std::shared_ptr<Anvil::DescriptorSetLayout> layout_ptr,
-                                    VkDescriptorSet                             descriptor_set)
-    :m_descriptor_set            (descriptor_set),
-     m_device_ptr                (device_ptr),
-     m_dirty                     (true),
-     m_layout_ptr                (layout_ptr),
-     m_parent_pool_ptr           (parent_pool_ptr),
-     m_unusable                  (false)
+Anvil::DescriptorSet::DescriptorSet(std::weak_ptr<Anvil::BaseDevice>            in_device_ptr,
+                                    std::shared_ptr<Anvil::DescriptorPool>      in_parent_pool_ptr,
+                                    std::shared_ptr<Anvil::DescriptorSetLayout> in_layout_ptr,
+                                    VkDescriptorSet                             in_descriptor_set)
+    :DebugMarkerSupportProvider(in_device_ptr,
+                                VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT),
+     m_descriptor_set          (in_descriptor_set),
+     m_device_ptr              (in_device_ptr),
+     m_dirty                   (true),
+     m_layout_ptr              (in_layout_ptr),
+     m_parent_pool_ptr         (in_parent_pool_ptr),
+     m_unusable                (false)
 {
     alloc_bindings();
 
-    layout_ptr->register_for_callbacks       (Anvil::DESCRIPTOR_SET_LAYOUT_CALLBACK_ID_BINDING_ADDED,
+    in_layout_ptr->register_for_callbacks    (Anvil::DESCRIPTOR_SET_LAYOUT_CALLBACK_ID_BINDING_ADDED,
                                               on_binding_added_to_layout,
                                               this);
     m_parent_pool_ptr->register_for_callbacks(Anvil::DESCRIPTOR_POOL_CALLBACK_ID_POOL_RESET,
@@ -293,10 +295,10 @@ void Anvil::DescriptorSet::alloc_bindings()
 
         m_layout_ptr->get_binding_properties(n_binding,
                                             &binding_index,
-                                             nullptr, /* opt_out_descriptor_type_ptr */
+                                             nullptr, /* out_opt_descriptor_type_ptr */
                                             &array_size,
-                                             nullptr,  /* opt_out_stage_flags_ptr                */
-                                             nullptr); /* opt_out_immutable_samplers_enabled_ptr */
+                                             nullptr,  /* out_opt_stage_flags_ptr                */
+                                             nullptr); /* out_opt_immutable_samplers_enabled_ptr */
 
         if (m_bindings[binding_index].size() != array_size)
         {
@@ -353,11 +355,11 @@ bool Anvil::DescriptorSet::bake()
             if (!m_layout_ptr->get_binding_properties(n_binding,
                                                      &current_binding_index,
                                                      &descriptor_type,
-                                                      nullptr, /* opt_out_descriptor_array_size_ptr */
-                                                      nullptr, /* opt_out_stage_flags_ptr           */
+                                                      nullptr, /* out_opt_descriptor_array_size_ptr */
+                                                      nullptr, /* out_opt_stage_flags_ptr           */
                                                      &immutable_samplers_enabled) )
             {
-                anvil_assert(false);
+                anvil_assert_fail();
             }
 
             /* For each array item, initialize a descriptor info item.. */
@@ -427,7 +429,7 @@ bool Anvil::DescriptorSet::bake()
                 }
                 else
                 {
-                    anvil_assert(false);
+                    anvil_assert_fail();
 
                     goto end;
                 }
@@ -476,18 +478,18 @@ end:
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::DescriptorSet> Anvil::DescriptorSet::create(std::weak_ptr<Anvil::BaseDevice>            device_ptr,
-                                                                   std::shared_ptr<Anvil::DescriptorPool>      parent_pool_ptr,
-                                                                   std::shared_ptr<Anvil::DescriptorSetLayout> layout_ptr,
-                                                                   VkDescriptorSet                             descriptor_set)
+std::shared_ptr<Anvil::DescriptorSet> Anvil::DescriptorSet::create(std::weak_ptr<Anvil::BaseDevice>            in_device_ptr,
+                                                                   std::shared_ptr<Anvil::DescriptorPool>      in_parent_pool_ptr,
+                                                                   std::shared_ptr<Anvil::DescriptorSetLayout> in_layout_ptr,
+                                                                   VkDescriptorSet                             in_descriptor_set)
 {
     std::shared_ptr<Anvil::DescriptorSet> result_ptr;
 
     result_ptr.reset(
-        new Anvil::DescriptorSet(device_ptr,
-                                 parent_pool_ptr,
-                                 layout_ptr,
-                                 descriptor_set)
+        new Anvil::DescriptorSet(in_device_ptr,
+                                 in_parent_pool_ptr,
+                                 in_layout_ptr,
+                                 in_descriptor_set)
     );
 
     return result_ptr;
@@ -502,12 +504,12 @@ std::shared_ptr<Anvil::DescriptorSet> Anvil::DescriptorSet::create(std::weak_ptr
  *                        Never nullptr.
  *
  **/
-void Anvil::DescriptorSet::on_binding_added_to_layout(void* layout_raw_ptr,
-                                                      void* ds_raw_ptr)
+void Anvil::DescriptorSet::on_binding_added_to_layout(void* in_layout_raw_ptr,
+                                                      void* in_ds_raw_ptr)
 {
-    Anvil::DescriptorSet* ds_ptr = static_cast<Anvil::DescriptorSet*>(ds_raw_ptr);
+    Anvil::DescriptorSet* ds_ptr = static_cast<Anvil::DescriptorSet*>(in_ds_raw_ptr);
 
-    ANVIL_REDUNDANT_ARGUMENT(layout_raw_ptr);
+    ANVIL_REDUNDANT_ARGUMENT(in_layout_raw_ptr);
 
     ds_ptr->alloc_bindings();
 }
@@ -520,13 +522,13 @@ void Anvil::DescriptorSet::on_binding_added_to_layout(void* layout_raw_ptr,
  *  @param ds_raw_ptr   Affected DescriptorSet instance. Never nullptr.
  *
  **/
-void Anvil::DescriptorSet::on_parent_pool_reset(void* pool_raw_ptr,
-                                                void* ds_raw_ptr)
+void Anvil::DescriptorSet::on_parent_pool_reset(void* in_pool_raw_ptr,
+                                                void* in_ds_raw_ptr)
 {
-    Anvil::DescriptorSet* ds_ptr = static_cast<Anvil::DescriptorSet*>(ds_raw_ptr);
+    Anvil::DescriptorSet* ds_ptr = static_cast<Anvil::DescriptorSet*>(in_ds_raw_ptr);
 
-    ANVIL_REDUNDANT_ARGUMENT(ds_raw_ptr);
-    ANVIL_REDUNDANT_ARGUMENT(pool_raw_ptr);
+    ANVIL_REDUNDANT_ARGUMENT(in_ds_raw_ptr);
+    ANVIL_REDUNDANT_ARGUMENT(in_pool_raw_ptr);
 
     /* This descriptor set instance is no longer usable.
      *
@@ -537,12 +539,12 @@ void Anvil::DescriptorSet::on_parent_pool_reset(void* pool_raw_ptr,
 }
 
 /** Please see header for specification */
-void Anvil::DescriptorSet::set_new_vk_handle(VkDescriptorSet ds)
+void Anvil::DescriptorSet::set_new_vk_handle(VkDescriptorSet in_ds)
 {
     anvil_assert(m_unusable);
-    anvil_assert(ds != VK_NULL_HANDLE);
+    anvil_assert(in_ds != VK_NULL_HANDLE);
 
-    m_descriptor_set = ds;
+    m_descriptor_set = in_ds;
     m_dirty          = true;
     m_unusable       = false;
 }

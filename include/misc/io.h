@@ -77,34 +77,34 @@ namespace Anvil
     public:
         /** Creates a new directory in the process' working directory.
          *
-         *  @param name Name of the new directory.
+         *  @param in_name Name of the new directory.
          *
          *  @return true if the directory was created successfully, false otherwise.
          **/
-        static bool create_directory(std::string name);
+        static bool create_directory(std::string in_name);
 
         /** Deletes the specified file.
          *
-         *  @param filename Name of the file to delete.
+         *  @param in_filename Name of the file to delete.
          *
          **/
-        static bool delete_file(std::string filename);
+        static bool delete_file(std::string in_filename);
 
         /** Enumerates files under user-specified directory. */
-        static bool enumerate_files_in_directory(const std::string&        path,
-                                                 bool                      recursive,
+        static bool enumerate_files_in_directory(const std::string&        in_path,
+                                                 bool                      in_recursive,
                                                  std::vector<std::string>* out_result_ptr);
 
         /** Tells whether the specified path exists and is a directory. */
-        static bool is_directory(const std::string& path);
+        static bool is_directory(const std::string& in_path);
 
         /** Loads file contents and returns a buffer holding the read data.
          *
          *  Upon failure, the function generates an assertion failure.
          *
          *
-         *  @param filename         Name of the file to read data from.
-         *  @param is_text_file     True if the file is a text file; false otherwise.
+         *  @param in_filename      Name of the file to read data from.
+         *  @param in_is_text_file  True if the file is a text file; false otherwise.
          *  @param out_result_ptr   Deref will be set to a pointer to a buffer holding the read data. Must be released
          *                          with delete[] when no longer needed.
          *  @param out_opt_size_ptr If not nullptr, deref will be set to the number of bytes exposed under @param out_result_ptr.
@@ -112,8 +112,8 @@ namespace Anvil
          *  @return Read data, or nullptr if an error occurred. Make sure to release the returned buffer
          *          with delete[], when no longer needed.
          **/
-        static bool read_file(std::string filename,
-                              bool        is_text_file,
+        static bool read_file(std::string in_filename,
+                              bool        in_is_text_file,
                               char**      out_result_ptr,
                               size_t*     out_opt_size_ptr);
 
@@ -123,18 +123,18 @@ namespace Anvil
          *  Upon failure, the function generates an assertion failure.
          *
          *
-         *  @param filename      Name of the file to write to (incl. path)
-         *  @param contents      Contents to write.
-         *  @param should_append True if new contents should be appended to the file;
-         *                       false to purge existing contents (if any).
+         *  @param in_filename      Name of the file to write to (incl. path)
+         *  @param in_contents      Contents to write.
+         *  @param in_should_append True if new contents should be appended to the file;
+         *                          false to purge existing contents (if any).
          **/
-        static bool write_binary_file(std::string  filename,
-                                      const void*  data,
-                                      unsigned int data_size,
-                                      bool         should_append = false);
-        static bool write_text_file  (std::string  filename,
-                                      std::string  contents,
-                                      bool         should_append = false);
+        static bool write_binary_file(std::string  in_filename,
+                                      const void*  in_data,
+                                      unsigned int in_data_size,
+                                      bool         in_should_append = false);
+        static bool write_text_file  (std::string  in_filename,
+                                      std::string  in_contents,
+                                      bool         in_should_append = false);
     };
 }
 

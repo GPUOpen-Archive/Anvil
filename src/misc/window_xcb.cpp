@@ -22,20 +22,20 @@
 #include "misc/window_xcb.h"
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Window> Anvil::WindowXcb::create(const std::string&     title,
-                                                        unsigned int           width,
-                                                        unsigned int           height,
-                                                        PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                                        void*                  present_callback_func_user_arg)
+std::shared_ptr<Anvil::Window> Anvil::WindowXcb::create(const std::string&     in_title,
+                                                        unsigned int           in_width,
+                                                        unsigned int           in_height,
+                                                        PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                                                        void*                  in_present_callback_func_user_arg)
 {
     std::shared_ptr<Anvil::WindowXcb> result_ptr;
 
     result_ptr.reset(
-        new Anvil::WindowXcb(title,
-                             width,
-                             height,
-                             present_callback_func_ptr,
-                             present_callback_func_user_arg)
+        new Anvil::WindowXcb(in_title,
+                             in_width,
+                             in_height,
+                             in_present_callback_func_ptr,
+                             in_present_callback_func_user_arg)
     );
 
     if (result_ptr)
@@ -49,14 +49,14 @@ std::shared_ptr<Anvil::Window> Anvil::WindowXcb::create(const std::string&     t
     return result_ptr;
 }
 
-std::shared_ptr<Anvil::Window> Anvil::WindowXcb::create(xcb_connection_t* connection_ptr,
-                                                        WindowHandle      window_handle)
+std::shared_ptr<Anvil::Window> Anvil::WindowXcb::create(xcb_connection_t* in_connection_ptr,
+                                                        WindowHandle      in_window_handle)
 {
     std::shared_ptr<Anvil::WindowXcb> result_ptr;
 
     result_ptr.reset(
-        new Anvil::WindowXcb(connection_ptr,
-                             window_handle)
+        new Anvil::WindowXcb(in_connection_ptr,
+                             in_window_handle)
     );
 
     if (result_ptr)
@@ -71,24 +71,24 @@ std::shared_ptr<Anvil::Window> Anvil::WindowXcb::create(xcb_connection_t* connec
 }
 
 /** Please see header for specification */
-Anvil::WindowXcb::WindowXcb(const std::string&     title,
-                            unsigned int           width,
-                            unsigned int           height,
-                            PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                            void*                  present_callback_func_user_arg)
-    :Window(title,
-            width,
-            height,
-            present_callback_func_ptr,
-            present_callback_func_user_arg)
+Anvil::WindowXcb::WindowXcb(const std::string&     in_title,
+                            unsigned int           in_width,
+                            unsigned int           in_height,
+                            PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                            void*                  in_present_callback_func_user_arg)
+    :Window(in_title,
+            in_width,
+            in_height,
+            in_present_callback_func_ptr,
+            in_present_callback_func_user_arg)
 {
     m_connection_ptr = nullptr;
     m_window_owned   = true;
 }
 
 /** Please see header for specification */
-Anvil::WindowXcb::WindowXcb(xcb_connection_t*  connection_ptr,
-                            WindowHandle       window_handle)
+Anvil::WindowXcb::WindowXcb(xcb_connection_t*  in_connection_ptr,
+                            WindowHandle       in_window_handle)
     :Window("",
             0,        /* width                          */
             0,        /* height                         */
@@ -96,8 +96,8 @@ Anvil::WindowXcb::WindowXcb(xcb_connection_t*  connection_ptr,
             nullptr)  /* present_callback_func_user_arg */
 {
     /* NOTE: Window title/size info is extracted at init time */
-    m_connection_ptr = connection_ptr;
-    m_window         = window_handle;
+    m_connection_ptr = in_connection_ptr;
+    m_window         = in_window_handle;
     m_window_owned   = false;
 }
 
@@ -105,15 +105,15 @@ Anvil::WindowXcb::~WindowXcb()
 {
     if (m_window_owned)
     {
-        const XCBLoaderForAnvilFuncs* xcb_procs_ptr = m_xcb_loader.GetProcsTable();
+        const XCBLoaderFuncs* xcb_procs_ptr = m_xcb_loader.get_procs_table();
 
-        xcb_procs_ptr->pfnXcbUnmapWindow(static_cast<xcb_connection_t*>(m_connection_ptr),
-                                         m_window);
+        xcb_procs_ptr->pfn_xcbUnmapWindow(static_cast<xcb_connection_t*>(m_connection_ptr),
+                                          m_window);
 
-        xcb_procs_ptr->pfnXcbDestroyWindow(static_cast<xcb_connection_t*>(m_connection_ptr),
-                                           m_window);
+        xcb_procs_ptr->pfn_xcbDestroyWindow(static_cast<xcb_connection_t*>(m_connection_ptr),
+                                            m_window);
 
-        xcb_procs_ptr->pfnXcbDisconnect(static_cast<xcb_connection_t*>(m_connection_ptr));
+        xcb_procs_ptr->pfn_xcbDisconnect(static_cast<xcb_connection_t*>(m_connection_ptr));
     }
 }
 
@@ -137,20 +137,20 @@ void Anvil::WindowXcb::close()
 /** Creates a new system window and prepares it for usage. */
 bool Anvil::WindowXcb::init()
 {
-    bool                          result        = false;
-    const XCBLoaderForAnvilFuncs* xcb_procs_ptr = nullptr;
+    bool                  result        = false;
+    const XCBLoaderFuncs* xcb_procs_ptr = nullptr;
 
-    m_xcb_loader.Init();
+    m_xcb_loader.init();
 
-    if (m_xcb_loader.Initialized() == false)
+    if (m_xcb_loader.is_initialized() == false)
     {
-        anvil_assert(m_xcb_loader.Initialized() == true);
+        anvil_assert(m_xcb_loader.is_initialized() == true);
 
         goto end;
     }
 
-    xcb_procs_ptr = m_xcb_loader.GetProcsTable();
-    anvil_assert(xcb_procs_ptr != NULL);
+    xcb_procs_ptr = m_xcb_loader.get_procs_table();
+    anvil_assert(xcb_procs_ptr != nullptr);
 
     if (m_window_owned)
     {
@@ -174,76 +174,76 @@ bool Anvil::WindowXcb::init()
         value_list[0] = m_screen_ptr->black_pixel;
         value_list[1] = XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_STRUCTURE_NOTIFY;
 
-        m_window = xcb_procs_ptr->pfnXcbGenerateId(m_connection_ptr);
+        m_window = xcb_procs_ptr->pfn_xcbGenerateId(m_connection_ptr);
 
-        xcb_procs_ptr->pfnXcbCreateWindow(m_connection_ptr,
-                                          XCB_COPY_FROM_PARENT,
-                                          m_window,
-                                          m_screen_ptr->root,
-                                          0,
-                                          0,
-                                          window_size[0],
-                                          window_size[1],
-                                          0,
-                                          XCB_WINDOW_CLASS_INPUT_OUTPUT,
-                                          m_screen_ptr->root_visual,
-                                          value_mask,
-                                          value_list);
+        xcb_procs_ptr->pfn_xcbCreateWindow(m_connection_ptr,
+                                           XCB_COPY_FROM_PARENT,
+                                           m_window,
+                                           m_screen_ptr->root,
+                                           0,
+                                           0,
+                                           window_size[0],
+                                           window_size[1],
+                                           0,
+                                           XCB_WINDOW_CLASS_INPUT_OUTPUT,
+                                           m_screen_ptr->root_visual,
+                                           value_mask,
+                                           value_list);
 
         /* Magic code that will send notification when window is destroyed */
-        cookie  = xcb_procs_ptr->pfnXcbInternAtom(m_connection_ptr,
-                                                  1,
-                                                  12,
-                                                  "WM_PROTOCOLS");
-        cookie2 = xcb_procs_ptr->pfnXcbInternAtom(m_connection_ptr,
-                                                  0,
-                                                  16,
-                                                  "WM_DELETE_WINDOW");
+        cookie  = xcb_procs_ptr->pfn_xcbInternAtom(m_connection_ptr,
+                                                   1,
+                                                   12,
+                                                   "WM_PROTOCOLS");
+        cookie2 = xcb_procs_ptr->pfn_xcbInternAtom(m_connection_ptr,
+                                                   0,
+                                                   16,
+                                                   "WM_DELETE_WINDOW");
 
-        atom_reply_ptr            = xcb_procs_ptr->pfnXcbInternAtomReply(m_connection_ptr,
-                                                                         cookie,
-                                                                         0);
-        atom_wm_delete_window_ptr = xcb_procs_ptr->pfnXcbInternAtomReply(m_connection_ptr,
-                                                                         cookie2,
-                                                                         0);
+        atom_reply_ptr            = xcb_procs_ptr->pfn_xcbInternAtomReply(m_connection_ptr,
+                                                                          cookie,
+                                                                          0);
+        atom_wm_delete_window_ptr = xcb_procs_ptr->pfn_xcbInternAtomReply(m_connection_ptr,
+                                                                          cookie2,
+                                                                          0);
 
-        xcb_procs_ptr->pfnXcbChangeProperty(m_connection_ptr,
-                                            XCB_PROP_MODE_REPLACE,
-                                            m_window,
-                                            atom_reply_ptr->atom,
-                                            4,
-                                            32,
-                                            1,
-                                            &atom_wm_delete_window_ptr->atom);
+        xcb_procs_ptr->pfn_xcbChangeProperty(m_connection_ptr,
+                                             XCB_PROP_MODE_REPLACE,
+                                             m_window,
+                                             atom_reply_ptr->atom,
+                                             4,
+                                             32,
+                                             1,
+                                             &atom_wm_delete_window_ptr->atom);
 
-        xcb_procs_ptr->pfnXcbChangeProperty(m_connection_ptr,
-                                            XCB_PROP_MODE_REPLACE,
-                                            m_window,
-                                            XCB_ATOM_WM_NAME,
-                                            XCB_ATOM_STRING,
-                                            8,
-                                            m_title.size(),
-                                            m_title.c_str() );
+        xcb_procs_ptr->pfn_xcbChangeProperty(m_connection_ptr,
+                                             XCB_PROP_MODE_REPLACE,
+                                             m_window,
+                                             XCB_ATOM_WM_NAME,
+                                             XCB_ATOM_STRING,
+                                             8,
+                                             m_title.size(),
+                                             m_title.c_str() );
 
         free(atom_reply_ptr);
 
-        xcb_procs_ptr->pfnXcbMapWindow(m_connection_ptr,
-                                       m_window);
-        xcb_procs_ptr->pfnXcbFlush    (m_connection_ptr);
+        xcb_procs_ptr->pfn_xcbMapWindow(m_connection_ptr,
+                                        m_window);
+        xcb_procs_ptr->pfn_xcbFlush    (m_connection_ptr);
 
         m_atom_wm_delete_window_ptr = atom_wm_delete_window_ptr;
-        m_key_symbols               = xcb_procs_ptr->pfnXcbKeySymbolsAlloc(m_connection_ptr);
+        m_key_symbols               = xcb_procs_ptr->pfn_xcbKeySymbolsAlloc(m_connection_ptr);
     }
     else
     {
         xcb_get_geometry_cookie_t cookie;
         xcb_get_geometry_reply_t* reply_ptr = nullptr;
 
-        cookie    = xcb_procs_ptr->pfnXcbGetGeometry     (m_connection_ptr,
-                                                          m_window);
-        reply_ptr = xcb_procs_ptr->pfnXcbGetGeometryReply(m_connection_ptr,
-                                                          cookie,
-                                                          nullptr);
+        cookie    = xcb_procs_ptr->pfn_xcbGetGeometry     (m_connection_ptr,
+                                                           m_window);
+        reply_ptr = xcb_procs_ptr->pfn_xcbGetGeometryReply(m_connection_ptr,
+                                                           cookie,
+                                                           nullptr);
 
         if (reply_ptr == nullptr)
         {
@@ -266,28 +266,28 @@ end:
 /** Initializes a XCB connection */
 bool Anvil::WindowXcb::init_connection()
 {
-    xcb_screen_iterator_t         iter;
-    bool                          result;
-    int32_t                       scr;
-    const xcb_setup_t*            setup_ptr     = nullptr;
-    const XCBLoaderForAnvilFuncs* xcb_procs_ptr = m_xcb_loader.GetProcsTable();
+    xcb_screen_iterator_t iter;
+    bool                  result;
+    int32_t               scr;
+    const xcb_setup_t*    setup_ptr     = nullptr;
+    const XCBLoaderFuncs* xcb_procs_ptr = m_xcb_loader.get_procs_table();
 
     anvil_assert(xcb_procs_ptr != NULL);
 
-    m_connection_ptr = xcb_procs_ptr->pfnXcbConnect(nullptr,
-                                                    &scr);
+    m_connection_ptr = xcb_procs_ptr->pfn_xcbConnect(nullptr,
+                                                     &scr);
 
     if (m_connection_ptr == nullptr)
     {
         goto end;
     }
 
-    setup_ptr = xcb_procs_ptr->pfnXcbGetSetup          (m_connection_ptr);
-    iter      = xcb_procs_ptr->pfnXcbSetupRootsIterator(setup_ptr);
+    setup_ptr = xcb_procs_ptr->pfn_xcbGetSetup          (m_connection_ptr);
+    iter      = xcb_procs_ptr->pfn_xcbSetupRootsIterator(setup_ptr);
 
     while (scr-- > 0)
     {
-        xcb_procs_ptr->pfnXcbScreenNext(&iter);
+        xcb_procs_ptr->pfn_xcbScreenNext(&iter);
     }
 
     m_screen_ptr = iter.data;
@@ -306,7 +306,7 @@ void Anvil::WindowXcb::run()
     while (running                &&
            !m_window_should_close)
     {
-        xcb_generic_event_t* event_ptr = m_xcb_loader.GetProcsTable()->pfnXcbPollForEvent(m_connection_ptr);
+        xcb_generic_event_t* event_ptr = m_xcb_loader.get_procs_table()->pfn_xcbPollForEvent(m_connection_ptr);
 
         if (event_ptr)
         {
@@ -327,9 +327,9 @@ void Anvil::WindowXcb::run()
                     const xcb_key_release_event_t* key_ptr = reinterpret_cast<const xcb_key_release_event_t*>(event_ptr);
                     xcb_keysym_t                   sym;
 
-                    sym = m_xcb_loader.GetProcsTable()->pfnXcbKeyReleaseLookupKeysym(m_key_symbols,
-                                                                                     const_cast<xcb_key_release_event_t*>(key_ptr),
-                                                                                     0);
+                    sym = m_xcb_loader.get_procs_table()->pfn_xcbKeyReleaseLookupKeysym(m_key_symbols,
+                                                                                        const_cast<xcb_key_release_event_t*>(key_ptr),
+                                                                                        0);
 
                     KeypressReleasedCallbackData callback_data(this,
                                                                static_cast<Anvil::KeyID>(sym));
@@ -343,6 +343,7 @@ void Anvil::WindowXcb::run()
                 case XCB_DESTROY_NOTIFY:
                 {
                     running = false;
+
                     break;
                 }
 

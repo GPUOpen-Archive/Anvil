@@ -27,37 +27,38 @@
 #include "wrappers/sampler.h"
 
 /** Please see header for specification */
-Anvil::Sampler::Sampler(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                        VkFilter                         mag_filter,
-                        VkFilter                         min_filter,
-                        VkSamplerMipmapMode              mipmap_mode,
-                        VkSamplerAddressMode             address_mode_u,
-                        VkSamplerAddressMode             address_mode_v,
-                        VkSamplerAddressMode             address_mode_w,
-                        float                            lod_bias,
-                        float                            max_anisotropy,
-                        bool                             compare_enable,
-                        VkCompareOp                      compare_op,
-                        float                            min_lod,
-                        float                            max_lod,
-                        VkBorderColor                    border_color,
-                        bool                             use_unnormalized_coordinates)
-    :m_address_mode_u              (address_mode_u),
-     m_address_mode_v              (address_mode_v),
-     m_address_mode_w              (address_mode_w),
-     m_border_color                (border_color),
-     m_compare_enable              (compare_enable),
-     m_compare_op                  (compare_op),
-     m_device_ptr                  (device_ptr),
-     m_lod_bias                    (lod_bias),
-     m_mag_filter                  (mag_filter),
-     m_max_anisotropy              (max_anisotropy),
-     m_max_lod                     (max_lod),
-     m_min_filter                  (min_filter),
-     m_min_lod                     (min_lod),
-     m_mipmap_mode                 (mipmap_mode),
+Anvil::Sampler::Sampler(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                        VkFilter                         in_mag_filter,
+                        VkFilter                         in_min_filter,
+                        VkSamplerMipmapMode              in_mipmap_mode,
+                        VkSamplerAddressMode             in_address_mode_u,
+                        VkSamplerAddressMode             in_address_mode_v,
+                        VkSamplerAddressMode             in_address_mode_w,
+                        float                            in_lod_bias,
+                        float                            in_max_anisotropy,
+                        bool                             in_compare_enable,
+                        VkCompareOp                      in_compare_op,
+                        float                            in_min_lod,
+                        float                            in_max_lod,
+                        VkBorderColor                    in_border_color,
+                        bool                             in_use_unnormalized_coordinates)
+    :DebugMarkerSupportProvider    (in_device_ptr,
+                                    VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT),
+     m_address_mode_u              (in_address_mode_u),
+     m_address_mode_v              (in_address_mode_v),
+     m_address_mode_w              (in_address_mode_w),
+     m_border_color                (in_border_color),
+     m_compare_enable              (in_compare_enable),
+     m_compare_op                  (in_compare_op),
+     m_device_ptr                  (in_device_ptr),
+     m_lod_bias                    (in_lod_bias),
+     m_mag_filter                  (in_mag_filter),
+     m_max_anisotropy              (in_max_anisotropy),
+     m_max_lod                     (in_max_lod),
+     m_min_filter                  (in_min_filter),
+     m_mipmap_mode                 (in_mipmap_mode),
      m_sampler                     (VK_NULL_HANDLE),
-     m_use_unnormalized_coordinates(use_unnormalized_coordinates)
+     m_use_unnormalized_coordinates(in_use_unnormalized_coordinates)
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr  (m_device_ptr);
     VkSamplerCreateInfo                sampler_create_info;
@@ -66,30 +67,35 @@ Anvil::Sampler::Sampler(std::weak_ptr<Anvil::BaseDevice> device_ptr,
     ANVIL_REDUNDANT_VARIABLE(result);
 
     /* Spawn a new sampler */
-    sampler_create_info.addressModeU            = address_mode_u;
-    sampler_create_info.addressModeV            = address_mode_v;
-    sampler_create_info.addressModeW            = address_mode_w;
-    sampler_create_info.anisotropyEnable        = static_cast<VkBool32>((max_anisotropy > 1.0f) ? VK_TRUE : VK_FALSE);
-    sampler_create_info.borderColor             = border_color;
-    sampler_create_info.compareEnable           = static_cast<VkBool32>(compare_enable ? VK_TRUE : VK_FALSE);
-    sampler_create_info.compareOp               = compare_op;
+    sampler_create_info.addressModeU            = in_address_mode_u;
+    sampler_create_info.addressModeV            = in_address_mode_v;
+    sampler_create_info.addressModeW            = in_address_mode_w;
+    sampler_create_info.anisotropyEnable        = static_cast<VkBool32>((in_max_anisotropy > 1.0f) ? VK_TRUE : VK_FALSE);
+    sampler_create_info.borderColor             = in_border_color;
+    sampler_create_info.compareEnable           = static_cast<VkBool32>(in_compare_enable ? VK_TRUE : VK_FALSE);
+    sampler_create_info.compareOp               = in_compare_op;
     sampler_create_info.flags                   = 0;
-    sampler_create_info.magFilter               = mag_filter;
-    sampler_create_info.maxAnisotropy           = max_anisotropy;
-    sampler_create_info.maxLod                  = max_lod;
-    sampler_create_info.minFilter               = min_filter;
-    sampler_create_info.minLod                  = min_lod;
-    sampler_create_info.mipLodBias              = lod_bias;
-    sampler_create_info.mipmapMode              = mipmap_mode;
+    sampler_create_info.magFilter               = in_mag_filter;
+    sampler_create_info.maxAnisotropy           = in_max_anisotropy;
+    sampler_create_info.maxLod                  = in_max_lod;
+    sampler_create_info.minFilter               = in_min_filter;
+    sampler_create_info.minLod                  = in_min_lod;
+    sampler_create_info.mipLodBias              = in_lod_bias;
+    sampler_create_info.mipmapMode              = in_mipmap_mode;
     sampler_create_info.pNext                   = nullptr;
     sampler_create_info.sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    sampler_create_info.unnormalizedCoordinates = static_cast<VkBool32>(use_unnormalized_coordinates ? VK_TRUE : VK_FALSE);
+    sampler_create_info.unnormalizedCoordinates = static_cast<VkBool32>(in_use_unnormalized_coordinates ? VK_TRUE : VK_FALSE);
 
     result = vkCreateSampler(device_locked_ptr->get_device_vk(),
                             &sampler_create_info,
                              nullptr, /* pAllocator */
                             &m_sampler);
+
     anvil_assert_vk_call_succeeded(result);
+    if (is_vk_call_successful(result) )
+    {
+        set_vk_handle(m_sampler);
+    }
 
     /* Register the event instance */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SAMPLER,
@@ -115,41 +121,41 @@ Anvil::Sampler::~Sampler()
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::Sampler> Anvil::Sampler::create(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                       VkFilter                         mag_filter,
-                                                       VkFilter                         min_filter,
-                                                       VkSamplerMipmapMode              mipmap_mode,
-                                                       VkSamplerAddressMode             address_mode_u,
-                                                       VkSamplerAddressMode             address_mode_v,
-                                                       VkSamplerAddressMode             address_mode_w,
-                                                       float                            lod_bias,
-                                                       float                            max_anisotropy,
-                                                       bool                             compare_enable,
-                                                       VkCompareOp                      compare_op,
-                                                       float                            min_lod,
-                                                       float                            max_lod,
-                                                       VkBorderColor                    border_color,
-                                                       bool                             use_unnormalized_coordinates)
+std::shared_ptr<Anvil::Sampler> Anvil::Sampler::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                       VkFilter                         in_mag_filter,
+                                                       VkFilter                         in_min_filter,
+                                                       VkSamplerMipmapMode              in_mipmap_mode,
+                                                       VkSamplerAddressMode             in_address_mode_u,
+                                                       VkSamplerAddressMode             in_address_mode_v,
+                                                       VkSamplerAddressMode             in_address_mode_w,
+                                                       float                            in_lod_bias,
+                                                       float                            in_max_anisotropy,
+                                                       bool                             in_compare_enable,
+                                                       VkCompareOp                      in_compare_op,
+                                                       float                            in_min_lod,
+                                                       float                            in_max_lod,
+                                                       VkBorderColor                    in_border_color,
+                                                       bool                             in_use_unnormalized_coordinates)
 {
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(device_ptr);
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(in_device_ptr);
     std::shared_ptr<Anvil::Sampler>    result_ptr;
 
     result_ptr.reset(
-        new Anvil::Sampler(device_ptr,
-                           mag_filter,
-                           min_filter,
-                           mipmap_mode,
-                           address_mode_u,
-                           address_mode_v,
-                           address_mode_w,
-                           lod_bias,
-                           max_anisotropy,
-                           compare_enable,
-                           compare_op,
-                           min_lod,
-                           max_lod,
-                           border_color,
-                           use_unnormalized_coordinates)
+        new Anvil::Sampler(in_device_ptr,
+                           in_mag_filter,
+                           in_min_filter,
+                           in_mipmap_mode,
+                           in_address_mode_u,
+                           in_address_mode_v,
+                           in_address_mode_w,
+                           in_lod_bias,
+                           in_max_anisotropy,
+                           in_compare_enable,
+                           in_compare_op,
+                           in_min_lod,
+                           in_max_lod,
+                           in_border_color,
+                           in_use_unnormalized_coordinates)
     );
 
     return result_ptr;

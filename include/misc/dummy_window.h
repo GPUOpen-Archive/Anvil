@@ -35,11 +35,11 @@ namespace Anvil
     {
     public:
         /* Public functions */
-        static std::shared_ptr<Anvil::Window> create(const std::string&     title,
-                                                     unsigned int           width,
-                                                     unsigned int           height,
-                                                     PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                                     void*                  present_callback_func_user_arg);
+        static std::shared_ptr<Anvil::Window> create(const std::string&     in_title,
+                                                     unsigned int           in_width,
+                                                     unsigned int           in_height,
+                                                     PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                                                     void*                  in_present_callback_func_user_arg);
 
         virtual ~DummyWindow()
         {
@@ -69,11 +69,11 @@ namespace Anvil
         }
 
     protected:
-        DummyWindow(const std::string&     title,
-                    unsigned int           width,
-                    unsigned int           height,
-                    PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                    void*                  present_callback_func_user_arg);
+        DummyWindow(const std::string&     in_title,
+                    unsigned int           in_width,
+                    unsigned int           in_height,
+                    PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                    void*                  in_present_callback_func_user_arg);
 
         bool init();
     };
@@ -82,11 +82,11 @@ namespace Anvil
     {
     public:
         /* Public methods */
-        static std::shared_ptr<Anvil::Window> create(const std::string&     title,
-                                                     unsigned int           width,
-                                                     unsigned int           height,
-                                                     PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                                     void*                  present_callback_func_user_arg);
+        static std::shared_ptr<Anvil::Window> create(const std::string&     in_title,
+                                                     unsigned int           in_width,
+                                                     unsigned int           in_height,
+                                                     PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                                                     void*                  in_present_callback_func_user_arg);
 
         /** Destructor */
         virtual ~DummyWindowWithPNGSnapshots()
@@ -106,17 +106,17 @@ namespace Anvil
          *
          *  Must only be called once throughout window's lifetime.
          *
-         *  @param swapchain_ptr Swapchain to assign. Must not be NULL.
+         *  @param in_swapchain_ptr Swapchain to assign. Must not be NULL.
          */
         void set_swapchain(std::weak_ptr<Anvil::Swapchain> in_swapchain_ptr);
 
     private:
         /* Private functions */
-        DummyWindowWithPNGSnapshots(const std::string&     title,
-                                    unsigned int           width,
-                                    unsigned int           height,
-                                    PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                    void*                  present_callback_func_user_arg);
+        DummyWindowWithPNGSnapshots(const std::string&     in_title,
+                                    unsigned int           in_width,
+                                    unsigned int           in_height,
+                                    PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                                    void*                  in_present_callback_func_user_arg);
 
         /** Grabs contents of the specified swapchain image and returns them in a raw R8G8B8A8_UNORM
          *  format.
@@ -124,11 +124,11 @@ namespace Anvil
          *  NOTE: This solution is temporary. At some point, this function is going to be exposed 
          *        in Image interface.
          *
-         *  @param swapchain_image_ptr Swapchain image, whose contents should be extracted.
+         *  @param in_swapchain_image_ptr Swapchain image, whose contents should be extracted.
          *
          *  @return As per summary.
          */
-        std::shared_ptr<unsigned char> get_swapchain_image_raw_r8g8b8a8_unorm_data(std::shared_ptr<Anvil::Image> swapchain_image_ptr);
+        std::shared_ptr<unsigned char> get_swapchain_image_raw_r8g8b8a8_unorm_data(std::shared_ptr<Anvil::Image> in_swapchain_image_ptr);
 
         /** Grabs fake swapchain image contents and stores it in a PNG file. */
         void store_swapchain_frame();

@@ -64,26 +64,26 @@ namespace Anvil
         void check_for_leaks() const;
 
         /** Retrieves an alive object of user-specified type at given index. */
-        const void* get_object_at_index(ObjectType object_type,
-                                        uint32_t   alloc_index) const;
+        const void* get_object_at_index(ObjectType in_object_type,
+                                        uint32_t   in_alloc_index) const;
 
         /** Registers a new object of the specified type.
          *
-         *  @param object_type Wrapper object type.
-         *  @param object_ptr  Object instance. The object is NOT retained.
+         *  @param in_object_type Wrapper object type.
+         *  @param in_object_ptr  Object instance. The object is NOT retained.
          **/
-        void register_object(ObjectType object_type,
-                             void*      object_ptr);
+        void register_object(ObjectType in_object_type,
+                             void*      in_object_ptr);
 
         /** Stops tracking the specified object.
          *
-         *  @param object_type Wrapper object type.
-         *  @param object_ptr  Object instance. The object is NOT released. The object must have
-         *                     been registered earlier with a register_object() call, or else an
-         *                     assertion failure will occur.
+         *  @param in_object_type Wrapper object type.
+         *  @param in_object_ptr  Object instance. The object is NOT released. The object must have
+         *                        been registered earlier with a register_object() call, or else an
+         *                        assertion failure will occur.
          **/
-        void unregister_object(ObjectType object_type,
-                               void*      object_ptr);
+        void unregister_object(ObjectType in_object_type,
+                               void*      in_object_ptr);
 
     private:
         /* Private type declarations */
@@ -127,7 +127,7 @@ namespace Anvil
         ObjectTracker           (const ObjectTracker&);
         ObjectTracker& operator=(const ObjectTracker&);
 
-        const char* get_object_type_name(ObjectType object_type) const;
+        const char* get_object_type_name(ObjectType in_object_type) const;
 
         /* Private members */
         ObjectAllocations m_object_allocations       [OBJECT_TYPE_COUNT];

@@ -37,10 +37,10 @@ Anvil::PageTracker::PageTracker(VkDeviceSize in_region_size,
 }
 
 /** Please see header for specification */
-bool Anvil::PageTracker::set_binding(std::shared_ptr<MemoryBlock> memory_block_ptr,
-                                     VkDeviceSize                 memory_block_start_offset,
-                                     VkDeviceSize                 start_offset,
-                                     VkDeviceSize                 size)
+bool Anvil::PageTracker::set_binding(std::shared_ptr<MemoryBlock> in_memory_block_ptr,
+                                     VkDeviceSize                 in_memory_block_start_offset,
+                                     VkDeviceSize                 in_start_offset,
+                                     VkDeviceSize                 in_size)
 {
     uint32_t n_pages;
     uint32_t occupancy_item_start_index;
@@ -48,31 +48,31 @@ bool Anvil::PageTracker::set_binding(std::shared_ptr<MemoryBlock> memory_block_p
     bool     result                     = false;
 
     /* Sanity checks */
-    if (start_offset + size > m_region_size)
+    if (in_start_offset + in_size > m_region_size)
     {
-        anvil_assert(!(start_offset + size > m_region_size) );
+        anvil_assert(!(in_start_offset + in_size > m_region_size) );
 
         goto end;
     }
 
-    if ((start_offset % m_page_size) != 0)
+    if ((in_start_offset % m_page_size) != 0)
     {
-        anvil_assert(!(start_offset % m_page_size) != 0);
+        anvil_assert(!(in_start_offset % m_page_size) != 0);
 
         goto end;
     }
 
-    if ((size % m_page_size) != 0)
+    if ((in_size % m_page_size) != 0)
     {
-        anvil_assert(!(size % m_page_size) != 0);
+        anvil_assert(!(in_size % m_page_size) != 0);
 
         goto end;
     }
 
     /* Store the memory block binding */
-    n_pages                    = static_cast<uint32_t>(size         / m_page_size);
-    occupancy_item_start_index = static_cast<uint32_t>(start_offset % m_page_size);
-    occupancy_vec_start_index  = static_cast<uint32_t>(start_offset / m_page_size / 32 /* pages in a single vec item */);
+    n_pages                    = static_cast<uint32_t>(in_size         / m_page_size);
+    occupancy_item_start_index = static_cast<uint32_t>(in_start_offset % m_page_size);
+    occupancy_vec_start_index  = static_cast<uint32_t>(in_start_offset / m_page_size / 32 /* pages in a single vec item */);
 
     for (auto mem_binding_iterator  = m_memory_blocks.begin();
               mem_binding_iterator != m_memory_blocks.end();
@@ -80,8 +80,8 @@ bool Anvil::PageTracker::set_binding(std::shared_ptr<MemoryBlock> memory_block_p
     {
         auto& mem_binding = *mem_binding_iterator;
 
-        const bool does_not_overlap = (start_offset + size - 1                         < mem_binding.start_offset || /* XXYY , X = new binding, Y = this binding */
-                                       mem_binding.start_offset + mem_binding.size - 1 < start_offset);              /* YYXX */
+        const bool does_not_overlap = (in_start_offset + in_size -1                    < mem_binding.start_offset || /* XXYY , X = new binding, Y = this binding */
+                                       mem_binding.start_offset + mem_binding.size - 1 < in_start_offset);           /* YYXX */
 
         if (does_not_overlap)
         {
@@ -102,30 +102,30 @@ bool Anvil::PageTracker::set_binding(std::shared_ptr<MemoryBlock> memory_block_p
          * 4)  ###      - The new block _ is going to be completely overwritten by _
          *    _____       Need to remove it.
          */
-        if ( start_offset         <=  mem_binding.start_offset                     &&
-             start_offset         <  (mem_binding.start_offset + mem_binding.size) &&
-            (start_offset + size) >=  mem_binding.start_offset                     &&
-            (start_offset + size) <  (mem_binding.start_offset + mem_binding.size) )
+        if ( in_start_offset            <=  mem_binding.start_offset                     &&
+             in_start_offset            <  (mem_binding.start_offset + mem_binding.size) &&
+            (in_start_offset + in_size) >=  mem_binding.start_offset                     &&
+            (in_start_offset + in_size) <  (mem_binding.start_offset + mem_binding.size) )
         {
             /* Case 1 */
-            mem_binding.size         -= start_offset + size - (mem_binding.start_offset);
-            mem_binding.start_offset  = start_offset + size;
+            mem_binding.size         -= in_start_offset + in_size - (mem_binding.start_offset);
+            mem_binding.start_offset  = in_start_offset + in_size;
         }
         else
-        if ( start_offset         >  mem_binding.start_offset                     &&
-             start_offset         < (mem_binding.start_offset + mem_binding.size) &&
-            (start_offset + size) >  mem_binding.start_offset                     &&
-            (start_offset + size) < (mem_binding.start_offset + mem_binding.size))
+        if ( in_start_offset            >  mem_binding.start_offset                     &&
+             in_start_offset            < (mem_binding.start_offset + mem_binding.size) &&
+            (in_start_offset + in_size) >  mem_binding.start_offset                     &&
+            (in_start_offset + in_size) < (mem_binding.start_offset + mem_binding.size))
         {
             /* Case 2 */
             MemoryBlockBinding left_half (mem_binding.memory_block_ptr,
                                           mem_binding.memory_block_start_offset,
-                                          start_offset - mem_binding.start_offset, /* in_size         */
-                                          mem_binding.start_offset);               /* in_start_offset */
+                                          in_start_offset - mem_binding.start_offset, /* in_size         */
+                                          mem_binding.start_offset);                  /* in_start_offset */
             MemoryBlockBinding right_half(mem_binding.memory_block_ptr,
                                           mem_binding.memory_block_start_offset,
-                                          mem_binding.start_offset + mem_binding.size - (start_offset + size) + 1, /* in_size         */
-                                          start_offset + size);                                                    /* in_start_offset */
+                                          mem_binding.start_offset + mem_binding.size - (in_start_offset + in_size) + 1, /* in_size         */
+                                          in_start_offset + in_size);                                                    /* in_start_offset */
 
             m_memory_blocks.push_back(left_half);
             m_memory_blocks.push_back(right_half);
@@ -133,19 +133,19 @@ bool Anvil::PageTracker::set_binding(std::shared_ptr<MemoryBlock> memory_block_p
             m_memory_blocks.erase(mem_binding_iterator);
         }
         else
-        if ( start_offset         >  mem_binding.start_offset                     &&
-             start_offset         > (mem_binding.start_offset + mem_binding.size) &&
-            (start_offset + size) >  mem_binding.start_offset                     &&
-            (start_offset + size) > (mem_binding.start_offset + mem_binding.size) )
+        if ( in_start_offset            >  mem_binding.start_offset                     &&
+             in_start_offset            > (mem_binding.start_offset + mem_binding.size) &&
+            (in_start_offset + in_size) >  mem_binding.start_offset                     &&
+            (in_start_offset + in_size) > (mem_binding.start_offset + mem_binding.size) )
         {
             /* Case 3 */
-            mem_binding.size = (mem_binding.start_offset + mem_binding.size) - start_offset + 1;
+            mem_binding.size = (mem_binding.start_offset + mem_binding.size) - in_start_offset + 1;
         }
         else
         {
             /* Must be case 4 */
-            anvil_assert( start_offset         <=  mem_binding.start_offset                     &&
-                         (start_offset + size) >= (mem_binding.start_offset + mem_binding.size) );
+            anvil_assert( in_start_offset            <=  mem_binding.start_offset                     &&
+                         (in_start_offset + in_size) >= (mem_binding.start_offset + mem_binding.size) );
 
             m_memory_blocks.erase(mem_binding_iterator);
         }
@@ -156,10 +156,10 @@ bool Anvil::PageTracker::set_binding(std::shared_ptr<MemoryBlock> memory_block_p
 
     m_memory_blocks.push_back(
         MemoryBlockBinding(
-            memory_block_ptr,
-            memory_block_start_offset,
-            size,
-            start_offset)
+            in_memory_block_ptr,
+            in_memory_block_start_offset,
+            in_size,
+            in_start_offset)
         );
 
     /* Update page occupancy info
@@ -179,7 +179,7 @@ bool Anvil::PageTracker::set_binding(std::shared_ptr<MemoryBlock> memory_block_p
             occupancy_vec_index  ++;
         }
 
-        if (memory_block_ptr != nullptr)
+        if (in_memory_block_ptr != nullptr)
         {
             m_sparse_page_occupancy[occupancy_vec_index].raw |= (1 << occupancy_item_index);
         }

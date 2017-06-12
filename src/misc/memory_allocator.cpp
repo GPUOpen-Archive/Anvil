@@ -87,7 +87,7 @@ bool Anvil::MemoryAllocator::add_buffer_internal(std::shared_ptr<Anvil::Buffer> 
 
     if (!is_alloc_supported(buffer_memory_types,
                             in_required_memory_features,
-                            nullptr) ) /* opt_out_filtered_memory_types_ptr */
+                            nullptr) ) /* out_opt_filtered_memory_types_ptr */
     {
         result = false;
 
@@ -230,7 +230,7 @@ bool Anvil::MemoryAllocator::add_image_whole(std::shared_ptr<Anvil::Image> in_im
 
     if (!is_alloc_supported(image_memory_types,
                             in_required_memory_features,
-                            nullptr) ) /* opt_out_filtered_memory_types_ptr */
+                            nullptr) ) /* out_opt_filtered_memory_types_ptr */
     {
         result = false;
 
@@ -288,7 +288,7 @@ bool Anvil::MemoryAllocator::add_sparse_image_miptail(std::shared_ptr<Anvil::Ima
 
     if (!is_alloc_supported(miptail_memory_types,
                             in_required_memory_features,
-                            nullptr) ) /* opt_out_filtered_memory_types_ptr */
+                            nullptr) ) /* out_opt_filtered_memory_types_ptr */
     {
         result = false;
 
@@ -415,7 +415,7 @@ bool Anvil::MemoryAllocator::add_sparse_image_subresource(std::shared_ptr<Anvil:
 
     if (!is_alloc_supported(in_image_ptr->get_image_memory_types(),
                             in_required_memory_features,
-                            nullptr) ) /* opt_out_filtered_memory_types_ptr */
+                            nullptr) ) /* out_opt_filtered_memory_types_ptr */
     {
         result = false;
 
@@ -475,7 +475,7 @@ bool Anvil::MemoryAllocator::bake()
                                &allowed_memory_types))
         {
             /* This should never happen */
-            anvil_assert(false);
+            anvil_assert_fail();
 
             goto end;
         }
@@ -564,7 +564,7 @@ bool Anvil::MemoryAllocator::bake()
 
             default:
             {
-                anvil_assert(false);
+                anvil_assert_fail();
             }
         }
     }
@@ -665,7 +665,7 @@ bool Anvil::MemoryAllocator::bake()
 
             default:
             {
-                anvil_assert(false);
+                anvil_assert_fail();
             }
         }
     }
@@ -772,7 +772,7 @@ std::shared_ptr<Anvil::MemoryAllocator> Anvil::MemoryAllocator::create(std::weak
 /** Tells whether or not a given set of memory types supports the requested memory features. */
 bool Anvil::MemoryAllocator::is_alloc_supported(uint32_t           in_memory_types,
                                                 MemoryFeatureFlags in_memory_features,
-                                                uint32_t*          opt_out_filtered_memory_types_ptr) const
+                                                uint32_t*          out_opt_filtered_memory_types_ptr) const
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr                 (m_device_ptr);
     const bool                         is_coherent_memory_required       (((in_memory_features & MEMORY_FEATURE_FLAG_COHERENT)       != 0) );
@@ -800,9 +800,9 @@ bool Anvil::MemoryAllocator::is_alloc_supported(uint32_t           in_memory_typ
         }
     }
 
-    if (opt_out_filtered_memory_types_ptr != nullptr)
+    if (out_opt_filtered_memory_types_ptr != nullptr)
     {
-        *opt_out_filtered_memory_types_ptr = in_memory_types;
+        *out_opt_filtered_memory_types_ptr = in_memory_types;
     }
 
 end:

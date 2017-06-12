@@ -22,35 +22,35 @@
 
 #include "misc/window_factory.h"
 
-std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatform         platform,
-                                                                   const std::string&     title,
-                                                                   unsigned int           width,
-                                                                   unsigned int           height,
-                                                                   PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                                                   void*                  present_callback_func_user_arg)
+std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatform         in_platform,
+                                                                   const std::string&     in_title,
+                                                                   unsigned int           in_width,
+                                                                   unsigned int           in_height,
+                                                                   PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                                                                   void*                  in_present_callback_func_user_arg)
 {
     std::shared_ptr<Anvil::Window> result_ptr;
 
-    switch (platform)
+    switch (in_platform)
     {
         case WINDOW_PLATFORM_DUMMY:
         {
-            result_ptr = Anvil::DummyWindow::create(title,
-                                                    width,
-                                                    height,
-                                                    present_callback_func_ptr,
-                                                    present_callback_func_user_arg);
+            result_ptr = Anvil::DummyWindow::create(in_title,
+                                                    in_width,
+                                                    in_height,
+                                                    in_present_callback_func_ptr,
+                                                    in_present_callback_func_user_arg);
 
             break;
         }
 
         case WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS:
         {
-            result_ptr = Anvil::DummyWindowWithPNGSnapshots::create(title,
-                                                                    width,
-                                                                    height,
-                                                                    present_callback_func_ptr,
-                                                                    present_callback_func_user_arg);
+            result_ptr = Anvil::DummyWindowWithPNGSnapshots::create(in_title,
+                                                                    in_width,
+                                                                    in_height,
+                                                                    in_present_callback_func_ptr,
+                                                                    in_present_callback_func_user_arg);
 
             break;
         }
@@ -60,11 +60,11 @@ std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatfor
         #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
             case WINDOW_PLATFORM_SYSTEM:
             {
-                result_ptr = Anvil::WindowWin3264::create(title,
-                                                          width,
-                                                          height,
-                                                          present_callback_func_ptr,
-                                                          present_callback_func_user_arg);
+                result_ptr = Anvil::WindowWin3264::create(in_title,
+                                                          in_width,
+                                                          in_height,
+                                                          in_present_callback_func_ptr,
+                                                          in_present_callback_func_user_arg);
 
                 break;
             }
@@ -73,11 +73,11 @@ std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatfor
         #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
             case WINDOW_PLATFORM_XCB:
             {
-                result_ptr = Anvil::WindowXcb::create(title,
-                                                      width,
-                                                      height,
-                                                      present_callback_func_ptr,
-                                                      present_callback_func_user_arg);
+                result_ptr = Anvil::WindowXcb::create(in_title,
+                                                      in_width,
+                                                      in_height,
+                                                      in_present_callback_func_ptr,
+                                                      in_present_callback_func_user_arg);
 
                 break;
             }
@@ -92,37 +92,37 @@ std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatfor
         default:
         {
             /* TODO */
-            anvil_assert(0);
+            anvil_assert_fail();
         }
     }
 
     return result_ptr;
 }
 
-std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatform platform,
-                                                                   WindowHandle   handle,
-                                                                   void*          xcb_connection_ptr)
+std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatform in_platform,
+                                                                   WindowHandle   in_handle,
+                                                                   void*          in_xcb_connection_ptr)
 {
     std::shared_ptr<Anvil::Window> result_ptr;
 
     /* NOTE: These arguments may not be used at all, depending on ANVIL_INCLUDE_*_WINDOW_SYSTEM_SUPPORT configuration */
-    ANVIL_REDUNDANT_ARGUMENT(handle);
-    ANVIL_REDUNDANT_ARGUMENT(xcb_connection_ptr);
+    ANVIL_REDUNDANT_ARGUMENT(in_handle);
+    ANVIL_REDUNDANT_ARGUMENT(in_xcb_connection_ptr);
 
     #ifdef _WIN32
     {
-        ANVIL_REDUNDANT_ARGUMENT(xcb_connection_ptr);
+        ANVIL_REDUNDANT_ARGUMENT(in_xcb_connection_ptr);
     }
     #endif
 
-    switch (platform)
+    switch (in_platform)
     {
 #ifdef _WIN32
 
         #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
             case WINDOW_PLATFORM_SYSTEM:
             {
-                result_ptr = Anvil::WindowWin3264::create(handle);
+                result_ptr = Anvil::WindowWin3264::create(in_handle);
 
                 break;
             }
@@ -132,8 +132,8 @@ std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatfor
         #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
             case WINDOW_PLATFORM_XCB:
             {
-                result_ptr = Anvil::WindowXcb::create(static_cast<xcb_connection_t*>(xcb_connection_ptr),
-                                                      handle);
+                result_ptr = Anvil::WindowXcb::create(static_cast<xcb_connection_t*>(in_xcb_connection_ptr),
+                                                      in_handle);
 
                 break;
             }
@@ -149,7 +149,7 @@ std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatfor
         case WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS:
         default:
         {
-            anvil_assert(0);
+            anvil_assert_fail();
         }
     }
 

@@ -28,228 +28,229 @@
 #ifndef WRAPPERS_IMAGE_VIEW_H
 #define WRAPPERS_IMAGE_VIEW_H
 
+#include "misc/debug_marker.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
-    class ImageView
+    class ImageView : public DebugMarkerSupportProvider<ImageView>
     {
     public:
         /* Public functions */
 
         /** Creates a single-sample 1D image view wrapper instance.
          *
-         *  @param device_ptr          Device to use.
-         *  @param image_ptr           Image instance to create a view for. Must not be nullptr. The specified
-         *                             object will be retained and release at ImageView release time.
-         *  @param n_base_layer        Base layer index.
-         *  @param n_base_mipmap_level Base mipmap level.
-         *  @param n_mipmaps           Number of mipmaps to include in the view.
-         *  @param aspect_mask         Image aspect mask to use when creating the Vulkan image view instance.
-         *  @param format              Image view format.
-         *  @param swizzle_red         Channel to use for the red component when sampling the view.
-         *  @param swizzle_green       Channel to use for the green component when sampling the view.
-         *  @param swizzle_blue        Channel to use for the blue component when sampling the view.
-         *  @param swizzle_alpha       Channel to use for the alpha component when sampling the view.
+         *  @param in_device_ptr          Device to use.
+         *  @param in_image_ptr           Image instance to create a view for. Must not be nullptr. The specified
+         *                                object will be retained and release at ImageView release time.
+         *  @param in_n_base_layer        Base layer index.
+         *  @param in_n_base_mipmap_level Base mipmap level.
+         *  @param in_n_mipmaps           Number of mipmaps to include in the view.
+         *  @param in_aspect_mask         Image aspect mask to use when creating the Vulkan image view instance.
+         *  @param in_format              Image view format.
+         *  @param in_swizzle_red         Channel to use for the red component when sampling the view.
+         *  @param in_swizzle_green       Channel to use for the green component when sampling the view.
+         *  @param in_swizzle_blue        Channel to use for the blue component when sampling the view.
+         *  @param in_swizzle_alpha       Channel to use for the alpha component when sampling the view.
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static std::shared_ptr<ImageView> create_1D(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                    std::shared_ptr<Image>           image_ptr,
-                                                    uint32_t                         n_base_layer,
-                                                    uint32_t                         n_base_mipmap_level,
-                                                    uint32_t                         n_mipmaps,
-                                                    VkImageAspectFlagBits            aspect_mask,
-                                                    VkFormat                         format,
-                                                    VkComponentSwizzle               swizzle_red,
-                                                    VkComponentSwizzle               swizzle_green,
-                                                    VkComponentSwizzle               swizzle_blue,
-                                                    VkComponentSwizzle               swizzle_alpha);
+        static std::shared_ptr<ImageView> create_1D(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                    std::shared_ptr<Image>           in_image_ptr,
+                                                    uint32_t                         in_n_base_layer,
+                                                    uint32_t                         in_n_base_mipmap_level,
+                                                    uint32_t                         in_n_mipmaps,
+                                                    VkImageAspectFlagBits            in_aspect_mask,
+                                                    VkFormat                         in_format,
+                                                    VkComponentSwizzle               in_swizzle_red,
+                                                    VkComponentSwizzle               in_swizzle_green,
+                                                    VkComponentSwizzle               in_swizzle_blue,
+                                                    VkComponentSwizzle               in_swizzle_alpha);
 
         /** Creates a single-sample 1D array image view wrapper instance.
          *
-         *  @param device_ptr          Device to use.
-         *  @param image_ptr           Image instance to create a view for. Must not be nullptr. The specified
-         *                             object will be retained and release at ImageView release time.
-         *  @param n_base_layer        Base layer index.
-         *  @param n_layers            Number of layers to include in the view.
-         *  @param n_base_mipmap_level Base mipmap level.
-         *  @param n_mipmaps           Number of mipmaps to include in the view.
-         *  @param aspect_mask         Image aspect mask to use when creating the Vulkan image view instance.
-         *  @param format              Image view format.
-         *  @param swizzle_red         Channel to use for the red component when sampling the view.
-         *  @param swizzle_green       Channel to use for the green component when sampling the view.
-         *  @param swizzle_blue        Channel to use for the blue component when sampling the view.
-         *  @param swizzle_alpha       Channel to use for the alpha component when sampling the view.
+         *  @param in_device_ptr          Device to use.
+         *  @param in_image_ptr           Image instance to create a view for. Must not be nullptr. The specified
+         *                                object will be retained and release at ImageView release time.
+         *  @param in_n_base_layer        Base layer index.
+         *  @param in_n_layers            Number of layers to include in the view.
+         *  @param in_n_base_mipmap_level Base mipmap level.
+         *  @param in_n_mipmaps           Number of mipmaps to include in the view.
+         *  @param in_aspect_mask         Image aspect mask to use when creating the Vulkan image view instance.
+         *  @param in_format              Image view format.
+         *  @param in_swizzle_red         Channel to use for the red component when sampling the view.
+         *  @param in_swizzle_green       Channel to use for the green component when sampling the view.
+         *  @param in_swizzle_blue        Channel to use for the blue component when sampling the view.
+         *  @param in_swizzle_alpha       Channel to use for the alpha component when sampling the view.
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static std::shared_ptr<ImageView> create_1D_array(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                          std::shared_ptr<Image>           image_ptr,
-                                                          uint32_t                         n_base_layer,
-                                                          uint32_t                         n_layers,
-                                                          uint32_t                         n_base_mipmap_level,
-                                                          uint32_t                         n_mipmaps,
-                                                          VkImageAspectFlagBits            aspect_mask,
-                                                          VkFormat                         format,
-                                                          VkComponentSwizzle               swizzle_red,
-                                                          VkComponentSwizzle               swizzle_green,
-                                                          VkComponentSwizzle               swizzle_blue,
-                                                          VkComponentSwizzle               swizzle_alpha);
+        static std::shared_ptr<ImageView> create_1D_array(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                          std::shared_ptr<Image>           in_image_ptr,
+                                                          uint32_t                         in_n_base_layer,
+                                                          uint32_t                         in_n_layers,
+                                                          uint32_t                         in_n_base_mipmap_level,
+                                                          uint32_t                         in_n_mipmaps,
+                                                          VkImageAspectFlagBits            in_aspect_mask,
+                                                          VkFormat                         in_format,
+                                                          VkComponentSwizzle               in_swizzle_red,
+                                                          VkComponentSwizzle               in_swizzle_green,
+                                                          VkComponentSwizzle               in_swizzle_blue,
+                                                          VkComponentSwizzle               in_swizzle_alpha);
 
         /** Creates a single-sample or a multi-sample 2D image view wrapper instance. The view will be
-         *  single-sample if @param image_ptr uses 1 sample per texel, and multi-sample otherwise.
+         *  single-sample if @param in_image_ptr uses 1 sample per texel, and multi-sample otherwise.
          *
-         *  @param device_ptr          Device to use
-         *  @param image_ptr           Image instance to create a view for. Must not be nullptr. The specified
-         *                             object will be retained and release at ImageView release time.
-         *  @param n_base_layer        Base layer index.
-         *  @param n_base_mipmap_level Base mipmap level.
-         *  @param n_mipmaps           Number of mipmaps to include in the view.
-         *  @param aspect_mask         Image aspect mask to use when creating the Vulkan image view instance.
-         *  @param format              Image view format.
-         *  @param swizzle_red         Channel to use for the red component when sampling the view.
-         *  @param swizzle_green       Channel to use for the green component when sampling the view.
-         *  @param swizzle_blue        Channel to use for the blue component when sampling the view.
-         *  @param swizzle_alpha       Channel to use for the alpha component when sampling the view.
+         *  @param in_device_ptr          Device to use
+         *  @param in_image_ptr           Image instance to create a view for. Must not be nullptr. The specified
+         *                                object will be retained and release at ImageView release time.
+         *  @param in_n_base_layer        Base layer index.
+         *  @param in_n_base_mipmap_level Base mipmap level.
+         *  @param in_n_mipmaps           Number of mipmaps to include in the view.
+         *  @param in_aspect_mask         Image aspect mask to use when creating the Vulkan image view instance.
+         *  @param in_format              Image view format.
+         *  @param in_swizzle_red         Channel to use for the red component when sampling the view.
+         *  @param in_swizzle_green       Channel to use for the green component when sampling the view.
+         *  @param in_swizzle_blue        Channel to use for the blue component when sampling the view.
+         *  @param in_swizzle_alpha       Channel to use for the alpha component when sampling the view.
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static std::shared_ptr<ImageView> create_2D(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                    std::shared_ptr<Image>           image_ptr,
-                                                    uint32_t                         n_base_layer,
-                                                    uint32_t                         n_base_mipmap_level,
-                                                    uint32_t                         n_mipmaps,
-                                                    VkImageAspectFlagBits            aspect_mask,
-                                                    VkFormat                         format,
-                                                    VkComponentSwizzle               swizzle_red,
-                                                    VkComponentSwizzle               swizzle_green,
-                                                    VkComponentSwizzle               swizzle_blue,
-                                                    VkComponentSwizzle               swizzle_alpha);
+        static std::shared_ptr<ImageView> create_2D(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                    std::shared_ptr<Image>           in_image_ptr,
+                                                    uint32_t                         in_n_base_layer,
+                                                    uint32_t                         in_n_base_mipmap_level,
+                                                    uint32_t                         in_n_mipmaps,
+                                                    VkImageAspectFlagBits            in_aspect_mask,
+                                                    VkFormat                         in_format,
+                                                    VkComponentSwizzle               in_swizzle_red,
+                                                    VkComponentSwizzle               in_swizzle_green,
+                                                    VkComponentSwizzle               in_swizzle_blue,
+                                                    VkComponentSwizzle               in_swizzle_alpha);
 
         /** Creates a single-sample or a multi-sample 2D array image view wrapper instance. The view will be
-         *  single-sample if @param image_ptr uses 1 sample per texel, and multi-sample otherwise.
+         *  single-sample if @param in_image_ptr uses 1 sample per texel, and multi-sample otherwise.
          *
-         *  @param device_ptr          Device to use.
-         *  @param image_ptr           Image instance to create a view for. Must not be nullptr. The specified
-         *                             object will be retained and release at ImageView release time.
-         *  @param n_base_layer        Base layer index.
-         *  @param n_layers            Number of layers to include in the view.
-         *  @param n_base_mipmap_level Base mipmap level.
-         *  @param n_mipmaps           Number of mipmaps to include in the view.
-         *  @param aspect_mask         Image aspect mask to use when creating the Vulkan image view instance.
-         *  @param format              Image view format.
-         *  @param swizzle_red         Channel to use for the red component when sampling the view.
-         *  @param swizzle_green       Channel to use for the green component when sampling the view.
-         *  @param swizzle_blue        Channel to use for the blue component when sampling the view.
-         *  @param swizzle_alpha       Channel to use for the alpha component when sampling the view.
+         *  @param in_device_ptr          Device to use.
+         *  @param in_image_ptr           Image instance to create a view for. Must not be nullptr. The specified
+         *                                object will be retained and release at ImageView release time.
+         *  @param in_n_base_layer        Base layer index.
+         *  @param in_n_layers            Number of layers to include in the view.
+         *  @param in_n_base_mipmap_level Base mipmap level.
+         *  @param in_n_mipmaps           Number of mipmaps to include in the view.
+         *  @param in_aspect_mask         Image aspect mask to use when creating the Vulkan image view instance.
+         *  @param in_format              Image view format.
+         *  @param in_swizzle_red         Channel to use for the red component when sampling the view.
+         *  @param in_swizzle_green       Channel to use for the green component when sampling the view.
+         *  @param in_swizzle_blue        Channel to use for the blue component when sampling the view.
+         *  @param in_swizzle_alpha       Channel to use for the alpha component when sampling the view.
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static std::shared_ptr<ImageView> create_2D_array(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                          std::shared_ptr<Anvil::Image>    image_ptr,
-                                                          uint32_t                         n_base_layer,
-                                                          uint32_t                         n_layers,
-                                                          uint32_t                         n_base_mipmap_level,
-                                                          uint32_t                         n_mipmaps,
-                                                          VkImageAspectFlagBits            aspect_mask,
-                                                          VkFormat                         format,
-                                                          VkComponentSwizzle               swizzle_red,
-                                                          VkComponentSwizzle               swizzle_green,
-                                                          VkComponentSwizzle               swizzle_blue,
-                                                          VkComponentSwizzle               swizzle_alpha);
+        static std::shared_ptr<ImageView> create_2D_array(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                          std::shared_ptr<Anvil::Image>    in_image_ptr,
+                                                          uint32_t                         in_n_base_layer,
+                                                          uint32_t                         in_n_layers,
+                                                          uint32_t                         in_n_base_mipmap_level,
+                                                          uint32_t                         in_n_mipmaps,
+                                                          VkImageAspectFlagBits            in_aspect_mask,
+                                                          VkFormat                         in_format,
+                                                          VkComponentSwizzle               in_swizzle_red,
+                                                          VkComponentSwizzle               in_swizzle_green,
+                                                          VkComponentSwizzle               in_swizzle_blue,
+                                                          VkComponentSwizzle               in_swizzle_alpha);
 
         /** Creates a single-sample 3D image view wrapper instance.
          *
-         *  @param device_ptr          Device to use.
-         *  @param image_ptr           Image instance to create a view for. Must not be nullptr. The specified
-         *                             object will be retained and release at ImageView release time.
-         *  @param n_base_slice        Base slice index.
-         *  @param n_slices            Number of slices to include in the view.
-         *  @param n_base_mipmap_level Base mipmap level.
-         *  @param n_mipmaps           Number of mipmaps to include in the view.
-         *  @param aspect_mask         Image aspect mask to use when creating the Vulkan image view instance.
-         *  @param format              Image view format.
-         *  @param swizzle_red         Channel to use for the red component when sampling the view.
-         *  @param swizzle_green       Channel to use for the green component when sampling the view.
-         *  @param swizzle_blue        Channel to use for the blue component when sampling the view.
-         *  @param swizzle_alpha       Channel to use for the alpha component when sampling the view.
+         *  @param in_device_ptr          Device to use.
+         *  @param in_image_ptr           Image instance to create a view for. Must not be nullptr. The specified
+         *                                object will be retained and release at ImageView release time.
+         *  @param in_n_base_slice        Base slice index.
+         *  @param in_n_slices            Number of slices to include in the view.
+         *  @param in_n_base_mipmap_level Base mipmap level.
+         *  @param in_n_mipmaps           Number of mipmaps to include in the view.
+         *  @param in_aspect_mask         Image aspect mask to use when creating the Vulkan image view instance.
+         *  @param in_format              Image view format.
+         *  @param in_swizzle_red         Channel to use for the red component when sampling the view.
+         *  @param in_swizzle_green       Channel to use for the green component when sampling the view.
+         *  @param in_swizzle_blue        Channel to use for the blue component when sampling the view.
+         *  @param in_swizzle_alpha       Channel to use for the alpha component when sampling the view.
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static std::shared_ptr<ImageView> create_3D(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                    std::shared_ptr<Image>           image_ptr,
-                                                    uint32_t                         n_base_slice,
-                                                    uint32_t                         n_slices,
-                                                    uint32_t                         n_base_mipmap_level,
-                                                    uint32_t                         n_mipmaps,
-                                                    VkImageAspectFlagBits            aspect_mask,
-                                                    VkFormat                         format,
-                                                    VkComponentSwizzle               swizzle_red,
-                                                    VkComponentSwizzle               swizzle_green,
-                                                    VkComponentSwizzle               swizzle_blue,
-                                                    VkComponentSwizzle               swizzle_alpha);
+        static std::shared_ptr<ImageView> create_3D(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                    std::shared_ptr<Image>           in_image_ptr,
+                                                    uint32_t                         in_n_base_slice,
+                                                    uint32_t                         in_n_slices,
+                                                    uint32_t                         in_n_base_mipmap_level,
+                                                    uint32_t                         in_n_mipmaps,
+                                                    VkImageAspectFlagBits            in_aspect_mask,
+                                                    VkFormat                         in_format,
+                                                    VkComponentSwizzle               in_swizzle_red,
+                                                    VkComponentSwizzle               in_swizzle_green,
+                                                    VkComponentSwizzle               in_swizzle_blue,
+                                                    VkComponentSwizzle               in_swizzle_alpha);
 
         /** Creates a cube-map image view wrapper instance.
          *
-         *  @param device_ptr          Device to use.
-         *  @param image_ptr           Image instance to create a view for. Must not be nullptr. The specified
-         *                             object will be retained and release at ImageView release time.
-         *  @param n_base_layer        Base layer index.
-         *  @param n_base_mipmap_level Base mipmap level.
-         *  @param n_mipmaps           Number of mipmaps to include in the view.
-         *  @param aspect_mask         Image aspect mask to use when creating the Vulkan image view instance.
-         *  @param format              Image view format.
-         *  @param swizzle_red         Channel to use for the red component when sampling the view.
-         *  @param swizzle_green       Channel to use for the green component when sampling the view.
-         *  @param swizzle_blue        Channel to use for the blue component when sampling the view.
-         *  @param swizzle_alpha       Channel to use for the alpha component when sampling the view.
+         *  @param in_device_ptr          Device to use.
+         *  @param in_image_ptr           Image instance to create a view for. Must not be nullptr. The specified
+         *                                object will be retained and release at ImageView release time.
+         *  @param in_n_base_layer        Base layer index.
+         *  @param in_n_base_mipmap_level Base mipmap level.
+         *  @param in_n_mipmaps           Number of mipmaps to include in the view.
+         *  @param in_aspect_mask         Image aspect mask to use when creating the Vulkan image view instance.
+         *  @param in_format              Image view format.
+         *  @param in_swizzle_red         Channel to use for the red component when sampling the view.
+         *  @param in_swizzle_green       Channel to use for the green component when sampling the view.
+         *  @param in_swizzle_blue        Channel to use for the blue component when sampling the view.
+         *  @param in_swizzle_alpha       Channel to use for the alpha component when sampling the view.
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static std::shared_ptr<ImageView> create_cube_map(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                          std::shared_ptr<Anvil::Image>    image_ptr,
-                                                          uint32_t                         n_base_layer,
-                                                          uint32_t                         n_base_mipmap_level,
-                                                          uint32_t                         n_mipmaps,
-                                                          VkImageAspectFlagBits            aspect_mask,
-                                                          VkFormat                         format,
-                                                          VkComponentSwizzle               swizzle_red,
-                                                          VkComponentSwizzle               swizzle_green,
-                                                          VkComponentSwizzle               swizzle_blue,
-                                                          VkComponentSwizzle               swizzle_alpha);
+        static std::shared_ptr<ImageView> create_cube_map(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                          std::shared_ptr<Anvil::Image>    in_image_ptr,
+                                                          uint32_t                         in_n_base_layer,
+                                                          uint32_t                         in_n_base_mipmap_level,
+                                                          uint32_t                         in_n_mipmaps,
+                                                          VkImageAspectFlagBits            in_aspect_mask,
+                                                          VkFormat                         in_format,
+                                                          VkComponentSwizzle               in_swizzle_red,
+                                                          VkComponentSwizzle               in_swizzle_green,
+                                                          VkComponentSwizzle               in_swizzle_blue,
+                                                          VkComponentSwizzle               in_swizzle_alpha);
 
         /** Creates a cube-map array image view wrapper instance.
          *
-         *  @param device_ptr          Device to use.
-         *  @param image_ptr           Image instance to create a view for. Must not be nullptr. The specified
-         *                             object will be retained and release at ImageView release time.
-         *  @param n_base_layer        Base layer index.
-         *  @param n_cube_maps         Number of cube-maps to include in the view. The number of layers created
-         *                             for the view will be equal to @param n_cube_maps * 6.
-         *  @param n_base_mipmap_level Base mipmap level.
-         *  @param n_mipmaps           Number of mipmaps to include in the view.
-         *  @param aspect_mask         Image aspect mask to use when creating the Vulkan image view instance.
-         *  @param format              Image view format.
-         *  @param swizzle_red         Channel to use for the red component when sampling the view.
-         *  @param swizzle_green       Channel to use for the green component when sampling the view.
-         *  @param swizzle_blue        Channel to use for the blue component when sampling the view.
-         *  @param swizzle_alpha       Channel to use for the alpha component when sampling the view.
+         *  @param in_device_ptr          Device to use.
+         *  @param in_image_ptr           Image instance to create a view for. Must not be nullptr. The specified
+         *                                object will be retained and release at ImageView release time.
+         *  @param in_n_base_layer        Base layer index.
+         *  @param in_n_cube_maps         Number of cube-maps to include in the view. The number of layers created
+         *                                for the view will be equal to @param in_n_cube_maps * 6.
+         *  @param in_n_base_mipmap_level Base mipmap level.
+         *  @param in_n_mipmaps           Number of mipmaps to include in the view.
+         *  @param in_aspect_mask         Image aspect mask to use when creating the Vulkan image view instance.
+         *  @param in_format              Image view format.
+         *  @param in_swizzle_red         Channel to use for the red component when sampling the view.
+         *  @param in_swizzle_green       Channel to use for the green component when sampling the view.
+         *  @param in_swizzle_blue        Channel to use for the blue component when sampling the view.
+         *  @param in_swizzle_alpha       Channel to use for the alpha component when sampling the view.
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static std::shared_ptr<ImageView> create_cube_map_array(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                                std::shared_ptr<Anvil::Image>    image_ptr,
-                                                                uint32_t                         n_base_layer,
-                                                                uint32_t                         n_cube_maps,
-                                                                uint32_t                         n_base_mipmap_level,
-                                                                uint32_t                         n_mipmaps,
-                                                                VkImageAspectFlagBits            aspect_mask,
-                                                                VkFormat                         format,
-                                                                VkComponentSwizzle               swizzle_red,
-                                                                VkComponentSwizzle               swizzle_green,
-                                                                VkComponentSwizzle               swizzle_blue,
-                                                                VkComponentSwizzle               swizzle_alpha);
+        static std::shared_ptr<ImageView> create_cube_map_array(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                                std::shared_ptr<Anvil::Image>    in_image_ptr,
+                                                                uint32_t                         in_n_base_layer,
+                                                                uint32_t                         in_n_cube_maps,
+                                                                uint32_t                         in_n_base_mipmap_level,
+                                                                uint32_t                         in_n_mipmaps,
+                                                                VkImageAspectFlagBits            in_aspect_mask,
+                                                                VkFormat                         in_format,
+                                                                VkComponentSwizzle               in_swizzle_red,
+                                                                VkComponentSwizzle               in_swizzle_green,
+                                                                VkComponentSwizzle               in_swizzle_blue,
+                                                                VkComponentSwizzle               in_swizzle_alpha);
 
         /** Destructor. Should only be called when the reference counter drops to zero.
          *
@@ -298,12 +299,6 @@ namespace Anvil
             return m_image_view;
         }
 
-        /** Returns name assigned to the image view */
-        const std::string& get_name() const
-        {
-            return m_name;
-        }
-
         /** Returns number of layers encapsulated by the image view */
         uint32_t get_n_layers() const
         {
@@ -342,29 +337,23 @@ namespace Anvil
             return m_type;
         }
 
-        /** Assigns a new name to the image view */
-        void set_name(const std::string& in_name)
-        {
-            m_name = in_name;
-        }
-
     private:
         /* Private functions */
         ImageView           (const ImageView&);
         ImageView& operator=(const ImageView&);
 
-        ImageView(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                  std::shared_ptr<Anvil::Image>    parent_image_ptr);
+        ImageView(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                  std::shared_ptr<Anvil::Image>    in_parent_image_ptr);
 
-        bool init(VkImageViewType           image_view_type,
-                  uint32_t                  n_base_layer,
-                  uint32_t                  n_layers,
-                  uint32_t                  n_slices,
-                  uint32_t                  n_base_mipmap_level,
-                  uint32_t                  n_mipmaps,
-                  VkImageAspectFlagBits     aspect_mask,
-                  VkFormat                  format,
-                  const VkComponentSwizzle* swizzle_rgba_ptr);
+        bool init(VkImageViewType           in_image_view_type,
+                  uint32_t                  in_n_base_layer,
+                  uint32_t                  in_n_layers,
+                  uint32_t                  in_n_slices,
+                  uint32_t                  in_n_base_mipmap_level,
+                  uint32_t                  in_n_mipmaps,
+                  VkImageAspectFlagBits     in_aspect_mask,
+                  VkFormat                  in_format,
+                  const VkComponentSwizzle* in_swizzle_rgba_ptr);
 
         /* Private members */
         std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
@@ -379,7 +368,6 @@ namespace Anvil
         uint32_t           m_n_layers;
         uint32_t           m_n_mipmaps;
         uint32_t           m_n_slices;
-        std::string        m_name;
         VkComponentSwizzle m_swizzle_array[4];
         VkImageViewType    m_type;
     };

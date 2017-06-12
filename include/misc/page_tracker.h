@@ -46,18 +46,18 @@ namespace Anvil
          *  coalesces such occurences into a single descriptor.
          *
          *  This function can be used to retrieve a memory block, bound to a descriptor
-         *  at a given index (@param n_memory_block).
+         *  at a given index (@param in_n_memory_block).
          *
-         *  @param n_memory_block See above. Must not be equal or larger than value returned
-         *                        by get_n_memory_blocks().
+         *  @param in_n_memory_block See above. Must not be equal or larger than value returned
+         *                           by get_n_memory_blocks().
          *
          *  @return The requested memory block.
          */
-        std::shared_ptr<Anvil::MemoryBlock> get_memory_block(uint32_t n_memory_block) const
+        std::shared_ptr<Anvil::MemoryBlock> get_memory_block(uint32_t in_n_memory_block) const
         {
-            anvil_assert(n_memory_block < m_memory_blocks.size() );
+            anvil_assert(in_n_memory_block < m_memory_blocks.size() );
 
-            return m_memory_blocks.at(n_memory_block).memory_block_ptr;
+            return m_memory_blocks.at(in_n_memory_block).memory_block_ptr;
         }
 
         /** Returns the number of disjoint memory blocks */
@@ -68,22 +68,22 @@ namespace Anvil
 
         /** Updates a locally tracked memory binding.
          *
-         *  @param memory_block_ptr          Memory block that is going to be bound. May be null,
-         *                                   in which case it is assumed no physical memory backing
-         *                                   is now associated with the specified memory region.
-         *  @param memory_block_start_offset Start offset relative to @param memory_block_ptr's buffer
-         *                                   memory, from which physical memory should be assigned.
-         *                                   
-         *  @param start_offset              Start offset, relative to the tracked memory region,
-         *                                   from which @param memory_block_ptr is to be bound.
-         *  @param size                      Size of the memory region which should used for the binding.
+         *  @param in_memory_block_ptr          Memory block that is going to be bound. May be null,
+         *                                      in which case it is assumed no physical memory backing
+         *                                      is now associated with the specified memory region.
+         *  @param in_memory_block_start_offset Start offset relative to @param in_memory_block_ptr's buffer
+         *                                      memory, from which physical memory should be assigned.
+         *
+         *  @param in_start_offset              Start offset, relative to the tracked memory region,
+         *                                      from which @param in_memory_block_ptr is to be bound.
+         *  @param in_size                      Size of the memory region which should used for the binding.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool set_binding(std::shared_ptr<MemoryBlock> memory_block_ptr,
-                         VkDeviceSize                 memory_block_start_offset,
-                         VkDeviceSize                 start_offset,
-                         VkDeviceSize                 size);
+        bool set_binding(std::shared_ptr<MemoryBlock> in_memory_block_ptr,
+                         VkDeviceSize                 in_memory_block_start_offset,
+                         VkDeviceSize                 in_start_offset,
+                         VkDeviceSize                 in_size);
 
     private:
         /* Private type definitions */

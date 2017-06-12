@@ -32,21 +32,21 @@
 
 /** Constructor. Initializes the compute pipeline manager.
  *
- *  @param device_ptr              Device to use.
- *  @param use_pipeline_cache      true if a VkPipelineCache instance should be used to spawn new pipeline objects.
- *                                 What pipeline cache ends up being used depends on @param pipeline_cache_to_reuse -
- *                                 if a nullptr object is passed via this argument, a new pipeline cache instance will
- *                                 be created, and later released by the destructor. If a non-nullptr object is passed,
- *                                 it will be used instead. In the latter scenario, it is the caller's responsibility
- *                                 to release the cache when no longer needed!
- *  @param pipeline_cache_to_reuse Please see above.
+ *  @param in_device_ptr              Device to use.
+ *  @param in_use_pipeline_cache      true if a VkPipelineCache instance should be used to spawn new pipeline objects.
+ *                                    What pipeline cache ends up being used depends on @param pipeline_cache_to_reuse -
+ *                                    if a nullptr object is passed via this argument, a new pipeline cache instance will
+ *                                    be created, and later released by the destructor. If a non-nullptr object is passed,
+ *                                    it will be used instead. In the latter scenario, it is the caller's responsibility
+ *                                    to release the cache when no longer needed!
+ *  @param in_pipeline_cache_to_reuse Please see above.
  **/
-Anvil::ComputePipelineManager::ComputePipelineManager(std::weak_ptr<Anvil::BaseDevice>      device_ptr,
-                                                      bool                                  use_pipeline_cache,
-                                                      std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr)
-    :BasePipelineManager(device_ptr,
-                         use_pipeline_cache,
-                         pipeline_cache_to_reuse_ptr)
+Anvil::ComputePipelineManager::ComputePipelineManager(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
+                                                      bool                                  in_use_pipeline_cache,
+                                                      std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr)
+    :BasePipelineManager(in_device_ptr,
+                         in_use_pipeline_cache,
+                         in_pipeline_cache_to_reuse_ptr)
 {
     /* Register the object */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_COMPUTE_PIPELINE_MANAGER,
@@ -177,7 +177,7 @@ bool Anvil::ComputePipelineManager::bake()
             else
             {
                 /* Case 3 */
-                anvil_assert(false);
+                anvil_assert_fail();
             }
         }
         else
@@ -277,16 +277,16 @@ end:
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::ComputePipelineManager> Anvil::ComputePipelineManager::create(std::weak_ptr<Anvil::BaseDevice>      device_ptr,
-                                                                                     bool                                  use_pipeline_cache,
-                                                                                     std::shared_ptr<Anvil::PipelineCache> pipeline_cache_to_reuse_ptr)
+std::shared_ptr<Anvil::ComputePipelineManager> Anvil::ComputePipelineManager::create(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
+                                                                                     bool                                  in_use_pipeline_cache,
+                                                                                     std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr)
 {
     std::shared_ptr<Anvil::ComputePipelineManager> result_ptr;
 
     result_ptr.reset(
-        new Anvil::ComputePipelineManager(device_ptr,
-                                          use_pipeline_cache,
-                                          pipeline_cache_to_reuse_ptr)
+        new Anvil::ComputePipelineManager(in_device_ptr,
+                                          in_use_pipeline_cache,
+                                          in_pipeline_cache_to_reuse_ptr)
     );
 
     return result_ptr;

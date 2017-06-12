@@ -72,7 +72,7 @@
     #endif
 #else
     #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
-        #include "xcb_loader_for_anvil.h"
+        #include "xcb_loader.h"
 
         typedef xcb_window_t WindowHandle;
     #else
@@ -89,6 +89,9 @@
 #ifdef _WIN32
     #include "vulkan\vulkan.h"
     #include "vulkan\vk_platform.h"
+#else
+    #include "vulkan/vulkan.h"
+    #include "vulkan/vk_platform.h"
 #endif
 
 #include <map>
@@ -578,7 +581,7 @@ namespace Anvil
 
         /** Constructor.
          *
-         *  Note that @param buffer_ptr is retained by this function.
+         *  Note that @param in_buffer_ptr is retained by this function.
          *
          *  @param in_source_access_mask      Source access mask to use for the barrier.
          *  @param in_destination_access_mask Destination access mask to use for the barrier.
@@ -671,18 +674,18 @@ namespace Anvil
 
         /** Constructor. Initializes the instance using data provided by the driver.
          *
-         *  @param extension_props Vulkan structure to use for initialization.
+         *  @param in_extension_props Vulkan structure to use for initialization.
          **/
-        explicit Extension(const VkExtensionProperties& extension_props)
+        explicit Extension(const VkExtensionProperties& in_extension_props)
         {
-            name    = extension_props.extensionName;
-            version = extension_props.specVersion;
+            name    = in_extension_props.extensionName;
+            version = in_extension_props.specVersion;
         }
 
-        /** Returns true if @param extension_name matches the extension described by the instance. */
-        bool operator==(const std::string& extension_name) const
+        /** Returns true if @param in_extension_name matches the extension described by the instance. */
+        bool operator==(const std::string& in_extension_name) const
         {
-            return name == extension_name;
+            return name == in_extension_name;
         }
     } Extension;
 
@@ -699,6 +702,24 @@ namespace Anvil
             vkCmdDrawIndirectCountAMD        = nullptr;
         }
     } ExtensionAMDDrawIndirectCountEntrypoints;
+
+    typedef struct ExtensionEXTDebugMarkerEntrypoints
+    {
+        PFN_vkCmdDebugMarkerBeginEXT      vkCmdDebugMarkerBeginEXT;
+        PFN_vkCmdDebugMarkerEndEXT        vkCmdDebugMarkerEndEXT;
+        PFN_vkCmdDebugMarkerInsertEXT     vkCmdDebugMarkerInsertEXT;
+        PFN_vkDebugMarkerSetObjectNameEXT vkDebugMarkerSetObjectNameEXT;
+        PFN_vkDebugMarkerSetObjectTagEXT  vkDebugMarkerSetObjectTagEXT;
+
+        ExtensionEXTDebugMarkerEntrypoints()
+        {
+            vkCmdDebugMarkerBeginEXT      = nullptr;
+            vkCmdDebugMarkerEndEXT        = nullptr;
+            vkCmdDebugMarkerInsertEXT     = nullptr;
+            vkDebugMarkerSetObjectNameEXT = nullptr;
+            vkDebugMarkerSetObjectTagEXT  = nullptr;
+        }
+    } ExtensionEXTDebugMarkerEntrypoints;
 
     typedef struct ExtensionEXTDebugReportEntrypoints
     {
@@ -815,13 +836,13 @@ namespace Anvil
 
         /** Constructor. Initializes the instance using data provided by the driver.
          *
-         *  @param format_props Vulkan structure to use for initialization.
+         *  @param in_format_props Vulkan structure to use for initialization.
          **/
-        FormatProperties(const VkFormatProperties& format_props)
+        FormatProperties(const VkFormatProperties& in_format_props)
         {
-            buffer_capabilities         = format_props.bufferFeatures;
-            linear_tiling_capabilities  = format_props.linearTilingFeatures;
-            optimal_tiling_capabilities = format_props.optimalTilingFeatures;
+            buffer_capabilities         = in_format_props.bufferFeatures;
+            linear_tiling_capabilities  = in_format_props.linearTilingFeatures;
+            optimal_tiling_capabilities = in_format_props.optimalTilingFeatures;
         }
     } FormatProperties;
 
@@ -866,7 +887,7 @@ namespace Anvil
 
         /** Constructor.
          *
-         *  Note that @param image_ptr is retained by this function.
+         *  Note that @param in_image_ptr is retained by this function.
          *
          *  @param in_source_access_mask      Source access mask to use for the barrier.
          *  @param in_destination_access_mask Destination access mask to use for the barrier.
@@ -939,31 +960,31 @@ namespace Anvil
 
         /** Dummy constructor.
          *
-         *  @param layer_name Name to use for the layer.
+         *  @param in_layer_name Name to use for the layer.
          **/
-        Layer(const std::string& layer_name)
+        Layer(const std::string& in_layer_name)
         {
             implementation_version = 0;
-            name                   = layer_name;
+            name                   = in_layer_name;
             spec_version           = 0;
         }
 
         /** Constructor. Initializes the instance using data provided by the driver.
          *
-         *  @param layer_props Vulkan structure to use for initialization.
+         *  @param in_layer_props Vulkan structure to use for initialization.
          **/
-        Layer(const VkLayerProperties& layer_props)
+        Layer(const VkLayerProperties& in_layer_props)
         {
-            description            = layer_props.description;
-            implementation_version = layer_props.implementationVersion;
-            name                   = layer_props.layerName;
-            spec_version           = layer_props.specVersion;
+            description            = in_layer_props.description;
+            implementation_version = in_layer_props.implementationVersion;
+            name                   = in_layer_props.layerName;
+            spec_version           = in_layer_props.specVersion;
         }
 
-        /** Returns true if @param layer_name matches the layer name described by the instance. */
-        bool operator==(const std::string& layer_name) const
+        /** Returns true if @param in_layer_name matches the layer name described by the instance. */
+        bool operator==(const std::string& in_layer_name) const
         {
-            return name == layer_name;
+            return name == in_layer_name;
         }
     } Layer;
 
@@ -1050,11 +1071,11 @@ namespace Anvil
 
         /** Constructor. Initializes the instance using data provided by the driver.
          *
-         *  @param type             Vulkan structure to use for initialization.
-         *  @param memory_props_ptr Used to initialize the MemoryHeap pointer member. Must not be nullptr.
+         *  @param in_type             Vulkan structure to use for initialization.
+         *  @param in_memory_props_ptr Used to initialize the MemoryHeap pointer member. Must not be nullptr.
          **/
-        explicit MemoryType(const VkMemoryType&      type,
-                            struct MemoryProperties* memory_props_ptr);
+        explicit MemoryType(const VkMemoryType&      in_type,
+                            struct MemoryProperties* in_memory_props_ptr);
     } MemoryType;
 
     extern bool operator==(const MemoryType& in1,
@@ -1096,9 +1117,9 @@ namespace Anvil
 
         /** Constructor. Initializes the instance using data provided by the driver.
          *
-         *  @param mem_properties Vulkan structure to use for initialization.
+         *  @param in_mem_properties Vulkan structure to use for initialization.
          **/
-        void init(const VkPhysicalDeviceMemoryProperties& mem_properties);
+        void init(const VkPhysicalDeviceMemoryProperties& in_mem_properties);
 
     private:
         MemoryProperties           (const MemoryProperties&);
@@ -1153,29 +1174,29 @@ namespace Anvil
     
         /** Creates a MipmapRawData instance which can be used to upload data to 1D Image instances:
          *
-         *  @param aspect                                Image aspect to modify.
-         *  @param n_mipmap                              Index of the mipmap to be updated.
-         *  @param linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
-         *  @param linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
-         *  @param row_size                              Number of bytes each texture row takes.
+         *  @param in_aspect                                Image aspect to modify.
+         *  @param in_n_mipmap                              Index of the mipmap to be updated.
+         *  @param in_linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
+         *  @param in_linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
+         *  @param in_row_size                              Number of bytes each texture row takes.
          *
          *  NOTE: Mipmap contents is NOT cached at call time. This implies raw pointers are ASSUMED to
          *        be valid at baking time.
          *
          *  @return As per description.
          **/
-        static MipmapRawData create_1D_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
-                                                             uint32_t                                     n_mipmap,
-                                                             std::shared_ptr<unsigned char>               linear_tightly_packed_data_ptr,
-                                                             uint32_t                                     row_size);
-        static MipmapRawData create_1D_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
-                                                             uint32_t                                     n_mipmap,
-                                                             const unsigned char*                         linear_tightly_packed_data_vector_ptr,
-                                                             uint32_t                                     row_size);
-        static MipmapRawData create_1D_from_uchar_vector_ptr(VkImageAspectFlagBits                        aspect,
-                                                             uint32_t                                     n_mipmap,
-                                                             std::shared_ptr<std::vector<unsigned char> > linear_tightly_packed_data_ptr,
-                                                             uint32_t                                     row_size);
+        static MipmapRawData create_1D_from_uchar_ptr       (VkImageAspectFlagBits                        in_aspect,
+                                                             uint32_t                                     in_n_mipmap,
+                                                             std::shared_ptr<unsigned char>               in_linear_tightly_packed_data_ptr,
+                                                             uint32_t                                     in_row_size);
+        static MipmapRawData create_1D_from_uchar_ptr       (VkImageAspectFlagBits                        in_aspect,
+                                                             uint32_t                                     in_n_mipmap,
+                                                             const unsigned char*                         in_linear_tightly_packed_data_vector_ptr,
+                                                             uint32_t                                     in_row_size);
+        static MipmapRawData create_1D_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+                                                             uint32_t                                     in_n_mipmap,
+                                                             std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
+                                                             uint32_t                                     in_row_size);
     
         /** Creates a MipmapRawData instance which can be used to upload data to 1D Array Image instances:
          *
@@ -1214,205 +1235,205 @@ namespace Anvil
     
         /** Creates a MipmapRawData instance which can be used to upload data to 2D Image instances:
          *
-         *  @param aspect                                Image aspect to modify.
-         *  @param n_mipmap                              Index of the mipmap to be updated.
-         *  @param linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
-         *  @param linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
-         *  @param data_size                             Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr.
-         *  @param row_size                              Number of bytes each texture row takes.
+         *  @param in_aspect                                Image aspect to modify.
+         *  @param in_n_mipmap                              Index of the mipmap to be updated.
+         *  @param in_linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
+         *  @param in_linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
+         *  @param in_data_size                             Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr.
+         *  @param in_row_size                              Number of bytes each texture row takes.
          *
          *  @return As per description.
          **/
-        static MipmapRawData create_2D_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
-                                                             uint32_t                                     n_mipmap,
-                                                             std::shared_ptr<unsigned char>               linear_tightly_packed_data_ptr,
-                                                             uint32_t                                     data_size,
-                                                             uint32_t                                     row_size);
-        static MipmapRawData create_2D_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
-                                                             uint32_t                                     n_mipmap,
-                                                             const unsigned char*                         linear_tightly_packed_data_ptr,
-                                                             uint32_t                                     data_size,
-                                                             uint32_t                                     row_size);
-        static MipmapRawData create_2D_from_uchar_vector_ptr(VkImageAspectFlagBits                        aspect,
-                                                             uint32_t                                     n_mipmap,
-                                                             std::shared_ptr<std::vector<unsigned char> > linear_tightly_packed_data_ptr,
-                                                             uint32_t                                     data_size,
-                                                             uint32_t                                     row_size);
+        static MipmapRawData create_2D_from_uchar_ptr       (VkImageAspectFlagBits                        in_aspect,
+                                                             uint32_t                                     in_n_mipmap,
+                                                             std::shared_ptr<unsigned char>               in_linear_tightly_packed_data_ptr,
+                                                             uint32_t                                     in_data_size,
+                                                             uint32_t                                     in_row_size);
+        static MipmapRawData create_2D_from_uchar_ptr       (VkImageAspectFlagBits                        in_aspect,
+                                                             uint32_t                                     in_n_mipmap,
+                                                             const unsigned char*                         in_linear_tightly_packed_data_ptr,
+                                                             uint32_t                                     in_data_size,
+                                                             uint32_t                                     in_row_size);
+        static MipmapRawData create_2D_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+                                                             uint32_t                                     in_n_mipmap,
+                                                             std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
+                                                             uint32_t                                     in_data_size,
+                                                             uint32_t                                     in_row_size);
     
         /** Creates a MipmapRawData instance which can be used to upload data to 2D Array Image instances:
          *
-         *  @param aspect                                Image aspect to modify.
-         *  @param n_layer                               Index of a texture layer the mip-map data should be uploaded to.
-         *  @param n_layers                              Number of texture layers to be updated.
-         *  @param n_mipmap                              Index of the mipmap to be updated.
-         *  @param linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
-         *  @param linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
-         *  @param data_size                             Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr.
-         *  @param row_size                              Number of bytes each texture row takes.
+         *  @param in_aspect                                Image aspect to modify.
+         *  @param in_n_layer                               Index of a texture layer the mip-map data should be uploaded to.
+         *  @param in_n_layers                              Number of texture layers to be updated.
+         *  @param in_n_mipmap                              Index of the mipmap to be updated.
+         *  @param in_linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
+         *  @param in_linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
+         *  @param in_data_size                             Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr.
+         *  @param in_row_size                              Number of bytes each texture row takes.
          *
          *  @return As per description.
          **/
-        static MipmapRawData create_2D_array_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
-                                                                   uint32_t                                     n_layer,
-                                                                   uint32_t                                     n_layers,
-                                                                   uint32_t                                     n_mipmap,
-                                                                   std::shared_ptr<unsigned char>               linear_tightly_packed_data_ptr,
-                                                                   uint32_t                                     data_size,
-                                                                   uint32_t                                     row_size);
-        static MipmapRawData create_2D_array_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
-                                                                   uint32_t                                     n_layer,
-                                                                   uint32_t                                     n_layers,
-                                                                   uint32_t                                     n_mipmap,
-                                                                   const unsigned char*                         linear_tightly_packed_data_ptr,
-                                                                   uint32_t                                     data_size,
-                                                                   uint32_t                                     row_size);
-        static MipmapRawData create_2D_array_from_uchar_vector_ptr(VkImageAspectFlagBits                        aspect,
-                                                                   uint32_t                                     n_layer,
-                                                                   uint32_t                                     n_layers,
-                                                                   uint32_t                                     n_mipmap,
-                                                                   std::shared_ptr<std::vector<unsigned char> > linear_tightly_packed_data_ptr,
-                                                                   uint32_t                                     data_size,
-                                                                   uint32_t                                     row_size);
+        static MipmapRawData create_2D_array_from_uchar_ptr       (VkImageAspectFlagBits                        in_aspect,
+                                                                   uint32_t                                     in_n_layer,
+                                                                   uint32_t                                     in_n_layers,
+                                                                   uint32_t                                     in_n_mipmap,
+                                                                   std::shared_ptr<unsigned char>               in_linear_tightly_packed_data_ptr,
+                                                                   uint32_t                                     in_data_size,
+                                                                   uint32_t                                     in_row_size);
+        static MipmapRawData create_2D_array_from_uchar_ptr       (VkImageAspectFlagBits                        in_aspect,
+                                                                   uint32_t                                     in_n_layer,
+                                                                   uint32_t                                     in_n_layers,
+                                                                   uint32_t                                     in_n_mipmap,
+                                                                   const unsigned char*                         in_linear_tightly_packed_data_ptr,
+                                                                   uint32_t                                     in_data_size,
+                                                                   uint32_t                                     in_row_size);
+        static MipmapRawData create_2D_array_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+                                                                   uint32_t                                     in_n_layer,
+                                                                   uint32_t                                     in_n_layers,
+                                                                   uint32_t                                     in_n_mipmap,
+                                                                   std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
+                                                                   uint32_t                                     in_data_size,
+                                                                   uint32_t                                     in_row_size);
     
         /** Creates a MipmapRawData instnce which can be used to upload data to 3D Image instances:
          *
-         *  @param aspect                                Image aspect to modify.
-         *  @param n_layer                               Index of a texture layer the mip-map data should be uploaded to.
-         *  @param n_slices                              Number of texture slices to be updated.
-         *  @param n_mipmap                              Index of the mipmap to be updated.
-         *  @param linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
-         *  @param linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
-         *  @param data_size                             Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr.
-         *  @param row_size                              Number of bytes each texture row takes.
+         *  @param in_aspect                                Image aspect to modify.
+         *  @param in_n_layer                               Index of a texture layer the mip-map data should be uploaded to.
+         *  @param in_n_slices                              Number of texture slices to be updated.
+         *  @param in_n_mipmap                              Index of the mipmap to be updated.
+         *  @param in_linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
+         *  @param in_linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
+         *  @param in_data_size                             Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr.
+         *  @param in_row_size                              Number of bytes each texture row takes.
          *
          *  @return As per description.
          **/
-        static MipmapRawData create_3D_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
-                                                             uint32_t                                     n_layer,
-                                                             uint32_t                                     n_layer_slices,
-                                                             uint32_t                                     n_mipmap,
-                                                             std::shared_ptr<unsigned char>               linear_tightly_packed_data_ptr,
-                                                             uint32_t                                     data_size,
-                                                             uint32_t                                     row_size);
-        static MipmapRawData create_3D_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
-                                                             uint32_t                                     n_layer,
-                                                             uint32_t                                     n_layer_slices,
-                                                             uint32_t                                     n_mipmap,
-                                                             const unsigned char*                         linear_tightly_packed_data_ptr,
-                                                             uint32_t                                     data_size,
-                                                             uint32_t                                     row_size);
-        static MipmapRawData create_3D_from_uchar_vector_ptr(VkImageAspectFlagBits                        aspect,
-                                                             uint32_t                                     n_layer,
-                                                             uint32_t                                     n_layer_slices,
-                                                             uint32_t                                     n_mipmap,
-                                                             std::shared_ptr<std::vector<unsigned char> > linear_tightly_packed_data_ptr,
-                                                             uint32_t                                     data_size,
-                                                             uint32_t                                     row_size);
+        static MipmapRawData create_3D_from_uchar_ptr       (VkImageAspectFlagBits                        in_aspect,
+                                                             uint32_t                                     in_n_layer,
+                                                             uint32_t                                     in_n_layer_slices,
+                                                             uint32_t                                     in_n_mipmap,
+                                                             std::shared_ptr<unsigned char>               in_linear_tightly_packed_data_ptr,
+                                                             uint32_t                                     in_data_size,
+                                                             uint32_t                                     in_row_size);
+        static MipmapRawData create_3D_from_uchar_ptr       (VkImageAspectFlagBits                        in_aspect,
+                                                             uint32_t                                     in_n_layer,
+                                                             uint32_t                                     in_n_layer_slices,
+                                                             uint32_t                                     in_n_mipmap,
+                                                             const unsigned char*                         in_linear_tightly_packed_data_ptr,
+                                                             uint32_t                                     in_data_size,
+                                                             uint32_t                                     in_row_size);
+        static MipmapRawData create_3D_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+                                                             uint32_t                                     in_n_layer,
+                                                             uint32_t                                     in_n_layer_slices,
+                                                             uint32_t                                     in_n_mipmap,
+                                                             std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
+                                                             uint32_t                                     in_data_size,
+                                                             uint32_t                                     in_row_size);
     
         /** Creates a MipmapRawData instance which can be used to upload data to Cube Map Image instances:
          *
-         *  @param aspect                                Image aspect to modify.
-         *  @param n_layer                               Index of a texture layer the mip-map data should be uploaded to.
-         *                                               Valid values and corresponding cube map faces: 0: -X, 1: -Y, 2: -Z, 3: +X, 4: +Y, 5: +Z
-         *  @param n_mipmap                              Index of the mipmap to be updated.
-         *  @param linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
-         *  @param linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
-         *  @param data_size                             Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr.
-         *  @param row_size                              Number of bytes each texture row takes.
+         *  @param in_aspect                                Image aspect to modify.
+         *  @param in_n_layer                               Index of a texture layer the mip-map data should be uploaded to.
+         *                                                  Valid values and corresponding cube map faces: 0: -X, 1: -Y, 2: -Z, 3: +X, 4: +Y, 5: +Z
+         *  @param in_n_mipmap                              Index of the mipmap to be updated.
+         *  @param in_linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
+         *  @param in_linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
+         *  @param in_data_size                             Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr.
+         *  @param in_row_size                              Number of bytes each texture row takes.
          *
          *  @return As per description.
          **/
-        static MipmapRawData create_cube_map_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
-                                                                   uint32_t                                     n_layer,
-                                                                   uint32_t                                     n_mipmap,
-                                                                   std::shared_ptr<unsigned char>               linear_tightly_packed_data_ptr,
-                                                                   uint32_t                                     data_size,
-                                                                   uint32_t                                     row_size);
-        static MipmapRawData create_cube_map_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
-                                                                   uint32_t                                     n_layer,
-                                                                   uint32_t                                     n_mipmap,
-                                                                   const unsigned char*                         linear_tightly_packed_data_ptr,
-                                                                   uint32_t                                     data_size,
-                                                                   uint32_t                                     row_size);
-        static MipmapRawData create_cube_map_from_uchar_vector_ptr(VkImageAspectFlagBits                        aspect,
-                                                                   uint32_t                                     n_layer,
-                                                                   uint32_t                                     n_mipmap,
-                                                                   std::shared_ptr<std::vector<unsigned char> > linear_tightly_packed_data_ptr,
-                                                                   uint32_t                                     data_size,
-                                                                   uint32_t                                     row_size);
+        static MipmapRawData create_cube_map_from_uchar_ptr       (VkImageAspectFlagBits                        in_aspect,
+                                                                   uint32_t                                     in_n_layer,
+                                                                   uint32_t                                     in_n_mipmap,
+                                                                   std::shared_ptr<unsigned char>               in_linear_tightly_packed_data_ptr,
+                                                                   uint32_t                                     in_data_size,
+                                                                   uint32_t                                     in_row_size);
+        static MipmapRawData create_cube_map_from_uchar_ptr       (VkImageAspectFlagBits                        in_aspect,
+                                                                   uint32_t                                     in_n_layer,
+                                                                   uint32_t                                     in_n_mipmap,
+                                                                   const unsigned char*                         in_linear_tightly_packed_data_ptr,
+                                                                   uint32_t                                     in_data_size,
+                                                                   uint32_t                                     in_row_size);
+        static MipmapRawData create_cube_map_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+                                                                   uint32_t                                     in_n_layer,
+                                                                   uint32_t                                     in_n_mipmap,
+                                                                   std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
+                                                                   uint32_t                                     in_data_size,
+                                                                   uint32_t                                     in_row_size);
     
         /** Creates a MipmapRawData instance which can be used to upload data to Cube Map Array Image instances:
          *
-         *  @param aspect                                Image aspect to modify.
-         *  @param n_layer                               Index of a texture layer the mip-map data should be uploaded to.
-         *                                               Cube map faces, as selected for layer at index (n_layer % 6), are:
-         *                                               0: -X, 1: -Y, 2: -Z, 3: +X, 4: +Y, 5: +Z
-         *  @param n_layers                              Number of texture layers to update.
-         *  @param n_mipmap                              Index of the mipmap to be updated.
-         *  @param linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
-         *  @param linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
-         *  @param data_size                             Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr.
-         *  @param row_size                              Number of bytes each texture row takes.
+         *  @param in_aspect                                Image aspect to modify.
+         *  @param in_n_layer                               Index of a texture layer the mip-map data should be uploaded to.
+         *                                                  Cube map faces, as selected for layer at index (n_layer % 6), are:
+         *                                                  0: -X, 1: -Y, 2: -Z, 3: +X, 4: +Y, 5: +Z
+         *  @param in_n_layers                              Number of texture layers to update.
+         *  @param in_n_mipmap                              Index of the mipmap to be updated.
+         *  @param in_linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
+         *  @param in_linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
+         *  @param in_data_size                             Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr.
+         *  @param in_row_size                              Number of bytes each texture row takes.
          *
          *  @return As per description.
          **/
-        static MipmapRawData create_cube_map_array_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
-                                                                         uint32_t                                     n_layer,
-                                                                         uint32_t                                     n_layers,
-                                                                         uint32_t                                     n_mipmap,
-                                                                         std::shared_ptr<unsigned char>               linear_tightly_packed_data_ptr,
-                                                                         uint32_t                                     data_size,
-                                                                         uint32_t                                     row_size);
-        static MipmapRawData create_cube_map_array_from_uchar_ptr       (VkImageAspectFlagBits                        aspect,
-                                                                         uint32_t                                     n_layer,
-                                                                         uint32_t                                     n_layers,
-                                                                         uint32_t                                     n_mipmap,
-                                                                         const unsigned char*                         linear_tightly_packed_data_ptr,
-                                                                         uint32_t                                     data_size,
-                                                                         uint32_t                                     row_size);
-        static MipmapRawData create_cube_map_array_from_uchar_vector_ptr(VkImageAspectFlagBits                        aspect,
-                                                                         uint32_t                                     n_layer,
-                                                                         uint32_t                                     n_layers,
-                                                                         uint32_t                                     n_mipmap,
-                                                                         std::shared_ptr<std::vector<unsigned char> > linear_tightly_packed_data_ptr,
-                                                                         uint32_t                                     data_size,
-                                                                         uint32_t                                     row_size);
+        static MipmapRawData create_cube_map_array_from_uchar_ptr       (VkImageAspectFlagBits                        in_aspect,
+                                                                         uint32_t                                     in_n_layer,
+                                                                         uint32_t                                     in_n_layers,
+                                                                         uint32_t                                     in_n_mipmap,
+                                                                         std::shared_ptr<unsigned char>               in_linear_tightly_packed_data_ptr,
+                                                                         uint32_t                                     in_data_size,
+                                                                         uint32_t                                     in_row_size);
+        static MipmapRawData create_cube_map_array_from_uchar_ptr       (VkImageAspectFlagBits                        in_aspect,
+                                                                         uint32_t                                     in_n_layer,
+                                                                         uint32_t                                     in_n_layers,
+                                                                         uint32_t                                     in_n_mipmap,
+                                                                         const unsigned char*                         in_linear_tightly_packed_data_ptr,
+                                                                         uint32_t                                     in_data_size,
+                                                                         uint32_t                                     in_row_size);
+        static MipmapRawData create_cube_map_array_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+                                                                         uint32_t                                     in_n_layer,
+                                                                         uint32_t                                     in_n_layers,
+                                                                         uint32_t                                     in_n_mipmap,
+                                                                         std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
+                                                                         uint32_t                                     in_data_size,
+                                                                         uint32_t                                     in_row_size);
     
     private:
-        static MipmapRawData create_1D      (VkImageAspectFlagBits aspect,
-                                             uint32_t              n_mipmap,
-                                             uint32_t              row_size);
-        static MipmapRawData create_1D_array(VkImageAspectFlagBits aspect,
-                                             uint32_t              n_layer,
-                                             uint32_t              n_layers,
-                                             uint32_t              n_mipmap,
-                                             uint32_t              row_size,
-                                             uint32_t              data_size);
-        static MipmapRawData create_2D      (VkImageAspectFlagBits aspect,
-                                             uint32_t              n_mipmap,
-                                             uint32_t              data_size,
-                                             uint32_t              row_size);
-        static MipmapRawData create_2D_array(VkImageAspectFlagBits aspect,
-                                             uint32_t              n_layer,
-                                             uint32_t              n_layers,
-                                             uint32_t              n_mipmap,
-                                             uint32_t              data_size,
-                                             uint32_t              row_size);
-        static MipmapRawData create_3D      (VkImageAspectFlagBits aspect,
-                                             uint32_t              n_layer,
-                                             uint32_t              n_slices,
-                                             uint32_t              n_mipmap,
-                                             uint32_t              data_size,
-                                             uint32_t              row_size);
+        static MipmapRawData create_1D      (VkImageAspectFlagBits in_aspect,
+                                             uint32_t              in_n_mipmap,
+                                             uint32_t              in_row_size);
+        static MipmapRawData create_1D_array(VkImageAspectFlagBits in_aspect,
+                                             uint32_t              in_n_layer,
+                                             uint32_t              in_n_layers,
+                                             uint32_t              in_n_mipmap,
+                                             uint32_t              in_row_size,
+                                             uint32_t              in_data_size);
+        static MipmapRawData create_2D      (VkImageAspectFlagBits in_aspect,
+                                             uint32_t              in_n_mipmap,
+                                             uint32_t              in_data_size,
+                                             uint32_t              in_row_size);
+        static MipmapRawData create_2D_array(VkImageAspectFlagBits in_aspect,
+                                             uint32_t              in_n_layer,
+                                             uint32_t              in_n_layers,
+                                             uint32_t              in_n_mipmap,
+                                             uint32_t              in_data_size,
+                                             uint32_t              in_row_size);
+        static MipmapRawData create_3D      (VkImageAspectFlagBits in_aspect,
+                                             uint32_t              in_n_layer,
+                                             uint32_t              in_n_slices,
+                                             uint32_t              in_n_mipmap,
+                                             uint32_t              in_data_size,
+                                             uint32_t              in_row_size);
     } MipmapRawData;
 
     /* Dummy delete functor */
     template<class Type>
     struct NullDeleter
     {
-        void operator()(Type* unused_ptr)
+        void operator()(Type* in_unused_ptr)
         {
-            unused_ptr;
+            in_unused_ptr;
         }
     };
 
@@ -1535,7 +1556,7 @@ namespace Anvil
 
         /** Constructor. Initializes the instance using data provided by the driver.
          *
-         *  @param props Vulkan structure to use for initialization.
+         *  @param in_props Vulkan structure to use for initialization.
          **/
         explicit QueueFamilyInfo(const VkQueueFamilyProperties& in_props)
         {
@@ -1753,21 +1774,21 @@ namespace Anvil
     {
         /** Converts a Anvil::QueueFamilyBits bitfield value to an array of queue family indices.
          *
-         *  @param queue_families                     Input value to convert from.
-         *  @param out_opt_queue_family_indices_ptr   If not NULL, deref will be updated with @param *out_opt_n_queue_family_indices_ptr
-         *                                            values, corresponding to queue family indices, as specified under @param queue_families.
+         *  @param in_queue_families                  Input value to convert from.
+         *  @param out_opt_queue_family_indices_ptr   If not NULL, deref will be updated with *@param out_opt_n_queue_family_indices_ptr
+         *                                            values, corresponding to queue family indices, as specified under @param in_queue_families.
          *  @param out_opt_n_queue_family_indices_ptr If not NULL, deref will be set to the number of items that would be or were written
          *                                            under @param out_opt_queue_family_indices_ptr.
          *
          **/
-        void convert_queue_family_bits_to_family_indices(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                         Anvil::QueueFamilyBits           queue_families,
+        void convert_queue_family_bits_to_family_indices(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                         Anvil::QueueFamilyBits           in_queue_families,
                                                          uint32_t*                        out_opt_queue_family_indices_ptr,
                                                          uint32_t*                        out_opt_n_queue_family_indices_ptr);
 
         /** Returns an access mask which has all the access bits, relevant to the user-specified image layout,
          *  enabled. */
-        VkAccessFlags get_access_mask_from_image_layout(VkImageLayout layout);
+        VkAccessFlags get_access_mask_from_image_layout(VkImageLayout in_layout);
 
         /** Converts the specified VkAttachmentLoadOp value to a raw string
          *
@@ -1913,24 +1934,24 @@ namespace Anvil
          */
         const char* get_raw_string(VkStencilOp in_stencil_op);
 
-        /** Tells whether @param value is a power-of-two. */
+        /** Tells whether @param in_value is a power-of-two. */
         template <typename type>
-        type is_pow2(const type value)
+        type is_pow2(const type in_value)
         {
-            return ((value & (value - 1)) == 0);
+            return ((in_value & (in_value - 1)) == 0);
         }
 
-        /** Rounds up @param value to a multiple of @param base */
+        /** Rounds up @param in_value to a multiple of @param in_base */
         template <typename type>
-        type round_up(const type value, const type base)
+        type round_up(const type in_value, const type in_base)
         {
-            if ((value % base) == 0)
+            if ((in_value % in_base) == 0)
             {
-                return value;
+                return in_value;
             }
             else
             {
-                return value + (base - value % base);
+                return in_value + (in_base - in_value % in_base);
             }
         }
 
@@ -1949,107 +1970,107 @@ namespace Anvil
             /** Adds a new bind info to the container. The application can then append buffer memory updates
              *  to the bind info by calling append_buffer_memory_update().
              *
-             *  @param n_signal_semaphores       Number of semaphores to signal after the bind info is processed. Can be 0.
-             *  @param opt_signal_semaphores_ptr An array of semaphores (sized @param n_signal_semaphores) to signal.
-             *                                   Should be null if @param n_signal_semaphores is 0.
-             *  @param n_wait_semaphores         Number of semaphores to wait on before the bind info should start being
-             *                                   processed. Can be 0.
-             *  @param opt_wait_semaphores_ptr   An array of semaphores (sized @param n_wait_semaphores) to wait on,
-             *                                   before processing the bind info. Should be null if @param n_wait_semaphores
-             *                                   is 0.
+             *  @param in_n_signal_semaphores       Number of semaphores to signal after the bind info is processed. Can be 0.
+             *  @param in_opt_signal_semaphores_ptr An array of semaphores (sized @param in_n_signal_semaphores) to signal.
+             *                                      Should be null if @param in_n_signal_semaphores is 0.
+             *  @param in_n_wait_semaphores         Number of semaphores to wait on before the bind info should start being
+             *                                      processed. Can be 0.
+             *  @param in_opt_wait_semaphores_ptr   An array of semaphores (sized @param in_n_wait_semaphores) to wait on,
+             *                                      before processing the bind info. Should be null if @param in_n_wait_semaphores
+             *                                      is 0.
              *
              *  @return ID of the new bind info.
              **/
-            SparseMemoryBindInfoID add_bind_info(uint32_t                            n_signal_semaphores,
-                                                 std::shared_ptr<Anvil::Semaphore>*  opt_signal_semaphores_ptr,
-                                                 uint32_t                            n_wait_semaphores,
-                                                 std::shared_ptr<Anvil::Semaphore>*  opt_wait_semaphores_ptr);
+            SparseMemoryBindInfoID add_bind_info(uint32_t                            in_n_signal_semaphores,
+                                                 std::shared_ptr<Anvil::Semaphore>*  in_opt_signal_semaphores_ptr,
+                                                 uint32_t                            in_n_wait_semaphores,
+                                                 std::shared_ptr<Anvil::Semaphore>*  in_opt_wait_semaphores_ptr);
 
             /** Appends a new buffer memory block update to the bind info.
              *
-             *  @param bind_info_id                   ID of the bind info to append the update to.
-             *  @param buffer_ptr                     Buffer instance to update. Must not be NULL.
-             *  @param buffer_memory_start_offset     Start offset of the target memory region.
-             *  @param opt_memory_block_ptr           Memory block to use for the binding. May be NULL.
-             *  @param opt_memory_block_start_offset  Start offset of the source memory region. Ignored
-             *                                        if @param memory_block_ptr is NULL.
-             *  @param size                           Size of the memory block to update.
+             *  @param in_bind_info_id                   ID of the bind info to append the update to.
+             *  @param in_buffer_ptr                     Buffer instance to update. Must not be NULL.
+             *  @param in_buffer_memory_start_offset     Start offset of the target memory region.
+             *  @param in_opt_memory_block_ptr           Memory block to use for the binding. May be NULL.
+             *  @param in_opt_memory_block_start_offset  Start offset of the source memory region. Ignored
+             *                                           if @param in_memory_block_ptr is NULL.
+             *  @param in_size                           Size of the memory block to update.
              **/
-            void append_buffer_memory_update(SparseMemoryBindInfoID              bind_info_id,
-                                             std::shared_ptr<Anvil::Buffer>      buffer_ptr,
-                                             VkDeviceSize                        buffer_memory_start_offset,
-                                             std::shared_ptr<Anvil::MemoryBlock> opt_memory_block_ptr,
-                                             VkDeviceSize                        opt_memory_block_start_offset,
-                                             VkDeviceSize                        size);
+            void append_buffer_memory_update(SparseMemoryBindInfoID              in_bind_info_id,
+                                             std::shared_ptr<Anvil::Buffer>      in_buffer_ptr,
+                                             VkDeviceSize                        in_buffer_memory_start_offset,
+                                             std::shared_ptr<Anvil::MemoryBlock> in_opt_memory_block_ptr,
+                                             VkDeviceSize                        in_opt_memory_block_start_offset,
+                                             VkDeviceSize                        in_size);
 
             /** Appends a new non-opaque image memory update to the bind info.
              *
-             *  @param bind_info_id                  ID of the bind info to append the update to.
-             *  @param image_ptr                     Image instance to update. Must not be NULL.
-             *  @param subresource                   Subresource which should be used for the update operation.
-             *  @param offset                        Image region offset for the update operation.
-             *  @param extent                        Extent of the update operation.
-             *  @param flags                         VkSparseMemoryBindFlags value to use for the update.
-             *  @param opt_memory_block_ptr          Memory block to use for the update operation. May be NULL.
-             *  @param opt_memory_block_start_offset Start offset of the source memory region. ignored if
-             *                                       @param opt_memory_block_ptr is NULL.
+             *  @param in_bind_info_id                  ID of the bind info to append the update to.
+             *  @param in_image_ptr                     Image instance to update. Must not be NULL.
+             *  @param in_subresource                   Subresource which should be used for the update operation.
+             *  @param in_offset                        Image region offset for the update operation.
+             *  @param in_extent                        Extent of the update operation.
+             *  @param in_flags                         VkSparseMemoryBindFlags value to use for the update.
+             *  @param in_opt_memory_block_ptr          Memory block to use for the update operation. May be NULL.
+             *  @param in_opt_memory_block_start_offset Start offset of the source memory region. ignored if
+             *                                          @param in_opt_memory_block_ptr is NULL.
              **/
-            void append_image_memory_update(SparseMemoryBindInfoID              bind_info_id,
-                                            std::shared_ptr<Anvil::Image>       image_ptr,
-                                            const VkImageSubresource&           subresource,
-                                            const VkOffset3D&                   offset,
-                                            const VkExtent3D&                   extent,
-                                            VkSparseMemoryBindFlags             flags,
-                                            std::shared_ptr<Anvil::MemoryBlock> opt_memory_block_ptr,
-                                            VkDeviceSize                        opt_memory_block_start_offset);
+            void append_image_memory_update(SparseMemoryBindInfoID              in_bind_info_id,
+                                            std::shared_ptr<Anvil::Image>       in_image_ptr,
+                                            const VkImageSubresource&           in_subresource,
+                                            const VkOffset3D&                   in_offset,
+                                            const VkExtent3D&                   in_extent,
+                                            VkSparseMemoryBindFlags             in_flags,
+                                            std::shared_ptr<Anvil::MemoryBlock> in_opt_memory_block_ptr,
+                                            VkDeviceSize                        in_opt_memory_block_start_offset);
 
             /** Appends a new opaque image memory update to the bind info.
              *
-             *  @param bind_info_id                  ID of the bind info to append the update to.
-             *  @param image_ptr                     Image instance to update. Must not be NULL.
-             *  @param resource_offset               Raw memory image start offset to use for the update.
-             *  @param size                          Number of bytes to update.
-             *  @param flags                         VkSparseMemoryBindFlags value to use for the update.
-             *  @param opt_memory_block_ptr          Memory block to use for the update operation. May be NULL.
-             *  @param opt_memory_block_start_offset Start offset of the source memory region. Ignored if
-             *                                       @param opt_memory_block_ptr is NULL.
+             *  @param in_bind_info_id                  ID of the bind info to append the update to.
+             *  @param in_image_ptr                     Image instance to update. Must not be NULL.
+             *  @param in_resource_offset               Raw memory image start offset to use for the update.
+             *  @param in_size                          Number of bytes to update.
+             *  @param in_flags                         VkSparseMemoryBindFlags value to use for the update.
+             *  @param in_opt_memory_block_ptr          Memory block to use for the update operation. May be NULL.
+             *  @param in_opt_memory_block_start_offset Start offset of the source memory region. Ignored if
+             *                                          @param in_opt_memory_block_ptr is NULL.
              **/
-            void append_opaque_image_memory_update(SparseMemoryBindInfoID              bind_info_id,
-                                                   std::shared_ptr<Anvil::Image>       image_ptr,
-                                                   VkDeviceSize                        resource_offset,
-                                                   VkDeviceSize                        size,
-                                                   VkSparseMemoryBindFlags             flags,
-                                                   std::shared_ptr<Anvil::MemoryBlock> opt_memory_block_ptr,
-                                                   VkDeviceSize                        opt_memory_block_start_offset);
+            void append_opaque_image_memory_update(SparseMemoryBindInfoID              in_bind_info_id,
+                                                   std::shared_ptr<Anvil::Image>       in_image_ptr,
+                                                   VkDeviceSize                        in_resource_offset,
+                                                   VkDeviceSize                        in_size,
+                                                   VkSparseMemoryBindFlags             in_flags,
+                                                   std::shared_ptr<Anvil::MemoryBlock> in_opt_memory_block_ptr,
+                                                   VkDeviceSize                        in_opt_memory_block_start_offset);
 
             /** Retrieves bind info properties.
              *
-             *  @param bind_info_id                              ID of the bind info to retrieve properties of.
-             *  @param opt_out_n_buffer_memory_updates_ptr       Deref will be set to the number of buffer memory updates, assigned
+             *  @param in_bind_info_id                           ID of the bind info to retrieve properties of.
+             *  @param out_opt_n_buffer_memory_updates_ptr       Deref will be set to the number of buffer memory updates, assigned
              *                                                   to the specified bind info item. May be NULL.
-             *  @param opt_out_n_image_memory_updates_ptr        Deref will be set to the number of non-opaque image memory updates, assigned
+             *  @param out_opt_n_image_memory_updates_ptr        Deref will be set to the number of non-opaque image memory updates, assigned
              *                                                   to the specified bind info item. May be NULL.
-             *  @param opt_out_n_image_opaque_memory_updates_ptr Deref will be set to the number of image opaque memory updates, assigned
+             *  @param out_opt_n_image_opaque_memory_updates_ptr Deref will be set to the number of image opaque memory updates, assigned
              *                                                   to the specified bind info item. May be NULL.
-             *  @param opt_out_fence_to_set_ptr                  Deref will be set to the fence, which is going to be set once all
+             *  @param out_opt_fence_to_set_ptr                  Deref will be set to the fence, which is going to be set once all
              *                                                   updates assigned to the bind info item are executed. May be NULL.
-             *  @param opt_out_n_signal_semaphores_ptr           Deref will be set to the number of semaphores, which should be
+             *  @param out_opt_n_signal_semaphores_ptr           Deref will be set to the number of semaphores, which should be
              *                                                   signalled after bindings are applied. May be NULL.
-             *  @param opt_out_signal_semaphores_ptr_ptr         Deref will be set to an array of signal semaphores. May be NULL.
-             *  @param opt_out_n_wait_semaphores_ptr             Deref will be set to the number of semaphores, which should be
+             *  @param out_opt_signal_semaphores_ptr_ptr         Deref will be set to an array of signal semaphores. May be NULL.
+             *  @param out_opt_n_wait_semaphores_ptr             Deref will be set to the number of semaphores, which should be
              *                                                   waited on before bindings are applied. May be NULL.
-             *  @param opt_out_wait_semaphores_ptr_ptr           Deref will be set to an array of wait semaphores. May be NULL.
+             *  @param out_opt_wait_semaphores_ptr_ptr           Deref will be set to an array of wait semaphores. May be NULL.
              *
              *  @return true if successful, false otherwise.
              **/
-            bool get_bind_info_properties(SparseMemoryBindInfoID                     bind_info_id,
-                                          uint32_t* const                            opt_out_n_buffer_memory_updates_ptr,
-                                          uint32_t* const                            opt_out_n_image_memory_updates_ptr,
-                                          uint32_t* const                            opt_out_n_image_opaque_memory_updates_ptr,
-                                          uint32_t* const                            opt_out_n_signal_semaphores_ptr,
-                                          const std::shared_ptr<Anvil::Semaphore>**  opt_out_signal_semaphores_ptr_ptr,
-                                          uint32_t* const                            opt_out_n_wait_semaphores_ptr,
-                                          const std::shared_ptr<Anvil::Semaphore>**  opt_out_wait_semaphores_ptr_ptr) const;
+            bool get_bind_info_properties(SparseMemoryBindInfoID                     in_bind_info_id,
+                                          uint32_t* const                            out_opt_n_buffer_memory_updates_ptr,
+                                          uint32_t* const                            out_opt_n_image_memory_updates_ptr,
+                                          uint32_t* const                            out_opt_n_image_opaque_memory_updates_ptr,
+                                          uint32_t* const                            out_opt_n_signal_semaphores_ptr,
+                                          const std::shared_ptr<Anvil::Semaphore>**  out_opt_signal_semaphores_ptr_ptr,
+                                          uint32_t* const                            out_opt_n_wait_semaphores_ptr,
+                                          const std::shared_ptr<Anvil::Semaphore>**  out_opt_wait_semaphores_ptr_ptr) const;
 
             /** Retrieves Vulkan descriptors which should be used for the vkQueueBindSparse() call.
              *
@@ -2069,9 +2090,9 @@ namespace Anvil
 
             /** Retrieves details of buffer memory binding updates, cached for user-specified bind info.
              *
-             *  @param bind_info_id                           ID of the bind info, which owns the update, whose properties are
+             *  @param in_bind_info_id                        ID of the bind info, which owns the update, whose properties are
              *                                                being queried.
-             *  @param n_update                               Index of the buffer memory update to retrieve properties of.
+             *  @param in_n_update                            Index of the buffer memory update to retrieve properties of.
              *  @param out_opt_buffer_ptr                     If not NULL, deref will be set to the buffer, whose sparse memory
              *                                                binding should be updated. Otherwise ignored.
              *  @param out_opt_buffer_memory_start_offset_ptr If not NULL, deref will be set to the start offset of the buffer,
@@ -2086,8 +2107,8 @@ namespace Anvil
              *
              *  @return true if successful, false otherwise.
              **/
-            bool get_buffer_memory_update_properties(SparseMemoryBindInfoID               bind_info_id,
-                                                     uint32_t                             n_update,
+            bool get_buffer_memory_update_properties(SparseMemoryBindInfoID               in_bind_info_id,
+                                                     uint32_t                             in_n_update,
                                                      std::shared_ptr<Anvil::Buffer>*      out_opt_buffer_ptr,
                                                      VkDeviceSize*                        out_opt_buffer_memory_start_offset_ptr,
                                                      std::shared_ptr<Anvil::MemoryBlock>* out_opt_memory_block_ptr,
@@ -2102,64 +2123,64 @@ namespace Anvil
 
             /** Retrieves properties of a non-opaque image memory update with a given ID.
              *
-             *  @param bind_info_id                          ID of the bind info, which owns the update, and whose properties are
+             *  @param in_bind_info_id                       ID of the bind info, which owns the update, and whose properties are
              *                                               being queried.
-             *  @param n_update                              Index of the image memory update to retrieve properties of.
-             *  @param opt_out_image_ptr_ptr                 If not NULL, deref will be set to the image which should be updated.
+             *  @param in_n_update                           Index of the image memory update to retrieve properties of.
+             *  @param out_opt_image_ptr_ptr                 If not NULL, deref will be set to the image which should be updated.
              *                                               Otherwise ignored.
-             *  @param opt_out_subresouce_ptr                If not NULL, deref will be set to the subresource to be used for the
+             *  @param out_opt_subresouce_ptr                If not NULL, deref will be set to the subresource to be used for the
              *                                               update. Otherwise ignored.
-             *  @param opt_out_offset_ptr                    If not NULL, deref will be set to image start offset, at which
+             *  @param out_opt_offset_ptr                    If not NULL, deref will be set to image start offset, at which
              *                                               the memory block should be bound. Otherwise ignored.
-             *  @param opt_out_extent_ptr                    If not NULL, deref will be set to the extent of the update. Otherwise
+             *  @param out_opt_extent_ptr                    If not NULL, deref will be set to the extent of the update. Otherwise
              *                                               ignored.
-             *  @param opt_out_flags_ptr                     If not NULL, deref will be set to VkSparseMemoryBindFlags value which
+             *  @param out_opt_flags_ptr                     If not NULL, deref will be set to VkSparseMemoryBindFlags value which
              *                                               is going to be used for the update. Otherwise ignored.
-             *  @param opt_out_memory_block_ptr_ptr          If not NULL, deref will be set to pointer to the memory block, which
+             *  @param out_opt_memory_block_ptr_ptr          If not NULL, deref will be set to pointer to the memory block, which
              *                                               is going to be used for the bind operation. Otherwise ignored.
-             *  @param opt_out_memory_block_start_offset_ptr If not NULL, deref will be set to the start offset of the memory block,
+             *  @param out_opt_memory_block_start_offset_ptr If not NULL, deref will be set to the start offset of the memory block,
              *                                               which should be used for the binding operation. Otherwise ignored.
              *
              *  @return true if successful, false otherwise.
              **/
-            bool get_image_memory_update_properties(SparseMemoryBindInfoID               bind_info_id,
-                                                    uint32_t                             n_update,
-                                                    std::shared_ptr<Anvil::Image>*       opt_out_image_ptr_ptr,
-                                                    VkImageSubresource*                  opt_out_subresource_ptr,
-                                                    VkOffset3D*                          opt_out_offset_ptr,
-                                                    VkExtent3D*                          opt_out_extent_ptr,
-                                                    VkSparseMemoryBindFlags*             opt_out_flags_ptr,
-                                                    std::shared_ptr<Anvil::MemoryBlock>* opt_out_memory_block_ptr_ptr,
-                                                    VkDeviceSize*                        opt_out_memory_block_start_offset_ptr) const;
+            bool get_image_memory_update_properties(SparseMemoryBindInfoID               in_bind_info_id,
+                                                    uint32_t                             in_n_update,
+                                                    std::shared_ptr<Anvil::Image>*       out_opt_image_ptr_ptr,
+                                                    VkImageSubresource*                  out_opt_subresource_ptr,
+                                                    VkOffset3D*                          out_opt_offset_ptr,
+                                                    VkExtent3D*                          out_opt_extent_ptr,
+                                                    VkSparseMemoryBindFlags*             out_opt_flags_ptr,
+                                                    std::shared_ptr<Anvil::MemoryBlock>* out_opt_memory_block_ptr_ptr,
+                                                    VkDeviceSize*                        out_opt_memory_block_start_offset_ptr) const;
 
             /** Retrieves properties of an opaque image memory updated with a given ID.
              *
-             *  @param bind_info_id                          ID of the bind info, which owns the update, and whose properties are being
+             *  @param in_bind_info_id                       ID of the bind info, which owns the update, and whose properties are being
              *                                               queried.
-             *  @param n_update                              Index of the opaque image memory update to retrieve properties of.
-             *  @param opt_out_image_ptr_ptr                 If not NULL, deref will be set to the image which should be updated. Otherwise
+             *  @param in_n_update                           Index of the opaque image memory update to retrieve properties of.
+             *  @param out_opt_image_ptr_ptr                 If not NULL, deref will be set to the image which should be updated. Otherwise
              *                                               ignored.
-             *  @param opt_out_resource_offset_ptr           If not NULL, deref will be set to the raw image memory offset, which should
+             *  @param out_opt_resource_offset_ptr           If not NULL, deref will be set to the raw image memory offset, which should
              *                                               be used for the update. Otherwise ignored.
-             *  @param opt_out_size_ptr                      If not NULL, deref will be set to the size of the image memory which should
+             *  @param out_opt_size_ptr                      If not NULL, deref will be set to the size of the image memory which should
              *                                               be used for the update. Otherwise ignored.
-             *  @param opt_out_flags_ptr                     If not NULL, deref will be set to the VkSParseMemoryBindFlags value which is
+             *  @param out_opt_flags_ptr                     If not NULL, deref will be set to the VkSParseMemoryBindFlags value which is
              *                                               going to be used for the update. Otherwise igfnored.
-             *  @param opt_out_memory_block_ptr_ptr          If not NULL, deref will be set to pointer to the memory block, which is going
+             *  @param out_opt_memory_block_ptr_ptr          If not NULL, deref will be set to pointer to the memory block, which is going
              *                                               to be used for the bind operation. Otherwise ignored.
-             *  @param opt_out_memory_block_start_offset_ptr If not NULL, deref will be set to the start offset of the memory block, which
+             *  @param out_opt_memory_block_start_offset_ptr If not NULL, deref will be set to the start offset of the memory block, which
              *                                               should be used for the binding operation. Otherwise ignored.
              *
              *  @return true if successful, false otherwise.
              */
-            bool get_image_opaque_memory_update_properties(SparseMemoryBindInfoID               bind_info_id,
-                                                           uint32_t                             n_update,
-                                                           std::shared_ptr<Anvil::Image>*       opt_out_image_ptr_ptr,
-                                                           VkDeviceSize*                        opt_out_resource_offset_ptr,
-                                                           VkDeviceSize*                        opt_out_size_ptr,
-                                                           VkSparseMemoryBindFlags*             opt_out_flags_ptr,
-                                                           std::shared_ptr<Anvil::MemoryBlock>* opt_out_memory_block_ptr_ptr,
-                                                           VkDeviceSize*                        opt_out_memory_block_start_offset_ptr) const;
+            bool get_image_opaque_memory_update_properties(SparseMemoryBindInfoID               in_bind_info_id,
+                                                           uint32_t                             in_n_update,
+                                                           std::shared_ptr<Anvil::Image>*       out_opt_image_ptr_ptr,
+                                                           VkDeviceSize*                        out_opt_resource_offset_ptr,
+                                                           VkDeviceSize*                        out_opt_size_ptr,
+                                                           VkSparseMemoryBindFlags*             out_opt_flags_ptr,
+                                                           std::shared_ptr<Anvil::MemoryBlock>* out_opt_memory_block_ptr_ptr,
+                                                           VkDeviceSize*                        out_opt_memory_block_start_offset_ptr) const;
 
             /** Tells how many bind info items have been assigned to the descriptor */
             uint32_t get_n_bind_info_items() const

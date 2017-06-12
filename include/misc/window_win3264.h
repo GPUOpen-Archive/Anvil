@@ -40,21 +40,21 @@ namespace Anvil
          *
          * NOTE: This function resets that last system error assigned to the calling thread.
          *
-         * @param title                          Title to use for the window.
-         * @param width                          New window's width. Must not be 0.
-         * @param height                         New window's height. Must not be 0.
-         * @param present_callback_func_ptr      Func pointer to a function which is going to render frame contents to
-         *                                       the swapchain image. Must not be null.
-         * @param present_callback_func_user_arg User-specific argument to be passed with @param present_callback_func_ptr
-         *                                       invocation. May be null.
+         * @param in_title                          Title to use for the window.
+         * @param in_width                          New window's width. Must not be 0.
+         * @param in_height                         New window's height. Must not be 0.
+         * @param in_present_callback_func_ptr      Func pointer to a function which is going to render frame contents to
+         *                                          the swapchain image. Must not be null.
+         * @param in_present_callback_func_user_arg User-specific argument to be passed with @param in_present_callback_func_ptr
+         *                                          invocation. May be null.
          *
          * @return New Anvil::Window instance if successful, or null otherwise.
          */
-        static std::shared_ptr<Anvil::Window> create(const std::string&     title,
-                                                     unsigned int           width,
-                                                     unsigned int           height,
-                                                     PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                                                     void*                  present_callback_func_user_arg);
+        static std::shared_ptr<Anvil::Window> create(const std::string&     in_title,
+                                                     unsigned int           in_width,
+                                                     unsigned int           in_height,
+                                                     PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                                                     void*                  in_present_callback_func_user_arg);
 
         /* Creates a window wrapper instance from an existing window handle.
          *
@@ -64,11 +64,11 @@ namespace Anvil
          * 3) the application only needs the wrapper instance for interaction with other Anvil wrappers (such as swapchains).
          *
          *
-         * @param window_handle Existing, valid window handle.
+         * @param in_window_handle Existing, valid window handle.
          *
          * @return New Anvil::Window instance if successful, or null otherwise.
          */
-        static std::shared_ptr<Anvil::Window> create(HWND window_handle);
+        static std::shared_ptr<Anvil::Window> create(HWND in_window_handle);
 
         virtual ~WindowWin3264(){ /* Stub */ }
 
@@ -84,39 +84,39 @@ namespace Anvil
         /* This function should never be called under Windows */
         virtual void* get_connection() const
         {
-            anvil_assert(0);
+            anvil_assert_fail();
 
             return nullptr;
         }
 
         /** Changes the window title.
          *
-         *  @param new_title Null-terminated string, holding the new title. Must not be NULL.
+         *  @param in_new_title Null-terminated string, holding the new title. Must not be NULL.
          */
-        void set_title(const char* new_title);
+        void set_title(const char* in_new_title);
 
     private:
         /* Private functions */
 
-        WindowWin3264(const std::string&     title,
-                      unsigned int           width,
-                      unsigned int           height,
-                      PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                      void*                  present_callback_func_user_arg);
-        WindowWin3264(HWND                   handle,
-                      const std::string&     title,
-                      unsigned int           width,
-                      unsigned int           height,
-                      PFNPRESENTCALLBACKPROC present_callback_func_ptr,
-                      void*                  present_callback_func_user_arg);
+        WindowWin3264(const std::string&     in_title,
+                      unsigned int           in_width,
+                      unsigned int           in_height,
+                      PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                      void*                  in_present_callback_func_user_arg);
+        WindowWin3264(HWND                   in_handle,
+                      const std::string&     in_title,
+                      unsigned int           in_width,
+                      unsigned int           in_height,
+                      PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
+                      void*                  in_present_callback_func_user_arg);
 
         /** Creates a new system window and prepares it for usage. */
         bool init();
 
-        static LRESULT CALLBACK msg_callback_pfn_proc(HWND   window_handle,
-                                                      UINT   message_id,
-                                                      WPARAM param_wide,
-                                                      LPARAM param_long);
+        static LRESULT CALLBACK msg_callback_pfn_proc(HWND   in_window_handle,
+                                                      UINT   in_message_id,
+                                                      WPARAM in_param_wide,
+                                                      LPARAM in_param_long);
 
         /* Private variables */
     };

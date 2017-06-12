@@ -26,9 +26,11 @@
 #include "wrappers/event.h"
 
 /* Please see header for specification */
-Anvil::Event::Event(std::weak_ptr<Anvil::BaseDevice> device_ptr)
-    :m_device_ptr(device_ptr),
-     m_event      (VK_NULL_HANDLE)
+Anvil::Event::Event(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
+    :DebugMarkerSupportProvider(in_device_ptr,
+                                VK_DEBUG_REPORT_OBJECT_TYPE_EVENT_EXT),
+     m_device_ptr              (in_device_ptr),
+     m_event                   (VK_NULL_HANDLE)
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
     VkEventCreateInfo                  event_create_info;
@@ -45,7 +47,12 @@ Anvil::Event::Event(std::weak_ptr<Anvil::BaseDevice> device_ptr)
                           &event_create_info,
                            nullptr, /* pAllocator */
                           &m_event);
+
     anvil_assert_vk_call_succeeded(result);
+    if (is_vk_call_successful(result) )
+    {
+        set_vk_handle(m_event);
+    }
 
     /* Register the event instance */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_EVENT,
@@ -66,12 +73,12 @@ Anvil::Event::~Event()
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::Event> Anvil::Event::create(std::weak_ptr<Anvil::BaseDevice> device_ptr)
+std::shared_ptr<Anvil::Event> Anvil::Event::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
 {
     std::shared_ptr<Event> result_ptr;
 
     result_ptr.reset(
-        new Anvil::Event(device_ptr)
+        new Anvil::Event(in_device_ptr)
     );
 
     return result_ptr;

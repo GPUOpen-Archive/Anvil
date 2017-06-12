@@ -31,8 +31,10 @@
 Anvil::QueryPool::QueryPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                             VkQueryType                      in_query_type,
                             uint32_t                         in_n_max_concurrent_queries)
-    :m_device_ptr   (in_device_ptr),
-     m_n_max_indices(in_n_max_concurrent_queries)
+    :DebugMarkerSupportProvider(in_device_ptr,
+                                VK_DEBUG_REPORT_OBJECT_TYPE_QUERY_POOL_EXT),
+     m_device_ptr              (in_device_ptr),
+     m_n_max_indices           (in_n_max_concurrent_queries)
 {
     anvil_assert(in_query_type == VK_QUERY_TYPE_OCCLUSION ||
                  in_query_type == VK_QUERY_TYPE_TIMESTAMP);
@@ -52,7 +54,9 @@ Anvil::QueryPool::QueryPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                             VkQueryType                      in_query_type,
                             VkFlags                          in_query_flags,
                             uint32_t                         in_n_max_concurrent_queries)
-    :m_device_ptr   (in_device_ptr),
+    :DebugMarkerSupportProvider(in_device_ptr,
+                                VK_DEBUG_REPORT_OBJECT_TYPE_QUERY_POOL_EXT),
+     m_device_ptr   (in_device_ptr),
      m_n_max_indices(in_n_max_concurrent_queries)
 {
     init(in_device_ptr,
@@ -142,6 +146,11 @@ void Anvil::QueryPool::init(std::weak_ptr<Anvil::BaseDevice>  in_device_ptr,
                                   nullptr, /* pAllocator */
                                  &m_query_pool_vk);
 
-    anvil_assert                  (m_query_pool_vk != VK_NULL_HANDLE);
     anvil_assert_vk_call_succeeded(result_vk);
+    if (is_vk_call_successful(result_vk) )
+    {
+        anvil_assert(m_query_pool_vk != VK_NULL_HANDLE);
+
+        set_vk_handle(m_query_pool_vk);
+    }
 }

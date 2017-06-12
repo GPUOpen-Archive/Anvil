@@ -27,36 +27,36 @@
 #include "wrappers/image_view.h"
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_1D(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                              std::shared_ptr<Image>           image_ptr,
-                                                              uint32_t                         n_base_layer,
-                                                              uint32_t                         n_base_mipmap_level,
-                                                              uint32_t                         n_mipmaps,
-                                                              VkImageAspectFlagBits            aspect_mask,
-                                                              VkFormat                         format,
-                                                              VkComponentSwizzle               swizzle_red,
-                                                              VkComponentSwizzle               swizzle_green,
-                                                              VkComponentSwizzle               swizzle_blue,
-                                                              VkComponentSwizzle               swizzle_alpha)
+std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_1D(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                              std::shared_ptr<Image>           in_image_ptr,
+                                                              uint32_t                         in_n_base_layer,
+                                                              uint32_t                         in_n_base_mipmap_level,
+                                                              uint32_t                         in_n_mipmaps,
+                                                              VkImageAspectFlagBits            in_aspect_mask,
+                                                              VkFormat                         in_format,
+                                                              VkComponentSwizzle               in_swizzle_red,
+                                                              VkComponentSwizzle               in_swizzle_green,
+                                                              VkComponentSwizzle               in_swizzle_blue,
+                                                              VkComponentSwizzle               in_swizzle_alpha)
 {
-    std::shared_ptr<ImageView> new_image_view_ptr (new ImageView(device_ptr,
-                                                                 image_ptr) );
+    std::shared_ptr<ImageView> new_image_view_ptr (new ImageView(in_device_ptr,
+                                                                 in_image_ptr) );
     const VkComponentSwizzle   swizzle_rgba[]     =
     {
-        swizzle_red,
-        swizzle_green,
-        swizzle_blue,
-        swizzle_alpha
+        in_swizzle_red,
+        in_swizzle_green,
+        in_swizzle_blue,
+        in_swizzle_alpha
     };
 
     if (!new_image_view_ptr->init(VK_IMAGE_VIEW_TYPE_1D,
-                                  n_base_layer,
+                                  in_n_base_layer,
                                   1, /* n_layers */
                                   1, /* n_slices */
-                                  n_base_mipmap_level,
-                                  n_mipmaps,
-                                  aspect_mask,
-                                  format,
+                                  in_n_base_mipmap_level,
+                                  in_n_mipmaps,
+                                  in_aspect_mask,
+                                  in_format,
                                   swizzle_rgba) )
     {
         new_image_view_ptr = nullptr;
@@ -66,37 +66,37 @@ std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_1D(std::weak_ptr<Anvi
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_1D_array(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                                    std::shared_ptr<Anvil::Image>    image_ptr,
-                                                                    uint32_t                         n_base_layer,
-                                                                    uint32_t                         n_layers,
-                                                                    uint32_t                         n_base_mipmap_level,
-                                                                    uint32_t                         n_mipmaps,
-                                                                    VkImageAspectFlagBits            aspect_mask,
-                                                                    VkFormat                         format,
-                                                                    VkComponentSwizzle               swizzle_red,
-                                                                    VkComponentSwizzle               swizzle_green,
-                                                                    VkComponentSwizzle               swizzle_blue,
-                                                                    VkComponentSwizzle               swizzle_alpha)
+std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_1D_array(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                                    std::shared_ptr<Anvil::Image>    in_image_ptr,
+                                                                    uint32_t                         in_n_base_layer,
+                                                                    uint32_t                         in_n_layers,
+                                                                    uint32_t                         in_n_base_mipmap_level,
+                                                                    uint32_t                         in_n_mipmaps,
+                                                                    VkImageAspectFlagBits            in_aspect_mask,
+                                                                    VkFormat                         in_format,
+                                                                    VkComponentSwizzle               in_swizzle_red,
+                                                                    VkComponentSwizzle               in_swizzle_green,
+                                                                    VkComponentSwizzle               in_swizzle_blue,
+                                                                    VkComponentSwizzle               in_swizzle_alpha)
 {
-    std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(device_ptr,
-                                                                image_ptr) );
+    std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(in_device_ptr,
+                                                                in_image_ptr) );
     const VkComponentSwizzle   swizzle_rgba[]     =
     {
-        swizzle_red,
-        swizzle_green,
-        swizzle_blue,
-        swizzle_alpha
+        in_swizzle_red,
+        in_swizzle_green,
+        in_swizzle_blue,
+        in_swizzle_alpha
     };
 
     if (!new_image_view_ptr->init(VK_IMAGE_VIEW_TYPE_1D_ARRAY,
-                                  n_base_layer,
-                                  n_layers,
+                                  in_n_base_layer,
+                                  in_n_layers,
                                   1, /* n_slices */
-                                  n_base_mipmap_level,
-                                  n_mipmaps,
-                                  aspect_mask,
-                                  format,
+                                  in_n_base_mipmap_level,
+                                  in_n_mipmaps,
+                                  in_aspect_mask,
+                                  in_format,
                                   swizzle_rgba) )
     {
         new_image_view_ptr = nullptr;
@@ -106,36 +106,36 @@ std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_1D_array(std::weak_pt
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_2D(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                              std::shared_ptr<Anvil::Image>    image_ptr,
-                                                              uint32_t                         n_base_layer,
-                                                              uint32_t                         n_base_mipmap_level,
-                                                              uint32_t                         n_mipmaps,
-                                                              VkImageAspectFlagBits            aspect_mask,
-                                                              VkFormat                         format,
-                                                              VkComponentSwizzle               swizzle_red,
-                                                              VkComponentSwizzle               swizzle_green,
-                                                              VkComponentSwizzle               swizzle_blue,
-                                                              VkComponentSwizzle               swizzle_alpha)
+std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_2D(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                              std::shared_ptr<Anvil::Image>    in_image_ptr,
+                                                              uint32_t                         in_n_base_layer,
+                                                              uint32_t                         in_n_base_mipmap_level,
+                                                              uint32_t                         in_n_mipmaps,
+                                                              VkImageAspectFlagBits            in_aspect_mask,
+                                                              VkFormat                         in_format,
+                                                              VkComponentSwizzle               in_swizzle_red,
+                                                              VkComponentSwizzle               in_swizzle_green,
+                                                              VkComponentSwizzle               in_swizzle_blue,
+                                                              VkComponentSwizzle               in_swizzle_alpha)
 {
-    std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(device_ptr,
-                                                                image_ptr) );
+    std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(in_device_ptr,
+                                                                in_image_ptr) );
     const VkComponentSwizzle   swizzle_rgba[]     =
     {
-        swizzle_red,
-        swizzle_green,
-        swizzle_blue,
-        swizzle_alpha
+        in_swizzle_red,
+        in_swizzle_green,
+        in_swizzle_blue,
+        in_swizzle_alpha
     };
 
     if (!new_image_view_ptr->init(VK_IMAGE_VIEW_TYPE_2D,
-                                  n_base_layer,
+                                  in_n_base_layer,
                                   1, /* n_layers */
                                   1, /* n_slices */
-                                  n_base_mipmap_level,
-                                  n_mipmaps,
-                                  aspect_mask,
-                                  format,
+                                  in_n_base_mipmap_level,
+                                  in_n_mipmaps,
+                                  in_aspect_mask,
+                                  in_format,
                                   swizzle_rgba) )
     {
         new_image_view_ptr = nullptr;
@@ -145,37 +145,37 @@ std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_2D(std::weak_ptr<Anvi
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_2D_array(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                                    std::shared_ptr<Anvil::Image>    image_ptr,
-                                                                    uint32_t                         n_base_layer,
-                                                                    uint32_t                         n_layers,
-                                                                    uint32_t                         n_base_mipmap_level,
-                                                                    uint32_t                         n_mipmaps,
-                                                                    VkImageAspectFlagBits            aspect_mask,
-                                                                    VkFormat                         format,
-                                                                    VkComponentSwizzle               swizzle_red,
-                                                                    VkComponentSwizzle               swizzle_green,
-                                                                    VkComponentSwizzle               swizzle_blue,
-                                                                    VkComponentSwizzle               swizzle_alpha)
+std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_2D_array(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                                    std::shared_ptr<Anvil::Image>    in_image_ptr,
+                                                                    uint32_t                         in_n_base_layer,
+                                                                    uint32_t                         in_n_layers,
+                                                                    uint32_t                         in_n_base_mipmap_level,
+                                                                    uint32_t                         in_n_mipmaps,
+                                                                    VkImageAspectFlagBits            in_aspect_mask,
+                                                                    VkFormat                         in_format,
+                                                                    VkComponentSwizzle               in_swizzle_red,
+                                                                    VkComponentSwizzle               in_swizzle_green,
+                                                                    VkComponentSwizzle               in_swizzle_blue,
+                                                                    VkComponentSwizzle               in_swizzle_alpha)
 {
-    std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(device_ptr,
-                                                                image_ptr) );
+    std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(in_device_ptr,
+                                                                in_image_ptr) );
     const VkComponentSwizzle   swizzle_rgba[]     =
     {
-        swizzle_red,
-        swizzle_green,
-        swizzle_blue,
-        swizzle_alpha
+        in_swizzle_red,
+        in_swizzle_green,
+        in_swizzle_blue,
+        in_swizzle_alpha
     };
 
     if (!new_image_view_ptr->init(VK_IMAGE_VIEW_TYPE_2D_ARRAY,
-                                  n_base_layer,
-                                  n_layers,
+                                  in_n_base_layer,
+                                  in_n_layers,
                                   1, /* n_slices */
-                                  n_base_mipmap_level,
-                                  n_mipmaps,
-                                  aspect_mask,
-                                  format,
+                                  in_n_base_mipmap_level,
+                                  in_n_mipmaps,
+                                  in_aspect_mask,
+                                  in_format,
                                   swizzle_rgba) )
     {
         new_image_view_ptr = nullptr;
@@ -185,37 +185,37 @@ std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_2D_array(std::weak_pt
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_3D(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                              std::shared_ptr<Anvil::Image>    image_ptr,
-                                                              uint32_t                         n_base_slice,
-                                                              uint32_t                         n_slices,
-                                                              uint32_t                         n_base_mipmap_level,
-                                                              uint32_t                         n_mipmaps,
-                                                              VkImageAspectFlagBits            aspect_mask,
-                                                              VkFormat                         format,
-                                                              VkComponentSwizzle               swizzle_red,
-                                                              VkComponentSwizzle               swizzle_green,
-                                                              VkComponentSwizzle               swizzle_blue,
-                                                              VkComponentSwizzle               swizzle_alpha)
+std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_3D(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                              std::shared_ptr<Anvil::Image>    in_image_ptr,
+                                                              uint32_t                         in_n_base_slice,
+                                                              uint32_t                         in_n_slices,
+                                                              uint32_t                         in_n_base_mipmap_level,
+                                                              uint32_t                         in_n_mipmaps,
+                                                              VkImageAspectFlagBits            in_aspect_mask,
+                                                              VkFormat                         in_format,
+                                                              VkComponentSwizzle               in_swizzle_red,
+                                                              VkComponentSwizzle               in_swizzle_green,
+                                                              VkComponentSwizzle               in_swizzle_blue,
+                                                              VkComponentSwizzle               in_swizzle_alpha)
 {
-    std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(device_ptr,
-                                                                image_ptr) );
+    std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(in_device_ptr,
+                                                                in_image_ptr) );
     const VkComponentSwizzle   swizzle_rgba[]     =
     {
-        swizzle_red,
-        swizzle_green,
-        swizzle_blue,
-        swizzle_alpha
+        in_swizzle_red,
+        in_swizzle_green,
+        in_swizzle_blue,
+        in_swizzle_alpha
     };
 
     if (!new_image_view_ptr->init(VK_IMAGE_VIEW_TYPE_3D,
-                                  n_base_slice,
+                                  in_n_base_slice,
                                   1, /* n_layers */
-                                  n_slices,
-                                  n_base_mipmap_level,
-                                  n_mipmaps,
-                                  aspect_mask,
-                                  format,
+                                  in_n_slices,
+                                  in_n_base_mipmap_level,
+                                  in_n_mipmaps,
+                                  in_aspect_mask,
+                                  in_format,
                                   swizzle_rgba) )
     {
         new_image_view_ptr = nullptr;
@@ -225,36 +225,36 @@ std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_3D(std::weak_ptr<Anvi
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_cube_map(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                                    std::shared_ptr<Anvil::Image>    image_ptr,
-                                                                    uint32_t                         n_base_layer,
-                                                                    uint32_t                         n_base_mipmap_level,
-                                                                    uint32_t                         n_mipmaps,
-                                                                    VkImageAspectFlagBits            aspect_mask,
-                                                                    VkFormat                         format,
-                                                                    VkComponentSwizzle               swizzle_red,
-                                                                    VkComponentSwizzle               swizzle_green,
-                                                                    VkComponentSwizzle               swizzle_blue,
-                                                                    VkComponentSwizzle               swizzle_alpha)
+std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_cube_map(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                                    std::shared_ptr<Anvil::Image>    in_image_ptr,
+                                                                    uint32_t                         in_n_base_layer,
+                                                                    uint32_t                         in_n_base_mipmap_level,
+                                                                    uint32_t                         in_n_mipmaps,
+                                                                    VkImageAspectFlagBits            in_aspect_mask,
+                                                                    VkFormat                         in_format,
+                                                                    VkComponentSwizzle               in_swizzle_red,
+                                                                    VkComponentSwizzle               in_swizzle_green,
+                                                                    VkComponentSwizzle               in_swizzle_blue,
+                                                                    VkComponentSwizzle               in_swizzle_alpha)
 {
-    std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(device_ptr,
-                                                                image_ptr) );
+    std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(in_device_ptr,
+                                                                in_image_ptr) );
     const VkComponentSwizzle  swizzle_rgba[]     =
     {
-        swizzle_red,
-        swizzle_green,
-        swizzle_blue,
-        swizzle_alpha
+        in_swizzle_red,
+        in_swizzle_green,
+        in_swizzle_blue,
+        in_swizzle_alpha
     };
 
     if (!new_image_view_ptr->init(VK_IMAGE_VIEW_TYPE_CUBE,
-                                  n_base_layer,
+                                  in_n_base_layer,
                                   6, /* n_layers */
                                   1, /* n_slices */
-                                  n_base_mipmap_level,
-                                  n_mipmaps,
-                                  aspect_mask,
-                                  format,
+                                  in_n_base_mipmap_level,
+                                  in_n_mipmaps,
+                                  in_aspect_mask,
+                                  in_format,
                                   swizzle_rgba) )
     {
         new_image_view_ptr = nullptr;
@@ -264,37 +264,37 @@ std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_cube_map(std::weak_pt
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_cube_map_array(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                                                                          std::shared_ptr<Anvil::Image>    image_ptr,
-                                                                          uint32_t                         n_base_layer,
-                                                                          uint32_t                         n_cube_maps,
-                                                                          uint32_t                         n_base_mipmap_level,
-                                                                          uint32_t                         n_mipmaps,
-                                                                          VkImageAspectFlagBits            aspect_mask,
-                                                                          VkFormat                         format,
-                                                                          VkComponentSwizzle               swizzle_red,
-                                                                          VkComponentSwizzle               swizzle_green,
-                                                                          VkComponentSwizzle               swizzle_blue,
-                                                                          VkComponentSwizzle               swizzle_alpha)
+std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_cube_map_array(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                                          std::shared_ptr<Anvil::Image>    in_image_ptr,
+                                                                          uint32_t                         in_n_base_layer,
+                                                                          uint32_t                         in_n_cube_maps,
+                                                                          uint32_t                         in_n_base_mipmap_level,
+                                                                          uint32_t                         in_n_mipmaps,
+                                                                          VkImageAspectFlagBits            in_aspect_mask,
+                                                                          VkFormat                         in_format,
+                                                                          VkComponentSwizzle               in_swizzle_red,
+                                                                          VkComponentSwizzle               in_swizzle_green,
+                                                                          VkComponentSwizzle               in_swizzle_blue,
+                                                                          VkComponentSwizzle               in_swizzle_alpha)
 {
-    std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(device_ptr,
-                                                                image_ptr) );
+    std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(in_device_ptr,
+                                                                in_image_ptr) );
     const VkComponentSwizzle   swizzle_rgba[]     =
     {
-        swizzle_red,
-        swizzle_green,
-        swizzle_blue,
-        swizzle_alpha
+        in_swizzle_red,
+        in_swizzle_green,
+        in_swizzle_blue,
+        in_swizzle_alpha
     };
 
     if (!new_image_view_ptr->init(VK_IMAGE_VIEW_TYPE_CUBE_ARRAY,
-                                  n_base_layer,
-                                  n_cube_maps * 6,
+                                  in_n_base_layer,
+                                  in_n_cube_maps * 6,
                                   1, /* n_slices */
-                                  n_base_mipmap_level,
-                                  n_mipmaps,
-                                  aspect_mask,
-                                  format,
+                                  in_n_base_mipmap_level,
+                                  in_n_mipmaps,
+                                  in_aspect_mask,
+                                  in_format,
                                   swizzle_rgba) )
     {
         new_image_view_ptr = nullptr;
@@ -306,22 +306,24 @@ std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_cube_map_array(std::w
 /** Constructor. Retains the user-specified Image instance and sets all members
  *  to default values.
  *
- *  @param device_ptr       Device to use. Must not be nullptr.
- *  @param parent_image_ptr Image to create the view for. Must not be nullptr.
+ *  @param in_device_ptr       Device to use. Must not be nullptr.
+ *  @param in_parent_image_ptr Image to create the view for. Must not be nullptr.
  **/
-Anvil::ImageView::ImageView(std::weak_ptr<Anvil::BaseDevice> device_ptr,
-                            std::shared_ptr<Anvil::Image>    parent_image_ptr)
+Anvil::ImageView::ImageView(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                            std::shared_ptr<Anvil::Image>    in_parent_image_ptr)
+    :DebugMarkerSupportProvider(in_device_ptr,
+                                VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT)
 {
-    anvil_assert(parent_image_ptr != nullptr);
+    anvil_assert(in_parent_image_ptr != nullptr);
 
-    m_device_ptr          = device_ptr;
+    m_device_ptr          = in_device_ptr;
     m_format              = VK_FORMAT_UNDEFINED;
     m_image_view          = VK_NULL_HANDLE;
     m_n_base_mipmap_level = UINT32_MAX;
     m_n_layers            = UINT32_MAX;
     m_n_mipmaps           = UINT32_MAX;
     m_n_slices            = UINT32_MAX;
-    m_parent_image_ptr    = parent_image_ptr;
+    m_parent_image_ptr    = in_parent_image_ptr;
 
     /* Register the object */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_IMAGE_VIEW,
@@ -370,15 +372,15 @@ void Anvil::ImageView::get_base_mipmap_size(uint32_t* out_opt_base_mipmap_width_
  *
  *  @return true if the function executed successfully, false otherwise.
  **/
-bool Anvil::ImageView::init(VkImageViewType           image_view_type,
-                            uint32_t                  n_base_layer,
-                            uint32_t                  n_layers,
-                            uint32_t                  n_slices,
-                            uint32_t                  n_base_mipmap_level,
-                            uint32_t                  n_mipmaps,
-                            VkImageAspectFlagBits     aspect_mask,
-                            VkFormat                  format,
-                            const VkComponentSwizzle* swizzle_rgba_ptr)
+bool Anvil::ImageView::init(VkImageViewType           in_image_view_type,
+                            uint32_t                  in_n_base_layer,
+                            uint32_t                  in_n_layers,
+                            uint32_t                  in_n_slices,
+                            uint32_t                  in_n_base_mipmap_level,
+                            uint32_t                  in_n_mipmaps,
+                            VkImageAspectFlagBits     in_aspect_mask,
+                            VkFormat                  in_format,
+                            const VkComponentSwizzle* in_swizzle_rgba_ptr)
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
     VkImageViewCreateInfo              image_view_create_info;
@@ -411,44 +413,44 @@ bool Anvil::ImageView::init(VkImageViewType           image_view_type,
     parent_image_n_layers  = m_parent_image_ptr->get_image_n_layers ();
     parent_image_n_mipmaps = m_parent_image_ptr->get_image_n_mipmaps();
 
-    if (!(parent_image_n_layers >= n_base_layer + n_layers))
+    if (!(parent_image_n_layers >= in_n_base_layer + in_n_layers))
     {
-        anvil_assert(parent_image_n_layers >= n_base_layer + n_layers);
+        anvil_assert(parent_image_n_layers >= in_n_base_layer + in_n_layers);
 
         goto end;
     }
 
-    if (!(parent_image_n_mipmaps >= n_base_mipmap_level + n_mipmaps))
+    if (!(parent_image_n_mipmaps >= in_n_base_mipmap_level + in_n_mipmaps))
     {
-        anvil_assert(parent_image_n_mipmaps >= n_base_mipmap_level + n_mipmaps);
+        anvil_assert(parent_image_n_mipmaps >= in_n_base_mipmap_level + in_n_mipmaps);
 
         goto end;
     }
 
     if (! m_parent_image_ptr->is_image_mutable() &&
-        !(  parent_image_format == format))
+        !(  parent_image_format == in_format))
     {
-        anvil_assert(parent_image_format == format);
+        anvil_assert(parent_image_format == in_format);
 
         goto end;
     }
 
     /* Create the image view instance */
-    image_view_create_info.components.a                    = swizzle_rgba_ptr[3];
-    image_view_create_info.components.b                    = swizzle_rgba_ptr[2];
-    image_view_create_info.components.g                    = swizzle_rgba_ptr[1];
-    image_view_create_info.components.r                    = swizzle_rgba_ptr[0];
+    image_view_create_info.components.a                    = in_swizzle_rgba_ptr[3];
+    image_view_create_info.components.b                    = in_swizzle_rgba_ptr[2];
+    image_view_create_info.components.g                    = in_swizzle_rgba_ptr[1];
+    image_view_create_info.components.r                    = in_swizzle_rgba_ptr[0];
     image_view_create_info.flags                           = 0;
-    image_view_create_info.format                          = format;
+    image_view_create_info.format                          = in_format;
     image_view_create_info.image                           = m_parent_image_ptr->get_image();
     image_view_create_info.pNext                           = nullptr;
     image_view_create_info.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    image_view_create_info.subresourceRange.aspectMask     = aspect_mask;
-    image_view_create_info.subresourceRange.baseArrayLayer = n_base_layer;
-    image_view_create_info.subresourceRange.baseMipLevel   = n_base_mipmap_level;
-    image_view_create_info.subresourceRange.layerCount     = n_layers;
-    image_view_create_info.subresourceRange.levelCount     = n_mipmaps;
-    image_view_create_info.viewType                        = image_view_type;
+    image_view_create_info.subresourceRange.aspectMask     = in_aspect_mask;
+    image_view_create_info.subresourceRange.baseArrayLayer = in_n_base_layer;
+    image_view_create_info.subresourceRange.baseMipLevel   = in_n_base_mipmap_level;
+    image_view_create_info.subresourceRange.layerCount     = in_n_layers;
+    image_view_create_info.subresourceRange.levelCount     = in_n_mipmaps;
+    image_view_create_info.viewType                        = in_image_view_type;
 
     result_vk = vkCreateImageView(device_locked_ptr->get_device_vk(),
                                  &image_view_create_info,
@@ -463,17 +465,19 @@ bool Anvil::ImageView::init(VkImageViewType           image_view_type,
     }
 
     /* Cache the properties */
-    m_aspect_mask         = aspect_mask;
-    m_format              = format;
-    m_n_base_layer        = n_base_layer;
-    m_n_base_mipmap_level = n_base_mipmap_level;
-    m_n_layers            = n_layers;
-    m_n_mipmaps           = n_mipmaps;
-    m_n_slices            = n_slices;
-    m_type                = image_view_type;
+    set_vk_handle(m_image_view);
+
+    m_aspect_mask         = in_aspect_mask;
+    m_format              = in_format;
+    m_n_base_layer        = in_n_base_layer;
+    m_n_base_mipmap_level = in_n_base_mipmap_level;
+    m_n_layers            = in_n_layers;
+    m_n_mipmaps           = in_n_mipmaps;
+    m_n_slices            = in_n_slices;
+    m_type                = in_image_view_type;
 
     memcpy(m_swizzle_array,
-           swizzle_rgba_ptr,
+           in_swizzle_rgba_ptr,
            sizeof(m_swizzle_array) );
 
     /* All done */

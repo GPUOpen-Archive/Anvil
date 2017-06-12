@@ -51,23 +51,23 @@ namespace Anvil
 
     /** Prototype of a call-back handler.
      *
-     *  @param callback_arg Call-back specific argument.
-     *  @param user_arg     Argument, specified by the subscriber at sign-up time.
+     *  @param in_callback_arg Call-back specific argument.
+     *  @param in_user_arg     Argument, specified by the subscriber at sign-up time.
      **/
-    typedef void (*PFNCALLBACKPROC)(void* callback_arg,
-                                    void* user_arg);
+    typedef void (*PFNCALLBACKPROC)(void* in_callback_arg,
+                                    void* in_user_arg);
 
     /** Interface which provides entrypoints that let class users sign up and sign out of
      *  notifications.
      **/
     class ICallbacksSupportClient
     {
-        virtual void register_for_callbacks   (CallbackID      callback_id,
-                                               PFNCALLBACKPROC pfn_callback_proc,
-                                               void*           user_arg)          = 0;
-        virtual void unregister_from_callbacks(CallbackID      callback_id,
-                                               PFNCALLBACKPROC pfn_callback_proc,
-                                               void*           user_arg)          = 0;
+        virtual void register_for_callbacks   (CallbackID      in_callback_id,
+                                               PFNCALLBACKPROC in_pfn_callback_proc,
+                                               void*           in_user_arg)          = 0;
+        virtual void unregister_from_callbacks(CallbackID      in_callback_id,
+                                               PFNCALLBACKPROC in_pfn_callback_proc,
+                                               void*           in_user_arg)          = 0;
     };
 
 
@@ -81,16 +81,16 @@ namespace Anvil
 
         /** Constructor.
          *
-         *  @param callback_id_count Defines the number of callback slots to allocate. Valid callback ID
-         *                           pool ranges from 0 to (@param callback_id_count - 1).
-         *                           Must be at least 1.
+         *  @param in_callback_id_count Defines the number of callback slots to allocate. Valid callback ID
+         *                              pool ranges from 0 to (@param in_callback_id_count - 1).
+         *                              Must be at least 1.
          **/
-        explicit CallbacksSupportProvider(CallbackID callback_id_count)
+        explicit CallbacksSupportProvider(CallbackID in_callback_id_count)
         {
-            anvil_assert(callback_id_count > 0);
+            anvil_assert(in_callback_id_count > 0);
 
-            m_callback_id_count = callback_id_count;
-            m_callbacks         = new Callbacks[static_cast<uintptr_t>(callback_id_count)];
+            m_callback_id_count = in_callback_id_count;
+            m_callbacks         = new Callbacks[static_cast<uintptr_t>(in_callback_id_count)];
         }
 
         /** Destructor.
@@ -115,22 +115,22 @@ namespace Anvil
          *  Note that the function does NOT check if the specified callback func ptr + user argument
          *  has not already been registered.
          *
-         *  @param callback_id       ID of the call-back slot the caller intends to sign up to. The
-         *                           value must not exceed the maximum callback ID allowed by the
-         *                           inheriting class.
-         *  @param pfn_callback_proc Call-back handler. Must not be nullptr.
-         *  @param user_arg          Optional argument to be passed with the call-back. May be nullptr.
+         *  @param in_callback_id       ID of the call-back slot the caller intends to sign up to. The
+         *                              value must not exceed the maximum callback ID allowed by the
+         *                              inheriting class.
+         *  @param in_pfn_callback_proc Call-back handler. Must not be nullptr.
+         *  @param in_user_arg          Optional argument to be passed with the call-back. May be nullptr.
          *
          **/
-        void register_for_callbacks(CallbackID      callback_id,
-                                    PFNCALLBACKPROC pfn_callback_proc,
-                                    void*           user_arg)
+        void register_for_callbacks(CallbackID      in_callback_id,
+                                    PFNCALLBACKPROC in_pfn_callback_proc,
+                                    void*           in_user_arg)
         {
-            anvil_assert(callback_id       <  m_callback_id_count);
-            anvil_assert(pfn_callback_proc != nullptr);
+            anvil_assert(in_callback_id       <  m_callback_id_count);
+            anvil_assert(in_pfn_callback_proc != nullptr);
 
-            m_callbacks[callback_id].push_back(Callback(pfn_callback_proc,
-                                                        user_arg) );
+            m_callbacks[in_callback_id].push_back(Callback(in_pfn_callback_proc,
+                                                           in_user_arg) );
         }
 
         /** Unregisters the client from the specified call-back slot.
@@ -139,30 +139,30 @@ namespace Anvil
          *  a preceding register_for_callbacks() call, or which has already been unregistered.
          *  Doing so will result in an assertion failure.
          *
-         *  @param callback_id       ID of the call-back slot the caller wants to sign out from.
-         *                           The value must not exceed the maximum callback ID allowed by
-         *                           the inheriting class.
-         *  @param pfn_callback_proc Call-back handler. Must not be nullptr.
-         *  @param user_arg          User argument specified for the call-back.
+         *  @param in_callback_id       ID of the call-back slot the caller wants to sign out from.
+         *                              The value must not exceed the maximum callback ID allowed by
+         *                              the inheriting class.
+         *  @param in_pfn_callback_proc Call-back handler. Must not be nullptr.
+         *  @param in_user_arg          User argument specified for the call-back.
          *
          **/
-        void unregister_from_callbacks(CallbackID      callback_id,
-                                       PFNCALLBACKPROC pfn_callback_proc,
-                                       void*           user_arg)
+        void unregister_from_callbacks(CallbackID      in_callback_id,
+                                       PFNCALLBACKPROC in_pfn_callback_proc,
+                                       void*           in_user_arg)
         {
             bool has_found = false;
 
-            anvil_assert(callback_id       <  m_callback_id_count);
-            anvil_assert(pfn_callback_proc != nullptr);
+            anvil_assert(in_callback_id       <  m_callback_id_count);
+            anvil_assert(in_pfn_callback_proc != nullptr);
 
-            for (auto callback_iterator  = m_callbacks[callback_id].begin();
-                      callback_iterator != m_callbacks[callback_id].end();
+            for (auto callback_iterator  = m_callbacks[in_callback_id].begin();
+                      callback_iterator != m_callbacks[in_callback_id].end();
                     ++callback_iterator)
             {
-                if (callback_iterator->pfn_callback_proc == pfn_callback_proc &&
-                    callback_iterator->user_arg          == user_arg)
+                if (callback_iterator->pfn_callback_proc == in_pfn_callback_proc &&
+                    callback_iterator->user_arg          == in_user_arg)
                 {
-                    m_callbacks[callback_id].erase(callback_iterator);
+                    m_callbacks[in_callback_id].erase(callback_iterator);
 
                     has_found = true;
                     break;
@@ -182,33 +182,33 @@ namespace Anvil
          *  The clients are called one after another from the thread, in which the call has
          *  been invoked.
          *
-         *  @param callback_id  ID of the call-back slot to use.
-         *  @param callback_arg Call-back argument to use.
+         *  @param in_callback_id  ID of the call-back slot to use.
+         *  @param in_callback_arg Call-back argument to use.
          **/
-        void callback(CallbackID callback_id,
-                      void*      callback_arg)
+        void callback(CallbackID in_callback_id,
+                      void*      in_callback_arg)
         {
-            anvil_assert(callback_id < m_callback_id_count);
+            anvil_assert(in_callback_id < m_callback_id_count);
 
-            for (auto callback_iterator  = m_callbacks[callback_id].begin();
-                      callback_iterator != m_callbacks[callback_id].end();
+            for (auto callback_iterator  = m_callbacks[in_callback_id].begin();
+                      callback_iterator != m_callbacks[in_callback_id].end();
                     ++callback_iterator)
             {
                 const Callback& current_callback = *callback_iterator;
 
-                current_callback.pfn_callback_proc(callback_arg,
+                current_callback.pfn_callback_proc(in_callback_arg,
                                                    current_callback.user_arg);
             }
         }
 
         /** Tells how many subscribers have registered for the specified callback */
-        uint32_t get_n_of_callback_subscribers(CallbackID callback_id) const
+        uint32_t get_n_of_callback_subscribers(CallbackID in_callback_id) const
         {
             uint32_t result = 0;
 
-            if (callback_id < m_callback_id_count)
+            if (in_callback_id < m_callback_id_count)
             {
-                result = static_cast<uint32_t>(m_callbacks[callback_id].size() );
+                result = static_cast<uint32_t>(m_callbacks[in_callback_id].size() );
             }
 
             return result;
