@@ -146,3 +146,20 @@ bool Anvil::CommandPool::reset(bool in_release_resources)
 
     return is_vk_call_successful(result_vk);
 }
+
+/* Please see header for specification */
+void Anvil::CommandPool::trim()
+{
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
+
+    if (device_locked_ptr->is_khr_maintenance1_extension_enabled() )
+    {
+        device_locked_ptr->get_extension_khr_maintenance1_entrypoints().vkTrimCommandPoolKHR(device_locked_ptr->get_device_vk(),
+                                                                                             m_command_pool,
+                                                                                             0); /* flags */
+    }
+    else
+    {
+        anvil_assert(device_locked_ptr->is_khr_maintenance1_extension_enabled() );
+    }
+}

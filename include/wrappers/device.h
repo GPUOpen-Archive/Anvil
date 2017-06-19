@@ -112,19 +112,42 @@ namespace Anvil
          *
          *  Will fire an assertion failure if the extension was not requested at device creation time.
          **/
-        const ExtensionAMDDrawIndirectCountEntrypoints& get_extension_amd_draw_indirect_count_entrypoints() const;
+        const ExtensionAMDDrawIndirectCountEntrypoints& get_extension_amd_draw_indirect_count_entrypoints() const
+        {
+            anvil_assert(m_amd_draw_indirect_count_enabled);
+
+            return m_amd_draw_indirect_count_extension_entrypoints;
+        }
 
         /** Returns a container with entry-points to functions introduced by VK_EXT_debug_marker extension.
          *
          *  Will fire an assertion failure if the extension is not supported.
          **/
-        const ExtensionEXTDebugMarkerEntrypoints& get_extension_ext_debug_marker_entrypoints() const;
+        const ExtensionEXTDebugMarkerEntrypoints& get_extension_ext_debug_marker_entrypoints() const
+        {
+            anvil_assert(m_ext_debug_marker_enabled);
+
+            return m_ext_debug_marker_extension_entrypoints;
+        }
+
+        /** Returns a container with entry-points to functions introduced by VK_KHR_maintenance1 extension. **/
+        const ExtensionKHRMaintenance1Entrypoints& get_extension_khr_maintenance1_entrypoints() const
+        {
+            anvil_assert(m_khr_maintenance1_enabled);
+
+            return m_khr_maintenance1_extension_entrypoints;
+        }
 
         /** Returns a container with entry-points to functions introduced by VK_KHR_swapchain extension.
          *
          *  Will fire an assertion failure if the extension was not requested at device creation time.
          **/
-        const ExtensionKHRSwapchainEntrypoints& get_extension_khr_swapchain_entrypoints() const;
+        const ExtensionKHRSwapchainEntrypoints& get_extension_khr_swapchain_entrypoints() const
+        {
+            anvil_assert(m_khr_swapchain_enabled);
+
+            return m_khr_swapchain_extension_entrypoints;
+        }
 
         /** Retrieves a graphics pipeline manager, created for this device instance.
          *
@@ -143,6 +166,9 @@ namespace Anvil
         {
             return static_cast<uint32_t>(m_compute_queues.size() );
         }
+
+        /** Returns the number of queues available for the specified queue family index */
+        uint32_t get_n_queues(uint32_t in_n_queue_family) const;
 
         /** Returns the number of queues available for the specified queue family type
          *
@@ -301,6 +327,17 @@ namespace Anvil
                                        in_name);
         }
 
+        /* Returns a Queue instance representing a Vulkan queue from queue family @param in_n_queue_family
+         * at index @param in_n_queue.
+         *
+         * @param in_n_queue_family See @brief.
+         * @param in_n_queue        See @brief.
+         *
+         * @return Requested Queue instance OR nullptr if either of the parameters is invalid.
+         */
+        std::shared_ptr<Anvil::Queue> get_queue(uint32_t in_n_queue_family,
+                                                uint32_t in_n_queue) const;
+
         /** Returns a index of the specified queue family type.
          *
          *  @param in_family_type TODO
@@ -367,6 +404,51 @@ namespace Anvil
         /* Tells what type this device instance is */
         virtual DeviceType get_type() const = 0;
 
+        bool is_amd_draw_indirect_count_extension_enabled() const
+        {
+            return m_amd_draw_indirect_count_enabled;
+        }
+
+        bool is_amd_gcn_shader_extension_enabled() const
+        {
+            return m_amd_gcn_shader_enabled;
+        }
+
+        bool is_amd_gpu_shader_half_float_extension_enabled() const
+        {
+            return m_amd_gpu_shader_half_float_enabled;
+        }
+
+        bool is_amd_negative_viewport_height_extension_enabled() const
+        {
+            return m_amd_negative_viewport_height_enabled;
+        }
+
+        bool is_amd_rasterization_order_extension_enabled() const
+        {
+            return m_amd_rasterization_order_enabled;
+        }
+
+        bool is_amd_shader_ballot_extension_enabled() const
+        {
+            return m_amd_shader_ballot_enabled;
+        }
+
+        bool is_amd_shader_explicit_vertex_parameter_extension_enabled() const
+        {
+            return m_amd_shader_explicit_vertex_parameter_enabled;
+        }
+
+        bool is_amd_shader_trinary_minmax_extension_enabled() const
+        {
+            return m_amd_shader_trinary_minmax_enabled;
+        }
+
+        bool is_amd_texture_gather_bias_lod_extension_enabled() const
+        {
+            return m_amd_texture_gather_bias_lod_enabled;
+        }
+
         /* Tells whether the device has been created with the specified extension enabled.
          *
          * @param in_extension_name Null-terminated name of the extension. Must not be null.
@@ -385,6 +467,26 @@ namespace Anvil
             return m_ext_debug_marker_enabled;
         }
 
+        bool is_ext_shader_subgroup_vote_extension_enabled() const
+        {
+            return m_ext_shader_subgroup_vote_enabled;
+        }
+
+        bool is_khr_maintenance1_extension_enabled() const
+        {
+            return m_khr_maintenance1_enabled;
+        }
+
+        bool is_khr_surface_extension_enabled() const
+        {
+            return m_khr_surface_enabled;
+        }
+
+        bool is_khr_swapchain_extension_enabled() const
+        {
+            return m_khr_swapchain_enabled;
+        }
+
     protected:
         /* Protected type definitions */
         typedef struct
@@ -396,11 +498,11 @@ namespace Anvil
         /* Protected functions */
         virtual ~BaseDevice();
 
-        std::vector<float> get_queue_priorities(const QueueFamilyInfo*            in_queue_family_info_ptr) const;
-        void               init                (const std::vector<const char*>&   in_extensions,
-                                                const std::vector<const char*>&   in_layers,
-                                                bool                              in_transient_command_buffer_allocs_only,
-                                                bool                              in_support_resettable_command_buffer_allocs);
+        std::vector<float> get_queue_priorities(const QueueFamilyInfo*              in_queue_family_info_ptr) const;
+        void               init                (const DeviceExtensionConfiguration& in_extensions,
+                                                const std::vector<const char*>&     in_layers,
+                                                bool                                in_transient_command_buffer_allocs_only,
+                                                bool                                in_support_resettable_command_buffer_allocs);
 
         BaseDevice& operator=(const BaseDevice&);
         BaseDevice           (const BaseDevice&);
@@ -414,13 +516,13 @@ namespace Anvil
         void get_queue_family_indices_for_physical_device(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
                                                           DeviceQueueFamilyInfo*               out_device_queue_family_info_ptr) const;
 
-        virtual void create_device                         (const std::vector<const char*>& in_extensions,
-                                                            const std::vector<const char*>& in_layers,
-                                                            const VkPhysicalDeviceFeatures& in_features,
-                                                            DeviceQueueFamilyInfo*          out_queue_families_ptr)       = 0;
-        virtual void init_device                           ()                                                             = 0;
-        virtual bool is_layer_supported                    (const char*                     in_layer_name)          const = 0;
-        virtual bool is_physical_device_extension_supported(const char*                     in_extension_name)      const = 0;
+        virtual void create_device                         (const std::vector<const char*>&     in_extensions,
+                                                            const std::vector<const char*>&     in_layers,
+                                                            const VkPhysicalDeviceFeatures&     in_features,
+                                                            DeviceQueueFamilyInfo*              out_queue_families_ptr)       = 0;
+        virtual void init_device                           ()                                                                 = 0;
+        virtual bool is_layer_supported                    (const char*                         in_layer_name)          const = 0;
+        virtual bool is_physical_device_extension_supported(const char*                         in_extension_name)      const = 0;
 
         /* Protected variables */
         std::vector<std::shared_ptr<Anvil::Queue> > m_compute_queues;
@@ -429,21 +531,38 @@ namespace Anvil
         std::vector<std::shared_ptr<Anvil::Queue> > m_transfer_queues;
         std::vector<std::shared_ptr<Anvil::Queue> > m_universal_queues;
 
+        std::map<uint32_t /* queue family index */, std::vector<std::shared_ptr<Anvil::Queue> > > m_queue_fams;
+
         /* Protected variables */
         bool     m_destroyed;
         VkDevice m_device;
 
         ExtensionAMDDrawIndirectCountEntrypoints m_amd_draw_indirect_count_extension_entrypoints;
         ExtensionEXTDebugMarkerEntrypoints       m_ext_debug_marker_extension_entrypoints;
-        ExtensionKHRSurfaceEntrypoints           m_khr_surface_entrypoints;
-        ExtensionKHRSwapchainEntrypoints         m_khr_swapchain_entrypoints;
+        ExtensionKHRMaintenance1Entrypoints      m_khr_maintenance1_extension_entrypoints;
+        ExtensionKHRSurfaceEntrypoints           m_khr_surface_extension_entrypoints;
+        ExtensionKHRSwapchainEntrypoints         m_khr_swapchain_extension_entrypoints;
 
     private:
         /* Private variables */
+        bool m_amd_draw_indirect_count_enabled;
+        bool m_amd_gcn_shader_enabled;
+        bool m_amd_gpu_shader_half_float_enabled;
+        bool m_amd_negative_viewport_height_enabled;
+        bool m_amd_rasterization_order_enabled;
+        bool m_amd_shader_ballot_enabled;
+        bool m_amd_shader_explicit_vertex_parameter_enabled;
+        bool m_amd_shader_trinary_minmax_enabled;
+        bool m_amd_texture_gather_bias_lod_enabled;
+        bool m_ext_debug_marker_enabled;
+        bool m_ext_shader_subgroup_vote_enabled;
+        bool m_khr_maintenance1_enabled;
+        bool m_khr_surface_enabled;
+        bool m_khr_swapchain_enabled;
+
         std::shared_ptr<Anvil::ComputePipelineManager>  m_compute_pipeline_manager_ptr;
         std::shared_ptr<Anvil::DescriptorSetGroup>      m_dummy_dsg_ptr;
         std::vector<std::string>                        m_enabled_extensions;
-        bool                                            m_ext_debug_marker_enabled;
         std::shared_ptr<Anvil::GraphicsPipelineManager> m_graphics_pipeline_manager_ptr;
         std::shared_ptr<Anvil::Instance>                m_parent_instance_ptr;
         std::shared_ptr<Anvil::PipelineCache>           m_pipeline_cache_ptr;
@@ -466,8 +585,7 @@ namespace Anvil
          *  To release a device instance, please call destroy().
          *
          *  @param in_physical_device_ptr                      Physical device to create this device from. Must not be nullptr.
-         *  @param in_extensions                               A vector of extension names to be used when creating the device.
-         *                                                     Can be empty.
+         *  @param in_extensions                               Tells which extensions must/should be specified at creation time.
          *  @param in_layers                                   A vector of layer names to be used when creating the device.
          *                                                     Can be empty.
          *  @param in_transient_command_buffer_allocs_only     True if the command pools, which are going to be initialized after
@@ -479,7 +597,7 @@ namespace Anvil
          *  @return A new Device instance.
          **/
         static std::weak_ptr<Anvil::SGPUDevice> create(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
-                                                       const std::vector<const char*>&      in_extensions,
+                                                       const DeviceExtensionConfiguration&  in_extensions,
                                                        const std::vector<const char*>&      in_layers,
                                                        bool                                 in_transient_command_buffer_allocs_only,
                                                        bool                                 in_support_resettable_command_buffer_allocs);

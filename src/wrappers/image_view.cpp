@@ -427,12 +427,33 @@ bool Anvil::ImageView::init(VkImageViewType           in_image_view_type,
         goto end;
     }
 
-    if (! m_parent_image_ptr->is_image_mutable() &&
-        !(  parent_image_format == in_format))
+    if (((m_parent_image_ptr->get_image_create_flags() & Anvil::IMAGE_CREATE_FLAG_MUTABLE_FORMAT_BIT) == 0)         &&
+         (parent_image_format                                                                         != in_format))
     {
         anvil_assert(parent_image_format == in_format);
 
         goto end;
+    }
+
+    if (m_parent_image_ptr->get_image_type() == VK_IMAGE_TYPE_3D)
+    {
+        if (in_image_view_type == VK_IMAGE_VIEW_TYPE_2D       ||
+            in_image_view_type == VK_IMAGE_VIEW_TYPE_2D_ARRAY)
+        {
+            if (!device_locked_ptr->is_khr_maintenance1_extension_enabled() )
+            {
+                anvil_assert(device_locked_ptr->is_khr_maintenance1_extension_enabled());
+
+                goto end;
+            }
+
+            if ((m_parent_image_ptr->get_image_create_flags() & Anvil::IMAGE_CREATE_FLAG_2D_ARRAY_COMPATIBLE_BIT) == 0)
+            {
+                anvil_assert((m_parent_image_ptr->get_image_create_flags() & Anvil::IMAGE_CREATE_FLAG_2D_ARRAY_COMPATIBLE_BIT) != 0);
+
+                goto end;
+            }
+        }
     }
 
     /* Create the image view instance */

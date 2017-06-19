@@ -400,10 +400,10 @@ void Anvil::Swapchain::init()
                                                                           VK_SAMPLE_COUNT_1_BIT,
                                                                           QUEUE_FAMILY_GRAPHICS_BIT,
                                                                           VK_SHARING_MODE_EXCLUSIVE,
-                                                                          false, /* use_full_mipmap_chain             */
-                                                                          false, /* should_memory_backing_be_mappable */
-                                                                          false, /* should_memory_backing_be_coherent */
-                                                                          true,  /* is_mutable                        */
+                                                                          false, /* in_use_full_mipmap_chain                   */
+                                                                          false, /* in_should_memory_backing_be_mappable       */
+                                                                          false, /* in_should_memory_backing_be_coherent       */
+                                                                          0,     /* in_create_flags                            */
                                                                           VK_IMAGE_LAYOUT_GENERAL,
                                                                           nullptr);
         }
@@ -420,31 +420,5 @@ void Anvil::Swapchain::init()
                                                                          VK_COMPONENT_SWIZZLE_G,
                                                                          VK_COMPONENT_SWIZZLE_B,
                                                                          VK_COMPONENT_SWIZZLE_A);
-    }
-}
-
-/** Please see header for specification */
-void Anvil::Swapchain::set_image_view_format(VkFormat in_new_view_format)
-{
-    if (in_new_view_format != m_image_view_format)
-    {
-        m_image_view_format = in_new_view_format;
-
-        for (uint32_t n_image_view = 0;
-                      n_image_view < m_n_swapchain_images;
-                    ++n_image_view)
-        {
-            m_image_view_ptrs[n_image_view] = Anvil::ImageView::create_2D(m_device_ptr,
-                                                                          m_image_ptrs[n_image_view],
-                                                                          0, /* n_base_layer        */
-                                                                          0, /* n_base_mipmap_level */
-                                                                          1, /* n_mipmaps           */
-                                                                          VK_IMAGE_ASPECT_COLOR_BIT,
-                                                                          m_image_view_format,
-                                                                          VK_COMPONENT_SWIZZLE_R,
-                                                                          VK_COMPONENT_SWIZZLE_G,
-                                                                          VK_COMPONENT_SWIZZLE_B,
-                                                                          VK_COMPONENT_SWIZZLE_A);
-        }
     }
 }

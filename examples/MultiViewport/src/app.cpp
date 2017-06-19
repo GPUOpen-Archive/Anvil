@@ -188,6 +188,7 @@ void App::deinit()
     m_frame_signal_semaphores.clear();
     m_frame_wait_semaphores.clear();
 
+    m_present_queue_ptr.reset();
     m_rendering_surface_ptr.reset();
     m_swapchain_ptr.reset();
 
@@ -854,6 +855,18 @@ void App::init_swapchain()
                                                           m_n_swapchain_images);
 
     m_swapchain_ptr->set_name("Main swapchain");
+
+    /* Cache the queue we are going to use for presentation */
+    const std::vector<uint32_t>* present_queue_fams_ptr = nullptr;
+
+    if (!m_rendering_surface_ptr->get_queue_families_with_present_support(device_locked_ptr->get_physical_device(),
+                                                                         &present_queue_fams_ptr) )
+    {
+        anvil_assert_fail();
+    }
+
+    m_present_queue_ptr = device_locked_ptr->get_queue(present_queue_fams_ptr->at(0),
+                                                       0); /* in_n_queue */
 }
 
 void App::init_window()
@@ -879,8 +892,6 @@ void App::init_window()
 
 void App::init_vulkan()
 {
-    std::vector<const char*> required_extension_names;
-
     /* Create a Vulkan instance */
     m_instance_ptr = Anvil::Instance::create(APP_NAME,  /* app_name */
                                              APP_NAME,  /* engine_name */
@@ -893,17 +904,9 @@ void App::init_vulkan()
 
     m_physical_device_ptr = m_instance_ptr->get_physical_device(0);
 
-    /* Determine which extensions we need to request for */
-    required_extension_names.push_back("VK_KHR_swapchain");
-
-    if (m_physical_device_ptr.lock()->is_device_extension_supported(VK_EXT_DEBUG_MARKER_EXTENSION_NAME) )
-    {
-        required_extension_names.push_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
-    }
-
     /* Create a Vulkan device */
     m_device_ptr = Anvil::SGPUDevice::create(m_physical_device_ptr,
-                                             required_extension_names,
+                                             Anvil::DeviceExtensionConfiguration(),
                                              std::vector<const char*>(), /* layers */
                                              false,                      /* transient_command_buffer_allocs_only */
                                              false);                     /* support_resettable_command_buffers   */

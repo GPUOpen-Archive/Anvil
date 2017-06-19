@@ -200,17 +200,17 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
                                                             VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                                                             swapchain_image_width,
                                                             swapchain_image_height,
-                                                            1,      /* base_mipmap_depth */
-                                                            1,      /* n_layers          */
+                                                            1,      /* in_base_mipmap_depth */
+                                                            1,      /* in_n_layers          */
                                                             VK_SAMPLE_COUNT_1_BIT,
                                                             Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
                                                             VK_SHARING_MODE_EXCLUSIVE,
-                                                            false,  /* use_full_mipmap_chain             */
-                                                            false,  /* should_memory_backing_be_mappable */
-                                                            false,  /* should_memory_backing_be_coherent */
-                                                            false,  /* is_mutable */
+                                                            false,  /* in_use_full_mipmap_chain                   */
+                                                            false,  /* in_should_memory_backing_be_mappable       */
+                                                            false,  /* in_should_memory_backing_be_coherent       */
+                                                            0,      /* in_create_flags                            */
                                                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                                            nullptr); /* mipmaps_ptr */
+                                                            nullptr); /* in_ mipmaps_ptr */
 
     /* 3. Set up the command buffer */
     std::shared_ptr<Anvil::PrimaryCommandBuffer> command_buffer_ptr;

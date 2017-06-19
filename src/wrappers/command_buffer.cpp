@@ -1626,9 +1626,10 @@ end:
 bool Anvil::CommandBufferBase::record_debug_marker_begin_EXT(const char*  in_marker_name,
                                                              const float* in_opt_color)
 {
-    const auto&                entrypoints = m_device_ptr.lock()->get_extension_ext_debug_marker_entrypoints();
-    VkDebugMarkerMarkerInfoEXT marker_info;
-    bool                       result      = false;
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
+    const auto&                        entrypoints      (device_locked_ptr->get_extension_ext_debug_marker_entrypoints() );
+    VkDebugMarkerMarkerInfoEXT         marker_info;
+    bool                               result      = false;
 
     if (!m_recording_in_progress)
     {
@@ -1646,6 +1647,8 @@ bool Anvil::CommandBufferBase::record_debug_marker_begin_EXT(const char*  in_mar
         }
     }
     #endif
+
+    anvil_assert(device_locked_ptr->is_ext_debug_marker_extension_enabled() );
 
     if (in_opt_color != nullptr)
     {
@@ -1676,8 +1679,9 @@ end:
 /* Please see header for specification */
 bool Anvil::CommandBufferBase::record_debug_marker_end_EXT()
 {
-    const auto& entrypoints = m_device_ptr.lock()->get_extension_ext_debug_marker_entrypoints();
-    bool        result      = false;
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
+    const auto&                        entrypoints      (device_locked_ptr->get_extension_ext_debug_marker_entrypoints() );
+    bool                               result           (false);
 
     if (!m_recording_in_progress)
     {
@@ -1685,6 +1689,9 @@ bool Anvil::CommandBufferBase::record_debug_marker_end_EXT()
 
         goto end;
     }
+
+    anvil_assert(device_locked_ptr->is_ext_debug_marker_extension_enabled() );
+
 
     #ifdef STORE_COMMAND_BUFFER_COMMANDS
     {
@@ -1706,9 +1713,10 @@ end:
 bool Anvil::CommandBufferBase::record_debug_marker_insert_EXT(const char*  in_marker_name,
                                                               const float* in_opt_color)
 {
-    const auto&                entrypoints = m_device_ptr.lock()->get_extension_ext_debug_marker_entrypoints();
-    VkDebugMarkerMarkerInfoEXT marker_info;
-    bool                       result      = false;
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
+    const auto&                        entrypoints      (device_locked_ptr->get_extension_ext_debug_marker_entrypoints() );
+    VkDebugMarkerMarkerInfoEXT         marker_info;
+    bool                               result           (false);
 
     if (!m_recording_in_progress)
     {
@@ -1716,6 +1724,9 @@ bool Anvil::CommandBufferBase::record_debug_marker_insert_EXT(const char*  in_ma
 
         goto end;
     }
+
+    anvil_assert(device_locked_ptr->is_ext_debug_marker_extension_enabled() );
+
 
     #ifdef STORE_COMMAND_BUFFER_COMMANDS
     {
@@ -1938,8 +1949,9 @@ bool Anvil::CommandBufferBase::record_draw_indexed_indirect_count_AMD(std::share
                                                                       uint32_t                       in_max_draw_count,
                                                                       uint32_t                       in_stride)
 {
+    std::shared_ptr<Anvil::BaseDevice>              device_locked_ptr(m_device_ptr);
     Anvil::ExtensionAMDDrawIndirectCountEntrypoints entrypoints;
-    bool                                            result = false;
+    bool                                            result           (false);
 
     if (!m_is_renderpass_active)
     {
@@ -1955,6 +1967,9 @@ bool Anvil::CommandBufferBase::record_draw_indexed_indirect_count_AMD(std::share
         goto end;
     }
 
+    anvil_assert(device_locked_ptr->is_amd_draw_indirect_count_extension_enabled() );
+
+
     #ifdef STORE_COMMAND_BUFFER_COMMANDS
     {
         if (!m_command_stashing_disabled)
@@ -1969,7 +1984,7 @@ bool Anvil::CommandBufferBase::record_draw_indexed_indirect_count_AMD(std::share
     }
     #endif
 
-    entrypoints = m_device_ptr.lock()->get_extension_amd_draw_indirect_count_entrypoints();
+    entrypoints = device_locked_ptr->get_extension_amd_draw_indirect_count_entrypoints();
     
     entrypoints.vkCmdDrawIndexedIndirectCountAMD(m_command_buffer,
                                                  in_buffer_ptr->get_buffer(),
@@ -2037,8 +2052,9 @@ bool Anvil::CommandBufferBase::record_draw_indirect_count_AMD(std::shared_ptr<An
                                                               uint32_t                       in_max_draw_count,
                                                               uint32_t                       in_stride)
 {
+    std::shared_ptr<Anvil::BaseDevice>              device_locked_ptr(m_device_ptr);
     Anvil::ExtensionAMDDrawIndirectCountEntrypoints entrypoints;
-    bool                                            result = false;
+    bool                                            result           (false);
 
     if (!m_is_renderpass_active)
     {
@@ -2054,6 +2070,9 @@ bool Anvil::CommandBufferBase::record_draw_indirect_count_AMD(std::shared_ptr<An
         goto end;
     }
 
+    anvil_assert(device_locked_ptr->is_amd_draw_indirect_count_extension_enabled() );
+
+
     #ifdef STORE_COMMAND_BUFFER_COMMANDS
     {
         if (!m_command_stashing_disabled)
@@ -2068,7 +2087,7 @@ bool Anvil::CommandBufferBase::record_draw_indirect_count_AMD(std::shared_ptr<An
     }
     #endif
 
-    entrypoints = m_device_ptr.lock()->get_extension_amd_draw_indirect_count_entrypoints();
+    entrypoints = device_locked_ptr->get_extension_amd_draw_indirect_count_entrypoints();
 
     entrypoints.vkCmdDrawIndirectCountAMD(m_command_buffer,
                                           in_buffer_ptr->get_buffer(),

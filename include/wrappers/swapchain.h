@@ -184,13 +184,6 @@ namespace Anvil
             return m_window_ptr;
         }
 
-        /** Deletes all instantiated image views and re-creates a new set with user-specified
-         *  format.
-         *
-         *  @param new_view_format New format to use for the image views.
-         **/
-        void set_image_view_format(VkFormat in_new_view_format);
-
     private:
         /* Private functions */
 

@@ -102,6 +102,10 @@ namespace Anvil
             return m_device_ptr;
         }
 
+        /** Returns queue family indices which support presentation on a given physical device */
+        bool get_queue_families_with_present_support(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
+                                                     const std::vector<uint32_t>**        out_result_ptr) const;
+
         /** Returns composite alpha modes supported by the rendering surface */
         bool get_supported_composite_alpha_flags(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
                                                  VkCompositeAlphaFlagsKHR*            out_result_ptr) const;
@@ -160,6 +164,8 @@ namespace Anvil
             VkSurfaceCapabilitiesKHR            capabilities;
             std::vector<RenderingSurfaceFormat> supported_formats;
             std::vector<VkPresentModeKHR>       supported_presentation_modes;
+
+            std::vector<uint32_t>               present_capable_queue_fams;
 
             VkCompositeAlphaFlagsKHRVariable  (supported_composite_alpha_flags);
             VkSurfaceTransformFlagsKHRVariable(supported_transformations);

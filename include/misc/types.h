@@ -243,7 +243,9 @@
                 uint8_t  VK_FORMAT_FEATURE_BLIT_DST_BIT : 1; \
                 uint8_t  VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT : 1; \
                 uint8_t  VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_CUBIC_BIT_IMG : 1; \
-                uint32_t OTHER: 18; \
+                uint8_t  VK_FORMAT_FEATURE_TRANSFER_SRC_BIT_KHR : 1; \
+                uint8_t  VK_FORMAT_FEATURE_TRANSFER_DST_BIT_KHR : 1; \
+                uint32_t OTHER: 16; \
             } name##_flags; \
         };
 
@@ -658,7 +660,46 @@ namespace Anvil
         COMPONENT_LAYOUT_UNKNOWN
     } ComponentLayout;
 
-    /** Tells the type of an Anvil::Device instance */
+    typedef enum
+    {
+        EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE,
+        EXTENSION_AVAILABILITY_IGNORE,
+        EXTENSION_AVAILABILITY_REQUIRE,
+    } ExtensionAvailability;
+
+    typedef std::pair<std::string, ExtensionAvailability> DeviceExtensionConfigurationItem;
+
+    /** A struct which tells which extensions must (or should, if supported by the physical device) be enabled
+     *  at device creation time.
+     */
+    typedef struct DeviceExtensionConfiguration
+    {
+        ExtensionAvailability amd_draw_indirect_count;
+        ExtensionAvailability amd_gcn_shader;
+        ExtensionAvailability amd_gpu_shader_half_float;
+        ExtensionAvailability amd_negative_viewport_height;
+        ExtensionAvailability amd_rasterization_order;
+        ExtensionAvailability amd_shader_ballot;
+        ExtensionAvailability amd_shader_explicit_vertex_parameter;
+        ExtensionAvailability amd_shader_trinary_minmax;
+        ExtensionAvailability amd_texture_gather_bias_lod;
+        ExtensionAvailability ext_debug_marker;
+        ExtensionAvailability ext_shader_subgroup_vote;
+        ExtensionAvailability khr_maintenance1;
+        ExtensionAvailability khr_surface;
+        ExtensionAvailability khr_swapchain;
+
+        std::vector<DeviceExtensionConfigurationItem> other_extensions;
+
+
+        DeviceExtensionConfiguration();
+
+        bool is_supported_by_physical_device(std::weak_ptr<const Anvil::PhysicalDevice> in_physical_device_ptr,
+                                             std::vector<std::string>*                  out_opt_unsupported_extensions_ptr = nullptr) const;
+        bool operator==                     (const DeviceExtensionConfiguration&        in)                                           const;
+    } DeviceExtensionConfiguration;
+
+    /** Tells the type of an Anvil::BaseDevice instance */
     typedef enum
     {
         /* BaseDevice is implemented by SGPUDevice class */
@@ -754,6 +795,16 @@ namespace Anvil
             vkGetPhysicalDeviceSparseImageFormatProperties2KHR = nullptr;
         }
     } ExtensionKHRGetPhysicalDeviceProperties2;
+
+    typedef struct ExtensionKHRMaintenance1Entrypoints
+    {
+        PFN_vkTrimCommandPoolKHR vkTrimCommandPoolKHR;
+
+        ExtensionKHRMaintenance1Entrypoints()
+        {
+            vkTrimCommandPoolKHR = nullptr;
+        }
+    } ExtensionKHRMaintenance1Entrypoints;
 
     typedef struct ExtensionKHRSurfaceEntrypoints
     {
@@ -948,6 +999,16 @@ namespace Anvil
     private:
         ImageBarrier& operator=(const ImageBarrier&);
     } ImageBarrier;
+
+    enum ImageCreateFlagBits
+    {
+        IMAGE_CREATE_FLAG_MUTABLE_FORMAT_BIT      = 1 << 0,
+        IMAGE_CREATE_FLAG_CUBE_COMPATIBLE_BIT     = 1 << 1,
+
+        /* NOTE: Requires VK_KHR_maintenance1 */
+        IMAGE_CREATE_FLAG_2D_ARRAY_COMPATIBLE_BIT = 1 << 2,
+    };
+    typedef uint32_t ImageCreateFlags;
 
     /** Holds properties of a single Vulkan Layer. */
     typedef struct Layer

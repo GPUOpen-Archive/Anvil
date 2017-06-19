@@ -47,7 +47,7 @@ Anvil::BaseDevice::BaseDevice(std::weak_ptr<Anvil::Instance> in_parent_instance_
 {
     std::shared_ptr<Anvil::Instance> instance_locked_ptr(in_parent_instance_ptr);
 
-    m_khr_surface_entrypoints = instance_locked_ptr->get_extension_khr_surface_entrypoints();
+    m_khr_surface_extension_entrypoints = instance_locked_ptr->get_extension_khr_surface_entrypoints();
 
     /* Register the instance */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_DEVICE,
@@ -93,6 +93,8 @@ void Anvil::BaseDevice::destroy()
     m_pipeline_layout_manager_ptr   = nullptr;
 
     /* Proceed with device-specific instances */
+    m_queue_fams.clear();
+
     for (Anvil::QueueFamilyType queue_family_type = Anvil::QUEUE_FAMILY_TYPE_FIRST;
                                 queue_family_type < Anvil::QUEUE_FAMILY_TYPE_COUNT + 1;
                                 queue_family_type = static_cast<Anvil::QueueFamilyType>(queue_family_type + 1))
@@ -118,29 +120,35 @@ std::shared_ptr<Anvil::DescriptorSetLayout> Anvil::BaseDevice::get_dummy_descrip
 }
 
 /** Please see header for specification */
-const Anvil::ExtensionAMDDrawIndirectCountEntrypoints& Anvil::BaseDevice::get_extension_amd_draw_indirect_count_entrypoints() const
+uint32_t Anvil::BaseDevice::get_n_queues(uint32_t in_n_queue_family) const
 {
-    anvil_assert(std::find(m_enabled_extensions.begin(),
-                           m_enabled_extensions.end(),
-                           VK_AMD_DRAW_INDIRECT_COUNT_EXTENSION_NAME) != m_enabled_extensions.end() );
+    auto     map_iterator = m_queue_fams.find(in_n_queue_family);
+    uint32_t result       = 0;
 
-    return m_amd_draw_indirect_count_extension_entrypoints;
+    if (map_iterator != m_queue_fams.end())
+    {
+        result = static_cast<uint32_t>(map_iterator->second.size() );
+    }
+
+    return result;
 }
 
 /** Please see header for specification */
-const Anvil::ExtensionEXTDebugMarkerEntrypoints& Anvil::BaseDevice::get_extension_ext_debug_marker_entrypoints() const
+std::shared_ptr<Anvil::Queue> Anvil::BaseDevice::get_queue(uint32_t in_n_queue_family,
+                                                           uint32_t in_n_queue) const
 {
-    anvil_assert(std::find(m_enabled_extensions.begin(),
-                           m_enabled_extensions.end(),
-                           VK_EXT_DEBUG_MARKER_EXTENSION_NAME) != m_enabled_extensions.end() );
+    auto                          map_iterator = m_queue_fams.find(in_n_queue_family);
+    std::shared_ptr<Anvil::Queue> result_ptr;
 
-    return m_ext_debug_marker_extension_entrypoints;
-}
+    if (map_iterator != m_queue_fams.end())
+    {
+        if (map_iterator->second.size() > in_n_queue)
+        {
+            result_ptr = map_iterator->second.at(in_n_queue);
+        }
+    }
 
-/** Please see header for specification */
-const Anvil::ExtensionKHRSwapchainEntrypoints& Anvil::BaseDevice::get_extension_khr_swapchain_entrypoints() const
-{
-    return m_khr_swapchain_entrypoints;
+    return result_ptr;
 }
 
 /* Please see header for specification */
@@ -249,12 +257,13 @@ std::shared_ptr<Anvil::Queue> Anvil::BaseDevice::get_sparse_binding_queue(uint32
 }
 
 /* Initializes a new Device instance */
-void Anvil::BaseDevice::init(const std::vector<const char*>& in_extensions,
-                             const std::vector<const char*>& in_layers,
-                             bool                            in_transient_command_buffer_allocs_only,
-                             bool                            in_support_resettable_command_buffer_allocs)
+void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
+                             const std::vector<const char*>&     in_layers,
+                             bool                                in_transient_command_buffer_allocs_only,
+                             bool                                in_support_resettable_command_buffer_allocs)
 {
 
+    std::vector<const char*>         extensions_final;
     VkPhysicalDeviceFeatures         features_to_enable;
     std::shared_ptr<Anvil::Instance> instance_locked_ptr  (m_parent_instance_ptr);
     const bool                       is_validation_enabled(instance_locked_ptr->is_validation_enabled() );
@@ -307,31 +316,127 @@ void Anvil::BaseDevice::init(const std::vector<const char*>& in_extensions,
         #endif
     }
 
-    /* Make sure all required device extensions are supported */
-    for (auto extension_name : in_extensions)
+    /* Go through the extension struct, verify availability of the requested extensions,
+     * and cache the ones that have been requested and which are available in a linear vector. */
+    typedef struct ExtensionItem
     {
-        if (!is_physical_device_extension_supported(extension_name) )
-        {
-            char temp[1024];
+        const char*           name;
+        ExtensionAvailability requested_availability;
+        bool*                 ext_enabled_flag_ptr;
 
-            if (snprintf(temp,
-                         sizeof(temp),
-                         "Device extension [%s] is unsupported",
-                         extension_name) > 0)
+        ExtensionItem(const char*           in_name,
+                      ExtensionAvailability in_availability,
+                      bool*                 in_ext_enabled_flag_ptr)
+        {
+            ext_enabled_flag_ptr   = in_ext_enabled_flag_ptr;
+            name                   = in_name;
+            requested_availability = in_availability;
+        }
+    } ExtensionItem;
+
+    std::vector<ExtensionItem> specified_extensions =
+    {
+        ExtensionItem(VK_AMD_DRAW_INDIRECT_COUNT_EXTENSION_NAME,              in_extensions.amd_draw_indirect_count,              &m_amd_draw_indirect_count_enabled),
+        ExtensionItem(VK_AMD_GCN_SHADER_EXTENSION_NAME,                       in_extensions.amd_gcn_shader,                       &m_amd_gcn_shader_enabled),
+        ExtensionItem(VK_AMD_GPU_SHADER_HALF_FLOAT_EXTENSION_NAME,            in_extensions.amd_gpu_shader_half_float,            &m_amd_gpu_shader_half_float_enabled),
+        ExtensionItem(VK_AMD_NEGATIVE_VIEWPORT_HEIGHT_EXTENSION_NAME,         in_extensions.amd_negative_viewport_height,         &m_amd_negative_viewport_height_enabled),
+        ExtensionItem(VK_AMD_RASTERIZATION_ORDER_EXTENSION_NAME,              in_extensions.amd_rasterization_order,              &m_amd_rasterization_order_enabled),
+        ExtensionItem(VK_AMD_SHADER_BALLOT_EXTENSION_NAME,                    in_extensions.amd_shader_ballot,                    &m_amd_shader_ballot_enabled),
+        ExtensionItem(VK_AMD_SHADER_EXPLICIT_VERTEX_PARAMETER_EXTENSION_NAME, in_extensions.amd_shader_explicit_vertex_parameter, &m_amd_shader_explicit_vertex_parameter_enabled),
+        ExtensionItem(VK_AMD_SHADER_TRINARY_MINMAX_EXTENSION_NAME,            in_extensions.amd_shader_trinary_minmax,            &m_amd_shader_trinary_minmax_enabled),
+        ExtensionItem(VK_AMD_TEXTURE_GATHER_BIAS_LOD_EXTENSION_NAME,          in_extensions.amd_texture_gather_bias_lod,          &m_amd_texture_gather_bias_lod_enabled),
+        ExtensionItem(VK_EXT_DEBUG_MARKER_EXTENSION_NAME,                     in_extensions.ext_debug_marker,                     &m_ext_debug_marker_enabled),
+        ExtensionItem(VK_EXT_SHADER_SUBGROUP_VOTE_EXTENSION_NAME,             in_extensions.ext_shader_subgroup_vote,             &m_ext_shader_subgroup_vote_enabled),
+        ExtensionItem(VK_KHR_MAINTENANCE1_EXTENSION_NAME,                     in_extensions.khr_maintenance1,                     &m_khr_maintenance1_enabled),
+        ExtensionItem(VK_KHR_SURFACE_EXTENSION_NAME,                          in_extensions.khr_surface,                          &m_khr_surface_enabled),
+        ExtensionItem(VK_KHR_SWAPCHAIN_EXTENSION_NAME,                        in_extensions.khr_swapchain,                        &m_khr_swapchain_enabled),
+    };
+
+    for (const auto& misc_extension : in_extensions.other_extensions)
+    {
+        specified_extensions.push_back(
+            ExtensionItem(misc_extension.first.c_str(),
+                          misc_extension.second,
+                          nullptr)
+        );
+    }
+
+    for (const auto& current_extension : specified_extensions)
+    {
+        const bool is_ext_supported = is_physical_device_extension_supported(current_extension.name);
+
+        if (current_extension.ext_enabled_flag_ptr != nullptr)
+        {
+            *current_extension.ext_enabled_flag_ptr = false;
+        }
+
+        switch (current_extension.requested_availability)
+        {
+            case EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE:
             {
-                fprintf(stderr,
-                        "%s",
-                        temp);
+                if (is_ext_supported)
+                {
+                    extensions_final.push_back(current_extension.name);
+                }
+
+                break;
             }
 
-            anvil_assert_fail();
+            case EXTENSION_AVAILABILITY_IGNORE:
+            {
+                continue;
+            }
+
+            case EXTENSION_AVAILABILITY_REQUIRE:
+            {
+                if (!is_ext_supported)
+                {
+                    char temp[1024];
+
+                    if (snprintf(temp,
+                                 sizeof(temp),
+                                 "Device extension [%s] is unsupported",
+                                 current_extension.name) > 0)
+                    {
+                        fprintf(stderr,
+                                "%s",
+                                temp);
+                    }
+
+                    anvil_assert_fail();
+                    continue;
+                }
+
+                if (is_ext_supported)
+                {
+                    extensions_final.push_back(current_extension.name);
+                }
+
+                break;
+            }
+
+            default:
+            {
+                anvil_assert_fail();
+            }
         }
 
-        if (strcmp(extension_name,
-                   VK_EXT_DEBUG_MARKER_EXTENSION_NAME) == 0)
+        if (is_ext_supported)
         {
-            m_ext_debug_marker_enabled = true;
+            m_enabled_extensions.push_back(current_extension.name);
         }
+
+        if (current_extension.ext_enabled_flag_ptr != nullptr)
+        {
+            *current_extension.ext_enabled_flag_ptr = is_ext_supported;
+        }
+    }
+
+    if (m_amd_negative_viewport_height_enabled &&
+        m_khr_maintenance1_enabled)
+    {
+        /* VK_AMD_negative_viewport_height and VK_KHR_maintenance1 extensions are mutually exclusive. */
+        anvil_assert_fail();
     }
 
     /* Instantiate the device. Actual behavior behind this is implemented by the overriding class. */
@@ -339,35 +444,15 @@ void Anvil::BaseDevice::init(const std::vector<const char*>& in_extensions,
 
     anvil_assert(m_device == VK_NULL_HANDLE);
     {
-        create_device(in_extensions,
+        create_device(extensions_final,
                       layers_final,
                       features_to_enable,
                      &m_device_queue_families);
     }
     anvil_assert(m_device != VK_NULL_HANDLE);
 
-    /* Cache the enabled extensions */
-    for (auto extension : in_extensions)
-    {
-        m_enabled_extensions.push_back(extension);
-    }
-
     /* Retrieve device-specific func pointers */
-    m_khr_swapchain_entrypoints.vkAcquireNextImageKHR   = reinterpret_cast<PFN_vkAcquireNextImageKHR>  (get_proc_address("vkAcquireNextImageKHR") );
-    m_khr_swapchain_entrypoints.vkCreateSwapchainKHR    = reinterpret_cast<PFN_vkCreateSwapchainKHR>   (get_proc_address("vkCreateSwapchainKHR") );
-    m_khr_swapchain_entrypoints.vkDestroySwapchainKHR   = reinterpret_cast<PFN_vkDestroySwapchainKHR>  (get_proc_address("vkDestroySwapchainKHR") );
-    m_khr_swapchain_entrypoints.vkGetSwapchainImagesKHR = reinterpret_cast<PFN_vkGetSwapchainImagesKHR>(get_proc_address("vkGetSwapchainImagesKHR") );
-    m_khr_swapchain_entrypoints.vkQueuePresentKHR       = reinterpret_cast<PFN_vkQueuePresentKHR>      (get_proc_address("vkQueuePresentKHR") );
-
-    anvil_assert(m_khr_swapchain_entrypoints.vkAcquireNextImageKHR   != nullptr);
-    anvil_assert(m_khr_swapchain_entrypoints.vkCreateSwapchainKHR    != nullptr);
-    anvil_assert(m_khr_swapchain_entrypoints.vkDestroySwapchainKHR   != nullptr);
-    anvil_assert(m_khr_swapchain_entrypoints.vkGetSwapchainImagesKHR != nullptr);
-    anvil_assert(m_khr_swapchain_entrypoints.vkQueuePresentKHR       != nullptr);
-
-    if (std::find(m_enabled_extensions.begin(),
-                  m_enabled_extensions.end(),
-                  VK_AMD_DRAW_INDIRECT_COUNT_EXTENSION_NAME) != m_enabled_extensions.end() )
+    if (m_amd_draw_indirect_count_enabled)
     {
         m_amd_draw_indirect_count_extension_entrypoints.vkCmdDrawIndexedIndirectCountAMD = reinterpret_cast<PFN_vkCmdDrawIndexedIndirectCountAMD>(get_proc_address("vkCmdDrawIndexedIndirectCountAMD") );
         m_amd_draw_indirect_count_extension_entrypoints.vkCmdDrawIndirectCountAMD        = reinterpret_cast<PFN_vkCmdDrawIndirectCountAMD>       (get_proc_address("vkCmdDrawIndirectCountAMD") );
@@ -376,9 +461,7 @@ void Anvil::BaseDevice::init(const std::vector<const char*>& in_extensions,
         anvil_assert(m_amd_draw_indirect_count_extension_entrypoints.vkCmdDrawIndirectCountAMD        != nullptr);
     }
 
-    if (std::find(m_enabled_extensions.begin(),
-                  m_enabled_extensions.end(),
-                  VK_EXT_DEBUG_MARKER_EXTENSION_NAME) != m_enabled_extensions.end() )
+    if (m_ext_debug_marker_enabled)
     {
         m_ext_debug_marker_extension_entrypoints.vkCmdDebugMarkerBeginEXT      = reinterpret_cast<PFN_vkCmdDebugMarkerBeginEXT>     (get_proc_address("vkCmdDebugMarkerBeginEXT") );
         m_ext_debug_marker_extension_entrypoints.vkCmdDebugMarkerEndEXT        = reinterpret_cast<PFN_vkCmdDebugMarkerEndEXT>       (get_proc_address("vkCmdDebugMarkerEndEXT") );
@@ -393,32 +476,65 @@ void Anvil::BaseDevice::init(const std::vector<const char*>& in_extensions,
         anvil_assert(m_ext_debug_marker_extension_entrypoints.vkDebugMarkerSetObjectTagEXT  != nullptr);
     }
 
+    if (m_khr_maintenance1_enabled)
+    {
+        m_khr_maintenance1_extension_entrypoints.vkTrimCommandPoolKHR = reinterpret_cast<PFN_vkTrimCommandPoolKHR>(get_proc_address("vkTrimCommandPoolKHR") );
+
+        anvil_assert(m_khr_maintenance1_extension_entrypoints.vkTrimCommandPoolKHR != nullptr);
+    }
+
+    if (m_khr_swapchain_enabled)
+    {
+        m_khr_swapchain_extension_entrypoints.vkAcquireNextImageKHR   = reinterpret_cast<PFN_vkAcquireNextImageKHR>  (get_proc_address("vkAcquireNextImageKHR") );
+        m_khr_swapchain_extension_entrypoints.vkCreateSwapchainKHR    = reinterpret_cast<PFN_vkCreateSwapchainKHR>   (get_proc_address("vkCreateSwapchainKHR") );
+        m_khr_swapchain_extension_entrypoints.vkDestroySwapchainKHR   = reinterpret_cast<PFN_vkDestroySwapchainKHR>  (get_proc_address("vkDestroySwapchainKHR") );
+        m_khr_swapchain_extension_entrypoints.vkGetSwapchainImagesKHR = reinterpret_cast<PFN_vkGetSwapchainImagesKHR>(get_proc_address("vkGetSwapchainImagesKHR") );
+        m_khr_swapchain_extension_entrypoints.vkQueuePresentKHR       = reinterpret_cast<PFN_vkQueuePresentKHR>      (get_proc_address("vkQueuePresentKHR") );
+
+        anvil_assert(m_khr_swapchain_extension_entrypoints.vkAcquireNextImageKHR   != nullptr);
+        anvil_assert(m_khr_swapchain_extension_entrypoints.vkCreateSwapchainKHR    != nullptr);
+        anvil_assert(m_khr_swapchain_extension_entrypoints.vkDestroySwapchainKHR   != nullptr);
+        anvil_assert(m_khr_swapchain_extension_entrypoints.vkGetSwapchainImagesKHR != nullptr);
+        anvil_assert(m_khr_swapchain_extension_entrypoints.vkQueuePresentKHR       != nullptr);
+    }
+
     /* Spawn queue wrappers */
     for (Anvil::QueueFamilyType queue_family_type = Anvil::QUEUE_FAMILY_TYPE_FIRST;
                                 queue_family_type < Anvil::QUEUE_FAMILY_TYPE_COUNT;
                                 queue_family_type = static_cast<Anvil::QueueFamilyType>(queue_family_type + 1))
     {
-        const uint32_t                               n_queues = m_device_queue_families.n_queues[queue_family_type];
-        std::vector<std::shared_ptr<Anvil::Queue> >& queues   = (queue_family_type == Anvil::QUEUE_FAMILY_TYPE_COMPUTE)   ? m_compute_queues
-                                                              : (queue_family_type == Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL) ? m_universal_queues
-                                                                                                                          : m_transfer_queues;
+        decltype(m_queue_fams)::iterator             current_queue_fam_queues_vec_iterator;
+        const uint32_t                               n_queues                              = m_device_queue_families.n_queues[queue_family_type];
+        std::vector<std::shared_ptr<Anvil::Queue> >& queues                                = (queue_family_type == Anvil::QUEUE_FAMILY_TYPE_COMPUTE)   ? m_compute_queues
+                                                                                           : (queue_family_type == Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL) ? m_universal_queues
+                                                                                                                                                       : m_transfer_queues;
 
         if (n_queues == 0)
         {
             continue;
         }
 
+        /* Create a dummy queue vector and instantiate an iterator we're going to fill up with queue instances */
+        anvil_assert(m_queue_fams.find(m_device_queue_families.family_index[queue_family_type]) == m_queue_fams.end() );
+        m_queue_fams[m_device_queue_families.family_index[queue_family_type] ];
+
+        current_queue_fam_queues_vec_iterator = m_queue_fams.find(m_device_queue_families.family_index[queue_family_type]);
+
         for (uint32_t n_queue = 0;
                       n_queue < n_queues;
                     ++n_queue)
         {
-            std::shared_ptr<Anvil::Queue> new_queue_ptr;
-
-            new_queue_ptr = Anvil::Queue::create(shared_from_this(),
-                                                 m_device_queue_families.family_index[queue_family_type],
-                                                 n_queue);
+            std::shared_ptr<Anvil::Queue> new_queue_ptr = Anvil::Queue::create(shared_from_this(),
+                                                                               m_device_queue_families.family_index[queue_family_type],
+                                                                               n_queue);
 
             queues.push_back(new_queue_ptr);
+
+            anvil_assert(std::find(current_queue_fam_queues_vec_iterator->second.begin(),
+                                   current_queue_fam_queues_vec_iterator->second.end(),
+                                   new_queue_ptr) == current_queue_fam_queues_vec_iterator->second.end() );
+
+            current_queue_fam_queues_vec_iterator->second.push_back(new_queue_ptr);
 
             /* If this queue supports sparse binding ops, cache it in a separate vector as well */
             if (new_queue_ptr->supports_sparse_bindings() )
@@ -494,7 +610,7 @@ Anvil::SGPUDevice::~SGPUDevice()
 
 /* Please see header for specification */
 std::weak_ptr<Anvil::SGPUDevice> Anvil::SGPUDevice::create(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
-                                                           const std::vector<const char*>&      in_extensions,
+                                                           const DeviceExtensionConfiguration&  in_extensions,
                                                            const std::vector<const char*>&      in_layers,
                                                            bool                                 in_transient_command_buffer_allocs_only,
                                                            bool                                 in_support_resettable_command_buffer_allocs)
@@ -594,7 +710,7 @@ std::shared_ptr<Anvil::Swapchain> Anvil::SGPUDevice::create_swapchain(std::share
                                           in_present_mode,
                                           in_usage,
                                           in_n_swapchain_images,
-                                          m_khr_swapchain_entrypoints);
+                                          m_khr_swapchain_extension_entrypoints);
 
     return result_ptr;
 }

@@ -25,6 +25,7 @@
 #include "wrappers/device.h"
 #include "wrappers/image.h"
 #include "wrappers/memory_block.h"
+#include "wrappers/physical_device.h"
 #include "wrappers/semaphore.h"
 #include "wrappers/shader_module.h"
 
@@ -75,6 +76,152 @@ Anvil::BufferBarrier::BufferBarrier(VkAccessFlags                  in_source_acc
 Anvil::BufferBarrier::~BufferBarrier()
 {
     /* Stub */
+}
+
+/** Please see header for specification */
+Anvil::DeviceExtensionConfiguration::DeviceExtensionConfiguration()
+{
+    amd_draw_indirect_count              = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    amd_gcn_shader                       = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    amd_gpu_shader_half_float            = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    amd_rasterization_order              = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    amd_shader_ballot                    = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    amd_shader_explicit_vertex_parameter = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    amd_shader_trinary_minmax            = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    amd_texture_gather_bias_lod          = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    ext_shader_subgroup_vote             = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    khr_maintenance1                     = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    khr_surface                          = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    khr_swapchain                        = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+
+    /* VK_AMD_negative_viewport_height interacts with KHR_maintenance1, hence it needs
+     * to be enabled manually.
+     */
+    amd_negative_viewport_height = EXTENSION_AVAILABILITY_IGNORE;
+
+    /* VK_EXT_debug_marker is only useful for debugging. */
+    #if defined(_DEBUG)
+    {
+        ext_debug_marker = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    }
+    #else
+    {
+        ext_debug_marker = EXTENSION_AVAILABILITY_IGNORE;
+    }
+    #endif
+
+}
+
+/** Please see header for specification */
+bool Anvil::DeviceExtensionConfiguration::is_supported_by_physical_device(std::weak_ptr<const Anvil::PhysicalDevice> in_physical_device_ptr,
+                                                                          std::vector<std::string>*                  out_opt_unsupported_extensions_ptr) const
+{
+    typedef struct ExtensionItem
+    {
+        const char* extension_name;
+        bool        is_required;
+
+        ExtensionItem(const char* in_extension_name,
+                      const bool& in_is_required)
+        {
+            extension_name = in_extension_name;
+            is_required    = in_is_required;
+        }
+    } ExtensionItem;
+
+    std::shared_ptr<const Anvil::PhysicalDevice> physical_device_locked_ptr(in_physical_device_ptr);
+    bool                                         result                    (true);
+    std::vector<ExtensionItem>                   extensions =
+    {
+        ExtensionItem(VK_AMD_DRAW_INDIRECT_COUNT_EXTENSION_NAME,              amd_draw_indirect_count              == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_AMD_GCN_SHADER_EXTENSION_NAME,                       amd_gcn_shader                       == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_AMD_GPU_SHADER_HALF_FLOAT_EXTENSION_NAME,            amd_gpu_shader_half_float            == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_AMD_NEGATIVE_VIEWPORT_HEIGHT_EXTENSION_NAME,         amd_negative_viewport_height         == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_AMD_RASTERIZATION_ORDER_EXTENSION_NAME,              amd_rasterization_order              == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_AMD_SHADER_BALLOT_EXTENSION_NAME,                    amd_shader_ballot                    == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_AMD_SHADER_EXPLICIT_VERTEX_PARAMETER_EXTENSION_NAME, amd_shader_explicit_vertex_parameter == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_AMD_SHADER_TRINARY_MINMAX_EXTENSION_NAME,            amd_shader_trinary_minmax            == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_AMD_TEXTURE_GATHER_BIAS_LOD_EXTENSION_NAME,          amd_texture_gather_bias_lod          == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_EXT_DEBUG_MARKER_EXTENSION_NAME,                     ext_debug_marker                     == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_EXT_SHADER_SUBGROUP_VOTE_EXTENSION_NAME,             ext_shader_subgroup_vote             == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_KHR_MAINTENANCE1_EXTENSION_NAME,                     khr_maintenance1                     == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_KHR_SURFACE_EXTENSION_NAME,                          khr_surface                          == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_KHR_SWAPCHAIN_EXTENSION_NAME,                        khr_swapchain                        == Anvil::EXTENSION_AVAILABILITY_REQUIRE)
+    };
+
+    if (out_opt_unsupported_extensions_ptr != nullptr)
+    {
+        out_opt_unsupported_extensions_ptr->clear();
+    }
+
+    for (const auto& extension : other_extensions)
+    {
+        if (extension.second == Anvil::EXTENSION_AVAILABILITY_REQUIRE)
+        {
+            extensions.push_back(
+                ExtensionItem(extension.first.c_str(),
+                              true)
+            );
+        }
+    }
+
+    for (const auto& current_extension : extensions)
+    {
+        if (!physical_device_locked_ptr->is_device_extension_supported(current_extension.extension_name) &&
+             current_extension.is_required)
+        {
+            result = false;
+
+            if (out_opt_unsupported_extensions_ptr == nullptr)
+            {
+                break;
+            }
+            else
+            {
+                out_opt_unsupported_extensions_ptr->push_back(current_extension.extension_name);
+            }
+        }
+    }
+
+    return result;
+}
+
+bool Anvil::DeviceExtensionConfiguration::operator==(const Anvil::DeviceExtensionConfiguration& in_config) const
+{
+    bool result;
+
+    result = (amd_draw_indirect_count              == in_config.amd_draw_indirect_count)              &&
+             (amd_gcn_shader                       == in_config.amd_gcn_shader)                       &&
+             (amd_gpu_shader_half_float            == in_config.amd_gpu_shader_half_float)            &&
+             (amd_negative_viewport_height         == in_config.amd_negative_viewport_height)         &&
+             (amd_rasterization_order              == in_config.amd_rasterization_order)              &&
+             (amd_shader_ballot                    == in_config.amd_shader_ballot)                    &&
+             (amd_shader_explicit_vertex_parameter == in_config.amd_shader_explicit_vertex_parameter) &&
+             (amd_shader_trinary_minmax            == in_config.amd_shader_trinary_minmax)            &&
+             (amd_texture_gather_bias_lod          == in_config.amd_texture_gather_bias_lod)          &&
+             (ext_debug_marker                     == in_config.ext_debug_marker)                     &&
+             (ext_shader_subgroup_vote             == in_config.ext_shader_subgroup_vote)             &&
+             (khr_surface                          == in_config.khr_surface)                          &&
+             (khr_swapchain                        == in_config.khr_swapchain);
+
+    if (result)
+    {
+        for (const auto& current_other_extension : other_extensions)
+        {
+            auto iterator = std::find(in_config.other_extensions.begin(),
+                                      in_config.other_extensions.end(),
+                                      current_other_extension);
+
+            if (iterator == in_config.other_extensions.end() )
+            {
+                result = false;
+
+                break;
+            }
+        }
+    }
+
+    return result;
 }
 
 /** Please see header for specification */

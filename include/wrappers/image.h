@@ -67,7 +67,7 @@ namespace Anvil
          *  @param in_sharing_mode             Vulkan sharing mode to use.
          *  @param in_use_full_mipmap_chain    true, if all mipmaps should be created for the image. False to only allocate
          *                                     storage for the base mip-map.
-         *  @param in_is_mutable               true if the image should be initialized as a mutable object.
+         *  @param in_create_flags             Optional image features that the created image should support.
          *  @param in_post_create_image_layout Image layout to transfer the image to after it is created AND assigned memory
          *                                     backing. In order to leave the image intact, set this argument to
          *                                     VK_IMAGE_LAYOUT_UNDEFINED if @param in_opt_mipmaps_ptr is NULL, or to
@@ -91,7 +91,7 @@ namespace Anvil
                                                         Anvil::QueueFamilyBits            in_queue_families,
                                                         VkSharingMode                     in_sharing_mode,
                                                         bool                              in_use_full_mipmap_chain,
-                                                        bool                              in_is_mutable,
+                                                        ImageCreateFlags                  in_flags,
                                                         VkImageLayout                     in_post_create_image_layout,
                                                         const std::vector<MipmapRawData>* in_opt_mipmaps_ptr);
 
@@ -100,33 +100,33 @@ namespace Anvil
          *  This constructor assumes the image should be initialized in UNDEFINED layout, if no mipmap data
          *  is specified, or PREINITIALIZED otherwise. In the latter case, it will then proceed with filling
          *  the storage with mipmap data (if @param in_mipmaps_ptr is not nullptr), and finally transition
-         *  the image to the @param post_create_image_layout layout.
+         *  the image to the @param in_post_create_image_layout layout.
          *
-         *  @param in_device_ptr                        Device to use.
-         *  @param in_type                              Vulkan image type to use.
-         *  @param in_format                            Vulkan format to use.
-         *  @param in_tiling                            Vulkan image tiling to use.
-         *  @param in_usage                             Vulkan image usage pattern to use.
-         *  @param in_base_mipmap_width                 Width of the base mip-map.
-         *  @param in_base_mipmap_height                Height of the base mip-map. Must be at least 1 for all image types.
-         *  @param in_base_mipmap_depth                 Depth of the base mip-map. Must be at least 1 for all image types.
-         *  @param in_n_layers                          Number of layers to use. Must be at least 1 for all image types.
-         *  @param in_sample_count                      Sample count to use.
-         *  @param in_queue_families                    A combination of Anvil::QUEUE_FAMILY_* bits, indicating which device queues
-         *                                              the image is going to be accessed by.
-         *  @param in_sharing_mode                      Vulkan sharing mode to use.
-         *  @param in_use_full_mipmap_chain             true if all mipmaps should be created for the image. False to only allocate
-         *                                              storage for the base mip-map.
-         *  @param in_should_memory_backing_be_mappable true if the image should be host-vislble; false if the caller never intends to
-         *                                              map the image's memory backing into process space.
-         *  @param in_should_memory_backing_be_coherent true if the image's memory backing should come from a coherent memory heap.
-         *                                              false if incoherent heaps are OK. Note that it is illegal to set this argument to
-         *                                              true if @param in_should_memory_backing_be_mappable is false.
-         *  @param in_is_mutable                        true if the image should be initialized as a mutable object.
-         *  @param in_post_create_image_layout          Layout to transition the new image to. Must not be VK_IMAGE_LAYOUT_UNDEFINED or
-         *                                              VK_IMAGE_LAYOUT_PREINITIALIZED.
-         *  @param in_mipmaps_ptr                       If not nullptr, specified MipmapRawData items will be used to drive the mipmap contents
-         *                                              initialization process. Ignored if nullptr.
+         *  @param in_device_ptr                              Device to use.
+         *  @param in_type                                    Vulkan image type to use.
+         *  @param in_format                                  Vulkan format to use.
+         *  @param in_tiling                                  Vulkan image tiling to use.
+         *  @param in_usage                                   Vulkan image usage pattern to use.
+         *  @param in_base_mipmap_width                       Width of the base mip-map.
+         *  @param in_base_mipmap_height                      Height of the base mip-map. Must be at least 1 for all image types.
+         *  @param in_base_mipmap_depth                       Depth of the base mip-map. Must be at least 1 for all image types.
+         *  @param in_n_layers                                Number of layers to use. Must be at least 1 for all image types.
+         *  @param in_sample_count                            Sample count to use.
+         *  @param in_queue_families                          A combination of Anvil::QUEUE_FAMILY_* bits, indicating which device queues
+         *                                                    the image is going to be accessed by.
+         *  @param in_sharing_mode                            Vulkan sharing mode to use.
+         *  @param in_use_full_mipmap_chain                   true if all mipmaps should be created for the image. False to only allocate
+         *                                                    storage for the base mip-map.
+         *  @param in_should_memory_backing_be_mappable       true if the image should be host-vislble; false if the caller never intends to
+         *                                                    map the image's memory backing into process space.
+         *  @param in_should_memory_backing_be_coherent       true if the image's memory backing should come from a coherent memory heap.
+         *                                                    false if incoherent heaps are OK. Note that it is illegal to set this argument to
+         *                                                    true if @param in_should_memory_backing_be_mappable is false.
+         *  @param in_create_flags                            Optional image features that the created image should support.
+         *  @param in_post_create_image_layout                Layout to transition the new image to. Must not be VK_IMAGE_LAYOUT_UNDEFINED or
+         *                                                    VK_IMAGE_LAYOUT_PREINITIALIZED.
+         *  @param in_opt_mipmaps_ptr                         If not nullptr, specified MipmapRawData items will be used to drive the mipmap contents
+         *                                                    initialization process. Ignored if nullptr.
          *
          *  @return New image instance, if successful, or nullptr otherwise.
          **/
@@ -145,7 +145,7 @@ namespace Anvil
                                                        bool                              in_use_full_mipmap_chain,
                                                        bool                              in_should_memory_backing_be_mappable,
                                                        bool                              in_should_memory_backing_be_coherent,
-                                                       bool                              in_is_mutable,
+                                                       ImageCreateFlags                  in_create_flags,
                                                        VkImageLayout                     in_post_create_image_layout,
                                                        const std::vector<MipmapRawData>* in_mipmaps_ptr);
 
@@ -188,7 +188,7 @@ namespace Anvil
          *  @param in_sharing_mode           Vulkan sharing mode to use.
          *  @param in_use_full_mipmap_chain  true, if all mipmaps should be created for the image. False to make the image
          *                                   only use one mip.
-         *  @param in_is_mutable             true if the image should be initialized as a mutable object.
+         *  @param in_create_flags           Optional image features that the created image should support.
          *  @param in_sparse_residency_scope Scope of sparse residency to request for the image.
          *
          *  @return New image instance, if successful, or nullptr otherwise.
@@ -206,7 +206,7 @@ namespace Anvil
                                                      Anvil::QueueFamilyBits           in_queue_families,
                                                      VkSharingMode                    in_sharing_mode,
                                                      bool                             in_use_full_mipmap_chain,
-                                                     bool                             in_is_mutable,
+                                                     ImageCreateFlags                 in_create_flags,
                                                      Anvil::SparseResidencyScope      in_residency_scope);
 
         /** Destructor */
@@ -234,6 +234,13 @@ namespace Anvil
         VkDeviceSize get_image_alignment() const
         {
             return m_alignment;
+        }
+
+        /** Returns flags specified at image creation time.
+         **/
+        Anvil::ImageCreateFlags get_image_create_flags() const
+        {
+            return m_create_flags;
         }
 
         /** Returns information about the image format used to create the underlying VkImage instance */
@@ -350,15 +357,6 @@ namespace Anvil
          *  @return true if data for all specified aspects is provided by the image, false otherwise.
          */
         bool has_aspects(VkImageAspectFlags in_aspects) const;
-
-        /** Tells whether the image object has been created with mutability enabled. Mutability lets you
-         *  create image views with formats that are compatible with, but not necessarily the same as, the
-         *  format the image has been initialized with.
-         **/
-        bool is_image_mutable() const
-        {
-            return m_is_mutable;
-        }
 
         /** Tells whether a physical memory page is assigned to the specified texel location.
          *
@@ -576,7 +574,7 @@ namespace Anvil
               uint32_t                          in_n_layers,
               VkSampleCountFlagBits             in_sample_count,
               bool                              in_use_full_mipmap_chain,
-              bool                              in_is_mutable,
+              ImageCreateFlags                  in_create_flags,
               Anvil::QueueFamilyBits            in_queue_families,
               VkImageLayout                     in_post_create_image_layout,
               const std::vector<MipmapRawData>* in_opt_mipmaps_ptr);
@@ -595,7 +593,7 @@ namespace Anvil
               VkSampleCountFlagBits             in_sample_count,
               Anvil::QueueFamilyBits            in_queue_families,
               bool                              in_use_full_mipmap_chain,
-              bool                              in_is_mutable,
+              ImageCreateFlags                  in_create_flags,
               VkImageLayout                     in_post_create_image_layout,
               const std::vector<MipmapRawData>* in_opt_mipmaps_ptr);
 
@@ -613,9 +611,8 @@ namespace Anvil
               uint32_t                         in_n_mipmaps,
               VkSampleCountFlagBits            in_sample_count,
               uint32_t                         in_n_slices,
-              bool                             in_is_mutable,
-              Anvil::QueueFamilyBits           in_queue_families,
-              VkImageCreateFlags               in_flags);
+              Anvil::ImageCreateFlags          in_create_flags,
+              Anvil::QueueFamilyBits           in_queue_families);
 
         /** See corresponding create_sparse() function for specification **/
         Image(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
@@ -631,7 +628,7 @@ namespace Anvil
               Anvil::QueueFamilyBits           in_queue_families,
               VkSharingMode                    in_sharing_mode,
               bool                             in_use_full_mipmap_chain,
-              bool                             in_is_mutable,
+              ImageCreateFlags                 in_create_flags,
               Anvil::SparseResidencyScope      in_residency_scope);
 
         Image           (const Image&);
@@ -673,15 +670,14 @@ namespace Anvil
 
         VkDeviceSize                           m_alignment;
         AspectToLayerMipToSubresourceLayoutMap m_aspects;
+        VkImageCreateFlags                     m_create_flags;
         uint32_t                               m_depth;
         std::weak_ptr<Anvil::BaseDevice>       m_device_ptr;
-        VkImageCreateFlags                     m_flags;
         VkFormat                               m_format;
         bool                                   m_has_transitioned_to_post_create_layout;
         uint32_t                               m_height;
         VkImage                                m_image;
         bool                                   m_image_owner;
-        bool                                   m_is_mutable;
         bool                                   m_is_sparse;
         bool                                   m_is_swapchain_image;
         VkMemoryRequirements                   m_memory_reqs;

@@ -71,6 +71,7 @@ private:
     /* Private variables */
     std::weak_ptr<Anvil::BaseDevice>         m_device_ptr;
     std::shared_ptr<Anvil::Instance>         m_instance_ptr;
+    std::shared_ptr<Anvil::Queue>            m_present_queue_ptr;
     std::shared_ptr<Anvil::QueryPool>        m_query_pool_ptr;
     std::shared_ptr<Anvil::RenderingSurface> m_rendering_surface_ptr;
     std::shared_ptr<Anvil::Swapchain>        m_swapchain_ptr;

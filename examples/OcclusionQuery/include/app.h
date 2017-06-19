@@ -65,6 +65,7 @@ private:
     std::weak_ptr<Anvil::SGPUDevice>         m_device_ptr;
     std::shared_ptr<Anvil::Instance>         m_instance_ptr;
     std::weak_ptr<Anvil::PhysicalDevice>     m_physical_device_ptr;
+    std::shared_ptr<Anvil::Queue>            m_present_queue_ptr;
     std::shared_ptr<Anvil::RenderingSurface> m_rendering_surface_ptr;
     std::shared_ptr<Anvil::Swapchain>        m_swapchain_ptr;
     Anvil::Time                              m_time;

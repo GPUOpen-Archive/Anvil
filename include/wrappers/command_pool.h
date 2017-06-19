@@ -110,6 +110,13 @@ namespace Anvil
             return m_supports_per_cmdbuf_reset_ops;
         }
 
+        /* Trims the command buffer as per VK_KHR_maintenance1 extension spec.
+         *
+         * Requires VK_KHR_maintenance1 extension support. An assertion failure will occur if the
+         * parent device has not been created with the extension enabled.
+         */
+        void trim();
+
     private:
         /* Private functions */
 

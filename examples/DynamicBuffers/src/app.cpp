@@ -236,6 +236,7 @@ void App::deinit()
     m_sine_offset_data_buffer_ptr.reset();
     m_sine_props_data_buffer_ptr.reset();
 
+    m_present_queue_ptr.reset();
     m_rendering_surface_ptr.reset();
     m_swapchain_ptr.reset();
     m_window_ptr.reset();
@@ -255,7 +256,6 @@ void App::draw_frame(void* app_raw_ptr)
     std::shared_ptr<Anvil::SGPUDevice> device_locked_ptr               = app_ptr->m_device_ptr.lock();
     static uint32_t                    n_frames_rendered               = 0;
     uint32_t                           n_swapchain_image;
-    std::shared_ptr<Anvil::Queue>      present_queue_ptr               = device_locked_ptr->get_universal_queue(0);
     std::shared_ptr<Anvil::Semaphore>  present_wait_semaphore_ptr;
     const VkPipelineStageFlags         wait_stage_mask                 = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
@@ -288,10 +288,10 @@ void App::draw_frame(void* app_raw_ptr)
                                                                                                  false, /* should_block */
                                                                                                  nullptr);
 
-    present_queue_ptr->present(app_ptr->m_swapchain_ptr,
-                               n_swapchain_image,
-                               1, /* n_wait_semaphores */
-                              &present_wait_semaphore_ptr);
+    app_ptr->m_present_queue_ptr->present(app_ptr->m_swapchain_ptr,
+                                          n_swapchain_image,
+                                          1, /* n_wait_semaphores */
+                                         &present_wait_semaphore_ptr);
 
     ++n_frames_rendered;
 
@@ -1122,6 +1122,18 @@ void App::init_swapchain()
                                                           m_n_swapchain_images);
 
     m_swapchain_ptr->set_name("Main swapchain");
+
+    /* Cache the queue we are going to use for presentation */
+    const std::vector<uint32_t>* present_queue_fams_ptr = nullptr;
+
+    if (!m_rendering_surface_ptr->get_queue_families_with_present_support(device_locked_ptr->get_physical_device(),
+                                                                         &present_queue_fams_ptr) )
+    {
+        anvil_assert_fail();
+    }
+
+    m_present_queue_ptr = device_locked_ptr->get_queue(present_queue_fams_ptr->at(0),
+                                                       0); /* in_n_queue */
 }
 
 void App::init_window()
@@ -1147,8 +1159,6 @@ void App::init_window()
 
 void App::init_vulkan()
 {
-    std::vector<const char*> required_extension_names;
-
     /* Create a Vulkan instance */
     m_instance_ptr = Anvil::Instance::create(APP_NAME,  /* app_name */
                                              APP_NAME,  /* engine_name */
@@ -1161,17 +1171,9 @@ void App::init_vulkan()
 
     m_physical_device_ptr = m_instance_ptr->get_physical_device(0);
 
-    /* Determine which device-level extensions we need to request */
-    required_extension_names.push_back("VK_KHR_swapchain");
-
-    if (m_physical_device_ptr.lock()->is_device_extension_supported(VK_EXT_DEBUG_MARKER_EXTENSION_NAME) )
-    {
-        required_extension_names.push_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
-    }
-
     /* Create a Vulkan device */
     m_device_ptr = Anvil::SGPUDevice::create(m_physical_device_ptr,
-                                             required_extension_names,
+                                             Anvil::DeviceExtensionConfiguration(),
                                              std::vector<const char*>(), /* layers */
                                              false,                      /* transient_command_buffer_allocs_only */
                                              false);                     /* support_resettable_command_buffers   */
