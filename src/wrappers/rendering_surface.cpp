@@ -445,12 +445,12 @@ bool Anvil::RenderingSurface::init()
                     ++n_physical_device)
         {
             std::shared_ptr<Anvil::SGPUDevice> sgpu_device_locked_ptr(std::dynamic_pointer_cast<Anvil::SGPUDevice>(device_locked_ptr) );
-
+            
             if (sgpu_device_locked_ptr->get_n_universal_queues() > 0)
             {
                 std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr = sgpu_device_locked_ptr->get_physical_device().lock();
                 auto&                                  result_caps                = m_physical_device_capabilities.at          (0);
-
+            
                 result_caps.present_capable_queue_fams.push_back(sgpu_device_locked_ptr->get_universal_queue(0)->get_queue_family_index() );
             }
         }

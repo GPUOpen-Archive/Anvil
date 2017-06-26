@@ -21,6 +21,7 @@
 //
 
 #include "misc/debug.h"
+#include "misc/types.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,7 +40,7 @@ void default_assertion_failure_handler(const char*  in_filename,
                                        const char*  in_message)
 {
     fprintf(stderr,
-             "Assertion failed in [%s:%d]: %s",
+             "Assertion failed in [%s:%d]: %s\n",
              in_filename,
              in_line,
              in_message);
@@ -55,7 +56,10 @@ void Anvil::on_assertion_failed(const char*  in_filename,
 {
     #if defined(_WIN32) && defined(_DEBUG)
     {
-        __debugbreak();
+        if (::IsDebuggerPresent() )
+        {
+            __debugbreak();
+        }
     }
     #endif
 

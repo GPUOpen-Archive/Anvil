@@ -353,16 +353,37 @@ void Anvil::ImageView::get_base_mipmap_size(uint32_t* out_opt_base_mipmap_width_
                                             uint32_t* out_opt_base_mipmap_height_ptr,
                                             uint32_t* out_opt_base_mipmap_depth_ptr) const
 {
-    bool result(false);
+    bool     result      (false);
+    uint32_t result_depth(0);
 
     ANVIL_REDUNDANT_VARIABLE(result);
 
     result = m_parent_image_ptr->get_image_mipmap_size(m_n_base_mipmap_level,
                                                        out_opt_base_mipmap_width_ptr,
                                                        out_opt_base_mipmap_height_ptr,
-                                                       out_opt_base_mipmap_depth_ptr);
-
+                                                       nullptr);
     anvil_assert(result);
+
+    switch (m_type)
+    {
+        case VK_IMAGE_VIEW_TYPE_1D:         result_depth = 1;          break;
+        case VK_IMAGE_VIEW_TYPE_1D_ARRAY:   result_depth = m_n_layers; break;
+        case VK_IMAGE_VIEW_TYPE_2D:         result_depth = 1;          break;
+        case VK_IMAGE_VIEW_TYPE_2D_ARRAY:   result_depth = m_n_layers; break;
+        case VK_IMAGE_VIEW_TYPE_3D:         result_depth = m_n_slices; break;
+        case VK_IMAGE_VIEW_TYPE_CUBE:       result_depth = m_n_layers; break;
+        case VK_IMAGE_VIEW_TYPE_CUBE_ARRAY: result_depth = m_n_layers; break;
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
+
+    if (out_opt_base_mipmap_depth_ptr != nullptr)
+    {
+        *out_opt_base_mipmap_depth_ptr = result_depth;
+    }
 }
 
 /** Performs a number of image view type-specific sanity checks and creates the requested
@@ -410,8 +431,19 @@ bool Anvil::ImageView::init(VkImageViewType           in_image_view_type,
     }
 
     parent_image_format    = m_parent_image_ptr->get_image_format   ();
-    parent_image_n_layers  = m_parent_image_ptr->get_image_n_layers ();
     parent_image_n_mipmaps = m_parent_image_ptr->get_image_n_mipmaps();
+
+    if (m_parent_image_ptr->get_image_type() != VK_IMAGE_TYPE_3D)
+    {
+        parent_image_n_layers = m_parent_image_ptr->get_image_n_layers ();
+    }
+    else
+    {
+        m_parent_image_ptr->get_image_mipmap_size(0,       /* in_n_mipmap        */
+                                                  nullptr, /* out_opt_width_ptr  */
+                                                  nullptr, /* out_opt_height_ptr */
+                                                 &parent_image_n_layers);
+    }
 
     if (!(parent_image_n_layers >= in_n_base_layer + in_n_layers))
     {

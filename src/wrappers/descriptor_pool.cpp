@@ -72,7 +72,8 @@ Anvil::DescriptorPool::~DescriptorPool()
 /* Please see header for specification */
 bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                                     in_n_sets,
                                                   std::shared_ptr<Anvil::DescriptorSetLayout>* in_descriptor_set_layouts_ptr,
-                                                  std::shared_ptr<Anvil::DescriptorSet>*       out_descriptor_sets_ptr)
+                                                  std::shared_ptr<Anvil::DescriptorSet>*       out_descriptor_sets_ptr,
+                                                  VkResult*                                    out_opt_result_ptr)
 {
     bool result = false;
 
@@ -80,7 +81,8 @@ bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                      
 
     result = alloc_descriptor_sets(in_n_sets,
                                    in_descriptor_set_layouts_ptr,
-                                  &m_ds_cache[0]);
+                                  &m_ds_cache.at(0),
+                                   out_opt_result_ptr);
 
     if (result)
     {
@@ -101,11 +103,19 @@ bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                      
 /* Please see header for specification */
 bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                                     in_n_sets,
                                                   std::shared_ptr<Anvil::DescriptorSetLayout>* in_descriptor_set_layouts_ptr,
-                                                  VkDescriptorSet*                             out_descriptor_sets_vk_ptr)
+                                                  VkDescriptorSet*                             out_descriptor_sets_vk_ptr,
+                                                  VkResult*                                    out_opt_result_ptr)
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
     VkDescriptorSetAllocateInfo        ds_alloc_info;
     VkResult                           result_vk;
+
+    if (!m_baked)
+    {
+        bake();
+
+        anvil_assert(m_baked);
+    }
 
     m_ds_layout_cache.resize(in_n_sets);
 
@@ -126,7 +136,11 @@ bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                      
                                         &ds_alloc_info,
                                          out_descriptor_sets_vk_ptr);
 
-    anvil_assert_vk_call_succeeded(result_vk);
+    if (out_opt_result_ptr != nullptr)
+    {
+        *out_opt_result_ptr = result_vk;
+    }
+
     return is_vk_call_successful(result_vk);
 }
 

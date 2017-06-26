@@ -48,7 +48,7 @@ Anvil::Image::Image(std::weak_ptr<Anvil::BaseDevice>  in_device_ptr,
                     uint32_t                          in_n_layers,
                     VkSampleCountFlagBits             in_sample_count,
                     bool                              in_use_full_mipmap_chain,
-                    VkImageCreateFlags                in_create_flags,
+                    Anvil::ImageCreateFlags           in_create_flags,
                     Anvil::QueueFamilyBits            in_queue_families,
                     VkImageLayout                     in_post_create_image_layout,
                     const std::vector<MipmapRawData>* in_opt_mipmaps_ptr)
@@ -107,7 +107,7 @@ Anvil::Image::Image(std::weak_ptr<Anvil::BaseDevice>  in_device_ptr,
                     VkSampleCountFlagBits             in_sample_count,
                     Anvil::QueueFamilyBits            in_queue_families,
                     bool                              in_use_full_mipmap_chain,
-                    VkImageCreateFlags                in_create_flags,
+                    Anvil::ImageCreateFlags           in_create_flags,
                     VkImageLayout                     in_post_create_image_layout,
                     const std::vector<MipmapRawData>* in_mipmaps_ptr)
     :DebugMarkerSupportProvider              (in_device_ptr,
@@ -1333,7 +1333,7 @@ void Anvil::Image::init_mipmap_props()
     {
         m_width,
         m_height,
-        m_depth
+        m_depth,
     };
 
     anvil_assert(m_n_mipmaps      != 0);
@@ -1349,7 +1349,11 @@ void Anvil::Image::init_mipmap_props()
 
         current_mipmap_size[0] /= 2;
         current_mipmap_size[1] /= 2;
-        current_mipmap_size[2] /= 2;
+
+        if (m_type == VK_IMAGE_TYPE_3D)
+        {
+            current_mipmap_size[2] /= 2;
+        }
 
         if (current_mipmap_size[0] < 1)
         {
@@ -1438,17 +1442,17 @@ bool Anvil::Image::set_memory(std::shared_ptr<Anvil::MemoryBlock> in_memory_bloc
     anvil_assert_vk_call_succeeded(result);
     if (is_vk_call_successful(result) )
     {
+        VkImageLayout src_image_layout = (m_tiling == VK_IMAGE_TILING_LINEAR) ? VK_IMAGE_LAYOUT_PREINITIALIZED
+                                                                              : VK_IMAGE_LAYOUT_UNDEFINED;
+
         m_memory_block_ptr = in_memory_block_ptr;
 
         /* Fill the storage with mipmap contents, if mipmap data was specified at input */
         if (m_mipmaps_to_upload.size() > 0)
         {
             upload_mipmaps(&m_mipmaps_to_upload,
-                           (m_tiling == VK_IMAGE_TILING_LINEAR) ? VK_IMAGE_LAYOUT_PREINITIALIZED
-                                                                : VK_IMAGE_LAYOUT_UNDEFINED,
-                           &m_post_create_layout);
-
-            m_mipmaps_to_upload.clear();
+                           src_image_layout,
+                          &src_image_layout);
         }
 
         if (m_post_create_layout != VK_IMAGE_LAYOUT_PREINITIALIZED &&
@@ -1458,9 +1462,10 @@ bool Anvil::Image::set_memory(std::shared_ptr<Anvil::MemoryBlock> in_memory_bloc
 
             transition_to_post_create_image_layout((n_mipmaps_to_upload > 0) ? VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT
                                                                              : 0u,
-                                                   (n_mipmaps_to_upload > 0) ? VK_IMAGE_LAYOUT_PREINITIALIZED
-                                                                             : VK_IMAGE_LAYOUT_UNDEFINED);
+                                                   src_image_layout);
         }
+
+        m_mipmaps_to_upload.clear();
     }
 
     return is_vk_call_successful(result);
@@ -1769,14 +1774,10 @@ void Anvil::Image::upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_p
                                   VkImageLayout                     in_current_image_layout,
                                   VkImageLayout*                    out_new_image_layout_ptr)
 {
-    std::shared_ptr<Anvil::BaseDevice>                                         device_locked_ptr(m_device_ptr);
+    std::shared_ptr<Anvil::BaseDevice>                                         device_locked_ptr                  (m_device_ptr);
     std::map<VkImageAspectFlagBits, std::vector<const Anvil::MipmapRawData*> > image_aspect_to_mipmap_raw_data_map;
-    VkImageAspectFlags                                                         image_aspects_touched   (0);
+    VkImageAspectFlags                                                         image_aspects_touched              (0);
     VkImageSubresourceRange                                                    image_subresource_range;
-    uint32_t                                                                   max_layer_index         (UINT32_MAX);
-    uint32_t                                                                   max_mipmap_index        (UINT32_MAX);
-    uint32_t                                                                   min_layer_index         (UINT32_MAX);
-    uint32_t                                                                   min_mipmap_index        (UINT32_MAX);
 
     /* Each image aspect needs to be modified separately. Iterate over the input vector and move MipmapRawData
      * to separate vectors corresponding to which aspect they need to update. */
@@ -1787,42 +1788,12 @@ void Anvil::Image::upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_p
         image_aspect_to_mipmap_raw_data_map[mipmap_iterator->aspect].push_back(&(*mipmap_iterator));
     }
 
-     /* Determine the max/min layer & mipmap indices */
-    anvil_assert(in_mipmaps_ptr->size() > 0);
-
     for (auto mipmap_iterator =  in_mipmaps_ptr->cbegin();
               mipmap_iterator != in_mipmaps_ptr->cend();
             ++mipmap_iterator)
     {
         image_aspects_touched |= mipmap_iterator->aspect;
-
-        if (max_layer_index == UINT32_MAX               ||
-            max_layer_index <  mipmap_iterator->n_layer)
-        {
-            max_layer_index = mipmap_iterator->n_layer;
-        }
-
-        if (max_mipmap_index == UINT32_MAX                ||
-            max_mipmap_index <  mipmap_iterator->n_mipmap)
-        {
-            max_mipmap_index = mipmap_iterator->n_mipmap;
-        }
-
-        if (min_layer_index == UINT32_MAX                 ||
-            min_layer_index >  mipmap_iterator->n_layer)
-        {
-            min_layer_index = mipmap_iterator->n_layer;
-        }
-
-        if (min_mipmap_index == UINT32_MAX                ||
-            min_mipmap_index >  mipmap_iterator->n_mipmap)
-        {
-            min_mipmap_index = mipmap_iterator->n_mipmap;
-        }
     }
-
-    anvil_assert(max_layer_index  < m_n_layers);
-    anvil_assert(max_mipmap_index < m_n_mipmaps);
 
     /* Fill the buffer memory with data, according to the specified layout requirements,
      * if linear tiling is used.
@@ -1831,10 +1802,10 @@ void Anvil::Image::upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_p
      * and use vkCmdCopyBufferToImage() to let the driver rearrange the data as needed.
      */
     image_subresource_range.aspectMask     = image_aspects_touched;
-    image_subresource_range.baseArrayLayer = min_layer_index;
-    image_subresource_range.baseMipLevel   = min_mipmap_index;
-    image_subresource_range.layerCount     = max_layer_index  - min_layer_index  + 1;
-    image_subresource_range.levelCount     = max_mipmap_index - min_mipmap_index + 1;
+    image_subresource_range.baseArrayLayer = 0;
+    image_subresource_range.baseMipLevel   = 0;
+    image_subresource_range.layerCount     = m_n_layers;
+    image_subresource_range.levelCount     = m_n_mipmaps;
 
     if (m_tiling == VK_IMAGE_TILING_LINEAR)
     {
@@ -2014,8 +1985,8 @@ void Anvil::Image::upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_p
                                                false,
                                                in_current_image_layout,
                                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                               universal_queue_ptr->get_queue_family_index(),
-                                               universal_queue_ptr->get_queue_family_index(),
+                                               (m_sharing_mode == VK_SHARING_MODE_EXCLUSIVE) ? universal_queue_ptr->get_queue_family_index() : VK_QUEUE_FAMILY_IGNORED,
+                                               (m_sharing_mode == VK_SHARING_MODE_EXCLUSIVE) ? universal_queue_ptr->get_queue_family_index() : VK_QUEUE_FAMILY_IGNORED,
                                                shared_from_this(),
                                                image_subresource_range);
 

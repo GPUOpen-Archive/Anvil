@@ -57,6 +57,17 @@
 
 
 #ifdef _WIN32
+    /* NOTE: Version clamp required for IsDebuggerPresent() */
+    #define ANVIL_MIN_WIN32_WINNT_REQUIRED 0x0400
+
+    #if !defined(_WIN32_WINNT)
+        #define _WIN32_WINNT ANVIL_MIN_WIN32_WINNT_REQUIRED
+    #else
+        #if _WIN32_WINNT < ANVIL_MIN_WIN32_WINNT_REQUIRED
+            #error Please update the _WIN32_WINNT macro in order for Anvil to compile successfully.
+        #endif
+    #endif
+
     #if _MSC_VER <= 1800
         #ifndef snprintf
             #define snprintf _snprintf

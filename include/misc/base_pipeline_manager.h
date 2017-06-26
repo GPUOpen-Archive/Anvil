@@ -91,7 +91,8 @@ namespace Anvil
 
        virtual bool bake() = 0;
 
-       /** Assigns DSes encapsulated in the user-specified DSG to the pipeline.
+       /** Assigns DSes encapsulated in the user-specified DSG to the pipeline. This is later used to obtain
+        *  a pipeline layout, which is then specified at pipeline creation time.
         *
         *  This function marks the pipeline as dirty, meaning it will be re-baked at the next get_*() call.
         *

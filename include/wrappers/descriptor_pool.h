@@ -82,16 +82,20 @@ namespace Anvil
          *                                       Must not be nullptr.
          *  @param out_descriptor_sets_vk_ptr    Deref will be set to raw Vulkan handles, created by allocating DSes
          *                                       from a pool. Must not be nullptr. 
-         *
+         *  @param out_opt_result_ptr            If not null, deref will be set to the VkResult value, as returned by
+         *                                       the vkAllocateDescriptorSets() invocation that this function makes.
+         *                                       This may be useful for KHR_maintenance1-aware applications.
          *  @return true if successful, false otherwise.
          **/
         bool alloc_descriptor_sets(uint32_t                                     in_n_sets,
                                    std::shared_ptr<Anvil::DescriptorSetLayout>* in_descriptor_set_layouts_ptr,
-                                   std::shared_ptr<Anvil::DescriptorSet>*       out_descriptor_sets_ptr);
+                                   std::shared_ptr<Anvil::DescriptorSet>*       out_descriptor_sets_ptr,
+                                   VkResult*                                    out_opt_result_ptr = nullptr);
 
         bool alloc_descriptor_sets(uint32_t                                     in_n_sets,
                                    std::shared_ptr<Anvil::DescriptorSetLayout>* in_descriptor_set_layouts_ptr,
-                                   VkDescriptorSet*                             out_descriptor_sets_vk_ptr);
+                                   VkDescriptorSet*                             out_descriptor_sets_vk_ptr,
+                                   VkResult*                                    out_opt_result_ptr = nullptr);
 
         /** Tells if the pool allocated from the pool can be freed with vkFreeDescriptorSet() call. */
         bool are_sets_releaseable() const

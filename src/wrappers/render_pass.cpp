@@ -825,7 +825,8 @@ bool Anvil::RenderPass::bake()
             {
                 if (subpass_color_attachment_iterator->second.resolve_attachment_ptr != nullptr)
                 {
-                    current_subpass_attachment_set_ptr->resolve_attachments_vk[subpass_color_attachment_iterator->first] = get_attachment_reference_from_renderpass_attachment(*subpass_color_attachment_iterator->second.resolve_attachment_ptr);
+                    current_subpass_attachment_set_ptr->resolve_attachments_vk[subpass_color_attachment_iterator->first] = get_attachment_reference_for_resolve_attachment(subpass_iterator,
+                                                                                                                                                                           subpass_color_attachment_iterator);
                 }
             }
         }
@@ -958,6 +959,26 @@ VkAttachmentReference Anvil::RenderPass::get_attachment_reference_from_subpass_a
     attachment_vk.layout     = in_subpass_attachment.layout;
 
     return attachment_vk;
+}
+
+/** Creates a VkAttachmentReference descriptor for a resolve attachment for a color attachment specified by the user.
+ *
+ *  @param in_subpass_iterator                     Iterator pointing at the subpass which uses the color attachment of interest.
+ *  @param in_location_to_subpass_att_map_iterator Iterator pointing at a color attachment which has a resolve attachment attached.
+ *
+ *  @return As per description.
+ **/
+VkAttachmentReference Anvil::RenderPass::get_attachment_reference_for_resolve_attachment(const SubPassesConstIterator&                      in_subpass_iterator,
+                                                                                         const LocationToSubPassAttachmentMapConstIterator& in_location_to_subpass_att_map_iterator) const
+{
+    VkAttachmentReference result;
+
+    anvil_assert((*in_subpass_iterator)->resolved_attachments_map.find(in_location_to_subpass_att_map_iterator->first) != (*in_subpass_iterator)->resolved_attachments_map.end() );
+
+    result.attachment = in_location_to_subpass_att_map_iterator->second.resolve_attachment_ptr->index;
+    result.layout     = (*in_subpass_iterator)->resolved_attachments_map.at(in_location_to_subpass_att_map_iterator->first).layout;
+
+    return result;
 }
 
 /* Please see header for specification */

@@ -670,7 +670,7 @@ namespace Anvil
 
         VkDeviceSize                           m_alignment;
         AspectToLayerMipToSubresourceLayoutMap m_aspects;
-        VkImageCreateFlags                     m_create_flags;
+        Anvil::ImageCreateFlags                m_create_flags;
         uint32_t                               m_depth;
         std::weak_ptr<Anvil::BaseDevice>       m_device_ptr;
         VkFormat                               m_format;

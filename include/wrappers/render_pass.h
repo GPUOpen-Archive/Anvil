@@ -690,8 +690,9 @@ namespace Anvil
             }
         } SubPassAttachment;
 
-        typedef std::map<uint32_t, SubPassAttachment> LocationToSubPassAttachmentMap;
-        typedef std::vector<SubPassAttachment>        SubPassAttachmentVector;
+        typedef std::map<uint32_t, SubPassAttachment>          LocationToSubPassAttachmentMap;
+        typedef LocationToSubPassAttachmentMap::const_iterator LocationToSubPassAttachmentMapConstIterator;
+        typedef std::vector<SubPassAttachment>                 SubPassAttachmentVector;
         
         /** Holds properties of a single sub-pass */
         typedef struct SubPass
@@ -777,7 +778,8 @@ namespace Anvil
                 SubPass& operator=(const SubPass&);
         } SubPass;
 
-        typedef std::vector<SubPass*> SubPasses;
+        typedef std::vector<SubPass*>     SubPasses;
+        typedef SubPasses::const_iterator SubPassesConstIterator;
 
         /** Holds properties of a single subpass<->subpass dependency. */
         typedef struct SubPassDependency
@@ -870,8 +872,10 @@ namespace Anvil
                                     bool                   in_should_resolve,
                                     RenderPassAttachmentID in_resolve_attachment_id);
 
-        VkAttachmentReference get_attachment_reference_from_renderpass_attachment(const RenderPassAttachment& in_renderpass_attachment) const;
-        VkAttachmentReference get_attachment_reference_from_subpass_attachment   (const SubPassAttachment&    in_subpass_attachment)    const;
+        VkAttachmentReference get_attachment_reference_from_renderpass_attachment(const RenderPassAttachment&                        in_renderpass_attachment)                const;
+        VkAttachmentReference get_attachment_reference_from_subpass_attachment   (const SubPassAttachment&                           in_subpass_attachment)                   const;
+        VkAttachmentReference get_attachment_reference_for_resolve_attachment    (const SubPassesConstIterator&                      in_subpass_iterator,
+                                                                                  const LocationToSubPassAttachmentMapConstIterator& in_location_to_subpass_att_map_iterator) const;
         void                  update_preserved_attachments                       ();
 
         /* Private members */
