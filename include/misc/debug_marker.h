@@ -67,7 +67,7 @@ namespace Anvil
         }
 
         /** Returns a Vulkan object handle associated with the worker instance */
-        void* get_vk_handle_internal() const
+        uint64_t get_vk_handle_internal() const
         {
             return m_vk_object_handle;
         }
@@ -105,7 +105,7 @@ namespace Anvil
          *  @param in_vk_object_handle New Vulkan object handle. May be VK_NULL_HANDLE if previously
          *                             assigned a non-null handle.
          */
-        void set_vk_handle_internal(void* in_vk_object_handle);
+        void set_vk_handle_internal(uint64_t in_vk_object_handle);
 
     private:
         /* Private variables */
@@ -114,7 +114,7 @@ namespace Anvil
         std::string                      m_object_name;
         std::vector<char>                m_object_tag_data;
         uint64_t                         m_object_tag_name;
-        void*                            m_vk_object_handle;
+        uint64_t                         m_vk_object_handle;
         VkDebugReportObjectTypeEXT       m_vk_object_type;
     };
 
@@ -185,7 +185,7 @@ namespace Anvil
          *                             previously submitted handles, unless it has been removed with
          *                             a remove_delegate() call.
          */
-        void add_delegate(void* in_vk_object_handle)
+        void add_delegate(uint64_t in_vk_object_handle)
         {
             std::shared_ptr<Anvil::DebugMarkerSupportProviderWorker> new_delegate_ptr;
 
@@ -231,6 +231,14 @@ namespace Anvil
             }
         }
 
+        template<class T>
+        void add_delegate(T* in_vk_object_handle_ptr)
+        {
+            uint64_t handle_uint64 = reinterpret_cast<uint64_t>(in_vk_object_handle_ptr);
+
+            add_delegate(handle_uint64);
+        }
+
         /** Drops a Vulkan object handle previously registered with an add_delegate() call.
          *
          *  Must not be called if the provider instance was created with @param in_use_delegate_workers arg
@@ -238,7 +246,7 @@ namespace Anvil
          *
          *  @param in_vk_object_handle Vulkan object handle to "forget". Must not be null.
          */
-        void remove_delegate(void* in_vk_object_handle)
+        void remove_delegate(uint64_t in_vk_object_handle)
         {
             std::vector<std::shared_ptr<DebugMarkerSupportProviderWorker> >::iterator worker_iterator;
 
@@ -258,6 +266,14 @@ namespace Anvil
 
             anvil_assert(worker_iterator != m_delegate_workers.end() );
             m_delegate_workers.erase(worker_iterator);
+        }
+
+        template<class T>
+        void remove_delegate(T* in_vk_object_handle_ptr)
+        {
+            uint64_t handle_uint64 = reinterpret_cast<uint64_t>(in_vk_object_handle_ptr);
+
+            remove_delegate(handle_uint64);
         }
 
         /** Associates a user-specified name to with all maintained Vulkan object handles.
@@ -359,11 +375,19 @@ namespace Anvil
          *  @param in_vk_object_handle New Vulkan object handle. May be VK_NULL_HANDLE if previously
          *                             assigned a non-null handle.
          */
-        void set_vk_handle(void* in_vk_object_handle)
+        void set_vk_handle(uint64_t in_vk_object_handle)
         {
             anvil_assert(m_worker_ptr != nullptr);
 
             m_worker_ptr->set_vk_handle_internal(in_vk_object_handle);
+        }
+
+        template<class T>
+        void set_vk_handle(T* in_vk_object_handle_ptr)
+        {
+            uint64_t handle_uint64 = reinterpret_cast<uint64_t>(in_vk_object_handle_ptr);
+
+            set_vk_handle(handle_uint64);
         }
 
         /* Private variables */

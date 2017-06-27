@@ -57,7 +57,7 @@ void Anvil::DebugMarkerSupportProviderWorker::set_name_internal(const char* in_o
             VkDebugMarkerObjectNameInfoEXT     name_info;
             VkResult                           result_vk;
 
-            name_info.object      = reinterpret_cast<uint64_t>(m_vk_object_handle);
+            name_info.object      = m_vk_object_handle;
             name_info.objectType  = m_vk_object_type;
             name_info.pNext       = nullptr;
             name_info.pObjectName = in_object_name;
@@ -114,7 +114,7 @@ void Anvil::DebugMarkerSupportProviderWorker::set_tag_internal (const uint64_t i
             VkResult                           result_vk;
             VkDebugMarkerObjectTagInfoEXT      tag_info;
 
-            tag_info.object     = reinterpret_cast<uint64_t>(m_vk_object_handle);
+            tag_info.object     = m_vk_object_handle;
             tag_info.objectType = m_vk_object_type;
             tag_info.pNext      = nullptr;
             tag_info.sType      = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_TAG_INFO_EXT;
@@ -131,7 +131,7 @@ void Anvil::DebugMarkerSupportProviderWorker::set_tag_internal (const uint64_t i
 }
 
 /** Please see header for specification */
-void Anvil::DebugMarkerSupportProviderWorker::set_vk_handle_internal(void* in_vk_object_handle)
+void Anvil::DebugMarkerSupportProviderWorker::set_vk_handle_internal(uint64_t in_vk_object_handle)
 {
     if (in_vk_object_handle == VK_NULL_HANDLE)
     {
