@@ -1,5 +1,7 @@
 # Anvil
 
+[![Build Status](https://travis-ci.org/GPUOpen-LibrariesAndSDKs/Anvil.svg?branch=master)](https://travis-ci.org/GPUOpen-LibrariesAndSDKs/Anvil)
+
 This is a README file for Anvil v1.3.1, a framework for Vulkan&trade;.
 The README is organized as a FAQ.
 
