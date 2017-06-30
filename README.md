@@ -5,7 +5,7 @@ The README is organized as a FAQ.
 
 |Toolchain|Status|
 |:--------|-----:|
-|**Linux (lang/gcc) build status**|[![Build Status](https://travis-ci.org/GPUOpen-LibrariesAndSDKs/Anvil.svg?branch=master)](https://travis-ci.org/GPUOpen-LibrariesAndSDKs/Anvil)|
+|**Linux (clang/gcc) build status**|[![Build Status](https://travis-ci.org/GPUOpen-LibrariesAndSDKs/Anvil.svg?branch=master)](https://travis-ci.org/GPUOpen-LibrariesAndSDKs/Anvil)|
 |**Windows (VS15/VS17) build status:**|[![Build status](https://ci.appveyor.com/api/projects/status/e395xs8mvq92fa5t?svg=true)](https://ci.appveyor.com/project/DominikWitczakAMD/anvil)|
 
 
