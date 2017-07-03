@@ -391,7 +391,7 @@ void App::init_buffers()
                                           sizeof(float) * N_TRIANGLES;      /* size                              */
 
     /* Use a memory allocator to re-use memory blocks wherever possible */
-    std::shared_ptr<Anvil::MemoryAllocator> allocator_ptr = Anvil::MemoryAllocator::create(m_device_ptr);
+    std::shared_ptr<Anvil::MemoryAllocator> allocator_ptr = Anvil::MemoryAllocator::create_oneshot(m_device_ptr);
 
     /* Set up a buffer to hold uniform data */
     m_data_buffer_ptr = Anvil::Buffer::create_nonsparse(m_device_ptr,
@@ -419,8 +419,6 @@ void App::init_buffers()
                               0); /* in_required_memory_features */
 
     /* Allocate memory blocks and copy data where applicable */
-    allocator_ptr->bake();
-
     m_mesh_data_buffer_ptr->write(0, /* start_offset */
                                   mesh_data_size,
                                   mesh_data);

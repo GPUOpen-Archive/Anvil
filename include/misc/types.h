@@ -1134,10 +1134,25 @@ namespace Anvil
 
     typedef std::vector<MemoryHeap> MemoryHeaps;
 
+    enum MemoryFeatureFlagBits
+    {
+        /* NOTE: If more memory feature flags are added here, make sure to also update Anvil::Utils::get_vk_property_flags_from_memory_feature_flags()
+         *       and Anvil::Utils::get_memory_feature_flags_from_vk_property_flags()
+         */
+
+        MEMORY_FEATURE_FLAG_DEVICE_LOCAL     = 1 << 0,
+        MEMORY_FEATURE_FLAG_HOST_CACHED      = 1 << 1,
+        MEMORY_FEATURE_FLAG_HOST_COHERENT    = 1 << 2,
+        MEMORY_FEATURE_FLAG_LAZILY_ALLOCATED = 1 << 3,
+        MEMORY_FEATURE_FLAG_MAPPABLE         = 1 << 4,
+    };
+    typedef uint32_t MemoryFeatureFlags;
+
     /** Holds properties of a single Vulkan Memory Type. */
     typedef struct MemoryType
     {
-        MemoryHeap* heap_ptr;
+        MemoryFeatureFlags features;
+        MemoryHeap*        heap_ptr;
 
         VkMemoryPropertyFlagsVariable(flags);
 
@@ -1152,14 +1167,6 @@ namespace Anvil
 
     extern bool operator==(const MemoryType& in1,
                            const MemoryType& in2);
-
-    enum MemoryFeatureFlagBits
-    {
-        MEMORY_FEATURE_FLAG_COHERENT = 1 << 0,
-        MEMORY_FEATURE_FLAG_MAPPABLE = 1 << 1,
-    };
-    typedef uint32_t MemoryFeatureFlags;
-
 
     typedef std::vector<MemoryType> MemoryTypes;
 
@@ -1862,6 +1869,17 @@ namespace Anvil
          *  enabled. */
         VkAccessFlags get_access_mask_from_image_layout(VkImageLayout in_layout);
 
+        /** Converts a pair of VkMemoryPropertyFlags and VkMemoryHeapFlags bitfields to a corresponding Anvil::MemoryFeatureFlags
+         *  enum.
+         *
+         *  @param in_opt_mem_type_flags Vulkan memory property flags. May be 0.
+         *  @param in_opt_mem_heap_flags Vulkan memory heap flags. May be 0.
+         *
+         *  @return Result bitfield.
+         */
+        Anvil::MemoryFeatureFlags get_memory_feature_flags_from_vk_property_flags(VkMemoryPropertyFlags in_opt_mem_type_flags,
+                                                                                  VkMemoryHeapFlags     in_opt_mem_heap_flags);
+
         /** Converts the specified VkAttachmentLoadOp value to a raw string
          *
          *  @param in_load_op Input value.
@@ -2005,6 +2023,18 @@ namespace Anvil
          *  @return Non-NULL value if successful, NULL otherwise.
          */
         const char* get_raw_string(VkStencilOp in_stencil_op);
+
+        /** Converts an Anvil::MemoryFeatureFlags value to a pair of corresponding Vulkan enum values.
+         *
+         *  @param in_mem_feature_flags   Anvil memory feature flags to use for conversion.
+         *  @param out_mem_type_flags_ptr Deref will be set to a corresponding VkMemoryPropertyFlags value. Must not
+         *                                be nullptr.
+         *  @param out_mem_heap_flags_ptr Deref will be set to a corresponding VkMemoryHeapFlags value. Must not
+         *                                be nullptr.
+         **/
+        void get_vk_property_flags_from_memory_feature_flags(Anvil::MemoryFeatureFlags in_mem_feature_flags,
+                                                             VkMemoryPropertyFlags*    out_mem_type_flags_ptr,
+                                                             VkMemoryHeapFlags*        out_mem_heap_flags_ptr);
 
         /** Tells whether @param in_value is a power-of-two. */
         template <typename type>
@@ -2328,6 +2358,13 @@ namespace Anvil
             void bake();
         };
     };
+
+    /* Represents a Vulkan structure header */
+    typedef struct
+    {
+        VkStructureType type;
+        const void*     next_ptr;
+    } VkStructHeader;
 
     /* Describes recognized subpass attachment types */
     enum Result

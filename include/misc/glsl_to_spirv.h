@@ -187,6 +187,16 @@ namespace Anvil
          bool add_extension_behavior(std::string       in_extension_name,
                                      ExtensionBehavior in_behavior);
 
+         /** Adds a new pragma which is going to be injected into the GLSL code.
+          *
+          *  @param in_pragma_name Value to follow the #pragma keyword.
+          *  @param in_opt_value   Value to be assigned to the pragma. May be zero-sized.
+          *
+          *  @return true if successful, false otherwise.
+          **/
+         bool add_pragma(std::string in_pragma_name,
+                         std::string in_opt_value = "");
+
          /* Loads the GLSL source code, injects the requested #defines and writes the result code
           * to a temporary file. Then, the func invokes glslangvalidator to build a SPIR-V blob
           * of the updated GLSL shader, deletes the temp file, loads up the blob and purges it.
@@ -281,6 +291,7 @@ namespace Anvil
 
         DefinitionNameToValueMap            m_definition_values;
         ExtensionNameToExtensionBehaviorMap m_extension_behaviors;
+        DefinitionNameToValueMap            m_pragmas;
     };
 }; /* namespace Anvil */
 

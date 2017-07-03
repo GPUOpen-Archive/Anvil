@@ -30,7 +30,6 @@
 #include <cmath>
 #include "config.h"
 #include "misc/glsl_to_spirv.h"
-#include "misc/memory_allocator.h"
 #include "misc/object_tracker.h"
 #include "misc/time.h"
 #include "misc/window_factory.h"
@@ -476,8 +475,7 @@ void App::init_buffers()
         Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
         VK_SHARING_MODE_EXCLUSIVE,
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        false, /* should_be_mappable       */
-        false, /* should_be_coherent       */
+        0, /* in_memory_features */
         mesh_data_ptr.get() );
 }
 

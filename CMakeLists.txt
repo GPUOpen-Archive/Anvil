@@ -36,7 +36,9 @@ else()
                         $ENV{VULKAN_SDK}/x86_64/lib)
 endif()
 
-SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/base_pipeline_manager.h"
+SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_oneshot.h"
+              "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_vma.h"
+              "${Anvil_SOURCE_DIR}/include/misc/base_pipeline_manager.h"
               "${Anvil_SOURCE_DIR}/include/misc/callbacks.h"
               "${Anvil_SOURCE_DIR}/include/misc/debug.h"
               "${Anvil_SOURCE_DIR}/include/misc/debug_marker.h"
@@ -85,6 +87,8 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/base_pipeline_manager.h"
               "${Anvil_SOURCE_DIR}/include/wrappers/shader_module.h"
               "${Anvil_SOURCE_DIR}/include/wrappers/swapchain.h"
 
+              "${Anvil_SOURCE_DIR}/src/misc/memalloc_backends/backend_oneshot.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/memalloc_backends/backend_vma.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/base_pipeline_manager.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/debug.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/debug_marker.cpp"
@@ -131,6 +135,9 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/base_pipeline_manager.h"
               "${Anvil_SOURCE_DIR}/src/wrappers/semaphore.cpp"
               "${Anvil_SOURCE_DIR}/src/wrappers/shader_module.cpp"
               "${Anvil_SOURCE_DIR}/src/wrappers/swapchain.cpp"
+
+# Vulkan Memory Allocator dependency
+              "${Anvil_SOURCE_DIR}/deps/VulkanMemoryAllocator/vk_mem_alloc.h"
                          )
 
 # prepare source code files for different OS

@@ -386,7 +386,7 @@ void App::init_buffers()
     const VkDeviceSize vertex_data_size       = data.get_vertex_data_size();
 
 
-    allocator_ptr = Anvil::MemoryAllocator::create(m_device_ptr);
+    allocator_ptr = Anvil::MemoryAllocator::create_oneshot(m_device_ptr);
 
     m_index_buffer_ptr = Anvil::Buffer::create_nonsparse(m_device_ptr,
                                                          index_data_size,
@@ -437,8 +437,6 @@ void App::init_buffers()
 
         m_properties_buffer_ptrs.push_back(new_buffer_ptr);
     }
-
-    allocator_ptr->bake();
 
     m_index_buffer_ptr->write (0, /* start_offset */
                                index_data_size,
@@ -734,12 +732,11 @@ void App::init_images()
                                                        VK_SAMPLE_COUNT_1_BIT,
                                                        Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
                                                        VK_SHARING_MODE_EXCLUSIVE,
-                                                       false,                                            /* use_full_mipmap_chain             */
-                                                       false,                                            /* should_memory_backing_be_mappable */
-                                                       false,                                            /* should_memory_backing_be_coherent */
-                                                       false,                                            /* is_mutable                        */
-                                                       VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, /* final_image_layout                */
-                                                       nullptr);                                         /* mipmaps_ptr                       */
+                                                       false,                                            /* in_use_full_mipmap_chain */
+                                                       0,                                                /* in_memory_features       */
+                                                       false,                                            /* in_is_mutable            */
+                                                       VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, /* in_final_image_layout    */
+                                                       nullptr);                                         /* in_mipmaps_ptr           */
 
     m_depth_image_view_ptr = Anvil::ImageView::create_2D(m_device_ptr,
                                                          m_depth_image_ptr,

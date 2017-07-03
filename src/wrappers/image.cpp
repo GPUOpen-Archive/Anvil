@@ -52,7 +52,8 @@ Anvil::Image::Image(std::weak_ptr<Anvil::BaseDevice>  in_device_ptr,
                     Anvil::QueueFamilyBits            in_queue_families,
                     VkImageLayout                     in_post_create_image_layout,
                     const std::vector<MipmapRawData>* in_opt_mipmaps_ptr)
-    :DebugMarkerSupportProvider              (in_device_ptr,
+    :CallbacksSupportProvider                (IMAGE_CALLBACK_ID_COUNT),
+     DebugMarkerSupportProvider              (in_device_ptr,
                                               VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT),
      m_alignment                             (0),
      m_create_flags                          (in_create_flags),
@@ -110,7 +111,8 @@ Anvil::Image::Image(std::weak_ptr<Anvil::BaseDevice>  in_device_ptr,
                     Anvil::ImageCreateFlags           in_create_flags,
                     VkImageLayout                     in_post_create_image_layout,
                     const std::vector<MipmapRawData>* in_mipmaps_ptr)
-    :DebugMarkerSupportProvider              (in_device_ptr,
+    :CallbacksSupportProvider                (IMAGE_CALLBACK_ID_COUNT),
+     DebugMarkerSupportProvider              (in_device_ptr,
                                               VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT),
      m_alignment                             (0),
      m_create_flags                          (in_create_flags),
@@ -166,7 +168,8 @@ Anvil::Image::Image(std::weak_ptr<Anvil::BaseDevice>  in_device_ptr,
                     uint32_t                          in_n_slices,
                     Anvil::ImageCreateFlags           in_create_flags,
                     Anvil::QueueFamilyBits            in_queue_families)
-    :DebugMarkerSupportProvider              (in_device_ptr,
+    :CallbacksSupportProvider                (IMAGE_CALLBACK_ID_COUNT),
+     DebugMarkerSupportProvider              (in_device_ptr,
                                               VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT),
      m_alignment                             (0),
      m_create_flags                          (in_create_flags),
@@ -217,7 +220,8 @@ Anvil::Image::Image(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                     bool                             in_use_full_mipmap_chain,
                     Anvil::ImageCreateFlags          in_create_flags,
                     Anvil::SparseResidencyScope      in_residency_scope)
-    :DebugMarkerSupportProvider              (in_device_ptr,
+    :CallbacksSupportProvider                (IMAGE_CALLBACK_ID_COUNT),
+     DebugMarkerSupportProvider              (in_device_ptr,
                                               VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT),
      m_alignment                             (0),
      m_create_flags                          (in_create_flags),
@@ -290,9 +294,8 @@ std::shared_ptr<Anvil::Image> Anvil::Image::create_nonsparse(std::weak_ptr<Anvil
     );
 
     result_ptr->init(in_use_full_mipmap_chain,
-                     false,    /* should_memory_backing_be_mappable - irrelevant */
-                     false,    /* should_memory_backing_be_coherent - irrelevant */
-                     nullptr); /* start_image_layout_ptr            - irrelevant */
+                     0,        /* in_memory_features                  */
+                     nullptr); /* start_image_layout_ptr - irrelevant */
 
     return result_ptr;
 }
@@ -311,8 +314,7 @@ std::shared_ptr<Anvil::Image> Anvil::Image::create_nonsparse(std::weak_ptr<Anvil
                                                              Anvil::QueueFamilyBits            in_queue_families,
                                                              VkSharingMode                     in_sharing_mode,
                                                              bool                              in_use_full_mipmap_chain,
-                                                             bool                              in_should_memory_backing_be_mappable,
-                                                             bool                              in_should_memory_backing_be_coherent,
+                                                             MemoryFeatureFlags                in_memory_features,
                                                              ImageCreateFlags                  in_create_flags,
                                                              VkImageLayout                     in_post_create_image_layout,
                                                              const std::vector<MipmapRawData>* in_mipmaps_ptr)
@@ -340,8 +342,7 @@ std::shared_ptr<Anvil::Image> Anvil::Image::create_nonsparse(std::weak_ptr<Anvil
     );
 
     new_image_ptr->init(in_use_full_mipmap_chain,
-                        in_should_memory_backing_be_mappable,
-                        in_should_memory_backing_be_coherent,
+                        in_memory_features,
                        &start_image_layout);
 
     return new_image_ptr;
@@ -555,9 +556,8 @@ std::shared_ptr<Anvil::Image> Anvil::Image::create_sparse(std::weak_ptr<Anvil::B
     );
 
     result_ptr->init(in_use_full_mipmap_chain,
-                     false,    /* should_memory_backing_be_mappable - irrelevant */
-                     false,    /* should_memory_backing_be_coherent - irrelevant */
-                     nullptr); /* start_image_layout                - irrelevant */
+                     0,        /* in_memory_features              */
+                     nullptr); /* start_image_layout - irrelevant */
 
 end:
     return result_ptr;
@@ -588,14 +588,42 @@ bool Anvil::Image::get_aspect_subresource_layout(VkImageAspectFlags   in_aspect,
     return result;
 }
 
+/** Please see header for specification */
+std::shared_ptr<Anvil::MemoryBlock> Anvil::Image::get_memory_block()
+{
+    bool is_callback_needed = false;
+
+    if (m_is_sparse)
+    {
+        ImageCallbackIsAllocPendingQueryData callback_arg(shared_from_this() );
+
+        callback(IMAGE_CALLBACK_ID_IS_ALLOC_PENDING,
+                &callback_arg);
+
+        is_callback_needed = callback_arg.result;
+    }
+    else
+    if (m_memory_block_ptr == nullptr)
+    {
+        is_callback_needed = true;
+    }
+
+    if (is_callback_needed)
+    {
+        callback(IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
+                 this);
+    }
+
+    return m_memory_block_ptr;
+}
+
 /** Private function which initializes the Image instance.
  *
  *  For argument discussion, please see documentation of the constructors.
  **/
-void Anvil::Image::init(bool                 in_use_full_mipmap_chain,
-                        bool                 in_memory_mappable,
-                        bool                 in_memory_coherent,
-                        const VkImageLayout* in_start_image_layout_ptr)
+void Anvil::Image::init(bool                      in_use_full_mipmap_chain,
+                        Anvil::MemoryFeatureFlags in_memory_features,
+                        const VkImageLayout*      in_start_image_layout_ptr)
 {
     std::vector<VkImageAspectFlags>    aspects_used;
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
@@ -609,9 +637,10 @@ void Anvil::Image::init(bool                 in_use_full_mipmap_chain,
     ANVIL_REDUNDANT_VARIABLE(result);
     ANVIL_REDUNDANT_VARIABLE(result_bool);
 
-    if (m_memory_owner && !in_memory_mappable)
+    if (m_memory_owner                                           &&
+        (in_memory_features & MEMORY_FEATURE_FLAG_MAPPABLE) == 0)
     {
-        anvil_assert(!in_memory_coherent);
+        anvil_assert((in_memory_features & MEMORY_FEATURE_FLAG_HOST_COHERENT) == 0);
     }
 
     /* Determine the maximum dimension size. */
@@ -863,8 +892,7 @@ void Anvil::Image::init(bool                 in_use_full_mipmap_chain,
             m_metadata_memory_block_ptr = Anvil::MemoryBlock::create(m_device_ptr,
                                                                      m_memory_reqs.memoryTypeBits,
                                                                      metadata_aspect_iterator->second.mip_tail_size,
-                                                                     false,  /* should_be_mappable */
-                                                                     false); /* should_be_coherent */
+                                                                     0); /* in_memory_features */
 
             /* Set up bind info update structure. */
             metadata_binding_bind_info_id = metadata_binding_update.add_bind_info(0,        /* n_signal_semaphores       */
@@ -901,8 +929,7 @@ void Anvil::Image::init(bool                 in_use_full_mipmap_chain,
         auto memory_block_ptr = Anvil::MemoryBlock::create(m_device_ptr,
                                                            m_memory_reqs.memoryTypeBits,
                                                            m_memory_reqs.size,
-                                                           in_memory_mappable,
-                                                           in_memory_coherent);
+                                                           in_memory_features);
 
         set_memory(memory_block_ptr);
     }
@@ -1073,6 +1100,20 @@ Anvil::Image::~Image()
     /* Unregister the object */
     Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_IMAGE,
                                                    this);
+}
+
+/* Please see header for specification */
+const VkImage& Anvil::Image::get_image()
+{
+    if (!m_is_sparse)
+    {
+        if (m_memory_block_ptr == nullptr)
+        {
+            get_memory_block();
+        }
+    }
+
+    return m_image;
 }
 
 /* Please see header for specification */
@@ -1964,8 +2005,7 @@ void Anvil::Image::upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_p
                                                           Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
                                                           VK_SHARING_MODE_EXCLUSIVE,
                                                           VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                          false, /* should_be_mappable       */
-                                                          false, /* should_be_coherent       */
+                                                          0, /* in_memory_features */
                                                           merged_mip_storage.get() );
 
         merged_mip_storage.reset();

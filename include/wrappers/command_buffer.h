@@ -222,6 +222,11 @@ namespace Anvil
     {
         /** Constructor. */
         explicit EndRenderPassCommand();
+
+        virtual ~EndRenderPassCommand()
+        {
+            /* Stub */
+        }
     } EndRenderPassCommand;
 
     /* Structure passed as a COMMAND_BUFFER_CALLBACK_ID_END_RENDER_PASS_COMMAND_RECORDED call-back argument */
@@ -1708,6 +1713,12 @@ namespace Anvil
             /** Constructor. */
             explicit DebugMarkerBeginEXTCommand(const char*  in_marker_name,
                                                 const float* in_color);
+
+            /* Destructor */
+            virtual ~DebugMarkerBeginEXTCommand()
+            {
+                /* Stub */
+            }
         } DebugMarkerBeginEXTCommand;
 
         /** Holds all arguments passed to a vkCmdDebugMarkerEndEXT() command. */
@@ -1715,6 +1726,12 @@ namespace Anvil
         {
             /* Constructor. */
             explicit DebugMarkerEndEXTCommand();
+
+            /* Destructor. */
+            virtual ~DebugMarkerEndEXTCommand()
+            {
+                /* Stub */
+            }
         } DebugMarkerEndEXTCommand;
 
         /** Holds all arguments passed to a vkCmdDebugMarkerInsertEXT() command. */
@@ -1726,6 +1743,11 @@ namespace Anvil
             /** Constructor. */
             explicit DebugMarkerInsertEXTCommand(const char*  in_marker_name,
                                                  const float* in_color);
+
+            /* Destructor. */
+            virtual ~DebugMarkerInsertEXTCommand()
+            {
+            }
         } DebugMarkerInsertEXTCommand;
 
         /** Holds all arguments passed to a vkCmdDispatch() command. */

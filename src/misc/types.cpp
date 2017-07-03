@@ -353,6 +353,9 @@ Anvil::MemoryType::MemoryType(const VkMemoryType&      in_type,
 {
     flags    = static_cast<VkMemoryPropertyFlagBits>(in_type.propertyFlags);
     heap_ptr = &in_memory_props_ptr->heaps[in_type.heapIndex];
+
+    features = Anvil::Utils::get_memory_feature_flags_from_vk_property_flags(flags,
+                                                                             heap_ptr->flags);
 }
 
 /* Please see header for specification */
@@ -1603,6 +1606,42 @@ end:
 }
 
 /** Please see header for specification */
+Anvil::MemoryFeatureFlags Anvil::Utils::get_memory_feature_flags_from_vk_property_flags(VkMemoryPropertyFlags in_mem_type_flags,
+                                                                                        VkMemoryHeapFlags     in_mem_heap_flags)
+{
+    Anvil::MemoryFeatureFlags result = 0;
+
+    ANVIL_REDUNDANT_ARGUMENT(in_mem_heap_flags);
+
+    if ((in_mem_type_flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)
+    {
+        result |= MEMORY_FEATURE_FLAG_DEVICE_LOCAL;
+    }
+
+    if ((in_mem_type_flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
+    {
+        result |= MEMORY_FEATURE_FLAG_MAPPABLE;
+    }
+
+    if ((in_mem_type_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0)
+    {
+        result |= MEMORY_FEATURE_FLAG_HOST_COHERENT;
+    }
+
+    if ((in_mem_type_flags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) != 0)
+    {
+        result |= MEMORY_FEATURE_FLAG_HOST_CACHED;
+    }
+
+    if ((in_mem_type_flags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) != 0)
+    {
+        result |= MEMORY_FEATURE_FLAG_LAZILY_ALLOCATED;
+    }
+
+    return result;
+}
+
+/** Please see header for specification */
 void Anvil::Utils::convert_queue_family_bits_to_family_indices(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                                                Anvil::QueueFamilyBits           in_queue_families,
                                                                uint32_t*                        out_opt_queue_family_indices_ptr,
@@ -2193,4 +2232,41 @@ const char* Anvil::Utils::get_raw_string(VkStencilOp in_stencil_op)
     }
 
     return result;
+}
+
+/* Please see header for specification */
+void Anvil::Utils::get_vk_property_flags_from_memory_feature_flags(Anvil::MemoryFeatureFlags in_mem_feature_flags,
+                                                                   VkMemoryPropertyFlags*    out_mem_type_flags_ptr,
+                                                                   VkMemoryHeapFlags*        out_mem_heap_flags_ptr)
+{
+    VkMemoryHeapFlags     result_mem_heap_flags = 0;
+    VkMemoryPropertyFlags result_mem_type_flags = 0;
+
+    if ((in_mem_feature_flags & MEMORY_FEATURE_FLAG_DEVICE_LOCAL) != 0)
+    {
+        result_mem_type_flags |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    }
+
+    if ((in_mem_feature_flags & MEMORY_FEATURE_FLAG_MAPPABLE) != 0)
+    {
+        result_mem_type_flags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    }
+
+    if ((in_mem_feature_flags & MEMORY_FEATURE_FLAG_HOST_COHERENT) != 0)
+    {
+        result_mem_type_flags |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    }
+
+    if ((in_mem_feature_flags & MEMORY_FEATURE_FLAG_HOST_CACHED) != 0)
+    {
+        result_mem_type_flags |= VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+    }
+
+    if ((in_mem_feature_flags & MEMORY_FEATURE_FLAG_LAZILY_ALLOCATED) != 0)
+    {
+        result_mem_type_flags |= VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
+    }
+
+    *out_mem_heap_flags_ptr = result_mem_heap_flags;
+    *out_mem_type_flags_ptr = result_mem_type_flags;
 }

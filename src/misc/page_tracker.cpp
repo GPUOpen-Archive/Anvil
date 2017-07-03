@@ -26,9 +26,10 @@
 /** Please see header for specification */
 Anvil::PageTracker::PageTracker(VkDeviceSize in_region_size,
                                 VkDeviceSize in_page_size)
-    :m_n_total_pages(static_cast<uint32_t>(in_region_size / in_page_size) ),
-     m_page_size    (in_page_size),
-     m_region_size  (in_region_size)
+    :m_n_total_pages              (static_cast<uint32_t>(in_region_size / in_page_size) ),
+     m_page_size                  (in_page_size),
+     m_n_pages_with_memory_backing(0),
+     m_region_size                (in_region_size)
 {
     m_sparse_page_occupancy.resize(
         1 + m_n_total_pages / (sizeof(uint32_t) * 8 /* bits in byte */)
@@ -182,13 +183,18 @@ bool Anvil::PageTracker::set_binding(std::shared_ptr<MemoryBlock> in_memory_bloc
         if (in_memory_block_ptr != nullptr)
         {
             m_sparse_page_occupancy[occupancy_vec_index].raw |= (1 << occupancy_item_index);
+
+            ++m_n_pages_with_memory_backing;
         }
         else
         {
             m_sparse_page_occupancy[occupancy_vec_index].raw &= ~(1 << occupancy_item_index);
+
+            --m_n_pages_with_memory_backing;
         }
     }
 
+    anvil_assert(m_n_pages_with_memory_backing < m_n_total_pages);
     result = true;
 end:
     return result;

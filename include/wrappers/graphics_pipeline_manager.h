@@ -130,7 +130,7 @@ namespace Anvil
                                                                std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr = std::shared_ptr<Anvil::PipelineCache>() );
 
         /** Destructor. */
-        ~GraphicsPipelineManager();
+        virtual ~GraphicsPipelineManager();
 
         /** Adds a new derivative pipeline, to be used the specified renderpass' subpass. All states of the base pipeline
          *  will be copied to the new pipeline.

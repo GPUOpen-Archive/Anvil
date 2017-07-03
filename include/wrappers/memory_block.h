@@ -41,6 +41,10 @@
 
 namespace Anvil
 {
+    /** "About to be deleted" call-back function prototype. */
+    typedef void (*PFNMEMORYBLOCKDESTRUCTIONCALLBACKPROC)(Anvil::MemoryBlock* in_memory_block_ptr,
+                                                          void*               in_user_arg);
+
     /** Wrapper class for memory objects. Please see header for more details */
     class MemoryBlock : public std::enable_shared_from_this<MemoryBlock>
     {
@@ -52,17 +56,12 @@ namespace Anvil
          *  @param in_device_ptr          Device to use.
          *  @param in_allowed_memory_bits Memory type bits which meet the allocation requirements.
          *  @param in_size                Required allocation size.
-         *  @param in_should_be_mappable  true if the underlying memory object should come from a heap
-         *                                which is host-visible. False, if the memory block is never going
-         *                                to be mapped into process space.
-         *  @param in_should_be_coherent  true if the underlying memory backing should come from a heap
-         *                                which supports coherent accesses. false otherwise.
+         *  @param in_memory_features     Required memory features.
          **/
          static std::shared_ptr<MemoryBlock> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                                     uint32_t                         in_allowed_memory_bits,
                                                     VkDeviceSize                     in_size,
-                                                    bool                             in_should_be_mappable,
-                                                    bool                             in_should_be_coherent);
+                                                    Anvil::MemoryFeatureFlags        in_memory_features);
 
         /** Create a memory block whose storage space is maintained by another MemoryBlock instance.
          *
@@ -79,6 +78,24 @@ namespace Anvil
                                                            VkDeviceSize                 in_start_offset,
                                                            VkDeviceSize                 in_size);
 
+        /** Create a memory block whose lifetime is maintained by a separate entity. While the memory block remains reference-counted
+         *  as usual, the destruction process is carried out by an external party via the specified call-back.
+         *
+         *  This implements a special case required for support of Vulkan Memory Allocator memory allocator backend. Applications
+         *  are very unlikely to ever need to use this create() function.
+         *
+         *  TODO
+         */
+        static std::shared_ptr<MemoryBlock> create_derived_with_custom_delete_proc(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
+                                                                                   VkDeviceMemory                        in_memory,
+                                                                                   uint32_t                              in_allowed_memory_bits,
+                                                                                   Anvil::MemoryFeatureFlags             in_memory_features,
+                                                                                   uint32_t                              in_memory_type_index,
+                                                                                   VkDeviceSize                          in_size,
+                                                                                   VkDeviceSize                          in_start_offset,
+                                                                                   PFNMEMORYBLOCKDESTRUCTIONCALLBACKPROC in_pfn_destroy_memory_block_proc,
+                                                                                   void*                                 in_destroy_memory_block_proc_user_arg);
+
         /** Releases the Vulkan counterpart and unregisters the wrapper instance from the object tracker */
         virtual ~MemoryBlock();
 
@@ -92,6 +109,19 @@ namespace Anvil
             else
             {
                 return m_memory;
+            }
+        }
+
+        /** Returns memory features of the underlying memory region */
+        Anvil::MemoryFeatureFlags get_memory_features() const
+        {
+            if (m_parent_memory_block_ptr != nullptr)
+            {
+                return m_parent_memory_block_ptr->get_memory_features();
+            }
+            else
+            {
+                return m_memory_features;
             }
         }
 
@@ -128,32 +158,6 @@ namespace Anvil
         VkDeviceSize get_start_offset() const
         {
             return m_start_offset;
-        }
-
-        /** Tells whether the underlying memory region is coherent */
-        bool is_coherent() const
-        {
-            if (m_parent_memory_block_ptr != nullptr)
-            {
-                return m_parent_memory_block_ptr->is_coherent();
-            }
-            else
-            {
-                return m_is_coherent;
-            }
-        }
-
-        /** Tells whether the underlying memory region is mappable */
-        bool is_mappable() const
-        {
-            if (m_parent_memory_block_ptr != nullptr)
-            {
-                return m_parent_memory_block_ptr->is_mappable();
-            }
-            else
-            {
-                return m_is_mappable;
-            }
         }
 
         /** Maps the specified region of the underlying memory object to the process space.
@@ -225,28 +229,40 @@ namespace Anvil
         bool init();
 
         /** Please see create() for documentation */
-        MemoryBlock(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                    uint32_t                         in_allowed_memory_bits,
-                    VkDeviceSize                     in_size,
-                    bool                             in_should_be_mappable,
-                    bool                             in_should_be_coherent);
+        MemoryBlock(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
+                    uint32_t                              in_allowed_memory_bits,
+                    VkDeviceSize                          in_size,
+                    Anvil::MemoryFeatureFlags             in_memory_features);
 
         /** Please see create() for documentation */
         MemoryBlock(std::shared_ptr<MemoryBlock> in_parent_memory_block_ptr,
                     VkDeviceSize                 in_start_offset,
                     VkDeviceSize                 in_size);
 
+        /** Please see create_derived_with_custom_delete_proc() for documentation */
+        MemoryBlock(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
+                    VkDeviceMemory                        in_memory,
+                    uint32_t                              in_allowed_memory_bits,
+                    Anvil::MemoryFeatureFlags             in_memory_features,
+                    uint32_t                              in_memory_type_index,
+                    VkDeviceSize                          in_size,
+                    VkDeviceSize                          in_start_offset,
+                    PFNMEMORYBLOCKDESTRUCTIONCALLBACKPROC in_pfn_destroy_memory_block_proc,
+                    void*                                 in_destroy_memory_block_proc_user_arg);
+
         MemoryBlock           (const MemoryBlock&);
         MemoryBlock& operator=(const MemoryBlock&);
 
         void     close_gpu_memory_access     ();
-        uint32_t get_device_memory_type_index(uint32_t     in_memory_type_bits,
-                                              bool         in_mappable_memory_required,
-                                              bool         in_coherent_memory_required);
-        bool     open_gpu_memory_access      (VkDeviceSize in_start_offset,
-                                              VkDeviceSize in_size);
+        uint32_t get_device_memory_type_index(uint32_t                  in_memory_type_bits,
+                                              Anvil::MemoryFeatureFlags in_memory_features);
+        bool     open_gpu_memory_access      (VkDeviceSize              in_start_offset,
+                                              VkDeviceSize              in_size);
 
         /* Private members */
+        void*                                 m_destroy_memory_block_proc_user_arg;
+        PFNMEMORYBLOCKDESTRUCTIONCALLBACKPROC m_pfn_destroy_memory_block_proc;
+
         void*        m_gpu_data_ptr;
         bool         m_gpu_data_user_mapped;
         VkDeviceSize m_gpu_data_user_size;
@@ -254,9 +270,8 @@ namespace Anvil
 
         uint32_t                            m_allowed_memory_bits;
         std::weak_ptr<Anvil::BaseDevice>    m_device_ptr;
-        bool                                m_is_coherent;
-        bool                                m_is_mappable;
         VkDeviceMemory                      m_memory;
+        Anvil::MemoryFeatureFlags           m_memory_features;
         uint32_t                            m_memory_type_index;
         std::shared_ptr<Anvil::MemoryBlock> m_parent_memory_block_ptr;
         VkDeviceSize                        m_size;

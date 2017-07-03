@@ -33,14 +33,32 @@
 #ifndef WRAPPERS_BUFFER_H
 #define WRAPPERS_BUFFER_H
 
+#include "misc/callbacks.h"
 #include "misc/debug_marker.h"
 #include "misc/types.h"
 #include "misc/page_tracker.h"
 
 namespace Anvil
 {
-    class Buffer : public DebugMarkerSupportProvider<Buffer>,
-                   public std::enable_shared_from_this<Buffer>
+    /* Enumerates available buffer call-back types.*/
+    enum BufferCallbackID
+    {
+        /* Call-back issued when no memory block is assigned to the buffer wrapper instance and
+         * someone has just requested it.
+         *
+         * This call-back is needed by memory allocator in order to support implicit bake operations.
+         *
+         * callback_arg: Calling back buffer instance;
+         **/
+        BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
+
+        /* Always last */
+        BUFFER_CALLBACK_ID_COUNT
+    };
+
+    class Buffer : public std::enable_shared_from_this<Buffer>,
+                   public CallbacksSupportProvider,
+                   public DebugMarkerSupportProvider<Buffer>
     {
     public:
         /* Public functions */
@@ -80,11 +98,7 @@ namespace Anvil
          *                                     call.
          *  @param in_usage_flags              Usage flags to set in the VkBufferCreateInfo descriptor, passed to
          *                                     to the vkCreateBuffer() call.
-         *  @param in_should_be_mappable       true if the new buffer object should use a memory type which is
-         *                                     host-visible; false otherwise. Note that passing non-null @param in_opt_client_data
-         *                                     argument value forces this argument value to be true.
-         *  @param in_should_be_coherent       true if the new buffer object should use a memory type which supports
-         *                                     coherent memory access; false otherwise.
+         *  @param in_memory_freatures         Required memory features.
          *  @param in_opt_client_data          if not nullptr, exactly @param in_size bytes will be copied to the allocated
          *                                     buffer memory.
          **/
@@ -93,8 +107,7 @@ namespace Anvil
                                                                QueueFamilyBits                  in_queue_families,
                                                                VkSharingMode                    in_queue_sharing_mode,
                                                                VkBufferUsageFlags               in_usage_flags,
-                                                               bool                             in_should_be_mappable,
-                                                               bool                             in_should_be_coherent,
+                                                               Anvil::MemoryFeatureFlags        in_memory_features,
                                                                const void*                      in_opt_client_data);
 
         /** Creates a new Buffer wrapper instance. The new NON-SPARSE buffer will reuse a region of the specified
@@ -140,11 +153,15 @@ namespace Anvil
         /** Returns the lowest-level Buffer instance which stores the data exposed by this Buffer instance. */
         std::shared_ptr<Anvil::Buffer> get_base_buffer();
 
-        /** Returns the encapsulated raw Vulkan buffer handle */
-        VkBuffer get_buffer() const
-        {
-            return m_buffer;
-        }
+        /** Returns the encapsulated raw Vulkan buffer handle
+         *
+         *  For non-sparse buffers, in case no memory block has been assigned to the buffer,
+         *  the function will issue a BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED call-back, so that
+         *  any memory allocator, which has this buffer scheduled for deferred memory allocation,
+         *  gets a chance to allocate & bind a memory block to the instance. A non-sparse buffer instance
+         *  without any memory block bound msut not be used for any GPU-side operation.
+         */
+        VkBuffer get_buffer();
 
         /** Returns a pointer to the encapsulated raw Vulkan buffer handle */
         const VkBuffer* get_buffer_ptr() const
@@ -154,19 +171,16 @@ namespace Anvil
 
         /** Returns a pointer to the underlying memory block wrapper instance.
          *
+         *  For non-sparse buffers, in case no memory block has been assigned to the buffer,
+         *  the function will issue a BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED call-back, so that
+         *  any memory allocator, which has this buffer scheduled for deferred memory allocation,
+         *  gets a chance to allocate & bind a memory block to the instance.
+         *
+         *  Sparse buffers do not support implicit bake operations yet.
+         *
          *  Note that resident sparse buffers may have multiple memory blocks assigned.
          **/
-        std::shared_ptr<Anvil::MemoryBlock> get_memory_block(uint32_t in_n_memory_block) const
-        {
-            if (m_is_sparse)
-            {
-                return m_page_tracker_ptr->get_memory_block(in_n_memory_block);
-            }
-            else
-            {
-                return m_memory_block_ptr;
-            }
-        }
+        std::shared_ptr<Anvil::MemoryBlock> get_memory_block(uint32_t in_n_memory_block);
 
         /** Returns memory requirements for the buffer */
         VkMemoryRequirements get_memory_requirements() const
@@ -324,8 +338,7 @@ namespace Anvil
                         QueueFamilyBits                  in_queue_families,
                         VkSharingMode                    in_queue_sharing_mode,
                         VkBufferUsageFlags               in_usage_flags,
-                        bool                             in_should_be_mappable,
-                        bool                             in_should_be_coherent);
+                        MemoryFeatureFlags               in_memory_features);
         explicit Buffer(std::shared_ptr<Anvil::Buffer>   in_parent_buffer_ptr,
                         VkDeviceSize                     in_start_offset,
                         VkDeviceSize                     in_size);

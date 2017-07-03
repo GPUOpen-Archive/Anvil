@@ -46,7 +46,7 @@ namespace Anvil
                                                              bool                                  in_use_pipeline_cache          = false,
                                                              std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr = nullptr);
 
-       ~ComputePipelineManager();
+       virtual ~ComputePipelineManager();
 
 
        /** Registers a new derivative pipeline which is going to inherit state from another compute pipeline object,

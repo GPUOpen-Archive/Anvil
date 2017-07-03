@@ -30,7 +30,6 @@
 #include <string>
 #include "misc/glsl_to_spirv.h"
 #include "misc/io.h"
-#include "misc/memory_allocator.h"
 #include "misc/object_tracker.h"
 #include "misc/time.h"
 #include "misc/window_factory.h"
@@ -322,9 +321,8 @@ void App::init_buffers()
         Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
         VK_SHARING_MODE_EXCLUSIVE,
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        false,    /* should_be_mappable       */
-        false,    /* should_be_coherent       */
-        nullptr); /* opt_client_data          */
+        0,        /* in_memory_features */
+        nullptr); /* opt_client_data    */
 
     m_time_bo_ptr = Anvil::Buffer::create_nonsparse(
         m_device_ptr,
@@ -332,9 +330,8 @@ void App::init_buffers()
         Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
         VK_SHARING_MODE_EXCLUSIVE,
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        true,     /* should_be_mappable       */
-        false,    /* should_be_coherent       */
-        nullptr); /* opt_client_data          */
+        Anvil::MEMORY_FEATURE_FLAG_MAPPABLE,
+        nullptr); /* opt_client_data */
 }
 
 void App::init_command_buffers()
@@ -623,10 +620,9 @@ void App::init_images()
         VK_SAMPLE_COUNT_1_BIT,
         Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
         VK_SHARING_MODE_EXCLUSIVE,
-        false, /* use_full_mipmap_chain             */
-        false, /* should_memory_backing_be_mappable */
-        false, /* should_memory_backing_be_coherent */
-        false, /* is_mutable                        */
+        false, /* use_full_mipmap_chain */
+        0,     /* in_memory_features    */
+        false, /* is_mutable            */
         VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         nullptr);
 

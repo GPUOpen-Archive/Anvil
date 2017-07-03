@@ -307,13 +307,35 @@ end:
 }
 
 /* Please see header for specification */
+bool Anvil::GLSLShaderToSPIRVGenerator::add_pragma(std::string in_pragma_name,
+                                                   std::string in_opt_value)
+{
+    bool result = false;
+
+    if (m_pragmas.find(in_pragma_name) != m_pragmas.end() )
+    {
+        anvil_assert_fail();
+
+        goto end;
+    }
+
+    m_pragmas[in_pragma_name] = in_opt_value;
+
+    /* All done */
+    result = true;
+end:
+    return result;
+}
+
+/* Please see header for specification */
 bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob()
 {
     std::string    final_glsl_source_string;
     bool           glsl_filename_is_temporary = false;
     std::string    glsl_filename_with_path;
-    const uint32_t n_extension_behaviors      = static_cast<uint32_t>(m_extension_behaviors.size() );
     const uint32_t n_definition_values        = static_cast<uint32_t>(m_definition_values.size() );
+    const uint32_t n_extension_behaviors      = static_cast<uint32_t>(m_extension_behaviors.size() );
+    const uint32_t n_pragmas                  = static_cast<uint32_t>(m_pragmas.size() );
     bool           result                     = false;
 
     ANVIL_REDUNDANT_VARIABLE(glsl_filename_is_temporary);
@@ -358,7 +380,8 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob()
         }
     }
 
-    if (n_extension_behaviors > 0 ||
+    if (n_pragmas             > 0 ||
+        n_extension_behaviors > 0 ||
         n_definition_values   > 0)
     {
         size_t glsl_source_string_second_line_index;
@@ -395,6 +418,17 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob()
             std::string current_key   = map_iterator->first;
             std::string current_value = map_iterator->second;
             std::string new_line      = std::string("#define ") + current_key + std::string(" ") + current_value + "\n";
+
+            final_glsl_source_string.insert(glsl_source_string_second_line_index,
+                                            new_line);
+        }
+
+        /* Finish with pragmas */
+        for (auto& current_pragma : m_pragmas)
+        {
+            std::string pragma_name  = current_pragma.first;
+            std::string pragma_value = current_pragma.second;
+            std::string new_line     = std::string("#pragma ") + pragma_name + std::string(" ") + pragma_value + "\n";
 
             final_glsl_source_string.insert(glsl_source_string_second_line_index,
                                             new_line);

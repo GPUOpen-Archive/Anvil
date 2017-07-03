@@ -29,14 +29,60 @@
 #ifndef WRAPPERS_IMAGE_H
 #define WRAPPERS_IMAGE_H
 
+#include "misc/callbacks.h"
 #include "misc/debug_marker.h"
 #include "misc/types.h"
 #include "misc/page_tracker.h"
 
 namespace Anvil
 {
+    typedef struct ImageCallbackIsAllocPendingQueryData
+    {
+        explicit ImageCallbackIsAllocPendingQueryData(std::shared_ptr<Anvil::Image> in_image_ptr)
+            :image_ptr(in_image_ptr),
+             result   (false)
+        {
+            /* Stub */
+        }
+
+        ImageCallbackIsAllocPendingQueryData& operator=(const ImageCallbackIsAllocPendingQueryData&) = delete;
+
+        const std::shared_ptr<const Anvil::Image> image_ptr;
+        bool                                      result;
+    } IsAllocPendingQueryData;
+
+    /* Enumerates available image call-back types. */
+    enum ImageCallbackID
+    {
+        /* Call-back issued by sparse image instances whenever the image needs to check if
+         * there are any pending alloc operations for this image instance. Any recipient
+         * should set callback_arg::result to true in case a bake operation *would* assign
+         * new pages to the image instance. If no allocs are scheduled, the bool value MUST
+         * be left untouched.
+         *
+         * This call-back is needed for memory allocator to support implicit bake operations
+         * for sparse images.
+         *
+         * callback_arg: ImageCallbackIsAllocPendingQueryData*
+         **/
+        IMAGE_CALLBACK_ID_IS_ALLOC_PENDING,
+
+        /* Call-back issued when no memory block is assigned to the image wrapper instance and
+         * someone has just requested it.
+         *
+         * This call-back is needed for memory allocator to support implicit bake operations.
+         *
+         * callback_arg: Calling back image instance;
+         **/
+        IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
+
+        /* Always last */
+        IMAGE_CALLBACK_ID_COUNT
+    };
+
     /** A wrapper class for a VkImage and the bound VkMemory object. */
-    class Image : public DebugMarkerSupportProvider<Image>,
+    class Image : public CallbacksSupportProvider,
+                  public DebugMarkerSupportProvider<Image>,
                   public std::enable_shared_from_this<Image>
     {
     public:
@@ -117,11 +163,7 @@ namespace Anvil
          *  @param in_sharing_mode                            Vulkan sharing mode to use.
          *  @param in_use_full_mipmap_chain                   true if all mipmaps should be created for the image. False to only allocate
          *                                                    storage for the base mip-map.
-         *  @param in_should_memory_backing_be_mappable       true if the image should be host-vislble; false if the caller never intends to
-         *                                                    map the image's memory backing into process space.
-         *  @param in_should_memory_backing_be_coherent       true if the image's memory backing should come from a coherent memory heap.
-         *                                                    false if incoherent heaps are OK. Note that it is illegal to set this argument to
-         *                                                    true if @param in_should_memory_backing_be_mappable is false.
+         *  @param in_memory_features                         Memory features for the memory backing.
          *  @param in_create_flags                            Optional image features that the created image should support.
          *  @param in_post_create_image_layout                Layout to transition the new image to. Must not be VK_IMAGE_LAYOUT_UNDEFINED or
          *                                                    VK_IMAGE_LAYOUT_PREINITIALIZED.
@@ -143,8 +185,7 @@ namespace Anvil
                                                        Anvil::QueueFamilyBits            in_queue_families,
                                                        VkSharingMode                     in_sharing_mode,
                                                        bool                              in_use_full_mipmap_chain,
-                                                       bool                              in_should_memory_backing_be_mappable,
-                                                       bool                              in_should_memory_backing_be_coherent,
+                                                       MemoryFeatureFlags                in_memory_features,
                                                        ImageCreateFlags                  in_create_flags,
                                                        VkImageLayout                     in_post_create_image_layout,
                                                        const std::vector<MipmapRawData>* in_mipmaps_ptr);
@@ -224,11 +265,18 @@ namespace Anvil
                                            uint32_t             in_n_mip,
                                            VkSubresourceLayout* out_subresource_layout_ptr) const;
 
-        /** Returns the underlying VkImage instance */
-        const VkImage& get_image() const
-        {
-            return m_image;
-        }
+        /** Returns the underlying VkImage instance.
+         *
+         *  For non-sparse images, in case no memory block has been assigned to the image,
+         *  the function will issue a BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED call-back, so that
+         *  any memory allocator, which has this buffer scheduled for deferred memory allocation,
+         *  gets a chance to allocate & bind a memory block to the instance. A non-sparse image instance
+         *  without any memory block bound msut not be used for any GPU-side operation.
+         *
+         *  In case of sparse images, the callback will only occur if at least one memory allocation
+         *  has been scheduled for this image instance.
+         */
+        const VkImage& get_image();
 
         /** Returns information about the data alignment required by the underlying VkImage instance */
         VkDeviceSize get_image_alignment() const
@@ -328,11 +376,18 @@ namespace Anvil
             return m_usage;
         }
 
-        /** Returns memory block used by the Image wrapper */
-        std::shared_ptr<Anvil::MemoryBlock> get_memory_block() const
-        {
-            return m_memory_block_ptr;
-        }
+        /** Returns a pointer to the underlying memory block wrapper instance.
+         *
+         *  In case no memory block has been assigned to the non-sparse image OR some pages of
+         *  a sparse image are left without memory backing, the function will issue an
+         *  IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED call-back, so that any memory allocator, which
+         *  has this image scheduled for deferred memory allocation, gets a chance to allocate
+         *  & bind a memory block to the instance.
+         *
+         *  In case of sparse images, the callback will only occur if at least one memory allocation
+         *  has been scheduled for this image instance.
+         **/
+        std::shared_ptr<Anvil::MemoryBlock> get_memory_block();
 
         /** Returns VkMemoryRequirements structure, as reported by the driver for this Image instance. */
         const VkMemoryRequirements& get_memory_requirements() const
@@ -635,8 +690,7 @@ namespace Anvil
         Image& operator=(const Image&);
 
         void init               (bool                 in_use_full_mipmap_chain,
-                                 bool                 in_memory_mappable,
-                                 bool                 in_memory_coherent,
+                                 MemoryFeatureFlags   in_memory_features,
                                  const VkImageLayout* in_start_image_layout_ptr);
         void init_mipmap_props  ();
         void init_page_occupancy(const std::vector<VkSparseImageMemoryRequirements>& memory_reqs);

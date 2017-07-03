@@ -184,8 +184,7 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
                                                            Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
                                                            VK_SHARING_MODE_EXCLUSIVE,
                                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                           true,     /* should_be_mappable       */
-                                                           false,    /* should_be_coherent       */
+                                                           Anvil::MEMORY_FEATURE_FLAG_MAPPABLE,
                                                            nullptr); /* opt_client_data          */
 
     /* 2. Create the intermediate image */
@@ -205,10 +204,9 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
                                                             VK_SAMPLE_COUNT_1_BIT,
                                                             Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
                                                             VK_SHARING_MODE_EXCLUSIVE,
-                                                            false,  /* in_use_full_mipmap_chain                   */
-                                                            false,  /* in_should_memory_backing_be_mappable       */
-                                                            false,  /* in_should_memory_backing_be_coherent       */
-                                                            0,      /* in_create_flags                            */
+                                                            false,  /* in_use_full_mipmap_chain */
+                                                            0,      /* in_memory_features       */
+                                                            0,      /* in_create_flags          */
                                                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                                             nullptr); /* in_ mipmaps_ptr */
 

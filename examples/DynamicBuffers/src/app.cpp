@@ -355,7 +355,7 @@ void App::init_buffers()
     std::unique_ptr<char>                   sine_offset_data_raw_buffer_ptr;
 
     /* Set up allocators */
-    memory_allocator_ptr = Anvil::MemoryAllocator::create(m_device_ptr);
+    memory_allocator_ptr = Anvil::MemoryAllocator::create_oneshot(m_device_ptr);
 
     /* Prepare sine offset data */
     m_sine_offset_data_buffer_size = 0;
@@ -493,8 +493,6 @@ void App::init_buffers()
                                      0); /* in_required_memory_features */
 
     /* Assign memory blocks to buffers and fill them with data */
-    memory_allocator_ptr->bake();
-
     m_sine_offset_data_buffer_ptr->write(0, /* start_offset */
                                          m_sine_offset_data_buffer_ptr->get_size(),
                                          sine_offset_data_raw_buffer_ptr.get()
@@ -992,17 +990,16 @@ void App::init_images()
                                                                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                                                                        WINDOW_WIDTH,
                                                                        WINDOW_HEIGHT,
-                                                                       1,                    /* base_mipmap_depth     */
-                                                                       1,                    /* n_layers              */
+                                                                       1,                    /* in_base_mipmap_depth */
+                                                                       1,                    /* in_n_layers          */
                                                                        VK_SAMPLE_COUNT_1_BIT,
                                                                        Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
                                                                        VK_SHARING_MODE_EXCLUSIVE,
-                                                                       false,                /* use_full_mipmap_chain             */
-                                                                       false,                /* should_memory_backing_be_mappable */
-                                                                       false,                /* should_memory_backing_be_coherent */
-                                                                       false,                /* is_mutable                        */
+                                                                       false,                /* in_use_full_mipmap_chain */
+                                                                       0,                    /* in_memory_features       */
+                                                                       0,                    /* in_create_flags          */
                                                                        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                                                       nullptr);             /* mipmaps_ptr                       */
+                                                                       nullptr);             /* in_mipmaps_ptr */
 
         m_depth_image_views[n_depth_image] = Anvil::ImageView::create_2D(m_device_ptr,
                                                                          m_depth_images[n_depth_image],

@@ -56,7 +56,7 @@ namespace Anvil
                                                     uint32_t                         in_queue_index);
 
         /** Destructor */
-        ~Queue();
+        virtual ~Queue();
 
         /** Updates sparse resource memory bindings using this queue.
          *

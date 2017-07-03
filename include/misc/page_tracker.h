@@ -66,6 +66,18 @@ namespace Anvil
             return static_cast<uint32_t>(m_memory_blocks.size() );
         }
 
+        /** Returns total number of pages */
+        uint32_t get_n_pages() const
+        {
+            return m_n_total_pages;
+        }
+
+        /** Returns the number of pages that have been assigned non-null memory blocks */
+        uint32_t get_n_pages_with_memory_backing() const
+        {
+            return m_n_pages_with_memory_backing;
+        }
+
         /** Updates a locally tracked memory binding.
          *
          *  @param in_memory_block_ptr          Memory block that is going to be bound. May be null,
@@ -110,6 +122,8 @@ namespace Anvil
 
         /* Private variables */
         std::vector<MemoryBlockBinding>  m_memory_blocks;
+        uint32_t                         m_n_memory_blocks_with_memory_backing;
+        uint32_t                         m_n_pages_with_memory_backing;
         uint32_t                         m_n_total_pages;
         VkDeviceSize                     m_page_size;
         VkDeviceSize                     m_region_size;

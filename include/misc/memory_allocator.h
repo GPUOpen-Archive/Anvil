@@ -30,6 +30,7 @@
 #ifndef MISC_MEMORY_ALLOCATOR_H
 #define MISC_MEMORY_ALLOCATOR_H
 
+#include "misc/debug.h"
 #include "misc/types.h"
 #include <vector>
 
@@ -43,6 +44,154 @@ namespace Anvil
     class MemoryAllocator
     {
     public:
+        /* Public type definitions */
+        typedef enum
+        {
+            ITEM_TYPE_BUFFER,
+            ITEM_TYPE_IMAGE_WHOLE,
+
+            ITEM_TYPE_SPARSE_IMAGE_MIPTAIL,
+            ITEM_TYPE_SPARSE_IMAGE_SUBRESOURCE,
+        } ItemType;
+
+        typedef struct Item
+        {
+            std::shared_ptr<Anvil::Buffer>               buffer_ptr;
+            std::shared_ptr<float>                       buffer_ref_float_data_ptr;
+            std::shared_ptr<std::vector<float> >         buffer_ref_float_vector_data_ptr;
+            std::shared_ptr<unsigned char>               buffer_ref_uchar8_data_ptr;
+            std::shared_ptr<std::vector<unsigned char> > buffer_ref_uchar8_vector_data_ptr;
+            std::shared_ptr<uint32_t>                    buffer_ref_uint32_data_ptr;
+            std::shared_ptr<std::vector<uint32_t> >      buffer_ref_uint32_vector_data_ptr;
+            std::shared_ptr<Anvil::Image>                image_ptr;
+
+            ItemType type;
+
+            std::shared_ptr<Anvil::MemoryBlock> alloc_memory_block_ptr;
+            uint32_t                            alloc_memory_final_type;
+            VkDeviceSize                        alloc_memory_required_alignment;
+            MemoryFeatureFlags                  alloc_memory_required_features;
+            uint32_t                            alloc_memory_supported_memory_types;
+            uint32_t                            alloc_memory_types;
+            VkDeviceSize                        alloc_size;
+
+            VkExtent3D         extent;
+            bool               is_baked;
+            VkDeviceSize       miptail_offset;
+            uint32_t           n_layer;
+            VkOffset3D         offset;
+            VkImageSubresource subresource;
+
+            Item(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                 VkDeviceSize                   in_alloc_size,
+                 uint32_t                       in_alloc_memory_types,
+                 VkDeviceSize                   in_alloc_alignment,
+                 MemoryFeatureFlags             in_alloc_required_memory_features,
+                 uint32_t                       in_alloc_supported_memory_types)
+            {
+                anvil_assert(in_alloc_supported_memory_types != 0);
+
+                alloc_memory_final_type             = UINT32_MAX;
+                alloc_memory_required_alignment     = in_alloc_alignment;
+                alloc_memory_required_features      = in_alloc_required_memory_features;
+                alloc_memory_supported_memory_types = in_alloc_supported_memory_types;
+                alloc_memory_types                  = in_alloc_memory_types;
+                alloc_size                          = in_alloc_size;
+                buffer_ptr                          = in_buffer_ptr;
+                is_baked                            = false;
+                type                                = ITEM_TYPE_BUFFER;
+            }
+
+            Item(std::shared_ptr<Anvil::Image> in_image_ptr,
+                 uint32_t                      in_n_layer,
+                 VkDeviceSize                  in_alloc_size,
+                 uint32_t                      in_alloc_memory_types,
+                 VkDeviceSize                  in_miptail_offset,
+                 VkDeviceSize                  in_alloc_alignment,
+                 MemoryFeatureFlags            in_alloc_required_memory_features,
+                uint32_t                       in_alloc_supported_memory_types)
+            {
+                anvil_assert(in_alloc_supported_memory_types != 0);
+
+                alloc_memory_final_type             = UINT32_MAX;
+                alloc_memory_required_alignment     = in_alloc_alignment;
+                alloc_memory_required_features      = in_alloc_required_memory_features;
+                alloc_memory_supported_memory_types = in_alloc_supported_memory_types;
+                alloc_memory_types                  = in_alloc_memory_types;
+                alloc_size                          = in_alloc_size;
+                image_ptr                           = in_image_ptr;
+                is_baked                            = false;
+                miptail_offset                      = in_miptail_offset;
+                n_layer                             = in_n_layer;
+                type                                = ITEM_TYPE_SPARSE_IMAGE_MIPTAIL;
+            }
+
+            Item(std::shared_ptr<Anvil::Image> in_image_ptr,
+                 const VkImageSubresource&     in_subresource,
+                 const VkOffset3D&             in_offset,
+                 const VkExtent3D&             in_extent,
+                 VkDeviceSize                  in_alloc_size,
+                 uint32_t                      in_alloc_memory_types,
+                 VkDeviceSize                  in_alloc_alignment,
+                 MemoryFeatureFlags            in_alloc_required_memory_features,
+                 uint32_t                      in_alloc_supported_memory_types)
+            {
+                anvil_assert(in_alloc_supported_memory_types != 0);
+
+                alloc_memory_final_type             = UINT32_MAX;
+                alloc_memory_types                  = in_alloc_memory_types;
+                alloc_memory_required_alignment     = in_alloc_alignment;
+                alloc_memory_required_features      = in_alloc_required_memory_features;
+                alloc_memory_supported_memory_types = in_alloc_supported_memory_types;
+                alloc_size                          = in_alloc_size;
+                extent                              = in_extent;
+                image_ptr                           = in_image_ptr;
+                is_baked                            = false;
+                offset                              = in_offset;
+                subresource                         = in_subresource;
+                type                                = ITEM_TYPE_SPARSE_IMAGE_SUBRESOURCE;
+            }
+
+            Item(std::shared_ptr<Anvil::Image> in_image_ptr,
+                 VkDeviceSize                  in_alloc_size,
+                 uint32_t                      in_alloc_memory_types,
+                 VkDeviceSize                  in_alloc_alignment,
+                 MemoryFeatureFlags            in_alloc_required_memory_features,
+                 uint32_t                      in_alloc_supported_memory_types)
+            {
+                anvil_assert(in_alloc_supported_memory_types != 0);
+
+                alloc_memory_final_type             = UINT32_MAX;
+                alloc_memory_required_alignment     = in_alloc_alignment;
+                alloc_memory_required_features      = in_alloc_required_memory_features;
+                alloc_memory_supported_memory_types = in_alloc_supported_memory_types;
+                alloc_memory_types                  = in_alloc_memory_types;
+                alloc_size                          = in_alloc_size;
+                image_ptr                           = in_image_ptr;
+                is_baked                            = false;
+                type                                = ITEM_TYPE_IMAGE_WHOLE;
+            }
+
+            ~Item()
+            {
+                /* Stub */
+            }
+        } Item;
+
+        typedef std::vector<Item> Items;
+
+        class IMemoryAllocatorBackend
+        {
+        public:
+            virtual ~IMemoryAllocatorBackend()
+            {
+                /* Stub */
+            }
+
+            virtual bool bake           (Items& in_items)       = 0;
+            virtual bool supports_baking()                const = 0;
+        };
+
         /* Public functions */
 
         /** Adds a new Buffer object which should use storage coming from the buffer memory
@@ -144,24 +293,24 @@ namespace Anvil
                                           VkExtent3D                    in_extent,
                                           MemoryFeatureFlags            in_required_memory_features);
 
-        /** Tries to create a memory object of size large enough to capacitate all added objects,
-         *  given their alignment, size, and other requirements.
-         *
-         *  If the call is successful, each added object will have its set_memory() entry-point
-         *  called with more details about what memory object they should use, along with
-         *  a start offset and size of the granted allocation.
-         *
-         *  The allocations are guaranteed not to overlap.
-         *
-         *  @return true if successful, false otherwise.
-         **/
+        /** TODO */
         bool bake();
 
-        /** Creates a new MemoryAllocator instance.
+        /** Creates a new one-shot memory allocator instance.
+         *
+         *  This type of allocator only supports a single explicit (or implicit) bake invocation.
          *
          *  @param in_device_ptr Device to use.
          **/
-        static std::shared_ptr<MemoryAllocator> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
+        static std::shared_ptr<MemoryAllocator> create_oneshot(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
+
+        /** Creates a new VMA memory allocator instance.
+         *
+         *  This type of allocator supports an arbitrary number of implicit or explicit bake invocations.
+         *
+         *  @param in_device_ptr Device to use.
+         **/
+        static std::shared_ptr<MemoryAllocator> create_vma(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
 
         /** Assigns a func pointer which will be called by the allocator after all added objects
          *  have been assigned memory blocks.
@@ -183,146 +332,33 @@ namespace Anvil
         ~MemoryAllocator();
 
     private:
-        /* Private type declarations */
-        typedef enum
-        {
-            ITEM_TYPE_BUFFER,
-            ITEM_TYPE_IMAGE_WHOLE,
-
-            ITEM_TYPE_SPARSE_IMAGE_MIPTAIL,
-            ITEM_TYPE_SPARSE_IMAGE_SUBRESOURCE,
-        } ItemType;
-
-        typedef struct Item
-        {
-            std::shared_ptr<Anvil::Buffer>               buffer_ptr;
-            std::shared_ptr<float>                       buffer_ref_float_data_ptr;
-            std::shared_ptr<std::vector<float> >         buffer_ref_float_vector_data_ptr;
-            std::shared_ptr<unsigned char>               buffer_ref_uchar8_data_ptr;
-            std::shared_ptr<std::vector<unsigned char> > buffer_ref_uchar8_vector_data_ptr;
-            std::shared_ptr<uint32_t>                    buffer_ref_uint32_data_ptr;
-            std::shared_ptr<std::vector<uint32_t> >      buffer_ref_uint32_vector_data_ptr;
-            std::shared_ptr<Anvil::Image>                image_ptr;
-
-            ItemType type;
-
-            std::shared_ptr<Anvil::MemoryBlock> alloc_memory_block_ptr;
-            uint32_t                            alloc_memory_final_type;
-            VkDeviceSize                        alloc_memory_required_alignment;
-            MemoryFeatureFlags                  alloc_memory_required_features;
-            uint32_t                            alloc_memory_types;
-            VkDeviceSize                        alloc_offset;
-            VkDeviceSize                        alloc_size;
-
-            VkExtent3D         extent;
-            VkDeviceSize       miptail_offset;
-            uint32_t           n_layer;
-            VkOffset3D         offset;
-            VkImageSubresource subresource;
-
-            Item(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
-                 VkDeviceSize                   in_alloc_size,
-                 uint32_t                       in_alloc_memory_types,
-                 VkDeviceSize                   in_alloc_alignment,
-                 MemoryFeatureFlags             in_alloc_required_memory_features)
-            {
-                alloc_memory_final_type         = UINT32_MAX;
-                alloc_memory_required_alignment = in_alloc_alignment;
-                alloc_memory_required_features  = in_alloc_required_memory_features;
-                alloc_memory_types              = in_alloc_memory_types;
-                alloc_offset                    = UINT64_MAX;
-                alloc_size                      = in_alloc_size;
-                buffer_ptr                      = in_buffer_ptr;
-                type                            = ITEM_TYPE_BUFFER;
-            }
-
-            Item(std::shared_ptr<Anvil::Image> in_image_ptr,
-                 uint32_t                      in_n_layer,
-                 VkDeviceSize                  in_alloc_size,
-                 uint32_t                      in_alloc_memory_types,
-                 VkDeviceSize                  in_miptail_offset,
-                 VkDeviceSize                  in_alloc_alignment,
-                 MemoryFeatureFlags            in_alloc_required_memory_features)
-            {
-                alloc_memory_final_type         = UINT32_MAX;
-                alloc_memory_required_alignment = in_alloc_alignment;
-                alloc_memory_required_features  = in_alloc_required_memory_features;
-                alloc_memory_types              = in_alloc_memory_types;
-                alloc_offset                    = UINT64_MAX;
-                alloc_size                      = in_alloc_size;
-                image_ptr                       = in_image_ptr;
-                miptail_offset                  = in_miptail_offset;
-                n_layer                         = in_n_layer;
-                type                            = ITEM_TYPE_SPARSE_IMAGE_MIPTAIL;
-            }
-
-            Item(std::shared_ptr<Anvil::Image> in_image_ptr,
-                 const VkImageSubresource&     in_subresource,
-                 const VkOffset3D&             in_offset,
-                 const VkExtent3D&             in_extent,
-                 VkDeviceSize                  in_alloc_size,
-                 uint32_t                      in_alloc_memory_types,
-                 VkDeviceSize                  in_alloc_alignment,
-                 MemoryFeatureFlags            in_alloc_required_memory_features)
-            {
-                alloc_memory_final_type         = UINT32_MAX;
-                alloc_memory_types              = in_alloc_memory_types;
-                alloc_memory_required_alignment = in_alloc_alignment;
-                alloc_memory_required_features  = in_alloc_required_memory_features;
-                alloc_offset                    = UINT64_MAX;
-                alloc_size                      = in_alloc_size;
-                extent                          = in_extent;
-                image_ptr                       = in_image_ptr;
-                offset                          = in_offset;
-                subresource                     = in_subresource;
-                type                            = ITEM_TYPE_SPARSE_IMAGE_SUBRESOURCE;
-            }
-
-            Item(std::shared_ptr<Anvil::Image> in_image_ptr,
-                 VkDeviceSize                  in_alloc_size,
-                 uint32_t                      in_alloc_memory_types,
-                 VkDeviceSize                  in_alloc_alignment,
-                 MemoryFeatureFlags            in_alloc_required_memory_features)
-            {
-                alloc_memory_final_type         = UINT32_MAX;
-                alloc_memory_required_alignment = in_alloc_alignment;
-                alloc_memory_required_features  = in_alloc_required_memory_features;
-                alloc_memory_types              = in_alloc_memory_types;
-                alloc_offset                    = UINT64_MAX;
-                alloc_size                      = in_alloc_size;
-                image_ptr                       = in_image_ptr;
-                type                            = ITEM_TYPE_IMAGE_WHOLE;
-            }
-
-            ~Item()
-            {
-                /* Stub */
-            }
-        } Item;
-
-        typedef std::vector<Item> Items;
 
         /* Private functions */
         bool add_buffer_internal(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
                                  MemoryFeatureFlags             in_required_memory_features);
         bool is_alloc_supported (uint32_t                       in_memory_types,
-                                 MemoryFeatureFlags             in_memory_features,
+                                 Anvil::MemoryFeatureFlags      in_memory_features,
                                  uint32_t*                      out_opt_filtered_memory_types_ptr) const;
+
+        static void on_is_alloc_pending_for_image_query(void* in_callback_arg,
+                                                        void* in_user_arg);
+        static void on_implicit_bake_needed            (void* in_callback_arg,
+                                                        void* in_user_arg);
 
         /** Constructor.
          *
          *  Please see create() documentation for specification. */
-        MemoryAllocator(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
+        MemoryAllocator(std::weak_ptr<Anvil::BaseDevice>         in_device_ptr,
+                        std::shared_ptr<IMemoryAllocatorBackend> in_backend_ptr);
 
         MemoryAllocator           (const MemoryAllocator&);
         MemoryAllocator& operator=(const MemoryAllocator&);
 
         /* Private members */
-        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
-        bool                             m_is_baked;
-        Items                            m_items;
-
-        std::vector<std::shared_ptr<Anvil::MemoryBlock> > m_memory_blocks;
+        std::shared_ptr<IMemoryAllocatorBackend> m_backend_ptr;
+        std::weak_ptr<Anvil::BaseDevice>         m_device_ptr;
+        Items                                    m_items;
+        std::map<const void*, bool>              m_per_object_pending_alloc_status;
 
         PFNMEMORYALLOCATORBAKECALLBACKPROC m_pfn_post_bake_callback_ptr;
         void*                              m_post_bake_callback_user_arg;
