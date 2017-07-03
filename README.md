@@ -81,7 +81,7 @@ What can it do?
 This version of Anvil provides:
 
 *  Low-level ref-counted wrappers for the following Vulkan v1.0 features:
-   - Buffer objects
+   - Buffer objects (sparse and non-sparse)
    - Buffer views
    - Command buffers
    - Command pools
@@ -92,7 +92,7 @@ This version of Anvil provides:
    - Events
    - Fences
    - Framebuffers
-   - Image objects
+   - Image objects (sparse, sparse bindings, PRT)
    - Image views
    - Instances
    - Physical devices
@@ -110,7 +110,8 @@ This version of Anvil provides:
 * More complicated wrappers:
    - Compute / graphics pipeline managers: provide a way to create regular/derivative pipelines with automatic pipeline layout re-use.
    - Descriptor set groups:                simplify descriptor set configuration, management and updates.
-   - Memory allocator:                     implements a very simple memory allocator which assigns properly-aligned memory blocks to Vulkan buffer & image objects.
+   - Memory allocator:                     implements a memory allocator with two back-ends: one that is more appropriate for one-shot
+                                           mem alloc requests, and one that can be used for dynamic memory allocation purposes.
    - Pipeline layout manager:              caches all created pipeline layouts to avoid instantiating duplicate layout instances.
 
 * Miscellaneous functionality:
