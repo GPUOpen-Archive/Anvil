@@ -208,6 +208,32 @@ namespace Anvil
          /* Converts a ExtensionBehavior enum value to a corresponding GLSL definition */
          std::string get_extension_behavior_glsl_code(const ExtensionBehavior& in_value) const;
 
+         #ifdef ANVIL_LINK_WITH_GLSLANG
+            /** Returns info log which contains detailed information regarding the program linking process.
+              *
+              *  Call if get_spirv_blob() returns nullptr to find out more about shader issues which
+              *  prevented the process from finishing successfully.
+              *
+              *  @return See description above.
+              */
+             const std::string& get_program_info_log() const
+             {
+                 return m_program_info_log;
+             }
+
+             /** Returns info log which contains detailed information regarding the shader compilation process.
+              *
+              *  Call if get_spirv_blob() returns nullptr to find out more about shader issues which
+              *  prevented the process from finishing successfully.
+              *
+              *  @return See description above.
+              */
+             const std::string& get_shader_info_log() const
+             {
+                 return m_shader_info_log;
+             }
+         #endif
+
          /** Tells what shader stage the encapsulated GLSL shader descirbes. */
          ShaderStage get_shader_stage() const
          {
@@ -280,6 +306,8 @@ namespace Anvil
         /* Private members */
         #ifdef ANVIL_LINK_WITH_GLSLANG
             GLSLangLimits m_limits;
+            std::string   m_program_info_log;
+            std::string   m_shader_info_log;
         #endif
 
         std::string m_data;

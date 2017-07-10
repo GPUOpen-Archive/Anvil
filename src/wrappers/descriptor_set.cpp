@@ -42,6 +42,7 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     sampler_ptr     = nullptr;
     size            = in_element.size;
     start_offset    = in_element.start_offset;
+    type_vk         = in_element.get_type();
 
     return *this;
 }
@@ -57,6 +58,7 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     sampler_ptr     = in_element.sampler_ptr;
     size            = UINT64_MAX;
     start_offset    = UINT64_MAX;
+    type_vk         = in_element.get_type();
 
     return *this;
 }
@@ -72,6 +74,7 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     sampler_ptr     = nullptr;
     size            = UINT64_MAX;
     start_offset    = UINT64_MAX;
+    type_vk         = in_element.get_type();
 
     return *this;
 }
@@ -87,6 +90,7 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     sampler_ptr     = in_element.sampler_ptr;
     size            = UINT64_MAX;
     start_offset    = UINT64_MAX;
+    type_vk         = in_element.get_type();
 
     return *this;
 }
@@ -102,6 +106,7 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     sampler_ptr     = nullptr;
     size            = UINT64_MAX;
     start_offset    = UINT64_MAX;
+    type_vk         = in_element.get_type();
 
     return *this;
 }
@@ -493,6 +498,261 @@ std::shared_ptr<Anvil::DescriptorSet> Anvil::DescriptorSet::create(std::weak_ptr
     );
 
     return result_ptr;
+}
+
+/* Please see header for specification */
+bool Anvil::DescriptorSet::get_binding_array_size(uint32_t  in_n_binding,
+                                                  uint32_t* out_result_ptr) const
+{
+    bool result = true;
+
+    if (m_bindings.find(in_n_binding) == m_bindings.end() )
+    {
+        anvil_assert(m_bindings.find(in_n_binding) != m_bindings.end() );
+
+        result = false;
+        goto end;
+    }
+
+    *out_result_ptr = static_cast<uint32_t>(m_bindings.at(in_n_binding).size() );
+
+end:
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::DescriptorSet::get_binding_descriptor_type(uint32_t          in_n_binding,
+                                                       VkDescriptorType* out_descriptor_type_ptr) const
+{
+    bool result = true;
+
+    if (m_bindings.find(in_n_binding) == m_bindings.end() )
+    {
+        anvil_assert(m_bindings.find(in_n_binding) != m_bindings.end() );
+
+        result = false;
+        goto end;
+    }
+
+    *out_descriptor_type_ptr = m_bindings.at(in_n_binding).at(0).type_vk;
+
+end:
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::DescriptorSet::get_combined_image_sampler_binding_properties(uint32_t                           in_n_binding,
+                                                                         uint32_t                           in_n_binding_array_item,
+                                                                         VkImageLayout*                     out_opt_image_layout_ptr,
+                                                                         std::shared_ptr<Anvil::ImageView>* out_opt_image_view_ptr,
+                                                                         std::shared_ptr<Anvil::Sampler>*   out_opt_sampler_ptr)
+{
+    decltype(m_bindings)::const_iterator binding_iterator = m_bindings.find(in_n_binding);
+    bool                                 result           = true;
+
+    if (binding_iterator == m_bindings.end() )
+    {
+        anvil_assert(binding_iterator != m_bindings.end());
+
+        result = false;
+        goto end;
+    }
+
+    if (binding_iterator->second.size() <= in_n_binding_array_item)
+    {
+        anvil_assert(binding_iterator->second.size() > in_n_binding_array_item);
+
+        result = false;
+        goto end;
+    }
+    else
+    {
+        auto binding_item_iterator = binding_iterator->second.begin() + in_n_binding_array_item;
+
+        if (out_opt_image_layout_ptr != nullptr)
+        {
+            *out_opt_image_layout_ptr = binding_item_iterator->image_layout;
+        }
+
+        if (out_opt_image_view_ptr != nullptr)
+        {
+            *out_opt_image_view_ptr = binding_item_iterator->image_view_ptr;
+        }
+
+        if (out_opt_sampler_ptr != nullptr)
+        {
+            *out_opt_sampler_ptr = binding_item_iterator->sampler_ptr;
+        }
+    }
+
+end:
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::DescriptorSet::get_input_attachment_binding_properties(uint32_t                           in_n_binding,
+                                                                   uint32_t                           in_n_binding_array_item,
+                                                                   VkImageLayout*                     out_opt_image_layout_ptr,
+                                                                   std::shared_ptr<Anvil::ImageView>* out_opt_image_view_ptr) const
+{
+    decltype(m_bindings)::const_iterator binding_iterator = m_bindings.find(in_n_binding);
+    bool                                 result           = true;
+
+    if (binding_iterator == m_bindings.end() )
+    {
+        anvil_assert(binding_iterator != m_bindings.end());
+
+        result = false;
+        goto end;
+    }
+
+    if (binding_iterator->second.size() <= in_n_binding_array_item)
+    {
+        anvil_assert(binding_iterator->second.size() > in_n_binding_array_item);
+
+        result = false;
+        goto end;
+    }
+    else
+    {
+        auto binding_item_iterator = binding_iterator->second.begin() + in_n_binding_array_item;
+
+        if (out_opt_image_layout_ptr != nullptr)
+        {
+            *out_opt_image_layout_ptr = binding_item_iterator->image_layout;
+        }
+
+        if (out_opt_image_view_ptr != nullptr)
+        {
+            *out_opt_image_view_ptr = binding_item_iterator->image_view_ptr;
+        }
+    }
+
+end:
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::DescriptorSet::get_sampler_binding_properties(uint32_t                         in_n_binding,
+                                                          uint32_t                         in_n_binding_array_item,
+                                                          std::shared_ptr<Anvil::Sampler>* out_sampler_ptr) const
+{
+    decltype(m_bindings)::const_iterator binding_iterator = m_bindings.find(in_n_binding);
+    bool                                 result           = true;
+
+    if (binding_iterator == m_bindings.end() )
+    {
+        anvil_assert(binding_iterator != m_bindings.end());
+
+        result = false;
+        goto end;
+    }
+
+    if (binding_iterator->second.size() <= in_n_binding_array_item)
+    {
+        anvil_assert(binding_iterator->second.size() > in_n_binding_array_item);
+
+        result = false;
+        goto end;
+    }
+    else
+    {
+        auto binding_item_iterator = binding_iterator->second.begin() + in_n_binding_array_item;
+
+        if (out_sampler_ptr != nullptr)
+        {
+            *out_sampler_ptr = binding_item_iterator->sampler_ptr;
+        }
+    }
+
+end:
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::DescriptorSet::get_storage_buffer_binding_properties(uint32_t                        in_n_binding,
+                                                                 uint32_t                        in_n_binding_array_item,
+                                                                 std::shared_ptr<Anvil::Buffer>* out_opt_buffer_ptr,
+                                                                 VkDeviceSize*                   out_opt_size_ptr,
+                                                                 VkDeviceSize*                   out_opt_start_offset_ptr) const
+{
+    decltype(m_bindings)::const_iterator binding_iterator = m_bindings.find(in_n_binding);
+    bool                                 result           = true;
+
+    if (binding_iterator == m_bindings.end() )
+    {
+        anvil_assert(binding_iterator != m_bindings.end());
+
+        result = false;
+        goto end;
+    }
+
+    if (binding_iterator->second.size() <= in_n_binding_array_item)
+    {
+        anvil_assert(binding_iterator->second.size() > in_n_binding_array_item);
+
+        result = false;
+        goto end;
+    }
+    else
+    {
+        auto binding_item_iterator = binding_iterator->second.begin() + in_n_binding_array_item;
+
+        if (out_opt_buffer_ptr != nullptr)
+        {
+            *out_opt_buffer_ptr = binding_item_iterator->buffer_ptr;
+        }
+
+        if (out_opt_size_ptr != nullptr)
+        {
+            *out_opt_size_ptr = binding_item_iterator->size;
+        }
+
+        if (out_opt_start_offset_ptr != nullptr)
+        {
+            *out_opt_start_offset_ptr = binding_item_iterator->start_offset;
+        }
+    }
+
+end:
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::DescriptorSet::get_storage_texel_buffer_binding_properties(uint32_t                            in_n_binding,
+                                                                       uint32_t                            in_n_binding_array_item,
+                                                                       std::shared_ptr<Anvil::BufferView>* out_opt_buffer_view_ptr) const
+{
+    decltype(m_bindings)::const_iterator binding_iterator = m_bindings.find(in_n_binding);
+    bool                                 result           = true;
+
+    if (binding_iterator == m_bindings.end() )
+    {
+        anvil_assert(binding_iterator != m_bindings.end());
+
+        result = false;
+        goto end;
+    }
+
+    if (binding_iterator->second.size() <= in_n_binding_array_item)
+    {
+        anvil_assert(binding_iterator->second.size() > in_n_binding_array_item);
+
+        result = false;
+        goto end;
+    }
+    else
+    {
+        auto binding_item_iterator = binding_iterator->second.begin() + in_n_binding_array_item;
+
+        if (out_opt_buffer_view_ptr != nullptr)
+        {
+            *out_opt_buffer_view_ptr = binding_item_iterator->buffer_view_ptr;
+        }
+    }
+
+end:
+    return result;
 }
 
 /** Entry-point called back whenever a new binding is added to the parent layout.

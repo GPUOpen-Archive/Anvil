@@ -39,6 +39,7 @@
 #endif
 
 #include "misc/types.h"
+#include <algorithm>
 
 namespace Anvil
 {
@@ -91,6 +92,7 @@ namespace Anvil
 
             m_callback_id_count = in_callback_id_count;
             m_callbacks         = new Callbacks[static_cast<uintptr_t>(in_callback_id_count)];
+            m_callbacks_locked  = false;
         }
 
         /** Destructor.
@@ -126,11 +128,18 @@ namespace Anvil
                                     PFNCALLBACKPROC in_pfn_callback_proc,
                                     void*           in_user_arg)
         {
+            Callback new_callback = Callback(in_pfn_callback_proc,
+                                             in_user_arg);
+
             anvil_assert(in_callback_id       <  m_callback_id_count);
             anvil_assert(in_pfn_callback_proc != nullptr);
+            anvil_assert(!m_callbacks_locked);
 
-            m_callbacks[in_callback_id].push_back(Callback(in_pfn_callback_proc,
-                                                           in_user_arg) );
+            anvil_assert(std::find(m_callbacks[in_callback_id].begin(),
+                                   m_callbacks[in_callback_id].end(),
+                                   new_callback) == m_callbacks[in_callback_id].end() );
+
+            m_callbacks[in_callback_id].push_back(new_callback);
         }
 
         /** Unregisters the client from the specified call-back slot.
@@ -154,6 +163,7 @@ namespace Anvil
 
             anvil_assert(in_callback_id       <  m_callback_id_count);
             anvil_assert(in_pfn_callback_proc != nullptr);
+            anvil_assert(!m_callbacks_locked);
 
             for (auto callback_iterator  = m_callbacks[in_callback_id].begin();
                       callback_iterator != m_callbacks[in_callback_id].end();
@@ -169,8 +179,7 @@ namespace Anvil
                 }
             }
 
-            anvil_assert(has_found);
-
+            anvil_assert            (has_found);
             ANVIL_REDUNDANT_VARIABLE(has_found);
         }
 
@@ -182,6 +191,9 @@ namespace Anvil
          *  The clients are called one after another from the thread, in which the call has
          *  been invoked.
          *
+         *  This implementation assumes that the invoked functions will NOT alter the
+         *  callback array. If that is the case, use (slower) callback_safe() instead.
+         *
          *  @param in_callback_id  ID of the call-back slot to use.
          *  @param in_callback_arg Call-back argument to use.
          **/
@@ -189,15 +201,80 @@ namespace Anvil
                       void*      in_callback_arg)
         {
             anvil_assert(in_callback_id < m_callback_id_count);
+            anvil_assert(!m_callbacks_locked);
 
-            for (auto callback_iterator  = m_callbacks[in_callback_id].begin();
-                      callback_iterator != m_callbacks[in_callback_id].end();
-                    ++callback_iterator)
+            m_callbacks_locked = true;
             {
-                const Callback& current_callback = *callback_iterator;
+                for (auto callback_iterator  = m_callbacks[in_callback_id].begin();
+                          callback_iterator != m_callbacks[in_callback_id].end();
+                        ++callback_iterator)
+                {
+                    const Callback& current_callback = *callback_iterator;
 
-                current_callback.pfn_callback_proc(in_callback_arg,
-                                                   current_callback.user_arg);
+                    current_callback.pfn_callback_proc(in_callback_arg,
+                                                       current_callback.user_arg);
+                }
+            }
+            m_callbacks_locked = false;
+        }
+
+        /** Calls back all subscribers which have signed up for the specified callback slot.
+         *
+         *  The clients are called one after another from the thread, in which the call has
+         *  been invoked.
+         *
+         *  This implementation assumes that the invoked functions MAY alter the
+         *  callback array. It will go the extra mile to ensure the cached callbacks are not
+         *  called more than once, and will take note of any new callback subscriptions that
+         *  may have been added by the called back functions.
+         *
+         *  This implementation is NOT MT-safe.
+         *
+         *  @param in_callback_id  ID of the call-back slot to use.
+         *  @param in_callback_arg Call-back argument to use.
+         **/
+        void callback_safe(CallbackID in_callback_id,
+                           void*      in_callback_arg)
+        {
+            anvil_assert(in_callback_id < m_callback_id_count);
+            anvil_assert(!m_callbacks_locked);
+
+            bool                  another_iteration_needed = true;
+            std::vector<Callback> invoked_callbacks;
+
+            while (another_iteration_needed)
+            {
+                const std::vector<Callback> cached_callbacks = m_callbacks[in_callback_id];
+
+                another_iteration_needed = false;
+
+                for (uint32_t n_current_callback = 0;
+                              n_current_callback < static_cast<uint32_t>(cached_callbacks.size() );
+                            ++n_current_callback)
+                {
+                    const Callback& current_callback = cached_callbacks[n_current_callback];
+
+                    if (std::find(invoked_callbacks.begin(),
+                                  invoked_callbacks.end(),
+                                  current_callback) == invoked_callbacks.end() )
+                    {
+                        current_callback.pfn_callback_proc(in_callback_arg,
+                                                           current_callback.user_arg);
+
+                        invoked_callbacks.push_back(current_callback);
+                    }
+
+                    if (cached_callbacks != m_callbacks[in_callback_id])
+                    {
+                        another_iteration_needed = true;
+                        break;
+                    }
+                }
+
+                if (!another_iteration_needed)
+                {
+                    break;
+                }
             }
         }
 
@@ -241,6 +318,12 @@ namespace Anvil
                 pfn_callback_proc = in_pfn_callback_proc;
                 user_arg          = in_user_arg;
             }
+
+            bool operator==(const Callback& in) const
+            {
+                return (in.pfn_callback_proc == pfn_callback_proc &&
+                        in.user_arg          == user_arg);
+            }
         } Callback;
 
         typedef std::vector<Callback> Callbacks;
@@ -248,6 +331,7 @@ namespace Anvil
         /* Private variables */
         CallbackID m_callback_id_count;
         Callbacks* m_callbacks;
+        bool       m_callbacks_locked;
     };
 } /* namespace Anvil */
 

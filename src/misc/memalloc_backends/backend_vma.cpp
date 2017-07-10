@@ -160,7 +160,7 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
      * handler, so that VMA is notified whenever a memory block it has provided memory backing for
      * has gone out of scope.
      */
-    for (auto& current_item : in_items)
+    for (auto& current_item_ptr : in_items)
     {
         VkMemoryRequirements                memory_requirements_vk;
         VmaMemoryRequirements               memory_requirements_vma;
@@ -170,16 +170,16 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
         uint32_t                            result_mem_type_index       = UINT32_MAX;
         VkMappedMemoryRange                 result_mem_range;
 
-        Anvil::Utils::get_vk_property_flags_from_memory_feature_flags(current_item.alloc_memory_required_features,
+        Anvil::Utils::get_vk_property_flags_from_memory_feature_flags(current_item_ptr->alloc_memory_required_features,
                                                                      &required_mem_property_flags,
                                                                      &required_mem_heap_flags);
 
         /* NOTE: VMA does not take required memory heap flags at the moment. Adding this is on their radar. */
         anvil_assert(required_mem_heap_flags == 0);
 
-        memory_requirements_vk.alignment      = current_item.alloc_memory_required_alignment;
-        memory_requirements_vk.memoryTypeBits = current_item.alloc_memory_supported_memory_types;
-        memory_requirements_vk.size           = current_item.alloc_size;
+        memory_requirements_vk.alignment      = current_item_ptr->alloc_memory_required_alignment;
+        memory_requirements_vk.memoryTypeBits = current_item_ptr->alloc_memory_supported_memory_types;
+        memory_requirements_vk.size           = current_item_ptr->alloc_size;
 
         memory_requirements_vma.neverAllocate  = false;
         memory_requirements_vma.ownMemory      = false;
@@ -207,7 +207,7 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
         new_memory_block_ptr = Anvil::MemoryBlock::create_derived_with_custom_delete_proc(m_device_ptr,
                                                                                           result_mem_range.memory,
                                                                                           memory_requirements_vk.memoryTypeBits,
-                                                                                          current_item.alloc_memory_required_features,
+                                                                                          current_item_ptr->alloc_memory_required_features,
                                                                                           result_mem_type_index,
                                                                                           memory_requirements_vk.size,
                                                                                           result_mem_range.offset,
@@ -223,9 +223,9 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
             continue;
         }
 
-        current_item.alloc_memory_block_ptr = new_memory_block_ptr;
-        current_item.alloc_size             = memory_requirements_vk.size;
-        current_item.is_baked               = true;
+        current_item_ptr->alloc_memory_block_ptr = new_memory_block_ptr;
+        current_item_ptr->alloc_size             = memory_requirements_vk.size;
+        current_item_ptr->is_baked               = true;
 
         m_vma_allocator_ptr->on_new_vma_mem_block_alloced();
     }
@@ -273,7 +273,7 @@ void Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::on_new_vma_mem_block_all
      * For each alloc, we cache a copy of our own in order to increment the use count of the instance.
      * Every time the alloc is released back to the library, we remove a pointer off the vector.
      *
-     * This prevent from premature release of the VMA wrapper instance if the user did not care to keep
+     * This prevents from premature release of the VMA wrapper instance if the user did not care to keep
      * a copy of a pointer to the allocator throughout Vulkan instance lifetime. */
     m_refcount_helper.push_back(shared_from_this() );
 }

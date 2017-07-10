@@ -49,7 +49,7 @@ namespace Anvil
 
         const std::shared_ptr<const Anvil::Image> image_ptr;
         bool                                      result;
-    } IsAllocPendingQueryData;
+    } ImageCallbackIsAllocPendingQueryData;
 
     /* Enumerates available image call-back types. */
     enum ImageCallbackID

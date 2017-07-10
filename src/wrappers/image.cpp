@@ -610,8 +610,8 @@ std::shared_ptr<Anvil::MemoryBlock> Anvil::Image::get_memory_block()
 
     if (is_callback_needed)
     {
-        callback(IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
-                 this);
+        callback_safe(IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
+                      this);
     }
 
     return m_memory_block_ptr;
@@ -1818,7 +1818,11 @@ void Anvil::Image::upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_p
     std::shared_ptr<Anvil::BaseDevice>                                         device_locked_ptr                  (m_device_ptr);
     std::map<VkImageAspectFlagBits, std::vector<const Anvil::MipmapRawData*> > image_aspect_to_mipmap_raw_data_map;
     VkImageAspectFlags                                                         image_aspects_touched              (0);
+    std::shared_ptr<Anvil::MemoryBlock>                                        image_mem_block_ptr;
     VkImageSubresourceRange                                                    image_subresource_range;
+
+    /* Make sure image has been assigned at least one memory block before we go ahead with the upload process */
+    image_mem_block_ptr = get_memory_block();
 
     /* Each image aspect needs to be modified separately. Iterate over the input vector and move MipmapRawData
      * to separate vectors corresponding to which aspect they need to update. */

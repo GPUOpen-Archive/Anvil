@@ -59,11 +59,11 @@ Anvil::MemoryAllocatorBackends::OneShot::~OneShot()
  **/
 bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items& in_items)
 {
-    std::shared_ptr<Anvil::BaseDevice>                       device_locked_ptr          (m_device_ptr);
-    const auto&                                              memory_props               (device_locked_ptr->get_physical_device_memory_properties() );
-    const uint32_t                                           n_memory_types             (static_cast<uint32_t>(memory_props.types.size() ));
-    std::vector<std::vector<Anvil::MemoryAllocator::Item*> > per_mem_type_items_vector  (n_memory_types);
-    bool                                                     result                     (true);
+    std::shared_ptr<Anvil::BaseDevice>                                        device_locked_ptr          (m_device_ptr);
+    const auto&                                                               memory_props               (device_locked_ptr->get_physical_device_memory_properties() );
+    const uint32_t                                                            n_memory_types             (static_cast<uint32_t>(memory_props.types.size() ));
+    std::vector<std::vector<std::shared_ptr<Anvil::MemoryAllocator::Item> > > per_mem_type_items_vector  (n_memory_types);
+    bool                                                                      result                     (true);
 
     /* Iterate over all block items and determine what memory types we can use.
      *
@@ -77,23 +77,23 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
     {
         /* Assign the item to supported memory types */
         for (uint32_t n_memory_type = 0;
-                      (1u << n_memory_type) <= item_iterator->alloc_memory_supported_memory_types;
+                      (1u << n_memory_type) <= (*item_iterator)->alloc_memory_supported_memory_types;
                      ++n_memory_type)
         {
-            if (!(item_iterator->alloc_memory_supported_memory_types & (1 << n_memory_type)) )
+            if (!((*item_iterator)->alloc_memory_supported_memory_types & (1 << n_memory_type)) )
             {
                 continue;
             }
 
-            per_mem_type_items_vector.at(n_memory_type).push_back(&(*item_iterator) );
+            per_mem_type_items_vector.at(n_memory_type).push_back((*item_iterator) );
             break;
         }
     }
 
     /* For each memory type, for each there's at least one item, bake a memory block */
     {
-        std::map<void*, VkDeviceSize> alloc_offset_map;
-        uint32_t                      current_memory_type_index(0);
+        std::map<std::shared_ptr<Anvil::MemoryAllocator::Item>, VkDeviceSize> alloc_offset_map;
+        uint32_t                                                              current_memory_type_index(0);
 
         for (auto mem_type_to_item_vector_iterator  = per_mem_type_items_vector.begin();
                   mem_type_to_item_vector_iterator != per_mem_type_items_vector.end();

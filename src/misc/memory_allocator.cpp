@@ -34,6 +34,249 @@
 
 
 /* Please see header for specification */
+Anvil::MemoryAllocator::Item::Item(std::shared_ptr<Anvil::MemoryAllocator> in_memory_allocator_ptr,
+                                   std::shared_ptr<Anvil::Buffer>          in_buffer_ptr,
+                                   VkDeviceSize                            in_alloc_size,
+                                   uint32_t                                in_alloc_memory_types,
+                                   VkDeviceSize                            in_alloc_alignment,
+                                   MemoryFeatureFlags                      in_alloc_required_memory_features,
+                                   uint32_t                                in_alloc_supported_memory_types)
+{
+    anvil_assert(in_alloc_supported_memory_types != 0);
+    anvil_assert(in_memory_allocator_ptr         != nullptr);
+
+    alloc_memory_final_type             = UINT32_MAX;
+    alloc_memory_required_alignment     = in_alloc_alignment;
+    alloc_memory_required_features      = in_alloc_required_memory_features;
+    alloc_memory_supported_memory_types = in_alloc_supported_memory_types;
+    alloc_memory_types                  = in_alloc_memory_types;
+    alloc_size                          = in_alloc_size;
+    buffer_ptr                          = in_buffer_ptr;
+    is_baked                            = false;
+    memory_allocator_ptr                = in_memory_allocator_ptr;
+    type                                = ITEM_TYPE_BUFFER;
+
+    register_for_callbacks();
+}
+
+/* Please see header for specification */
+Anvil::MemoryAllocator::Item::Item(std::shared_ptr<Anvil::MemoryAllocator> in_memory_allocator_ptr,
+                                   std::shared_ptr<Anvil::Image>           in_image_ptr,
+                                   uint32_t                                in_n_layer,
+                                   VkDeviceSize                            in_alloc_size,
+                                   uint32_t                                in_alloc_memory_types,
+                                   VkDeviceSize                            in_miptail_offset,
+                                   VkDeviceSize                            in_alloc_alignment,
+                                   MemoryFeatureFlags                      in_alloc_required_memory_features,
+                                   uint32_t                                 in_alloc_supported_memory_types)
+{
+    anvil_assert(in_alloc_supported_memory_types != 0);
+    anvil_assert(in_memory_allocator_ptr         != nullptr);
+
+    alloc_memory_final_type             = UINT32_MAX;
+    alloc_memory_required_alignment     = in_alloc_alignment;
+    alloc_memory_required_features      = in_alloc_required_memory_features;
+    alloc_memory_supported_memory_types = in_alloc_supported_memory_types;
+    alloc_memory_types                  = in_alloc_memory_types;
+    alloc_size                          = in_alloc_size;
+    image_ptr                           = in_image_ptr;
+    is_baked                            = false;
+    memory_allocator_ptr                = in_memory_allocator_ptr;
+    miptail_offset                      = in_miptail_offset;
+    n_layer                             = in_n_layer;
+    type                                = ITEM_TYPE_SPARSE_IMAGE_MIPTAIL;
+
+    register_for_callbacks();
+}
+
+/* Please see header for specification */
+Anvil::MemoryAllocator::Item::Item(std::shared_ptr<Anvil::MemoryAllocator> in_memory_allocator_ptr,
+                                   std::shared_ptr<Anvil::Image>           in_image_ptr,
+                                   const VkImageSubresource&               in_subresource,
+                                   const VkOffset3D&                       in_offset,
+                                   const VkExtent3D&                       in_extent,
+                                   VkDeviceSize                            in_alloc_size,
+                                   uint32_t                                in_alloc_memory_types,
+                                   VkDeviceSize                            in_alloc_alignment,
+                                   MemoryFeatureFlags                      in_alloc_required_memory_features,
+                                   uint32_t                                in_alloc_supported_memory_types)
+{
+    anvil_assert(in_alloc_supported_memory_types != 0);
+    anvil_assert(in_memory_allocator_ptr         != nullptr);
+
+    alloc_memory_final_type             = UINT32_MAX;
+    alloc_memory_types                  = in_alloc_memory_types;
+    alloc_memory_required_alignment     = in_alloc_alignment;
+    alloc_memory_required_features      = in_alloc_required_memory_features;
+    alloc_memory_supported_memory_types = in_alloc_supported_memory_types;
+    alloc_size                          = in_alloc_size;
+    extent                              = in_extent;
+    image_ptr                           = in_image_ptr;
+    is_baked                            = false;
+    memory_allocator_ptr                = in_memory_allocator_ptr;
+    offset                              = in_offset;
+    subresource                         = in_subresource;
+    type                                = ITEM_TYPE_SPARSE_IMAGE_SUBRESOURCE;
+
+    register_for_callbacks();
+}
+
+/* Please see header for specification */
+Anvil::MemoryAllocator::Item::Item(std::shared_ptr<Anvil::MemoryAllocator> in_memory_allocator_ptr,
+                                   std::shared_ptr<Anvil::Image>           in_image_ptr,
+                                   VkDeviceSize                            in_alloc_size,
+                                   uint32_t                                in_alloc_memory_types,
+                                   VkDeviceSize                            in_alloc_alignment,
+                                   MemoryFeatureFlags                      in_alloc_required_memory_features,
+                                   uint32_t                                in_alloc_supported_memory_types)
+{
+    anvil_assert(in_alloc_supported_memory_types != 0);
+    anvil_assert(in_memory_allocator_ptr         != nullptr);
+
+    alloc_memory_final_type             = UINT32_MAX;
+    alloc_memory_required_alignment     = in_alloc_alignment;
+    alloc_memory_required_features      = in_alloc_required_memory_features;
+    alloc_memory_supported_memory_types = in_alloc_supported_memory_types;
+    alloc_memory_types                  = in_alloc_memory_types;
+    alloc_size                          = in_alloc_size;
+    image_ptr                           = in_image_ptr;
+    is_baked                            = false;
+    memory_allocator_ptr                = in_memory_allocator_ptr;
+    type                                = ITEM_TYPE_IMAGE_WHOLE;
+
+    register_for_callbacks();
+}
+
+/* Please see header for specification */
+Anvil::MemoryAllocator::Item& Anvil::MemoryAllocator::Item::operator=(const Anvil::MemoryAllocator::Item& in)
+{
+    buffer_ptr                        = in.buffer_ptr;
+    buffer_ref_float_data_ptr         = in.buffer_ref_float_data_ptr;
+    buffer_ref_float_vector_data_ptr  = in.buffer_ref_float_vector_data_ptr;
+    buffer_ref_uchar8_data_ptr        = in.buffer_ref_uchar8_data_ptr;
+    buffer_ref_uchar8_vector_data_ptr = in.buffer_ref_uchar8_vector_data_ptr;
+    buffer_ref_uint32_data_ptr        = in.buffer_ref_uint32_data_ptr;
+    buffer_ref_uint32_vector_data_ptr = in.buffer_ref_uint32_vector_data_ptr;
+    image_ptr                         = in.image_ptr;
+
+    memory_allocator_ptr = in.memory_allocator_ptr;
+    type                 = in.type;
+
+    alloc_memory_block_ptr              = in.alloc_memory_block_ptr;
+    alloc_memory_final_type             = in.alloc_memory_final_type;
+    alloc_memory_required_alignment     = in.alloc_memory_required_alignment;
+    alloc_memory_required_features      = in.alloc_memory_required_features;
+    alloc_memory_supported_memory_types = in.alloc_memory_supported_memory_types;
+    alloc_memory_types                  = in.alloc_memory_types;
+    alloc_size                          = in.alloc_size;
+
+    extent         = in.extent;
+    is_baked       = in.is_baked;
+    miptail_offset = in.miptail_offset;
+    n_layer        = in.n_layer;
+    offset         = in.offset;
+    subresource    = in.subresource;
+
+    register_for_callbacks();
+
+    return *this;
+}
+
+/* Please see header for specification */
+Anvil::MemoryAllocator::Item::Item(const Anvil::MemoryAllocator::Item& in)
+{
+    buffer_ptr                        = in.buffer_ptr;
+    buffer_ref_float_data_ptr         = in.buffer_ref_float_data_ptr;
+    buffer_ref_float_vector_data_ptr  = in.buffer_ref_float_vector_data_ptr;
+    buffer_ref_uchar8_data_ptr        = in.buffer_ref_uchar8_data_ptr;
+    buffer_ref_uchar8_vector_data_ptr = in.buffer_ref_uchar8_vector_data_ptr;
+    buffer_ref_uint32_data_ptr        = in.buffer_ref_uint32_data_ptr;
+    buffer_ref_uint32_vector_data_ptr = in.buffer_ref_uint32_vector_data_ptr;
+    image_ptr                         = in.image_ptr;
+
+    memory_allocator_ptr = in.memory_allocator_ptr;
+    type                 = in.type;
+
+    alloc_memory_block_ptr              = in.alloc_memory_block_ptr;
+    alloc_memory_final_type             = in.alloc_memory_final_type;
+    alloc_memory_required_alignment     = in.alloc_memory_required_alignment;
+    alloc_memory_required_features      = in.alloc_memory_required_features;
+    alloc_memory_supported_memory_types = in.alloc_memory_supported_memory_types;
+    alloc_memory_types                  = in.alloc_memory_types;
+    alloc_size                          = in.alloc_size;
+    
+    extent         = in.extent;
+    is_baked       = in.is_baked;
+    miptail_offset = in.miptail_offset;
+    n_layer        = in.n_layer;
+    offset         = in.offset;
+    subresource    = in.subresource;
+
+    register_for_callbacks();
+}
+
+/* Please see header for specification */
+Anvil::MemoryAllocator::Item::~Item()
+{
+    unregister_from_callbacks();
+}
+
+/** TODO */
+void Anvil::MemoryAllocator::Item::register_for_callbacks()
+{
+    if (buffer_ptr != nullptr)
+    {
+        /* Sign up for "is alloc pending" callback in order to support sparsely bound/sparse buffers */
+        buffer_ptr->register_for_callbacks(BUFFER_CALLBACK_ID_IS_ALLOC_PENDING,
+                                           on_is_alloc_pending_for_buffer_query,
+                                           memory_allocator_ptr.get() );
+
+        /* Sign up for "memory needed" callback so that we can trigger an implicit bake operation */
+        buffer_ptr->register_for_callbacks(BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
+                                           on_implicit_bake_needed,
+                                           memory_allocator_ptr.get() );
+    }
+
+    if (image_ptr != nullptr)
+    {
+        /* Sign up for "is alloc pending" callback in order to support sparse images */
+        image_ptr->register_for_callbacks(IMAGE_CALLBACK_ID_IS_ALLOC_PENDING,
+                                          on_is_alloc_pending_for_image_query,
+                                          memory_allocator_ptr.get() );
+
+        /* Sign up for "memory needed" callback so that we can trigger an implicit bake operation */
+        image_ptr->register_for_callbacks(IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
+                                          on_implicit_bake_needed,
+                                          memory_allocator_ptr.get() );
+    }
+}
+
+/** TODO */
+void Anvil::MemoryAllocator::Item::unregister_from_callbacks()
+{
+    if (buffer_ptr != nullptr)
+    {
+        buffer_ptr->unregister_from_callbacks(BUFFER_CALLBACK_ID_IS_ALLOC_PENDING,
+                                              on_is_alloc_pending_for_buffer_query,
+                                              memory_allocator_ptr.get() );
+        buffer_ptr->unregister_from_callbacks(BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
+                                              on_implicit_bake_needed,
+                                              memory_allocator_ptr.get() );
+    }
+
+    if (image_ptr != nullptr)
+    {
+        image_ptr->unregister_from_callbacks(IMAGE_CALLBACK_ID_IS_ALLOC_PENDING,
+                                             on_is_alloc_pending_for_image_query,
+                                             memory_allocator_ptr.get() );
+        image_ptr->unregister_from_callbacks(IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
+                                             on_implicit_bake_needed,
+                                             memory_allocator_ptr.get() );
+    }
+}
+
+
+/* Please see header for specification */
 Anvil::MemoryAllocator::MemoryAllocator(std::weak_ptr<Anvil::BaseDevice>         in_device_ptr,
                                         std::shared_ptr<IMemoryAllocatorBackend> in_backend_ptr)
     :m_backend_ptr                (in_backend_ptr),
@@ -74,6 +317,7 @@ bool Anvil::MemoryAllocator::add_buffer_internal(std::shared_ptr<Anvil::Buffer> 
     VkDeviceSize                             buffer_alignment      = 0;
     uint32_t                                 buffer_memory_types   = 0;
     VkDeviceSize                             buffer_storage_size   = 0;
+    std::shared_ptr<Item>                    new_item_ptr;
     bool                                     result                = true;
 
     /* Sanity checks */
@@ -99,19 +343,19 @@ bool Anvil::MemoryAllocator::add_buffer_internal(std::shared_ptr<Anvil::Buffer> 
     }
 
     /* Store a new block item descriptor. */
-    m_items.push_back(Item(in_buffer_ptr,
-                           buffer_storage_size,
-                           buffer_memory_types,
-                           buffer_alignment,
-                           in_required_memory_features,
-                           filtered_memory_types) );
+    new_item_ptr.reset(
+        new Item(shared_from_this(),
+                 in_buffer_ptr,
+                 buffer_storage_size,
+                 buffer_memory_types,
+                 buffer_alignment,
+                 in_required_memory_features,
+                 filtered_memory_types)
+    );
+
+    m_items.push_back(new_item_ptr);
 
     m_per_object_pending_alloc_status[in_buffer_ptr.get()] = true;
-
-    /* Sign up for "memory needed" callback so that we can trigger an implicit bake operation */
-    in_buffer_ptr->register_for_callbacks(BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
-                                          on_implicit_bake_needed,
-                                          this);
 
 end:
     anvil_assert(result);
@@ -129,7 +373,7 @@ bool Anvil::MemoryAllocator::add_buffer_with_float_data_ptr_based_post_fill(std:
 
     if (result)
     {
-        m_items.back().buffer_ref_float_data_ptr = in_data_ptr;
+        m_items.back()->buffer_ref_float_data_ptr = in_data_ptr;
     }
 
     return result;
@@ -147,7 +391,7 @@ bool Anvil::MemoryAllocator::add_buffer_with_float_data_vector_ptr_based_post_fi
 
     if (result)
     {
-        m_items.back().buffer_ref_float_vector_data_ptr = in_data_vector_ptr;
+        m_items.back()->buffer_ref_float_vector_data_ptr = in_data_vector_ptr;
     }
 
     return result;
@@ -163,7 +407,7 @@ bool Anvil::MemoryAllocator::add_buffer_with_uchar8_data_ptr_based_post_fill(std
 
     if (result)
     {
-        m_items.back().buffer_ref_uchar8_data_ptr = in_data_ptr;
+        m_items.back()->buffer_ref_uchar8_data_ptr = in_data_ptr;
     }
 
     return result;
@@ -181,7 +425,7 @@ bool Anvil::MemoryAllocator::add_buffer_with_uchar8_data_vector_ptr_based_post_f
 
     if (result)
     {
-        m_items.back().buffer_ref_uchar8_vector_data_ptr = in_data_vector_ptr;
+        m_items.back()->buffer_ref_uchar8_vector_data_ptr = in_data_vector_ptr;
     }
 
     return result;
@@ -197,7 +441,7 @@ bool Anvil::MemoryAllocator::add_buffer_with_uint32_data_ptr_based_post_fill(std
 
     if (result)
     {
-        m_items.back().buffer_ref_uint32_data_ptr = in_data_ptr;
+        m_items.back()->buffer_ref_uint32_data_ptr = in_data_ptr;
     }
 
     return result;
@@ -215,7 +459,7 @@ bool Anvil::MemoryAllocator::add_buffer_with_uint32_data_vector_ptr_based_post_f
 
     if (result)
     {
-        m_items.back().buffer_ref_uint32_vector_data_ptr = in_data_vector_ptr;
+        m_items.back()->buffer_ref_uint32_vector_data_ptr = in_data_vector_ptr;
     }
 
     return result;
@@ -225,11 +469,12 @@ bool Anvil::MemoryAllocator::add_buffer_with_uint32_data_vector_ptr_based_post_f
 bool Anvil::MemoryAllocator::add_image_whole(std::shared_ptr<Anvil::Image> in_image_ptr,
                                              MemoryFeatureFlags            in_required_memory_features)
 {
-    uint32_t     filtered_memory_types = 0;
-    VkDeviceSize image_alignment       = 0;
-    uint32_t     image_memory_types    = 0;
-    VkDeviceSize image_storage_size    = 0;
-    bool         result                = true;
+    uint32_t              filtered_memory_types = 0;
+    VkDeviceSize          image_alignment       = 0;
+    uint32_t              image_memory_types    = 0;
+    VkDeviceSize          image_storage_size    = 0;
+    std::shared_ptr<Item> new_item_ptr;
+    bool                  result                = true;
 
     /* Sanity checks */
     anvil_assert(m_backend_ptr->supports_baking() );
@@ -251,24 +496,19 @@ bool Anvil::MemoryAllocator::add_image_whole(std::shared_ptr<Anvil::Image> in_im
     }
 
     /* Store a new block item descriptor */
-    m_items.push_back(Item(in_image_ptr,
-                           image_storage_size,
-                           image_memory_types,
-                           image_alignment,
-                           in_required_memory_features,
-                           filtered_memory_types) );
+    new_item_ptr.reset(
+        new Item(shared_from_this(),
+                 in_image_ptr,
+                 image_storage_size,
+                 image_memory_types,
+                 image_alignment,
+                 in_required_memory_features,
+                 filtered_memory_types)
+    );
+
+    m_items.push_back(new_item_ptr);
 
     m_per_object_pending_alloc_status[in_image_ptr.get()] = true;
-
-    /* Sign up for "is alloc pending" callback in order to support sparse images */
-    in_image_ptr->register_for_callbacks(IMAGE_CALLBACK_ID_IS_ALLOC_PENDING,
-                                         on_is_alloc_pending_for_image_query,
-                                         this);
-
-    /* Sign up for "memory needed" callback so that we can trigger an implicit bake operation */
-    in_image_ptr->register_for_callbacks(IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
-                                         on_implicit_bake_needed,
-                                         this);
 end:
     return result;
 }
@@ -281,6 +521,7 @@ bool Anvil::MemoryAllocator::add_sparse_image_miptail(std::shared_ptr<Anvil::Ima
 {
     const Anvil::SparseImageAspectProperties* aspect_props_ptr      = nullptr;
     uint32_t                                  filtered_memory_types = 0;
+    std::shared_ptr<Item>                     new_item_ptr;
     uint32_t                                  miptail_memory_types  = 0;
     VkDeviceSize                              miptail_offset        = static_cast<VkDeviceSize>(UINT64_MAX);
     VkDeviceSize                              miptail_size          = 0;
@@ -323,14 +564,19 @@ bool Anvil::MemoryAllocator::add_sparse_image_miptail(std::shared_ptr<Anvil::Ima
     }
 
     /* Store a new block item descriptor */
-    m_items.push_back(Item(in_image_ptr,
-                           in_n_layer,
-                           miptail_size,
-                           miptail_memory_types,
-                           miptail_offset,
-                           in_image_ptr->get_image_alignment(),
-                           in_required_memory_features,
-                           filtered_memory_types));
+    new_item_ptr.reset(
+        new Item(shared_from_this(),
+                 in_image_ptr,
+                 in_n_layer,
+                 miptail_size,
+                 miptail_memory_types,
+                 miptail_offset,
+                 in_image_ptr->get_image_alignment(),
+                 in_required_memory_features,
+                 filtered_memory_types)
+    );
+
+    m_items.push_back(new_item_ptr);
 
     m_per_object_pending_alloc_status[in_image_ptr.get()] = true;
 
@@ -349,6 +595,7 @@ bool Anvil::MemoryAllocator::add_sparse_image_subresource(std::shared_ptr<Anvil:
     uint32_t                                  component_size_bits[4] = {0};
     uint32_t                                  filtered_memory_types  = 0;
     uint32_t                                  mip_size[3];
+    std::shared_ptr<Item>                     new_item_ptr;
     bool                                      result                     = true;
     VkDeviceSize                              total_region_size_in_bytes = 0;
 
@@ -454,15 +701,20 @@ bool Anvil::MemoryAllocator::add_sparse_image_subresource(std::shared_ptr<Anvil:
     }
 
     /* Store a new block item descriptor */
-    m_items.push_back(Item(in_image_ptr,
-                           in_subresource,
-                           in_offset,
-                           in_extent,
-                           total_region_size_in_bytes,
-                           in_image_ptr->get_image_memory_types(),
-                           tile_size,
-                           in_required_memory_features,
-                           filtered_memory_types) );
+    new_item_ptr.reset(
+        new Item(shared_from_this(),
+                 in_image_ptr,
+                 in_subresource,
+                 in_offset,
+                 in_extent,
+                 total_region_size_in_bytes,
+                 in_image_ptr->get_image_memory_types(),
+                 tile_size,
+                 in_required_memory_features,
+                 filtered_memory_types)
+    );
+
+    m_items.push_back(new_item_ptr);
 
     m_per_object_pending_alloc_status[in_image_ptr.get()] = true;
 
@@ -478,6 +730,7 @@ bool Anvil::MemoryAllocator::bake()
     bool                                        result                      = false;
     Anvil::SparseMemoryBindInfoID               sparse_memory_bind_info_id  = UINT32_MAX;
     Anvil::Utils::SparseMemoryBindingUpdateInfo sparse_memory_binding;
+    std::shared_ptr<Anvil::MemoryAllocator>     this_ptr;
 
     if (!m_backend_ptr->supports_baking() )
     {
@@ -497,11 +750,11 @@ bool Anvil::MemoryAllocator::bake()
               item_iterator != m_items.end() && !needs_sparse_memory_binding;
             ++item_iterator)
     {
-        switch (item_iterator->type)
+        switch ((*item_iterator)->type)
         {
             case Anvil::MemoryAllocator::ITEM_TYPE_BUFFER:
             {
-                needs_sparse_memory_binding |= item_iterator->buffer_ptr->is_sparse(); 
+                needs_sparse_memory_binding |= (*item_iterator)->buffer_ptr->is_sparse(); 
 
                 break;
             }
@@ -510,7 +763,7 @@ bool Anvil::MemoryAllocator::bake()
             case Anvil::MemoryAllocator::ITEM_TYPE_SPARSE_IMAGE_MIPTAIL:
             case Anvil::MemoryAllocator::ITEM_TYPE_SPARSE_IMAGE_SUBRESOURCE:
             {
-                needs_sparse_memory_binding |= item_iterator->image_ptr->is_sparse();
+                needs_sparse_memory_binding |= (*item_iterator)->image_ptr->is_sparse();
 
                 break;
             }
@@ -544,26 +797,28 @@ bool Anvil::MemoryAllocator::bake()
               item_iterator != m_items.end();
             ++item_iterator)
     {
-        if (item_iterator->alloc_memory_block_ptr)
-        {
-            anvil_assert(item_iterator->is_baked);
+        auto item_ptr = *item_iterator;
 
-            switch (item_iterator->type)
+        if (item_ptr->alloc_memory_block_ptr)
+        {
+            anvil_assert(item_ptr->is_baked);
+
+            switch (item_ptr->type)
             {
                 case Anvil::MemoryAllocator::ITEM_TYPE_BUFFER:
                 {
-                    if (!item_iterator->buffer_ptr->is_sparse() )
+                    if (!item_ptr->buffer_ptr->is_sparse() )
                     {
-                        item_iterator->buffer_ptr->set_nonsparse_memory(item_iterator->alloc_memory_block_ptr);
+                        item_ptr->buffer_ptr->set_nonsparse_memory(item_ptr->alloc_memory_block_ptr);
                     }
                     else
                     {
                         sparse_memory_binding.append_buffer_memory_update(sparse_memory_bind_info_id,
-                                                                          item_iterator->buffer_ptr,
+                                                                          item_ptr->buffer_ptr,
                                                                           0, /* buffer_memory_start_offset */
-                                                                          item_iterator->alloc_memory_block_ptr,
+                                                                          item_ptr->alloc_memory_block_ptr,
                                                                           0, /* opt_memory_block_start_offset */
-                                                                          item_iterator->alloc_size);
+                                                                          item_ptr->alloc_size);
                     }
 
                     break;
@@ -571,18 +826,18 @@ bool Anvil::MemoryAllocator::bake()
 
                 case Anvil::MemoryAllocator::ITEM_TYPE_IMAGE_WHOLE:
                 {
-                    if (!item_iterator->image_ptr->is_sparse() )
+                    if (!item_ptr->image_ptr->is_sparse() )
                     {
-                        item_iterator->image_ptr->set_memory(item_iterator->alloc_memory_block_ptr);
+                        item_ptr->image_ptr->set_memory(item_ptr->alloc_memory_block_ptr);
                     }
                     else
                     {
                         sparse_memory_binding.append_opaque_image_memory_update(sparse_memory_bind_info_id,
-                                                                                item_iterator->image_ptr,
+                                                                                item_ptr->image_ptr,
                                                                                 0, /* resource_offset */
-                                                                                item_iterator->alloc_size,
+                                                                                item_ptr->alloc_size,
                                                                                 0, /* flags */
-                                                                                item_iterator->alloc_memory_block_ptr,
+                                                                                item_ptr->alloc_memory_block_ptr,
                                                                                 0); /* opt_memory_block_start_offset */
                     }
 
@@ -592,11 +847,11 @@ bool Anvil::MemoryAllocator::bake()
                 case Anvil::MemoryAllocator::ITEM_TYPE_SPARSE_IMAGE_MIPTAIL:
                 {
                     sparse_memory_binding.append_opaque_image_memory_update(sparse_memory_bind_info_id,
-                                                                            item_iterator->image_ptr,
-                                                                            item_iterator->miptail_offset,
-                                                                            item_iterator->alloc_size,
+                                                                            item_ptr->image_ptr,
+                                                                            item_ptr->miptail_offset,
+                                                                            item_ptr->alloc_size,
                                                                             0, /* flags */
-                                                                            item_iterator->alloc_memory_block_ptr,
+                                                                            item_ptr->alloc_memory_block_ptr,
                                                                             0); /* opt_memory_block_start_offset */
 
                     break;
@@ -605,12 +860,12 @@ bool Anvil::MemoryAllocator::bake()
                 case Anvil::MemoryAllocator::ITEM_TYPE_SPARSE_IMAGE_SUBRESOURCE:
                 {
                     sparse_memory_binding.append_image_memory_update(sparse_memory_bind_info_id,
-                                                                     item_iterator->image_ptr,
-                                                                     item_iterator->subresource,
-                                                                     item_iterator->offset,
-                                                                     item_iterator->extent,
+                                                                     item_ptr->image_ptr,
+                                                                     item_ptr->subresource,
+                                                                     item_ptr->offset,
+                                                                     item_ptr->extent,
                                                                      0, /* flags */
-                                                                     item_iterator->alloc_memory_block_ptr,
+                                                                     item_ptr->alloc_memory_block_ptr,
                                                                      0); /* opt_memory_block_start_offset */
 
                     break;
@@ -641,81 +896,90 @@ bool Anvil::MemoryAllocator::bake()
     }
 
     /* Perform post-alloc fill actions */
-    for (const auto& current_item : m_items)
+    for (const auto& current_item_ptr : m_items)
     {
         VkDeviceSize buffer_size   = 0;
 
-        if (current_item.type != Anvil::MemoryAllocator::ITEM_TYPE_BUFFER)
+        if (current_item_ptr->type != Anvil::MemoryAllocator::ITEM_TYPE_BUFFER)
         {
             continue;
         }
 
-        if (!current_item.is_baked)
+        if (!current_item_ptr->is_baked)
         {
             continue;
         }
 
-        buffer_size = current_item.buffer_ptr->get_size();
+        buffer_size = current_item_ptr->buffer_ptr->get_size();
 
-        if (current_item.buffer_ref_float_data_ptr != nullptr)
+        if (current_item_ptr->buffer_ref_float_data_ptr != nullptr)
         {
-            current_item.buffer_ptr->write(0, /* start_offset */
-                                           buffer_size,
-                                           current_item.buffer_ref_float_data_ptr.get() );
+            current_item_ptr->buffer_ptr->write(0, /* start_offset */
+                                                buffer_size,
+                                                current_item_ptr->buffer_ref_float_data_ptr.get() );
         }
         else
-        if (current_item.buffer_ref_float_vector_data_ptr != nullptr)
+        if (current_item_ptr->buffer_ref_float_vector_data_ptr != nullptr)
         {
-            current_item.buffer_ptr->write(0, /* start_offset */
-                                          buffer_size,
-                                         &(*current_item.buffer_ref_float_vector_data_ptr)[0]);
+            current_item_ptr->buffer_ptr->write(0, /* start_offset */
+                                               buffer_size,
+                                              &(*current_item_ptr->buffer_ref_float_vector_data_ptr)[0]);
         }
         else
-        if (current_item.buffer_ref_uchar8_data_ptr != nullptr)
+        if (current_item_ptr->buffer_ref_uchar8_data_ptr != nullptr)
         {
-            current_item.buffer_ptr->write(0, /* start_offset */
-                                           buffer_size,
-                                           current_item.buffer_ref_uchar8_data_ptr.get() );
+            current_item_ptr->buffer_ptr->write(0, /* start_offset */
+                                                buffer_size,
+                                                current_item_ptr->buffer_ref_uchar8_data_ptr.get() );
         }
         else
-        if (current_item.buffer_ref_uchar8_vector_data_ptr != nullptr)
+        if (current_item_ptr->buffer_ref_uchar8_vector_data_ptr != nullptr)
         {
-            current_item.buffer_ptr->write(0, /* start_offset */
-                                           buffer_size,
-                                          &(*current_item.buffer_ref_uchar8_vector_data_ptr)[0]);
+            current_item_ptr->buffer_ptr->write(0, /* start_offset */
+                                                buffer_size,
+                                               &(*current_item_ptr->buffer_ref_uchar8_vector_data_ptr)[0]);
         }
         else
-        if (current_item.buffer_ref_uint32_data_ptr != nullptr)
+        if (current_item_ptr->buffer_ref_uint32_data_ptr != nullptr)
         {
-            current_item.buffer_ptr->write(0, /* start_offset */
-                                           buffer_size,
-                                           current_item.buffer_ref_uint32_data_ptr.get() );
+            current_item_ptr->buffer_ptr->write(0, /* start_offset */
+                                                buffer_size,
+                                                current_item_ptr->buffer_ref_uint32_data_ptr.get() );
         }
         else
-        if (current_item.buffer_ref_uint32_vector_data_ptr != nullptr)
+        if (current_item_ptr->buffer_ref_uint32_vector_data_ptr != nullptr)
         {
-            current_item.buffer_ptr->write(0, /* start_offset */
-                                           buffer_size,
-                                          &(*current_item.buffer_ref_uint32_vector_data_ptr)[0]);
+            current_item_ptr->buffer_ptr->write(0, /* start_offset */
+                                                buffer_size,
+                                               &(*current_item_ptr->buffer_ref_uint32_vector_data_ptr)[0]);
         }
     }
+
+    /* If the user does not keep the memory allocator around and all items are assigned memory backing,
+     * the m_items.erase() call we do close to the end of this func may invoke destruction of this object.
+     * There's a post-alloc call-back that we still need to do after all items are traversed, so, in order
+     * to prevent the premature destruction of the allocator, cache a shared ptr to this instance, so that
+     * the allocator only goes out of scope when this function leaves.
+     */
+    this_ptr = shared_from_this();
 
     for (uint32_t n_item = 0;
                   n_item < m_items.size();
         )
     {
         auto item_iterator = m_items.begin() + n_item;
+        auto item_ptr      = *item_iterator;
 
-        if (item_iterator->is_baked)
+        if (item_ptr->is_baked)
         {
             decltype(m_per_object_pending_alloc_status)::iterator alloc_status_map_iterator;
 
-            switch (item_iterator->type)
+            switch (item_ptr->type)
             {
-                case ITEM_TYPE_BUFFER:                   alloc_status_map_iterator = m_per_object_pending_alloc_status.find(item_iterator->buffer_ptr.get() ); break;
+                case ITEM_TYPE_BUFFER:                   alloc_status_map_iterator = m_per_object_pending_alloc_status.find(item_ptr->buffer_ptr.get() ); break;
                 case ITEM_TYPE_IMAGE_WHOLE:              /* fall-through */
                 case ITEM_TYPE_SPARSE_IMAGE_MIPTAIL:     /* fall-through */
-                case ITEM_TYPE_SPARSE_IMAGE_SUBRESOURCE: alloc_status_map_iterator = m_per_object_pending_alloc_status.find(item_iterator->image_ptr.get() );  break;
+                case ITEM_TYPE_SPARSE_IMAGE_SUBRESOURCE: alloc_status_map_iterator = m_per_object_pending_alloc_status.find(item_ptr->image_ptr.get() );  break;
 
                 default:
                 {
@@ -830,6 +1094,20 @@ bool Anvil::MemoryAllocator::is_alloc_supported(uint32_t                  in_mem
 
 end:
     return result;
+}
+
+/* Please see header for specification */
+void Anvil::MemoryAllocator::on_is_alloc_pending_for_buffer_query(void* in_callback_arg,
+                                                                  void* in_user_arg)
+{
+    MemoryAllocator*                       allocator_ptr             = reinterpret_cast<MemoryAllocator*>                      (in_user_arg);
+    BufferCallbackIsAllocPendingQueryData* query_ptr                 = reinterpret_cast<BufferCallbackIsAllocPendingQueryData*>(in_callback_arg);
+    auto                                   alloc_status_map_iterator = allocator_ptr->m_per_object_pending_alloc_status.find   (query_ptr->buffer_ptr.get() );
+
+    if (alloc_status_map_iterator != allocator_ptr->m_per_object_pending_alloc_status.end() )
+    {
+        query_ptr->result = true;
+    }
 }
 
 /* Please see header for specification */

@@ -71,6 +71,7 @@ void Anvil::Semaphore::release_semaphore()
                            nullptr /* pAllocator */);
 
         m_semaphore = VK_NULL_HANDLE;
+        set_vk_handle(m_semaphore);
     }
 }
 
