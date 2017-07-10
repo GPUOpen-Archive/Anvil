@@ -50,9 +50,10 @@ namespace glslang {
 TParseContext::TParseContext(TSymbolTable& symbolTable, TIntermediate& interm, bool parsingBuiltins,
                              int version, EProfile profile, const SpvVersion& spvVersion, EShLanguage language,
                              TInfoSink& infoSink, bool forwardCompatible, EShMessages messages) :
-            TParseContextBase(symbolTable, interm, parsingBuiltins, version, profile, spvVersion, language, infoSink, forwardCompatible, messages),
-            contextPragma(true, false), loopNestingLevel(0), structNestingLevel(0), controlFlowNestingLevel(0), statementNestingLevel(0),
-            inMain(false), postMainReturn(false), currentFunctionType(nullptr), blockName(nullptr),
+            TParseContextBase(symbolTable, interm, parsingBuiltins, version, profile, spvVersion, language,
+                              infoSink, forwardCompatible, messages),
+            inMain(false),
+            blockName(nullptr),
             limits(resources.limits),
             atomicUintOffsets(nullptr), anyIndexLimits(false)
 {
@@ -912,7 +913,7 @@ TIntermAggregate* TParseContext::handleFunctionDefinition(const TSourceLoc& loc,
     loopNestingLevel = 0;
     statementNestingLevel = 0;
     controlFlowNestingLevel = 0;
-    postMainReturn = false;
+    postEntryPointReturn = false;
 
     return paramNodes;
 }
@@ -1193,7 +1194,7 @@ void TParseContext::checkLocation(const TSourceLoc& loc, TOperator op)
                 error(loc, "tessellation control barrier() cannot be placed within flow control", "", "");
             if (! inMain)
                 error(loc, "tessellation control barrier() must be in main()", "", "");
-            else if (postMainReturn)
+            else if (postEntryPointReturn)
                 error(loc, "tessellation control barrier() cannot be placed after a return from main()", "", "");
         }
         break;
@@ -1442,8 +1443,55 @@ void TParseContext::builtInOpCheck(const TSourceLoc& loc, const TFunction& fnCan
                 error(loc, "must be a compile-time constant:", feature, "component argument");
         }
 
+#ifdef AMD_EXTENSIONS
+        bool bias = false;
+        if (callNode.getOp() == EOpTextureGather)
+            bias = fnCandidate.getParamCount() > 3;
+        else if (callNode.getOp() == EOpTextureGatherOffset ||
+                 callNode.getOp() == EOpTextureGatherOffsets)
+            bias = fnCandidate.getParamCount() > 4;
+
+        if (bias) {
+            TString biasFeatureString = fnCandidate.getName() + "with bias argument";
+            const char* feature = biasFeatureString.c_str();
+            profileRequires(loc, ~EEsProfile, 450, nullptr, feature);
+            requireExtensions(loc, 1, &E_GL_AMD_texture_gather_bias_lod, feature);
+        }
+#endif
+
         break;
     }
+
+#ifdef AMD_EXTENSIONS
+    case EOpSparseTextureGather:
+    case EOpSparseTextureGatherOffset:
+    case EOpSparseTextureGatherOffsets:
+    {
+        bool bias = false;
+        if (callNode.getOp() == EOpSparseTextureGather)
+            bias = fnCandidate.getParamCount() > 4;
+        else if (callNode.getOp() == EOpSparseTextureGatherOffset ||
+                 callNode.getOp() == EOpSparseTextureGatherOffsets)
+            bias = fnCandidate.getParamCount() > 5;
+
+        if (bias) {
+            TString featureString = fnCandidate.getName() + "with bias argument";
+            const char* feature = featureString.c_str();
+            profileRequires(loc, ~EEsProfile, 450, nullptr, feature);
+            requireExtensions(loc, 1, &E_GL_AMD_texture_gather_bias_lod, feature);
+        }
+
+        break;
+    }
+
+    case EOpSparseTextureGatherLod:
+    case EOpSparseTextureGatherLodOffset:
+    case EOpSparseTextureGatherLodOffsets:
+    {
+        requireExtensions(loc, 1, &E_GL_ARB_sparse_texture2, fnCandidate.getName().c_str());
+        break;
+    }
+#endif
 
     case EOpTextureOffset:
     case EOpTextureFetchOffset:
@@ -2102,6 +2150,17 @@ bool TParseContext::constructorError(const TSourceLoc& loc, TIntermNode* node, T
     case EOpConstructDMat4x2:
     case EOpConstructDMat4x3:
     case EOpConstructDMat4x4:
+#ifdef AMD_EXTENSIONS
+    case EOpConstructF16Mat2x2:
+    case EOpConstructF16Mat2x3:
+    case EOpConstructF16Mat2x4:
+    case EOpConstructF16Mat3x2:
+    case EOpConstructF16Mat3x3:
+    case EOpConstructF16Mat3x4:
+    case EOpConstructF16Mat4x2:
+    case EOpConstructF16Mat4x3:
+    case EOpConstructF16Mat4x4:
+#endif
         constructingMatrix = true;
         break;
     default:
@@ -2162,6 +2221,10 @@ bool TParseContext::constructorError(const TSourceLoc& loc, TIntermNode* node, T
             case EOpConstructUint:
             case EOpConstructInt64:
             case EOpConstructUint64:
+#ifdef AMD_EXTENSIONS
+            case EOpConstructInt16:
+            case EOpConstructUint16:
+#endif
             case EOpConstructBool:
             case EOpConstructBVec2:
             case EOpConstructBVec3:
@@ -2178,6 +2241,14 @@ bool TParseContext::constructorError(const TSourceLoc& loc, TIntermNode* node, T
             case EOpConstructU64Vec2:
             case EOpConstructU64Vec3:
             case EOpConstructU64Vec4:
+#ifdef AMD_EXTENSIONS
+            case EOpConstructI16Vec2:
+            case EOpConstructI16Vec3:
+            case EOpConstructI16Vec4:
+            case EOpConstructU16Vec2:
+            case EOpConstructU16Vec3:
+            case EOpConstructU16Vec4:
+#endif
                 // This was the list of valid ones, if they aren't converting from float
                 // and aren't making an array.
                 makeSpecConst = ! floatArgument && ! type.isArray();
@@ -2470,6 +2541,9 @@ void TParseContext::globalQualifierTypeCheck(const TSourceLoc& loc, const TQuali
     }
 
     if (publicType.basicType == EbtInt   || publicType.basicType == EbtUint   ||
+#ifdef AMD_EXTENSIONS
+        publicType.basicType == EbtInt16 || publicType.basicType == EbtUint16 ||
+#endif
         publicType.basicType == EbtInt64 || publicType.basicType == EbtUint64 ||
         publicType.basicType == EbtDouble)
         profileRequires(loc, EEsProfile, 300, nullptr, "shader input/output");
@@ -2480,6 +2554,9 @@ void TParseContext::globalQualifierTypeCheck(const TSourceLoc& loc, const TQuali
     if (!qualifier.flat) {
 #endif
         if (publicType.basicType == EbtInt    || publicType.basicType == EbtUint   ||
+#ifdef AMD_EXTENSIONS
+            publicType.basicType == EbtInt16  || publicType.basicType == EbtUint16 ||
+#endif
             publicType.basicType == EbtInt64  || publicType.basicType == EbtUint64 ||
             publicType.basicType == EbtDouble ||
             (publicType.userDef && (publicType.userDef->containsBasicType(EbtInt)    ||
@@ -2900,7 +2977,7 @@ void TParseContext::structArrayCheck(const TSourceLoc& /*loc*/, const TType& typ
     }
 }
 
-void TParseContext::arrayUnsizedCheck(const TSourceLoc& loc, const TQualifier& qualifier, const TArraySizes* arraySizes, bool initializer, bool lastMember)
+void TParseContext::arraySizesCheck(const TSourceLoc& loc, const TQualifier& qualifier, const TArraySizes* arraySizes, bool initializer, bool lastMember)
 {
     assert(arraySizes);
 
@@ -2912,9 +2989,12 @@ void TParseContext::arrayUnsizedCheck(const TSourceLoc& loc, const TQualifier& q
     if (initializer)
         return;
 
-    // No environment lets any non-outer-dimension that's to be implicitly sized
+    // No environment allows any non-outer-dimension to be implicitly sized
     if (arraySizes->isInnerImplicit())
         error(loc, "only outermost dimension of an array of arrays can be implicitly sized", "[]", "");
+
+    if (arraySizes->isInnerSpecialization())
+        error(loc, "only outermost dimension of an array of arrays can be a specialization constant", "[]", "");
 
     // desktop always allows outer-dimension-unsized variable arrays,
     if (profile != EEsProfile)
@@ -4126,6 +4206,11 @@ void TParseContext::setLayoutQualifier(const TSourceLoc& loc, TPublicType& publi
         }
         return;
     }
+    if (id == "num_views") {
+        requireExtensions(loc, Num_OVR_multiview_EXTs, OVR_multiview_EXTs, "num_views");
+        publicType.shaderQualifiers.numViews = value;
+        return;
+    }
 
 #if NV_EXTENSIONS
     if (language == EShLangVertex ||
@@ -4202,6 +4287,10 @@ void TParseContext::setLayoutQualifier(const TSourceLoc& loc, TPublicType& publi
         if (id.compare(0, 11, "local_size_") == 0) {
             profileRequires(loc, EEsProfile, 310, 0, "gl_WorkGroupSize");
             profileRequires(loc, ~EEsProfile, 430, E_GL_ARB_compute_shader, "gl_WorkGroupSize");
+            if (id.size() == 12 && value == 0) {
+                error(loc, "must be at least 1", id.c_str(), "");
+                return;
+            }
             if (id == "local_size_x") {
                 publicType.shaderQualifiers.localSize[0] = value;
                 return;
@@ -4252,7 +4341,6 @@ void TParseContext::setLayoutQualifier(const TSourceLoc& loc, TPublicType& publi
 // This is also true for overriding layout-qualifier-names, where one
 // overrides the other (e.g., row_major vs. column_major); only the last
 // occurrence has any effect."
-//
 void TParseContext::mergeObjectLayoutQualifiers(TQualifier& dst, const TQualifier& src, bool inheritOnly)
 {
     if (src.hasMatrix())
@@ -4343,7 +4431,9 @@ void TParseContext::layoutObjectCheck(const TSourceLoc& loc, const TSymbol& symb
         switch (qualifier.storage) {
         case EvqVaryingIn:
         case EvqVaryingOut:
-            if (type.getBasicType() != EbtBlock || !(*type.getStruct())[0].type->getQualifier().hasLocation())
+            if (type.getBasicType() != EbtBlock || 
+                (!(*type.getStruct())[0].type->getQualifier().hasLocation() && 
+                  (*type.getStruct())[0].type->getQualifier().builtIn == EbvNone))
                 error(loc, "SPIR-V requires location for user input/output", "location", "");
             break;
         default:
@@ -4375,6 +4465,22 @@ void TParseContext::layoutObjectCheck(const TSourceLoc& loc, const TSymbol& symb
             // these were already filtered by layoutTypeCheck() (or its callees)
             break;
         }
+    }
+}
+
+// "For some blocks declared as arrays, the location can only be applied at the block level:
+// When a block is declared as an array where additional locations are needed for each member
+// for each block array element, it is a compile-time error to specify locations on the block
+// members.  That is, when locations would be under specified by applying them on block members,
+// they are not allowed on block members.  For arrayed interfaces (those generally having an
+// extra level of arrayness due to interface expansion), the outer array is stripped before
+// applying this rule."
+void TParseContext::layoutMemberLocationArrayCheck(const TSourceLoc& loc, bool memberWithLocation, TArraySizes* arraySizes)
+{
+    if (memberWithLocation && arraySizes != nullptr) {
+        if (arraySizes->getNumDims() > (currentBlockQualifier.isArrayedIo(language) ? 1 : 0))
+            error(loc, "cannot use in a block array where new locations are needed for each block element",
+                       "location", "");
     }
 }
 
@@ -4523,7 +4629,7 @@ void TParseContext::layoutTypeCheck(const TSourceLoc& loc, const TType& type)
             }
         }
     } else if (type.isImage() && ! qualifier.writeonly) {
-        const char *explanation = "image variables declared 'writeonly' without a format layout qualifier";
+        const char *explanation = "image variables not declared 'writeonly' and without a format layout qualifier";
         requireProfile(loc, ECoreProfile | ECompatibilityProfile, explanation);
         profileRequires(loc, ECoreProfile | ECompatibilityProfile, 0, E_GL_EXT_shader_image_load_formatted, explanation);
     }
@@ -4552,6 +4658,10 @@ void TParseContext::layoutTypeCheck(const TSourceLoc& loc, const TType& type)
         case EbtUint:
         case EbtInt64:
         case EbtUint64:
+#ifdef AMD_EXTENSIONS
+        case EbtInt16:
+        case EbtUint16:
+#endif
         case EbtBool:
         case EbtFloat:
         case EbtDouble:
@@ -4673,8 +4783,22 @@ void TParseContext::checkNoShaderLayouts(const TSourceLoc& loc, const TShaderQua
 
     if (shaderQualifiers.geometry != ElgNone)
         error(loc, message, TQualifier::getGeometryString(shaderQualifiers.geometry), "");
+    if (shaderQualifiers.spacing != EvsNone)
+        error(loc, message, TQualifier::getVertexSpacingString(shaderQualifiers.spacing), "");
+    if (shaderQualifiers.order != EvoNone)
+        error(loc, message, TQualifier::getVertexOrderString(shaderQualifiers.order), "");
+    if (shaderQualifiers.pointMode)
+        error(loc, message, "point_mode", "");
     if (shaderQualifiers.invocations != TQualifier::layoutNotSet)
         error(loc, message, "invocations", "");
+    if (shaderQualifiers.earlyFragmentTests)
+        error(loc, message, "early_fragment_tests", "");
+    for (int i = 0; i < 3; ++i) {
+        if (shaderQualifiers.localSize[i] > 1)
+            error(loc, message, "local_size", "");
+        if (shaderQualifiers.localSizeSpecId[i] != TQualifier::layoutNotSet)
+            error(loc, message, "local_size id", "");
+    }
     if (shaderQualifiers.vertices != TQualifier::layoutNotSet) {
         if (language == EShLangGeometry)
             error(loc, message, "max_vertices", "");
@@ -4683,15 +4807,10 @@ void TParseContext::checkNoShaderLayouts(const TSourceLoc& loc, const TShaderQua
         else
             assert(0);
     }
-    for (int i = 0; i < 3; ++i) {
-        if (shaderQualifiers.localSize[i] > 1)
-            error(loc, message, "local_size", "");
-        if (shaderQualifiers.localSizeSpecId[i] != TQualifier::layoutNotSet)
-            error(loc, message, "local_size id", "");
-    }
     if (shaderQualifiers.blendEquation)
         error(loc, message, "blend equation", "");
-    // TBD: correctness: are any of these missing?  pixelCenterInteger, originUpperLeft, spacing, order, pointmode, earlyfragment, depth
+    if (shaderQualifiers.numViews != TQualifier::layoutNotSet)
+        error(loc, message, "num_views", "");
 }
 
 // Correct and/or advance an object's offset layout qualifier.
@@ -4715,12 +4834,8 @@ void TParseContext::fixOffset(const TSourceLoc& loc, TSymbol& symbol)
                 if (symbol.getType().isExplicitlySizedArray())
                     numOffsets *= symbol.getType().getCumulativeArraySize();
                 else {
-                    // TODO: functionality: implicitly-sized atomic_uint arrays.
-                    // We don't know the full size until later.  This might
-                    // be a specification problem, will report to Khronos.  For the
-                    // cases that is not true, the rest of the checking would need
-                    // to be done at link time instead of compile time.
-                    warn(loc, "implicitly sized atomic_uint array treated as having one element for tracking the default offset", "atomic_uint", "");
+                    // "It is a compile-time error to declare an unsized array of atomic_uint."
+                    error(loc, "array must be explicitly sized", "atomic_uint", "");
                 }
             }
             int repeated = intermediate.addUsedOffsets(qualifier.layoutBinding, offset, numOffsets);
@@ -5006,7 +5121,7 @@ TIntermNode* TParseContext::declareVariable(const TSourceLoc& loc, TString& iden
         arrayDimMerge(type, arraySizes);
 
         // Check that implicit sizing is only where allowed.
-        arrayUnsizedCheck(loc, type.getQualifier(), &type.getArraySizes(), initializer != nullptr, false);
+        arraySizesCheck(loc, type.getQualifier(), &type.getArraySizes(), initializer != nullptr, false);
 
         if (! arrayQualifierError(loc, type.getQualifier()) && ! arrayError(loc, type))
             declareArray(loc, identifier, type, symbol);
@@ -5325,6 +5440,9 @@ TIntermTyped* TParseContext::convertInitializerList(const TSourceLoc& loc, const
 // Test for the correctness of the parameters passed to various constructor functions
 // and also convert them to the right data type, if allowed and required.
 //
+// 'node' is what to construct from.
+// 'type' is what type to construct.
+//
 // Returns nullptr for an error or the constructed node (aggregate or typed) for no error.
 //
 TIntermTyped* TParseContext::addConstructor(const TSourceLoc& loc, TIntermNode* node, const TType& type)
@@ -5502,6 +5620,22 @@ TIntermTyped* TParseContext::constructBuiltIn(const TType& type, TOperator op, T
         basicOp = EOpConstructUint64;
         break;
 
+#ifdef AMD_EXTENSIONS
+    case EOpConstructI16Vec2:
+    case EOpConstructI16Vec3:
+    case EOpConstructI16Vec4:
+    case EOpConstructInt16:
+        basicOp = EOpConstructInt16;
+        break;
+
+    case EOpConstructU16Vec2:
+    case EOpConstructU16Vec3:
+    case EOpConstructU16Vec4:
+    case EOpConstructUint16:
+        basicOp = EOpConstructUint16;
+        break;
+#endif
+
     case EOpConstructBVec2:
     case EOpConstructBVec3:
     case EOpConstructBVec4:
@@ -5558,7 +5692,7 @@ void TParseContext::declareBlock(const TSourceLoc& loc, TTypeList& typeList, con
     blockStageIoCheck(loc, currentBlockQualifier);
     blockQualifierCheck(loc, currentBlockQualifier, instanceName != nullptr);
     if (arraySizes) {
-        arrayUnsizedCheck(loc, currentBlockQualifier, arraySizes, false, false);
+        arraySizesCheck(loc, currentBlockQualifier, arraySizes, false, false);
         arrayDimCheck(loc, arraySizes, 0);
         if (arraySizes->getNumDims() > 1)
             requireProfile(loc, ~EEsProfile, "array-of-array of block");
@@ -5576,7 +5710,7 @@ void TParseContext::declareBlock(const TSourceLoc& loc, TTypeList& typeList, con
         if ((currentBlockQualifier.storage == EvqUniform || currentBlockQualifier.storage == EvqBuffer) && (memberQualifier.isInterpolation() || memberQualifier.isAuxiliary()))
             error(memberLoc, "member of uniform or buffer block cannot have an auxiliary or interpolation qualifier", memberType.getFieldName().c_str(), "");
         if (memberType.isArray())
-            arrayUnsizedCheck(memberLoc, currentBlockQualifier, &memberType.getArraySizes(), false, member == typeList.size() - 1);
+            arraySizesCheck(memberLoc, currentBlockQualifier, &memberType.getArraySizes(), false, member == typeList.size() - 1);
         if (memberQualifier.hasOffset()) {
             if (spvVersion.spv == 0) {
                 requireProfile(memberLoc, ~EEsProfile, "offset on block member");
@@ -5679,6 +5813,8 @@ void TParseContext::declareBlock(const TSourceLoc& loc, TTypeList& typeList, con
         mergeQualifiers(memberLoc, newMemberQualification, memberQualifier, false);
         memberQualifier = newMemberQualification;
     }
+
+    layoutMemberLocationArrayCheck(loc, memberWithLocation, arraySizes);
 
     // Process the members
     fixBlockLocations(loc, currentBlockQualifier, typeList, memberWithLocation, memberWithoutLocation);
@@ -5862,7 +5998,7 @@ void TParseContext::fixBlockLocations(const TSourceLoc& loc, TQualifier& qualifi
                     if (nextLocation >= (int)TQualifier::layoutLocationEnd)
                         error(memberLoc, "location is too large", "location", "");
                     memberQualifier.layoutLocation = nextLocation;
-                    memberQualifier.layoutComponent = 0;
+                    memberQualifier.layoutComponent = TQualifier::layoutComponentEnd;
                 }
                 nextLocation = memberQualifier.layoutLocation + intermediate.computeTypeLocationSize(*typeList[member].type);
             }

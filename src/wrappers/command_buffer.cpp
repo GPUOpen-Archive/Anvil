@@ -23,6 +23,7 @@
 #include "misc/callbacks.h"
 #include "misc/debug.h"
 #include "wrappers/buffer.h"
+#include "wrappers/buffer_view.h"
 #include "wrappers/command_buffer.h"
 #include "wrappers/command_pool.h"
 #include "wrappers/compute_pipeline_manager.h"
@@ -32,6 +33,7 @@
 #include "wrappers/framebuffer.h"
 #include "wrappers/graphics_pipeline_manager.h"
 #include "wrappers/image.h"
+#include "wrappers/image_view.h"
 #include "wrappers/instance.h"
 #include "wrappers/physical_device.h"
 #include "wrappers/pipeline_layout.h"
@@ -913,6 +915,358 @@ Anvil::CommandBufferBase::~CommandBufferBase()
     #endif
 }
 
+/** TODO */
+void Anvil::CommandBufferBase::cache_referenced_buffer(std::shared_ptr<Anvil::Buffer> in_buffer_ptr)
+{
+    auto buffer_iterator = std::find(m_referenced_buffers.begin(),
+                                     m_referenced_buffers.end(),
+                                     in_buffer_ptr);
+
+    if (buffer_iterator == m_referenced_buffers.end() )
+    {
+        /* Anvil's Memory Allocator defers memory allocation in time unless the user explicitly requested a bake operation.
+         *
+         * vkCmd*() commands may use memory backing which is bound to the object at command recording time. For implicit
+         * baking op to work correctly, we therefore need to ensure all scheduled allocs are handled BEFORE the vkCmd*()
+         * invocation is passed down to the driver.
+         */
+
+        /* NOTE: Buffer::get_memory_block() triggers implicit bake op if needed */
+        auto buffer_mem_block_ptr = in_buffer_ptr->get_memory_block(0);
+
+        ANVIL_REDUNDANT_VARIABLE(buffer_mem_block_ptr);
+
+        m_referenced_buffers.push_back(in_buffer_ptr);
+    }
+}
+
+/** TODO */
+void Anvil::CommandBufferBase::cache_referenced_descriptor_set(std::shared_ptr<Anvil::DescriptorSet> in_ds_ptr)
+{
+    decltype(m_referenced_descriptor_sets)::iterator ds_iterator;
+    const uint32_t                                   n_bindings = in_ds_ptr->get_n_bindings();
+
+    /* Extract any buffer / image instances from container objects and cache them separately.
+     * This is needed for implicit memory allocation bake support.
+     *
+     * Other object types need not be cached exclusively, as caching the descriptor set will automatically imply
+     * the objects owned by DS do not go out of scope.
+     */
+    for (uint32_t n_binding = 0;
+                  n_binding < n_bindings;
+                ++n_binding)
+    {
+        VkDescriptorType current_binding_type;
+        uint32_t         n_binding_array_items = 0;
+        
+        if (!in_ds_ptr->get_binding_array_size(n_binding,
+                                              &n_binding_array_items) )
+        {
+            /* This should never happen */
+            anvil_assert_fail();
+
+            continue;
+        }
+
+        if (n_binding_array_items > 0)
+        {
+            if (!in_ds_ptr->get_binding_descriptor_type(n_binding,
+                                                       &current_binding_type) )
+            {
+                /* This should never happen */
+                anvil_assert_fail();
+
+                continue;
+            }
+
+            for (uint32_t n_binding_array_item = 0;
+                          n_binding_array_item < n_binding_array_items;
+                        ++n_binding_array_item)
+            {
+                switch (current_binding_type)
+                {
+                    case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+                    {
+                        std::shared_ptr<Anvil::ImageView> image_view_ptr;
+
+                        if (!in_ds_ptr->get_combined_image_sampler_binding_properties(n_binding,
+                                                                                      n_binding_array_item,
+                                                                                      nullptr, /* out_opt_image_layout_ptr */
+                                                                                     &image_view_ptr,
+                                                                                      nullptr) ) /* out_opt_sampler_ptr */
+                        {
+                            /* This should never happen */
+                            anvil_assert_fail();
+
+                            continue;
+                        }
+
+                        cache_referenced_image(image_view_ptr->get_parent_image() );
+                        break;
+                    }
+
+                    case VK_DESCRIPTOR_TYPE_SAMPLER:
+                    {
+                        /* Don't care */
+                        break;
+                    }
+
+                    case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+                    {
+                        std::shared_ptr<Anvil::ImageView> image_view_ptr;
+
+                        if (!in_ds_ptr->get_input_attachment_binding_properties(n_binding,
+                                                                                n_binding_array_item,
+                                                                                nullptr, /* out_opt_image_layout_ptr */
+                                                                               &image_view_ptr) )
+                        {
+                            /* This should never happen */
+                            anvil_assert_fail();
+
+                            continue;
+                        }
+
+                        cache_referenced_image(image_view_ptr->get_parent_image() );
+                        break;
+                    }
+
+                    case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+                    {
+                        std::shared_ptr<Anvil::ImageView> image_view_ptr;
+
+                        if (!in_ds_ptr->get_sampled_image_binding_properties(n_binding,
+                                                                             n_binding_array_item,
+                                                                             nullptr, /* out_opt_image_layout_ptr */
+                                                                            &image_view_ptr) )
+                        {
+                            /* This should never happen */
+                            anvil_assert_fail();
+
+                            continue;
+                        }
+
+                        cache_referenced_image(image_view_ptr->get_parent_image() );
+                        break;
+                    }
+
+                    case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+                    {
+                        std::shared_ptr<Anvil::ImageView> image_view_ptr;
+
+                        if (!in_ds_ptr->get_storage_image_binding_properties(n_binding,
+                                                                             n_binding_array_item,
+                                                                             nullptr, /* out_opt_image_layout_ptr */
+                                                                            &image_view_ptr) )
+                        {
+                            /* This should never happen */
+                            anvil_assert_fail();
+
+                            continue;
+                        }
+
+                        cache_referenced_image(image_view_ptr->get_parent_image() );
+                        break;
+                    }
+
+                    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+                    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
+                    {
+                        std::shared_ptr<Anvil::Buffer> buffer_ptr;
+
+                        if (!in_ds_ptr->get_storage_buffer_binding_properties(n_binding,
+                                                                              n_binding_array_item,
+                                                                             &buffer_ptr,
+                                                                              nullptr,   /* out_opt_size_ptr         */
+                                                                              nullptr) ) /* out_opt_start_offset_ptr */
+                        {
+                            /* This should never happen */
+                            anvil_assert_fail();
+
+                            continue;
+                        }
+
+                        cache_referenced_buffer(buffer_ptr);
+                        break;
+                    }
+
+                    case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+                    {
+                        std::shared_ptr<Anvil::BufferView> buffer_view_ptr;
+
+                        if (!in_ds_ptr->get_storage_texel_buffer_binding_properties(n_binding,
+                                                                                    n_binding_array_item,
+                                                                                   &buffer_view_ptr) )
+                        {
+                            /* This should never happen */
+                            anvil_assert_fail();
+
+                            continue;
+                        }
+
+                        cache_referenced_buffer(buffer_view_ptr->get_parent_buffer() );
+                        break;
+                    }
+
+
+                    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+                    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+                    {
+                        std::shared_ptr<Anvil::Buffer> buffer_ptr;
+
+                        if (!in_ds_ptr->get_uniform_buffer_binding_properties(n_binding,
+                                                                              n_binding_array_item,
+                                                                             &buffer_ptr,
+                                                                              nullptr,   /* out_opt_size_ptr         */
+                                                                              nullptr) ) /* out_opt_start_offset_ptr */
+                        {
+                            /* This should never happen */
+                            anvil_assert_fail();
+
+                            continue;
+                        }
+
+                        cache_referenced_buffer(buffer_ptr);
+                        break;
+                    }
+
+                    case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+                    {
+                        std::shared_ptr<Anvil::BufferView> buffer_view_ptr;
+
+                        if (!in_ds_ptr->get_uniform_texel_buffer_binding_properties(n_binding,
+                                                                                    n_binding_array_item,
+                                                                                   &buffer_view_ptr) )
+                        {
+                            /* This should never happen */
+                            anvil_assert_fail();
+
+                            continue;
+                        }
+
+                        cache_referenced_buffer(buffer_view_ptr->get_parent_buffer() );
+                        break;
+                    }
+
+                    default:
+                    {
+                        anvil_assert_fail();
+                    }
+                }
+            }
+        }
+    }
+
+    ds_iterator = std::find(m_referenced_descriptor_sets.begin(),
+                            m_referenced_descriptor_sets.end(),
+                            in_ds_ptr);
+
+    if (ds_iterator == m_referenced_descriptor_sets.end() )
+    {
+        m_referenced_descriptor_sets.push_back(in_ds_ptr);
+    }
+}
+
+/** TODO */
+void Anvil::CommandBufferBase::cache_referenced_event(std::shared_ptr<Anvil::Event> in_event_ptr)
+{
+    auto event_iterator = std::find(m_referenced_events.begin(),
+                                    m_referenced_events.end(),
+                                    in_event_ptr);
+
+    if (event_iterator == m_referenced_events.end() )
+    {
+        m_referenced_events.push_back(in_event_ptr);
+    }
+}
+
+/** TODO */
+void Anvil::CommandBufferBase::cache_referenced_framebuffer(std::shared_ptr<Anvil::Framebuffer> in_fb_ptr)
+{
+    decltype(m_referenced_framebuffers)::iterator fb_iterator;
+    const auto                                    n_attachments = in_fb_ptr->get_n_attachments();
+
+    /* Extract image instances that the specified framebuffer points to. This is needed for
+     * implicit memory allocation bake support.
+     */
+    for (uint32_t n_attachment = 0;
+                  n_attachment < n_attachments;
+                ++n_attachment)
+    {
+        std::shared_ptr<Anvil::ImageView> image_view_ptr;
+
+        if (!in_fb_ptr->get_attachment_at_index(n_attachment,
+                                                &image_view_ptr) )
+        {
+            /* This should never happen */
+            anvil_assert_fail();
+
+            continue;
+        }
+
+        cache_referenced_image(image_view_ptr->get_parent_image() );
+    }
+
+    fb_iterator = std::find(m_referenced_framebuffers.begin(),
+                            m_referenced_framebuffers.end(),
+                            in_fb_ptr);
+
+    if (fb_iterator == m_referenced_framebuffers.end() )
+    {
+        m_referenced_framebuffers.push_back(in_fb_ptr);
+    }
+}
+
+/** TODO */
+void Anvil::CommandBufferBase::cache_referenced_image(std::shared_ptr<Anvil::Image> in_image_ptr)
+{
+    auto image_iterator = std::find(m_referenced_images.begin(),
+                                    m_referenced_images.end(),
+                                    in_image_ptr);
+
+    if (image_iterator == m_referenced_images.end() )
+    {
+        /* Anvil's Memory Allocator defers memory allocation in time unless the user explicitly requested a bake operation.
+         *
+         * vkCmd*() commands may use memory backing which is bound to the object at command recording time. For implicit
+         * baking op to work correctly, we therefore need to ensure all scheduled allocs are handled BEFORE the vkCmd*()
+         * invocation is passed down to the driver.
+         */
+
+        /* NOTE: Image::get_memory_block() triggers implicit bake op if needed */
+        auto image_mem_block_ptr = in_image_ptr->get_memory_block();
+
+        ANVIL_REDUNDANT_VARIABLE(image_mem_block_ptr);
+
+        m_referenced_images.push_back(in_image_ptr);
+    }
+}
+
+/** TODO */
+void Anvil::CommandBufferBase::cache_referenced_query_pool(std::shared_ptr<Anvil::QueryPool> in_query_pool_ptr)
+{
+    auto qp_iterator = std::find(m_referenced_query_pools.begin(),
+                                 m_referenced_query_pools.end(),
+                                 in_query_pool_ptr);
+
+    if (qp_iterator == m_referenced_query_pools.end() )
+    {
+        m_referenced_query_pools.push_back(in_query_pool_ptr);
+    }
+}
+
+/** TODO */
+void Anvil::CommandBufferBase::cache_referenced_renderpass(std::shared_ptr<Anvil::RenderPass> in_renderpass_ptr)
+{
+    auto rp_iterator = std::find(m_referenced_renderpasses.begin(),
+                                 m_referenced_renderpasses.end(),
+                                 in_renderpass_ptr);
+
+    if (rp_iterator == m_referenced_renderpasses.end() )
+    {
+        m_referenced_renderpasses.push_back(in_renderpass_ptr);
+    }
+}
+
 #ifdef STORE_COMMAND_BUFFER_COMMANDS
     /** Clears the command vector by releasing all command descriptors back to the heap memory. */
     void Anvil::CommandBufferBase::clear_commands()
@@ -920,6 +1274,18 @@ Anvil::CommandBufferBase::~CommandBufferBase()
         m_commands.clear();
     }
 #endif
+
+/** TODO */
+void Anvil::CommandBufferBase::clear_referenced_objects()
+{
+    m_referenced_buffers.clear        ();
+    m_referenced_descriptor_sets.clear();
+    m_referenced_events.clear         ();
+    m_referenced_framebuffers.clear   ();
+    m_referenced_images.clear         ();
+    m_referenced_query_pools.clear    ();
+    m_referenced_renderpasses.clear   ();
+}
 
 /* Please see header for specification */
 bool Anvil::CommandBufferBase::record_begin_query(std::shared_ptr<Anvil::QueryPool> in_query_pool_ptr,
@@ -946,6 +1312,8 @@ bool Anvil::CommandBufferBase::record_begin_query(std::shared_ptr<Anvil::QueryPo
         }
     }
     #endif
+
+    cache_referenced_query_pool(in_query_pool_ptr);
 
     vkCmdBeginQuery(m_command_buffer,
                     in_query_pool_ptr->get_query_pool(),
@@ -1001,6 +1369,13 @@ bool Anvil::CommandBufferBase::record_bind_descriptor_sets(VkPipelineBindPoint  
     }
     #endif
 
+    for (uint32_t n_ds = 0;
+                  n_ds < in_set_count;
+                ++n_ds)
+    {
+        cache_referenced_descriptor_set(in_descriptor_set_ptrs[n_ds]);
+    }
+
     vkCmdBindDescriptorSets(m_command_buffer,
                             in_pipeline_bind_point,
                             in_layout_ptr->get_pipeline_layout(),
@@ -1040,6 +1415,8 @@ bool Anvil::CommandBufferBase::record_bind_index_buffer(std::shared_ptr<Anvil::B
         }
     }
     #endif
+
+    cache_referenced_buffer(in_buffer_ptr);
 
     vkCmdBindIndexBuffer(m_command_buffer,
                          in_buffer_ptr->get_buffer(),
@@ -1126,6 +1503,8 @@ bool Anvil::CommandBufferBase::record_bind_vertex_buffers(uint32_t              
                 ++n_binding)
     {
         buffers[n_binding] = in_buffer_ptrs[n_binding]->get_buffer();
+
+        cache_referenced_buffer(in_buffer_ptrs[n_binding]);
     }
 
     vkCmdBindVertexBuffers(m_command_buffer,
@@ -1178,6 +1557,9 @@ bool Anvil::CommandBufferBase::record_blit_image(std::shared_ptr<Anvil::Image> i
         }
     }
     #endif
+
+    cache_referenced_image(in_src_image_ptr);
+    cache_referenced_image(in_dst_image_ptr);
 
     vkCmdBlitImage(m_command_buffer,
                    in_src_image_ptr->get_image(),
@@ -1274,6 +1656,8 @@ bool Anvil::CommandBufferBase::record_clear_color_image(std::shared_ptr<Anvil::I
     }
     #endif
 
+    cache_referenced_image(in_image_ptr);
+
     vkCmdClearColorImage(m_command_buffer,
                          in_image_ptr->get_image(),
                          in_image_layout,
@@ -1322,6 +1706,8 @@ bool Anvil::CommandBufferBase::record_clear_depth_stencil_image(std::shared_ptr<
     }
     #endif
 
+    cache_referenced_image(in_image_ptr);
+
     vkCmdClearDepthStencilImage(m_command_buffer,
                                 in_image_ptr->get_image(),
                                 in_image_layout,
@@ -1367,6 +1753,9 @@ bool Anvil::CommandBufferBase::record_copy_buffer(std::shared_ptr<Anvil::Buffer>
         }
     }
     #endif
+
+    cache_referenced_buffer(in_src_buffer_ptr);
+    cache_referenced_buffer(in_dst_buffer_ptr);
 
     vkCmdCopyBuffer(m_command_buffer,
                     in_src_buffer_ptr->get_buffer(),
@@ -1414,6 +1803,9 @@ bool Anvil::CommandBufferBase::record_copy_buffer_to_image(std::shared_ptr<Anvil
         }
     }
     #endif
+
+    cache_referenced_buffer(in_src_buffer_ptr);
+    cache_referenced_image (in_dst_image_ptr);
 
     vkCmdCopyBufferToImage(m_command_buffer,
                            in_src_buffer_ptr->get_buffer(),
@@ -1465,6 +1857,9 @@ bool Anvil::CommandBufferBase::record_copy_image(std::shared_ptr<Anvil::Image> i
     }
     #endif
 
+    cache_referenced_image(in_src_image_ptr);
+    cache_referenced_image(in_dst_image_ptr);
+
     vkCmdCopyImage(m_command_buffer,
                    in_src_image_ptr->get_image(),
                    in_src_image_layout,
@@ -1513,6 +1908,9 @@ bool Anvil::CommandBufferBase::record_copy_image_to_buffer(std::shared_ptr<Anvil
         }
     }
     #endif
+
+    cache_referenced_image (in_src_image_ptr);
+    cache_referenced_buffer(in_dst_buffer_ptr);
 
     vkCmdCopyImageToBuffer(m_command_buffer,
                            in_src_image_ptr->get_image(),
@@ -1565,6 +1963,9 @@ bool Anvil::CommandBufferBase::record_copy_query_pool_results(std::shared_ptr<An
         }
     }
     #endif
+
+    cache_referenced_query_pool(in_query_pool_ptr);
+    cache_referenced_buffer    (in_dst_buffer_ptr);
 
     vkCmdCopyQueryPoolResults(m_command_buffer,
                               in_query_pool_ptr->get_query_pool(),
@@ -1794,6 +2195,8 @@ bool Anvil::CommandBufferBase::record_dispatch_indirect(std::shared_ptr<Anvil::B
     }
     #endif
 
+    cache_referenced_buffer(in_buffer_ptr);
+
     vkCmdDispatchIndirect(m_command_buffer,
                           in_buffer_ptr->get_buffer(),
                           in_offset);
@@ -1930,6 +2333,8 @@ bool Anvil::CommandBufferBase::record_draw_indexed_indirect(std::shared_ptr<Anvi
     }
     #endif
 
+    cache_referenced_buffer(in_buffer_ptr);
+
     vkCmdDrawIndexedIndirect(m_command_buffer,
                              in_buffer_ptr->get_buffer(),
                              in_offset,
@@ -1986,6 +2391,9 @@ bool Anvil::CommandBufferBase::record_draw_indexed_indirect_count_AMD(std::share
 
     entrypoints = device_locked_ptr->get_extension_amd_draw_indirect_count_entrypoints();
     
+    cache_referenced_buffer(in_buffer_ptr);
+    cache_referenced_buffer(in_count_buffer_ptr);
+
     entrypoints.vkCmdDrawIndexedIndirectCountAMD(m_command_buffer,
                                                  in_buffer_ptr->get_buffer(),
                                                  in_offset,
@@ -2032,6 +2440,8 @@ bool Anvil::CommandBufferBase::record_draw_indirect(std::shared_ptr<Anvil::Buffe
         }
     }
     #endif
+
+    cache_referenced_buffer(in_buffer_ptr);
 
     vkCmdDrawIndirect(m_command_buffer,
                       in_buffer_ptr->get_buffer(),
@@ -2089,6 +2499,9 @@ bool Anvil::CommandBufferBase::record_draw_indirect_count_AMD(std::shared_ptr<An
 
     entrypoints = device_locked_ptr->get_extension_amd_draw_indirect_count_entrypoints();
 
+    cache_referenced_buffer(in_buffer_ptr);
+    cache_referenced_buffer(in_count_buffer_ptr);
+
     entrypoints.vkCmdDrawIndirectCountAMD(m_command_buffer,
                                           in_buffer_ptr->get_buffer(),
                                           in_offset,
@@ -2125,6 +2538,8 @@ bool Anvil::CommandBufferBase::record_end_query(std::shared_ptr<Anvil::QueryPool
         }
     }
     #endif
+
+    cache_referenced_query_pool(in_query_pool_ptr);
 
     vkCmdEndQuery(m_command_buffer,
                   in_query_pool_ptr->get_query_pool(),
@@ -2168,6 +2583,8 @@ bool Anvil::CommandBufferBase::record_fill_buffer(std::shared_ptr<Anvil::Buffer>
         }
     }
     #endif
+
+    cache_referenced_buffer(in_dst_buffer_ptr);
 
     vkCmdFillBuffer(m_command_buffer,
                     in_dst_buffer_ptr->get_buffer(),
@@ -2248,6 +2665,8 @@ bool Anvil::CommandBufferBase::record_pipeline_barrier(VkPipelineStageFlags     
                 ++n_buffer_barrier)
     {
         buffer_barriers_vk[n_buffer_barrier] = in_buffer_memory_barriers_ptr[n_buffer_barrier].get_barrier_vk();
+
+        cache_referenced_buffer(in_buffer_memory_barriers_ptr[n_buffer_barrier].buffer_ptr);
     }
 
     for (uint32_t n_image_barrier = 0;
@@ -2255,6 +2674,8 @@ bool Anvil::CommandBufferBase::record_pipeline_barrier(VkPipelineStageFlags     
                 ++n_image_barrier)
     {
         image_barriers_vk[n_image_barrier] = in_image_memory_barriers_ptr[n_image_barrier].get_barrier_vk();
+
+        cache_referenced_image(in_image_memory_barriers_ptr[n_image_barrier].image_ptr);
     }
 
     for (uint32_t n_memory_barrier = 0;
@@ -2352,6 +2773,8 @@ bool Anvil::CommandBufferBase::record_reset_event(std::shared_ptr<Anvil::Event> 
     }
     #endif
 
+    cache_referenced_event(in_event_ptr);
+
     vkCmdResetEvent(m_command_buffer,
                     in_event_ptr->get_event(),
                     in_stage_mask);
@@ -2392,6 +2815,8 @@ bool Anvil::CommandBufferBase::record_reset_query_pool(std::shared_ptr<Anvil::Qu
         }
     }
     #endif
+
+    cache_referenced_query_pool(in_query_pool_ptr);
 
     vkCmdResetQueryPool(m_command_buffer,
                         in_query_pool_ptr->get_query_pool(),
@@ -2440,6 +2865,9 @@ bool Anvil::CommandBufferBase::record_resolve_image(std::shared_ptr<Anvil::Image
         }
     }
     #endif
+
+    cache_referenced_image(in_src_image_ptr);
+    cache_referenced_image(in_dst_image_ptr);
 
     vkCmdResolveImage(m_command_buffer,
                       in_src_image_ptr->get_image(),
@@ -2582,6 +3010,8 @@ bool Anvil::CommandBufferBase::record_set_event(std::shared_ptr<Anvil::Event> in
         }
     }
     #endif
+
+    cache_referenced_event(in_event_ptr);
 
     vkCmdSetEvent(m_command_buffer,
                   in_event_ptr->get_event(),
@@ -2827,6 +3257,8 @@ bool Anvil::CommandBufferBase::record_update_buffer(std::shared_ptr<Anvil::Buffe
     }
     #endif
 
+    cache_referenced_buffer(in_dst_buffer_ptr);
+
     vkCmdUpdateBuffer(m_command_buffer,
                       in_dst_buffer_ptr->get_buffer(),
                       in_dst_offset,
@@ -2894,6 +3326,8 @@ bool Anvil::CommandBufferBase::record_wait_events(uint32_t                      
                 ++n_event)
     {
         events[n_event] = in_events[n_event]->get_event();
+
+        cache_referenced_event(in_events[n_event]);
     }
 
     for (uint32_t n_buffer_barrier = 0;
@@ -2901,6 +3335,8 @@ bool Anvil::CommandBufferBase::record_wait_events(uint32_t                      
                 ++n_buffer_barrier)
     {
         buffer_barriers_vk[n_buffer_barrier] = in_buffer_memory_barriers_ptr[n_buffer_barrier].get_barrier_vk();
+
+        cache_referenced_buffer(in_buffer_memory_barriers_ptr[n_buffer_barrier].buffer_ptr);
     }
 
     for (uint32_t n_image_barrier = 0;
@@ -2908,6 +3344,8 @@ bool Anvil::CommandBufferBase::record_wait_events(uint32_t                      
                 ++n_image_barrier)
     {
         image_barriers_vk[n_image_barrier] = in_image_memory_barriers_ptr[n_image_barrier].get_barrier_vk();
+
+        cache_referenced_image(in_image_memory_barriers_ptr[n_image_barrier].image_ptr);
     }
 
     for (uint32_t n_memory_barrier = 0;
@@ -2959,6 +3397,8 @@ bool Anvil::CommandBufferBase::record_write_timestamp(VkPipelineStageFlagBits   
         }
     }
     #endif
+
+    cache_referenced_query_pool(in_query_pool_ptr);
 
     vkCmdWriteTimestamp(m_command_buffer,
                         in_pipeline_stage,
@@ -3115,6 +3555,9 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass(uint32_t             
     render_pass_begin_info.renderArea      = in_render_area;
     render_pass_begin_info.renderPass      = in_render_pass_ptr->get_render_pass();
     render_pass_begin_info.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+
+    cache_referenced_framebuffer(in_fbo_ptr);
+    cache_referenced_renderpass (in_render_pass_ptr);
 
     vkCmdBeginRenderPass(m_command_buffer,
                         &render_pass_begin_info,
@@ -3281,6 +3724,8 @@ bool Anvil::PrimaryCommandBuffer::start_recording(bool in_one_time_submit,
     }
     #endif
 
+    clear_referenced_objects();
+
     m_recording_in_progress = true;
     result                  = true;
 
@@ -3354,6 +3799,16 @@ bool Anvil::SecondaryCommandBuffer::start_recording(bool                        
     command_buffer_begin_info.pNext            = nullptr;
     command_buffer_begin_info.sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
+    if (in_framebuffer_ptr != nullptr)
+    {
+        cache_referenced_framebuffer(in_framebuffer_ptr);
+    }
+
+    if (in_render_pass_ptr != nullptr)
+    {
+        cache_referenced_renderpass(in_render_pass_ptr);
+    }
+
     result_vk = vkBeginCommandBuffer(m_command_buffer,
                                     &command_buffer_begin_info);
 
@@ -3370,6 +3825,8 @@ bool Anvil::SecondaryCommandBuffer::start_recording(bool                        
         clear_commands();
     }
     #endif
+
+    clear_referenced_objects();
 
     m_is_renderpass_active = in_renderpass_usage_only;
     m_recording_in_progress = true;

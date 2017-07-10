@@ -821,7 +821,7 @@ void App::init_dsgs()
                                                                                                   sizeof(float) * 4 * N_VERTICES_PER_SINE * 2) );
     m_producer_dsg_ptr->set_binding_item(1, /* n_set         */
                                          0, /* binding_index */
-                                         m_sine_props_data_buffer_ptr);
+                                         Anvil::DescriptorSet::UniformBufferBindingElement(m_sine_props_data_buffer_ptr) );
 
     /* Set up the descriptor set layout for the renderer program.  */
     m_consumer_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr,

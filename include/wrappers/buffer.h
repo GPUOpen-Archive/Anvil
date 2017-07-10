@@ -40,9 +40,37 @@
 
 namespace Anvil
 {
+    typedef struct BufferCallbackIsAllocPendingQueryData
+    {
+        explicit BufferCallbackIsAllocPendingQueryData(std::shared_ptr<Anvil::Buffer> in_buffer_ptr)
+            :buffer_ptr(in_buffer_ptr),
+             result    (false)
+        {
+            /* Stub */
+        }
+
+        BufferCallbackIsAllocPendingQueryData& operator=(const BufferCallbackIsAllocPendingQueryData&) = delete;
+
+        const std::shared_ptr<const Anvil::Buffer> buffer_ptr;
+        bool                                       result;
+    } BufferCallbackIsAllocPendingQueryData;
+
     /* Enumerates available buffer call-back types.*/
     enum BufferCallbackID
     {
+        /* Call-back issued by sparse buffer instances whenever the buffer needs to check if
+         * there are any pending alloc operations for this instance. Any recipient should set
+         * callback_arg::result to true in case a bake operation *would* assign new pages to
+         * the buffer instance. If no allocs are scheduled, the bool value MUST be left
+         * untouched.
+         *
+         * This call-back is needed for memory allocator to support implicit bake operations
+         * for sparse images.
+         *
+         * callback_arg: BufferCallbackIsAllocPendingQueryData*
+         **/
+        BUFFER_CALLBACK_ID_IS_ALLOC_PENDING,
+
         /* Call-back issued when no memory block is assigned to the buffer wrapper instance and
          * someone has just requested it.
          *

@@ -194,7 +194,7 @@ bool Anvil::PageTracker::set_binding(std::shared_ptr<MemoryBlock> in_memory_bloc
         }
     }
 
-    anvil_assert(m_n_pages_with_memory_backing < m_n_total_pages);
+    anvil_assert(m_n_pages_with_memory_backing <= m_n_total_pages);
     result = true;
 end:
     return result;

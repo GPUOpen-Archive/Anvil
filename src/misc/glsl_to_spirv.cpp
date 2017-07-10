@@ -509,6 +509,8 @@ end:
         if (new_program_ptr != nullptr &&
             new_shader_ptr  != nullptr)
         {
+            bool link_result = false;
+
             /* Try to compile the shader */
             new_shader_ptr->setStrings(&in_body,
                                        1);
@@ -518,11 +520,14 @@ end:
                                            false, /* forwardCompatible */
                                            (EShMessages) (EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules) );
 
+            m_shader_info_log = new_shader_ptr->getInfoLog();
+
             if (!result)
             {
                 /* Shader compilation failed.. */
                 fprintf(stderr,
-                        "Shader compilation failed.");
+                        "Shader compilation failed. Error log is:\n>>>\n%s\n<<<",
+                        m_shader_info_log.c_str() );
 
                 goto end;
             }
@@ -530,11 +535,15 @@ end:
             /* Link the program */
             new_program_ptr->addShader(new_shader_ptr);
 
-            if (!new_program_ptr->link(EShMsgDefault) )
+            link_result        = new_program_ptr->link      (EShMsgDefault);
+            m_program_info_log = new_program_ptr->getInfoLog();
+
+            if (!link_result)
             {
                 /* Linking operation failed */
                 fprintf(stderr,
-                        "Program linking failed.");
+                        "Program linking failed. Error log is:\n>>>\n%s\n<<<",
+                        m_program_info_log.c_str() );
 
                 goto end;
             }

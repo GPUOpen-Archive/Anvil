@@ -64,13 +64,16 @@ namespace Anvil
                                  VkDeviceSize                   in_size);
 
             /** Destructor. Releases the encapsulated buffer instance */
-            ~BufferBindingElement();
+            virtual ~BufferBindingElement();
 
             /** Copy assignment operator.
              *
              *  Retains the buffer object embedded in @param in.
              **/
             BufferBindingElement(const BufferBindingElement& in);
+
+            /* Returns Vulkan descriptor type for this structure */
+            virtual VkDescriptorType get_type() const = 0;
 
         private:
             BufferBindingElement& operator=(const BufferBindingElement& in);
@@ -79,22 +82,118 @@ namespace Anvil
         /** Holds a single buffer instance. Can be used to bind the object to a descriptor set slot
          *  as a dynamic storage buffer.
          **/
-        typedef BufferBindingElement DynamicStorageBufferBindingElement;
+        struct DynamicStorageBufferBindingElement : public BufferBindingElement
+        {
+            DynamicStorageBufferBindingElement() = delete;
+
+            DynamicStorageBufferBindingElement(std::shared_ptr<Anvil::Buffer> in_buffer_ptr)
+                : BufferBindingElement(in_buffer_ptr)
+            {
+                /* Stub */
+            }
+
+            DynamicStorageBufferBindingElement(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                               VkDeviceSize                   in_start_offset,
+                                               VkDeviceSize                   in_size)
+                : BufferBindingElement(in_buffer_ptr,
+                                       in_start_offset,
+                                       in_size)
+            {
+                /* Stub */
+            }
+
+            VkDescriptorType get_type() const
+            {
+                return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+            }
+        };
 
         /** Holds a single buffer instance. Can be used to bind the object to a descriptor set slot
          *  as a dynamic uniform buffer.
          **/
-        typedef BufferBindingElement DynamicUniformBufferBindingElement;
+        struct DynamicUniformBufferBindingElement : public BufferBindingElement
+        {
+            DynamicUniformBufferBindingElement() = delete;
+
+            DynamicUniformBufferBindingElement(std::shared_ptr<Anvil::Buffer> in_buffer_ptr)
+                : BufferBindingElement(in_buffer_ptr)
+            {
+                /* Stub */
+            }
+
+            DynamicUniformBufferBindingElement(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                               VkDeviceSize                   in_start_offset,
+                                               VkDeviceSize                   in_size)
+                : BufferBindingElement(in_buffer_ptr,
+                                       in_start_offset,
+                                       in_size)
+            {
+                /* Stub */
+            }
+
+            VkDescriptorType get_type() const
+            {
+                return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+            }
+        };
 
         /** Holds a single buffer instance. Can be used to bind the object to a descriptor set slot
          *  as a storage buffer.
          **/
-        typedef BufferBindingElement StorageBufferBindingElement;
+        struct StorageBufferBindingElement : public BufferBindingElement
+        {
+            StorageBufferBindingElement() = delete;
+
+            StorageBufferBindingElement(std::shared_ptr<Anvil::Buffer> in_buffer_ptr)
+                :BufferBindingElement(in_buffer_ptr)
+            {
+                /* Stub */
+            }
+
+            StorageBufferBindingElement(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                        VkDeviceSize                   in_start_offset,
+                                        VkDeviceSize                   in_size)
+                :BufferBindingElement(in_buffer_ptr,
+                                      in_start_offset,
+                                      in_size)
+            {
+                /* Stub */
+            }
+
+            VkDescriptorType get_type() const
+            {
+                return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            }
+        };
 
         /** Holds a single buffer instance. Can be used to bind the object to a descriptor set slot
          *  as a uniform buffer.
          **/
-        typedef BufferBindingElement UniformBufferBindingElement;
+        struct UniformBufferBindingElement : BufferBindingElement
+        {
+            UniformBufferBindingElement() = delete;
+
+            UniformBufferBindingElement(std::shared_ptr<Anvil::Buffer> in_buffer_ptr)
+                :BufferBindingElement(in_buffer_ptr)
+            {
+                /* Stub */
+            }
+
+            UniformBufferBindingElement(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                        VkDeviceSize                   in_start_offset,
+                                        VkDeviceSize                   in_size)
+                :BufferBindingElement(in_buffer_ptr,
+                                      in_start_offset,
+                                      in_size)
+            {
+                /* Stub */
+            }
+
+            VkDescriptorType get_type() const
+            {
+                return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            }
+        };
 
         /** Holds a single combined image+sampler pair, along with other metadata required to bind the two
          *  to a specific descriptor set slot as a combined image+sampler
@@ -129,6 +228,12 @@ namespace Anvil
              **/
             CombinedImageSamplerBindingElement(const CombinedImageSamplerBindingElement& in);
 
+            /* Returns Vulkan descriptor type for this structure */
+            VkDescriptorType get_type() const
+            {
+                return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            }
+
         private:
             CombinedImageSamplerBindingElement& operator=(const CombinedImageSamplerBindingElement&);
         } CombinedImageSamplerBindingElement;
@@ -147,17 +252,20 @@ namespace Anvil
             ImageBindingElement(VkImageLayout                     in_image_layout,
                                 std::shared_ptr<Anvil::ImageView> in_image_view_ptr);
 
+            /** Copy assignment operator.
+             *
+             *  Retains the image view embedded in @param in.
+             **/
+            ImageBindingElement(const ImageBindingElement& in);
+
             /** Destructor.
              *
              *  Releases the embedded image view instance.
              **/
             ~ImageBindingElement();
 
-            /** Copy assignment operator.
-             *
-             *  Retains the image view embedded in @param in.
-             **/
-            ImageBindingElement(const ImageBindingElement& in);
+            /* Returns Vulkan descriptor type for this structure */
+            virtual VkDescriptorType get_type() const = 0;
 
         private:
             ImageBindingElement& operator=(const ImageBindingElement&);
@@ -166,17 +274,65 @@ namespace Anvil
         /** Holds a single image view, along with other metadata required to bound it to a specific
          *  descriptor set slot as an input attachment
          **/
-        typedef ImageBindingElement InputAttachmentBindingElement;
+        struct InputAttachmentBindingElement : public ImageBindingElement
+        {
+            InputAttachmentBindingElement() = delete;
+
+            InputAttachmentBindingElement(VkImageLayout                     in_image_layout,
+                                          std::shared_ptr<Anvil::ImageView> in_image_view_ptr)
+                :ImageBindingElement(in_image_layout,
+                                     in_image_view_ptr)
+            {
+                /* Stub */
+            }
+
+            VkDescriptorType get_type() const
+            {
+                return VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+            }
+        };
 
         /** Holds a single image view, along with other metadata required to bound it to a specific
          *  descriptor set slot as a sampled image.
          **/
-        typedef ImageBindingElement SampledImageBindingElement;
+        struct SampledImageBindingElement : ImageBindingElement
+        {
+            SampledImageBindingElement() = delete;
+
+            SampledImageBindingElement(VkImageLayout                     in_image_layout,
+                                       std::shared_ptr<Anvil::ImageView> in_image_view_ptr)
+                :ImageBindingElement(in_image_layout,
+                                     in_image_view_ptr)
+            {
+                /* Stub */
+            }
+
+            VkDescriptorType get_type() const
+            {
+                return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            }
+        };
 
         /** Holds a single image view, along with other metadata required to bound it to a specific
          *  descriptor set slot as a storage image.
          **/
-        typedef ImageBindingElement StorageImageBindingElement;
+        struct StorageImageBindingElement : public ImageBindingElement
+        {
+            StorageImageBindingElement() = delete;
+
+            StorageImageBindingElement(VkImageLayout                     in_image_layout,
+                                       std::shared_ptr<Anvil::ImageView> in_image_view_ptr)
+                :ImageBindingElement(in_image_layout,
+                                     in_image_view_ptr)
+            {
+                /* Stub */
+            }
+
+            VkDescriptorType get_type() const
+            {
+                return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            }
+        };
 
         /** Holds a single sampler. Can be used to bind a sampler to a descriptor set slot **/
         typedef struct SamplerBindingElement
@@ -202,6 +358,12 @@ namespace Anvil
              *  Retains the sampler embedded in @param in.
              **/
             SamplerBindingElement(const SamplerBindingElement& in);
+
+            /* Returns Vulkan descriptor type for this structure */
+            VkDescriptorType get_type() const
+            {
+                return VK_DESCRIPTOR_TYPE_SAMPLER;
+            }
 
         private:
             SamplerBindingElement& operator=(const SamplerBindingElement&);
@@ -231,6 +393,9 @@ namespace Anvil
              **/
             TexelBufferBindingElement(const TexelBufferBindingElement& in);
 
+            /* Returns Vulkan descriptor type for this structure */
+            virtual VkDescriptorType get_type() const = 0;
+
         private:
             TexelBufferBindingElement& operator=(const TexelBufferBindingElement&);
         } TexelBufferBindingElement;
@@ -238,12 +403,40 @@ namespace Anvil
         /** Holds a single buffer view instance. Can be used to bind a sampler to a descriptor set slot
          *  as a storage texel buffer.
          **/
-        typedef TexelBufferBindingElement StorageTexelBufferBindingElement;
+        struct StorageTexelBufferBindingElement : public TexelBufferBindingElement
+        {
+            StorageTexelBufferBindingElement() = delete;
+
+            StorageTexelBufferBindingElement(std::shared_ptr<Anvil::BufferView> in_buffer_view_ptr)
+                : TexelBufferBindingElement(in_buffer_view_ptr)
+            {
+                /* Stub */
+            }
+
+            VkDescriptorType get_type() const
+            {
+                return VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
+            }
+        };
 
         /** Holds a single buffer view instance. Can be used to bind a sampler to a descriptor set slot
          *  as a uniform texel buffer.
          **/
-        typedef TexelBufferBindingElement UniformTexelBufferBindingElement;
+        struct UniformTexelBufferBindingElement : public TexelBufferBindingElement
+        {
+            UniformTexelBufferBindingElement() = delete;
+
+            UniformTexelBufferBindingElement(std::shared_ptr<Anvil::BufferView> in_buffer_view_ptr)
+                : TexelBufferBindingElement(in_buffer_view_ptr)
+            {
+                /* Stub */
+            }
+
+            VkDescriptorType get_type() const
+            {
+                return VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+            }
+        };
 
 
         /* Public functions */
@@ -273,6 +466,24 @@ namespace Anvil
                                                      std::shared_ptr<Anvil::DescriptorSetLayout> in_layout_ptr,
                                                      VkDescriptorSet                             in_descriptor_set);
 
+        /** Tells how many array items have been declared for a binding at a given index
+         *
+         *  TODO
+         **/
+        bool get_binding_array_size(uint32_t  in_n_binding,
+                                    uint32_t* out_result_ptr) const;
+
+        /** TODO */
+        bool get_binding_descriptor_type(uint32_t                        in_n_binding,
+                                         VkDescriptorType* out_descriptor_type_ptr) const;
+
+        /** TODO */
+        bool get_combined_image_sampler_binding_properties(uint32_t                           in_n_binding,
+                                                           uint32_t                           in_n_binding_array_item,
+                                                           VkImageLayout*                     out_opt_image_layout_ptr,
+                                                           std::shared_ptr<Anvil::ImageView>* out_opt_image_view_ptr,
+                                                           std::shared_ptr<Anvil::Sampler>*   out_opt_sampler_ptr);
+
         /** Retrieves raw Vulkan handle of the encapsulated descriptor set.
          *
          *  If the wrapper instance is marked as dirty, the function will bake the descriptor set,
@@ -298,10 +509,85 @@ namespace Anvil
             return m_layout_ptr;
         }
 
+        /** TODO */
+        bool get_input_attachment_binding_properties(uint32_t                           in_n_binding,
+                                                     uint32_t                           in_n_binding_array_item,
+                                                     VkImageLayout*                     out_opt_image_layout_ptr,
+                                                     std::shared_ptr<Anvil::ImageView>* out_opt_image_view_ptr) const;
+
         /** Returns information about the number of bindings described by the descriptor set. */
         uint32_t get_n_bindings() const
         {
             return static_cast<uint32_t>(m_bindings.size() );
+        }
+
+        /** TODO */
+        bool get_sampled_image_binding_properties(uint32_t                           in_n_binding,
+                                                  uint32_t                           in_n_binding_array_item,
+                                                  VkImageLayout*                     out_opt_image_layout_ptr,
+                                                  std::shared_ptr<Anvil::ImageView>* out_opt_image_view_ptr) const
+        {
+            /* Re-use existing code */
+            return get_input_attachment_binding_properties(in_n_binding,
+                                                           in_n_binding_array_item,
+                                                           out_opt_image_layout_ptr,
+                                                           out_opt_image_view_ptr);
+        }
+
+        /** TODO */
+        bool get_sampler_binding_properties(uint32_t                         in_n_binding,
+                                            uint32_t                         in_n_binding_array_item,
+                                            std::shared_ptr<Anvil::Sampler>* out_sampler_ptr) const;
+
+        /** TODO */
+        bool get_storage_buffer_binding_properties(uint32_t                        in_n_binding,
+                                                   uint32_t                        in_n_binding_array_item,
+                                                   std::shared_ptr<Anvil::Buffer>* out_opt_buffer_ptr,
+                                                   VkDeviceSize*                   out_opt_size_ptr,
+                                                   VkDeviceSize*                   out_opt_start_offset_ptr) const;
+
+        /** TODO */
+        bool get_storage_image_binding_properties(uint32_t                           in_n_binding,
+                                                  uint32_t                           in_n_binding_array_item,
+                                                  VkImageLayout*                     out_opt_image_layout_ptr,
+                                                  std::shared_ptr<Anvil::ImageView>* out_opt_image_view_ptr) const
+        {
+            /* Re-use existing code */
+            return get_input_attachment_binding_properties(in_n_binding,
+                                                           in_n_binding_array_item,
+                                                           out_opt_image_layout_ptr,
+                                                           out_opt_image_view_ptr);
+        }
+
+        /** TODO */
+        bool get_storage_texel_buffer_binding_properties(uint32_t                            in_n_binding,
+                                                         uint32_t                            in_n_binding_array_item,
+                                                         std::shared_ptr<Anvil::BufferView>* out_opt_buffer_view_ptr) const;
+
+        /** TODO */
+        bool get_uniform_buffer_binding_properties(uint32_t                        in_n_binding,
+                                                   uint32_t                        in_n_binding_array_item,
+                                                   std::shared_ptr<Anvil::Buffer>* out_opt_buffer_ptr,
+                                                   VkDeviceSize*                   out_opt_size_ptr,
+                                                   VkDeviceSize*                   out_opt_start_offset_ptr) const
+        {
+            /* Re-use existing code */
+            return get_storage_buffer_binding_properties(in_n_binding,
+                                                         in_n_binding_array_item,
+                                                         out_opt_buffer_ptr,
+                                                         out_opt_size_ptr,
+                                                         out_opt_start_offset_ptr);
+        }
+
+        /** TODO */
+        bool get_uniform_texel_buffer_binding_properties(uint32_t                            in_n_binding,
+                                                         uint32_t                            in_n_binding_array_item,
+                                                         std::shared_ptr<Anvil::BufferView>* out_opt_buffer_view_ptr) const
+        {
+            /* Re-use existing code */
+            return get_storage_texel_buffer_binding_properties(in_n_binding,
+                                                               in_n_binding_array_item,
+                                                               out_opt_buffer_view_ptr);
         }
 
         /** This function should be set to assign physical Vulkan objects to a descriptor binding
@@ -398,6 +684,7 @@ namespace Anvil
             std::shared_ptr<Anvil::Sampler>    sampler_ptr;
             VkDeviceSize                       size;
             VkDeviceSize                       start_offset;
+            VkDescriptorType                   type_vk;
 
             bool dirty;
 

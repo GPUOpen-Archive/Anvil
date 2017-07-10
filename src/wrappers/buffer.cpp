@@ -432,22 +432,39 @@ VkBuffer Anvil::Buffer::get_buffer()
 /* Please see header for specification */
 std::shared_ptr<Anvil::MemoryBlock> Anvil::Buffer::get_memory_block(uint32_t in_n_memory_block)
 {
+    bool is_callback_needed = false;
+
+    if (m_is_sparse)
+    {
+        BufferCallbackIsAllocPendingQueryData callback_arg(shared_from_this() );
+
+        callback(BUFFER_CALLBACK_ID_IS_ALLOC_PENDING,
+                &callback_arg);
+
+        is_callback_needed = callback_arg.result;
+    }
+    else
+    {
+        is_callback_needed = (m_memory_block_ptr == nullptr);
+    }
+
+    if (is_callback_needed)
+    {
+        anvil_assert(m_parent_buffer_ptr == nullptr);
+
+        callback_safe(BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
+                      nullptr);
+    }
+
     if (m_is_sparse)
     {
         return m_page_tracker_ptr->get_memory_block(in_n_memory_block);
     }
     else
     {
-        if (m_memory_block_ptr == nullptr)
-        {
-            anvil_assert(m_parent_buffer_ptr == nullptr);
-
-            callback(BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
-                     nullptr);
-        }
-
         return m_memory_block_ptr;
     }
+
 }
 
 /* Please see header for specification */
@@ -647,18 +664,11 @@ bool Anvil::Buffer::write(VkDeviceSize in_start_offset,
     bool                        result                (false);
 
     /** TODO: Support for sparse-resident buffers whose n_memory_blocks > 1 */
-    std::shared_ptr<Anvil::MemoryBlock> memory_block_ptr;
+    std::shared_ptr<Anvil::MemoryBlock> memory_block_ptr(get_memory_block(0) );
 
-    anvil_assert(!m_is_sparse                                                   ||
-                  m_is_sparse && m_page_tracker_ptr->get_n_memory_blocks() == 1);
-
-    if (!m_is_sparse)
+    if (m_is_sparse)
     {
-        memory_block_ptr = get_memory_block(0 /* in_n_memory_block */);
-    }
-    else
-    {
-        memory_block_ptr = m_page_tracker_ptr->get_memory_block(0);
+        anvil_assert(m_page_tracker_ptr->get_n_memory_blocks() == 1);
     }
 
     anvil_assert(memory_block_ptr             != nullptr);

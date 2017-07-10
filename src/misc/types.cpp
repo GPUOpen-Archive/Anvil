@@ -70,6 +70,12 @@ Anvil::BufferBarrier::BufferBarrier(VkAccessFlags                  in_source_acc
     buffer_barrier_vk.srcAccessMask       = in_source_access_mask,
     buffer_barrier_vk.srcQueueFamilyIndex = in_src_queue_family_index;
     buffer_barrier_vk.sType               = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+
+    /* NOTE: For an image barrier to work correctly, the underlying subresource range must be assigned memory.
+     *       Query for a memory block in order to force any listening memory allocators to bake */
+    auto memory_block_ptr = buffer_ptr->get_memory_block(0 /* in_n_memory_block */);
+
+    ANVIL_REDUNDANT_VARIABLE(memory_block_ptr);
 }
 
 /** Please see header for specification */
@@ -282,6 +288,12 @@ Anvil::ImageBarrier::ImageBarrier(VkAccessFlags                 in_source_access
     image_barrier_vk.srcQueueFamilyIndex = in_src_queue_family_index;
     image_barrier_vk.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     image_barrier_vk.subresourceRange    = in_image_subresource_range;
+
+    /* NOTE: For an image barrier to work correctly, the underlying subresource range must be assigned memory.
+     *       Query for a memory block in order to force any listening memory allocators to bake */
+    auto memory_block_ptr = image_ptr->get_memory_block();
+
+    ANVIL_REDUNDANT_VARIABLE(memory_block_ptr);
 }
 
 /** Please see header for specification */

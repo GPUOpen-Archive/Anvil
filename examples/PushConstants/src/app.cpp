@@ -571,7 +571,7 @@ void App::init_dsgs()
                                 VK_SHADER_STAGE_VERTEX_BIT);
     m_dsg_ptr->set_binding_item(0, /* n_set     */
                                 0, /* n_binding */
-                                m_data_buffer_ptr);
+                                Anvil::DescriptorSet::UniformBufferBindingElement(m_data_buffer_ptr) );
 }
 
 void App::init_events()
