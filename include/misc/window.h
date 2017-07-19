@@ -185,6 +185,12 @@ namespace Anvil
             /* Nop by default */
         }
 
+        /* Tells if the window closure process has finished */
+        bool is_window_close_finished()
+        {
+            return m_window_close_finished;
+        }
+
     protected:
         /* protected variables */
         PFNPRESENTCALLBACKPROC m_present_callback_func_ptr;
@@ -194,6 +200,7 @@ namespace Anvil
         std::string  m_title;
         unsigned int m_width;
         bool         m_window_should_close;
+        bool         m_window_close_finished;
 
         /* Window handle */
         WindowHandle m_window;

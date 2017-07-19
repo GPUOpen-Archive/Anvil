@@ -915,7 +915,10 @@ Anvil::CommandBufferBase::~CommandBufferBase()
     #endif
 }
 
-/** TODO */
+/** Stores a specified buffer instance in m_referenced_buffers if the buffer has not already been cached.
+ *
+ *  @param in_buffer_ptr Buffer instance to cache. Must not be null.
+ **/
 void Anvil::CommandBufferBase::cache_referenced_buffer(std::shared_ptr<Anvil::Buffer> in_buffer_ptr)
 {
     auto buffer_iterator = std::find(m_referenced_buffers.begin(),
@@ -940,7 +943,12 @@ void Anvil::CommandBufferBase::cache_referenced_buffer(std::shared_ptr<Anvil::Bu
     }
 }
 
-/** TODO */
+/** Stores a specified descriptor set instance in m_referenced_descriptor_sets if the DS instance has not
+ *  already been cached, along with underlying objects specified DS' bindings refer to. The latter are cached
+ *  in corresponding m_referenced_* vectors.
+ *
+ *  @param in_ds_ptr Descriptor set instance to cache. Must not be null.
+ **/
 void Anvil::CommandBufferBase::cache_referenced_descriptor_set(std::shared_ptr<Anvil::DescriptorSet> in_ds_ptr)
 {
     decltype(m_referenced_descriptor_sets)::iterator ds_iterator;
@@ -962,9 +970,6 @@ void Anvil::CommandBufferBase::cache_referenced_descriptor_set(std::shared_ptr<A
         if (!in_ds_ptr->get_binding_array_size(n_binding,
                                               &n_binding_array_items) )
         {
-            /* This should never happen */
-            anvil_assert_fail();
-
             continue;
         }
 
@@ -1166,7 +1171,10 @@ void Anvil::CommandBufferBase::cache_referenced_descriptor_set(std::shared_ptr<A
     }
 }
 
-/** TODO */
+/** Stores a specified event instance in m_referenced_events, if the event has not already been cached.
+ *
+ *  @param in_event_ptr Event instance to cache. Must not be null.
+ **/
 void Anvil::CommandBufferBase::cache_referenced_event(std::shared_ptr<Anvil::Event> in_event_ptr)
 {
     auto event_iterator = std::find(m_referenced_events.begin(),
@@ -1179,7 +1187,11 @@ void Anvil::CommandBufferBase::cache_referenced_event(std::shared_ptr<Anvil::Eve
     }
 }
 
-/** TODO */
+/** Stores a specified framebuffer instance in m_referenced_framebuffers, if the framebuffer has not already been cached.
+ *  Any attachments defined for the FB are also cached.
+ *
+ *  @param in_fb_ptr Framebuffer instance to cache. Must not be null.
+ **/
 void Anvil::CommandBufferBase::cache_referenced_framebuffer(std::shared_ptr<Anvil::Framebuffer> in_fb_ptr)
 {
     decltype(m_referenced_framebuffers)::iterator fb_iterator;
@@ -1216,7 +1228,10 @@ void Anvil::CommandBufferBase::cache_referenced_framebuffer(std::shared_ptr<Anvi
     }
 }
 
-/** TODO */
+/** Stores a specified image instance in m_referenced_images, if the image has not already been cached.
+ *
+ *  @param in_image_ptr Image instance to cache. Must not be null.
+ **/
 void Anvil::CommandBufferBase::cache_referenced_image(std::shared_ptr<Anvil::Image> in_image_ptr)
 {
     auto image_iterator = std::find(m_referenced_images.begin(),
@@ -1241,7 +1256,10 @@ void Anvil::CommandBufferBase::cache_referenced_image(std::shared_ptr<Anvil::Ima
     }
 }
 
-/** TODO */
+/** Stores a specified query pool instance in m_referenced_query_pools, if the query pool has not already been cached.
+ *
+ *  @param in_query_pool_ptr Query pool instance to cache. Must not be null.
+ **/
 void Anvil::CommandBufferBase::cache_referenced_query_pool(std::shared_ptr<Anvil::QueryPool> in_query_pool_ptr)
 {
     auto qp_iterator = std::find(m_referenced_query_pools.begin(),
@@ -1254,7 +1272,10 @@ void Anvil::CommandBufferBase::cache_referenced_query_pool(std::shared_ptr<Anvil
     }
 }
 
-/** TODO */
+/** Stores a specified renderpass instance in m_referenced_renderpasses, if the renderpass has not already been cached.
+ *
+ *  @param in_renderpass_ptr Renderpass instance to cache. Must not be null.
+ **/
 void Anvil::CommandBufferBase::cache_referenced_renderpass(std::shared_ptr<Anvil::RenderPass> in_renderpass_ptr)
 {
     auto rp_iterator = std::find(m_referenced_renderpasses.begin(),
@@ -1275,7 +1296,7 @@ void Anvil::CommandBufferBase::cache_referenced_renderpass(std::shared_ptr<Anvil
     }
 #endif
 
-/** TODO */
+/** Clears all m_referenced_* vectors. */
 void Anvil::CommandBufferBase::clear_referenced_objects()
 {
     m_referenced_buffers.clear        ();

@@ -218,9 +218,31 @@ void Anvil::BaseDevice::get_queue_family_indices_for_physical_device(std::weak_p
     /* NOTE: Vulkan API only guarantees universal queue family's availability */
     anvil_assert(result_universal_queue_family_index != UINT32_MAX);
 
-    out_device_queue_family_info_ptr->family_index[Anvil::QUEUE_FAMILY_TYPE_COMPUTE]   = result_compute_queue_family_index;
-    out_device_queue_family_info_ptr->family_index[Anvil::QUEUE_FAMILY_TYPE_TRANSFER]  = result_dma_queue_family_index;
-    out_device_queue_family_info_ptr->family_index[Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL] = result_universal_queue_family_index;
+    out_device_queue_family_info_ptr->family_index[Anvil::QUEUE_FAMILY_TYPE_COMPUTE]           = result_compute_queue_family_index;
+    out_device_queue_family_info_ptr->family_index[Anvil::QUEUE_FAMILY_TYPE_TRANSFER]          = result_dma_queue_family_index;
+    out_device_queue_family_info_ptr->family_index[Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL]         = result_universal_queue_family_index;
+
+    for (uint32_t n_queue_family_type = 0;
+                  n_queue_family_type < static_cast<uint32_t>(Anvil::QUEUE_FAMILY_TYPE_COUNT);
+                ++n_queue_family_type)
+    {
+        out_device_queue_family_info_ptr->family_type[n_queue_family_type] = Anvil::QUEUE_FAMILY_TYPE_UNDEFINED;
+    }
+
+    if (result_compute_queue_family_index != UINT32_MAX)
+    {
+        out_device_queue_family_info_ptr->family_type[result_compute_queue_family_index] = Anvil::QUEUE_FAMILY_TYPE_COMPUTE;
+    }
+
+    if (result_dma_queue_family_index != UINT32_MAX)
+    {
+        out_device_queue_family_info_ptr->family_type[result_dma_queue_family_index] = Anvil::QUEUE_FAMILY_TYPE_TRANSFER;
+    }
+
+    if (result_universal_queue_family_index != UINT32_MAX)
+    {
+        out_device_queue_family_info_ptr->family_type[result_universal_queue_family_index] = Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL;
+    }
 
     out_device_queue_family_info_ptr->n_queues[Anvil::QUEUE_FAMILY_TYPE_COMPUTE]   = result_n_compute_queues;
     out_device_queue_family_info_ptr->n_queues[Anvil::QUEUE_FAMILY_TYPE_TRANSFER]  = result_n_dma_queues;

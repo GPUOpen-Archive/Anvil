@@ -370,4 +370,6 @@ void Anvil::WindowXcb::run()
             running = !m_window_should_close;
         }
     }
+
+    m_window_close_finished = true;
 }

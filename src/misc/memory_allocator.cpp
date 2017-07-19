@@ -221,7 +221,7 @@ Anvil::MemoryAllocator::Item::~Item()
     unregister_from_callbacks();
 }
 
-/** TODO */
+/* Please see header for specification */
 void Anvil::MemoryAllocator::Item::register_for_callbacks()
 {
     if (buffer_ptr != nullptr)
@@ -251,7 +251,7 @@ void Anvil::MemoryAllocator::Item::register_for_callbacks()
     }
 }
 
-/** TODO */
+/* Please see header for specification */
 void Anvil::MemoryAllocator::Item::unregister_from_callbacks()
 {
     if (buffer_ptr != nullptr)

@@ -133,24 +133,6 @@ bool Anvil::Framebuffer::add_attachment(std::shared_ptr<ImageView> in_image_view
     /* Sanity checks: Input image view must not be nullptr */
     anvil_assert(in_image_view_ptr != nullptr);
 
-    /* Sanity checks: Input image view should not be a duplicate of already added attachments.
-     *                This is not required by Vulkan spec, but simplifies implementation of the
-     *                DAGRenderer class.
-     **/
-    for (auto fb_attachment_iterator  = m_attachments.cbegin();
-              fb_attachment_iterator != m_attachments.cend();
-            ++fb_attachment_iterator)
-    {
-        /* Operate on Vulkan handles, instead of objects, in case there are two wrapper instances
-         * referring to the same Vulkan object */
-        if (fb_attachment_iterator->image_view_ptr->get_image_view() == in_image_view_ptr->get_image_view() )
-        {
-            anvil_assert_fail();
-
-            goto end;
-        }
-    }
-
     /* Sanity checks: make sure the image views have the same, or larger size than the framebuffer's. */
     parent_image_ptr = in_image_view_ptr->get_parent_image();
 

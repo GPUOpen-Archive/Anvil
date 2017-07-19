@@ -352,6 +352,11 @@ namespace Anvil
             return m_type;
         }
 
+        /** Returns the parent command pool */
+        std::weak_ptr<Anvil::CommandPool> get_parent_command_pool() const
+        {
+            return m_parent_command_pool_ptr;
+        }
 
         /** Issues a vkCmdBeginQuery() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS

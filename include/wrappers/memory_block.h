@@ -152,13 +152,22 @@ namespace Anvil
 
         /* Returns the start offset of the memory block.
          *
-         * If the memory block has a parent, the returned start offset is relative to the parent memory block's
-         * start offset (in other words: the returned value doesn't include it)
+         * If the memory block has a parent, the returned start offset is NOT relative to the parent memory block's
+         * start offset (in other words: the returned value is an absolute offset which can be directly used against
+         * the memory block instance)
          */
         VkDeviceSize get_start_offset() const
         {
             return m_start_offset;
         }
+
+        /** Checks if the memory range covered by this memory block intersects with memory range covered
+         *  by the user-specified memory block
+         *
+         *  @param in_memory_block_ptr
+         *
+         *  @return true if intersection has been detected, false otherwise. */
+        bool intersects(std::shared_ptr<const Anvil::MemoryBlock> in_memory_block_ptr) const;
 
         /** Maps the specified region of the underlying memory object to the process space.
          *

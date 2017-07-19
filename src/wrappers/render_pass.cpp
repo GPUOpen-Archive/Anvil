@@ -387,7 +387,7 @@ bool Anvil::RenderPass::add_subpass_attachment(SubPassID              in_subpass
     }
     else
     {
-        subpass_ptr = m_subpasses[in_subpass_id];
+        subpass_ptr = m_subpasses.at(in_subpass_id);
     }
 
     /* Retrieve the renderpass attachment descriptor */
@@ -399,7 +399,7 @@ bool Anvil::RenderPass::add_subpass_attachment(SubPassID              in_subpass
     }
     else
     {
-        renderpass_attachment_ptr = &m_attachments[in_attachment_id];
+        renderpass_attachment_ptr = &m_attachments.at(in_attachment_id);
     }
 
     /* Retrieve the resolve attachment descriptor, if one was requested */
@@ -413,7 +413,7 @@ bool Anvil::RenderPass::add_subpass_attachment(SubPassID              in_subpass
         }
         else
         {
-            resolve_attachment_ptr = &m_attachments[in_resolve_attachment_id];
+            resolve_attachment_ptr = &m_attachments.at(in_resolve_attachment_id);
         }
     }
 

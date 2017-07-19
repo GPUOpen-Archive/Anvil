@@ -508,8 +508,6 @@ bool Anvil::DescriptorSet::get_binding_array_size(uint32_t  in_n_binding,
 
     if (m_bindings.find(in_n_binding) == m_bindings.end() )
     {
-        anvil_assert(m_bindings.find(in_n_binding) != m_bindings.end() );
-
         result = false;
         goto end;
     }
