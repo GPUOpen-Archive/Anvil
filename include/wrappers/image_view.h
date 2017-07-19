@@ -323,6 +323,22 @@ namespace Anvil
             return m_parent_image_ptr;
         }
 
+        /** Returns a VkImageSubresourceRange struct that describes the range of subresources covered
+         *  by this image view.
+         */
+        VkImageSubresourceRange get_subresource_range() const
+        {
+            VkImageSubresourceRange result;
+
+            result.aspectMask     = m_aspect_mask;
+            result.baseArrayLayer = m_n_base_layer;
+            result.baseMipLevel   = m_n_base_mipmap_level;
+            result.layerCount     = (m_type == VK_IMAGE_VIEW_TYPE_3D) ? m_n_slices : m_n_layers;
+            result.levelCount     = m_n_mipmaps;
+
+            return result;
+        }
+
         /** Returns swizzle array assigned to the image view */
         void get_swizzle_array(VkComponentSwizzle* out_swizzle_array_ptr) const
         {
@@ -336,6 +352,17 @@ namespace Anvil
         {
             return m_type;
         }
+
+        /** Tells whether the subresource range described by this image view intersects
+         *  with another image view's subres range.
+         *
+         *  NOTE: This function returns false if the underlying parent images do not match.
+         *
+         *  @param in_image_view_ptr Image view to use for the query. Must not be null.
+         *
+         *  @return True if an intersection was found, false otherwise.
+         */
+        bool intersects(std::shared_ptr<Anvil::ImageView> in_image_view_ptr) const;
 
     private:
         /* Private functions */

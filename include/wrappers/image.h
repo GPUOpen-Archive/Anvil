@@ -87,6 +87,27 @@ namespace Anvil
     {
     public:
         /* Public functions */
+
+        /* Transitions the image from one layout to another.
+         *
+         * This is a blocking call.
+         *
+         * @param in_queue_ptr         Queue to use for the transition. The specified queue must support pipeline barrier
+         *                             command. Must not be null.
+         * @param in_src_access_mask   Source access mask to use for the transition.
+         * @param in_src_layout        Image layout to transfer from.
+         * @param in_dst_access_mask   Destination access mask to use for the transition.
+         * @param in_dst_layout        Image layout to transfer to.
+         * @param in_subresource_range Subresource range to use for the transfer operation.
+         *
+         */
+        void change_image_layout(std::shared_ptr<Anvil::Queue>  in_queue_ptr,
+                                 VkAccessFlags                  in_src_access_mask,
+                                 VkImageLayout                  in_src_layout,
+                                 VkAccessFlags                  in_dst_access_mask,
+                                 VkImageLayout                  in_dst_layout,
+                                 const VkImageSubresourceRange& in_subresource_range);
+
         /** Initializes a new non-sparse Image instance *without* a memory backing. A memory region should be bound
          *  to the object by calling Image::set_memory() before using the object for any operations.
          *
@@ -290,6 +311,22 @@ namespace Anvil
         {
             return m_create_flags;
         }
+
+        /** Returns extent of a user-specified image mip as a VkExtent2D structure.
+         *
+         *  @param in_n_mipmap Index of the mipmap to use for the query.
+         *
+         *  @return As per summary.
+         */
+        VkExtent2D get_image_extent_2D(uint32_t in_n_mipmap) const;
+
+        /** Returns extent of a user-specified image mip as a VkExtent3D structure.
+         *
+         *  @param in_n_mipmap Index of the mipmap to use for the query.
+         *
+         *  @return As per summary.
+         */
+        VkExtent3D get_image_extent_3D(uint32_t in_n_mipmap) const;
 
         /** Returns information about the image format used to create the underlying VkImage instance */
         VkFormat get_image_format() const

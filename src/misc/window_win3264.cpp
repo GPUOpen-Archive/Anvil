@@ -355,6 +355,8 @@ void Anvil::WindowWin3264::run()
             ::DispatchMessage (&msg);
         }
     }
+
+    m_window_close_finished = true;
 }
 
 void Anvil::WindowWin3264::set_title(const char* in_new_title)

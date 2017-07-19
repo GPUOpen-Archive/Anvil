@@ -325,6 +325,29 @@ end:
 }
 
 /* Please see header for specification */
+bool Anvil::MemoryBlock::intersects(std::shared_ptr<const Anvil::MemoryBlock> in_memory_block_ptr) const
+{
+    bool result = (in_memory_block_ptr == shared_from_this() );
+
+    if (result)
+    {
+        if (!(m_start_offset                               < in_memory_block_ptr->m_start_offset &&
+              m_start_offset + m_size                      < in_memory_block_ptr->m_start_offset &&
+              in_memory_block_ptr->m_start_offset          < m_start_offset                      &&
+              in_memory_block_ptr->m_start_offset + m_size < m_start_offset) )
+        {
+            result = true;
+        }
+        else
+        {
+            result = false;
+        }
+    }
+
+    return result;
+}
+
+/* Please see header for specification */
 bool Anvil::MemoryBlock::map(VkDeviceSize in_start_offset,
                              VkDeviceSize in_size,
                              void**       out_opt_data_ptr)

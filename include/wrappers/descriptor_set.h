@@ -468,16 +468,39 @@ namespace Anvil
 
         /** Tells how many array items have been declared for a binding at a given index
          *
-         *  TODO
+         *  @param in_n_binding   Binding index to use for the query.
+         *  @param out_result_ptr If the function reports success, deref will be set to the query result.
+         *                        Must not be null.
+         *
+         *  @return true if successful, false otherwise.
          **/
         bool get_binding_array_size(uint32_t  in_n_binding,
                                     uint32_t* out_result_ptr) const;
 
-        /** TODO */
-        bool get_binding_descriptor_type(uint32_t                        in_n_binding,
+        /** Tells the descriptor type associated to a binding at index @param in_n_binding .
+         *
+         *  @param in_n_binding            Binding index to use for the query.
+         *  @param out_descriptor_type_ptr If the function reports success, deref will be set to the query result.
+         *                                 Must not be null.
+         *
+         *  @return true if successful, false otherwise.
+         */
+        bool get_binding_descriptor_type(uint32_t          in_n_binding,
                                          VkDescriptorType* out_descriptor_type_ptr) const;
 
-        /** TODO */
+        /** Returns properties of a combined image/sampler descriptor binding.
+         *
+         *  @param in_n_binding             Binding index to use for the query.
+         *  @param in_n_binding_array_item  Index of the array item to use for the query.
+         *  @param out_opt_image_layout_ptr If the function reports success, deref will be set to the image layout
+         *                                  specified for the binding. May be null.
+         *  @param out_opt_image_view_ptr   If the function reports success, deref will be set to the image view
+         *                                  specified for the binding. May be null.
+         *  @param out_opt_sampler_ptr      If the function reports success, deref will be set to the sampler specified
+         *                                  for the binding. May be null.
+         *
+         *  @return true if successful, false otherwise.
+         **/
         bool get_combined_image_sampler_binding_properties(uint32_t                           in_n_binding,
                                                            uint32_t                           in_n_binding_array_item,
                                                            VkImageLayout*                     out_opt_image_layout_ptr,
@@ -509,7 +532,18 @@ namespace Anvil
             return m_layout_ptr;
         }
 
-        /** TODO */
+        /** Returns properties of an input attachment descriptor binding.
+         *
+         *  @param in_n_binding             Binding index to use for the query.
+         *  @param in_n_binding_array_item  Index of the array item to use for the query.
+         *  @param out_opt_image_layout_ptr If not null, deref will be set to the image layout specified for
+         *                                  the binding. May be null.
+         *  @param out_opt_image_view_ptr   If not null, deref will be set to the image view specified for
+         *                                  the binding. May be null.
+         *
+         *  @return true if successful, false otherwise.
+         *
+         */
         bool get_input_attachment_binding_properties(uint32_t                           in_n_binding,
                                                      uint32_t                           in_n_binding_array_item,
                                                      VkImageLayout*                     out_opt_image_layout_ptr,
@@ -521,7 +555,17 @@ namespace Anvil
             return static_cast<uint32_t>(m_bindings.size() );
         }
 
-        /** TODO */
+        /** Returns properties of a sampled image descriptor binding.
+         *
+         *  @param in_n_binding             Binding index to use for the query.
+         *  @param in_n_binding_array_item  Index of the array item to use for the query.
+         *  @param out_opt_image_layout_ptr If not null, deref will be set to the image layout specified
+         *                                  for the binding. May be null.
+         *  @param out_opt_image_view_ptr   If not null, deref will be set to the image view specified for
+         *                                  the binding. May be null.
+         *
+         *  @return true if successful, false otherwise.
+         */
         bool get_sampled_image_binding_properties(uint32_t                           in_n_binding,
                                                   uint32_t                           in_n_binding_array_item,
                                                   VkImageLayout*                     out_opt_image_layout_ptr,
@@ -534,19 +578,50 @@ namespace Anvil
                                                            out_opt_image_view_ptr);
         }
 
-        /** TODO */
+        /** Returns properties of a sampler descriptor binding.
+         *
+         *  @param in_n_binding            Binding index to use for the query.
+         *  @param in_n_binding_array_item Index of the array item to use for the query.
+         *  @param out_opt_sampler_ptr     If not null, deref will be set to the sampler specified for
+         *                                 the binding. May be null.
+         *
+         *  @return true if successful, false otherwise.
+         */
         bool get_sampler_binding_properties(uint32_t                         in_n_binding,
                                             uint32_t                         in_n_binding_array_item,
                                             std::shared_ptr<Anvil::Sampler>* out_sampler_ptr) const;
 
-        /** TODO */
+        /** Returns properties of a storage buffer descriptor binding.
+         *
+         *  @param in_n_binding             Binding index to use for the query.
+         *  @param in_n_binding_array_item  Index of the array item to use for the query.
+         *  @param out_opt_buffer_ptr       If not null, deref will be set to the buffer specified for
+         *                                  the binding. May be null.
+         *  @param out_opt_size_ptr         If not null, deref will be set to the size of the buffer
+         *                                  memory region associated with the binding. May be null.
+         *  @param out_opt_start_offset_ptr If not null, deref will be set to the start offset of the
+         *                                  buffer memory region associated with the binding. May be
+         *                                  null.
+         *
+         *  @return true if successful, false otherwise.
+         */
         bool get_storage_buffer_binding_properties(uint32_t                        in_n_binding,
                                                    uint32_t                        in_n_binding_array_item,
                                                    std::shared_ptr<Anvil::Buffer>* out_opt_buffer_ptr,
                                                    VkDeviceSize*                   out_opt_size_ptr,
                                                    VkDeviceSize*                   out_opt_start_offset_ptr) const;
 
-        /** TODO */
+        /** Returns properties of a storage image descriptor binding.
+         *
+         *  @param in_n_binding             Binding index to use for the query.
+         *  @param in_n_binding_array_item  Index of the array item to use for the query.
+         *  @param out_opt_image_layout_ptr If not null, deref will be set to the image layout declared for
+         *                                  the binding. May be null.
+         *  @param out_opt_image_view_ptr   If not null, deref will be set to the image view specified for
+         *                                  the binding. May be null.
+         *
+         *  @return true if successful, false otherwise.
+         */
         bool get_storage_image_binding_properties(uint32_t                           in_n_binding,
                                                   uint32_t                           in_n_binding_array_item,
                                                   VkImageLayout*                     out_opt_image_layout_ptr,
@@ -559,12 +634,32 @@ namespace Anvil
                                                            out_opt_image_view_ptr);
         }
 
-        /** TODO */
+        /** Returns properties of a storage texel buffer descriptor binding.
+         *
+         *  @param in_n_binding            Binding index to use for the query.
+         *  @param in_n_binding_array_item Index of the array item to use for the query.
+         *  @param out_opt_buffer_view_ptr If not null, deref will be set to the buffer view specified for
+         *                                 the binding. May be null.
+         *
+         *  @return true if successful, false otherwise.
+         */
         bool get_storage_texel_buffer_binding_properties(uint32_t                            in_n_binding,
                                                          uint32_t                            in_n_binding_array_item,
                                                          std::shared_ptr<Anvil::BufferView>* out_opt_buffer_view_ptr) const;
 
-        /** TODO */
+        /** Returns properties of a uniform buffer descriptor binding.
+         *
+         *  @param in_n_binding             Binding index to use for the query.
+         *  @param in_n_binding_array_item  Index of the array item to use for the query.
+         *  @param out_opt_buffer_ptr       If not null, deref will be set to the buffer specified for
+         *                                  the binding. May be null.
+         *  @param out_opt_size_ptr         If not null, deref will be set to size of the buffer memory region
+         *                                  declared for the binding. May be null.
+         *  @param out_opt_start_offset_ptr If not null, deref will be set to start offset of the buffer memory
+         *                                  region declared for the binding. May be null.
+         *
+         *  @return true if successful, false otherwise.
+         */
         bool get_uniform_buffer_binding_properties(uint32_t                        in_n_binding,
                                                    uint32_t                        in_n_binding_array_item,
                                                    std::shared_ptr<Anvil::Buffer>* out_opt_buffer_ptr,
@@ -579,7 +674,15 @@ namespace Anvil
                                                          out_opt_start_offset_ptr);
         }
 
-        /** TODO */
+        /** Returns properties of a uniform texel buffer descriptor binding.
+         *
+         *  @param in_n_binding            Binding index to use for the query.
+         *  @param in_n_binding_array_item Index of the array item to use for the query.
+         *  @param out_opt_buffer_view_ptr If not null, deref will be set to the buffer view specified for
+         *                                 the binding. May be null.
+         *
+         *  @return true if successful, false otherwise.
+         */
         bool get_uniform_texel_buffer_binding_properties(uint32_t                            in_n_binding,
                                                          uint32_t                            in_n_binding_array_item,
                                                          std::shared_ptr<Anvil::BufferView>* out_opt_buffer_view_ptr) const

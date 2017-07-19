@@ -105,7 +105,7 @@ namespace Anvil
         bool get_attachment_id_for_image_view(std::shared_ptr<ImageView> in_image_view_ptr,
                                               FramebufferAttachmentID*   out_attachment_id_ptr);
 
-        /** TODO */
+        /** Returns the number of attachments defined for the framebuffer. */
         uint32_t get_n_attachments() const
         {
             return static_cast<uint32_t>(m_attachments.size() );

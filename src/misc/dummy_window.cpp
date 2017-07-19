@@ -99,6 +99,8 @@ void Anvil::DummyWindow::run()
 
         running = !m_window_should_close;
     }
+
+    m_window_close_finished = true;
 }
 
 
@@ -357,6 +359,8 @@ void Anvil::DummyWindowWithPNGSnapshots::run()
 
         running = !m_window_should_close;
     }
+
+    m_window_close_finished = true;
 }
 
 /** Please see header for specification */

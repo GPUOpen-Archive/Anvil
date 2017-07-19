@@ -539,3 +539,38 @@ bool Anvil::ImageView::init(VkImageViewType           in_image_view_type,
 end:
     return result;
 }
+
+/* Please see header for specification */
+bool Anvil::ImageView::intersects(std::shared_ptr<Anvil::ImageView> in_image_view_ptr) const
+{
+    bool result = false;
+
+    if (get_parent_image() == in_image_view_ptr->get_parent_image() )
+    {
+        auto in_subresource_range   = in_image_view_ptr->get_subresource_range();
+        auto this_subresource_range = get_subresource_range();
+
+        /* Aspect mask */
+        if ((this_subresource_range.aspectMask & in_subresource_range.aspectMask) != 0)
+        {
+            result = true;
+        }
+        else
+        /* Layers + mips */
+        if (!(this_subresource_range.baseArrayLayer                                     < in_subresource_range.baseArrayLayer   &&
+              this_subresource_range.baseArrayLayer + this_subresource_range.layerCount < in_subresource_range.baseArrayLayer   &&
+              in_subresource_range.baseArrayLayer                                       < this_subresource_range.baseArrayLayer &&
+              in_subresource_range.baseArrayLayer   + in_subresource_range.layerCount   < this_subresource_range.baseArrayLayer) )
+        {
+            if (!(this_subresource_range.baseMipLevel                                     < in_subresource_range.baseMipLevel   &&
+                  this_subresource_range.baseMipLevel + this_subresource_range.levelCount < in_subresource_range.baseMipLevel   &&
+                  in_subresource_range.baseMipLevel                                       < this_subresource_range.baseMipLevel &&
+                  in_subresource_range.baseMipLevel   + in_subresource_range.levelCount   < this_subresource_range.baseMipLevel) )
+            {
+                result = true;
+            }
+        }
+    }
+
+    return result;
+}

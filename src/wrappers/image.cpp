@@ -257,6 +257,51 @@ Anvil::Image::Image(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
 }
 
 /** Please see header for specification */
+void Anvil::Image::change_image_layout(std::shared_ptr<Anvil::Queue>  in_queue_ptr,
+                                       VkAccessFlags                  in_src_access_mask,
+                                       VkImageLayout                  in_src_layout,
+                                       VkAccessFlags                  in_dst_access_mask,
+                                       VkImageLayout                  in_dst_layout,
+                                       const VkImageSubresourceRange& in_subresource_range)
+{
+    std::shared_ptr<Anvil::BaseDevice>           device_locked_ptr             (m_device_ptr);
+    Anvil::QueueFamilyType                       in_queue_family_type          (Anvil::QUEUE_FAMILY_TYPE_UNDEFINED);
+    const uint32_t                               in_queue_family_index         (in_queue_ptr->get_queue_family_index() );
+    std::shared_ptr<Anvil::PrimaryCommandBuffer> transition_command_buffer_ptr;
+
+    in_queue_family_type          = device_locked_ptr->get_queue_family_type(in_queue_ptr->get_queue_family_index() );
+    transition_command_buffer_ptr = device_locked_ptr->get_command_pool     (in_queue_family_type)->alloc_primary_level_command_buffer();
+
+    transition_command_buffer_ptr->start_recording(true,   /* one_time_submit          */
+                                                   false); /* simultaneous_use_allowed */
+    {
+        Anvil::ImageBarrier image_barrier(in_src_access_mask,
+                                          in_dst_access_mask,
+                                          true, /* in_by_region_barrier */
+                                          in_src_layout,
+                                          in_dst_layout,
+                                          (m_sharing_mode == VK_SHARING_MODE_CONCURRENT) ? VK_QUEUE_FAMILY_IGNORED : in_queue_family_index,
+                                          (m_sharing_mode == VK_SHARING_MODE_CONCURRENT) ? VK_QUEUE_FAMILY_IGNORED : in_queue_family_index,
+                                          shared_from_this(),
+                                          in_subresource_range);
+
+        transition_command_buffer_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                                               VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                                               VK_FALSE,       /* in_by_region                   */
+                                                               0,              /* in_memory_barrier_count        */
+                                                               nullptr,        /* in_memory_barrier_ptrs         */
+                                                               0,              /* in_buffer_memory_barrier_count */
+                                                               nullptr,        /* in_buffer_memory_barrier_ptrs  */
+                                                               1,              /* in_image_memory_barrier_count  */
+                                                              &image_barrier);
+    }
+    transition_command_buffer_ptr->stop_recording();
+
+    in_queue_ptr->submit_command_buffer(transition_command_buffer_ptr,
+                                        true /* should_block */);
+}
+
+/** Please see header for specification */
 std::shared_ptr<Anvil::Image> Anvil::Image::create_nonsparse(std::weak_ptr<Anvil::BaseDevice>  in_device_ptr,
                                                              VkImageType                       in_type,
                                                              VkFormat                          in_format,
@@ -1117,6 +1162,53 @@ const VkImage& Anvil::Image::get_image()
 }
 
 /* Please see header for specification */
+VkExtent2D Anvil::Image::get_image_extent_2D(uint32_t in_n_mipmap) const
+{
+    VkExtent2D result;
+    uint32_t   size[2];
+
+    if (!get_image_mipmap_size(in_n_mipmap,
+                               size + 0,
+                               size + 1,
+                               nullptr) )
+    {
+        anvil_assert_fail();
+
+        goto end;
+    }
+
+    result.height = size[1];
+    result.width  = size[0];
+
+end:
+    return result;
+}
+
+/* Please see header for specification */
+VkExtent3D Anvil::Image::get_image_extent_3D(uint32_t in_n_mipmap) const
+{
+    VkExtent3D result;
+    uint32_t   size[3];
+
+    if (!get_image_mipmap_size(in_n_mipmap,
+                               size + 0,
+                               size + 1,
+                               size + 2) )
+    {
+        anvil_assert_fail();
+
+        goto end;
+    }
+
+    result.depth  = size[2];
+    result.height = size[1];
+    result.width  = size[0];
+
+end:
+    return result;
+}
+
+/* Please see header for specification */
 bool Anvil::Image::get_image_mipmap_size(uint32_t  in_n_mipmap,
                                          uint32_t* out_opt_width_ptr,
                                          uint32_t* out_opt_height_ptr,
@@ -1271,7 +1363,8 @@ bool Anvil::Image::has_aspects(VkImageAspectFlags in_aspects) const
     VkImageAspectFlags checked_aspects = 0;
     bool               result          = true;
 
-    if (m_is_sparse)
+    if (m_is_sparse                                      &&
+        m_residency_scope != SPARSE_RESIDENCY_SCOPE_NONE)
     {
         for (uint32_t n_bit = 0;
                       n_bit < sizeof(uint32_t) * 8 /* bits in byte */ && result;
@@ -1765,47 +1858,16 @@ void Anvil::Image::set_memory_sparse(const VkImageSubresource&           in_subr
 void Anvil::Image::transition_to_post_create_image_layout(VkAccessFlags in_source_access_mask,
                                                           VkImageLayout in_src_layout)
 {
-    std::shared_ptr<Anvil::BaseDevice>           device_locked_ptr             (m_device_ptr);
-    const Anvil::DeviceType                      device_type                   (device_locked_ptr->get_type() );
-    std::shared_ptr<Anvil::PrimaryCommandBuffer> transition_command_buffer_ptr;
-    std::shared_ptr<Anvil::Queue>                universal_queue_ptr;
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
     anvil_assert(!m_has_transitioned_to_post_create_layout);
 
-
-    universal_queue_ptr           = device_locked_ptr->get_universal_queue(0);
-    transition_command_buffer_ptr = device_locked_ptr->get_command_pool   (Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL)->alloc_primary_level_command_buffer();
-
-    transition_command_buffer_ptr->start_recording(true,   /* one_time_submit          */
-                                                   false); /* simultaneous_use_allowed */
-    {
-        Anvil::ImageBarrier image_barrier(in_source_access_mask,
-                                          Anvil::Utils::get_access_mask_from_image_layout(m_post_create_layout),
-                                          false,
-                                          in_src_layout,
-                                          m_post_create_layout,
-                                          (m_sharing_mode == VK_SHARING_MODE_CONCURRENT) ? VK_QUEUE_FAMILY_IGNORED : universal_queue_ptr->get_queue_family_index(),
-                                          (m_sharing_mode == VK_SHARING_MODE_CONCURRENT) ? VK_QUEUE_FAMILY_IGNORED : universal_queue_ptr->get_queue_family_index(),
-                                          shared_from_this(),
-                                          get_subresource_range() );
-
-        transition_command_buffer_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                                               VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                                               VK_FALSE,       /* in_by_region                   */
-                                                               0,              /* in_memory_barrier_count        */
-                                                               nullptr,        /* in_memory_barrier_ptrs         */
-                                                               0,              /* in_buffer_memory_barrier_count */
-                                                               nullptr,        /* in_buffer_memory_barrier_ptrs  */
-                                                               1,              /* in_image_memory_barrier_count  */
-                                                              &image_barrier);
-    }
-    transition_command_buffer_ptr->stop_recording();
-
-    if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
-    {
-        universal_queue_ptr->submit_command_buffer(transition_command_buffer_ptr,
-                                                   true /* should_block */);
-    }
+    change_image_layout(device_locked_ptr->get_universal_queue(0),
+                        in_source_access_mask,
+                        in_src_layout,
+                        Anvil::Utils::get_access_mask_from_image_layout(m_post_create_layout),
+                        m_post_create_layout,
+                        get_subresource_range() );
 
     m_has_transitioned_to_post_create_layout = true;
 }

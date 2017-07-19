@@ -350,6 +350,18 @@ namespace Anvil
             return m_device_queue_families.family_index[in_family_type];
         }
 
+        /** Returns queue family type for the specified queue family index.
+         *
+         *  @param in_queue_family_index TODO
+         *
+         *  @return The requested information OR Anvil::QUEUE_FAMILY_TYPE_UNDEFINED if the index has
+         *          not been recognized.
+         */
+        Anvil::QueueFamilyType get_queue_family_type(uint32_t in_queue_family_index) const
+        {
+            return m_device_queue_families.family_type[in_queue_family_index];
+        }
+
         /** Returns detailed queue family information for a queue family at index @param in_queue_family_index . */
         virtual const Anvil::QueueFamilyInfo* get_queue_family_info(uint32_t in_queue_family_index) const = 0;
 
@@ -491,8 +503,9 @@ namespace Anvil
         /* Protected type definitions */
         typedef struct
         {
-            uint32_t family_index[Anvil::QUEUE_FAMILY_TYPE_COUNT];
-            uint32_t n_queues    [Anvil::QUEUE_FAMILY_TYPE_COUNT];
+            uint32_t               family_index[Anvil::QUEUE_FAMILY_TYPE_COUNT];
+            Anvil::QueueFamilyType family_type [Anvil::QUEUE_FAMILY_TYPE_COUNT];
+            uint32_t               n_queues    [Anvil::QUEUE_FAMILY_TYPE_COUNT];
         } DeviceQueueFamilyInfo;
 
         /* Protected functions */

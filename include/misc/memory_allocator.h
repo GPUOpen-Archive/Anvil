@@ -84,7 +84,6 @@ namespace Anvil
             VkOffset3D         offset;
             VkImageSubresource subresource;
 
-            /* TODO */
             Item(std::shared_ptr<Anvil::MemoryAllocator> in_memory_allocator_ptr,
                  std::shared_ptr<Anvil::Buffer>          in_buffer_ptr,
                  VkDeviceSize                            in_alloc_size,
@@ -93,7 +92,6 @@ namespace Anvil
                  MemoryFeatureFlags                      in_alloc_required_memory_features,
                  uint32_t                                in_alloc_supported_memory_types);
 
-            /* TODO */
             Item(std::shared_ptr<Anvil::MemoryAllocator> in_memory_allocator_ptr,
                  std::shared_ptr<Anvil::Image>           in_image_ptr,
                  uint32_t                                in_n_layer,
@@ -104,7 +102,6 @@ namespace Anvil
                  MemoryFeatureFlags                      in_alloc_required_memory_features,
                 uint32_t                                 in_alloc_supported_memory_types);
 
-            /* TODO */
             Item(std::shared_ptr<Anvil::MemoryAllocator> in_memory_allocator_ptr,
                  std::shared_ptr<Anvil::Image>           in_image_ptr,
                  const VkImageSubresource&               in_subresource,
@@ -116,7 +113,6 @@ namespace Anvil
                  MemoryFeatureFlags                      in_alloc_required_memory_features,
                  uint32_t                                in_alloc_supported_memory_types);
 
-            /* TODO */
             Item(std::shared_ptr<Anvil::MemoryAllocator> in_memory_allocator_ptr,
                  std::shared_ptr<Anvil::Image>           in_image_ptr,
                  VkDeviceSize                            in_alloc_size,
