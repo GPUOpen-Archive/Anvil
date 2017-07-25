@@ -212,19 +212,19 @@ namespace Anvil
          *  it marks the RenderPass as dirty, which will cause the object to be re-created
          *  at next bake() or get_render_pass() request.
          *
-         *  @param in_subpass_id    ID of the subpass to update the depth+stencil attachment for.
-         *                          The subpass must have been earlier created with an add_subpass() call.
-         *  @param in_attachment_id ID of the render-pass attachment the depth-stencil attachment should refer to.
-         *  @param in_layout        Layout to use for the attachment when executing the subpass.
-         *                          Driver takes care of transforming the attachment to the requested layout
-         *                          before subpass commands starts executing.
+         *  @param in_subpass_id                ID of the subpass to update the depth+stencil attachment for.
+         *                                      The subpass must have been earlier created with an add_subpass() call.
+         *  @param in_attachment_id             ID of the render-pass attachment the depth-stencil attachment should refer to.
+         *  @param in_layout                    Layout to use for the attachment when executing the subpass.
+         *                                      Driver takes care of transforming the attachment to the requested layout
+         *                                      before subpass commands starts executing.
          *
          *  @return true if the function executed successfully, false otherwise.
          *
          */
-        bool add_subpass_depth_stencil_attachment(SubPassID              in_subpass_id,
-                                                  RenderPassAttachmentID in_attachment_id,
-                                                  VkImageLayout          in_layout);
+        bool add_subpass_depth_stencil_attachment(SubPassID                     in_subpass_id,
+                                                  RenderPassAttachmentID        in_attachment_id,
+                                                  VkImageLayout                 in_layout);
 
         /** Adds a new input attachment to the RenderPass instance's specified subpass.
          *

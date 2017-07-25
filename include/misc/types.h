@@ -97,13 +97,8 @@
     #endif
 #endif
 
-#ifdef _WIN32
-    #include "vulkan\vulkan.h"
-    #include "vulkan\vk_platform.h"
-#else
-    #include "vulkan/vulkan.h"
-    #include "vulkan/vk_platform.h"
-#endif
+#include "vulkan/vulkan.h"
+#include "vulkan/vk_platform.h"
 
 #include <map>
 #include <memory>
@@ -688,6 +683,7 @@ namespace Anvil
         ExtensionAvailability amd_draw_indirect_count;
         ExtensionAvailability amd_gcn_shader;
         ExtensionAvailability amd_gpu_shader_half_float;
+        ExtensionAvailability amd_gpu_shader_int16;
         ExtensionAvailability amd_negative_viewport_height;
         ExtensionAvailability amd_rasterization_order;
         ExtensionAvailability amd_shader_ballot;
@@ -695,8 +691,11 @@ namespace Anvil
         ExtensionAvailability amd_shader_trinary_minmax;
         ExtensionAvailability amd_texture_gather_bias_lod;
         ExtensionAvailability ext_debug_marker;
+        ExtensionAvailability ext_shader_subgroup_ballot;
         ExtensionAvailability ext_shader_subgroup_vote;
+        ExtensionAvailability khr_16bit_storage;
         ExtensionAvailability khr_maintenance1;
+        ExtensionAvailability khr_storage_buffer_storage_class;
         ExtensionAvailability khr_surface;
         ExtensionAvailability khr_swapchain;
 
@@ -1821,6 +1820,34 @@ namespace Anvil
 
         SPARSE_RESIDENCY_SCOPE_UNDEFINED
     } SparseResidencyScope;
+
+    /* Holds 16-bit storage features */
+    typedef struct StorageFeatures16Bit
+    {
+        bool is_input_output_storage_supported;
+        bool is_push_constant_16_bit_storage_supported;
+        bool is_storage_buffer_16_bit_access_supported;
+        bool is_uniform_and_storage_buffer_16_bit_access_supported;
+
+        StorageFeatures16Bit()
+        {
+            is_input_output_storage_supported                     = false;
+            is_push_constant_16_bit_storage_supported             = false;
+            is_storage_buffer_16_bit_access_supported             = false;
+            is_uniform_and_storage_buffer_16_bit_access_supported = false;
+        }
+
+        StorageFeatures16Bit(bool in_is_input_output_storage_supported,
+                             bool in_is_push_constant_16_bit_storage_supported,
+                             bool in_is_storage_buffer_16_bit_access_supported,
+                             bool in_is_uniform_and_storage_buffer_16_bit_access_supported)
+        {
+            is_input_output_storage_supported                     = in_is_input_output_storage_supported;
+            is_push_constant_16_bit_storage_supported             = in_is_push_constant_16_bit_storage_supported;
+            is_storage_buffer_16_bit_access_supported             = in_is_storage_buffer_16_bit_access_supported;
+            is_uniform_and_storage_buffer_16_bit_access_supported = in_is_uniform_and_storage_buffer_16_bit_access_supported;
+        }
+    } StorageFeatures16Bit;
 
     /* Unique ID of a render-pass' sub-pass attachment within scope of a RenderPass instance. */
     typedef uint32_t SubPassAttachmentID;

@@ -90,13 +90,17 @@ Anvil::DeviceExtensionConfiguration::DeviceExtensionConfiguration()
     amd_draw_indirect_count              = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     amd_gcn_shader                       = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     amd_gpu_shader_half_float            = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    amd_gpu_shader_int16                 = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     amd_rasterization_order              = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     amd_shader_ballot                    = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     amd_shader_explicit_vertex_parameter = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     amd_shader_trinary_minmax            = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     amd_texture_gather_bias_lod          = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    ext_shader_subgroup_ballot           = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     ext_shader_subgroup_vote             = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    khr_16bit_storage                    = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     khr_maintenance1                     = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    khr_storage_buffer_storage_class     = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     khr_surface                          = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     khr_swapchain                        = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
 
@@ -142,6 +146,7 @@ bool Anvil::DeviceExtensionConfiguration::is_supported_by_physical_device(std::w
         ExtensionItem(VK_AMD_DRAW_INDIRECT_COUNT_EXTENSION_NAME,              amd_draw_indirect_count              == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_AMD_GCN_SHADER_EXTENSION_NAME,                       amd_gcn_shader                       == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_AMD_GPU_SHADER_HALF_FLOAT_EXTENSION_NAME,            amd_gpu_shader_half_float            == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_AMD_GPU_SHADER_INT16_EXTENSION_NAME,                 amd_gpu_shader_int16                 == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_AMD_NEGATIVE_VIEWPORT_HEIGHT_EXTENSION_NAME,         amd_negative_viewport_height         == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_AMD_RASTERIZATION_ORDER_EXTENSION_NAME,              amd_rasterization_order              == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_AMD_SHADER_BALLOT_EXTENSION_NAME,                    amd_shader_ballot                    == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
@@ -149,8 +154,11 @@ bool Anvil::DeviceExtensionConfiguration::is_supported_by_physical_device(std::w
         ExtensionItem(VK_AMD_SHADER_TRINARY_MINMAX_EXTENSION_NAME,            amd_shader_trinary_minmax            == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_AMD_TEXTURE_GATHER_BIAS_LOD_EXTENSION_NAME,          amd_texture_gather_bias_lod          == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_EXT_DEBUG_MARKER_EXTENSION_NAME,                     ext_debug_marker                     == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_EXT_SHADER_SUBGROUP_BALLOT_EXTENSION_NAME,           ext_shader_subgroup_vote             == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_EXT_SHADER_SUBGROUP_VOTE_EXTENSION_NAME,             ext_shader_subgroup_vote             == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_KHR_16BIT_STORAGE_EXTENSION_NAME,                    khr_16bit_storage                    == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_KHR_MAINTENANCE1_EXTENSION_NAME,                     khr_maintenance1                     == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem("VK_KHR_storage_buffer_storage_class",                  khr_storage_buffer_storage_class     == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_KHR_SURFACE_EXTENSION_NAME,                          khr_surface                          == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_KHR_SWAPCHAIN_EXTENSION_NAME,                        khr_swapchain                        == Anvil::EXTENSION_AVAILABILITY_REQUIRE)
     };
@@ -199,6 +207,7 @@ bool Anvil::DeviceExtensionConfiguration::operator==(const Anvil::DeviceExtensio
     result = (amd_draw_indirect_count              == in_config.amd_draw_indirect_count)              &&
              (amd_gcn_shader                       == in_config.amd_gcn_shader)                       &&
              (amd_gpu_shader_half_float            == in_config.amd_gpu_shader_half_float)            &&
+             (amd_gpu_shader_int16                 == in_config.amd_gpu_shader_int16)                 &&
              (amd_negative_viewport_height         == in_config.amd_negative_viewport_height)         &&
              (amd_rasterization_order              == in_config.amd_rasterization_order)              &&
              (amd_shader_ballot                    == in_config.amd_shader_ballot)                    &&
@@ -206,7 +215,10 @@ bool Anvil::DeviceExtensionConfiguration::operator==(const Anvil::DeviceExtensio
              (amd_shader_trinary_minmax            == in_config.amd_shader_trinary_minmax)            &&
              (amd_texture_gather_bias_lod          == in_config.amd_texture_gather_bias_lod)          &&
              (ext_debug_marker                     == in_config.ext_debug_marker)                     &&
+             (ext_shader_subgroup_ballot           == in_config.ext_shader_subgroup_ballot)           &&
              (ext_shader_subgroup_vote             == in_config.ext_shader_subgroup_vote)             &&
+             (khr_16bit_storage                    == in_config.khr_16bit_storage)                    &&
+             (khr_storage_buffer_storage_class     == in_config.khr_storage_buffer_storage_class)     &&
              (khr_surface                          == in_config.khr_surface)                          &&
              (khr_swapchain                        == in_config.khr_swapchain);
 
