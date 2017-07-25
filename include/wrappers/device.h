@@ -431,6 +431,11 @@ namespace Anvil
             return m_amd_gpu_shader_half_float_enabled;
         }
 
+        bool is_amd_gpu_shader_int16_extension_enabled() const
+        {
+            return m_amd_gpu_shader_int16_enabled;
+        }
+
         bool is_amd_negative_viewport_height_extension_enabled() const
         {
             return m_amd_negative_viewport_height_enabled;
@@ -479,14 +484,29 @@ namespace Anvil
             return m_ext_debug_marker_enabled;
         }
 
+        bool is_ext_shader_subgroup_ballot_extension_enabled() const
+        {
+            return m_ext_shader_subgroup_ballot_enabled;
+        }
+
         bool is_ext_shader_subgroup_vote_extension_enabled() const
         {
             return m_ext_shader_subgroup_vote_enabled;
         }
 
+        bool is_khr_16bit_storage_extension_enabled() const
+        {
+            return m_khr_16bit_storage_enabled;
+        }
+
         bool is_khr_maintenance1_extension_enabled() const
         {
             return m_khr_maintenance1_enabled;
+        }
+
+        bool is_khr_storage_buffer_storage_class_enabled() const
+        {
+            return m_khr_storage_buffer_storage_class_enabled;
         }
 
         bool is_khr_surface_extension_enabled() const
@@ -561,6 +581,7 @@ namespace Anvil
         bool m_amd_draw_indirect_count_enabled;
         bool m_amd_gcn_shader_enabled;
         bool m_amd_gpu_shader_half_float_enabled;
+        bool m_amd_gpu_shader_int16_enabled;
         bool m_amd_negative_viewport_height_enabled;
         bool m_amd_rasterization_order_enabled;
         bool m_amd_shader_ballot_enabled;
@@ -568,8 +589,11 @@ namespace Anvil
         bool m_amd_shader_trinary_minmax_enabled;
         bool m_amd_texture_gather_bias_lod_enabled;
         bool m_ext_debug_marker_enabled;
+        bool m_ext_shader_subgroup_ballot_enabled;
         bool m_ext_shader_subgroup_vote_enabled;
+        bool m_khr_16bit_storage_enabled;
         bool m_khr_maintenance1_enabled;
+        bool m_khr_storage_buffer_storage_class_enabled;
         bool m_khr_surface_enabled;
         bool m_khr_swapchain_enabled;
 

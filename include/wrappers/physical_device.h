@@ -58,6 +58,105 @@ namespace Anvil
         /** Destructor */
         virtual ~PhysicalDevice();
 
+        /** Retrieves 16-bit storage features supported by this physical device.
+         *
+         *  This function will only succeed if both VK_KHR_16bit_storage_features and VK_KHR_get_physical_device_properties2
+         *  are supported.
+         *
+         *  @return true if successful, false otherwise.
+         */
+        bool get_16bit_storage_features(StorageFeatures16Bit* out_result_ptr) const
+        {
+            if (m_16bit_storage_features_available)
+            {
+                *out_result_ptr = m_16bit_storage_features;
+            }
+
+            return m_16bit_storage_features_available;
+        }
+
+        /* Returns physical device's LUID.
+         *
+         * Requires VK_KHR_external_memory support, as well as VkPhysicalDeviceIDPropertiesKHR::deviceLUIDValid
+         * to have been set to true by the driver owning the physical device, in order to report success.
+         *
+         * @param out_result_ptr Exactly VK_LUID_SIZE_KHR bytes will be copied under *out_result_ptr if
+         *                       function returns true. Must not be nullptr.
+         *
+         * @return true if successful, false otherwise.
+         **/
+        bool get_device_LUID(uint8_t* out_result_ptr) const
+        {
+            bool result = false;
+
+            if (m_device_LUID_available)
+            {
+                static_assert(sizeof(m_device_LUID) == VK_LUID_SIZE_KHR, "");
+
+                memcpy(out_result_ptr,
+                       m_device_LUID,
+                       VK_LUID_SIZE_KHR);
+
+                result = true;
+            }
+
+            return result;
+        }
+
+        /* Returns physical device's UUID.
+         *
+         * Requires VK_KHR_external_memory support to return successfully.
+         *
+         * @param out_result_ptr Exactly VK_UUID_SIZE bytes will be copied under *out_result_ptr if
+         *                       function returns true. Must not be nullptr.
+         *
+         * @return true if successful, false otherwise.
+         **/
+        bool get_device_UUID(uint8_t* out_result_ptr) const
+        {
+            bool result = false;
+
+            if (m_device_UUID_available)
+            {
+                static_assert(sizeof(m_device_UUID) == VK_UUID_SIZE, "");
+
+                memcpy(out_result_ptr,
+                       m_device_UUID,
+                       VK_UUID_SIZE);
+
+                result = true;
+            }
+
+            return result;
+        }
+
+        /* Returns UUID of the driver owning the physical device.
+         *
+         * Requires VK_KHR_external_memory support to return successfully.
+         *
+         * @param out_result_ptr Exactly VK_UUID_SIZE bytes will be copied under *out_result_ptr if
+         *                       function returns true. Must not be nullptr.
+         *
+         * @return true if successful, false otherwise.
+         **/
+        bool get_driver_UUID(uint8_t* out_result_ptr) const
+        {
+            bool result = false;
+
+            if (m_driver_UUID_available)
+            {
+                static_assert(sizeof(m_driver_UUID) == VK_UUID_SIZE, "");
+
+                memcpy(out_result_ptr,
+                       m_driver_UUID,
+                       VK_UUID_SIZE);
+
+                result = true;
+            }
+
+            return result;
+        }
+
         /** Retrieves features supported by the physical device */
         const VkPhysicalDeviceFeatures& get_device_features() const
         {
@@ -189,10 +288,13 @@ namespace Anvil
         explicit PhysicalDevice(std::weak_ptr<Anvil::Instance> in_instance_ptr,
                                 uint32_t                       in_index,
                                 VkPhysicalDevice               in_physical_device)
-            :m_destroyed      (false),
-             m_index          (in_index),
-             m_instance_ptr   (in_instance_ptr),
-             m_physical_device(in_physical_device)
+            :m_16bit_storage_features_available(false),
+             m_destroyed                       (false),
+             m_device_LUID_available           (false),
+             m_device_UUID_available           (false),
+             m_index                           (in_index),
+             m_instance_ptr                    (in_instance_ptr),
+             m_physical_device                 (in_physical_device)
         {
             anvil_assert(in_physical_device != VK_NULL_HANDLE);
         }
@@ -209,6 +311,8 @@ namespace Anvil
         bool             m_destroyed;
         FormatProperties m_dummy;
 
+        StorageFeatures16Bit             m_16bit_storage_features;
+        bool                             m_16bit_storage_features_available;
         Anvil::Extensions                m_extensions;
         uint32_t                         m_index;
         std::shared_ptr<Anvil::Instance> m_instance_ptr;
@@ -219,6 +323,13 @@ namespace Anvil
         VkPhysicalDevice                 m_physical_device;
         QueueFamilyInfoItems             m_queue_families;
         VkPhysicalDeviceProperties       m_properties;
+
+        bool    m_device_LUID_available;
+        uint8_t m_device_LUID[VK_LUID_SIZE_KHR];
+        bool    m_device_UUID_available;
+        uint8_t m_device_UUID[VK_UUID_SIZE];
+        uint8_t m_driver_UUID[VK_UUID_SIZE];
+        bool    m_driver_UUID_available;
 
         std::vector<std::shared_ptr<Anvil::BaseDevice> > m_cached_devices;
 

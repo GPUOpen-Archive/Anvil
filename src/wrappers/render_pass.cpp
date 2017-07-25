@@ -98,7 +98,7 @@ bool Anvil::RenderPass::add_color_attachment(VkFormat                in_format,
     }
 
     m_dirty               = true;
-    new_attachment_index  = (uint32_t) m_attachments.size();
+    new_attachment_index  = static_cast<uint32_t>(m_attachments.size() );
 
     *out_attachment_id_ptr = new_attachment_index;
 
@@ -195,7 +195,7 @@ bool Anvil::RenderPass::add_depth_stencil_attachment(VkFormat                in_
     }
 
     m_dirty              = true;
-    new_attachment_index = (uint32_t) m_attachments.size();
+    new_attachment_index = static_cast<uint32_t>(m_attachments.size() );
 
     *out_attachment_id_ptr = new_attachment_index;
 
@@ -298,7 +298,7 @@ bool Anvil::RenderPass::add_subpass(const ShaderModuleStageEntryPoint& in_fragme
     }
 
     m_dirty           = true;
-    new_subpass_index = (uint32_t) m_subpasses.size();
+    new_subpass_index = static_cast<uint32_t>(m_subpasses.size() );
 
     /* Create a new graphics pipeline for the subpass */
     anvil_assert(in_vertex_shader_entrypoint.name != nullptr);
@@ -471,13 +471,14 @@ bool Anvil::RenderPass::add_subpass_color_attachment(SubPassID                  
 }
 
 /* Please see header for specification */
-bool Anvil::RenderPass::add_subpass_depth_stencil_attachment(SubPassID              in_subpass_id,
-                                                             RenderPassAttachmentID in_attachment_id,
-                                                             VkImageLayout          in_layout)
+bool Anvil::RenderPass::add_subpass_depth_stencil_attachment(SubPassID                     in_subpass_id,
+                                                             RenderPassAttachmentID        in_attachment_id,
+                                                             VkImageLayout                 in_layout)
 {
-    RenderPassAttachment* attachment_ptr = nullptr;
-    bool                  result         = false;
-    SubPass*              subpass_ptr    = nullptr;
+    RenderPassAttachment* ds_attachment_ptr      = nullptr;
+    RenderPassAttachment* resolve_attachment_ptr = nullptr;
+    bool                  result                 = false;
+    SubPass*              subpass_ptr            = nullptr;
 
     /* Retrieve the subpass descriptor */
     if (m_subpasses.size() <= in_subpass_id)
@@ -488,10 +489,10 @@ bool Anvil::RenderPass::add_subpass_depth_stencil_attachment(SubPassID          
     }
     else
     {
-        subpass_ptr = m_subpasses[in_subpass_id];
+        subpass_ptr = m_subpasses.at(in_subpass_id);
     }
 
-    /* Retrieve the attachment descriptor */
+    /* Retrieve the attachment descriptors */
     if (m_attachments.size() <= in_attachment_id)
     {
         anvil_assert(!(m_attachments.size() <= in_attachment_id) );
@@ -500,7 +501,7 @@ bool Anvil::RenderPass::add_subpass_depth_stencil_attachment(SubPassID          
     }
     else
     {
-        attachment_ptr = &m_attachments[in_attachment_id];
+        ds_attachment_ptr = &m_attachments.at(in_attachment_id);
     }
 
     /* Update the depth/stencil attachment for the subpass */
@@ -511,9 +512,9 @@ bool Anvil::RenderPass::add_subpass_depth_stencil_attachment(SubPassID          
         goto end;
     }
 
-    subpass_ptr->depth_stencil_attachment = SubPassAttachment(attachment_ptr,
+    subpass_ptr->depth_stencil_attachment = SubPassAttachment(ds_attachment_ptr,
                                                               in_layout,
-                                                              nullptr);
+                                                              resolve_attachment_ptr);
 
     result = true;
 end:
@@ -610,10 +611,10 @@ end:
 /* Please see header for specification */
 bool Anvil::RenderPass::bake()
 {
-    std::shared_ptr<Anvil::BaseDevice>   device_locked_ptr(m_device_ptr);
+    std::shared_ptr<Anvil::BaseDevice>   device_locked_ptr                (m_device_ptr);
     std::vector<VkAttachmentDescription> renderpass_color_attachments_vk;
     VkRenderPassCreateInfo               render_pass_create_info;
-    bool                                 result = false;
+    bool                                 result                           (false);
     VkResult                             result_vk;
     std::vector<VkSubpassDependency>     subpass_dependencies_vk;
     std::vector<VkSubpassDescription>    subpass_descriptions_vk;
@@ -647,10 +648,10 @@ bool Anvil::RenderPass::bake()
              n_max_input_attachments   (in_n_max_input_attachments),
              n_max_preserve_attachments(in_n_max_preserve_attachments)
         {
-            color_attachments_vk.reserve   (n_max_color_attachments);
-            input_attachments_vk.reserve   (n_max_input_attachments);
-            preserve_attachments_vk.reserve(n_max_preserve_attachments);
-            resolve_attachments_vk.reserve (n_max_color_attachments);
+            color_attachments_vk.reserve        (n_max_color_attachments);
+            input_attachments_vk.reserve        (n_max_input_attachments);
+            preserve_attachments_vk.reserve     (n_max_preserve_attachments);
+            resolve_color_attachments_vk.reserve(n_max_color_attachments);
         }
 
         /** Helper function which verifies the maximum number of attachments specified at
@@ -658,17 +659,17 @@ bool Anvil::RenderPass::bake()
          **/
         void do_sanity_checks()
         {
-            anvil_assert(color_attachments_vk.size()    <= n_max_color_attachments);
-            anvil_assert(input_attachments_vk.size()    <= n_max_input_attachments);
-            anvil_assert(preserve_attachments_vk.size() <= n_max_preserve_attachments);
-            anvil_assert(resolve_attachments_vk.size()  <= n_max_color_attachments);
+            anvil_assert(color_attachments_vk.size()         <= n_max_color_attachments);
+            anvil_assert(input_attachments_vk.size()         <= n_max_input_attachments);
+            anvil_assert(preserve_attachments_vk.size()      <= n_max_preserve_attachments);
+            anvil_assert(resolve_color_attachments_vk.size() <= n_max_color_attachments);
         }
 
         std::vector<VkAttachmentReference> color_attachments_vk;
         VkAttachmentReference              depth_attachment_vk;
         std::vector<VkAttachmentReference> input_attachments_vk;
         std::vector<uint32_t>              preserve_attachments_vk;
-        std::vector<VkAttachmentReference> resolve_attachments_vk;
+        std::vector<VkAttachmentReference> resolve_color_attachments_vk;
     private:
         uint32_t n_max_color_attachments;
         uint32_t n_max_input_attachments;
@@ -742,7 +743,7 @@ bool Anvil::RenderPass::bake()
         std::shared_ptr<SubPassAttachmentSet> current_subpass_attachment_set_ptr;
         uint32_t                              highest_subpass_color_attachment_location = UINT32_MAX;
         uint32_t                              highest_subpass_input_attachment_index    = UINT32_MAX;
-        bool                                  need_resolve_attachments                  = false;
+        bool                                  need_color_resolve_attachments            = false;
         VkSubpassDescription                  subpass_vk;
         VkAttachmentReference                 unused_reference;
 
@@ -756,7 +757,7 @@ bool Anvil::RenderPass::bake()
         {
             if (subpass_color_attachment_iterator->second.resolve_attachment_ptr != nullptr)
             {
-                need_resolve_attachments = true;
+                need_color_resolve_attachments = true;
 
                 break;
             }
@@ -787,28 +788,26 @@ bool Anvil::RenderPass::bake()
 
         /* Instantiate a new subpass attachment set for current subpass */
         current_subpass_attachment_set_ptr.reset(
-            new SubPassAttachmentSet(highest_subpass_color_attachment_location + 1,                /* n_max_color_attachments */
-                                     (uint32_t) (*subpass_iterator)->input_attachments_map.size(), /* n_max_input_attachments */
-                                     (uint32_t) (*subpass_iterator)->preserved_attachments.size()  /* n_max_preserved_attachments */)
+            new SubPassAttachmentSet(highest_subpass_color_attachment_location + 1,                             /* n_max_color_attachments     */
+                                     static_cast<uint32_t>((*subpass_iterator)->input_attachments_map.size() ), /* n_max_input_attachments     */
+                                     static_cast<uint32_t>((*subpass_iterator)->preserved_attachments.size() )  /* n_max_preserved_attachments */)
         );
 
         /* Prepare unused VK color, depth, input & resolve attachment descriptors */
         for (uint32_t n_color_attachment = 0;
-                      n_color_attachment < (uint32_t) (highest_subpass_color_attachment_location + 1);
+                      n_color_attachment < static_cast<uint32_t>(highest_subpass_color_attachment_location + 1);
                     ++n_color_attachment)
         {
             current_subpass_attachment_set_ptr->color_attachments_vk.push_back(unused_reference);
 
-            if (need_resolve_attachments)
+            if (need_color_resolve_attachments)
             {
-                current_subpass_attachment_set_ptr->resolve_attachments_vk.push_back(unused_reference);
+                current_subpass_attachment_set_ptr->resolve_color_attachments_vk.push_back(unused_reference);
             }
         }
 
-        current_subpass_attachment_set_ptr->depth_attachment_vk = unused_reference;
-
         for (uint32_t n_input_attachment = 0;
-                      n_input_attachment < (uint32_t) (highest_subpass_input_attachment_index + 1);
+                      n_input_attachment < static_cast<uint32_t>(highest_subpass_input_attachment_index + 1);
                     ++n_input_attachment)
         {
             current_subpass_attachment_set_ptr->input_attachments_vk.push_back(unused_reference);
@@ -821,12 +820,12 @@ bool Anvil::RenderPass::bake()
         {
             current_subpass_attachment_set_ptr->color_attachments_vk[subpass_color_attachment_iterator->first] = get_attachment_reference_from_subpass_attachment(subpass_color_attachment_iterator->second);
 
-            if (need_resolve_attachments)
+            if (need_color_resolve_attachments)
             {
                 if (subpass_color_attachment_iterator->second.resolve_attachment_ptr != nullptr)
                 {
-                    current_subpass_attachment_set_ptr->resolve_attachments_vk[subpass_color_attachment_iterator->first] = get_attachment_reference_for_resolve_attachment(subpass_iterator,
-                                                                                                                                                                           subpass_color_attachment_iterator);
+                    current_subpass_attachment_set_ptr->resolve_color_attachments_vk[subpass_color_attachment_iterator->first] = get_attachment_reference_for_resolve_attachment(subpass_iterator,
+                                                                                                                                                                                 subpass_color_attachment_iterator);
                 }
             }
         }
@@ -834,6 +833,10 @@ bool Anvil::RenderPass::bake()
         if ((*subpass_iterator)->depth_stencil_attachment.attachment_ptr != nullptr)
         {
             current_subpass_attachment_set_ptr->depth_attachment_vk = get_attachment_reference_from_subpass_attachment((*subpass_iterator)->depth_stencil_attachment);
+        }
+        else
+        {
+            current_subpass_attachment_set_ptr->depth_attachment_vk = unused_reference;
         }
 
         for (auto subpass_input_attachment_iterator  = (*subpass_iterator)->input_attachments_map.cbegin();
@@ -854,7 +857,7 @@ bool Anvil::RenderPass::bake()
         /* Prepare the VK subpass descriptor */
         const uint32_t n_color_attachments     = highest_subpass_color_attachment_location + 1;
         const uint32_t n_input_attachments     = highest_subpass_input_attachment_index    + 1;
-        const uint32_t n_preserved_attachments = (uint32_t) (*subpass_iterator)->preserved_attachments.size();
+        const uint32_t n_preserved_attachments = static_cast<uint32_t>((*subpass_iterator)->preserved_attachments.size() );
         const uint32_t n_resolved_attachments  = ((*subpass_iterator)->resolved_attachments_map.size() == 0) ? 0
                                                                                                              : n_color_attachments;
 
@@ -871,7 +874,7 @@ bool Anvil::RenderPass::bake()
         subpass_vk.pPreserveAttachments              = (n_preserved_attachments > 0) ? &current_subpass_attachment_set_ptr->preserve_attachments_vk.at(0)
                                                                                      : nullptr;
         subpass_vk.preserveAttachmentCount           = n_preserved_attachments;
-        subpass_vk.pResolveAttachments               = (n_resolved_attachments > 0) ? &current_subpass_attachment_set_ptr->resolve_attachments_vk.at(0)
+        subpass_vk.pResolveAttachments               = (n_resolved_attachments > 0) ? &current_subpass_attachment_set_ptr->resolve_color_attachments_vk.at(0)
                                                                                     : nullptr;
 
         current_subpass_attachment_set_ptr->do_sanity_checks();
@@ -1420,9 +1423,9 @@ void Anvil::RenderPass::update_preserved_attachments()
                       n_attachment_type < 3; /* color, depth+stencil, resolve */
                     ++n_attachment_type)
         {
-            const uint32_t n_attachments = (n_attachment_type == 0) ? (uint32_t) current_subpass_ptr->color_attachments_map.size()
+            const uint32_t n_attachments = (n_attachment_type == 0) ? static_cast<uint32_t>(current_subpass_ptr->color_attachments_map.size() )
                                          : (n_attachment_type == 1) ? ((current_subpass_ptr->depth_stencil_attachment.attachment_ptr != nullptr) ? 1 : 0)
-                                                                    : (uint32_t) current_subpass_ptr->resolved_attachments_map.size();
+                                                                    : static_cast<uint32_t>(current_subpass_ptr->resolved_attachments_map.size() );
 
             for (uint32_t n_attachment = 0;
                           n_attachment < n_attachments;
@@ -1452,7 +1455,7 @@ void Anvil::RenderPass::update_preserved_attachments()
     {
         uint32_t                 current_subpass_index         = 0;
         const SubPassAttachment* current_unique_attachment_ptr = *unique_attachment_iterator;
-        uint32_t                 lowest_subpass_index          = (uint32_t) m_subpasses.size() - 1;
+        uint32_t                 lowest_subpass_index          = static_cast<uint32_t>(m_subpasses.size() - 1);
         uint32_t                 highest_subpass_index         = 0;
 
         for (auto subpass_iterator  = m_subpasses.begin();
@@ -1466,9 +1469,9 @@ void Anvil::RenderPass::update_preserved_attachments()
                           n_attachment_type < 3 /* color, depth+stencil, resolve */ && !subpass_processed;
                         ++n_attachment_type)
             {
-                const uint32_t n_attachments = (n_attachment_type == 0) ? (uint32_t) current_subpass_ptr->color_attachments_map.size()
+                const uint32_t n_attachments = (n_attachment_type == 0) ? static_cast<uint32_t>(current_subpass_ptr->color_attachments_map.size() )
                                              : (n_attachment_type == 1) ? ((current_subpass_ptr->depth_stencil_attachment.attachment_ptr != nullptr) ? 1 : 0)
-                                                                        : (uint32_t) current_subpass_ptr->resolved_attachments_map.size();
+                                                                        : static_cast<uint32_t>(current_subpass_ptr->resolved_attachments_map.size() );
 
                 for (uint32_t n_attachment = 0;
                               n_attachment < n_attachments && !subpass_processed;
@@ -1523,9 +1526,9 @@ void Anvil::RenderPass::update_preserved_attachments()
                           n_attachment_type < 3 /* color, depth+stencil, resolve */ && !is_subpass_attachment;
                         ++n_attachment_type)
             {
-                const uint32_t n_attachments = (n_attachment_type == 0) ? (uint32_t) current_subpass_ptr->color_attachments_map.size()
+                const uint32_t n_attachments = (n_attachment_type == 0) ? static_cast<uint32_t>(current_subpass_ptr->color_attachments_map.size() )
                                              : (n_attachment_type == 1) ? ((current_subpass_ptr->depth_stencil_attachment.attachment_ptr != nullptr) ? 1 : 0)
-                                                                        : (uint32_t) current_subpass_ptr->resolved_attachments_map.size();
+                                                                        : static_cast<uint32_t>(current_subpass_ptr->resolved_attachments_map.size() );
 
                 for (uint32_t n_attachment = 0;
                               n_attachment < n_attachments && !is_subpass_attachment;
@@ -1547,7 +1550,7 @@ void Anvil::RenderPass::update_preserved_attachments()
                 #ifdef _DEBUG
                 {
                     bool           is_already_preserved    = false;
-                    const uint32_t n_preserved_attachments = (uint32_t) current_subpass_ptr->preserved_attachments.size();
+                    const uint32_t n_preserved_attachments = static_cast<uint32_t>(current_subpass_ptr->preserved_attachments.size() );
 
                     for (uint32_t n_preserved_attachment = 0;
                                   n_preserved_attachment < n_preserved_attachments;

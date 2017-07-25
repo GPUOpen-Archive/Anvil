@@ -140,6 +140,33 @@ void Anvil::PhysicalDevice::init()
         m_format_properties[current_format] = FormatProperties(format_props);
     }
 
+    if (is_device_extension_supported                  ("VK_KHR_16bit_storage")                   &&
+        m_instance_ptr->is_instance_extension_supported("VK_KHR_get_physical_device_properties2") )
+    {
+        const auto& gpdp2_entrypoints = m_instance_ptr->get_extension_khr_get_physical_device_properties2_entrypoints();
+
+        if (is_device_extension_supported(VK_KHR_16BIT_STORAGE_EXTENSION_NAME) )
+        {
+            VkPhysicalDeviceFeatures2KHR            features;
+            VkPhysicalDevice16BitStorageFeaturesKHR storage_features;
+
+            features.pNext = &storage_features;
+            features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR;
+
+            storage_features.pNext = nullptr;
+            storage_features.sType = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES_KHR);
+
+            gpdp2_entrypoints.vkGetPhysicalDeviceFeatures2KHR(m_physical_device,
+                                                             &features);
+
+            m_16bit_storage_features           = StorageFeatures16Bit( (storage_features.storageInputOutput16               == VK_TRUE),
+                                                                       (storage_features.storagePushConstant16              == VK_TRUE),
+                                                                       (storage_features.storageBuffer16BitAccess           == VK_TRUE),
+                                                                       (storage_features.uniformAndStorageBuffer16BitAccess == VK_TRUE));
+            m_16bit_storage_features_available = true;
+        }
+    }
+
     /* Retrieve device properties */
     vkGetPhysicalDeviceProperties(m_physical_device,
                                  &m_properties);
