@@ -134,7 +134,7 @@ static const char* vs_body =
     "    vertex_rx_ry_rz = mat3(vec3(cos(rot_xyz.z), sin(rot_xyz.z), 0.0),              vec3(-sin(rot_xyz.z), cos(rot_xyz.z), 0.0),              vec3(0.0,            0.0,             1.0))            * vertex_rx_ry;\n"
     "\n"
          /* Perspective projection */
-    "    float fov_rad     = 45.0 / 360.0 * 2.0 * 3.14152965; /*radians(45.0); */\n"
+    "    float fov_rad     = 38.0 / 360.0 * 2.0 * 3.14152965; /*radians(38.0); */\n"
     "    float ar          = float(RT_WIDTH) / float(RT_HEIGHT);\n"
     "    float z_near      = 0.1;\n"
     "    float z_far       = float(MAX_DEPTH);\n"
@@ -951,7 +951,7 @@ void App::init_swapchain()
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr     (m_device_ptr);
     static const VkFormat              swapchain_format      (VK_FORMAT_B8G8R8A8_UNORM);
     static const VkPresentModeKHR      swapchain_present_mode(VK_PRESENT_MODE_FIFO_KHR);
-    static const VkImageUsageFlags     swapchain_usage       (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+    static const VkImageUsageFlags     swapchain_usage       (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
     std::shared_ptr<Anvil::SGPUDevice> sgpu_device_locked_ptr(std::dynamic_pointer_cast<Anvil::SGPUDevice>(m_device_ptr.lock() ) );
 
     m_rendering_surface_ptr = Anvil::RenderingSurface::create(m_instance_ptr,

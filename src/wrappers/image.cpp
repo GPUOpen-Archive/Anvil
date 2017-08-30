@@ -267,7 +267,13 @@ void Anvil::Image::change_image_layout(std::shared_ptr<Anvil::Queue>  in_queue_p
     std::shared_ptr<Anvil::BaseDevice>           device_locked_ptr             (m_device_ptr);
     Anvil::QueueFamilyType                       in_queue_family_type          (Anvil::QUEUE_FAMILY_TYPE_UNDEFINED);
     const uint32_t                               in_queue_family_index         (in_queue_ptr->get_queue_family_index() );
+    auto                                         mem_block_ptr                 (get_memory_block() );
     std::shared_ptr<Anvil::PrimaryCommandBuffer> transition_command_buffer_ptr;
+
+    /* mem_block_ptr is only used here in order to trigger memory allocator bakes if there are any pending. Other than that,
+     * we are not going to be accessing it in this func.
+     */
+    ANVIL_REDUNDANT_VARIABLE(mem_block_ptr);
 
     in_queue_family_type          = device_locked_ptr->get_queue_family_type(in_queue_ptr->get_queue_family_index() );
     transition_command_buffer_ptr = device_locked_ptr->get_command_pool     (in_queue_family_type)->alloc_primary_level_command_buffer();
@@ -286,7 +292,7 @@ void Anvil::Image::change_image_layout(std::shared_ptr<Anvil::Queue>  in_queue_p
                                           in_subresource_range);
 
         transition_command_buffer_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                                               VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                                               VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                                                                VK_FALSE,       /* in_by_region                   */
                                                                0,              /* in_memory_barrier_count        */
                                                                nullptr,        /* in_memory_barrier_ptrs         */
@@ -2085,26 +2091,36 @@ void Anvil::Image::upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_p
         {
             std::vector<VkBufferImageCopy> copy_regions;
 
-            /* Transfer the image to the transfer_destination layout */
-            Anvil::ImageBarrier image_barrier(0, /* source_access_mask */
-                                               VK_ACCESS_TRANSFER_WRITE_BIT,
-                                               false,
-                                               in_current_image_layout,
-                                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                               (m_sharing_mode == VK_SHARING_MODE_EXCLUSIVE) ? universal_queue_ptr->get_queue_family_index() : VK_QUEUE_FAMILY_IGNORED,
-                                               (m_sharing_mode == VK_SHARING_MODE_EXCLUSIVE) ? universal_queue_ptr->get_queue_family_index() : VK_QUEUE_FAMILY_IGNORED,
-                                               shared_from_this(),
-                                               image_subresource_range);
+            /* Transfer the image to the transfer_destination layout if not already in this or general layout */
+            if (in_current_image_layout != VK_IMAGE_LAYOUT_GENERAL              &&
+                in_current_image_layout != VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+            {
+                Anvil::ImageBarrier image_barrier(0, /* source_access_mask */
+                                                   VK_ACCESS_TRANSFER_WRITE_BIT,
+                                                   false,
+                                                   in_current_image_layout,
+                                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                                   (m_sharing_mode == VK_SHARING_MODE_EXCLUSIVE) ? universal_queue_ptr->get_queue_family_index() : VK_QUEUE_FAMILY_IGNORED,
+                                                   (m_sharing_mode == VK_SHARING_MODE_EXCLUSIVE) ? universal_queue_ptr->get_queue_family_index() : VK_QUEUE_FAMILY_IGNORED,
+                                                   shared_from_this(),
+                                                   image_subresource_range);
 
-            temp_cmdbuf_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                                     VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                                     VK_FALSE,       /* in_by_region                   */
-                                                     0,              /* in_memory_barrier_count        */
-                                                     nullptr,        /* in_memory_barrier_ptrs         */
-                                                     0,              /* in_buffer_memory_barrier_count */
-                                                     nullptr,        /* in_buffer_memory_barrier_ptrs  */
-                                                     1,              /* in_image_memory_barrier_count  */
-                                                    &image_barrier);
+                temp_cmdbuf_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                                         VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                                         VK_FALSE,       /* in_by_region                   */
+                                                         0,              /* in_memory_barrier_count        */
+                                                         nullptr,        /* in_memory_barrier_ptrs         */
+                                                         0,              /* in_buffer_memory_barrier_count */
+                                                         nullptr,        /* in_buffer_memory_barrier_ptrs  */
+                                                         1,              /* in_image_memory_barrier_count  */
+                                                        &image_barrier);
+
+                *out_new_image_layout_ptr = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            }
+            else
+            {
+                *out_new_image_layout_ptr = in_current_image_layout;
+            }
 
             /* Issue the buffer->image copy op */
             copy_regions.reserve(in_mipmaps_ptr->size() );
@@ -2150,7 +2166,7 @@ void Anvil::Image::upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_p
 
             temp_cmdbuf_ptr->record_copy_buffer_to_image(temp_buffer_ptr,
                                                          shared_from_this(),
-                                                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                                         *out_new_image_layout_ptr,
                                                          static_cast<uint32_t>(copy_regions.size() ),
                                                         &copy_regions[0]);
         }
@@ -2159,7 +2175,5 @@ void Anvil::Image::upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_p
         /* Execute the command buffer */
         universal_queue_ptr->submit_command_buffer(temp_cmdbuf_ptr,
                                                    true /* should_block */);
-
-        *out_new_image_layout_ptr = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     }
 }

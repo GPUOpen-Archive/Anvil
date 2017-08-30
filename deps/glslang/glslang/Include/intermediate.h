@@ -420,6 +420,15 @@ enum TOperator {
     EOpAtomicCounterIncrement,
     EOpAtomicCounterDecrement,
     EOpAtomicCounter,
+    EOpAtomicCounterAdd,
+    EOpAtomicCounterSubtract,
+    EOpAtomicCounterMin,
+    EOpAtomicCounterMax,
+    EOpAtomicCounterAnd,
+    EOpAtomicCounterOr,
+    EOpAtomicCounterXor,
+    EOpAtomicCounterExchange,
+    EOpAtomicCounterCompSwap,
 
     EOpAny,
     EOpAll,
@@ -584,6 +593,10 @@ enum TOperator {
     EOpImageQuerySamples,
     EOpImageLoad,
     EOpImageStore,
+#ifdef AMD_EXTENSIONS
+    EOpImageLoadLod,
+    EOpImageStoreLod,
+#endif
     EOpImageAtomicAdd,
     EOpImageAtomicMin,
     EOpImageAtomicMax,
@@ -596,6 +609,9 @@ enum TOperator {
     EOpSubpassLoad,
     EOpSubpassLoadMS,
     EOpSparseImageLoad,
+#ifdef AMD_EXTENSIONS
+    EOpSparseImageLoadLod,
+#endif
 
     EOpImageGuardEnd,
 
@@ -859,6 +875,15 @@ public:
 protected:
     TIntermTyped& operator=(const TIntermTyped&);
     TType type;
+};
+
+//
+// Selection control hints
+//
+enum TSelectionControl {
+    ESelectionControlNone,
+    ESelectionControlFlatten,
+    ESelectionControlDontFlatten,
 };
 
 //
@@ -1180,6 +1205,11 @@ public:
             cracked.offsets = true;
             cracked.lod     = true;
             break;
+        case EOpImageLoadLod:
+        case EOpImageStoreLod:
+        case EOpSparseImageLoadLod:
+            cracked.lod = true;
+            break;
 #endif
         case EOpSubpassLoad:
         case EOpSubpassLoadMS:
@@ -1285,19 +1315,22 @@ protected:
 class TIntermSelection : public TIntermTyped {
 public:
     TIntermSelection(TIntermTyped* cond, TIntermNode* trueB, TIntermNode* falseB) :
-        TIntermTyped(EbtVoid), condition(cond), trueBlock(trueB), falseBlock(falseB) {}
+        TIntermTyped(EbtVoid), condition(cond), trueBlock(trueB), falseBlock(falseB), control(ESelectionControlNone) {}
     TIntermSelection(TIntermTyped* cond, TIntermNode* trueB, TIntermNode* falseB, const TType& type) :
-        TIntermTyped(type), condition(cond), trueBlock(trueB), falseBlock(falseB) {}
+        TIntermTyped(type), condition(cond), trueBlock(trueB), falseBlock(falseB), control(ESelectionControlNone) {}
     virtual void traverse(TIntermTraverser*);
     virtual TIntermTyped* getCondition() const { return condition; }
     virtual TIntermNode* getTrueBlock() const { return trueBlock; }
     virtual TIntermNode* getFalseBlock() const { return falseBlock; }
     virtual       TIntermSelection* getAsSelectionNode()       { return this; }
     virtual const TIntermSelection* getAsSelectionNode() const { return this; }
+    void setSelectionControl(TSelectionControl c) { control = c; }
+    TSelectionControl getSelectionControl() const { return control; }
 protected:
     TIntermTyped* condition;
     TIntermNode* trueBlock;
     TIntermNode* falseBlock;
+    TSelectionControl control;    // selection control hint
 };
 
 //
@@ -1308,15 +1341,18 @@ protected:
 //
 class TIntermSwitch : public TIntermNode {
 public:
-    TIntermSwitch(TIntermTyped* cond, TIntermAggregate* b) : condition(cond), body(b) { }
+    TIntermSwitch(TIntermTyped* cond, TIntermAggregate* b) : condition(cond), body(b), control(ESelectionControlNone) { }
     virtual void traverse(TIntermTraverser*);
     virtual TIntermNode* getCondition() const { return condition; }
     virtual TIntermAggregate* getBody() const { return body; }
     virtual       TIntermSwitch* getAsSwitchNode()       { return this; }
     virtual const TIntermSwitch* getAsSwitchNode() const { return this; }
+    void setSelectionControl(TSelectionControl c) { control = c; }
+    TSelectionControl getSelectionControl() const { return control; }
 protected:
     TIntermTyped* condition;
     TIntermAggregate* body;
+    TSelectionControl control;    // selection control hint
 };
 
 enum TVisit

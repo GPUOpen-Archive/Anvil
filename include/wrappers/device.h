@@ -365,6 +365,19 @@ namespace Anvil
         /** Returns detailed queue family information for a queue family at index @param in_queue_family_index . */
         virtual const Anvil::QueueFamilyInfo* get_queue_family_info(uint32_t in_queue_family_index) const = 0;
 
+        /** Returns sample locations used by the physical device for the specified sample count.
+         *
+         *  NOTE: This function will only report success if the physical device supports standard sample locations.
+         *
+         *  @param in_sample_count Sample count to use for the query.
+         *  @param out_result_ptr  Must not be null. Deref will be cleared and filled with sample locations
+         *                         for the specified sample count.
+         *
+         *  @return true if successful, false otherwise.
+         */
+        bool get_sample_locations(VkSampleCountFlagBits               in_sample_count,
+                                  std::vector<Anvil::SampleLocation>* out_result_ptr) const;
+
         /** Returns a Queue instance, corresponding to a sparse binding-capable queue at index @param in_n_queue,
          *  which supports queue family capabilities specified with @param opt_required_queue_flags.
          *

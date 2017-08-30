@@ -943,6 +943,22 @@ void Anvil::CommandBufferBase::cache_referenced_buffer(std::shared_ptr<Anvil::Bu
     }
 }
 
+/** Stores a specified command buffer instance in m_referenced_command_buffers if the cmd buffer has not already been cached.
+ *
+ *  @param in_cmd_buffer_ptr Command buffer instance to cache. Must not be null.
+ **/
+void Anvil::CommandBufferBase::cache_referenced_command_buffer(std::shared_ptr<Anvil::CommandBufferBase> in_cmd_buffer_ptr)
+{
+    auto cmd_buffer_iterator = std::find(m_referenced_command_buffers.begin(),
+                                         m_referenced_command_buffers.end(),
+                                         in_cmd_buffer_ptr);
+
+    if (cmd_buffer_iterator == m_referenced_command_buffers.end() )
+    {
+        m_referenced_command_buffers.push_back(in_cmd_buffer_ptr);
+    }
+}
+
 /** Stores a specified descriptor set instance in m_referenced_descriptor_sets if the DS instance has not
  *  already been cached, along with underlying objects specified DS' bindings refer to. The latter are cached
  *  in corresponding m_referenced_* vectors.
@@ -1300,6 +1316,7 @@ void Anvil::CommandBufferBase::cache_referenced_renderpass(std::shared_ptr<Anvil
 void Anvil::CommandBufferBase::clear_referenced_objects()
 {
     m_referenced_buffers.clear        ();
+    m_referenced_command_buffers.clear();
     m_referenced_descriptor_sets.clear();
     m_referenced_events.clear         ();
     m_referenced_framebuffers.clear   ();
@@ -3659,6 +3676,8 @@ bool Anvil::PrimaryCommandBuffer::record_execute_commands(uint32_t              
                 ++n_cmd_buffer)
     {
         cmd_buffers[n_cmd_buffer] = in_cmd_buffer_ptrs[n_cmd_buffer]->get_command_buffer();
+
+        cache_referenced_command_buffer(in_cmd_buffer_ptrs[n_cmd_buffer]);
     }
 
     vkCmdExecuteCommands(m_command_buffer,

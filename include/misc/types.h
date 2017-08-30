@@ -887,6 +887,9 @@ namespace Anvil
         VkFormatFeatureFlagsVariable(linear_tiling_capabilities);
         VkFormatFeatureFlagsVariable(optimal_tiling_capabilities);
 
+        /* Tells whether the format can be used with functions introduced in VK_AMD_texture_gather_bias_lod */
+        bool supports_amd_texture_gather_bias_lod;
+
         /** Dummy constructor */
         FormatProperties()
         {
@@ -901,9 +904,10 @@ namespace Anvil
          **/
         FormatProperties(const VkFormatProperties& in_format_props)
         {
-            buffer_capabilities         = in_format_props.bufferFeatures;
-            linear_tiling_capabilities  = in_format_props.linearTilingFeatures;
-            optimal_tiling_capabilities = in_format_props.optimalTilingFeatures;
+            buffer_capabilities                  = in_format_props.bufferFeatures;
+            linear_tiling_capabilities           = in_format_props.linearTilingFeatures;
+            optimal_tiling_capabilities          = in_format_props.optimalTilingFeatures;
+            supports_amd_texture_gather_bias_lod = false;
         }
     } FormatProperties;
 
@@ -1381,7 +1385,7 @@ namespace Anvil
          *  @param in_n_mipmap                              Index of the mipmap to be updated.
          *  @param in_linear_tightly_packed_data_ptr        Pointer to raw mip-map data.
          *  @param in_linear_tightly_packed_data_vector_ptr Vector holding raw mip-map data.
-         *  @param in_data_size                             Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr.
+         *  @param in_slice_data_size                       Number of bytes available for reading under @param in_linear_tightly_packed_data_ptr for a single slice.
          *  @param in_row_size                              Number of bytes each texture row takes.
          *
          *  @return As per description.
@@ -1391,21 +1395,21 @@ namespace Anvil
                                                              uint32_t                                     in_n_layer_slices,
                                                              uint32_t                                     in_n_mipmap,
                                                              std::shared_ptr<unsigned char>               in_linear_tightly_packed_data_ptr,
-                                                             uint32_t                                     in_data_size,
+                                                             uint32_t                                     in_slice_data_size,
                                                              uint32_t                                     in_row_size);
         static MipmapRawData create_3D_from_uchar_ptr       (VkImageAspectFlagBits                        in_aspect,
                                                              uint32_t                                     in_n_layer,
                                                              uint32_t                                     in_n_layer_slices,
                                                              uint32_t                                     in_n_mipmap,
                                                              const unsigned char*                         in_linear_tightly_packed_data_ptr,
-                                                             uint32_t                                     in_data_size,
+                                                             uint32_t                                     in_slice_data_size,
                                                              uint32_t                                     in_row_size);
         static MipmapRawData create_3D_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
                                                              uint32_t                                     in_n_layer,
                                                              uint32_t                                     in_n_layer_slices,
                                                              uint32_t                                     in_n_mipmap,
                                                              std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
-                                                             uint32_t                                     in_data_size,
+                                                             uint32_t                                     in_slice_data_size,
                                                              uint32_t                                     in_row_size);
     
         /** Creates a MipmapRawData instance which can be used to upload data to Cube Map Image instances:
@@ -1602,7 +1606,8 @@ namespace Anvil
         bool operator==(const PushConstantRange& in) const
         {
             return (offset == in.offset &&
-                    size   == in.size);
+                    size   == in.size   &&
+                    stages == in.stages);
         }
     } PushConstantRange;
 
@@ -1727,6 +1732,9 @@ namespace Anvil
     {
         RENDERING_SURFACE_TYPE_GENERAL,
     } RenderingSurfaceType;
+
+    /* A pair of 32-bit FP values which describes a sample location */
+    typedef std::pair<float, float> SampleLocation;
 
     /* Specifies one of the compute / rendering pipeline stages. */
     typedef enum

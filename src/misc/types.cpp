@@ -754,14 +754,14 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_3D_from_uchar_ptr(VkImageAspec
                                                                     uint32_t                       in_n_layer_slices,
                                                                     uint32_t                       in_n_mipmap,
                                                                     std::shared_ptr<unsigned char> in_linear_tightly_packed_data_ptr,
-                                                                    uint32_t                       in_data_size,
+                                                                    uint32_t                       in_slice_data_size,
                                                                     uint32_t                       in_row_size)
 {
     MipmapRawData result = create_3D(in_aspect,
                                      in_n_layer,
                                      in_n_layer_slices,
                                      in_n_mipmap,
-                                     in_data_size,
+                                     in_slice_data_size,
                                      in_row_size);
 
     result.linear_tightly_packed_data_uchar_ptr = in_linear_tightly_packed_data_ptr;
@@ -775,14 +775,14 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_3D_from_uchar_ptr(VkImageAspec
                                                                     uint32_t              in_n_layer_slices,
                                                                     uint32_t              in_n_mipmap,
                                                                     const unsigned char*  in_linear_tightly_packed_data_ptr,
-                                                                    uint32_t              in_data_size,
+                                                                    uint32_t              in_slice_data_size,
                                                                     uint32_t              in_row_size)
 {
     MipmapRawData result = create_3D(in_aspect,
                                      in_n_layer,
                                      in_n_layer_slices,
                                      in_n_mipmap,
-                                     in_data_size,
+                                     in_slice_data_size,
                                      in_row_size);
 
     result.linear_tightly_packed_data_uchar_raw_ptr = in_linear_tightly_packed_data_ptr;
@@ -796,14 +796,14 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_3D_from_uchar_vector_ptr(VkIma
                                                                            uint32_t                                     in_n_layer_slices,
                                                                            uint32_t                                     in_n_mipmap,
                                                                            std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
-                                                                           uint32_t                                     in_data_size,
+                                                                           uint32_t                                     in_slice_data_size,
                                                                            uint32_t                                     in_row_size)
 {
     MipmapRawData result = create_3D(in_aspect,
                                      in_n_layer,
                                      in_n_layer_slices,
                                      in_n_mipmap,
-                                     in_data_size,
+                                     in_slice_data_size,
                                      in_row_size);
 
     result.linear_tightly_packed_data_uchar_vec_ptr = in_linear_tightly_packed_data_ptr;

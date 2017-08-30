@@ -346,6 +346,7 @@ public:
     void setPreamble(const char* s) { preamble = s; }
     void setEntryPoint(const char* entryPoint);
     void setSourceEntryPoint(const char* sourceEntryPointName);
+    void addProcesses(const std::vector<std::string>&);
     void setShiftSamplerBinding(unsigned int base);
     void setShiftTextureBinding(unsigned int base);
     void setShiftImageBinding(unsigned int base);
@@ -362,10 +363,10 @@ public:
     void setTextureSamplerTransformMode(EShTextureSamplerTransformMode mode);
 
     // For setting up the environment (initialized in the constructor):
-    void setEnvInput(EShSource lang, EShLanguage in_stage, EShClient client, int version)
+    void setEnvInput(EShSource lang, EShLanguage envStage, EShClient client, int version)
     {
         environment.input.languageFamily = lang;
-        environment.input.stage = in_stage;
+        environment.input.stage = envStage;
         environment.input.dialect = client;
         environment.input.dialectVersion = version;
     }
@@ -532,9 +533,10 @@ class TIoMapper;
 
 // Allows to customize the binding layout after linking.
 // All used uniform variables will invoke at least validateBinding.
-// If validateBinding returned true then the other resolveBinding
-// and resolveSet are invoked to resolve the binding and descriptor
-// set index respectively.
+// If validateBinding returned true then the other resolveBinding,
+// resolveSet, and resolveLocation are invoked to resolve the binding
+// and descriptor set index respectively.
+//
 // Invocations happen in a particular order:
 // 1) all shader inputs
 // 2) all shader outputs
@@ -566,6 +568,9 @@ public:
   // Should return a value >= 0 if the current set should be overridden.
   // Return -1 if the current set (including no set) should be kept.
   virtual int resolveSet(EShLanguage stage, const char* name, const TType& type, bool is_live) = 0;
+  // Should return a value >= 0 if the current location should be overridden.
+  // Return -1 if the current location (including no location) should be kept.
+  virtual int resolveUniformLocation(EShLanguage stage, const char* name, const TType& type, bool is_live) = 0;
   // Should return true if the resulting/current setup would be okay.
   // Basic idea is to do aliasing checks and reject invalid semantic names.
   virtual bool validateInOut(EShLanguage stage, const char* name, const TType& type, bool is_live) = 0;
@@ -619,6 +624,7 @@ public:
     const char* getUniformBlockName(int blockIndex) const; // can be used for glGetActiveUniformBlockName()
     int getUniformBlockSize(int blockIndex) const;         // can be used for glGetActiveUniformBlockiv(UNIFORM_BLOCK_DATA_SIZE)
     int getUniformIndex(const char* name) const;           // can be used for glGetUniformIndices()
+    int getUniformBinding(int index) const;                // returns the binding number
     int getUniformBlockIndex(int index) const;             // can be used for glGetActiveUniformsiv(GL_UNIFORM_BLOCK_INDEX)
     int getUniformBlockCounterIndex(int index) const;      // returns block index of associated counter.
     int getUniformType(int index) const;                   // can be used for glGetActiveUniformsiv(GL_UNIFORM_TYPE)

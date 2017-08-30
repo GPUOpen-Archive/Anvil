@@ -43,7 +43,7 @@ extern "C" {
 #define VK_VERSION_MINOR(version) (((uint32_t)(version) >> 12) & 0x3ff)
 #define VK_VERSION_PATCH(version) ((uint32_t)(version) & 0xfff)
 // Version of this file
-#define VK_HEADER_VERSION 56
+#define VK_HEADER_VERSION 57
 
 
 #define VK_NULL_HANDLE 0
@@ -241,8 +241,6 @@ typedef enum VkStructureType {
     VK_STRUCTURE_TYPE_SPARSE_IMAGE_FORMAT_PROPERTIES_2_KHR = 1000059007,
     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SPARSE_IMAGE_FORMAT_INFO_2_KHR = 1000059008,
     VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHX = 1000060000,
-    VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO_KHX = 1000060001,
-    VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO_KHX = 1000060002,
     VK_STRUCTURE_TYPE_DEVICE_GROUP_RENDER_PASS_BEGIN_INFO_KHX = 1000060003,
     VK_STRUCTURE_TYPE_DEVICE_GROUP_COMMAND_BUFFER_BEGIN_INFO_KHX = 1000060004,
     VK_STRUCTURE_TYPE_DEVICE_GROUP_SUBMIT_INFO_KHX = 1000060005,
@@ -253,6 +251,8 @@ typedef enum VkStructureType {
     VK_STRUCTURE_TYPE_ACQUIRE_NEXT_IMAGE_INFO_KHX = 1000060010,
     VK_STRUCTURE_TYPE_DEVICE_GROUP_PRESENT_INFO_KHX = 1000060011,
     VK_STRUCTURE_TYPE_DEVICE_GROUP_SWAPCHAIN_CREATE_INFO_KHX = 1000060012,
+    VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_DEVICE_GROUP_INFO_KHX = 1000060013,
+    VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_DEVICE_GROUP_INFO_KHX = 1000060014,
     VK_STRUCTURE_TYPE_VALIDATION_FLAGS_EXT = 1000061000,
     VK_STRUCTURE_TYPE_VI_SURFACE_CREATE_INFO_NN = 1000062000,
     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GROUP_PROPERTIES_KHX = 1000070000,
@@ -299,6 +299,7 @@ typedef enum VkStructureType {
     VK_STRUCTURE_TYPE_DISPLAY_EVENT_INFO_EXT = 1000091002,
     VK_STRUCTURE_TYPE_SWAPCHAIN_COUNTER_CREATE_INFO_EXT = 1000091003,
     VK_STRUCTURE_TYPE_PRESENT_TIMES_INFO_GOOGLE = 1000092000,
+    VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES_KHX = 1000093000,
     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_PER_VIEW_ATTRIBUTES_PROPERTIES_NVX = 1000097000,
     VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_SWIZZLE_STATE_CREATE_INFO_NV = 1000098000,
     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DISCARD_RECTANGLE_PROPERTIES_EXT = 1000099000,
@@ -313,26 +314,47 @@ typedef enum VkStructureType {
     VK_STRUCTURE_TYPE_FENCE_GET_WIN32_HANDLE_INFO_KHR = 1000114002,
     VK_STRUCTURE_TYPE_IMPORT_FENCE_FD_INFO_KHR = 1000115000,
     VK_STRUCTURE_TYPE_FENCE_GET_FD_INFO_KHR = 1000115001,
+    VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_POINT_CLIPPING_PROPERTIES_KHR = 1000117000,
+    VK_STRUCTURE_TYPE_RENDER_PASS_INPUT_ATTACHMENT_ASPECT_CREATE_INFO_KHR = 1000117001,
+    VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO_KHR = 1000117002,
+    VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_DOMAIN_ORIGIN_STATE_CREATE_INFO_KHR = 1000117003,
     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR = 1000119000,
     VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR = 1000119001,
     VK_STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR = 1000119002,
     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTER_FEATURES_KHR = 1000120000,
+    VK_STRUCTURE_TYPE_DISPLAY_PROPERTIES_2_KHR = 1000121000,
+    VK_STRUCTURE_TYPE_DISPLAY_PLANE_PROPERTIES_2_KHR = 1000121001,
+    VK_STRUCTURE_TYPE_DISPLAY_MODE_PROPERTIES_2_KHR = 1000121002,
+    VK_STRUCTURE_TYPE_DISPLAY_PLANE_INFO_2_KHR = 1000121003,
+    VK_STRUCTURE_TYPE_DISPLAY_PLANE_CAPABILITIES_2_KHR = 1000121004,
     VK_STRUCTURE_TYPE_IOS_SURFACE_CREATE_INFO_MVK = 1000122000,
     VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK = 1000123000,
     VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS_KHR = 1000127000,
     VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR = 1000127001,
     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_FILTER_MINMAX_PROPERTIES_EXT = 1000130000,
     VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO_EXT = 1000130001,
+    VK_STRUCTURE_TYPE_PROTECTED_SUBMIT_INFO_KHR = 1000145000,
+    VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROTECTED_MEMORY_FEATURES_KHR = 1000145001,
+    VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROTECTED_MEMORY_PROPERTIES_KHR = 1000145002,
     VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2_KHR = 1000146000,
     VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2_KHR = 1000146001,
     VK_STRUCTURE_TYPE_IMAGE_SPARSE_MEMORY_REQUIREMENTS_INFO_2_KHR = 1000146002,
     VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2_KHR = 1000146003,
     VK_STRUCTURE_TYPE_SPARSE_IMAGE_MEMORY_REQUIREMENTS_2_KHR = 1000146004,
+    VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR = 1000147000,
     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BLEND_OPERATION_ADVANCED_FEATURES_EXT = 1000148000,
     VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BLEND_OPERATION_ADVANCED_PROPERTIES_EXT = 1000148001,
     VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_ADVANCED_STATE_CREATE_INFO_EXT = 1000148002,
     VK_STRUCTURE_TYPE_PIPELINE_COVERAGE_TO_COLOR_STATE_CREATE_INFO_NV = 1000149000,
     VK_STRUCTURE_TYPE_PIPELINE_COVERAGE_MODULATION_STATE_CREATE_INFO_NV = 1000152000,
+    VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO_KHR = 1000156000,
+    VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO_KHR = 1000156001,
+    VK_STRUCTURE_TYPE_BIND_IMAGE_PLANE_MEMORY_INFO_KHR = 1000156002,
+    VK_STRUCTURE_TYPE_IMAGE_PLANE_MEMORY_REQUIREMENTS_INFO_KHR = 1000156003,
+    VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES_KHR = 1000156004,
+    VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_IMAGE_FORMAT_PROPERTIES_KHR = 1000156005,
+    VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO_KHR = 1000157000,
+    VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO_KHR = 1000157001,
     VK_STRUCTURE_TYPE_BEGIN_RANGE = VK_STRUCTURE_TYPE_APPLICATION_INFO,
     VK_STRUCTURE_TYPE_END_RANGE = VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO,
     VK_STRUCTURE_TYPE_RANGE_SIZE = (VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO - VK_STRUCTURE_TYPE_APPLICATION_INFO + 1),
@@ -553,6 +575,40 @@ typedef enum VkFormat {
     VK_FORMAT_PVRTC1_4BPP_SRGB_BLOCK_IMG = 1000054005,
     VK_FORMAT_PVRTC2_2BPP_SRGB_BLOCK_IMG = 1000054006,
     VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG = 1000054007,
+    VK_FORMAT_G8B8G8R8_422_UNORM_KHR = 1000156000,
+    VK_FORMAT_B8G8R8G8_422_UNORM_KHR = 1000156001,
+    VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM_KHR = 1000156002,
+    VK_FORMAT_G8_B8R8_2PLANE_420_UNORM_KHR = 1000156003,
+    VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM_KHR = 1000156004,
+    VK_FORMAT_G8_B8R8_2PLANE_422_UNORM_KHR = 1000156005,
+    VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM_KHR = 1000156006,
+    VK_FORMAT_R10X6_UNORM_PACK16_KHR = 1000156007,
+    VK_FORMAT_R10X6G10X6_UNORM_2PACK16_KHR = 1000156008,
+    VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16_KHR = 1000156009,
+    VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16_KHR = 1000156010,
+    VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16_KHR = 1000156011,
+    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16_KHR = 1000156012,
+    VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16_KHR = 1000156013,
+    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16_KHR = 1000156014,
+    VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16_KHR = 1000156015,
+    VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16_KHR = 1000156016,
+    VK_FORMAT_R12X4_UNORM_PACK16_KHR = 1000156017,
+    VK_FORMAT_R12X4G12X4_UNORM_2PACK16_KHR = 1000156018,
+    VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16_KHR = 1000156019,
+    VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16_KHR = 1000156020,
+    VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16_KHR = 1000156021,
+    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16_KHR = 1000156022,
+    VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16_KHR = 1000156023,
+    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16_KHR = 1000156024,
+    VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16_KHR = 1000156025,
+    VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16_KHR = 1000156026,
+    VK_FORMAT_G16B16G16R16_422_UNORM_KHR = 1000156027,
+    VK_FORMAT_B16G16R16G16_422_UNORM_KHR = 1000156028,
+    VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM_KHR = 1000156029,
+    VK_FORMAT_G16_B16R16_2PLANE_420_UNORM_KHR = 1000156030,
+    VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM_KHR = 1000156031,
+    VK_FORMAT_G16_B16R16_2PLANE_422_UNORM_KHR = 1000156032,
+    VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM_KHR = 1000156033,
     VK_FORMAT_BEGIN_RANGE = VK_FORMAT_UNDEFINED,
     VK_FORMAT_END_RANGE = VK_FORMAT_ASTC_12x12_SRGB_BLOCK,
     VK_FORMAT_RANGE_SIZE = (VK_FORMAT_ASTC_12x12_SRGB_BLOCK - VK_FORMAT_UNDEFINED + 1),
@@ -621,6 +677,8 @@ typedef enum VkImageLayout {
     VK_IMAGE_LAYOUT_PREINITIALIZED = 8,
     VK_IMAGE_LAYOUT_PRESENT_SRC_KHR = 1000001002,
     VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR = 1000111000,
+    VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL_KHR = 1000117000,
+    VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL_KHR = 1000117001,
     VK_IMAGE_LAYOUT_BEGIN_RANGE = VK_IMAGE_LAYOUT_UNDEFINED,
     VK_IMAGE_LAYOUT_END_RANGE = VK_IMAGE_LAYOUT_PREINITIALIZED,
     VK_IMAGE_LAYOUT_RANGE_SIZE = (VK_IMAGE_LAYOUT_PREINITIALIZED - VK_IMAGE_LAYOUT_UNDEFINED + 1),
@@ -1009,6 +1067,7 @@ typedef enum VkObjectType {
     VK_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_KHR = 1000085000,
     VK_OBJECT_TYPE_OBJECT_TABLE_NVX = 1000086000,
     VK_OBJECT_TYPE_INDIRECT_COMMANDS_LAYOUT_NVX = 1000086001,
+    VK_OBJECT_TYPE_SAMPLER_YCBCR_CONVERSION_KHR = 1000156000,
     VK_OBJECT_TYPE_BEGIN_RANGE = VK_OBJECT_TYPE_UNKNOWN,
     VK_OBJECT_TYPE_END_RANGE = VK_OBJECT_TYPE_COMMAND_POOL,
     VK_OBJECT_TYPE_RANGE_SIZE = (VK_OBJECT_TYPE_COMMAND_POOL - VK_OBJECT_TYPE_UNKNOWN + 1),
@@ -1035,6 +1094,13 @@ typedef enum VkFormatFeatureFlagBits {
     VK_FORMAT_FEATURE_TRANSFER_SRC_BIT_KHR = 0x00004000,
     VK_FORMAT_FEATURE_TRANSFER_DST_BIT_KHR = 0x00008000,
     VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_MINMAX_BIT_EXT = 0x00010000,
+    VK_FORMAT_FEATURE_MIDPOINT_CHROMA_SAMPLES_BIT_KHR = 0x00020000,
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_LINEAR_FILTER_BIT_KHR = 0x00040000,
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_SEPARATE_RECONSTRUCTION_FILTER_BIT_KHR = 0x00080000,
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_CHROMA_RECONSTRUCTION_EXPLICIT_BIT_KHR = 0x00100000,
+    VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_CHROMA_RECONSTRUCTION_EXPLICIT_FORCEABLE_BIT_KHR = 0x00200000,
+    VK_FORMAT_FEATURE_DISJOINT_BIT_KHR = 0x00400000,
+    VK_FORMAT_FEATURE_COSITED_CHROMA_SAMPLES_BIT_KHR = 0x00800000,
     VK_FORMAT_FEATURE_FLAG_BITS_MAX_ENUM = 0x7FFFFFFF
 } VkFormatFeatureFlagBits;
 typedef VkFlags VkFormatFeatureFlags;
@@ -1060,6 +1126,11 @@ typedef enum VkImageCreateFlagBits {
     VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT = 0x00000010,
     VK_IMAGE_CREATE_BIND_SFR_BIT_KHX = 0x00000040,
     VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT_KHR = 0x00000020,
+    VK_IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT_KHR = 0x00000080,
+    VK_IMAGE_CREATE_EXTENDED_USAGE_BIT_KHR = 0x00000100,
+    VK_IMAGE_CREATE_PROTECTED_BIT_KHR = 0x00000800,
+    VK_IMAGE_CREATE_DISJOINT_BIT_KHR = 0x00000200,
+    VK_IMAGE_CREATE_ALIAS_BIT_KHR = 0x00000400,
     VK_IMAGE_CREATE_FLAG_BITS_MAX_ENUM = 0x7FFFFFFF
 } VkImageCreateFlagBits;
 typedef VkFlags VkImageCreateFlags;
@@ -1081,6 +1152,7 @@ typedef enum VkQueueFlagBits {
     VK_QUEUE_COMPUTE_BIT = 0x00000002,
     VK_QUEUE_TRANSFER_BIT = 0x00000004,
     VK_QUEUE_SPARSE_BINDING_BIT = 0x00000008,
+    VK_QUEUE_PROTECTED_BIT_KHR = 0x00000010,
     VK_QUEUE_FLAG_BITS_MAX_ENUM = 0x7FFFFFFF
 } VkQueueFlagBits;
 typedef VkFlags VkQueueFlags;
@@ -1091,6 +1163,7 @@ typedef enum VkMemoryPropertyFlagBits {
     VK_MEMORY_PROPERTY_HOST_COHERENT_BIT = 0x00000004,
     VK_MEMORY_PROPERTY_HOST_CACHED_BIT = 0x00000008,
     VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT = 0x00000010,
+    VK_MEMORY_PROPERTY_PROTECTED_BIT_KHR = 0x00000020,
     VK_MEMORY_PROPERTY_FLAG_BITS_MAX_ENUM = 0x7FFFFFFF
 } VkMemoryPropertyFlagBits;
 typedef VkFlags VkMemoryPropertyFlags;
@@ -1102,6 +1175,11 @@ typedef enum VkMemoryHeapFlagBits {
 } VkMemoryHeapFlagBits;
 typedef VkFlags VkMemoryHeapFlags;
 typedef VkFlags VkDeviceCreateFlags;
+
+typedef enum VkDeviceQueueCreateFlagBits {
+    VK_DEVICE_QUEUE_CREATE_PROTECTED_BIT_KHR = 0x00000001,
+    VK_DEVICE_QUEUE_CREATE_FLAG_BITS_MAX_ENUM = 0x7FFFFFFF
+} VkDeviceQueueCreateFlagBits;
 typedef VkFlags VkDeviceQueueCreateFlags;
 
 typedef enum VkPipelineStageFlagBits {
@@ -1133,6 +1211,9 @@ typedef enum VkImageAspectFlagBits {
     VK_IMAGE_ASPECT_DEPTH_BIT = 0x00000002,
     VK_IMAGE_ASPECT_STENCIL_BIT = 0x00000004,
     VK_IMAGE_ASPECT_METADATA_BIT = 0x00000008,
+    VK_IMAGE_ASPECT_PLANE_0_BIT_KHR = 0x00000010,
+    VK_IMAGE_ASPECT_PLANE_1_BIT_KHR = 0x00000020,
+    VK_IMAGE_ASPECT_PLANE_2_BIT_KHR = 0x00000040,
     VK_IMAGE_ASPECT_FLAG_BITS_MAX_ENUM = 0x7FFFFFFF
 } VkImageAspectFlagBits;
 typedef VkFlags VkImageAspectFlags;
@@ -1189,6 +1270,7 @@ typedef enum VkBufferCreateFlagBits {
     VK_BUFFER_CREATE_SPARSE_BINDING_BIT = 0x00000001,
     VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT = 0x00000002,
     VK_BUFFER_CREATE_SPARSE_ALIASED_BIT = 0x00000004,
+    VK_BUFFER_CREATE_PROTECTED_BIT_KHR = 0x00000008,
     VK_BUFFER_CREATE_FLAG_BITS_MAX_ENUM = 0x7FFFFFFF
 } VkBufferCreateFlagBits;
 typedef VkFlags VkBufferCreateFlags;
@@ -1328,6 +1410,7 @@ typedef VkFlags VkDependencyFlags;
 typedef enum VkCommandPoolCreateFlagBits {
     VK_COMMAND_POOL_CREATE_TRANSIENT_BIT = 0x00000001,
     VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT = 0x00000002,
+    VK_COMMAND_POOL_CREATE_PROTECTED_BIT_KHR = 0x00000004,
     VK_COMMAND_POOL_CREATE_FLAG_BITS_MAX_ENUM = 0x7FFFFFFF
 } VkCommandPoolCreateFlagBits;
 typedef VkFlags VkCommandPoolCreateFlags;
@@ -1366,6 +1449,27 @@ typedef enum VkStencilFaceFlagBits {
 } VkStencilFaceFlagBits;
 typedef VkFlags VkStencilFaceFlags;
 
+typedef struct VkApplicationInfo {
+    VkStructureType    sType;
+    const void*        pNext;
+    const char*        pApplicationName;
+    uint32_t           applicationVersion;
+    const char*        pEngineName;
+    uint32_t           engineVersion;
+    uint32_t           apiVersion;
+} VkApplicationInfo;
+
+typedef struct VkInstanceCreateInfo {
+    VkStructureType             sType;
+    const void*                 pNext;
+    VkInstanceCreateFlags       flags;
+    const VkApplicationInfo*    pApplicationInfo;
+    uint32_t                    enabledLayerCount;
+    const char* const*          ppEnabledLayerNames;
+    uint32_t                    enabledExtensionCount;
+    const char* const*          ppEnabledExtensionNames;
+} VkInstanceCreateInfo;
+
 typedef void* (VKAPI_PTR *PFN_vkAllocationFunction)(
     void*                                       pUserData,
     size_t                                      size,
@@ -1394,29 +1498,6 @@ typedef void (VKAPI_PTR *PFN_vkInternalFreeNotification)(
     size_t                                      size,
     VkInternalAllocationType                    allocationType,
     VkSystemAllocationScope                     allocationScope);
-
-typedef void (VKAPI_PTR *PFN_vkVoidFunction)(void);
-
-typedef struct VkApplicationInfo {
-    VkStructureType    sType;
-    const void*        pNext;
-    const char*        pApplicationName;
-    uint32_t           applicationVersion;
-    const char*        pEngineName;
-    uint32_t           engineVersion;
-    uint32_t           apiVersion;
-} VkApplicationInfo;
-
-typedef struct VkInstanceCreateInfo {
-    VkStructureType             sType;
-    const void*                 pNext;
-    VkInstanceCreateFlags       flags;
-    const VkApplicationInfo*    pApplicationInfo;
-    uint32_t                    enabledLayerCount;
-    const char* const*          ppEnabledLayerNames;
-    uint32_t                    enabledExtensionCount;
-    const char* const*          ppEnabledExtensionNames;
-} VkInstanceCreateInfo;
 
 typedef struct VkAllocationCallbacks {
     void*                                   pUserData;
@@ -1658,6 +1739,7 @@ typedef struct VkPhysicalDeviceMemoryProperties {
     VkMemoryHeap    memoryHeaps[VK_MAX_MEMORY_HEAPS];
 } VkPhysicalDeviceMemoryProperties;
 
+typedef void (VKAPI_PTR *PFN_vkVoidFunction)(void);
 typedef struct VkDeviceQueueCreateInfo {
     VkStructureType             sType;
     const void*                 pNext;
@@ -2473,6 +2555,7 @@ typedef struct VkDrawIndirectCommand {
 } VkDrawIndirectCommand;
 
 
+typedef VkResult (VKAPI_PTR *PFN_vkEnumerateInstanceVersion)(uint32_t* pApiVersion);
 typedef VkResult (VKAPI_PTR *PFN_vkCreateInstance)(const VkInstanceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkInstance* pInstance);
 typedef void (VKAPI_PTR *PFN_vkDestroyInstance)(VkInstance instance, const VkAllocationCallbacks* pAllocator);
 typedef VkResult (VKAPI_PTR *PFN_vkEnumeratePhysicalDevices)(VkInstance instance, uint32_t* pPhysicalDeviceCount, VkPhysicalDevice* pPhysicalDevices);
@@ -2612,6 +2695,9 @@ typedef void (VKAPI_PTR *PFN_vkCmdEndRenderPass)(VkCommandBuffer commandBuffer);
 typedef void (VKAPI_PTR *PFN_vkCmdExecuteCommands)(VkCommandBuffer commandBuffer, uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers);
 
 #ifndef VK_NO_PROTOTYPES
+VKAPI_ATTR VkResult VKAPI_CALL vkEnumerateInstanceVersion(
+    uint32_t*                                   pApiVersion);
+
 VKAPI_ATTR VkResult VKAPI_CALL vkCreateInstance(
     const VkInstanceCreateInfo*                 pCreateInfo,
     const VkAllocationCallbacks*                pAllocator,
@@ -3541,6 +3627,7 @@ VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkSwapchainKHR)
 
 typedef enum VkSwapchainCreateFlagBitsKHR {
     VK_SWAPCHAIN_CREATE_BIND_SFR_BIT_KHX = 0x00000001,
+    VK_SWAPCHAIN_CREATE_PROTECTED_BIT_KHR = 0x00000002,
     VK_SWAPCHAIN_CREATE_FLAG_BITS_MAX_ENUM_KHR = 0x7FFFFFFF
 } VkSwapchainCreateFlagBitsKHR;
 typedef VkFlags VkSwapchainCreateFlagsKHR;
@@ -4775,6 +4862,62 @@ VKAPI_ATTR VkResult VKAPI_CALL vkGetFenceFdKHR(
     int*                                        pFd);
 #endif
 
+#define VK_KHR_maintenance2 1
+#define VK_KHR_MAINTENANCE2_SPEC_VERSION  1
+#define VK_KHR_MAINTENANCE2_EXTENSION_NAME "VK_KHR_maintenance2"
+
+
+typedef enum VkPointClippingBehaviorKHR {
+    VK_POINT_CLIPPING_BEHAVIOR_ALL_CLIP_PLANES_KHR = 0,
+    VK_POINT_CLIPPING_BEHAVIOR_USER_CLIP_PLANES_ONLY_KHR = 1,
+    VK_POINT_CLIPPING_BEHAVIOR_BEGIN_RANGE_KHR = VK_POINT_CLIPPING_BEHAVIOR_ALL_CLIP_PLANES_KHR,
+    VK_POINT_CLIPPING_BEHAVIOR_END_RANGE_KHR = VK_POINT_CLIPPING_BEHAVIOR_USER_CLIP_PLANES_ONLY_KHR,
+    VK_POINT_CLIPPING_BEHAVIOR_RANGE_SIZE_KHR = (VK_POINT_CLIPPING_BEHAVIOR_USER_CLIP_PLANES_ONLY_KHR - VK_POINT_CLIPPING_BEHAVIOR_ALL_CLIP_PLANES_KHR + 1),
+    VK_POINT_CLIPPING_BEHAVIOR_MAX_ENUM_KHR = 0x7FFFFFFF
+} VkPointClippingBehaviorKHR;
+
+typedef enum VkTessellationDomainOriginKHR {
+    VK_TESSELLATION_DOMAIN_ORIGIN_UPPER_LEFT_KHR = 0,
+    VK_TESSELLATION_DOMAIN_ORIGIN_LOWER_LEFT_KHR = 1,
+    VK_TESSELLATION_DOMAIN_ORIGIN_BEGIN_RANGE_KHR = VK_TESSELLATION_DOMAIN_ORIGIN_UPPER_LEFT_KHR,
+    VK_TESSELLATION_DOMAIN_ORIGIN_END_RANGE_KHR = VK_TESSELLATION_DOMAIN_ORIGIN_LOWER_LEFT_KHR,
+    VK_TESSELLATION_DOMAIN_ORIGIN_RANGE_SIZE_KHR = (VK_TESSELLATION_DOMAIN_ORIGIN_LOWER_LEFT_KHR - VK_TESSELLATION_DOMAIN_ORIGIN_UPPER_LEFT_KHR + 1),
+    VK_TESSELLATION_DOMAIN_ORIGIN_MAX_ENUM_KHR = 0x7FFFFFFF
+} VkTessellationDomainOriginKHR;
+
+typedef struct VkPhysicalDevicePointClippingPropertiesKHR {
+    VkStructureType               sType;
+    void*                         pNext;
+    VkPointClippingBehaviorKHR    pointClippingBehavior;
+} VkPhysicalDevicePointClippingPropertiesKHR;
+
+typedef struct VkInputAttachmentAspectReferenceKHR {
+    uint32_t              subpass;
+    uint32_t              inputAttachmentIndex;
+    VkImageAspectFlags    aspectMask;
+} VkInputAttachmentAspectReferenceKHR;
+
+typedef struct VkRenderPassInputAttachmentAspectCreateInfoKHR {
+    VkStructureType                               sType;
+    const void*                                   pNext;
+    uint32_t                                      aspectReferenceCount;
+    const VkInputAttachmentAspectReferenceKHR*    pAspectReferences;
+} VkRenderPassInputAttachmentAspectCreateInfoKHR;
+
+typedef struct VkImageViewUsageCreateInfoKHR {
+    VkStructureType      sType;
+    const void*          pNext;
+    VkImageUsageFlags    usage;
+} VkImageViewUsageCreateInfoKHR;
+
+typedef struct VkPipelineTessellationDomainOriginStateCreateInfoKHR {
+    VkStructureType                  sType;
+    const void*                      pNext;
+    VkTessellationDomainOriginKHR    domainOrigin;
+} VkPipelineTessellationDomainOriginStateCreateInfoKHR;
+
+
+
 #define VK_KHR_get_surface_capabilities2 1
 #define VK_KHR_GET_SURFACE_CAPABILITIES_2_SPEC_VERSION 1
 #define VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME "VK_KHR_get_surface_capabilities2"
@@ -4827,6 +4970,70 @@ typedef struct VkPhysicalDeviceVariablePointerFeaturesKHR {
 
 
 
+#define VK_KHR_get_display_properties2 1
+#define VK_KHR_GET_DISPLAY_PROPERTIES_2_SPEC_VERSION 1
+#define VK_KHR_GET_DISPLAY_PROPERTIES_2_EXTENSION_NAME "VK_KHR_get_display_properties2"
+
+typedef struct VkDisplayProperties2KHR {
+    VkStructureType           sType;
+    void*                     pNext;
+    VkDisplayPropertiesKHR    displayProperties;
+} VkDisplayProperties2KHR;
+
+typedef struct VkDisplayPlaneProperties2KHR {
+    VkStructureType                sType;
+    void*                          pNext;
+    VkDisplayPlanePropertiesKHR    displayPlaneProperties;
+} VkDisplayPlaneProperties2KHR;
+
+typedef struct VkDisplayModeProperties2KHR {
+    VkStructureType               sType;
+    void*                         pNext;
+    VkDisplayModePropertiesKHR    displayModeProperties;
+} VkDisplayModeProperties2KHR;
+
+typedef struct VkDisplayPlaneInfo2KHR {
+    VkStructureType     sType;
+    const void*         pNext;
+    VkDisplayModeKHR    mode;
+    uint32_t            planeIndex;
+} VkDisplayPlaneInfo2KHR;
+
+typedef struct VkDisplayPlaneCapabilities2KHR {
+    VkStructureType                  sType;
+    void*                            pNext;
+    VkDisplayPlaneCapabilitiesKHR    capabilities;
+} VkDisplayPlaneCapabilities2KHR;
+
+
+typedef VkResult (VKAPI_PTR *PFN_vkGetPhysicalDeviceDisplayProperties2KHR)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkDisplayProperties2KHR* pProperties);
+typedef VkResult (VKAPI_PTR *PFN_vkGetPhysicalDeviceDisplayPlaneProperties2KHR)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkDisplayPlaneProperties2KHR* pProperties);
+typedef VkResult (VKAPI_PTR *PFN_vkGetDisplayModeProperties2KHR)(VkPhysicalDevice physicalDevice, VkDisplayKHR display, uint32_t* pPropertyCount, VkDisplayModeProperties2KHR* pProperties);
+typedef VkResult (VKAPI_PTR *PFN_vkGetDisplayPlaneCapabilities2KHR)(VkPhysicalDevice physicalDevice, const VkDisplayPlaneInfo2KHR* pDisplayPlaneInfo, VkDisplayPlaneCapabilities2KHR* pCapabilities);
+
+#ifndef VK_NO_PROTOTYPES
+VKAPI_ATTR VkResult VKAPI_CALL vkGetPhysicalDeviceDisplayProperties2KHR(
+    VkPhysicalDevice                            physicalDevice,
+    uint32_t*                                   pPropertyCount,
+    VkDisplayProperties2KHR*                    pProperties);
+
+VKAPI_ATTR VkResult VKAPI_CALL vkGetPhysicalDeviceDisplayPlaneProperties2KHR(
+    VkPhysicalDevice                            physicalDevice,
+    uint32_t*                                   pPropertyCount,
+    VkDisplayPlaneProperties2KHR*               pProperties);
+
+VKAPI_ATTR VkResult VKAPI_CALL vkGetDisplayModeProperties2KHR(
+    VkPhysicalDevice                            physicalDevice,
+    VkDisplayKHR                                display,
+    uint32_t*                                   pPropertyCount,
+    VkDisplayModeProperties2KHR*                pProperties);
+
+VKAPI_ATTR VkResult VKAPI_CALL vkGetDisplayPlaneCapabilities2KHR(
+    VkPhysicalDevice                            physicalDevice,
+    const VkDisplayPlaneInfo2KHR*               pDisplayPlaneInfo,
+    VkDisplayPlaneCapabilities2KHR*             pCapabilities);
+#endif
+
 #define VK_KHR_dedicated_allocation 1
 #define VK_KHR_DEDICATED_ALLOCATION_SPEC_VERSION 1
 #define VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME "VK_KHR_dedicated_allocation"
@@ -4850,6 +5057,35 @@ typedef struct VkMemoryDedicatedAllocateInfoKHR {
 #define VK_KHR_storage_buffer_storage_class 1
 #define VK_KHR_STORAGE_BUFFER_STORAGE_CLASS_SPEC_VERSION 1
 #define VK_KHR_STORAGE_BUFFER_STORAGE_CLASS_EXTENSION_NAME "VK_KHR_storage_buffer_storage_class"
+
+
+#define VK_KHR_relaxed_block_layout 1
+#define VK_KHR_RELAXED_BLOCK_LAYOUT_SPEC_VERSION 1
+#define VK_KHR_RELAXED_BLOCK_LAYOUT_EXTENSION_NAME "VK_KHR_relaxed_block_layout"
+
+
+#define VK_KHR_protected_memory 1
+#define VK_KHR_PROTECTED_MEMORY_SPEC_VERSION 2
+#define VK_KHR_PROTECTED_MEMORY_EXTENSION_NAME "VK_KHR_protected_memory"
+
+typedef struct VkProtectedSubmitInfoKHR {
+    VkStructureType    sType;
+    const void*        pNext;
+    VkBool32           protectedSubmit;
+} VkProtectedSubmitInfoKHR;
+
+typedef struct VkPhysicalDeviceProtectedMemoryFeaturesKHR {
+    VkStructureType    sType;
+    void*              pNext;
+    VkBool32           protectedMemory;
+} VkPhysicalDeviceProtectedMemoryFeaturesKHR;
+
+typedef struct VkPhysicalDeviceProtectedMemoryPropertiesKHR {
+    VkStructureType    sType;
+    void*              pNext;
+    VkBool32           protectedNoFault;
+} VkPhysicalDeviceProtectedMemoryPropertiesKHR;
+
 
 
 #define VK_KHR_get_memory_requirements2 1
@@ -4909,6 +5145,153 @@ VKAPI_ATTR void VKAPI_CALL vkGetImageSparseMemoryRequirements2KHR(
     VkSparseImageMemoryRequirements2KHR*        pSparseMemoryRequirements);
 #endif
 
+#define VK_KHR_image_format_list 1
+#define VK_KHR_IMAGE_FORMAT_LIST_SPEC_VERSION 1
+#define VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME "VK_KHR_image_format_list"
+
+typedef struct VkImageFormatListCreateInfoKHR {
+    VkStructureType    sType;
+    const void*        pNext;
+    uint32_t           viewFormatCount;
+    const VkFormat*    pViewFormats;
+} VkImageFormatListCreateInfoKHR;
+
+
+
+#define VK_KHR_sampler_ycbcr_conversion 1
+VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkSamplerYcbcrConversionKHR)
+
+#define VK_KHR_SAMPLER_YCBCR_CONVERSION_SPEC_VERSION 1
+#define VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME "VK_KHR_sampler_ycbcr_conversion"
+
+
+typedef enum VkSamplerYcbcrModelConversionKHR {
+    VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY_KHR = 0,
+    VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_IDENTITY_KHR = 1,
+    VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709_KHR = 2,
+    VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601_KHR = 3,
+    VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_2020_KHR = 4,
+    VK_SAMPLER_YCBCR_MODEL_CONVERSION_BEGIN_RANGE_KHR = VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY_KHR,
+    VK_SAMPLER_YCBCR_MODEL_CONVERSION_END_RANGE_KHR = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_2020_KHR,
+    VK_SAMPLER_YCBCR_MODEL_CONVERSION_RANGE_SIZE_KHR = (VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_2020_KHR - VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY_KHR + 1),
+    VK_SAMPLER_YCBCR_MODEL_CONVERSION_MAX_ENUM_KHR = 0x7FFFFFFF
+} VkSamplerYcbcrModelConversionKHR;
+
+typedef enum VkSamplerYcbcrRangeKHR {
+    VK_SAMPLER_YCBCR_RANGE_KHRONOS_KHR = 0,
+    VK_SAMPLER_YCBCR_RANGE_ITU_FULL_KHR = 1,
+    VK_SAMPLER_YCBCR_RANGE_ITU_NARROW_KHR = 2,
+    VK_SAMPLER_YCBCR_RANGE_BEGIN_RANGE_KHR = VK_SAMPLER_YCBCR_RANGE_KHRONOS_KHR,
+    VK_SAMPLER_YCBCR_RANGE_END_RANGE_KHR = VK_SAMPLER_YCBCR_RANGE_ITU_NARROW_KHR,
+    VK_SAMPLER_YCBCR_RANGE_RANGE_SIZE_KHR = (VK_SAMPLER_YCBCR_RANGE_ITU_NARROW_KHR - VK_SAMPLER_YCBCR_RANGE_KHRONOS_KHR + 1),
+    VK_SAMPLER_YCBCR_RANGE_MAX_ENUM_KHR = 0x7FFFFFFF
+} VkSamplerYcbcrRangeKHR;
+
+typedef enum VkChromaLocationKHR {
+    VK_CHROMA_LOCATION_COSITED_EVEN_KHR = 0,
+    VK_CHROMA_LOCATION_MIDPOINT_KHR = 1,
+    VK_CHROMA_LOCATION_BEGIN_RANGE_KHR = VK_CHROMA_LOCATION_COSITED_EVEN_KHR,
+    VK_CHROMA_LOCATION_END_RANGE_KHR = VK_CHROMA_LOCATION_MIDPOINT_KHR,
+    VK_CHROMA_LOCATION_RANGE_SIZE_KHR = (VK_CHROMA_LOCATION_MIDPOINT_KHR - VK_CHROMA_LOCATION_COSITED_EVEN_KHR + 1),
+    VK_CHROMA_LOCATION_MAX_ENUM_KHR = 0x7FFFFFFF
+} VkChromaLocationKHR;
+
+typedef struct VkSamplerYcbcrConversionCreateInfoKHR {
+    VkStructureType                     sType;
+    const void*                         pNext;
+    VkFormat                            format;
+    VkSamplerYcbcrModelConversionKHR    YcbcrModel;
+    VkSamplerYcbcrRangeKHR              YcbcrRange;
+    VkComponentMapping                  components;
+    VkChromaLocationKHR                 xChromaOffset;
+    VkChromaLocationKHR                 yChromaOffset;
+    VkFilter                            chromaFilter;
+    VkBool32                            forceExplicitReconstruction;
+} VkSamplerYcbcrConversionCreateInfoKHR;
+
+typedef struct VkSamplerYcbcrConversionInfoKHR {
+    VkStructureType                sType;
+    const void*                    pNext;
+    VkSamplerYcbcrConversionKHR    conversion;
+} VkSamplerYcbcrConversionInfoKHR;
+
+typedef struct VkBindImagePlaneMemoryInfoKHR {
+    VkStructureType          sType;
+    const void*              pNext;
+    VkImageAspectFlagBits    planeAspect;
+} VkBindImagePlaneMemoryInfoKHR;
+
+typedef struct VkImagePlaneMemoryRequirementsInfoKHR {
+    VkStructureType          sType;
+    const void*              pNext;
+    VkImageAspectFlagBits    planeAspect;
+} VkImagePlaneMemoryRequirementsInfoKHR;
+
+typedef struct VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR {
+    VkStructureType    sType;
+    void*              pNext;
+    VkBool32           samplerYcbcrConversion;
+} VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR;
+
+typedef struct VkSamplerYcbcrConversionImageFormatPropertiesKHR {
+    VkStructureType    sType;
+    void*              pNext;
+    uint32_t           combinedImageSamplerDescriptorCount;
+} VkSamplerYcbcrConversionImageFormatPropertiesKHR;
+
+
+typedef VkResult (VKAPI_PTR *PFN_vkCreateSamplerYcbcrConversionKHR)(VkDevice device, const VkSamplerYcbcrConversionCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSamplerYcbcrConversionKHR* pYcbcrConversion);
+typedef void (VKAPI_PTR *PFN_vkDestroySamplerYcbcrConversionKHR)(VkDevice device, VkSamplerYcbcrConversionKHR YcbcrConversion, const VkAllocationCallbacks* pAllocator);
+
+#ifndef VK_NO_PROTOTYPES
+VKAPI_ATTR VkResult VKAPI_CALL vkCreateSamplerYcbcrConversionKHR(
+    VkDevice                                    device,
+    const VkSamplerYcbcrConversionCreateInfoKHR* pCreateInfo,
+    const VkAllocationCallbacks*                pAllocator,
+    VkSamplerYcbcrConversionKHR*                pYcbcrConversion);
+
+VKAPI_ATTR void VKAPI_CALL vkDestroySamplerYcbcrConversionKHR(
+    VkDevice                                    device,
+    VkSamplerYcbcrConversionKHR                 YcbcrConversion,
+    const VkAllocationCallbacks*                pAllocator);
+#endif
+
+#define VK_KHR_bind_memory2 1
+#define VK_KHR_BIND_MEMORY_2_SPEC_VERSION 1
+#define VK_KHR_BIND_MEMORY_2_EXTENSION_NAME "VK_KHR_bind_memory2"
+
+typedef struct VkBindBufferMemoryInfoKHR {
+    VkStructureType    sType;
+    const void*        pNext;
+    VkBuffer           buffer;
+    VkDeviceMemory     memory;
+    VkDeviceSize       memoryOffset;
+} VkBindBufferMemoryInfoKHR;
+
+typedef struct VkBindImageMemoryInfoKHR {
+    VkStructureType    sType;
+    const void*        pNext;
+    VkImage            image;
+    VkDeviceMemory     memory;
+    VkDeviceSize       memoryOffset;
+} VkBindImageMemoryInfoKHR;
+
+
+typedef VkResult (VKAPI_PTR *PFN_vkBindBufferMemory2KHR)(VkDevice device, uint32_t bindInfoCount, const VkBindBufferMemoryInfoKHR* pBindInfos);
+typedef VkResult (VKAPI_PTR *PFN_vkBindImageMemory2KHR)(VkDevice device, uint32_t bindInfoCount, const VkBindImageMemoryInfoKHR* pBindInfos);
+
+#ifndef VK_NO_PROTOTYPES
+VKAPI_ATTR VkResult VKAPI_CALL vkBindBufferMemory2KHR(
+    VkDevice                                    device,
+    uint32_t                                    bindInfoCount,
+    const VkBindBufferMemoryInfoKHR*            pBindInfos);
+
+VKAPI_ATTR VkResult VKAPI_CALL vkBindImageMemory2KHR(
+    VkDevice                                    device,
+    uint32_t                                    bindInfoCount,
+    const VkBindImageMemoryInfoKHR*             pBindInfos);
+#endif
+
 #define VK_EXT_debug_report 1
 VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkDebugReportCallbackEXT)
 
@@ -4953,6 +5336,7 @@ typedef enum VkDebugReportObjectTypeEXT {
     VK_DEBUG_REPORT_OBJECT_TYPE_OBJECT_TABLE_NVX_EXT = 31,
     VK_DEBUG_REPORT_OBJECT_TYPE_INDIRECT_COMMANDS_LAYOUT_NVX_EXT = 32,
     VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_KHR_EXT = 1000085000,
+    VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_YCBCR_CONVERSION_KHR_EXT = 1000156000,
     VK_DEBUG_REPORT_OBJECT_TYPE_BEGIN_RANGE_EXT = VK_DEBUG_REPORT_OBJECT_TYPE_UNKNOWN_EXT,
     VK_DEBUG_REPORT_OBJECT_TYPE_END_RANGE_EXT = VK_DEBUG_REPORT_OBJECT_TYPE_INDIRECT_COMMANDS_LAYOUT_NVX_EXT,
     VK_DEBUG_REPORT_OBJECT_TYPE_RANGE_SIZE_EXT = (VK_DEBUG_REPORT_OBJECT_TYPE_INDIRECT_COMMANDS_LAYOUT_NVX_EXT - VK_DEBUG_REPORT_OBJECT_TYPE_UNKNOWN_EXT + 1),
@@ -4979,7 +5363,6 @@ typedef VkBool32 (VKAPI_PTR *PFN_vkDebugReportCallbackEXT)(
     const char*                                 pLayerPrefix,
     const char*                                 pMessage,
     void*                                       pUserData);
-
 
 typedef struct VkDebugReportCallbackCreateInfoEXT {
     VkStructureType                 sType;
@@ -5357,7 +5740,7 @@ typedef struct VkWin32KeyedMutexAcquireReleaseInfoNV {
 
 #define VK_KHX_device_group 1
 #define VK_MAX_DEVICE_GROUP_SIZE_KHX      32
-#define VK_KHX_DEVICE_GROUP_SPEC_VERSION  1
+#define VK_KHX_DEVICE_GROUP_SPEC_VERSION  2
 #define VK_KHX_DEVICE_GROUP_EXTENSION_NAME "VK_KHX_device_group"
 
 
@@ -5391,28 +5774,6 @@ typedef struct VkMemoryAllocateFlagsInfoKHX {
     VkMemoryAllocateFlagsKHX    flags;
     uint32_t                    deviceMask;
 } VkMemoryAllocateFlagsInfoKHX;
-
-typedef struct VkBindBufferMemoryInfoKHX {
-    VkStructureType    sType;
-    const void*        pNext;
-    VkBuffer           buffer;
-    VkDeviceMemory     memory;
-    VkDeviceSize       memoryOffset;
-    uint32_t           deviceIndexCount;
-    const uint32_t*    pDeviceIndices;
-} VkBindBufferMemoryInfoKHX;
-
-typedef struct VkBindImageMemoryInfoKHX {
-    VkStructureType    sType;
-    const void*        pNext;
-    VkImage            image;
-    VkDeviceMemory     memory;
-    VkDeviceSize       memoryOffset;
-    uint32_t           deviceIndexCount;
-    const uint32_t*    pDeviceIndices;
-    uint32_t           SFRRectCount;
-    const VkRect2D*    pSFRRects;
-} VkBindImageMemoryInfoKHX;
 
 typedef struct VkDeviceGroupRenderPassBeginInfoKHX {
     VkStructureType    sType;
@@ -5459,6 +5820,22 @@ typedef struct VkImageSwapchainCreateInfoKHX {
     VkSwapchainKHR     swapchain;
 } VkImageSwapchainCreateInfoKHX;
 
+typedef struct VkBindBufferMemoryDeviceGroupInfoKHX {
+    VkStructureType    sType;
+    const void*        pNext;
+    uint32_t           deviceIndexCount;
+    const uint32_t*    pDeviceIndices;
+} VkBindBufferMemoryDeviceGroupInfoKHX;
+
+typedef struct VkBindImageMemoryDeviceGroupInfoKHX {
+    VkStructureType    sType;
+    const void*        pNext;
+    uint32_t           deviceIndexCount;
+    const uint32_t*    pDeviceIndices;
+    uint32_t           SFRRectCount;
+    const VkRect2D*    pSFRRects;
+} VkBindImageMemoryDeviceGroupInfoKHX;
+
 typedef struct VkBindImageMemorySwapchainInfoKHX {
     VkStructureType    sType;
     const void*        pNext;
@@ -5492,8 +5869,6 @@ typedef struct VkDeviceGroupSwapchainCreateInfoKHX {
 
 
 typedef void (VKAPI_PTR *PFN_vkGetDeviceGroupPeerMemoryFeaturesKHX)(VkDevice device, uint32_t heapIndex, uint32_t localDeviceIndex, uint32_t remoteDeviceIndex, VkPeerMemoryFeatureFlagsKHX* pPeerMemoryFeatures);
-typedef VkResult (VKAPI_PTR *PFN_vkBindBufferMemory2KHX)(VkDevice device, uint32_t bindInfoCount, const VkBindBufferMemoryInfoKHX* pBindInfos);
-typedef VkResult (VKAPI_PTR *PFN_vkBindImageMemory2KHX)(VkDevice device, uint32_t bindInfoCount, const VkBindImageMemoryInfoKHX* pBindInfos);
 typedef void (VKAPI_PTR *PFN_vkCmdSetDeviceMaskKHX)(VkCommandBuffer commandBuffer, uint32_t deviceMask);
 typedef VkResult (VKAPI_PTR *PFN_vkGetDeviceGroupPresentCapabilitiesKHX)(VkDevice device, VkDeviceGroupPresentCapabilitiesKHX* pDeviceGroupPresentCapabilities);
 typedef VkResult (VKAPI_PTR *PFN_vkGetDeviceGroupSurfacePresentModesKHX)(VkDevice device, VkSurfaceKHR surface, VkDeviceGroupPresentModeFlagsKHX* pModes);
@@ -5508,16 +5883,6 @@ VKAPI_ATTR void VKAPI_CALL vkGetDeviceGroupPeerMemoryFeaturesKHX(
     uint32_t                                    localDeviceIndex,
     uint32_t                                    remoteDeviceIndex,
     VkPeerMemoryFeatureFlagsKHX*                pPeerMemoryFeatures);
-
-VKAPI_ATTR VkResult VKAPI_CALL vkBindBufferMemory2KHX(
-    VkDevice                                    device,
-    uint32_t                                    bindInfoCount,
-    const VkBindBufferMemoryInfoKHX*            pBindInfos);
-
-VKAPI_ATTR VkResult VKAPI_CALL vkBindImageMemory2KHX(
-    VkDevice                                    device,
-    uint32_t                                    bindInfoCount,
-    const VkBindImageMemoryInfoKHX*             pBindInfos);
 
 VKAPI_ATTR void VKAPI_CALL vkCmdSetDeviceMaskKHX(
     VkCommandBuffer                             commandBuffer,
@@ -6101,6 +6466,35 @@ VKAPI_ATTR VkResult VKAPI_CALL vkGetPastPresentationTimingGOOGLE(
     VkPastPresentationTimingGOOGLE*             pPresentationTimings);
 #endif
 
+#define VK_KHX_subgroup 1
+#define VK_KHX_SUBGROUP_SPEC_VERSION      1
+#define VK_KHX_SUBGROUP_EXTENSION_NAME    "VK_KHX_subgroup"
+
+
+typedef enum VkSubgroupFeatureFlagBitsKHX {
+    VK_SUBGROUP_FEATURE_BIT_BASIC = 0x00000001,
+    VK_SUBGROUP_FEATURE_BIT_VOTE = 0x00000002,
+    VK_SUBGROUP_FEATURE_BIT_ARITHMETIC = 0x00000004,
+    VK_SUBGROUP_FEATURE_BIT_BALLOT = 0x00000008,
+    VK_SUBGROUP_FEATURE_BIT_SHUFFLE = 0x00000010,
+    VK_SUBGROUP_FEATURE_BIT_SHUFFLE_RELATIVE = 0x00000020,
+    VK_SUBGROUP_FEATURE_BIT_CLUSTERED = 0x00000040,
+    VK_SUBGROUP_FEATURE_BIT_QUAD = 0x00000080,
+    VK_SUBGROUP_FEATURE_FLAG_BITS_MAX_ENUM_KHX = 0x7FFFFFFF
+} VkSubgroupFeatureFlagBitsKHX;
+typedef VkFlags VkSubgroupFeatureFlagsKHX;
+
+typedef struct VkPhysicalDeviceSubgroupPropertiesKHX {
+    VkStructureType              sType;
+    void*                        pNext;
+    uint32_t                     subgroupSize;
+    VkShaderStageFlags           supportedStages;
+    VkSubgroupFeatureFlagsKHX    supportedOperations;
+    VkBool32                     quadOperationsInAllStages;
+} VkPhysicalDeviceSubgroupPropertiesKHX;
+
+
+
 #define VK_NV_sample_mask_override_coverage 1
 #define VK_NV_SAMPLE_MASK_OVERRIDE_COVERAGE_SPEC_VERSION 1
 #define VK_NV_SAMPLE_MASK_OVERRIDE_COVERAGE_EXTENSION_NAME "VK_NV_sample_mask_override_coverage"
@@ -6334,6 +6728,11 @@ typedef struct VkPhysicalDeviceSamplerFilterMinmaxPropertiesEXT {
 #define VK_AMD_GPU_SHADER_INT16_EXTENSION_NAME "VK_AMD_gpu_shader_int16"
 
 
+#define VK_AMD_mixed_attachment_samples 1
+#define VK_AMD_MIXED_ATTACHMENT_SAMPLES_SPEC_VERSION 1
+#define VK_AMD_MIXED_ATTACHMENT_SAMPLES_EXTENSION_NAME "VK_AMD_mixed_attachment_samples"
+
+
 #define VK_EXT_blend_operation_advanced 1
 #define VK_EXT_BLEND_OPERATION_ADVANCED_SPEC_VERSION 2
 #define VK_EXT_BLEND_OPERATION_ADVANCED_EXTENSION_NAME "VK_EXT_blend_operation_advanced"
@@ -6425,6 +6824,11 @@ typedef struct VkPipelineCoverageModulationStateCreateInfoNV {
 #define VK_NV_fill_rectangle 1
 #define VK_NV_FILL_RECTANGLE_SPEC_VERSION 1
 #define VK_NV_FILL_RECTANGLE_EXTENSION_NAME "VK_NV_fill_rectangle"
+
+
+#define VK_EXT_post_depth_coverage 1
+#define VK_EXT_POST_DEPTH_COVERAGE_SPEC_VERSION 1
+#define VK_EXT_POST_DEPTH_COVERAGE_EXTENSION_NAME "VK_EXT_post_depth_coverage"
 
 
 #ifdef __cplusplus

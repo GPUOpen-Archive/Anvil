@@ -2416,13 +2416,14 @@ namespace Anvil
 
         virtual ~CommandBufferBase();
 
-        void cache_referenced_buffer        (std::shared_ptr<Anvil::Buffer>        in_buffer_ptr);
-        void cache_referenced_descriptor_set(std::shared_ptr<Anvil::DescriptorSet> in_ds_ptr);
-        void cache_referenced_event         (std::shared_ptr<Anvil::Event>         in_event_ptr);
-        void cache_referenced_framebuffer   (std::shared_ptr<Anvil::Framebuffer>   in_fb_ptr);
-        void cache_referenced_image         (std::shared_ptr<Anvil::Image>         in_image_ptr);
-        void cache_referenced_query_pool    (std::shared_ptr<Anvil::QueryPool>     in_query_pool_ptr);
-        void cache_referenced_renderpass    (std::shared_ptr<Anvil::RenderPass>    in_renderpass_ptr);
+        void cache_referenced_buffer        (std::shared_ptr<Anvil::Buffer>            in_buffer_ptr);
+        void cache_referenced_command_buffer(std::shared_ptr<Anvil::CommandBufferBase> in_cmd_buffer_ptr);
+        void cache_referenced_descriptor_set(std::shared_ptr<Anvil::DescriptorSet>     in_ds_ptr);
+        void cache_referenced_event         (std::shared_ptr<Anvil::Event>             in_event_ptr);
+        void cache_referenced_framebuffer   (std::shared_ptr<Anvil::Framebuffer>       in_fb_ptr);
+        void cache_referenced_image         (std::shared_ptr<Anvil::Image>             in_image_ptr);
+        void cache_referenced_query_pool    (std::shared_ptr<Anvil::QueryPool>         in_query_pool_ptr);
+        void cache_referenced_renderpass    (std::shared_ptr<Anvil::RenderPass>        in_renderpass_ptr);
 
         #ifdef STORE_COMMAND_BUFFER_COMMANDS
             void clear_commands();
@@ -2452,13 +2453,14 @@ namespace Anvil
         CommandBufferBase& operator=(const CommandBufferBase&);
 
         /* Private variables */
-        std::vector<std::shared_ptr<Anvil::Buffer> >        m_referenced_buffers;
-        std::vector<std::shared_ptr<Anvil::DescriptorSet> > m_referenced_descriptor_sets;
-        std::vector<std::shared_ptr<Anvil::Event> >         m_referenced_events;
-        std::vector<std::shared_ptr<Anvil::Framebuffer> >   m_referenced_framebuffers;
-        std::vector<std::shared_ptr<Anvil::Image> >         m_referenced_images;
-        std::vector<std::shared_ptr<Anvil::QueryPool> >     m_referenced_query_pools;
-        std::vector<std::shared_ptr<Anvil::RenderPass> >    m_referenced_renderpasses;
+        std::vector<std::shared_ptr<Anvil::Buffer> >            m_referenced_buffers;
+        std::vector<std::shared_ptr<Anvil::CommandBufferBase> > m_referenced_command_buffers;
+        std::vector<std::shared_ptr<Anvil::DescriptorSet> >     m_referenced_descriptor_sets;
+        std::vector<std::shared_ptr<Anvil::Event> >             m_referenced_events;
+        std::vector<std::shared_ptr<Anvil::Framebuffer> >       m_referenced_framebuffers;
+        std::vector<std::shared_ptr<Anvil::Image> >             m_referenced_images;
+        std::vector<std::shared_ptr<Anvil::QueryPool> >         m_referenced_query_pools;
+        std::vector<std::shared_ptr<Anvil::RenderPass> >        m_referenced_renderpasses;
 
         friend class Anvil::CommandPool;
     };

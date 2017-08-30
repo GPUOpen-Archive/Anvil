@@ -63,6 +63,9 @@ namespace Anvil
      **/
     class ICallbacksSupportClient
     {
+        virtual bool is_callback_registered   (CallbackID      in_callback_id,
+                                               PFNCALLBACKPROC in_pfn_callback_proc,
+                                               void*           in_user_arg) const    = 0;
         virtual void register_for_callbacks   (CallbackID      in_callback_id,
                                                PFNCALLBACKPROC in_pfn_callback_proc,
                                                void*           in_user_arg)          = 0;
@@ -111,6 +114,30 @@ namespace Anvil
         }
 
         /* ICallbacksSupportClient interface implementation */
+
+        /* Tells whether a given callback has already been registered
+         *
+         * @param in_callback_id       ID of the call-back slot. Must not exceed the maximum callback ID
+         *                             allowed by the inheriting class.
+         * @param in_pfn_callback_proc Callback handler.
+         * @param in_user_arg          Optional argument to be passed with the callback.
+         *
+         * @return true if a callback with user-specified parameters has already been registered,
+         *         false otherwise.
+         */
+        bool is_callback_registered(CallbackID      in_callback_id,
+                                    PFNCALLBACKPROC in_pfn_callback_proc,
+                                    void*           in_user_arg) const
+        {
+            Callback callback = Callback(in_pfn_callback_proc,
+                                         in_user_arg);
+
+            anvil_assert(in_callback_id < m_callback_id_count);
+
+            return std::find(m_callbacks[in_callback_id].begin(),
+                             m_callbacks[in_callback_id].end(),
+                             callback) != m_callbacks[in_callback_id].end();
+        }
 
         /** Registers a new call-back client.
          *

@@ -130,6 +130,11 @@ namespace Anvil
         private:
             void register_for_callbacks   ();
             void unregister_from_callbacks();
+
+            bool buffer_has_is_alloc_pending_callback_registered;
+            bool buffer_has_memory_block_needed_callback_registered;
+            bool image_has_is_alloc_pending_callback_registered;
+            bool image_has_memory_block_needed_callback_registered;
         } Item;
 
         typedef std::vector<std::shared_ptr<Item> > Items;

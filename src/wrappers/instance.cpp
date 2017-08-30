@@ -433,13 +433,14 @@ void Anvil::Instance::init()
     anvil_assert_vk_call_succeeded(result);
 
     /* Continue initializing */
-    init_func_pointers        ();
-    enumerate_physical_devices();
+    init_func_pointers();
 
     if (m_pfn_validation_callback_proc != nullptr)
     {
         init_debug_callbacks();
     }
+
+    enumerate_physical_devices();
 }
 
 /** Initializes debug callback support. */

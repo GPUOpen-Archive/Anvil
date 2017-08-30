@@ -227,27 +227,72 @@ void Anvil::MemoryAllocator::Item::register_for_callbacks()
     if (buffer_ptr != nullptr)
     {
         /* Sign up for "is alloc pending" callback in order to support sparsely bound/sparse buffers */
-        buffer_ptr->register_for_callbacks(BUFFER_CALLBACK_ID_IS_ALLOC_PENDING,
-                                           on_is_alloc_pending_for_buffer_query,
-                                           memory_allocator_ptr.get() );
+        if (!buffer_ptr->is_callback_registered(BUFFER_CALLBACK_ID_IS_ALLOC_PENDING,
+                                                on_is_alloc_pending_for_buffer_query,
+                                                memory_allocator_ptr.get() ))
+        {
+            buffer_ptr->register_for_callbacks(BUFFER_CALLBACK_ID_IS_ALLOC_PENDING,
+                                               on_is_alloc_pending_for_buffer_query,
+                                               memory_allocator_ptr.get() );
+
+            buffer_has_is_alloc_pending_callback_registered = true;
+        }
+        else
+        {
+            buffer_has_is_alloc_pending_callback_registered = false;
+        }
 
         /* Sign up for "memory needed" callback so that we can trigger an implicit bake operation */
-        buffer_ptr->register_for_callbacks(BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
-                                           on_implicit_bake_needed,
-                                           memory_allocator_ptr.get() );
+        if (!buffer_ptr->is_callback_registered(BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
+                                                on_implicit_bake_needed,
+                                                memory_allocator_ptr.get() ))
+        {
+            buffer_ptr->register_for_callbacks(BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
+                                               on_implicit_bake_needed,
+                                               memory_allocator_ptr.get() );
+
+            buffer_has_memory_block_needed_callback_registered = true;
+        }
+        else
+        {
+            buffer_has_memory_block_needed_callback_registered = false;
+        }
     }
 
     if (image_ptr != nullptr)
     {
         /* Sign up for "is alloc pending" callback in order to support sparse images */
-        image_ptr->register_for_callbacks(IMAGE_CALLBACK_ID_IS_ALLOC_PENDING,
-                                          on_is_alloc_pending_for_image_query,
-                                          memory_allocator_ptr.get() );
+        if (!image_ptr->is_callback_registered(IMAGE_CALLBACK_ID_IS_ALLOC_PENDING,
+                                               on_is_alloc_pending_for_image_query,
+                                               memory_allocator_ptr.get() ))
+        {
+            image_ptr->register_for_callbacks(IMAGE_CALLBACK_ID_IS_ALLOC_PENDING,
+                                              on_is_alloc_pending_for_image_query,
+                                              memory_allocator_ptr.get() );
+
+            image_has_is_alloc_pending_callback_registered = true;
+        }
+        else
+        {
+            image_has_is_alloc_pending_callback_registered = false;
+        }
 
         /* Sign up for "memory needed" callback so that we can trigger an implicit bake operation */
-        image_ptr->register_for_callbacks(IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
-                                          on_implicit_bake_needed,
-                                          memory_allocator_ptr.get() );
+        if (!image_ptr->is_callback_registered(IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
+                                               on_implicit_bake_needed,
+                                               memory_allocator_ptr.get() ))
+        {
+            image_ptr->register_for_callbacks(IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
+                                              on_implicit_bake_needed,
+                                              memory_allocator_ptr.get() );
+
+            image_has_memory_block_needed_callback_registered = true;
+        }
+        else
+        {
+            image_has_memory_block_needed_callback_registered = false;
+        }
+
     }
 }
 
@@ -256,22 +301,36 @@ void Anvil::MemoryAllocator::Item::unregister_from_callbacks()
 {
     if (buffer_ptr != nullptr)
     {
-        buffer_ptr->unregister_from_callbacks(BUFFER_CALLBACK_ID_IS_ALLOC_PENDING,
-                                              on_is_alloc_pending_for_buffer_query,
-                                              memory_allocator_ptr.get() );
-        buffer_ptr->unregister_from_callbacks(BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
-                                              on_implicit_bake_needed,
-                                              memory_allocator_ptr.get() );
+        if (buffer_has_is_alloc_pending_callback_registered)
+        {
+            buffer_ptr->unregister_from_callbacks(BUFFER_CALLBACK_ID_IS_ALLOC_PENDING,
+                                                  on_is_alloc_pending_for_buffer_query,
+                                                  memory_allocator_ptr.get() );
+        }
+
+        if (buffer_has_memory_block_needed_callback_registered)
+        {
+            buffer_ptr->unregister_from_callbacks(BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
+                                                  on_implicit_bake_needed,
+                                                  memory_allocator_ptr.get() );
+        }
     }
 
     if (image_ptr != nullptr)
     {
-        image_ptr->unregister_from_callbacks(IMAGE_CALLBACK_ID_IS_ALLOC_PENDING,
-                                             on_is_alloc_pending_for_image_query,
-                                             memory_allocator_ptr.get() );
-        image_ptr->unregister_from_callbacks(IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
-                                             on_implicit_bake_needed,
-                                             memory_allocator_ptr.get() );
+        if (image_has_is_alloc_pending_callback_registered)
+        {
+            image_ptr->unregister_from_callbacks(IMAGE_CALLBACK_ID_IS_ALLOC_PENDING,
+                                                 on_is_alloc_pending_for_image_query,
+                                                 memory_allocator_ptr.get() );
+        }
+
+        if (image_has_memory_block_needed_callback_registered)
+        {
+            image_ptr->unregister_from_callbacks(IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
+                                                 on_implicit_bake_needed,
+                                                 memory_allocator_ptr.get() );
+        }
     }
 }
 

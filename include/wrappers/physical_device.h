@@ -233,7 +233,7 @@ namespace Anvil
             return m_queue_families;
         }
 
-        /** Returns sprase image format properties for this physical device. See Vulkan spec
+        /** Returns sparse image format properties for this physical device. See Vulkan spec
          *  for vkGetPhysicalDeviceSparseImageFormatProperties() function for more details.
          *
          *  @param in_format       As per Vulkan spec.

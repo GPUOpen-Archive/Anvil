@@ -85,15 +85,21 @@ void Anvil::PhysicalDevice::destroy()
  **/
 void Anvil::PhysicalDevice::init()
 {
-    VkPhysicalDeviceMemoryProperties memory_properties;
-    uint32_t                         n_extensions             = 0;
-    uint32_t                         n_physical_device_layers = 0;
-    uint32_t                         n_physical_device_queues = 0;
-    VkResult                         result                   = VK_ERROR_INITIALIZATION_FAILED;
+    const Anvil::ExtensionKHRGetPhysicalDeviceProperties2* gpdp2_entrypoints_ptr           = nullptr;
+    VkPhysicalDeviceMemoryProperties                       memory_properties;
+    uint32_t                                               n_extensions                    = 0;
+    uint32_t                                               n_physical_device_layers        = 0;
+    uint32_t                                               n_physical_device_queues        = 0;
+    VkResult                                               result                          = VK_ERROR_INITIALIZATION_FAILED;
 
     ANVIL_REDUNDANT_VARIABLE(result);
 
     anvil_assert(m_physical_device != VK_NULL_HANDLE);
+
+    if (m_instance_ptr->is_instance_extension_supported(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) )
+    {
+        gpdp2_entrypoints_ptr = &m_instance_ptr->get_extension_khr_get_physical_device_properties2_entrypoints();
+    }
 
     /* Retrieve device extensions */
     result = vkEnumerateDeviceExtensionProperties(m_physical_device,
@@ -127,6 +133,8 @@ void Anvil::PhysicalDevice::init()
                                &m_features);
 
     /* Retrieve device format properties */
+    const bool texture_gather_bias_lod_support = is_device_extension_supported(VK_AMD_TEXTURE_GATHER_BIAS_LOD_EXTENSION_NAME);
+
     for (VkFormat current_format = (VkFormat)1; /* skip the _UNDEFINED format */
         current_format < VK_FORMAT_RANGE_SIZE;
         current_format = static_cast<VkFormat>(current_format + 1))
@@ -138,6 +146,36 @@ void Anvil::PhysicalDevice::init()
             &format_props);
 
         m_format_properties[current_format] = FormatProperties(format_props);
+
+        /* Can this format be used with VK_AMD_texture_gather_bias_lod? */
+        if (gpdp2_entrypoints_ptr            != nullptr &&
+            texture_gather_bias_lod_support)
+        {
+            VkPhysicalDeviceImageFormatInfo2KHR   format_info;
+            VkImageFormatProperties2KHR           image_format_props         = {};
+            VkTextureLODGatherFormatPropertiesAMD texture_lod_gather_support = {};
+
+            texture_lod_gather_support.sType = VK_STRUCTURE_TYPE_TEXTURE_LOD_GATHER_FORMAT_PROPERTIES_AMD;
+            texture_lod_gather_support.pNext = nullptr;
+
+            format_info.sType  = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2_KHR;
+            format_info.pNext  = nullptr;
+            format_info.format = current_format;
+            format_info.type   = VK_IMAGE_TYPE_2D;           // irrelevant
+            format_info.tiling = VK_IMAGE_TILING_LINEAR;     // irrelevant
+            format_info.usage  = VK_IMAGE_USAGE_SAMPLED_BIT; // irrelevant
+            format_info.flags  = 0;                          // irrelevant
+
+            image_format_props.sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2_KHR;
+            image_format_props.pNext = &texture_lod_gather_support;
+
+            if (gpdp2_entrypoints_ptr->vkGetPhysicalDeviceImageFormatProperties2KHR(m_physical_device,
+                                                                                   &format_info,
+                                                                                   &image_format_props) == VK_SUCCESS)
+            {
+                m_format_properties.at(current_format).supports_amd_texture_gather_bias_lod = (texture_lod_gather_support.supportsTextureGatherLODBiasAMD == VK_TRUE);
+            }
+        }
     }
 
     if (is_device_extension_supported                  ("VK_KHR_16bit_storage")                   &&
@@ -173,8 +211,8 @@ void Anvil::PhysicalDevice::init()
 
     /* Retrieve device queue data */
     vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device,
-                                            &n_physical_device_queues, /* pCount                 */
-                                             nullptr);                 /* pQueueFamilyProperties */
+                                           &n_physical_device_queues, /* pCount                 */
+                                            nullptr);                    /* pQueueFamilyProperties */
 
     if (n_physical_device_queues > 0)
     {
