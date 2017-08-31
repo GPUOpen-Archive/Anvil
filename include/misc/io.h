@@ -103,19 +103,26 @@ namespace Anvil
          *  Upon failure, the function generates an assertion failure.
          *
          *
-         *  @param in_filename      Name of the file to read data from.
-         *  @param in_is_text_file  True if the file is a text file; false otherwise.
-         *  @param out_result_ptr   Deref will be set to a pointer to a buffer holding the read data. Must be released
-         *                          with delete[] when no longer needed.
-         *  @param out_opt_size_ptr If not nullptr, deref will be set to the number of bytes exposed under @param out_result_ptr.
+         *  @param in_filename        Name of the file to read data from.
+         *  @param in_is_text_file    True if the file is a text file; false otherwise.
+         *  @param out_opt_result_ptr Deref will be set to a pointer to a buffer holding the read data. Must be released
+         *                            with delete[] when no longer needed.
+         *  @param out_opt_size_ptr   If not nullptr, deref will be set to the number of bytes exposed under @param out_result_ptr.
          *
          *  @return Read data, or nullptr if an error occurred. Make sure to release the returned buffer
          *          with delete[], when no longer needed.
          **/
         static bool read_file(std::string in_filename,
                               bool        in_is_text_file,
-                              char**      out_result_ptr,
+                              char**      out_opt_result_ptr,
                               size_t*     out_opt_size_ptr);
+
+        /* TODO */
+        static bool read_file(std::string in_filename,
+                              bool        in_is_text_file,
+                              size_t      in_start_offset,
+                              size_t      in_size,
+                              char**      out_result_ptr);
 
         /** Writes specified data to a file under specified location. If a file exists under
          *  given location, its contents is discarded.

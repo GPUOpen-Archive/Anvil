@@ -611,10 +611,10 @@ end:
 /* Please see header for specification */
 bool Anvil::RenderPass::bake()
 {
-    std::shared_ptr<Anvil::BaseDevice>   device_locked_ptr                (m_device_ptr);
-    std::vector<VkAttachmentDescription> renderpass_color_attachments_vk;
+    std::shared_ptr<Anvil::BaseDevice>   device_locked_ptr         (m_device_ptr);
+    std::vector<VkAttachmentDescription> renderpass_attachments_vk;
     VkRenderPassCreateInfo               render_pass_create_info;
-    bool                                 result                           (false);
+    bool                                 result                    (false);
     VkResult                             result_vk;
     std::vector<VkSubpassDependency>     subpass_dependencies_vk;
     std::vector<VkSubpassDescription>    subpass_descriptions_vk;
@@ -710,7 +710,7 @@ bool Anvil::RenderPass::bake()
         attachment_vk.stencilStoreOp = renderpass_attachment_iterator->stencil_store_op;
         attachment_vk.storeOp        = renderpass_attachment_iterator->color_depth_store_op;
 
-        renderpass_color_attachments_vk.push_back(attachment_vk);
+        renderpass_attachments_vk.push_back(attachment_vk);
     }
 
     for (auto subpass_dependency_iterator  = m_subpass_dependencies.cbegin();
@@ -888,7 +888,7 @@ bool Anvil::RenderPass::bake()
     render_pass_create_info.dependencyCount = static_cast<uint32_t>(m_subpass_dependencies.size() );
     render_pass_create_info.subpassCount    = static_cast<uint32_t>(m_subpasses.size() );
     render_pass_create_info.flags           = 0;
-    render_pass_create_info.pAttachments    = (render_pass_create_info.attachmentCount > 0) ? &renderpass_color_attachments_vk.at(0)
+    render_pass_create_info.pAttachments    = (render_pass_create_info.attachmentCount > 0) ? &renderpass_attachments_vk.at(0)
                                                                                             : nullptr;
     render_pass_create_info.pDependencies   = (render_pass_create_info.dependencyCount > 0) ? &subpass_dependencies_vk.at(0)
                                                                                             : nullptr;

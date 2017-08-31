@@ -25,9 +25,11 @@
  */
 #include "misc/debug.h"
 #include "misc/io.h"
+#include "misc/types.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #ifdef _WIN32
     #include <Windows.h>
@@ -269,87 +271,274 @@ bool Anvil::IO::is_directory(const std::string& in_path)
 
 /** Reads contents of a file with user-specified name and returns it to the caller.
  *
- *  @param in_filename      Name of the file to use for the operation.
- *  @param in_is_text_file  true if the file should be treated as a text file; false
- *                          if it should be considered a binary file.
- *  @param out_result_ptr   Deref will be set to an array, holding the read file contents.
- *                          The array must be deleted with a delete[] operator when no
- *                          longer needed. Must not be nullptr.
- *  @param out_opt_size_ptr Deref will be set to the number of bytes allocated for @param out_result_ptr.
- *                          May be nullptr.
+ *  @param in_filename        Name of the file to use for the operation.
+ *  @param in_is_text_file    true if the file should be treated as a text file; false
+ *                            if it should be considered a binary file.
+ *  @param out_opt_result_ptr Deref will be set to an array, holding the read file contents.
+ *                            The array must be deleted with a delete[] operator when no
+ *                            longer needed. May be nullptr.
+ *  @param out_opt_size_ptr   Deref will be set to the number of bytes allocated for @param out_result_ptr.
+ *                            May be nullptr.
  **/
 bool Anvil::IO::read_file(std::string in_filename,
-                            bool      in_is_text_file,
-                            char**    out_result_ptr,
-                            size_t*   out_opt_size_ptr)
+                          bool        in_is_text_file,
+                          char**      out_opt_result_ptr,
+                          size_t*     out_opt_size_ptr)
 {
-    FILE*  file_handle  = nullptr;
     size_t file_size    = 0;
-    size_t n_bytes_read = 0;
     char*  result       = nullptr;
     bool   result_bool  = false;
 
-    file_handle = fopen(in_filename.c_str(),
-                        (in_is_text_file) ? "rt" : "rb");
+    #if defined(_WIN32)
+        HANDLE             file_handle;
+        LARGE_INTEGER      file_size_large;
+        const std::wstring filename_wide   = std::wstring(in_filename.begin(), in_filename.end() );
+        DWORD              n_bytes_read    = 0;
 
-    if (file_handle == 0)
-    {
-        goto end;
-    }
+        ANVIL_REDUNDANT_ARGUMENT(in_is_text_file);
 
-    if (fseek(file_handle,
-              0,
-              SEEK_END) != 0)
-    {
-        goto end;
-    }
+        file_handle = ::CreateFileW(filename_wide.c_str(),
+                                    GENERIC_READ,
+                                    FILE_SHARE_READ,
+                                    nullptr, /* lpSecurityAttributes */
+                                    OPEN_EXISTING,
+                                    FILE_ATTRIBUTE_NORMAL,
+                                    nullptr);
 
-    file_size = static_cast<size_t>(ftell(file_handle) );
+        if (file_handle == INVALID_HANDLE_VALUE)
+        {
+            goto end;
+        }
 
-    if (file_size == static_cast<size_t>(-1) ||
-        file_size == static_cast<size_t>(0) )
-    {
-        goto end;
-    }
+        if (::GetFileSizeEx(file_handle,
+                           &file_size_large) == 0)
+        {
+            goto end;
+        }
 
-    if (fseek(file_handle,
-              0,
-              SEEK_SET) != 0)
-    {
-        goto end;
-    }
+        file_size = static_cast<size_t>(file_size_large.QuadPart);
 
-    result = new char[file_size + 1];
+        if (out_opt_result_ptr != nullptr)
+        {
+            result = new char[file_size + 1];
 
-    if (result == nullptr)
-    {
-        goto end;
-    }
+            if (result == nullptr)
+            {
+                goto end;
+            }
 
-    memset(result,
-           0,
-           file_size + 1);
+            memset(result,
+                   0,
+                   file_size + 1);
 
-    n_bytes_read = fread(result,
-                         1,
-                         file_size,
-                         file_handle);
+            if (::ReadFile(file_handle,
+                           result,
+                           static_cast<DWORD>(file_size),
+                          &n_bytes_read,
+                           nullptr /* lpOverlapped */) != TRUE)
+            {
+                goto end;
+            }
 
-    result[n_bytes_read] = 0;
+            if (n_bytes_read != file_size)
+            {
+                goto end;
+            }
+        }
+    #else
+        struct stat64 file_stats;
+        FILE*         file_handle  = nullptr;
+        size_t        n_bytes_read = 0;
+
+        file_handle = fopen64(in_filename.c_str(),
+                             (in_is_text_file) ? "rt" : "rb");
+
+        if (file_handle == 0)
+        {
+            goto end;
+        }
+
+        fstat64(fileno(file_handle),
+               &file_stats);
+
+        file_size = static_cast<size_t>(file_stats.st_size);
+
+        if (file_size == static_cast<size_t>(-1) ||
+            file_size == static_cast<size_t>(0) )
+        {
+            goto end;
+        }
+
+        if (out_opt_result_ptr != nullptr)
+        {
+            result = new char[file_size + 1];
+
+            if (result == nullptr)
+            {
+                goto end;
+            }
+
+            memset(result,
+                   0,
+                   file_size + 1);
+
+            n_bytes_read = fread(result,
+                                 1,
+                                 file_size,
+                                 file_handle);
+
+            result[n_bytes_read] = 0;
+        }
+    #endif
 
     /* Set the output variables */
-    *out_result_ptr = result;
+    if (out_opt_result_ptr != nullptr)
+    {
+        *out_opt_result_ptr = result;
+    }
 
     if (out_opt_size_ptr != nullptr)
     {
-        *out_opt_size_ptr = n_bytes_read;
+        *out_opt_size_ptr = file_size;
     }
 
     result_bool = true;
 end:
     if (file_handle != 0)
     {
-        fclose(file_handle);
+        #if defined(_WIN32)
+            ::CloseHandle(file_handle);
+        #else
+            fclose(file_handle);
+        #endif
+    }
+
+    if (!result_bool)
+    {
+        if (result != nullptr)
+        {
+            delete [] result;
+        }
+    }
+
+    return result_bool;
+}
+
+bool Anvil::IO::read_file(std::string in_filename,
+                          bool        in_is_text_file,
+                          size_t      in_start_offset,
+                          size_t      in_size,
+                          char**      out_result_ptr)
+{
+    char*  result       = nullptr;
+    bool   result_bool  = false;
+
+    #if defined(_WIN32)
+        HANDLE             file_handle;
+        const std::wstring filename_wide = std::wstring(in_filename.begin(), in_filename.end() );
+        DWORD              n_bytes_read  = 0;
+
+        ANVIL_REDUNDANT_ARGUMENT(in_is_text_file);
+
+        file_handle = ::CreateFileW(filename_wide.c_str(),
+                                    GENERIC_READ,
+                                    FILE_SHARE_READ,
+                                    nullptr, /* lpSecurityAttributes */
+                                    OPEN_EXISTING,
+                                    FILE_ATTRIBUTE_NORMAL,
+                                    nullptr);
+
+        if (file_handle == INVALID_HANDLE_VALUE)
+        {
+            goto end;
+        }
+
+        if (in_start_offset != 0)
+        {
+            LARGE_INTEGER start_offset_large;
+
+            start_offset_large.QuadPart = in_start_offset;
+
+            if (::SetFilePointerEx(file_handle,
+                                   start_offset_large,
+                                   nullptr, /* lpNewFilePointer */
+                                   FILE_BEGIN) == FALSE)
+            {
+                goto end;
+            }
+        }
+
+        result = new char[in_size];
+
+        if (result == nullptr)
+        {
+            goto end;
+        }
+
+
+        if (::ReadFile(file_handle,
+                       result,
+                       static_cast<DWORD>(in_size),
+                      &n_bytes_read,
+                       nullptr /* lpOverlapped */) != TRUE)
+        {
+            goto end;
+        }
+
+        if (n_bytes_read != in_size)
+        {
+            goto end;
+        }
+    #else
+        FILE*  file_handle  = nullptr;
+        size_t n_bytes_read = 0;
+
+        file_handle = fopen64(in_filename.c_str(),
+                              (in_is_text_file) ? "rt" : "rb");
+
+        if (file_handle == 0)
+        {
+            goto end;
+        }
+
+        if (fseek(file_handle,
+                  in_start_offset,
+                  SEEK_END) != 0)
+        {
+            goto end;
+        }
+
+        result = new char[in_size];
+
+        if (result == nullptr)
+        {
+            goto end;
+        }
+
+
+        n_bytes_read = fread(result,
+                             1,
+                             in_size,
+                             file_handle);
+
+        if (n_bytes_read != in_size)
+        {
+            goto end;
+        }
+    #endif
+
+    /* Set the output variables */
+    *out_result_ptr = result;
+
+    result_bool = true;
+end:
+    if (file_handle != 0)
+    {
+        #if defined(_WIN32)
+            ::CloseHandle(file_handle);
+        #else
+            fclose(file_handle);
+        #endif
     }
 
     if (!result_bool)

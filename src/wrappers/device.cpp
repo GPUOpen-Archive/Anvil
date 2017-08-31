@@ -250,6 +250,124 @@ void Anvil::BaseDevice::get_queue_family_indices_for_physical_device(std::weak_p
 }
 
 /* Please see header for specification */
+bool Anvil::BaseDevice::get_sample_locations(VkSampleCountFlagBits        in_sample_count,
+                                             std::vector<SampleLocation>* out_result_ptr) const
+{
+    bool                        result                            = true;
+    std::vector<SampleLocation> sample_locations;
+    bool                        standard_sample_locations_support = false;
+
+    switch (get_type() )
+    {
+        case Anvil::DEVICE_TYPE_SINGLE_GPU:
+        {
+            const Anvil::SGPUDevice* sgpu_device_ptr = reinterpret_cast<const Anvil::SGPUDevice*>(this);
+            anvil_assert(sgpu_device_ptr != nullptr);
+
+            standard_sample_locations_support = (sgpu_device_ptr->get_physical_device_properties().limits.standardSampleLocations == VK_TRUE);
+            break;
+        }
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
+
+    if (!standard_sample_locations_support)
+    {
+        result = false;
+
+        goto end;
+    }
+
+    switch (in_sample_count)
+    {
+        case VK_SAMPLE_COUNT_1_BIT:
+        {
+            out_result_ptr->clear();
+
+            out_result_ptr->push_back(SampleLocation(0.5f, 0.5f) );
+
+            break;
+        }
+
+        case VK_SAMPLE_COUNT_2_BIT:
+        {
+            out_result_ptr->clear();
+
+            out_result_ptr->push_back(SampleLocation(0.25f, 0.25f) );
+            out_result_ptr->push_back(SampleLocation(0.75f, 0.75f) );
+
+            break;
+
+        }
+
+        case VK_SAMPLE_COUNT_4_BIT:
+        {
+            out_result_ptr->clear();
+
+            out_result_ptr->push_back(SampleLocation(0.375f, 0.125f) );
+            out_result_ptr->push_back(SampleLocation(0.875f, 0.375f) );
+            out_result_ptr->push_back(SampleLocation(0.125f, 0.625f) );
+            out_result_ptr->push_back(SampleLocation(0.625f, 0.875f) );
+
+            break;
+        }
+
+        case VK_SAMPLE_COUNT_8_BIT:
+        {
+            out_result_ptr->clear();
+
+            out_result_ptr->push_back(SampleLocation(0.5625f, 0.3125f) );
+            out_result_ptr->push_back(SampleLocation(0.4375f, 0.6875f) );
+            out_result_ptr->push_back(SampleLocation(0.8125f, 0.5625f) );
+            out_result_ptr->push_back(SampleLocation(0.3125f, 0.1875f) );
+            out_result_ptr->push_back(SampleLocation(0.1875f, 0.8125f) );
+            out_result_ptr->push_back(SampleLocation(0.0625f, 0.4375f) );
+            out_result_ptr->push_back(SampleLocation(0.6875f, 0.9375f) );
+            out_result_ptr->push_back(SampleLocation(0.9375f, 0.0625f) );
+
+            break;
+        }
+
+        case VK_SAMPLE_COUNT_16_BIT:
+        {
+            out_result_ptr->clear();
+
+            out_result_ptr->push_back(SampleLocation(0.5625f,  0.5625f) );
+            out_result_ptr->push_back(SampleLocation(0.4375f,  0.3125f) );
+            out_result_ptr->push_back(SampleLocation(0.3125f,  0.625f)  );
+            out_result_ptr->push_back(SampleLocation(0.75f,    0.4375f) );
+            out_result_ptr->push_back(SampleLocation(0.1875f,  0.375f)  );
+            out_result_ptr->push_back(SampleLocation(0.625f,   0.8125f) );
+            out_result_ptr->push_back(SampleLocation(0.8125f,  0.6875f) );
+            out_result_ptr->push_back(SampleLocation(0.6875f,  0.1875f) );
+            out_result_ptr->push_back(SampleLocation(0.375f,   0.875f)  );
+            out_result_ptr->push_back(SampleLocation(0.5f,     0.0625f) );
+            out_result_ptr->push_back(SampleLocation(0.25f,    0.125f)  );
+            out_result_ptr->push_back(SampleLocation(0.125f,   0.75f)   );
+            out_result_ptr->push_back(SampleLocation(0.0f,     0.5f)    );
+            out_result_ptr->push_back(SampleLocation(0.9375f,  0.25f)   );
+            out_result_ptr->push_back(SampleLocation(0.875f,   0.9375f) );
+            out_result_ptr->push_back(SampleLocation(0.0625f,  0.0f)    );
+
+            break;
+        }
+
+        default:
+        {
+            anvil_assert_fail();
+
+            goto end;
+        }
+    }
+
+end:
+    return result;
+}
+
+/* Please see header for specification */
 std::shared_ptr<Anvil::Queue> Anvil::BaseDevice::get_sparse_binding_queue(uint32_t     in_n_queue,
                                                                           VkQueueFlags in_opt_required_queue_flags) const
 {
@@ -679,16 +797,26 @@ void Anvil::SGPUDevice::create_device(const std::vector<const char*>& in_extensi
     {
         const auto& current_queue_fam(physical_device_queue_fams.at(n_queue_fam) );
 
+        if (device_queue_priorities.size() < current_queue_fam.n_queues)
+        {
+            device_queue_priorities.resize(current_queue_fam.n_queues,
+                                           1.0f);
+        }
+    }
+
+    for (uint32_t n_queue_fam = 0;
+                  n_queue_fam < static_cast<uint32_t>(physical_device_queue_fams.size() );
+                ++n_queue_fam)
+    {
+        const auto& current_queue_fam(physical_device_queue_fams.at(n_queue_fam) );
+
         if (current_queue_fam.n_queues > 0)
         {
             VkDeviceQueueCreateInfo queue_create_info;
 
-            device_queue_priorities.resize(current_queue_fam.n_queues,
-                                           1.0f);
-
             queue_create_info.flags            = 0;
             queue_create_info.pNext            = nullptr;
-            queue_create_info.pQueuePriorities = &device_queue_priorities[0];
+            queue_create_info.pQueuePriorities = &device_queue_priorities.at(0);
             queue_create_info.queueCount       = current_queue_fam.n_queues;
             queue_create_info.queueFamilyIndex = n_queue_fam;
             queue_create_info.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;

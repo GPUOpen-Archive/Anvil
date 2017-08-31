@@ -226,6 +226,7 @@ bool Anvil::BasePipelineManager::add_specialization_constant_to_pipeline(Pipelin
                                                                          uint32_t    in_n_data_bytes,
                                                                          const void* in_data_ptr)
 {
+    Pipelines::iterator       pipeline_iterator;
     std::shared_ptr<Pipeline> pipeline_ptr;
     uint32_t                  data_buffer_size = 0;
     bool                      result           = false;
@@ -245,15 +246,17 @@ bool Anvil::BasePipelineManager::add_specialization_constant_to_pipeline(Pipelin
     }
 
     /* Retrieve the pipeline's descriptor */
-    if (in_pipeline_id >= m_pipelines.size() )
+    pipeline_iterator = m_pipelines.find(in_pipeline_id);
+
+    if (pipeline_iterator == m_pipelines.end() )
     {
-        anvil_assert(!(in_pipeline_id >= m_pipelines.size()) );
+        anvil_assert(pipeline_iterator != m_pipelines.end() )
 
         goto end;
     }
     else
     {
-        pipeline_ptr = m_pipelines.at(in_pipeline_id);
+        pipeline_ptr = pipeline_iterator->second;
     }
 
     if (pipeline_ptr->is_proxy)

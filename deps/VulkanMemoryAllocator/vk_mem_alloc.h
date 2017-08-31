@@ -1549,7 +1549,7 @@ public:
             VMA_HEAVY_ASSERT(m_pList == rhs.m_pList);
             return m_pItem != rhs.m_pItem;
         }
-        
+
     private:
         VmaRawList<T>* m_pList;
         VmaListItem<T>* m_pItem;
@@ -1561,7 +1561,7 @@ public:
         }
 
         friend class VmaList<T, AllocatorT>;
-        friend class VmaList<T, AllocatorT>::const_iterator;
+        //friend class VmaList<T, AllocatorT>::const_iterator;
     };
 
     class const_iterator
