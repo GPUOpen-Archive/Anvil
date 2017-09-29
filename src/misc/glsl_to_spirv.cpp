@@ -20,10 +20,11 @@
 // THE SOFTWARE.
 //
 
-#include "config.h"
 #include "misc/glsl_to_spirv.h"
 #include "misc/io.h"
+#include "misc/object_tracker.h"
 #include "wrappers/device.h"
+#include "wrappers/shader_module.h"
 #include <algorithm>
 #include <sstream>
 
@@ -234,14 +235,12 @@ Anvil::GLSLShaderToSPIRVGenerator::GLSLShaderToSPIRVGenerator(std::weak_ptr<Anvi
                                                               const Mode&                      in_mode,
                                                               std::string                      in_data,
                                                               ShaderStage                      in_shader_stage)
-    :m_data           (in_data),
+    :m_data        (in_data),
 #ifdef ANVIL_LINK_WITH_GLSLANG
-     m_limits         (in_device_ptr),
+     m_limits      (in_device_ptr),
 #endif
-     m_mode           (in_mode),
-     m_shader_stage   (in_shader_stage),
-     m_spirv_blob     (nullptr),
-     m_spirv_blob_size(0)
+     m_mode        (in_mode),
+     m_shader_stage(in_shader_stage)
 {
     /* Stub */
 }
@@ -249,12 +248,7 @@ Anvil::GLSLShaderToSPIRVGenerator::GLSLShaderToSPIRVGenerator(std::weak_ptr<Anvi
 /* Please see header for specification */
 Anvil::GLSLShaderToSPIRVGenerator::~GLSLShaderToSPIRVGenerator()
 {
-    if (m_spirv_blob != nullptr)
-    {
-        delete [] m_spirv_blob;
-
-        m_spirv_blob = nullptr;
-    }
+    m_spirv_blob.clear();
 }
 
 /* Please see header for specification */
@@ -441,6 +435,10 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob()
         glsl_filename_with_path    = m_data;
     }
 
+    /* Cache the GLSL source code used for the conversion */
+    anvil_assert(m_final_glsl_source_code.size() == 0);
+    m_final_glsl_source_code = final_glsl_source_string;
+
     /* Form a temporary file name we will use to write the modified GLSL shader to. */
     #ifndef ANVIL_LINK_WITH_GLSLANG
     {
@@ -472,7 +470,54 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob()
 
     #ifdef ANVIL_LINK_WITH_GLSLANG
     {
-        result = bake_spirv_blob_by_calling_glslang(final_glsl_source_string.c_str() );
+        /* Shader modules are cached throughout Instance's lifetime in Anvil. It might just happen that
+         * the shader we're about to convert to SPIR-V representation has already been converted in the past.
+         *
+         * Given that the conversion process can be time-consuming, let's try to see if any of the living
+         * shader module instances already use exactly the same source code.
+         */
+        uint32_t n_current_shader_module = 0;
+        auto     object_tracker_ptr      = Anvil::ObjectTracker::get();
+
+        do
+        {
+            auto                       shader_module_raw_ptr = object_tracker_ptr->get_object_at_index     (Anvil::OBJECT_TYPE_SHADER_MODULE,
+                                                                                                            n_current_shader_module);
+            const Anvil::ShaderModule* shader_module_ptr     = reinterpret_cast<const Anvil::ShaderModule*>(shader_module_raw_ptr);
+
+            if (shader_module_raw_ptr == nullptr)
+            {
+                /* Out of shader module instances. */
+                break;
+            }
+
+            if (shader_module_ptr->get_glsl_source_code() == final_glsl_source_string)
+            {
+                const auto reference_spirv_blob               = shader_module_ptr->get_spirv_blob();
+                const auto reference_spirv_blob_size_in_bytes = reference_spirv_blob.size() * sizeof(reference_spirv_blob.at(0) );
+
+                anvil_assert(reference_spirv_blob_size_in_bytes != 0);
+
+                m_spirv_blob.resize(reference_spirv_blob_size_in_bytes);
+
+                memcpy(&m_spirv_blob.at        (0),
+                       &reference_spirv_blob.at(0),
+                       reference_spirv_blob_size_in_bytes);
+
+                result = true;
+                break;
+            }
+
+            /* Move to the next shader module instance */
+            ++n_current_shader_module;
+        }
+        while (n_current_shader_module != 0); /* work around "conditional expression is constant" warnings issued by some compilers */
+
+        if (m_spirv_blob.size() == 0)
+        {
+            /* Need to bake a brand new SPIR-V blob */
+            result = bake_spirv_blob_by_calling_glslang(final_glsl_source_string.c_str() );
+        }
     }
     #else
     {
@@ -488,7 +533,7 @@ end:
 
 #ifdef ANVIL_LINK_WITH_GLSLANG
     /** Takes the GLSL source code, specified under @param body, converts it to SPIR-V and stores
-     *  the blob data under m_spirv_blob & m_spirv_blob_size
+     *  the blob data under m_spirv_blob.
      *
      *  @param body GLSL source code to use as input. Must not be nullptr.
      *
@@ -568,19 +613,11 @@ end:
                 goto end;
             }
 
-            m_spirv_blob_size = static_cast<uint32_t>(spirv_blob.size() ) * sizeof(unsigned int);
-            m_spirv_blob      = new char[m_spirv_blob_size];
+            m_spirv_blob.resize(static_cast<uint32_t>(spirv_blob.size() ) * sizeof(unsigned int) );
 
-            if (m_spirv_blob == nullptr)
-            {
-                anvil_assert(m_spirv_blob != nullptr);
-
-                goto end;
-            }
-
-            memcpy(m_spirv_blob,
-                  &spirv_blob[0],
-                   m_spirv_blob_size);
+            memcpy(&m_spirv_blob.at(0),
+                   &spirv_blob[0],
+                   m_spirv_blob.size() );
         }
 
         /* All done */
@@ -628,7 +665,7 @@ end:
 #else
     /** Reads contents of a file under location @param glsl_filename_with_path and treats the retrieved contents as GLSL source code,
      *  which is then used for GLSL->SPIRV conversion process. The result blob is stored at @param spirv_filename_with_path. The function
-     *  then reads the blob contents and stores it under m_spirv_blob & m_spirv_blob_size
+     *  then reads the blob contents and stores it under m_spirv_blob.
      *
      *  @param glsl_filename_with_path  As per description above. Must not be nullptr.
      *  @param spirv_filename_with_path As per description above. Must not be nullptr.
@@ -728,14 +765,16 @@ end:
         #endif
 
         /* Now, read the SPIR-V file contents */
+        char* spirv_blob_ptr = nullptr;
+
         Anvil::IO::read_file(in_spirv_filename_with_path.c_str(),
                              false, /* is_text_file */
-                            &m_spirv_blob,
+                            &spirv_blob_ptr,
                             &spirv_file_size);
 
-        if (m_spirv_blob == nullptr)
+        if (spirv_blob_ptr == nullptr)
         {
-            anvil_assert(m_spirv_blob != nullptr);
+            anvil_assert(spirv_blob_ptr != nullptr);
 
             goto end;
         }
@@ -750,8 +789,16 @@ end:
         /* No need to keep the file any more. */
         Anvil::IO::delete_file(in_spirv_filename_with_path);
 
-        m_spirv_blob_size = (uint32_t) spirv_file_size;
-        result            = true;
+        m_spirv_blob.resize(spirv_file_size);
+
+        memcpy(&m_spirv_blob.at(0),
+               spirv_blob_ptr,
+               spirv_file_size);
+
+        delete [] spirv_blob_ptr;
+        spirv_blob_ptr = nullptr;
+
+        result = true;
 
     end:
         return result;

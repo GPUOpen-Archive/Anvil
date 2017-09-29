@@ -332,6 +332,10 @@ Anvil::ImageView::ImageView(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
 
 Anvil::ImageView::~ImageView()
 {
+    /* Unregister the object */
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_IMAGE_VIEW,
+                                                   this);
+
     if (m_image_view != VK_NULL_HANDLE)
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
@@ -342,10 +346,6 @@ Anvil::ImageView::~ImageView()
 
         m_image_view = VK_NULL_HANDLE;
     }
-
-    /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_IMAGE_VIEW,
-                                                   this);
 }
 
 /* Please see header for specification */

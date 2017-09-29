@@ -50,6 +50,10 @@ Anvil::RenderPass::RenderPass(std::weak_ptr<Anvil::BaseDevice>  in_device_ptr,
 /** Destructor. Will only be called by release() if the reference counter drops to zero. */
 Anvil::RenderPass::~RenderPass()
 {
+    /* Unregister the object */
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_RENDER_PASS,
+                                                    this);
+
     if (m_render_pass != VK_NULL_HANDLE)
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
@@ -71,10 +75,6 @@ Anvil::RenderPass::~RenderPass()
     }
 
     m_swapchain_ptr = nullptr;
-
-    /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_RENDER_PASS,
-                                                    this);
 }
 
 /* Please see haeder for specification */

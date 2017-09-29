@@ -23,7 +23,9 @@
 #include "misc/debug.h"
 #include "misc/glsl_to_spirv.h"
 #include "misc/object_tracker.h"
+#include "misc/shader_module_cache.h"
 #include "wrappers/device.h"
+#include "wrappers/instance.h"
 #include "wrappers/shader_module.h"
 
 #ifdef ANVIL_LINK_WITH_GLSLANG
@@ -38,6 +40,7 @@ Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::BaseDevice>            in
                                 VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT),
      m_cs_entrypoint_name      (nullptr),
      m_device_ptr              (in_device_ptr),
+     m_device_raw_ptr          (in_device_ptr.lock().get() ),
      m_fs_entrypoint_name      (nullptr),
      m_gs_entrypoint_name      (nullptr),
      m_tc_entrypoint_name      (nullptr),
@@ -56,6 +59,7 @@ Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::BaseDevice>            in
 
     m_cs_entrypoint_name = (shader_stage == SHADER_STAGE_COMPUTE)                 ? "main" : nullptr;
     m_fs_entrypoint_name = (shader_stage == SHADER_STAGE_FRAGMENT)                ? "main" : nullptr;
+    m_glsl_source_code   = in_spirv_generator_ptr->get_glsl_source_code();
     m_gs_entrypoint_name = (shader_stage == SHADER_STAGE_GEOMETRY)                ? "main" : nullptr;
     m_tc_entrypoint_name = (shader_stage == SHADER_STAGE_TESSELLATION_CONTROL)    ? "main" : nullptr;
     m_te_entrypoint_name = (shader_stage == SHADER_STAGE_TESSELLATION_EVALUATION) ? "main" : nullptr;
@@ -65,9 +69,6 @@ Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::BaseDevice>            in
                                   shader_spirv_blob_size);
 
     anvil_assert(result);
-
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
-                                                  this);
 }
 
 /** Please see header for specification */
@@ -84,6 +85,7 @@ Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::BaseDevice> in_device_ptr
                                 VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT),
      m_cs_entrypoint_name      (in_cs_entrypoint_name),
      m_device_ptr              (in_device_ptr),
+     m_device_raw_ptr          (in_device_ptr.lock().get() ),
      m_fs_entrypoint_name      (in_fs_entrypoint_name),
      m_gs_entrypoint_name      (in_gs_entrypoint_name),
      m_tc_entrypoint_name      (in_tc_entrypoint_name),
@@ -94,29 +96,24 @@ Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::BaseDevice> in_device_ptr
                                        in_n_spirv_blob_bytes);
 
     ANVIL_REDUNDANT_VARIABLE(result);
-
-    anvil_assert(result);
-
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
-                                                  this);
+    anvil_assert            (result);
 }
 
 /** Please see header for specification */
 Anvil::ShaderModule::~ShaderModule()
 {
-    if (m_module != VK_NULL_HANDLE)
-    {
-        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
+    auto object_tracker_ptr = Anvil::ObjectTracker::get();
 
-        vkDestroyShaderModule(device_locked_ptr->get_device_vk(),
-                              m_module,
-                              nullptr /* pAllocator */);
+    object_tracker_ptr->unregister_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
+                                          this);
 
-        m_module = VK_NULL_HANDLE;
-    }
+    /* Release the Vulkan handle */
+    destroy();
 
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
-                                                    this);
+    /* Unregister from any callbacks we have subscribed for */
+    object_tracker_ptr->unregister_from_callbacks(Anvil::OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+                                                  on_object_about_to_be_released,
+                                                  this);
 }
 
 /** Please see header for specification */
@@ -124,11 +121,32 @@ std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModule::create_from_spirv_gene
                                                                                       std::shared_ptr<GLSLShaderToSPIRVGenerator> in_spirv_generator_ptr)
 {
     std::shared_ptr<Anvil::ShaderModule> result_ptr;
+    auto                                 shader_module_cache_ptr = in_device_ptr.lock()->get_parent_instance().lock()->get_shader_module_cache();
+    const auto                           shader_stage            = in_spirv_generator_ptr->get_shader_stage();
 
-    result_ptr.reset(
-        new Anvil::ShaderModule(in_device_ptr,
-                                in_spirv_generator_ptr)
-    );
+    /* First check if a shader module with specified parameters has not already been created. If so,
+     * we can safely re-use it. */
+    result_ptr = shader_module_cache_ptr->get_cached_shader_module(in_device_ptr,
+                                                                   in_spirv_generator_ptr->get_spirv_blob(),
+                                                                   in_spirv_generator_ptr->get_spirv_blob_size(),
+                                                                   (shader_stage == SHADER_STAGE_COMPUTE)                 ? "main" : nullptr,
+                                                                   (shader_stage == SHADER_STAGE_FRAGMENT)                ? "main" : nullptr,
+                                                                   (shader_stage == SHADER_STAGE_GEOMETRY)                ? "main" : nullptr,
+                                                                   (shader_stage == SHADER_STAGE_TESSELLATION_CONTROL)    ? "main" : nullptr,
+                                                                   (shader_stage == SHADER_STAGE_TESSELLATION_EVALUATION) ? "main" : nullptr,
+                                                                   (shader_stage == SHADER_STAGE_VERTEX)                  ? "main" : nullptr);
+
+    if (result_ptr == nullptr)
+    {
+        /* Nope? Need to create a new instance then. */
+        result_ptr.reset(
+            new Anvil::ShaderModule(in_device_ptr,
+                                    in_spirv_generator_ptr)
+        );
+
+        Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
+                                                     result_ptr.get() );
+    }
 
     return result_ptr;
 }
@@ -145,20 +163,74 @@ std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModule::create_from_spirv_blob
                                                                                  const char*                      in_vs_entrypoint_name)
 {
     std::shared_ptr<Anvil::ShaderModule> result_ptr;
+    auto                                 shader_module_cache_ptr = in_device_ptr.lock()->get_parent_instance().lock()->get_shader_module_cache();
 
-    result_ptr.reset(
-        new Anvil::ShaderModule(in_device_ptr,
-                                in_spirv_blob,
-                                in_n_spirv_blob_bytes,
-                                in_cs_entrypoint_name,
-                                in_fs_entrypoint_name,
-                                in_gs_entrypoint_name,
-                                in_tc_entrypoint_name,
-                                in_te_entrypoint_name,
-                                in_vs_entrypoint_name)
-    );
+    /* First check if a shader module with specified parameters has not already been created. If so,
+     * we can safely re-use it. */
+    result_ptr = shader_module_cache_ptr->get_cached_shader_module(in_device_ptr,
+                                                                   in_spirv_blob,
+                                                                   in_n_spirv_blob_bytes,
+                                                                   in_cs_entrypoint_name,
+                                                                   in_fs_entrypoint_name,
+                                                                   in_gs_entrypoint_name,
+                                                                   in_tc_entrypoint_name,
+                                                                   in_te_entrypoint_name,
+                                                                   in_vs_entrypoint_name);
+
+    if (result_ptr == nullptr)
+    {
+        /* Nope? Need to create a new instance then. */
+        result_ptr.reset(
+            new Anvil::ShaderModule(in_device_ptr,
+                                    in_spirv_blob,
+                                    in_n_spirv_blob_bytes,
+                                    in_cs_entrypoint_name,
+                                    in_fs_entrypoint_name,
+                                    in_gs_entrypoint_name,
+                                    in_tc_entrypoint_name,
+                                    in_te_entrypoint_name,
+                                    in_vs_entrypoint_name)
+        );
+
+        Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
+                                                     result_ptr.get() );
+    }
 
     return result_ptr;
+}
+
+/** Please see header for specification */
+void Anvil::ShaderModule::destroy()
+{
+    if (m_module != VK_NULL_HANDLE)
+    {
+        vkDestroyShaderModule(m_device_raw_ptr->get_device_vk(),
+                              m_module,
+                              nullptr /* pAllocator */);
+
+        m_module = VK_NULL_HANDLE;
+    }
+}
+
+/** Please see header for specification */
+const std::string& Anvil::ShaderModule::get_disassembly()
+{
+    #ifdef ANVIL_LINK_WITH_GLSLANG
+    {
+        if (m_disassembly.size() == 0)
+        {
+            /* Cache a disassembly of the SPIR-V blob. */
+            std::stringstream disassembly_sstream;
+
+            spv::Disassemble(disassembly_sstream,
+                             m_spirv_blob);
+
+            m_disassembly = disassembly_sstream.str();
+        }
+    }
+    #endif
+
+    return m_disassembly;
 }
 
 /** Please see header for specification */
@@ -188,25 +260,34 @@ bool Anvil::ShaderModule::init_from_spirv_blob(const char* in_spirv_blob,
     {
         set_vk_handle(m_module);
 
-        /* Cache a disassembly of the SPIR-V blob. */
-        #ifdef ANVIL_LINK_WITH_GLSLANG
-        {
-            std::stringstream     disassembly_sstream;
-            std::vector<uint32_t> spirv_blob_vec;
+        m_spirv_blob.resize(in_n_spirv_blob_bytes / sizeof(uint32_t) );
 
-            spirv_blob_vec.resize(in_n_spirv_blob_bytes / sizeof(uint32_t) );
-
-            memcpy(&spirv_blob_vec[0],
-                   in_spirv_blob,
-                   in_n_spirv_blob_bytes);
-
-            spv::Disassemble(disassembly_sstream,
-                             spirv_blob_vec);
-
-            m_disassembly = disassembly_sstream.str();
-        }
-        #endif
+        memcpy(&m_spirv_blob.at(0),
+               in_spirv_blob,
+               in_n_spirv_blob_bytes);
     }
 
+    /* Sign for device destruction notification, in which case we need to destroy the shader module. */
+    Anvil::ObjectTracker::get()->register_for_callbacks(Anvil::OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+                                                        on_object_about_to_be_released,
+                                                        this);
+
     return is_vk_call_successful(result_vk);
+}
+
+/** TODO */
+void Anvil::ShaderModule::on_object_about_to_be_released(void* in_callback_arg,
+                                                         void* in_shader_module_raw_ptr)
+{
+    const ObjectTrackerOnObjectAboutToBeUnregisteredCallbackArg* callback_arg_ptr  = reinterpret_cast<const ObjectTrackerOnObjectAboutToBeUnregisteredCallbackArg*>(in_callback_arg);
+    Anvil::ShaderModule*                                         shader_module_ptr = reinterpret_cast<Anvil::ShaderModule*>                                        (in_shader_module_raw_ptr);
+
+    if (callback_arg_ptr->object_type == OBJECT_TYPE_DEVICE)
+    {
+        if (shader_module_ptr->m_device_raw_ptr == callback_arg_ptr->object_raw_ptr)
+        {
+            /* Make sure to release the shader module handle before we let the object actually proceed with destruction! */
+            shader_module_ptr->destroy();
+        }
+    }
 }

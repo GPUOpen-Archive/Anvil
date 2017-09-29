@@ -1128,6 +1128,20 @@ namespace Anvil
         void toggle_rasterizer_discard(GraphicsPipelineID in_graphics_pipeline_id,
                                        bool               in_should_enable);
 
+        /** Enables or disables the sample mask, and marks the pipeline as dirty.
+         *
+         *  Note: make sure to configure the sample mask using set_multisampling_properties() if you intend to use it.
+         *
+         *  Note: disabling sample mask will make the manager set VkPipelineMultisampleStateCreateInfo::pSampleMask to a non-null
+         *        value at pipeline creation time.
+         *
+         *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
+         *                                 call, issued against the same GraphicsPipelineManager instance.
+         *  @param in_should_enable        true to enable sample mask; false to disable it.
+         */
+        void toggle_sample_mask(GraphicsPipelineID in_graphics_pipeline_id,
+                                bool               in_should_enable);
+
         /** Enables or disables the "per-sample shading" mode, and marks the pipeline as dirty.
          *
          *  @param in_graphics_pipeline_id ID of the graphics pipeline to update. The ID must come from a preceding add_()
@@ -1436,6 +1450,7 @@ namespace Anvil
             bool logic_op_enabled;
             bool primitive_restart_enabled;
             bool rasterizer_discard_enabled;
+            bool sample_mask_enabled;
             bool sample_shading_enabled;
 
             bool             stencil_test_enabled;
@@ -1504,6 +1519,7 @@ namespace Anvil
                 n_patch_control_points     = 0;
                 primitive_restart_enabled  = false;
                 rasterizer_discard_enabled = false;
+                sample_mask_enabled        = false;
                 sample_shading_enabled     = false;
                 stencil_test_enabled       = false;
 

@@ -54,6 +54,9 @@ Anvil::RenderingSurface::RenderingSurface(std::weak_ptr<Anvil::Instance>   in_in
 /* Please see header for specification */
 Anvil::RenderingSurface::~RenderingSurface()
 {
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_RENDERING_SURFACE,
+                                                    this);
+
     if (m_surface != VK_NULL_HANDLE)
     {
         std::shared_ptr<Anvil::Instance> instance_locked_ptr(m_instance_ptr);
@@ -64,9 +67,6 @@ Anvil::RenderingSurface::~RenderingSurface()
 
         m_surface = VK_NULL_HANDLE;
     }
-
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_RENDERING_SURFACE,
-                                                    this);
 }
 
 /* Please see header for specification */
@@ -330,60 +330,54 @@ bool Anvil::RenderingSurface::init()
     {
         std::shared_ptr<Anvil::Instance> instance_locked_ptr(m_instance_ptr);
 
-        switch (m_type)
+        #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT) || defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
         {
-            #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT) || defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
-                case RENDERING_SURFACE_TYPE_GENERAL:
+            if (m_type == RENDERING_SURFACE_TYPE_GENERAL)
+            {
+                #ifdef _WIN32
                 {
-                    #ifdef _WIN32
-                    {
-                        VkWin32SurfaceCreateInfoKHR surface_create_info;
+                    VkWin32SurfaceCreateInfoKHR surface_create_info;
 
-                        surface_create_info.flags     = 0;
-                        surface_create_info.hinstance = GetModuleHandle(nullptr);
-                        surface_create_info.hwnd      = m_window_ptr.lock()->get_handle();
-                        surface_create_info.pNext     = nullptr;
-                        surface_create_info.sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+                    surface_create_info.flags     = 0;
+                    surface_create_info.hinstance = GetModuleHandle(nullptr);
+                    surface_create_info.hwnd      = m_window_ptr.lock()->get_handle();
+                    surface_create_info.pNext     = nullptr;
+                    surface_create_info.sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
 
-                        result = m_instance_ptr->get_extension_khr_win32_surface_entrypoints().vkCreateWin32SurfaceKHR(instance_locked_ptr->get_instance_vk(),
-                                                                                                                      &surface_create_info,
-                                                                                                                       nullptr, /* pAllocator */
-                                                                                                                      &m_surface);
-                    }
-                    #else
-                    {
-                        VkXcbSurfaceCreateInfoKHR surface_create_info;
-
-                        surface_create_info.flags       = 0;
-                        surface_create_info.window      = m_window_ptr.lock()->get_handle();
-                        surface_create_info.connection  = static_cast<xcb_connection_t*>(m_window_ptr.lock()->get_connection());
-                        surface_create_info.pNext       = nullptr;
-                        surface_create_info.sType       = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
-
-                        result = m_instance_ptr->get_extension_khr_xcb_surface_entrypoints().vkCreateXcbSurfaceKHR(instance_locked_ptr->get_instance_vk(),
+                    result = m_instance_ptr->get_extension_khr_win32_surface_entrypoints().vkCreateWin32SurfaceKHR(instance_locked_ptr->get_instance_vk(),
                                                                                                                   &surface_create_info,
                                                                                                                    nullptr, /* pAllocator */
                                                                                                                   &m_surface);
-                    }
-                    #endif
-
-                    break;
                 }
-            #endif
+                #else
+                {
+                    VkXcbSurfaceCreateInfoKHR surface_create_info;
 
-            default:
+                    surface_create_info.flags       = 0;
+                    surface_create_info.window      = m_window_ptr.lock()->get_handle();
+                    surface_create_info.connection  = static_cast<xcb_connection_t*>(m_window_ptr.lock()->get_connection());
+                    surface_create_info.pNext       = nullptr;
+                    surface_create_info.sType       = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+
+                    result = m_instance_ptr->get_extension_khr_xcb_surface_entrypoints().vkCreateXcbSurfaceKHR(instance_locked_ptr->get_instance_vk(),
+                                                                                                              &surface_create_info,
+                                                                                                               nullptr, /* pAllocator */
+                                                                                                              &m_surface);
+                }
+                #endif
+            }
+            else
             {
                 anvil_assert_fail();
+            }
 
-                goto end;
+            anvil_assert_vk_call_succeeded(result);
+            if (is_vk_call_successful(result) )
+            {
+                set_vk_handle(m_surface);
             }
         }
-
-        anvil_assert_vk_call_succeeded(result);
-        if (is_vk_call_successful(result) )
-        {
-            set_vk_handle(m_surface);
-        }
+        #endif
     }
     else
     {
@@ -472,7 +466,6 @@ bool Anvil::RenderingSurface::init()
         init_successful = true;
     }
 
-end:
     return init_successful;
 }
 

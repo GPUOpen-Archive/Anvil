@@ -260,14 +260,14 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
             in_swapchain_image_ptr,
             swapchain_image_subresource_range);
 
-        command_buffer_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, /* src_stage_mask                 */
-                                                    VK_PIPELINE_STAGE_TRANSFER_BIT,    /* dst_stage_mask                 */
-                                                    false,                             /* in_by_region                   */
-                                                    0,                                 /* in_memory_barrier_count        */
-                                                    nullptr,                           /* in_memory_barrier_ptrs         */
-                                                    0,                                 /* in_buffer_memory_barrier_count */
-                                                    nullptr,                           /* in_buffer_memory_barrier_ptrs  */
-                                                    1,                                 /* in_image_memory_barrier_count  */
+        command_buffer_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT, /* src_stage_mask                 */
+                                                    VK_PIPELINE_STAGE_TRANSFER_BIT,                                                 /* dst_stage_mask                 */
+                                                    false,                                                                          /* in_by_region                   */
+                                                    0,                                                                              /* in_memory_barrier_count        */
+                                                    nullptr,                                                                        /* in_memory_barrier_ptrs         */
+                                                    0,                                                                              /* in_buffer_memory_barrier_count */
+                                                    nullptr,                                                                        /* in_buffer_memory_barrier_ptrs  */
+                                                    1,                                                                              /* in_image_memory_barrier_count  */
                                                    &general_to_transfer_src_image_barrier);
 
         intermediate_image_blit.dstOffsets[0].x               = 0;

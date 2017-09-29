@@ -287,6 +287,9 @@ LRESULT CALLBACK Anvil::WindowWin3264::msg_callback_pfn_proc(HWND   in_window_ha
 
         case WM_DESTROY_WINDOW:
         {
+            window_ptr->callback(WINDOW_CALLBACK_ID_ABOUT_TO_CLOSE,
+                                 window_ptr);
+
             ::DestroyWindow(window_ptr->m_window);
 
             break;

@@ -340,18 +340,24 @@ namespace Anvil
          *
          *  This function must not be used to read data from buffers, whose memory backing comes from a multi-instance heap.
          *
+         *  If the buffer instance uses an exclusive sharing mode and supports more than just one queue family type AND memory
+         *  backing the buffer is not mappable, you MUST specify a queue instance that should be used to perform a buffer->buffer
+         *  copy op. The queue MUST support transfer ops.
+         *
          *  This function blocks until the transfer completes.
          *
          *  @param in_start_offset   As per description. Must be smaller than the underlying memory object's size.
          *  @param in_size           As per description. @param in_start_offset + @param in_size must be lower than or
          *                           equal to the underlying memory object's size.
          *  @param in_data           Data to store. Must not be nullptr.
-         *
+         *  @param in_opt_queue_ptr  See documentation above. May be nullptr.
+
          *  @return true if the operation was successful, false otherwise.
          **/
-        bool write(VkDeviceSize in_start_offset,
-                   VkDeviceSize in_size,
-                   const void*  in_data);
+        bool write(VkDeviceSize                  in_start_offset,
+                   VkDeviceSize                  in_size,
+                   const void*                   in_data,
+                   std::shared_ptr<Anvil::Queue> in_opt_queue_ptr = nullptr);
 
     private:
         /* Private functions */

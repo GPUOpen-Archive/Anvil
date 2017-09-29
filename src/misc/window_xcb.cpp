@@ -124,6 +124,9 @@ void Anvil::WindowXcb::close()
 
     if (!m_window_should_close)
     {
+        callback(WINDOW_CALLBACK_ID_ABOUT_TO_CLOSE,
+                 this);
+
         m_window_should_close = true;
 
         free(m_key_symbols);

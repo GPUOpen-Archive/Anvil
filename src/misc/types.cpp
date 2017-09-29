@@ -2029,6 +2029,28 @@ const char* Anvil::Utils::get_raw_string(VkFrontFace in_front_face)
 }
 
 /* Please see header for specification */
+const char* Anvil::Utils::get_raw_string(VkImageAspectFlagBits in_image_aspect_flag)
+{
+    const char* result = "?";
+
+    switch (in_image_aspect_flag)
+    {
+        case VK_IMAGE_ASPECT_COLOR_BIT:    result = "VK_IMAGE_ASPECT_COLOR_BIT";    break;
+        case VK_IMAGE_ASPECT_DEPTH_BIT:    result = "VK_IMAGE_ASPECT_DEPTH_BIT";    break;
+        case VK_IMAGE_ASPECT_STENCIL_BIT:  result = "VK_IMAGE_ASPECT_STENCIL_BIT";  break;
+        case VK_IMAGE_ASPECT_METADATA_BIT: result = "VK_IMAGE_ASPECT_METADATA_BIT"; break;
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
+
+    return result;
+
+}
+
+/* Please see header for specification */
 const char* Anvil::Utils::get_raw_string(VkImageLayout in_image_layout)
 {
     const char* result = "?!";

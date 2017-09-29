@@ -76,14 +76,15 @@ Anvil::BufferView::~BufferView()
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
+
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_BUFFER_VIEW,
+                                                    this);
+
     vkDestroyBufferView(device_locked_ptr->get_device_vk(),
                         m_buffer_view,
                         nullptr /* pAllocator */);
 
     m_buffer_view = VK_NULL_HANDLE;
-
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_BUFFER_VIEW,
-                                                    this);
 }
 
 /** Please see header for specification */

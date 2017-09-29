@@ -97,6 +97,10 @@ Anvil::Framebuffer::~Framebuffer()
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
+    /* Unregister the object */
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_FRAMEBUFFER,
+                                                    this);
+
     for (auto fb_iterator  = m_baked_framebuffers.begin();
               fb_iterator != m_baked_framebuffers.end();
             ++fb_iterator)
@@ -116,10 +120,6 @@ Anvil::Framebuffer::~Framebuffer()
 
     m_baked_framebuffers.clear();
     m_attachments.clear();
-
-    /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_FRAMEBUFFER,
-                                                    this);
 }
 
 /* Please see header for specification */

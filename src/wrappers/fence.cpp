@@ -66,10 +66,10 @@ Anvil::Fence::Fence(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
 /* Please see header for specification */
 Anvil::Fence::~Fence()
 {
-    release_fence();
-
     Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_FENCE,
                                                     this);
+
+    release_fence();
 }
 
 /* Please see header for specification */

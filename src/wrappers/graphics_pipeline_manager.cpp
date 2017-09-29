@@ -628,12 +628,20 @@ bool Anvil::GraphicsPipelineManager::bake()
         {
             VkPipelineMultisampleStateCreateInfo multisample_state_create_info;
 
+            /* If sample mask is not enabled, Vulkan spec will assume all samples need to pass. This is what the default sample mask value mimics.
+            *
+             * Hence, if the application specified a non-~0u sample mask and has NOT enabled the sample mask using toggle_sample_mask(), it's (in
+             * all likelihood) a trivial app-side issue.
+             */
+            anvil_assert((!current_pipeline_config_ptr->sample_mask_enabled && current_pipeline_config_ptr->sample_mask == ~0u) ||
+                           current_pipeline_config_ptr->sample_mask_enabled);
+
             multisample_state_create_info.alphaToCoverageEnable = static_cast<VkBool32>(current_pipeline_config_ptr->alpha_to_coverage_enabled ? VK_TRUE : VK_FALSE);
             multisample_state_create_info.alphaToOneEnable      = static_cast<VkBool32>(current_pipeline_config_ptr->alpha_to_one_enabled      ? VK_TRUE : VK_FALSE);
             multisample_state_create_info.flags                 = 0;
             multisample_state_create_info.minSampleShading      = current_pipeline_config_ptr->min_sample_shading;
             multisample_state_create_info.pNext                 = nullptr;
-            multisample_state_create_info.pSampleMask           = &current_pipeline_config_ptr->sample_mask;
+            multisample_state_create_info.pSampleMask           = (current_pipeline_config_ptr->sample_mask_enabled) ? &current_pipeline_config_ptr->sample_mask : nullptr;
             multisample_state_create_info.rasterizationSamples  = static_cast<VkSampleCountFlagBits>(current_pipeline_config_ptr->sample_count);
             multisample_state_create_info.sampleShadingEnable   = static_cast<VkBool32>(current_pipeline_config_ptr->sample_shading_enabled ? VK_TRUE : VK_FALSE);
             multisample_state_create_info.sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
@@ -3278,6 +3286,33 @@ void Anvil::GraphicsPipelineManager::toggle_rasterizer_discard(GraphicsPipelineI
     pipeline_config_ptr->rasterizer_discard_enabled = in_should_enable;
     pipeline_iterator->second->dirty                = true;
 
+end:
+    ;
+}
+
+/* Please see header for specification */
+void Anvil::GraphicsPipelineManager::toggle_sample_mask(GraphicsPipelineID in_graphics_pipeline_id,
+                                                        bool               in_should_enable)
+{
+    std::shared_ptr<GraphicsPipelineConfiguration> pipeline_config_ptr;
+    auto                                           pipeline_config_iterator = m_pipeline_configurations.find(in_graphics_pipeline_id);
+    auto                                           pipeline_iterator        = m_pipelines.find              (in_graphics_pipeline_id);
+
+    if (pipeline_iterator        == m_pipelines.end()               ||
+        pipeline_config_iterator == m_pipeline_configurations.end() )
+    {
+        anvil_assert(!(pipeline_iterator        == m_pipelines.end()               ||
+                      pipeline_config_iterator == m_pipeline_configurations.end()) );
+
+        goto end;
+    }
+    else
+    {
+        pipeline_config_ptr = pipeline_config_iterator->second;
+    }
+
+    pipeline_config_ptr->sample_mask_enabled = in_should_enable;
+    pipeline_iterator->second->dirty         = true;
 end:
     ;
 }

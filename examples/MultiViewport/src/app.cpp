@@ -516,7 +516,7 @@ void App::init_command_buffers()
                                                   subresource_range);
 
                 cmd_buffer_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                                        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                                         VK_FALSE,       /* in_by_region                   */
                                                         0,              /* in_memory_barrier_count        */
                                                         nullptr,        /* in_memory_barrier_ptrs         */
@@ -587,7 +587,7 @@ void App::init_command_buffers()
             /* Change the swap-chain image's layout to presentable */
             {
                 Anvil::ImageBarrier image_barrier(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,        /* source_access_mask      */
-                                                  VK_ACCESS_MEMORY_READ_BIT,                   /* destination_access_mask */
+                                                  0,                                           /* destination_access_mask */
                                                   false,
                                                   VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,    /* old_image_layout        */
 #ifdef ENABLE_OFFSCREEN_RENDERING
@@ -600,8 +600,8 @@ void App::init_command_buffers()
                                                   m_swapchain_ptr->get_image(n_current_swapchain_image),
                                                   subresource_range);
 
-                cmd_buffer_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                                                        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                cmd_buffer_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                                        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                                                         VK_FALSE,       /* in_by_region                   */
                                                         0,              /* in_memory_barrier_count        */
                                                         nullptr,        /* in_memory_barrier_ptrs         */

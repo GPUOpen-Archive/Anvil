@@ -42,6 +42,20 @@ namespace Anvil
         explicit PageTracker(VkDeviceSize in_region_size,
                              VkDeviceSize in_page_size);
 
+        /** Retrieves a memory block assigned to the region <in_start_offset_page_aligned, in_start_offset_page_aligned + (page size)>.
+         *
+         *  NOTE: The caller should NOT assume subsequent pages are assigned the same memory block, unless the application never binds
+         *        more than one memory block to a sparsely-bound buffer / image.
+         *
+         *  @param in_start_offset_page_aligned       Start offset of the page. Must be page size-aligned.
+         *  @param out_memory_region_start_offset_ptr Deref will be set to the start offset, which corresponds to @param in_start_offset_page_aligned
+         *                                            from the returned memory object's PoV. Must not be NULL.
+         *
+         *  @return Memory block instance bound to the specified page OR null, if no memory block has been assigned to the memory region.
+         */
+        std::shared_ptr<Anvil::MemoryBlock> get_memory_block(VkDeviceSize  in_start_offset_page_aligned,
+                                                             VkDeviceSize* out_memory_region_start_offset_ptr);
+
         /** The same memory block is often bound to more than just one page. PageTracker
          *  coalesces such occurences into a single descriptor.
          *
@@ -76,6 +90,12 @@ namespace Anvil
         uint32_t get_n_pages_with_memory_backing() const
         {
             return m_n_pages_with_memory_backing;
+        }
+
+        /* Returns page size, as recognized by the page tracker */
+        VkDeviceSize get_page_size() const
+        {
+            return m_page_size;
         }
 
         /** Updates a locally tracked memory binding.

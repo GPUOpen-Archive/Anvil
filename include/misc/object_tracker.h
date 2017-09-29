@@ -38,11 +38,58 @@
 #define MISC_OBJECT_TRACKER_H
 
 #include <vector>
+#include "misc/callbacks.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
-    class ObjectTracker
+    typedef enum
+    {
+        /* Callback issued when a new Anvil object is instantiated
+         *
+         * @param callback_arg ObjectTrackerOnObjectRegisteredCallbackArg structure instance
+         **/
+        OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_REGISTERED,
+
+        /* Callback issued when an existing Anvil object instance is about to go out of scope.
+         *
+         * This callback IS issued BEFORE a corresponding Vulkan handle is destroyed.
+         *
+         * This callback MAY be issued FROM WITHIN the object's destructor, implying all WEAK POINTERS pointing
+         * to the wrapper instance will have been expired at the time of the callback.
+         *
+         * @param callback_arg ObjectTrackerOnObjectAboutToBeUnregisteredCallbackArg structure instance
+         **/
+        OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+
+        OBJECT_TRACKER_CALLBACK_ID_COUNT,
+    } ObjectTrackerCallbackID;
+
+    typedef struct ObjectTrackerOnObjectRegisteredCallbackArg
+    {
+        void*      object_raw_ptr;
+        ObjectType object_type;
+
+        ObjectTrackerOnObjectRegisteredCallbackArg()
+        {
+            object_raw_ptr = nullptr;
+            object_type    = OBJECT_TYPE_UNKNOWN;
+        }
+
+        ObjectTrackerOnObjectRegisteredCallbackArg(const ObjectType& in_object_type,
+                                                   void*             in_object_raw_ptr)
+        {
+            anvil_assert(in_object_raw_ptr != nullptr);
+
+            object_raw_ptr = in_object_raw_ptr;
+            object_type    = in_object_type;
+        }
+    } ObjectTrackerOnObjectRegisteredCallbackArg;
+
+    typedef ObjectTrackerOnObjectRegisteredCallbackArg ObjectTrackerOnObjectAboutToBeUnregisteredCallbackArg;
+
+
+    class ObjectTracker : public CallbacksSupportProvider
     {
     public:
         /* Public functions */
@@ -76,6 +123,8 @@ namespace Anvil
                              void*      in_object_ptr);
 
         /** Stops tracking the specified object.
+         *
+         *  For Vulkan object wrappers, this function MUST be called prior to actual release of the Vulkan object!
          *
          *  @param in_object_type Wrapper object type.
          *  @param in_object_ptr  Object instance. The object is NOT released. The object must have

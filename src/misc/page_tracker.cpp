@@ -38,6 +38,44 @@ Anvil::PageTracker::PageTracker(VkDeviceSize in_region_size,
 }
 
 /** Please see header for specification */
+std::shared_ptr<Anvil::MemoryBlock> Anvil::PageTracker::get_memory_block(VkDeviceSize  in_start_offset_page_aligned,
+                                                                         VkDeviceSize* out_memory_region_start_offset_ptr)
+{
+    std::shared_ptr<Anvil::MemoryBlock> result_ptr;
+
+    /* Sanity checks */
+    if ((in_start_offset_page_aligned % m_page_size) != 0)
+    {
+        anvil_assert( (in_start_offset_page_aligned % m_page_size) == 0);
+
+        goto end;
+    }
+
+    if (in_start_offset_page_aligned + m_page_size > m_n_total_pages * m_page_size)
+    {
+        anvil_assert(!(in_start_offset_page_aligned + m_page_size > m_n_total_pages * m_page_size) );
+
+        goto end;
+    }
+
+    /* Handle the request */
+    for (const auto& current_memory_block : m_memory_blocks)
+    {
+        if (current_memory_block.start_offset                             <= in_start_offset_page_aligned               &&
+            current_memory_block.start_offset + current_memory_block.size >= in_start_offset_page_aligned + m_page_size)
+        {
+            result_ptr                          = current_memory_block.memory_block_ptr;
+            *out_memory_region_start_offset_ptr = current_memory_block.start_offset + in_start_offset_page_aligned;
+
+            break;
+        }
+    }
+
+end:
+    return result_ptr;
+}
+
+/** Please see header for specification */
 bool Anvil::PageTracker::set_binding(std::shared_ptr<MemoryBlock> in_memory_block_ptr,
                                      VkDeviceSize                 in_memory_block_start_offset,
                                      VkDeviceSize                 in_start_offset,

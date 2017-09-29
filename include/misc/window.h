@@ -61,6 +61,12 @@ namespace Anvil
     /* Enumerates available window call-back types.*/
     enum WindowCallbackID
     {
+        /* Call-back issued right before OS is requested to close the window.
+         *
+         * callback_arg: pointer to the Window instance
+         */
+        WINDOW_CALLBACK_ID_ABOUT_TO_CLOSE,
+
         /* Call-back issued when the user releases a pressed key.
          *
          * callback_arg: pointer to a KeypressReleasedCallbackData instance.
