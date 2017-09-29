@@ -899,7 +899,8 @@ void App::update_data_ub_contents()
 
     m_data_buffer_ptr->write(0, /* start_offset */
                              sizeof(data),
-                            &data);
+                            &data,
+                             m_device_ptr.lock()->get_universal_queue(0) );
 
     ++n_frames_rendered;
 }

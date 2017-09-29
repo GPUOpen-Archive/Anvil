@@ -79,6 +79,10 @@ Anvil::CommandPool::CommandPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
 /* Please see header for specification */
 Anvil::CommandPool::~CommandPool()
 {
+    /* Unregister the object */
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_COMMAND_POOL,
+                                                   this);
+
     /* Release the Vulkan command pool */
     if (m_command_pool != VK_NULL_HANDLE)
     {
@@ -90,10 +94,6 @@ Anvil::CommandPool::~CommandPool()
 
         m_command_pool = VK_NULL_HANDLE;
     }
-
-    /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_COMMAND_POOL,
-                                                   this);
 }
 
 /* Please see header for specification */

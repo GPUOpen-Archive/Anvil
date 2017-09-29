@@ -234,6 +234,19 @@ namespace Anvil
              }
          #endif
 
+         /* Retrieves GLSL source code that has been used for GLSL->SPIR-V conversion.
+          *
+          * This function should only be called after bake_spirv_blob() has been invoked.
+          * Otherwise, an assertion failure will occur, as the returned string will have a size of 0.
+          *
+          */
+         const std::string& get_glsl_source_code() const
+         {
+             anvil_assert(m_final_glsl_source_code.size() != 0);
+
+             return m_final_glsl_source_code;
+         }
+
          /** Tells what shader stage the encapsulated GLSL shader descirbes. */
          ShaderStage get_shader_stage() const
          {
@@ -250,34 +263,35 @@ namespace Anvil
           **/
          const char* get_spirv_blob()
          {
-             if (m_spirv_blob == nullptr)
+             if (m_spirv_blob.size() == 0)
              {
                  bool result = bake_spirv_blob();
 
                  ANVIL_REDUNDANT_VARIABLE(result);
 
                  anvil_assert(result);
-                 anvil_assert(m_spirv_blob != nullptr);
+                 anvil_assert(m_spirv_blob.size() != 0);
              }
 
-             return m_spirv_blob;
+             return &m_spirv_blob.at(0);
          }
 
          /** Returns the number of bytes the SPIR-V blob, accessible via get_spirv_blob(), takes. */
          const uint32_t get_spirv_blob_size()
          {
-             if (m_spirv_blob == nullptr)
+             if (m_spirv_blob.size() == 0)
              {
                  bool result = bake_spirv_blob();
 
                  ANVIL_REDUNDANT_VARIABLE(result);
 
                  anvil_assert(result);
+                 anvil_assert(m_spirv_blob.size() != 0);
              }
 
-             anvil_assert(m_spirv_blob_size > 0);
+             anvil_assert(m_spirv_blob.size() > 0);
 
-             return m_spirv_blob_size;
+             return static_cast<uint32_t>(m_spirv_blob.size() );
          }
 
     private:
@@ -313,9 +327,9 @@ namespace Anvil
         std::string m_data;
         Mode        m_mode;
 
-        ShaderStage m_shader_stage;
-        char*       m_spirv_blob;
-        uint32_t    m_spirv_blob_size;
+        std::string       m_final_glsl_source_code;
+        ShaderStage       m_shader_stage;
+        std::vector<char> m_spirv_blob;
 
         DefinitionNameToValueMap            m_definition_values;
         ExtensionNameToExtensionBehaviorMap m_extension_behaviors;

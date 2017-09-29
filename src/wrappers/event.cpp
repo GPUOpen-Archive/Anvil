@@ -66,10 +66,10 @@ Anvil::Event::Event(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
  **/
 Anvil::Event::~Event()
 {
-    release_event();
-
     Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_EVENT,
                                                     this);
+
+    release_event();
 }
 
 /* Please see header for specification */

@@ -137,6 +137,10 @@ Anvil::Buffer::Buffer(std::shared_ptr<Anvil::Buffer> in_parent_buffer_ptr,
 /** Releases a buffer object and a memory object associated with this Buffer instance. */
 Anvil::Buffer::~Buffer()
 {
+    /* Unregister the object */
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_BUFFER,
+                                                   this);
+
     if (m_buffer            != VK_NULL_HANDLE &&
         m_parent_buffer_ptr == nullptr)
     {
@@ -150,10 +154,6 @@ Anvil::Buffer::~Buffer()
     }
 
     m_parent_buffer_ptr = nullptr;
-
-    /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_BUFFER,
-                                                   this);
 }
 
 /** Please see header for specification */
@@ -655,9 +655,10 @@ bool Anvil::Buffer::set_memory_sparse(std::shared_ptr<MemoryBlock> in_memory_blo
 }
 
 /* Please see header for specification */
-bool Anvil::Buffer::write(VkDeviceSize in_start_offset,
-                          VkDeviceSize in_size,
-                          const void*  in_data)
+bool Anvil::Buffer::write(VkDeviceSize                  in_start_offset,
+                          VkDeviceSize                  in_size,
+                          const void*                   in_data,
+                          std::shared_ptr<Anvil::Queue> in_opt_queue_ptr)
 {
     std::shared_ptr<BaseDevice> base_device_locked_ptr(m_device_ptr);
     const Anvil::DeviceType     device_type           (base_device_locked_ptr->get_type() );
@@ -684,14 +685,81 @@ bool Anvil::Buffer::write(VkDeviceSize in_start_offset,
     {
         /* The buffer memory is not mappable. We need to create a staging memory,
          * upload user's data there, and then issue a copy op. */
-        const uint32_t                              n_transfer_queues             = base_device_locked_ptr->get_n_transfer_queues();
-        std::shared_ptr<Anvil::Queue>               queue_ptr                     = (n_transfer_queues > 0) ? base_device_locked_ptr->get_transfer_queue (0)
-                                                                                                            : base_device_locked_ptr->get_universal_queue(0);
-        std::shared_ptr<Anvil::Buffer>              staging_buffer_ptr;
-        const Anvil::QueueFamilyBits                staging_buffer_queue_fam_bits = (n_transfer_queues > 0) ? Anvil::QUEUE_FAMILY_DMA_BIT       : Anvil::QUEUE_FAMILY_GRAPHICS_BIT;
-        const Anvil::QueueFamilyType                staging_buffer_queue_fam_type = (n_transfer_queues > 0) ? Anvil::QUEUE_FAMILY_TYPE_TRANSFER : Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL;
+        std::shared_ptr<Anvil::PrimaryCommandBuffer> copy_cmdbuf_ptr;
+        std::shared_ptr<Anvil::Queue>                queue_ptr;
+        std::shared_ptr<Anvil::Buffer>               staging_buffer_ptr;
+        Anvil::QueueFamilyBits                       staging_buffer_queue_fam_bits = 0;
+        Anvil::QueueFamilyType                       staging_buffer_queue_fam_type = Anvil::QUEUE_FAMILY_TYPE_UNDEFINED;
 
-        std::shared_ptr<Anvil::PrimaryCommandBuffer> copy_cmdbuf_ptr = base_device_locked_ptr->get_command_pool(staging_buffer_queue_fam_type)->alloc_primary_level_command_buffer();
+        if (m_sharing_mode == VK_SHARING_MODE_EXCLUSIVE)
+        {
+            /* We need to use a user-specified queue, since we can't tell which queue fam the buffer is currently configured to be compatible with.
+             *
+             * This can be worked around if the buffer can only be used with a specific queue family type.
+             */
+            if (Anvil::Utils::is_pow2(m_queue_families) )
+            {
+                switch (m_queue_families)
+                {
+                    case Anvil::QUEUE_FAMILY_COMPUTE_BIT:  queue_ptr = base_device_locked_ptr->get_compute_queue  (0); break;
+                    case Anvil::QUEUE_FAMILY_DMA_BIT:      queue_ptr = base_device_locked_ptr->get_transfer_queue (0); break;
+                    case Anvil::QUEUE_FAMILY_GRAPHICS_BIT: queue_ptr = base_device_locked_ptr->get_universal_queue(0); break;
+
+                    default:
+                    {
+                        anvil_assert_fail();
+                    }
+                }
+            }
+            else
+            {
+                anvil_assert(in_opt_queue_ptr != nullptr);
+
+                queue_ptr = in_opt_queue_ptr;
+            }
+
+            anvil_assert(queue_ptr != nullptr);
+            staging_buffer_queue_fam_type = base_device_locked_ptr->get_queue_family_type(queue_ptr->get_queue_family_index() );
+
+            switch (staging_buffer_queue_fam_type)
+            {
+                case Anvil::QUEUE_FAMILY_TYPE_COMPUTE:   staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_COMPUTE_BIT;  break;
+                case Anvil::QUEUE_FAMILY_TYPE_TRANSFER:  staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_DMA_BIT;      break;
+                case Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL: staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_GRAPHICS_BIT; break;
+
+                default:
+                {
+                    anvil_assert_fail();
+                }
+            }
+        }
+        else
+        {
+            /* We can use any queue from the list of queue fams this buffer is compatible, in order to perform the copy op. */
+            if ((m_queue_families & Anvil::QUEUE_FAMILY_DMA_BIT) != 0)
+            {
+                queue_ptr                     = base_device_locked_ptr->get_transfer_queue(0);
+                staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_DMA_BIT;
+                staging_buffer_queue_fam_type = Anvil::QUEUE_FAMILY_TYPE_TRANSFER;
+            }
+            else
+            if ((m_queue_families & Anvil::QUEUE_FAMILY_GRAPHICS_BIT) != 0)
+            {
+                queue_ptr                     = base_device_locked_ptr->get_universal_queue(0);
+                staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_GRAPHICS_BIT;
+                staging_buffer_queue_fam_type = Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL;
+            }
+            else
+            {
+                anvil_assert((m_queue_families & Anvil::QUEUE_FAMILY_COMPUTE_BIT) != 0)
+
+                queue_ptr                     = base_device_locked_ptr->get_compute_queue(0);
+                staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_COMPUTE_BIT;
+                staging_buffer_queue_fam_type = Anvil::QUEUE_FAMILY_TYPE_COMPUTE;
+            }
+        }
+
+        copy_cmdbuf_ptr = base_device_locked_ptr->get_command_pool(staging_buffer_queue_fam_type)->alloc_primary_level_command_buffer();
 
         if (copy_cmdbuf_ptr == nullptr)
         {

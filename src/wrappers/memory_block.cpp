@@ -121,6 +121,10 @@ Anvil::MemoryBlock::~MemoryBlock()
                                         m_destroy_memory_block_proc_user_arg);
     }
 
+    /* Unregister the object */
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_MEMORY_BLOCK,
+                                                   this);
+
     if (m_memory != VK_NULL_HANDLE)
     {
         if (m_pfn_destroy_memory_block_proc == nullptr)
@@ -134,10 +138,6 @@ Anvil::MemoryBlock::~MemoryBlock()
 
         m_memory = VK_NULL_HANDLE;
     }
-
-    /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_MEMORY_BLOCK,
-                                                   this);
 }
 
 /** Finishes the memory mapping process, opened earlier with a open_gpu_memory_access() call. */

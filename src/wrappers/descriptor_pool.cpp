@@ -53,6 +53,10 @@ Anvil::DescriptorPool::DescriptorPool(std::weak_ptr<Anvil::BaseDevice> in_device
 /* Please see header for specification */
 Anvil::DescriptorPool::~DescriptorPool()
 {
+    /* Unregister the instance */
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_DESCRIPTOR_POOL,
+                                                    this);
+
     if (m_pool != VK_NULL_HANDLE)
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
@@ -63,10 +67,6 @@ Anvil::DescriptorPool::~DescriptorPool()
 
         m_pool = VK_NULL_HANDLE;
     }
-
-    /* Unregister the instance */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_DESCRIPTOR_POOL,
-                                                    this);
 }
 
 /* Please see header for specification */

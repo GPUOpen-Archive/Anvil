@@ -119,8 +119,12 @@ This version of Anvil provides:
                                            will be automatically patched through to layers that implement the extension on the running platform.
    - Format info reflection:               provides information about format properties.
    - GLSL -> SPIR-V conversion:            provides glslang-based GLSL->SPIR-V conversion. The conversion is performed in run-time. Disassembly can also be retrieved, if needed.
+   - GLSL -> SPIR-V conversion cache:      re-uses SPIR-V blobs throughout Instance's lifetime if GLSL->SPIR-V conversion is requested for GLSL source code which has already
+                                           been converted to SPIR-V before.
    - IO:                                   provides a number of functions to simplify directory- and file-related operations.
    - Object tracker:                       tracks object allocations and helps detect object leakage.
+   - Shader module cache:                  re-uses shader module instances across Instance lifetime. Improve execution time if your application instantiates shader modules with
+                                           exactly the same configuration during its runtime.
    - Time:                                 provides a way to query current time using high-performance system queries.
 
 We are planning to keep adding new features in the future.

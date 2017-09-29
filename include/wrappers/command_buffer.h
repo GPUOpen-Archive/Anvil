@@ -2613,6 +2613,7 @@ namespace Anvil
                              std::shared_ptr<RenderPass>   in_render_pass_ptr,
                              SubPassID                     in_subpass_id,
                              OcclusionQuerySupportScope    in_required_occlusion_query_support_scope,
+                             bool                          in_occlusion_query_used_by_primary_command_buffer,
                              VkQueryPipelineStatisticFlags in_required_pipeline_statistics_scope);
 
         /* Destructor */

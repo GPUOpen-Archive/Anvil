@@ -38,7 +38,8 @@ namespace Anvil
     /* Forward declarations */
     class GLSLShaderToSPIRVGenerator;
 
-    class ShaderModule : public DebugMarkerSupportProvider<ShaderModule>
+    class ShaderModule : public DebugMarkerSupportProvider<ShaderModule>,
+                         public std::enable_shared_from_this<ShaderModule>
     {
     public:
         /* Public functions */
@@ -98,16 +99,13 @@ namespace Anvil
             return m_cs_entrypoint_name;
         }
 
-#ifdef ANVIL_LINK_WITH_GLSLANG
         /** Returns a disassembly of the SPIR-V blob.
          *
-         *  Only returns a non-empty string if ANVIL_LINK_WITH_GLSLANG is enabled.
+         *  The actual disassembly is retrieved from glslang and cached for subsequent requests.
+         *
+         *  This function only returns a non-empty string if ANVIL_LINK_WITH_GLSLANG is enabled.
          */
-        const std::string& get_disassembly() const
-        {
-            return m_disassembly;
-        }
-#endif
+        const std::string& get_disassembly();
 
         /** Returns name of the fragment shader stage entry-point, as defined at construction time.
          *
@@ -116,6 +114,18 @@ namespace Anvil
         const char* get_fs_entrypoint_name() const
         {
             return m_fs_entrypoint_name;
+        }
+
+        /** Returns GLSL souirce code used to initialize this shader module instance.
+         *
+         *  This function will ONLY return non-zero-sized text string if the ShaderModule instance
+         *  has been created using create_from_spirv_generator(). Otherwise, an assertion failure
+         *  will be triggered.
+         *
+         * */
+        const std::string& get_glsl_source_code() const
+        {
+            return m_glsl_source_code;
         }
 
         /** Returns name of the geometry shader stage entry-point, as defined at construction time.
@@ -131,6 +141,20 @@ namespace Anvil
         VkShaderModule get_module() const
         {
             return m_module;
+        }
+
+        /** Returns the device, for which this shader module has been created. */
+        std::weak_ptr<Anvil::BaseDevice> get_parent_device() const
+        {
+            return m_device_ptr;
+        }
+
+        /** Returns SPIR-V blob which was used to instantiate this shader module */
+        const std::vector<uint32_t>& get_spirv_blob() const
+        {
+            anvil_assert(m_spirv_blob.size() != 0);
+
+            return m_spirv_blob;
         }
 
         /** Returns name of the tessellation control shader stage entry-point, as defined at
@@ -181,6 +205,9 @@ namespace Anvil
         ShaderModule           (const ShaderModule&);
         ShaderModule& operator=(const ShaderModule&);
 
+        /* Destroys the Vulkan Shader module instance */
+        void destroy();
+
         /** Creates a Vulkan shader module instance, using the specified buffer holding SPIR-V blob data.
          *
          *  @param in_spirv_blob         Buffer holding raw SPIR-V blob contents. Must hold at least
@@ -192,6 +219,9 @@ namespace Anvil
         bool init_from_spirv_blob(const char* in_spirv_blob,
                                   uint32_t    in_n_spirv_blob_bytes);
 
+        static void on_object_about_to_be_released(void* in_callback_arg,
+                                                   void* in_shader_module_raw_ptr);
+
         /* Private variables */
         const char* m_cs_entrypoint_name;
         const char* m_fs_entrypoint_name;
@@ -201,10 +231,13 @@ namespace Anvil
         const char* m_vs_entrypoint_name;
 
         std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
+        const Anvil::BaseDevice*         m_device_raw_ptr;
+        std::string                      m_glsl_source_code;
         VkShaderModule                   m_module;
+        std::vector<uint32_t>            m_spirv_blob;
 
 #ifdef ANVIL_LINK_WITH_GLSLANG
-        std::string                  m_disassembly;
+        std::string           m_disassembly;
 #endif
     };
 }; /* namespace Anvil */

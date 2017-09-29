@@ -26,6 +26,7 @@
 #include "misc/window.h"
 #include "wrappers/command_buffer.h"
 #include "wrappers/command_pool.h"
+#include "wrappers/instance.h"
 #include "wrappers/semaphore.h"
 #include "wrappers/swapchain.h"
 
@@ -39,20 +40,23 @@ Anvil::Swapchain::Swapchain(std::weak_ptr<Anvil::BaseDevice>         in_device_p
                             VkSwapchainCreateFlagsKHR                in_flags,
                             uint32_t                                 in_n_images,
                             const ExtensionKHRSwapchainEntrypoints&  in_khr_swapchain_entrypoints)
-    :DebugMarkerSupportProvider (in_device_ptr,
-                                 VK_DEBUG_REPORT_OBJECT_TYPE_SWAPCHAIN_KHR_EXT),
-     m_device_ptr               (in_device_ptr),
-     m_flags                    (in_flags),
-     m_image_format             (in_format),
-     m_last_acquired_image_index(UINT32_MAX),
-     m_n_acquire_counter        (0),
-     m_n_swapchain_images       (in_n_images),
-     m_parent_surface_ptr       (in_parent_surface_ptr),
-     m_present_mode             (in_present_mode),
-     m_swapchain                (0),
-     m_window_ptr               (in_window_ptr),
-     m_usage_flags              (static_cast<VkImageUsageFlagBits>(in_usage_flags) ),
-     m_khr_swapchain_entrypoints(in_khr_swapchain_entrypoints)
+    :DebugMarkerSupportProvider                     (in_device_ptr,
+                                                     VK_DEBUG_REPORT_OBJECT_TYPE_SWAPCHAIN_KHR_EXT),
+     m_destroy_swapchain_before_parent_window_closes(true),
+     m_device_ptr                                   (in_device_ptr),
+     m_flags                                        (in_flags),
+     m_image_format                                 (in_format),
+     m_last_acquired_image_index                    (UINT32_MAX),
+     m_n_acquire_counter                            (0),
+     m_n_acquire_counter_rounded                    (0),
+     m_n_present_counter                            (0),
+     m_n_swapchain_images                           (in_n_images),
+     m_parent_surface_ptr                           (in_parent_surface_ptr),
+     m_present_mode                                 (in_present_mode),
+     m_swapchain                                    (0),
+     m_window_ptr                                   (in_window_ptr),
+     m_usage_flags                                  (static_cast<VkImageUsageFlagBits>(in_usage_flags) ),
+     m_khr_swapchain_entrypoints                    (in_khr_swapchain_entrypoints)
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(in_device_ptr);
 
@@ -81,16 +85,10 @@ Anvil::Swapchain::Swapchain(std::weak_ptr<Anvil::BaseDevice>         in_device_p
 /** Please see header for specification */
 Anvil::Swapchain::~Swapchain()
 {
-    if (m_swapchain != VK_NULL_HANDLE)
-    {
-        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_SWAPCHAIN,
+                                                    this);
 
-        m_khr_swapchain_entrypoints.vkDestroySwapchainKHR(device_locked_ptr->get_device_vk(),
-                                                          m_swapchain,
-                                                          nullptr /* pAllocator */);
-
-        m_swapchain = VK_NULL_HANDLE;
-    }
+    destroy_swapchain();
 
     if (m_parent_surface_ptr != nullptr)
     {
@@ -101,8 +99,16 @@ Anvil::Swapchain::~Swapchain()
     m_image_available_fence_ptrs.clear();
     m_image_view_ptrs.clear           ();
 
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_SWAPCHAIN,
-                                                    this);
+    for (auto queue_ptr : m_observed_queues)
+    {
+        queue_ptr->unregister_from_callbacks(QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
+                                             on_present_request_issued,
+                                             this); /* in_user_arg */
+    }
+
+    m_window_ptr->unregister_from_callbacks(WINDOW_CALLBACK_ID_ABOUT_TO_CLOSE,
+                                            on_parent_window_about_to_close,
+                                            this);
 }
 
 /** Please see header for specification */
@@ -117,7 +123,7 @@ uint32_t Anvil::Swapchain::acquire_image_by_blocking()
     ANVIL_REDUNDANT_VARIABLE(result_vk);
 
     /* Which swap-chain image should we render to? */
-    m_image_available_fence_ptrs[m_n_acquire_counter]->reset();
+    m_image_available_fence_ptrs.at(m_n_acquire_counter_rounded)->reset();
 
     if (!is_offscreen_rendering_enabled)
     {
@@ -128,25 +134,27 @@ uint32_t Anvil::Swapchain::acquire_image_by_blocking()
                                                                       m_swapchain,
                                                                       timeout,
                                                                       VK_NULL_HANDLE, /* semaphore */
-                                                                      m_image_available_fence_ptrs[m_n_acquire_counter]->get_fence(),
+                                                                      m_image_available_fence_ptrs.at(m_n_acquire_counter_rounded)->get_fence(),
                                                                      &result);
 
         anvil_assert_vk_call_succeeded(result_vk);
 
         result_vk = vkWaitForFences(device_locked_ptr->get_device_vk(),
                                     1, /* fenceCount */
-                                    m_image_available_fence_ptrs[m_n_acquire_counter]->get_fence_ptr(),
+                                    m_image_available_fence_ptrs.at(m_n_acquire_counter_rounded)->get_fence_ptr(),
                                     VK_TRUE, /* waitAll */
                                     UINT64_MAX);
 
         anvil_assert_vk_call_succeeded(result_vk);
-    }
 
-    m_n_acquire_counter = (m_n_acquire_counter + 1) % m_n_swapchain_images;
+        /* NOTE: Only bump the frame acquisition counter if we're not emulating a Vulkan swapchain */
+        m_n_acquire_counter        ++;
+        m_n_acquire_counter_rounded = (m_n_acquire_counter_rounded + 1) % m_n_swapchain_images;
+    }
 
     if (is_offscreen_rendering_enabled)
     {
-        result = m_n_acquire_counter;
+        result = m_n_acquire_counter_rounded;
     }
 
     m_last_acquired_image_index = result;
@@ -178,6 +186,10 @@ uint32_t Anvil::Swapchain::acquire_image_by_setting_semaphore(std::shared_ptr<An
                                                                      &result);
 
         anvil_assert_vk_call_succeeded(result_vk);
+
+        /* NOTE: Only bump the frame acquisition counter if we're not emulating a Vulkan swapchain */
+        m_n_acquire_counter++;
+        m_n_acquire_counter_rounded = (m_n_acquire_counter_rounded + 1) % m_n_swapchain_images;
     }
     else
     {
@@ -188,11 +200,9 @@ uint32_t Anvil::Swapchain::acquire_image_by_setting_semaphore(std::shared_ptr<An
                                                                                                 true); /* should_block */
     }
 
-    m_n_acquire_counter = (m_n_acquire_counter + 1) % m_n_swapchain_images;
-
     if (is_offscreen_rendering_enabled)
     {
-        result = m_n_acquire_counter;
+        result = m_n_acquire_counter_rounded;
     }
 
     m_last_acquired_image_index = result;
@@ -234,6 +244,31 @@ std::shared_ptr<Anvil::Swapchain> Anvil::Swapchain::create(std::weak_ptr<Anvil::
     return result_ptr;
 }
 
+/** TODO */
+void Anvil::Swapchain::destroy_swapchain()
+{
+    /* If this assertion failure explodes, your application attempted to release a swapchain without presenting all acquired swapchain images.
+     * That's illegal per Vulkan spec.
+     */
+    anvil_assert(m_n_acquire_counter == m_n_present_counter);
+    if (m_swapchain != VK_NULL_HANDLE)
+    {
+        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
+
+        m_khr_swapchain_entrypoints.vkDestroySwapchainKHR(device_locked_ptr->get_device_vk(),
+                                                          m_swapchain,
+                                                          nullptr /* pAllocator */);
+
+        m_swapchain = VK_NULL_HANDLE;
+    }
+}
+
+/** Please see header for specification */
+void Anvil::Swapchain::disable_destroy_swapchain_before_parent_window_closes_behavior()
+{
+    m_destroy_swapchain_before_parent_window_closes = false;
+}
+
 /** Please see header for specification */
 std::shared_ptr<Anvil::Image> Anvil::Swapchain::get_image(uint32_t in_n_swapchain_image) const
 {
@@ -254,6 +289,7 @@ std::shared_ptr<Anvil::ImageView> Anvil::Swapchain::get_image_view(uint32_t in_n
 void Anvil::Swapchain::init()
 {
     VkSwapchainCreateInfoKHR            create_info;
+    std::shared_ptr<Anvil::BaseDevice>  device_locked_ptr              = m_device_ptr.lock();
     uint32_t                            n_swapchain_images             = 0;
     VkResult                            result                         = VK_ERROR_INITIALIZATION_FAILED;
     const RenderingSurfaceType          rendering_surface              = m_parent_surface_ptr->get_type();
@@ -271,17 +307,29 @@ void Anvil::Swapchain::init()
     /* not doing offscreen rendering */
     if (!is_offscreen_rendering_enabled)
     {
-        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr     (m_device_ptr);
         std::shared_ptr<Anvil::SGPUDevice> sgpu_device_locked_ptr(std::dynamic_pointer_cast<Anvil::SGPUDevice>(device_locked_ptr) );
 
         #ifdef _DEBUG
         {
-            const Anvil::DeviceType    device_type                     = device_locked_ptr->get_type();
             uint32_t                   n_physical_devices              = 1;
             bool                       result_bool                     = false;
+            const char*                required_surface_extension_name = nullptr;
             VkSurfaceCapabilitiesKHR   surface_caps;
             VkCompositeAlphaFlagsKHR   supported_composite_alpha_flags = static_cast<VkCompositeAlphaFlagsKHR>(0);
             VkSurfaceTransformFlagsKHR supported_surface_transform_flags;
+
+            #ifdef _WIN32
+                #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+                    required_surface_extension_name = VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
+                #endif
+            #else
+                #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+                    required_surface_extension_name = VK_KHR_XCB_SURFACE_EXTENSION_NAME;
+                #endif
+            #endif
+
+            anvil_assert(required_surface_extension_name == nullptr                                                                          ||
+                         m_device_ptr.lock()->get_parent_instance().lock()->is_instance_extension_supported(required_surface_extension_name) );
 
             for (uint32_t n_physical_device = 0;
                           n_physical_device < n_physical_devices;
@@ -419,5 +467,98 @@ void Anvil::Swapchain::init()
                                                                          VK_COMPONENT_SWIZZLE_G,
                                                                          VK_COMPONENT_SWIZZLE_B,
                                                                          VK_COMPONENT_SWIZZLE_A);
+    }
+
+    /* Sign up for present submission notifications. This is needed to ensure that number of presented frames ==
+     * number of acquired frames at destruction time.
+     */
+    if (m_parent_surface_ptr != nullptr)
+    {
+        std::vector<std::shared_ptr<Anvil::Queue> > queues;
+
+        const std::vector<uint32_t>*       queue_fams_with_present_support_ptr(nullptr);
+        std::shared_ptr<Anvil::SGPUDevice> sgpu_device_locked_ptr             (std::dynamic_pointer_cast<Anvil::SGPUDevice>(device_locked_ptr) );
+        auto                               physical_device_ptr                (sgpu_device_locked_ptr->get_physical_device() );
+
+        if (!m_parent_surface_ptr->get_queue_families_with_present_support(physical_device_ptr,
+                                                                          &queue_fams_with_present_support_ptr) )
+        {
+            anvil_assert_fail();
+        }
+
+        if (queue_fams_with_present_support_ptr == nullptr)
+        {
+            anvil_assert(queue_fams_with_present_support_ptr != nullptr);
+        }
+        else
+        {
+            for (const auto queue_fam : *queue_fams_with_present_support_ptr)
+            {
+                const uint32_t n_queues = sgpu_device_locked_ptr->get_n_queues(queue_fam);
+
+                for (uint32_t n_queue = 0;
+                              n_queue < n_queues;
+                            ++n_queue)
+                {
+                    auto queue_ptr = sgpu_device_locked_ptr->get_queue(queue_fam,
+                                                                       n_queue);
+
+                    anvil_assert(queue_ptr != nullptr);
+
+                    if (std::find(queues.begin(),
+                                  queues.end(),
+                                  queue_ptr) == queues.end() )
+                    {
+                        queues.push_back(queue_ptr);
+                    }
+                }
+            }
+        }
+
+        for (auto queue_ptr : queues)
+        {
+            queue_ptr->register_for_callbacks(QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
+                                              on_present_request_issued,
+                                              this); /* in_user_arg */
+
+            m_observed_queues.push_back(queue_ptr);
+        }
+    }
+
+    /* Sign up for "about to close the parent window" notifications. Swapchain instance SHOULD be deinitialized
+     * before the window is destroyed, so we're going to act as nice citizens.
+     */
+    m_window_ptr->register_for_callbacks(WINDOW_CALLBACK_ID_ABOUT_TO_CLOSE,
+                                         on_parent_window_about_to_close,
+                                         this);
+}
+
+/** TODO */
+void Anvil::Swapchain::on_parent_window_about_to_close(void* in_window_ptr,
+                                                       void* in_swapchain_raw_ptr)
+{
+    Anvil::Swapchain* swapchain_ptr = static_cast<Anvil::Swapchain*>(in_swapchain_raw_ptr);
+
+    ANVIL_REDUNDANT_ARGUMENT(in_window_ptr);
+    anvil_assert            (swapchain_ptr != nullptr);
+
+    if (swapchain_ptr->m_destroy_swapchain_before_parent_window_closes)
+    {
+        swapchain_ptr->destroy_swapchain();
+    }
+}
+
+/** TODO */
+void Anvil::Swapchain::on_present_request_issued(void* in_queue_raw_ptr,
+                                                 void* in_swapchain_raw_ptr)
+{
+    Anvil::Swapchain* swapchain_ptr = static_cast<Anvil::Swapchain*>(in_swapchain_raw_ptr);
+
+    ANVIL_REDUNDANT_ARGUMENT(in_queue_raw_ptr);
+
+    if (swapchain_ptr->m_swapchain != VK_NULL_HANDLE)
+    {
+        /* Only bump the present counter if a real (ie. non-emulated) swapchain is being used. */
+        swapchain_ptr->m_n_present_counter++;
     }
 }

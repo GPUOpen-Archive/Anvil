@@ -73,6 +73,10 @@ Anvil::QueryPool::QueryPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
 /* Please see header for specification */
 Anvil::QueryPool::~QueryPool()
 {
+    /* Unregister the pool wrapper instance */
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_QUERY_POOL,
+                                                    this);
+
     if (m_query_pool_vk != VK_NULL_HANDLE)
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
@@ -83,10 +87,6 @@ Anvil::QueryPool::~QueryPool()
 
         m_query_pool_vk = VK_NULL_HANDLE;
     }
-
-    /* Unregister the pool wrapper instance */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_QUERY_POOL,
-                                                    this);
 }
 
 /* Please see header for specification */

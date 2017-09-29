@@ -22,7 +22,9 @@
 
 #include "misc/debug.h"
 #include "misc/object_tracker.h"
+#include "misc/shader_module_cache.h"
 #include "wrappers/instance.h"
+#include "wrappers/physical_device.h"
 
 /** Please see header for specification */
 Anvil::Instance::Instance(const char*                  in_app_name,
@@ -43,6 +45,9 @@ Anvil::Instance::Instance(const char*                  in_app_name,
 /** Please see header for specification */
 Anvil::Instance::~Instance()
 {
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_INSTANCE,
+                                                    this);
+
     destroy();
 
     if (m_instance != VK_NULL_HANDLE)
@@ -52,9 +57,6 @@ Anvil::Instance::~Instance()
 
         m_instance = VK_NULL_HANDLE;
     }
-
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_INSTANCE,
-                                                    this);
 }
 
 /** Please see header for specification */
@@ -315,8 +317,11 @@ void Anvil::Instance::init()
 
     ANVIL_REDUNDANT_VARIABLE(result);
 
+    /* Enumerate available layers */
+    enumerate_instance_layers();
+
     /* Determine what extensions we need to request at instance creation time */
-    static const char* required_extensions_with_validation[] =
+    static const char* desired_extensions_with_validation[] =
     {
         VK_KHR_SURFACE_EXTENSION_NAME,
 
@@ -332,7 +337,7 @@ void Anvil::Instance::init()
 
         VK_EXT_DEBUG_REPORT_EXTENSION_NAME
     };
-    static const char* required_extensions_without_validation[] =
+    static const char* desired_extensions_without_validation[] =
     {
         VK_KHR_SURFACE_EXTENSION_NAME,
 
@@ -350,19 +355,25 @@ void Anvil::Instance::init()
     if (m_pfn_validation_callback_proc != nullptr)
     {
         for (uint32_t n_extension = 0;
-                      n_extension < sizeof(required_extensions_with_validation) / sizeof(required_extensions_with_validation[0]);
+                      n_extension < sizeof(desired_extensions_with_validation) / sizeof(desired_extensions_with_validation[0]);
                     ++n_extension)
         {
-            m_enabled_extensions.push_back(required_extensions_with_validation[n_extension]);
+            if (is_instance_extension_supported(desired_extensions_with_validation[n_extension]))
+            {
+                m_enabled_extensions.push_back(desired_extensions_with_validation[n_extension]);
+            }
         }
     }
     else
     {
         for (uint32_t n_extension = 0;
-                      n_extension < sizeof(required_extensions_without_validation) / sizeof(required_extensions_without_validation[0]);
+                      n_extension < sizeof(desired_extensions_without_validation) / sizeof(desired_extensions_without_validation[0]);
                     ++n_extension)
         {
-            m_enabled_extensions.push_back(required_extensions_without_validation[n_extension]);
+            if (is_instance_extension_supported(desired_extensions_without_validation[n_extension]))
+            {
+                m_enabled_extensions.push_back(desired_extensions_without_validation[n_extension]);
+            }
         }
     }
 
@@ -379,9 +390,6 @@ void Anvil::Instance::init()
     memset(&create_info,
            0,
            sizeof(create_info) );
-
-    /* Enumerate available layers */
-    enumerate_instance_layers();
 
     n_instance_layers = static_cast<uint32_t>(m_supported_layers.size() );
 
@@ -441,6 +449,8 @@ void Anvil::Instance::init()
     }
 
     enumerate_physical_devices();
+
+    m_shader_module_cache_ptr = Anvil::ShaderModuleCache::create();
 }
 
 /** Initializes debug callback support. */

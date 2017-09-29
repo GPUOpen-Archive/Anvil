@@ -58,6 +58,12 @@ Anvil::BaseDevice::~BaseDevice()
 {
     anvil_assert(m_destroyed);
 
+    /* Unregister the instance. Tihs needs to happen before actual Vulkan object destruction, as there might
+     * be observers who postpone their destruction until the device is about to go down.
+     */
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_DEVICE,
+                                                    this);
+
     if (m_device != nullptr)
     {
         vkDeviceWaitIdle(m_device);
@@ -66,10 +72,6 @@ Anvil::BaseDevice::~BaseDevice()
 
         m_device = nullptr;
     }
-
-    /* Unregister the instance */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_DEVICE,
-                                                    this);
 }
 
 /** Please see header for specification */

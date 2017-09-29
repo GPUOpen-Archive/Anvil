@@ -77,6 +77,9 @@ Anvil::PipelineLayout::~PipelineLayout()
 
     m_dsg_ptr = nullptr;
 
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_PIPELINE_LAYOUT,
+                                                    this);
+
     if (m_layout_vk != VK_NULL_HANDLE)
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
@@ -87,9 +90,6 @@ Anvil::PipelineLayout::~PipelineLayout()
 
         m_layout_vk = VK_NULL_HANDLE;
     }
-
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_PIPELINE_LAYOUT,
-                                                    this);
 }
 
 /** Please see header for specification */

@@ -30,13 +30,26 @@
 #ifndef WRAPPERS_QUEUE_H
 #define WRAPPERS_QUEUE_H
 
+#include "misc/callbacks.h"
 #include "misc/debug.h"
 #include "misc/debug_marker.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
-    class Queue : public DebugMarkerSupportProvider<Queue>
+    typedef enum
+    {
+        /* Notification fired right after vkQueuePresentKHR() has been issued for a swapchain.
+         *
+         * callback_arg: originating Queue instance ptr.
+         */
+        QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
+
+        QUEUE_CALLBACK_ID_COUNT
+    } QueueCallbacKID;
+
+    class Queue : public CallbacksSupportProvider,
+                  public DebugMarkerSupportProvider<Queue>
     {
     public:
         /* Public functions */

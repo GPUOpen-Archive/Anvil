@@ -23,6 +23,8 @@
 #define MISC_TYPES_H
 
 #include <cstdio>
+#include <forward_list>
+#include <mutex>
 #include <string>
 
 #include "config.h"
@@ -555,6 +557,7 @@ namespace Anvil
     class  Semaphore;
     class  SGPUDevice;
     class  ShaderModule;
+    class  ShaderModuleCache;
     class  Swapchain;
     class  Window;
 
@@ -1561,7 +1564,8 @@ namespace Anvil
         OBJECT_TYPE_GRAPHICS_PIPELINE,
 
         /* Always last */
-        OBJECT_TYPE_COUNT
+        OBJECT_TYPE_COUNT,
+        OBJECT_TYPE_UNKNOWN = OBJECT_TYPE_COUNT
     } ObjectType;
 
     /** Defines, to what extent occlusion queries are going to be used.
@@ -1573,10 +1577,10 @@ namespace Anvil
         /** Occlusion queries are not going to be used */
         OCCLUSION_QUERY_SUPPORT_SCOPE_NOT_REQUIRED,
 
-        /** Non-precise occlusion queries may be active when this second-level command buffer is executed */
+        /** Non-precise occlusion queries may be used */
         OCCLUSION_QUERY_SUPPORT_SCOPE_REQUIRED_NONPRECISE,
 
-        /** Pprecise occlusion queries may be active when this second-level command buffer is executed */
+        /** Pprecise occlusion queries may be used */
         OCCLUSION_QUERY_SUPPORT_SCOPE_REQUIRED_PRECISE,
     } OcclusionQuerySupportScope;
 
@@ -1979,6 +1983,14 @@ namespace Anvil
          */
         const char* get_raw_string(VkFrontFace in_front_face);
 
+        /** Converts the specified VkImageAspectFlagBits value to a raw string
+         *
+         *  @param in_image_aspect_flag Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkImageAspectFlagBits in_image_aspect_flag);
+
         /** Converts the specified VkImageLayout value to a raw string
          *
          *  @param in_image_layout Input value.
@@ -2076,6 +2088,20 @@ namespace Anvil
         type is_pow2(const type in_value)
         {
             return ((in_value & (in_value - 1)) == 0);
+        }
+
+        /** Rounds down @param in_value to a multiple of @param in_base */
+        template <typename type>
+        type round_down(const type in_value, const type in_base)
+        {
+            if ((in_value % in_base) == 0)
+            {
+                return in_value;
+            }
+            else
+            {
+                return in_value - (in_value % in_base);
+            }
         }
 
         /** Rounds up @param in_value to a multiple of @param in_base */

@@ -331,6 +331,8 @@ bool Anvil::Formats::get_format_aspects(VkFormat                         in_form
         out_aspects_ptr->push_back(VK_IMAGE_ASPECT_STENCIL_BIT);
     }
 
+    result = true;
+
     return result;
 }
 

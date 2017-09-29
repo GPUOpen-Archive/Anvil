@@ -41,10 +41,10 @@ Anvil::Semaphore::Semaphore(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
 /* Please see header for specification */
 Anvil::Semaphore::~Semaphore()
 {
-    release_semaphore();
-
     Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_SEMAPHORE,
                                                     this);
+
+    release_semaphore();
 }
 
 /** Please see header for specification */

@@ -95,6 +95,15 @@ namespace Anvil
          **/
         uint32_t acquire_image_by_setting_semaphore(std::shared_ptr<Anvil::Semaphore> in_semaphore_ptr);
 
+        /* By default, swapchain instance will transparently destroy the underlying Vulkan swapchain handle, right before
+         * the window is closed.
+         *
+         * There are certain use cases where we want the order to be reversed (ie. the swapchain handle should be destroyed only after
+         * the window is closed). This function can be used to enable this behavior.
+         *
+         */
+        void disable_destroy_swapchain_before_parent_window_closes_behavior();
+
         /** Returns device instance which has been used to create the swapchain */
         std::weak_ptr<Anvil::BaseDevice> get_device() const
         {
@@ -201,10 +210,16 @@ namespace Anvil
         Swapchain           (const Swapchain&);
         Swapchain& operator=(const Swapchain&);
 
-        void init();
+        void destroy_swapchain();
+        void init             ();
 
+        static void on_parent_window_about_to_close(void* in_window_ptr,
+                                                    void* in_swapchain_raw_ptr);
+        static void on_present_request_issued      (void* in_queue_raw_ptr,
+                                                    void* in_swapchain_raw_ptr);
 
         /* Private variables */
+        bool                                            m_destroy_swapchain_before_parent_window_closes;
         std::weak_ptr<Anvil::BaseDevice>                m_device_ptr;
         VkSwapchainCreateFlagsKHR                       m_flags;
         std::vector<std::shared_ptr<Anvil::Fence> >     m_image_available_fence_ptrs;
@@ -223,7 +238,11 @@ namespace Anvil
 
         const ExtensionKHRSwapchainEntrypoints m_khr_swapchain_entrypoints;
 
-        uint32_t m_n_acquire_counter;
+        volatile uint64_t m_n_acquire_counter;
+        volatile uint32_t m_n_acquire_counter_rounded;
+        volatile uint64_t m_n_present_counter;
+
+        std::vector<std::shared_ptr<Anvil::Queue> > m_observed_queues;
     };
 }; /* namespace Anvil */
 

@@ -22,6 +22,7 @@
 
 #include "misc/debug.h"
 #include "misc/object_tracker.h"
+#include "wrappers/device.h"
 #include "wrappers/instance.h"
 #include "wrappers/physical_device.h"
 #include <algorithm>

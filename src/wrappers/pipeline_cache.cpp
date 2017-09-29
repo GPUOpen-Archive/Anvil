@@ -68,6 +68,10 @@ Anvil::PipelineCache::PipelineCache(std::weak_ptr<Anvil::BaseDevice> in_device_p
 /** Please see header for specification */
 Anvil::PipelineCache::~PipelineCache()
 {
+    /* Unregister the instance */
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_PIPELINE_CACHE,
+                                                    this);
+
     if (m_pipeline_cache != VK_NULL_HANDLE)
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
@@ -78,10 +82,6 @@ Anvil::PipelineCache::~PipelineCache()
 
         m_pipeline_cache = VK_NULL_HANDLE;
     }
-
-    /* Unregister the instance */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_PIPELINE_CACHE,
-                                                    this);
 }
 
 /** Please see header for specification */

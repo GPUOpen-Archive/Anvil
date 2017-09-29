@@ -252,6 +252,8 @@ namespace Anvil
          *                                   only use one mip.
          *  @param in_create_flags           Optional image features that the created image should support.
          *  @param in_sparse_residency_scope Scope of sparse residency to request for the image.
+         *  @param in_initial_layout         Initial layout to use for the image. Must either be VK_IMAGE_LAYOUT_UNDEFINED or
+         *                                   VK_IMAGE_LAYOUT_PREINITIALIZED.
          *
          *  @return New image instance, if successful, or nullptr otherwise.
          **/
@@ -269,7 +271,8 @@ namespace Anvil
                                                      VkSharingMode                    in_sharing_mode,
                                                      bool                             in_use_full_mipmap_chain,
                                                      ImageCreateFlags                 in_create_flags,
-                                                     Anvil::SparseResidencyScope      in_residency_scope);
+                                                     Anvil::SparseResidencyScope      in_residency_scope,
+                                                     VkImageLayout                    in_initial_layout = VK_IMAGE_LAYOUT_UNDEFINED);
 
         /** Destructor */
         virtual ~Image();
@@ -732,6 +735,16 @@ namespace Anvil
         void init_mipmap_props  ();
         void init_page_occupancy(const std::vector<VkSparseImageMemoryRequirements>& memory_reqs);
 
+        void on_memory_backing_update       (const VkImageSubresource&           in_subresource,
+                                             VkOffset3D                          in_offset,
+                                             VkExtent3D                          in_extent,
+                                             std::shared_ptr<Anvil::MemoryBlock> in_memory_block_ptr,
+                                             VkDeviceSize                        in_memory_block_start_offset);
+        void on_memory_backing_opaque_update(VkDeviceSize                        in_resource_offset,
+                                             VkDeviceSize                        in_size,
+                                             std::shared_ptr<Anvil::MemoryBlock> in_memory_block_ptr,
+                                             VkDeviceSize                        in_memory_block_start_offset);
+
         void set_memory_sparse(VkDeviceSize                        in_resource_offset,
                                VkDeviceSize                        in_size,
                                std::shared_ptr<Anvil::MemoryBlock> in_memory_block_ptr,
@@ -760,7 +773,7 @@ namespace Anvil
         typedef std::map<VkImageAspectFlagBits, LayerMipToSubresourceLayoutMap> AspectToLayerMipToSubresourceLayoutMap;
 
         VkDeviceSize                           m_alignment;
-        AspectToLayerMipToSubresourceLayoutMap m_aspects;
+        AspectToLayerMipToSubresourceLayoutMap m_aspects;                   /* only used for linear images */
         Anvil::ImageCreateFlags                m_create_flags;
         uint32_t                               m_depth;
         std::weak_ptr<Anvil::BaseDevice>       m_device_ptr;

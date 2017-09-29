@@ -57,11 +57,11 @@ Anvil::ComputePipelineManager::ComputePipelineManager(std::weak_ptr<Anvil::BaseD
 /* Stub destructor */
 Anvil::ComputePipelineManager::~ComputePipelineManager()
 {
-    m_pipelines.clear();
-
     /* Unregister the object */
     Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_COMPUTE_PIPELINE_MANAGER,
                                                     this);
+
+    m_pipelines.clear();
 }
 
 /** Re-creates Vulkan compute pipeline objects for all added non-proxy pipelines marked

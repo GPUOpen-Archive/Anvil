@@ -32,7 +32,6 @@
 #define WRAPPERS_INSTANCE_H
 
 #include "misc/types.h"
-#include "wrappers/rendering_surface.h"
 
 namespace Anvil
 {
@@ -137,6 +136,12 @@ namespace Anvil
             return static_cast<uint32_t>(m_physical_devices.size() );
         }
 
+        /** Returns shader module cache instance */
+        std::shared_ptr<Anvil::ShaderModuleCache> get_shader_module_cache() const
+        {
+            return m_shader_module_cache_ptr;
+        }
+
         /** Tells whether the specified instance extension is supported.
          *
          *  @param in_extension_name Name of the extension to use for the query.
@@ -210,6 +215,7 @@ namespace Anvil
         std::vector<std::string>                             m_enabled_extensions;
         Anvil::Layer                                         m_global_layer;
         std::vector<std::shared_ptr<Anvil::PhysicalDevice> > m_physical_devices;
+        std::shared_ptr<ShaderModuleCache>                   m_shader_module_cache_ptr;
         std::vector<Anvil::Layer>                            m_supported_layers;
 
         friend class  Anvil::PhysicalDevice;

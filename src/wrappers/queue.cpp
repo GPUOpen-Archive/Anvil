@@ -41,7 +41,8 @@ Anvil::Queue::Queue(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                     uint32_t                         in_queue_family_index,
                     uint32_t                         in_queue_index)
 
-    :DebugMarkerSupportProvider(in_device_ptr,
+    :CallbacksSupportProvider  (QUEUE_CALLBACK_ID_COUNT),
+     DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_QUEUE_EXT),
      m_device_ptr              (in_device_ptr),
      m_queue                   (VK_NULL_HANDLE),
@@ -157,11 +158,11 @@ bool Anvil::Queue::bind_sparse_memory(Anvil::Utils::SparseMemoryBindingUpdateInf
                                                         &memory_block_start_offset);
 
 
-            image_ptr->set_memory_sparse(subresource,
-                                         offset,
-                                         extent,
-                                         memory_block_ptr,
-                                         memory_block_start_offset);
+            image_ptr->on_memory_backing_update(subresource,
+                                                offset,
+                                                extent,
+                                                memory_block_ptr,
+                                                memory_block_start_offset);
         }
 
         for (uint32_t n_image_opaque_memory_update = 0;
@@ -184,10 +185,10 @@ bool Anvil::Queue::bind_sparse_memory(Anvil::Utils::SparseMemoryBindingUpdateInf
                                                                &memory_block_ptr,
                                                                &memory_block_start_offset);
 
-            image_ptr->set_memory_sparse(resource_offset,
-                                         size,
-                                         memory_block_ptr,
-                                         memory_block_start_offset);
+            image_ptr->on_memory_backing_opaque_update(resource_offset,
+                                                       size,
+                                                       memory_block_ptr,
+                                                       memory_block_start_offset);
         }
     }
 
@@ -291,53 +292,59 @@ VkResult Anvil::Queue::present(std::shared_ptr<Anvil::Swapchain>  in_swapchain_p
         anvil_assert(is_vk_call_successful(presentation_results[0]));
 
         /* Return the most important error code reported */
-        switch (presentation_results[0])
+        if (result != VK_ERROR_DEVICE_LOST)
         {
-            case VK_ERROR_DEVICE_LOST:
+            switch (presentation_results[0])
             {
-                result = VK_ERROR_DEVICE_LOST;
-
-                break;
-            }
-
-            case VK_ERROR_SURFACE_LOST_KHR:
-            {
-                if (result != VK_ERROR_DEVICE_LOST)
+                case VK_ERROR_DEVICE_LOST:
                 {
-                    result = VK_ERROR_SURFACE_LOST_KHR;
+                    result = VK_ERROR_DEVICE_LOST;
+
+                    break;
                 }
 
-                break;
-            }
-
-            case VK_ERROR_OUT_OF_DATE_KHR:
-            {
-                if (result != VK_ERROR_DEVICE_LOST      &&
-                    result != VK_ERROR_SURFACE_LOST_KHR)
+                case VK_ERROR_SURFACE_LOST_KHR:
                 {
-                    result = VK_ERROR_OUT_OF_DATE_KHR;
+                    if (result != VK_ERROR_DEVICE_LOST)
+                    {
+                        result = VK_ERROR_SURFACE_LOST_KHR;
+                    }
+
+                    break;
                 }
 
-                break;
-            }
-
-            case VK_SUBOPTIMAL_KHR:
-            {
-                if (result != VK_ERROR_DEVICE_LOST      &&
-                    result != VK_ERROR_SURFACE_LOST_KHR &&
-                    result != VK_ERROR_OUT_OF_DATE_KHR)
+                case VK_ERROR_OUT_OF_DATE_KHR:
                 {
-                    result = VK_SUBOPTIMAL_KHR;
+                    if (result != VK_ERROR_DEVICE_LOST      &&
+                        result != VK_ERROR_SURFACE_LOST_KHR)
+                    {
+                        result = VK_ERROR_OUT_OF_DATE_KHR;
+                    }
+
+                    break;
                 }
 
-                break;
-            }
+                case VK_SUBOPTIMAL_KHR:
+                {
+                    if (result != VK_ERROR_DEVICE_LOST      &&
+                        result != VK_ERROR_SURFACE_LOST_KHR &&
+                        result != VK_ERROR_OUT_OF_DATE_KHR)
+                    {
+                        result = VK_SUBOPTIMAL_KHR;
+                    }
 
-            default:
-            {
-                anvil_assert(presentation_results[0] == VK_SUCCESS);
+                    break;
+                }
+
+                default:
+                {
+                    anvil_assert(presentation_results[0] == VK_SUCCESS);
+                }
             }
         }
+
+        CallbacksSupportProvider::callback(QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
+                                           in_swapchain_ptr.get() );
     }
 
 end:

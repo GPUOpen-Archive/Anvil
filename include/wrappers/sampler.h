@@ -71,16 +71,86 @@ namespace Anvil
          **/
         virtual ~Sampler();
 
+        VkSamplerAddressMode get_address_mode_u() const
+        {
+            return m_address_mode_u;
+        }
+
+        VkSamplerAddressMode get_address_mode_v() const
+        {
+            return m_address_mode_v;
+        }
+
+        VkSamplerAddressMode get_address_mode_w() const
+        {
+            return m_address_mode_w;
+        }
+
+        VkBorderColor get_border_color() const
+        {
+            return m_border_color;
+        }
+
+        VkCompareOp get_compare_op() const
+        {
+            return m_compare_op;
+        }
+
         /** Retrieves a raw Vulkan handle for the underlying VkSampler instance. */
         VkSampler get_sampler() const
         {
             return m_sampler;
         }
 
+        float get_lod_bias() const
+        {
+            return m_lod_bias;
+        }
+
+        VkFilter get_mag_filter() const
+        {
+            return m_mag_filter;
+        }
+
+        float get_max_anisotropy() const
+        {
+            return m_max_anisotropy;
+        }
+
+        float get_max_lod() const
+        {
+            return m_max_lod;
+        }
+
+        VkFilter get_min_filter() const
+        {
+            return m_min_filter;
+        }
+
+        float get_min_lod() const
+        {
+            return m_min_lod;
+        }
+
+        VkSamplerMipmapMode get_mipmap_mode() const
+        {
+            return m_mipmap_mode;
+        }
+
         /** Retrieves a pointer to the raw Vulkan handle for the underlying VkSampler instance. */
         const VkSampler* get_sampler_ptr() const
         {
             return &m_sampler;
+        }
+
+        bool is_compare_enabled() const
+        {
+            return m_compare_enable;
+        }
+
+        bool uses_unnormalized_coordinates() const
+        {
+            return m_use_unnormalized_coordinates;
         }
 
     private:

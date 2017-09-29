@@ -30,6 +30,7 @@ static Anvil::ObjectTracker* object_tracker_ptr = nullptr;
 
 /** Constructor. */
 Anvil::ObjectTracker::ObjectTracker()
+    :CallbacksSupportProvider(OBJECT_TRACKER_CALLBACK_ID_COUNT)
 {
     memset(m_n_objects_allocated_array,
            0,
@@ -165,15 +166,24 @@ void Anvil::ObjectTracker::register_object(ObjectType in_object_type,
 
     m_object_allocations[in_object_type].push_back(ObjectAllocation(m_n_objects_allocated_array[in_object_type]++,
                                                                     in_object_ptr) );
+
+    /* Notify any observers about the new object */
+    ObjectTrackerOnObjectRegisteredCallbackArg callback_arg(in_object_type,
+                                                            in_object_ptr);
+
+    callback(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_REGISTERED,
+            &callback_arg);
 }
 
 /* Please see header for specification */
 void Anvil::ObjectTracker::unregister_object(ObjectType in_object_type,
                                              void*      in_object_ptr)
 {
-    auto object_allocation_iterator = std::find(m_object_allocations[in_object_type].begin(),
-                                                m_object_allocations[in_object_type].end(),
-                                                in_object_ptr);
+    ObjectTrackerOnObjectAboutToBeUnregisteredCallbackArg callback_arg              (in_object_type,
+                                                                                     in_object_ptr);
+    auto                                                  object_allocation_iterator(std::find(m_object_allocations[in_object_type].begin(),
+                                                                                               m_object_allocations[in_object_type].end(),
+                                                                                               in_object_ptr) );
 
     if (object_allocation_iterator == m_object_allocations[in_object_type].end() )
     {
@@ -183,6 +193,10 @@ void Anvil::ObjectTracker::unregister_object(ObjectType in_object_type,
     }
 
     m_object_allocations[in_object_type].erase(object_allocation_iterator);
+
+    /* Notify any observers about the event */
+    callback(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+            &callback_arg);
 
 end:
     ;

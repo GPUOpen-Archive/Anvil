@@ -3808,6 +3808,7 @@ bool Anvil::SecondaryCommandBuffer::start_recording(bool                        
                                                     std::shared_ptr<RenderPass>   in_render_pass_ptr,
                                                     SubPassID                     in_subpass_id,
                                                     OcclusionQuerySupportScope    in_required_occlusion_query_support_scope,
+                                                    bool                          in_occlusion_query_used_by_primary_command_buffer,
                                                     VkQueryPipelineStatisticFlags in_required_pipeline_statistics_scope)
 {
     VkCommandBufferBeginInfo           command_buffer_begin_info;
@@ -3816,6 +3817,9 @@ bool Anvil::SecondaryCommandBuffer::start_recording(bool                        
     bool                               result    = false;
     VkResult                           result_vk;
 
+    anvil_assert((in_occlusion_query_used_by_primary_command_buffer && in_required_occlusion_query_support_scope == OCCLUSION_QUERY_SUPPORT_SCOPE_NOT_REQUIRED) ||
+                 !in_occlusion_query_used_by_primary_command_buffer);
+
     if (m_recording_in_progress)
     {
         anvil_assert(!m_recording_in_progress);
@@ -3823,8 +3827,8 @@ bool Anvil::SecondaryCommandBuffer::start_recording(bool                        
         goto end;
     }
 
-    command_buffer_inheritance_info.framebuffer          = (in_framebuffer_ptr != nullptr)                                                                                 ? in_framebuffer_ptr->get_framebuffer(in_render_pass_ptr) : VK_NULL_HANDLE;
-    command_buffer_inheritance_info.occlusionQueryEnable = static_cast<VkBool32>((in_required_occlusion_query_support_scope != OCCLUSION_QUERY_SUPPORT_SCOPE_NOT_REQUIRED) ? VK_TRUE                                                 : VK_FALSE);
+    command_buffer_inheritance_info.framebuffer          = (in_framebuffer_ptr                                != nullptr) ? in_framebuffer_ptr->get_framebuffer(in_render_pass_ptr) : VK_NULL_HANDLE;
+    command_buffer_inheritance_info.occlusionQueryEnable = (!in_occlusion_query_used_by_primary_command_buffer)           ? VK_TRUE                                                 : VK_FALSE;
     command_buffer_inheritance_info.pipelineStatistics   = in_required_pipeline_statistics_scope;
     command_buffer_inheritance_info.pNext                = nullptr;
     command_buffer_inheritance_info.queryFlags           = (in_required_occlusion_query_support_scope == OCCLUSION_QUERY_SUPPORT_SCOPE_REQUIRED_PRECISE) ? VK_QUERY_CONTROL_PRECISE_BIT          : 0u;

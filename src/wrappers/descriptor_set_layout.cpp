@@ -42,6 +42,9 @@ Anvil::DescriptorSetLayout::DescriptorSetLayout(std::weak_ptr<Anvil::BaseDevice>
 /** Please see header for specification */
 Anvil::DescriptorSetLayout::~DescriptorSetLayout()
 {
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT,
+                                                    this);
+
     if (m_layout != VK_NULL_HANDLE)
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
@@ -52,9 +55,6 @@ Anvil::DescriptorSetLayout::~DescriptorSetLayout()
 
         m_layout = VK_NULL_HANDLE;
     }
-
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT,
-                                                    this);
 }
 
 /** Please see header for specification */
