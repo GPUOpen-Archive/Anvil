@@ -260,7 +260,7 @@ namespace Anvil
          *
          *  @return As per description.
          **/
-        bool is_device_extension_supported(const char* in_extension_name) const;
+        bool is_device_extension_supported(const std::string& in_extension_name) const;
 
         /** Tells whether user-specified layer is supported by the physical device.
          *
@@ -269,7 +269,7 @@ namespace Anvil
          *
          *  @return As per description.
          **/
-        bool is_layer_supported(const char* in_layer_name) const;
+        bool is_layer_supported(const std::string& in_layer_name) const;
 
     private:
         /* Private type definitions */

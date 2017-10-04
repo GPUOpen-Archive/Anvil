@@ -73,7 +73,7 @@ private:
     uint32_t             get_mesh_data_position_stride      () const;
     uint32_t             get_mesh_n_vertices                () const;
 
-    void update_data_ub_contents();
+    void update_data_ub_contents(uint32_t in_n_swapchain_image);
 
 
     /* Private variables */
@@ -84,6 +84,7 @@ private:
     std::shared_ptr<Anvil::RenderingSurface> m_rendering_surface_ptr;
     std::shared_ptr<Anvil::Swapchain>        m_swapchain_ptr;
     Anvil::Time                              m_time;
+    VkDeviceSize                             m_ub_data_size_per_swapchain_image;
     std::shared_ptr<Anvil::Window>           m_window_ptr;
 
     std::shared_ptr<Anvil::PrimaryCommandBuffer>        m_command_buffers[N_SWAPCHAIN_IMAGES];

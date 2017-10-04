@@ -21,6 +21,24 @@
 //
 #include "misc/window_xcb.h"
 
+/* Copy-pasted from xcb-icccm.h header, as there's no really good reason to include
+ * a new dependency on the icccm library other than this struct and a bunch of const ints.
+ */
+typedef struct
+{
+    uint32_t flags;
+    int32_t x, y;
+    int32_t width, height;
+    int32_t min_width, min_height;
+    int32_t max_width, max_height;
+    int32_t width_inc, height_inc;
+    int32_t min_aspect_num, min_aspect_den;
+    int32_t max_aspect_num, max_aspect_den;
+    int32_t base_width, base_height;
+    uint32_t win_gravity;
+} xcb_size_hints_t;
+
+
 /** Please see header for specification */
 std::shared_ptr<Anvil::Window> Anvil::WindowXcb::create(const std::string&     in_title,
                                                         unsigned int           in_width,
@@ -161,6 +179,7 @@ bool Anvil::WindowXcb::init()
         xcb_intern_atom_reply_t* atom_wm_delete_window_ptr        = nullptr;
         xcb_intern_atom_cookie_t cookie;
         xcb_intern_atom_cookie_t cookie2;
+        xcb_size_hints_t         size_hints;
         const uint32_t           value_mask                       = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
         uint32_t                 value_list[sizeof(uint32_t) * 8];
         const uint32_t           window_size[2]                   =
@@ -192,6 +211,35 @@ bool Anvil::WindowXcb::init()
                                            m_screen_ptr->root_visual,
                                            value_mask,
                                            value_list);
+
+        /* Anvil does not currently support run-time swapchain resizing so make sure WMs are aware
+         * the window we created is not supposed to be resizable.
+         *
+         * The constants have been copy-pasted from xcb_icccm.h.
+         */
+        static const auto XCB_SIZE_HINT_P_MAX_SIZE = 1 << 5;
+        static const auto XCB_SIZE_HINT_P_MIN_SIZE = 1 << 4;
+        static const auto XCB_SIZE_HINT_P_SIZE     = 1 << 3;
+        static const auto XCB_SIZE_HINT_US_SIZE    = 1 << 1;
+
+        memset(&size_hints,
+               0,
+               sizeof(size_hints) );
+
+        size_hints.flags      = XCB_SIZE_HINT_P_MAX_SIZE | XCB_SIZE_HINT_P_MIN_SIZE | XCB_SIZE_HINT_P_SIZE | XCB_SIZE_HINT_US_SIZE;
+        size_hints.max_width  = window_size[0];
+        size_hints.max_height = window_size[1];
+        size_hints.min_width  = window_size[0];
+        size_hints.min_height = window_size[1];
+
+        xcb_procs_ptr->pfn_xcbChangeProperty(m_connection_ptr,
+                                             XCB_PROP_MODE_REPLACE,
+                                             m_window,
+                                             XCB_ATOM_WM_NORMAL_HINTS,
+                                             XCB_ATOM_WM_SIZE_HINTS,
+                                             32,
+                                             sizeof(size_hints) >> 2,
+                                            &size_hints);
 
         /* Magic code that will send notification when window is destroyed */
         cookie  = xcb_procs_ptr->pfn_xcbInternAtom(m_connection_ptr,

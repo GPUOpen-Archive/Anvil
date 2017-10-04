@@ -664,8 +664,8 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_debug_marker_begin_EXT(const char*  in_marker_name,
-                                           const float* in_opt_color);
+        bool record_debug_marker_begin_EXT(const std::string& in_marker_name,
+                                           const float*       in_opt_color);
 
         /** Issues a vkCmdDebugMarkerEndEXT() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -691,8 +691,8 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_debug_marker_insert_EXT(const char*  in_marker_name,
-                                            const float* in_opt_color);
+        bool record_debug_marker_insert_EXT(const std::string& in_marker_name,
+                                            const float*       in_opt_color);
 
         /** Issues a vkCmdDispatch() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -1716,8 +1716,8 @@ namespace Anvil
             std::string marker_name;
 
             /** Constructor. */
-            explicit DebugMarkerBeginEXTCommand(const char*  in_marker_name,
-                                                const float* in_color);
+            explicit DebugMarkerBeginEXTCommand(const std::string& in_marker_name,
+                                                const float*       in_color);
 
             /* Destructor */
             virtual ~DebugMarkerBeginEXTCommand()
@@ -1746,8 +1746,8 @@ namespace Anvil
             std::string marker_name;
 
             /** Constructor. */
-            explicit DebugMarkerInsertEXTCommand(const char*  in_marker_name,
-                                                 const float* in_color);
+            explicit DebugMarkerInsertEXTCommand(const std::string& in_marker_name,
+                                                 const float*       in_color);
 
             /* Destructor. */
             virtual ~DebugMarkerInsertEXTCommand()

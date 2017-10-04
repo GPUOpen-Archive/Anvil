@@ -304,7 +304,7 @@ bool Anvil::PhysicalDevice::get_sparse_image_format_properties(VkFormat         
 }
 
 /* Please see header for specification */
-bool Anvil::PhysicalDevice::is_device_extension_supported(const char* in_extension_name) const
+bool Anvil::PhysicalDevice::is_device_extension_supported(const std::string& in_extension_name) const
 {
     return std::find(m_extensions.begin(),
                      m_extensions.end(),
@@ -312,7 +312,7 @@ bool Anvil::PhysicalDevice::is_device_extension_supported(const char* in_extensi
 }
 
 /* Please see header for specification */
-bool Anvil::PhysicalDevice::is_layer_supported(const char* in_layer_name) const
+bool Anvil::PhysicalDevice::is_layer_supported(const std::string& in_layer_name) const
 {
     return std::find(m_layers .begin(),
                      m_layers.end(),

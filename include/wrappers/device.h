@@ -326,6 +326,10 @@ namespace Anvil
             return vkGetDeviceProcAddr(m_device,
                                        in_name);
         }
+        PFN_vkVoidFunction get_proc_address(const std::string& in_name) const
+        {
+            return get_proc_address(in_name.c_str() );
+        }
 
         /* Returns a Queue instance representing a Vulkan queue from queue family @param in_n_queue_family
          * at index @param in_n_queue.
@@ -485,7 +489,7 @@ namespace Anvil
          *
          * @return true if the device has been created with the extension enabled, false otherwise.
          **/
-        bool is_extension_enabled(const char* in_extension_name) const
+        bool is_extension_enabled(const std::string& in_extension_name) const
         {
             return std::find(m_enabled_extensions.begin(),
                              m_enabled_extensions.end(),
@@ -546,7 +550,7 @@ namespace Anvil
 
         std::vector<float> get_queue_priorities(const QueueFamilyInfo*              in_queue_family_info_ptr) const;
         void               init                (const DeviceExtensionConfiguration& in_extensions,
-                                                const std::vector<const char*>&     in_layers,
+                                                const std::vector<std::string>&     in_layers,
                                                 bool                                in_transient_command_buffer_allocs_only,
                                                 bool                                in_support_resettable_command_buffer_allocs);
 
@@ -559,16 +563,16 @@ namespace Anvil
          *  @param out_device_queue_family_info_ptr Deref will be used to store the result info. Must not be null.
          *
          **/
-        void get_queue_family_indices_for_physical_device(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
-                                                          DeviceQueueFamilyInfo*               out_device_queue_family_info_ptr) const;
+        virtual void get_queue_family_indices_for_physical_device(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
+                                                                  DeviceQueueFamilyInfo*               out_device_queue_family_info_ptr) const;
 
-        virtual void create_device                         (const std::vector<const char*>&     in_extensions,
-                                                            const std::vector<const char*>&     in_layers,
-                                                            const VkPhysicalDeviceFeatures&     in_features,
-                                                            DeviceQueueFamilyInfo*              out_queue_families_ptr)       = 0;
-        virtual void init_device                           ()                                                                 = 0;
-        virtual bool is_layer_supported                    (const char*                         in_layer_name)          const = 0;
-        virtual bool is_physical_device_extension_supported(const char*                         in_extension_name)      const = 0;
+        virtual void create_device                         (const std::vector<const char*>& in_extensions,
+                                                            const std::vector<const char*>& in_layers,
+                                                            const VkPhysicalDeviceFeatures& in_features,
+                                                            DeviceQueueFamilyInfo*          out_queue_families_ptr)       = 0;
+        virtual void init_device                           ()                                                             = 0;
+        virtual bool is_layer_supported                    (const std::string&              in_layer_name)          const = 0;
+        virtual bool is_physical_device_extension_supported(const std::string&              in_extension_name)      const = 0;
 
         /* Protected variables */
         std::vector<std::shared_ptr<Anvil::Queue> > m_compute_queues;
@@ -648,7 +652,7 @@ namespace Anvil
          **/
         static std::weak_ptr<Anvil::SGPUDevice> create(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
                                                        const DeviceExtensionConfiguration&  in_extensions,
-                                                       const std::vector<const char*>&      in_layers,
+                                                       const std::vector<std::string>&      in_layers,
                                                        bool                                 in_transient_command_buffer_allocs_only,
                                                        bool                                 in_support_resettable_command_buffer_allocs);
 
@@ -671,7 +675,7 @@ namespace Anvil
                                                            uint32_t                                 in_n_swapchain_images);
 
         /** Releases all children queues and unregisters itself from the owning physical device. */
-        virtual void destroy();
+        virtual void destroy() override;
 
         /** Retrieves a PhysicalDevice instance, from which this device instance was created.
          *
@@ -683,10 +687,10 @@ namespace Anvil
         }
 
         /** See documentation in BaseDevice for more details */
-        const VkPhysicalDeviceFeatures& get_physical_device_features() const;
+        const VkPhysicalDeviceFeatures& get_physical_device_features() const override;
 
         /** See documentation in BaseDevice for more details */
-        const Anvil::FormatProperties& get_physical_device_format_properties(VkFormat in_format) const;
+        const Anvil::FormatProperties& get_physical_device_format_properties(VkFormat in_format) const override;
 
         /** See documentation in BaseDevice for more details */
         bool get_physical_device_image_format_properties(VkFormat                 in_format,
@@ -694,16 +698,16 @@ namespace Anvil
                                                          VkImageTiling            in_tiling,
                                                          VkImageUsageFlags        in_usage,
                                                          VkImageCreateFlags       in_flags,
-                                                         VkImageFormatProperties& out_result) const;
+                                                         VkImageFormatProperties& out_result) const override;
 
         /** See documentation in BaseDevice for more details */
-        const Anvil::MemoryProperties& get_physical_device_memory_properties() const;
+        const Anvil::MemoryProperties& get_physical_device_memory_properties() const override;
 
         /** See documentation in BaseDevice for more details */
-        const VkPhysicalDeviceProperties& get_physical_device_properties() const;
+        const VkPhysicalDeviceProperties& get_physical_device_properties() const override;
 
         /** See documentation in BaseDevice for more details */
-        const QueueFamilyInfoItems& get_physical_device_queue_families() const;
+        const QueueFamilyInfoItems& get_physical_device_queue_families() const override;
 
         /** See documentation in BaseDevice for more details */
         bool get_physical_device_sparse_image_format_properties(VkFormat                                    in_format,
@@ -711,13 +715,13 @@ namespace Anvil
                                                                 VkSampleCountFlagBits                       in_sample_count,
                                                                 VkImageUsageFlags                           in_usage,
                                                                 VkImageTiling                               in_tiling,
-                                                                std::vector<VkSparseImageFormatProperties>& out_result) const;
+                                                                std::vector<VkSparseImageFormatProperties>& out_result) const override;
 
         /** See documentation in BaseDevice for more details */
-        const Anvil::QueueFamilyInfo* get_queue_family_info(uint32_t in_queue_family_index) const;
+        const Anvil::QueueFamilyInfo* get_queue_family_info(uint32_t in_queue_family_index) const override;
 
         /* Tells what type this device instance is */
-        DeviceType get_type() const
+        DeviceType get_type() const override
         {
             return DEVICE_TYPE_SINGLE_GPU;
         }
@@ -727,11 +731,11 @@ namespace Anvil
         void create_device                         (const std::vector<const char*>& in_extensions,
                                                     const std::vector<const char*>& in_layers,
                                                     const VkPhysicalDeviceFeatures& in_features,
-                                                    DeviceQueueFamilyInfo*          out_queue_families_ptr);
+                                                    DeviceQueueFamilyInfo*          out_queue_families_ptr) override;
         void get_queue_family_indices              (DeviceQueueFamilyInfo*          out_device_queue_family_info_ptr) const;
-        void init_device                           ();
-        bool is_layer_supported                    (const char*                     in_layer_name)     const;
-        bool is_physical_device_extension_supported(const char*                     in_extension_name) const;
+        void init_device                           () override;
+        bool is_layer_supported                    (const std::string&              in_layer_name)     const override;
+        bool is_physical_device_extension_supported(const std::string&              in_extension_name) const override;
 
     private:
         /* Private type definitions */

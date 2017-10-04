@@ -218,10 +218,11 @@ bool Anvil::WindowWin3264::init()
             goto end;
         }
 
+        /* NOTE: Anvil currently does not support automatic swapchain resizing so make sure the window is not scalable. */
         m_window = ::CreateWindowEx(0,                    /* dwExStyle */
                                     class_name,
                                     m_title.c_str(),
-                                    WS_OVERLAPPEDWINDOW | WS_VISIBLE | WS_SYSMENU,
+                                    (WS_OVERLAPPEDWINDOW | WS_VISIBLE | WS_SYSMENU) ^ WS_THICKFRAME,
                                     0, /* X */
                                     0, /* Y */
                                     window_rect.right - window_rect.left,
@@ -306,16 +307,6 @@ LRESULT CALLBACK Anvil::WindowWin3264::msg_callback_pfn_proc(HWND   in_window_ha
             return 0;
         }
 
-        case WM_PAINT:
-        {
-            if (!window_ptr->m_window_should_close)
-            {
-                window_ptr->m_present_callback_func_ptr(window_ptr->m_present_callback_func_user_arg);
-            }
-
-            return 0;
-        }
-
         default:
         {
             break;
@@ -341,32 +332,32 @@ void Anvil::WindowWin3264::run()
     {
         MSG msg;
 
-        ::PeekMessage(&msg,
-                      nullptr,
-                      0,
-                      0,
-                      PM_REMOVE);
+        while (::PeekMessage(&msg,
+                             nullptr,
+                             0,
+                             0,
+                             PM_REMOVE) )
+        {
+            ::TranslateMessage(&msg);
+            ::DispatchMessage (&msg);
+        }
 
         if (msg.message == WM_QUIT)
         {
             done = 1;
         }
-        else
-        {
-            /* Translate and dispatch to event queue */
-            ::TranslateMessage(&msg);
-            ::DispatchMessage (&msg);
-        }
+
+        m_present_callback_func_ptr(m_present_callback_func_user_arg);
     }
 
     m_window_close_finished = true;
 }
 
-void Anvil::WindowWin3264::set_title(const char* in_new_title)
+void Anvil::WindowWin3264::set_title(const std::string& in_new_title)
 {
     /* This function should only be called for wrapper instances which have created the window! */
     anvil_assert(m_window_owned);
 
     ::SetWindowText(m_window,
-                    in_new_title);
+                    in_new_title.c_str() );
 }

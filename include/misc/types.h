@@ -1759,7 +1759,7 @@ namespace Anvil
     /** Holds all information related to a specific shader module stage entry-point. */
     typedef struct ShaderModuleStageEntryPoint
     {
-        const char*                          name;
+        std::string                          name;
         std::shared_ptr<Anvil::ShaderModule> shader_module_ptr;
         Anvil::ShaderStage                   stage;
 
@@ -1775,7 +1775,7 @@ namespace Anvil
          *  @param in_shader_module_ptr ShaderModule instance to use.
          *  @param in_stage             Shader stage the entry-point implements.
          */
-        ShaderModuleStageEntryPoint(const char*                   in_name,
+        ShaderModuleStageEntryPoint(const std::string&            in_name,
                                     std::shared_ptr<ShaderModule> in_shader_module_ptr,
                                     ShaderStage                   in_stage);
 

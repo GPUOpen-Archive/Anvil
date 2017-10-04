@@ -487,7 +487,6 @@ bool Anvil::Buffer::read(VkDeviceSize in_start_offset,
                          void*        out_result_ptr)
 {
     std::shared_ptr<BaseDevice> device_locked_ptr(m_device_ptr);
-    const Anvil::DeviceType     device_type      (device_locked_ptr->get_type() );
     auto                        memory_block_ptr (get_memory_block(0 /* in_n_memory_block */) );
     bool                        result           (false);
 
@@ -568,11 +567,8 @@ bool Anvil::Buffer::read(VkDeviceSize in_start_offset,
         }
         copy_cmdbuf_ptr->stop_recording();
 
-        if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
-        {
-            queue_ptr->submit_command_buffer(copy_cmdbuf_ptr,
-                                             true /* should_block */);
-        }
+        queue_ptr->submit_command_buffer(copy_cmdbuf_ptr,
+                                         true /* should_block */);
 
         result = staging_buffer_ptr->read(0,
                                           in_size,
@@ -587,9 +583,9 @@ end:
 bool Anvil::Buffer::set_nonsparse_memory(std::shared_ptr<Anvil::MemoryBlock> in_memory_block_ptr)
 {
     std::shared_ptr<BaseDevice>          device_locked_ptr(m_device_ptr);
-    const Anvil::DeviceType              device_type      (device_locked_ptr->get_type() );
     bool                                 result           (false);
     VkResult                             result_vk;
+    std::shared_ptr<Anvil::SGPUDevice>   sgpu_device_locked_ptr;
     std::weak_ptr<Anvil::PhysicalDevice> sgpu_physical_device_ptr;
 
     if (in_memory_block_ptr == nullptr)
@@ -613,12 +609,8 @@ bool Anvil::Buffer::set_nonsparse_memory(std::shared_ptr<Anvil::MemoryBlock> in_
         goto end;
     }
 
-    if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
-    {
-        std::shared_ptr<Anvil::SGPUDevice> sgpu_device_locked_ptr(std::dynamic_pointer_cast<Anvil::SGPUDevice>(device_locked_ptr) );
-
-        sgpu_physical_device_ptr = sgpu_device_locked_ptr->get_physical_device();
-    }
+    sgpu_device_locked_ptr   = std::shared_ptr<Anvil::SGPUDevice>(std::dynamic_pointer_cast<Anvil::SGPUDevice>(device_locked_ptr) );
+    sgpu_physical_device_ptr = sgpu_device_locked_ptr->get_physical_device();
 
     /* Bind the memory object to the buffer object */
     result_vk = vkBindBufferMemory(device_locked_ptr->get_device_vk(),
@@ -661,7 +653,6 @@ bool Anvil::Buffer::write(VkDeviceSize                  in_start_offset,
                           std::shared_ptr<Anvil::Queue> in_opt_queue_ptr)
 {
     std::shared_ptr<BaseDevice> base_device_locked_ptr(m_device_ptr);
-    const Anvil::DeviceType     device_type           (base_device_locked_ptr->get_type() );
     bool                        result                (false);
 
     /** TODO: Support for sparse-resident buffers whose n_memory_blocks > 1 */
@@ -784,11 +775,8 @@ bool Anvil::Buffer::write(VkDeviceSize                  in_start_offset,
             goto end;
         }
 
-        if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
-        {
-            copy_cmdbuf_ptr->start_recording(true,   /* one_time_submit          */
-                                             false); /* simultaneous_use_allowed */
-        }
+        copy_cmdbuf_ptr->start_recording(true,   /* one_time_submit          */
+                                         false); /* simultaneous_use_allowed */
         {
             VkBufferCopy copy_region;
 
@@ -803,11 +791,8 @@ bool Anvil::Buffer::write(VkDeviceSize                  in_start_offset,
         }
         copy_cmdbuf_ptr->stop_recording();
 
-        if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
-        {
-            queue_ptr->submit_command_buffer(copy_cmdbuf_ptr,
-                                             true /* should_block */);
-        }
+        queue_ptr->submit_command_buffer(copy_cmdbuf_ptr,
+                                         true /* should_block */);
 
         result = true;
     }

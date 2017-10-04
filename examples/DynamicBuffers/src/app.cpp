@@ -268,14 +268,15 @@ void App::draw_frame(void* app_raw_ptr)
     present_wait_semaphore_ptr = curr_frame_signal_semaphore_ptr;
 
     /* Determine the semaphore which the swapchain image */
-    n_swapchain_image = app_ptr->m_swapchain_ptr->acquire_image_by_setting_semaphore(curr_frame_wait_semaphore_ptr);
+    n_swapchain_image = app_ptr->m_swapchain_ptr->acquire_image(curr_frame_wait_semaphore_ptr,
+                                                                true); /* in_should_block */
 
     /* Update time value, used by the generator compute shader */
     const uint64_t time_msec = app_ptr->m_time.get_time_in_msec();
     const float    t         = time_msec / 1000.0f;
 
-    app_ptr->m_sine_props_data_buffer_ptr->write(0,             /* start_offset */
-                                                 sizeof(float), /* size */
+    app_ptr->m_sine_props_data_buffer_ptr->write(app_ptr->m_sine_props_data_buffer_size_per_swapchain_image * n_swapchain_image, /* start_offset */
+                                                 sizeof(float),                                                                  /* size         */
                                                 &t);
 
     /* Submit jobs to relevant queues and make sure they are correctly synchronized */
@@ -445,10 +446,15 @@ void App::init_buffers()
                                      0); /* in_required_memory_features */
 
     /* We also need some space for a uniform block which is going to hold time info. */
-    m_sine_props_data_buffer_size = sizeof(float);
+    const auto dynamic_ub_alignment_requirement                = m_device_ptr.lock()->get_physical_device_properties().limits.minUniformBufferOffsetAlignment;
+    const auto sine_props_data_buffer_size_per_swapchain_image = Anvil::Utils::round_up(sizeof(float),
+                                                                                        dynamic_ub_alignment_requirement);
+    const auto sine_props_data_buffer_size_total               = sine_props_data_buffer_size_per_swapchain_image * N_SWAPCHAIN_IMAGES;
+
+    m_sine_props_data_buffer_size_per_swapchain_image = sine_props_data_buffer_size_per_swapchain_image;
 
     m_sine_props_data_buffer_ptr = Anvil::Buffer::create_nonsparse(m_device_ptr,
-                                                                   m_sine_props_data_buffer_size,
+                                                                   sine_props_data_buffer_size_total,
                                                                    Anvil::QUEUE_FAMILY_COMPUTE_BIT | Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
                                                                    VK_SHARING_MODE_CONCURRENT,
                                                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
@@ -561,13 +567,13 @@ void App::init_command_buffers()
          * We do not need to worry about offset buffer contents getting overwritten by subsequent frames
          * because we do not render frames ahead of time in this example.
          */
-        Anvil::BufferBarrier t_value_buffer_barrier = Anvil::BufferBarrier(VK_ACCESS_HOST_WRITE_BIT,   /* in_source_access_mask      */
-                                                                           VK_ACCESS_UNIFORM_READ_BIT, /* in_destination_access_mask */
+        Anvil::BufferBarrier t_value_buffer_barrier = Anvil::BufferBarrier(VK_ACCESS_HOST_WRITE_BIT,                                                      /* in_source_access_mask      */
+                                                                           VK_ACCESS_UNIFORM_READ_BIT,                                                    /* in_destination_access_mask */
                                                                            VK_QUEUE_FAMILY_IGNORED,
                                                                            VK_QUEUE_FAMILY_IGNORED,
                                                                            m_sine_props_data_buffer_ptr,
-                                                                           0,                            /* in_offset */
-                                                                           m_sine_props_data_buffer_ptr->get_size() );
+                                                                           n_current_swapchain_image * m_sine_props_data_buffer_size_per_swapchain_image, /* in_start_offset */
+                                                                           sizeof(float) );                                                               /* in_size         */
 
         draw_cmd_buffer_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_HOST_BIT,
                                                      VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
@@ -600,7 +606,7 @@ void App::init_command_buffers()
                           n_sine_pair < N_SINE_PAIRS;
                         ++n_sine_pair)
         {
-            uint32_t                              dynamic_offsets[2];
+            uint32_t                              dynamic_offsets[3];
             const uint32_t                        n_dynamic_offsets = sizeof(dynamic_offsets) / sizeof(dynamic_offsets[0]);
             std::shared_ptr<Anvil::DescriptorSet> producer_dses[]   =
             {
@@ -614,6 +620,8 @@ void App::init_command_buffers()
                                       dynamic_offsets + 1,  /* out_opt_sine1SB_offset_ptr */
                                       nullptr,              /* out_opt_sine2SB_offset_ptr */
                                       dynamic_offsets + 0); /* out_opt_offset_data_ptr    */
+
+            dynamic_offsets[2] = static_cast<uint32_t>(m_sine_props_data_buffer_size_per_swapchain_image * n_current_swapchain_image);
 
             draw_cmd_buffer_ptr->record_bind_descriptor_sets(VK_PIPELINE_BIND_POINT_COMPUTE,
                                                              producer_pipeline_layout_ptr,
@@ -805,7 +813,7 @@ void App::init_dsgs()
                                     VK_SHADER_STAGE_COMPUTE_BIT);
     m_producer_dsg_ptr->add_binding(1, /* n_set      */
                                     0, /* binding    */
-                                    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
                                     1, /* n_elements */
                                     VK_SHADER_STAGE_COMPUTE_BIT);
 
@@ -821,7 +829,9 @@ void App::init_dsgs()
                                                                                                   sizeof(float) * 4 * N_VERTICES_PER_SINE * 2) );
     m_producer_dsg_ptr->set_binding_item(1, /* n_set         */
                                          0, /* binding_index */
-                                         Anvil::DescriptorSet::UniformBufferBindingElement(m_sine_props_data_buffer_ptr) );
+                                         Anvil::DescriptorSet::DynamicUniformBufferBindingElement(m_sine_props_data_buffer_ptr,
+                                                                                                  0, /* in_start_offset */
+                                                                                                  m_sine_props_data_buffer_size_per_swapchain_image) );
 
     /* Set up the descriptor set layout for the renderer program.  */
     m_consumer_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr,
@@ -1171,7 +1181,7 @@ void App::init_vulkan()
     /* Create a Vulkan device */
     m_device_ptr = Anvil::SGPUDevice::create(m_physical_device_ptr,
                                              Anvil::DeviceExtensionConfiguration(),
-                                             std::vector<const char*>(), /* layers */
+                                             std::vector<std::string>(), /* layers                               */
                                              false,                      /* transient_command_buffer_allocs_only */
                                              false);                     /* support_resettable_command_buffers   */
 }

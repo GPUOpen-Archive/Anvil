@@ -90,8 +90,8 @@ void Anvil::RenderingSurface::cache_surface_properties()
 
         if (is_offscreen_rendering_enabled)
         {
-            m_height = window_locked_ptr->get_height();
-            m_width  = window_locked_ptr->get_width ();
+            m_height = window_locked_ptr->get_height_at_creation_time();
+            m_width  = window_locked_ptr->get_width_at_creation_time ();
         }
         else
         {

@@ -957,12 +957,11 @@ bool Anvil::operator==(const Anvil::QueueFamilyInfo& in1,
 /** Please see header for specification */
 Anvil::ShaderModuleStageEntryPoint::ShaderModuleStageEntryPoint()
 {
-    name  = nullptr;
     stage = SHADER_STAGE_UNKNOWN;
 }
 
 /** Please see header for specification */
-Anvil::ShaderModuleStageEntryPoint::ShaderModuleStageEntryPoint(const char*                   in_name,
+Anvil::ShaderModuleStageEntryPoint::ShaderModuleStageEntryPoint(const std::string&            in_name,
                                                                 std::shared_ptr<ShaderModule> in_shader_module_ptr,
                                                                 ShaderStage                   in_stage)
 {

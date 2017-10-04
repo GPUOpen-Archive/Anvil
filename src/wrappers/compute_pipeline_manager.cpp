@@ -199,7 +199,7 @@ bool Anvil::ComputePipelineManager::bake()
         pipeline_create_info.layout                    = current_pipeline_ptr->layout_ptr->get_pipeline_layout();
         pipeline_create_info.pNext                     = VK_NULL_HANDLE;
         pipeline_create_info.stage.flags               = 0;
-        pipeline_create_info.stage.pName               = current_pipeline_ptr->shader_stages[0].name;
+        pipeline_create_info.stage.pName               = current_pipeline_ptr->shader_stages[0].name.c_str();
         pipeline_create_info.stage.pNext               = nullptr;
         pipeline_create_info.stage.pSpecializationInfo = (current_pipeline_ptr->specialization_constants_map[0].size() > 0) ? &specialization_info_vk[n_current_pipeline]
                                                                                                                             : VK_NULL_HANDLE;

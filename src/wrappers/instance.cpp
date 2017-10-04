@@ -27,8 +27,8 @@
 #include "wrappers/physical_device.h"
 
 /** Please see header for specification */
-Anvil::Instance::Instance(const char*                  in_app_name,
-                          const char*                  in_engine_name,
+Anvil::Instance::Instance(const std::string&           in_app_name,
+                          const std::string&           in_engine_name,
                           PFNINSTANCEDEBUGCALLBACKPROC in_opt_pfn_validation_callback_proc,
                           void*                        in_validation_proc_user_arg)
     :m_app_name                    (in_app_name),
@@ -60,15 +60,12 @@ Anvil::Instance::~Instance()
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Instance> Anvil::Instance::create(const char*                  in_app_name,
-                                                         const char*                  in_engine_name,
+std::shared_ptr<Anvil::Instance> Anvil::Instance::create(const std::string&           in_app_name,
+                                                         const std::string&           in_engine_name,
                                                          PFNINSTANCEDEBUGCALLBACKPROC in_opt_pfn_validation_callback_proc,
                                                          void*                        in_validation_proc_user_arg)
 {
     std::shared_ptr<Anvil::Instance> new_instance_ptr;
-
-    anvil_assert(in_app_name    != nullptr);
-    anvil_assert(in_engine_name != nullptr);
 
     new_instance_ptr = std::shared_ptr<Anvil::Instance>(
         new Instance(
@@ -381,8 +378,8 @@ void Anvil::Instance::init()
     app_info.apiVersion         = VK_MAKE_VERSION(1, 0, 0);
     app_info.applicationVersion = 0;
     app_info.engineVersion      = 0;
-    app_info.pApplicationName   = m_app_name;
-    app_info.pEngineName        = m_engine_name;
+    app_info.pApplicationName   = m_app_name.c_str();
+    app_info.pEngineName        = m_engine_name.c_str();
     app_info.pNext              = nullptr;
     app_info.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 

@@ -226,7 +226,8 @@ VkResult Anvil::Queue::present(std::shared_ptr<Anvil::Swapchain>  in_swapchain_p
     VkSemaphore                        wait_semaphores_vk     [8];
 
     /* Sanity checks */
-    anvil_assert(in_n_wait_semaphores < sizeof(wait_semaphores_vk) / sizeof(wait_semaphores_vk[0]) );
+    anvil_assert(in_n_wait_semaphores <  sizeof(wait_semaphores_vk) / sizeof(wait_semaphores_vk[0]) );
+    anvil_assert(in_swapchain_ptr     != nullptr);
 
     /* If the application is only interested in off-screen rendering, do *not* post the present request,
      * since the fake swapchain image is not presentable. We still have to wait on the user-specified

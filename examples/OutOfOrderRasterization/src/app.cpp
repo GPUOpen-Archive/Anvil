@@ -282,7 +282,8 @@ void App::draw_frame(void* app_raw_ptr)
     auto&       curr_frame_present_wait_semaphore_ptr    = curr_frame_signal_semaphores.semaphores.at(0);
 
     /* Determine the semaphore which the swapchain image */
-    n_swapchain_image = app_ptr->m_swapchain_ptr->acquire_image_by_setting_semaphore(curr_frame_acqusition_wait_semaphore_ptr);
+    n_swapchain_image = app_ptr->m_swapchain_ptr->acquire_image(curr_frame_acqusition_wait_semaphore_ptr,
+                                                                true); /* in_should_block */
 
     /* if the frame has already been rendered to in the past, then given the fact we use FIFO presentation mode,
      * we should be safe to extract the timestamps which must have been written by now.
@@ -477,8 +478,8 @@ void App::init_command_buffers()
     const uint32_t n_physical_device_iterations(1);
     VkRect2D       render_area;
 
-    render_area.extent.height = m_window_ptr->get_height();
-    render_area.extent.width  = m_window_ptr->get_width();
+    render_area.extent.height = m_window_ptr->get_height_at_creation_time();
+    render_area.extent.width  = m_window_ptr->get_width_at_creation_time ();
     render_area.offset.x      = 0;
     render_area.offset.y      = 0;
 
@@ -725,8 +726,8 @@ void App::init_images()
                                                        VK_FORMAT_D32_SFLOAT,
                                                        VK_IMAGE_TILING_OPTIMAL,
                                                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                                                       m_window_ptr->get_width(),
-                                                       m_window_ptr->get_height(),
+                                                       m_window_ptr->get_width_at_creation_time (),
+                                                       m_window_ptr->get_height_at_creation_time(),
                                                        1, /* base_mipmap_depth */
                                                        1, /* n_layers */
                                                        VK_SAMPLE_COUNT_1_BIT,
@@ -853,8 +854,8 @@ void App::init_renderpasses()
         std::shared_ptr<Anvil::Framebuffer> framebuffer_ptr;
 
         framebuffer_ptr = Anvil::Framebuffer::create(m_device_ptr,
-                                                     m_window_ptr->get_width(),
-                                                     m_window_ptr->get_height(),
+                                                     m_window_ptr->get_width_at_creation_time (),
+                                                     m_window_ptr->get_height_at_creation_time(),
                                                      1); /* n_layers */
 
         framebuffer_ptr->set_name("Main framebuffer");
@@ -924,9 +925,9 @@ void App::init_shaders()
     vs_ptr->add_definition_value_pair("MAX_DEPTH",
                                       MAX_DEPTH);
     vs_ptr->add_definition_value_pair("RT_HEIGHT",
-                                      m_window_ptr->get_height() );
+                                      m_window_ptr->get_height_at_creation_time() );
     vs_ptr->add_definition_value_pair("RT_WIDTH",
-                                      m_window_ptr->get_width() );
+                                      m_window_ptr->get_width_at_creation_time() );
     vs_ptr->add_definition_value_pair("N_TEAPOTS",
                                       N_TEAPOTS);
 
@@ -1027,7 +1028,7 @@ void App::init_vulkan()
     /* Create a Vulkan device */
     m_device_ptr = Anvil::SGPUDevice::create(physical_device_locked_ptr,
                                              Anvil::DeviceExtensionConfiguration(),
-                                             std::vector<const char*>(), /* layers */
+                                             std::vector<std::string>(), /* layers */
                                              false,                      /* transient_command_buffer_allocs_only */
                                              false);                     /* support_resettable_command_buffers   */
 }

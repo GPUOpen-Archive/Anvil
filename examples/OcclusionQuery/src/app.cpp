@@ -240,12 +240,13 @@ void App::draw_frame(void* app_raw_ptr)
     present_wait_semaphore_ptr = curr_frame_signal_semaphore_ptr;
 
     /* Determine the semaphore which the swapchain image */
-    n_swapchain_image = app_ptr->m_swapchain_ptr->acquire_image_by_setting_semaphore(curr_frame_wait_semaphore_ptr);
+    n_swapchain_image = app_ptr->m_swapchain_ptr->acquire_image(curr_frame_wait_semaphore_ptr,
+                                                                true); /* in_should_block */
 
     /* Update time data */
     const float time = float(app_ptr->m_time.get_time_in_msec() ) / 1000.0f;
 
-    app_ptr->m_time_bo_ptr->write(0, /* start_offset */
+    app_ptr->m_time_bo_ptr->write(n_swapchain_image * app_ptr->m_time_n_bytes_per_swapchain_image, /* start_offset */
                                   sizeof(time),
                                  &time);
 
@@ -307,17 +308,14 @@ void App::init_buffers()
     std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_physical_device_ptr);
     const VkDeviceSize                     uniform_alignment_req     (physical_device_locked_ptr->get_device_properties().limits.minUniformBufferOffsetAlignment);
 
-    m_n_bytes_per_counter = sizeof(uint32_t);
-
-    if ((m_n_bytes_per_counter % uniform_alignment_req) != 0)
-    {
-        /* This should actually be a LCM, but let's keep things simple */
-        m_n_bytes_per_counter *= static_cast<uint32_t>(uniform_alignment_req);
-    }
+    m_n_bytes_per_query                = static_cast<uint32_t>(Anvil::Utils::round_up(sizeof(uint32_t),
+                                                                                      uniform_alignment_req) );
+    m_time_n_bytes_per_swapchain_image = static_cast<uint32_t>(Anvil::Utils::round_up(sizeof(float),
+                                                                                      uniform_alignment_req) );
 
     m_query_bo_ptr = Anvil::Buffer::create_nonsparse(
         m_device_ptr,
-        m_n_bytes_per_counter * N_SWAPCHAIN_IMAGES,
+        m_n_bytes_per_query * N_SWAPCHAIN_IMAGES,
         Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
         VK_SHARING_MODE_EXCLUSIVE,
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -326,7 +324,7 @@ void App::init_buffers()
 
     m_time_bo_ptr = Anvil::Buffer::create_nonsparse(
         m_device_ptr,
-        sizeof(float),
+        m_time_n_bytes_per_swapchain_image * N_SWAPCHAIN_IMAGES,
         Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
         VK_SHARING_MODE_EXCLUSIVE,
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -360,7 +358,8 @@ void App::init_command_buffers()
                   n_command_buffer < N_SWAPCHAIN_IMAGES;
                 ++n_command_buffer)
     {
-        const uint32_t query_result_offset = m_n_bytes_per_counter * n_command_buffer;
+        const uint32_t query_result_offset = m_n_bytes_per_query                * n_command_buffer;
+        const uint32_t time_dynamic_offset = m_time_n_bytes_per_swapchain_image * n_command_buffer;
 
         m_render_tri1_and_generate_ot_data_cmd_buffers[n_command_buffer] = device_locked_ptr->get_command_pool(Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL)->alloc_primary_level_command_buffer();
         m_render_tri2_and_quad_cmd_buffers            [n_command_buffer] = device_locked_ptr->get_command_pool(Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL)->alloc_primary_level_command_buffer();
@@ -396,8 +395,8 @@ void App::init_command_buffers()
                                                                                              0, /* in_first_set */
                                                                                              1, /* in_set_count */
                                                                                             &tri_1stpass_ds0_ptr,
-                                                                                             0, /* in_dynamic_offset_count */
-                                                                                             nullptr);
+                                                                                             1, /* in_dynamic_offset_count */
+                                                                                            &time_dynamic_offset);
 
                 render_tri1_and_generate_ot_data_cmd_buffer_ptr->record_draw(3,  /* in_vertex_count   */
                                                                              1,  /* in_instance_count */
@@ -446,8 +445,8 @@ void App::init_command_buffers()
                                                                                             n_command_buffer,
                                                                                             1, /* in_query_count */
                                                                                             m_query_bo_ptr,
-                                                                                            m_n_bytes_per_counter * n_command_buffer, /* in_dst_offset */
-                                                                                            0,                                        /* in_dst_stride */
+                                                                                            m_n_bytes_per_query * n_command_buffer, /* in_dst_offset */
+                                                                                            0,                                      /* in_dst_stride */
                                                                                             VK_QUERY_RESULT_WAIT_BIT);
             render_tri1_and_generate_ot_data_cmd_buffer_ptr->record_set_event              (m_query_data_copied_event,
                                                                                             VK_PIPELINE_STAGE_TRANSFER_BIT);
@@ -463,8 +462,8 @@ void App::init_command_buffers()
                                                     device_locked_ptr->get_queue_family_index(Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL),
                                                     device_locked_ptr->get_queue_family_index(Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL),
                                                     m_query_bo_ptr,
-                                                    query_result_offset,    /* in_offset */
-                                                    m_n_bytes_per_counter); /* in_size   */
+                                                    query_result_offset,  /* in_offset */
+                                                    m_n_bytes_per_query); /* in_size   */
 
             render_tri2_and_quad_cmd_buffer_ptr->record_wait_events(1, /* in_event_count */
                                                                    &m_query_data_copied_event,
@@ -498,8 +497,8 @@ void App::init_command_buffers()
                                                                                  0, /* in_first_set */
                                                                                  1, /* in_set_count */
                                                                                 &tri_2ndpass_ds0_ptr,
-                                                                                 0, /* in_dynamic_offset_count */
-                                                                                 nullptr);
+                                                                                 1, /* in_dynamic_offset_count */
+                                                                                &time_dynamic_offset);
 
                 render_tri2_and_quad_cmd_buffer_ptr->record_draw(3,  /* in_vertex_count   */
                                                                  1,  /* in_instance_count */
@@ -549,32 +548,36 @@ void App::init_dsgs()
 
     m_1stpass_dsg_ptr->add_binding     (0, /* n_set   */
                                         0, /* binding */
-                                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
                                         1, /* n_elements */
                                         VK_SHADER_STAGE_VERTEX_BIT);
     m_1stpass_dsg_ptr->set_binding_item(0, /* n_set         */
                                         0, /* binding_index */
-                                        Anvil::DescriptorSet::UniformBufferBindingElement(m_time_bo_ptr) );
+                                        Anvil::DescriptorSet::DynamicUniformBufferBindingElement(m_time_bo_ptr,
+                                                                                                 0, /* in_start_offset */
+                                                                                                 m_time_n_bytes_per_swapchain_image) );
 
-    m_2ndpass_tri_dsg_ptr->add_binding (0, /* n_set   */
-                                        0, /* binding */
-                                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                                        1, /* n_elements */
-                                        VK_SHADER_STAGE_VERTEX_BIT);
-    m_2ndpass_quad_dsg_ptr->add_binding(0, /* n_set   */
-                                        0, /* binding */
-                                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
-                                        1, /* n_elements */
-                                        VK_SHADER_STAGE_VERTEX_BIT);
+    m_2ndpass_tri_dsg_ptr->add_binding     (0, /* n_set   */
+                                            0, /* binding */
+                                            VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+                                            1, /* n_elements */
+                                            VK_SHADER_STAGE_VERTEX_BIT);
+    m_2ndpass_tri_dsg_ptr->set_binding_item(0, /* n_set         */
+                                            0, /* binding_index */
+                                            Anvil::DescriptorSet::DynamicUniformBufferBindingElement(m_time_bo_ptr,
+                                                                                                     0, /* in_start_offset */
+                                                                                                     m_time_n_bytes_per_swapchain_image) );
 
-    m_2ndpass_tri_dsg_ptr->set_binding_item (0, /* n_set         */
-                                             0, /* binding_index */
-                                             Anvil::DescriptorSet::UniformBufferBindingElement(m_time_bo_ptr) );
+    m_2ndpass_quad_dsg_ptr->add_binding     (0, /* n_set   */
+                                             0, /* binding */
+                                             VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+                                             1, /* n_elements */
+                                             VK_SHADER_STAGE_VERTEX_BIT);
     m_2ndpass_quad_dsg_ptr->set_binding_item(0, /* n_set         */
                                              0, /* binding_index */
                                              Anvil::DescriptorSet::DynamicUniformBufferBindingElement(m_query_bo_ptr,
                                                                                                       0, /* in_start_offset */
-                                                                                                      m_n_bytes_per_counter));
+                                                                                                      m_n_bytes_per_query));
 }
 
 void App::init_events()
@@ -982,7 +985,7 @@ void App::init_vulkan()
     /* Create a Vulkan device */
     m_device_ptr = Anvil::SGPUDevice::create(m_physical_device_ptr,
                                              Anvil::DeviceExtensionConfiguration(),
-                                             std::vector<const char*>(), /* layers */
+                                             std::vector<std::string>(), /* layers */
                                              false,                      /* transient_command_buffer_allocs_only */
                                              false);                     /* support_resettable_command_buffers   */
 }

@@ -153,12 +153,12 @@ std::shared_ptr<Anvil::ShaderModuleCache> Anvil::ShaderModuleCache::create()
 std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModuleCache::get_cached_shader_module(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                                                                         const char*                      in_spirv_blob,
                                                                                         uint32_t                         in_n_spirv_blob_bytes,
-                                                                                        const char*                      in_cs_entrypoint_name,
-                                                                                        const char*                      in_fs_entrypoint_name,
-                                                                                        const char*                      in_gs_entrypoint_name,
-                                                                                        const char*                      in_tc_entrypoint_name,
-                                                                                        const char*                      in_te_entrypoint_name,
-                                                                                        const char*                      in_vs_entrypoint_name)
+                                                                                        const std::string&               in_cs_entrypoint_name,
+                                                                                        const std::string&               in_fs_entrypoint_name,
+                                                                                        const std::string&               in_gs_entrypoint_name,
+                                                                                        const std::string&               in_tc_entrypoint_name,
+                                                                                        const std::string&               in_te_entrypoint_name,
+                                                                                        const std::string&               in_vs_entrypoint_name)
 {
     std::shared_ptr<Anvil::ShaderModule> result_ptr;
 
@@ -202,14 +202,14 @@ std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModuleCache::get_cached_shader
 }
 
 /** TODO */
-size_t Anvil::ShaderModuleCache::get_hash(const char* in_spirv_blob,
-                                          uint32_t    in_n_spirv_blob_bytes,
-                                          const char* in_cs_entrypoint_name,
-                                          const char* in_fs_entrypoint_name,
-                                          const char* in_gs_entrypoint_name,
-                                          const char* in_tc_entrypoint_name,
-                                          const char* in_te_entrypoint_name,
-                                          const char* in_vs_entrypoint_name) const
+size_t Anvil::ShaderModuleCache::get_hash(const char*        in_spirv_blob,
+                                          uint32_t           in_n_spirv_blob_bytes,
+                                          const std::string& in_cs_entrypoint_name,
+                                          const std::string& in_fs_entrypoint_name,
+                                          const std::string& in_gs_entrypoint_name,
+                                          const std::string& in_tc_entrypoint_name,
+                                          const std::string& in_te_entrypoint_name,
+                                          const std::string& in_vs_entrypoint_name) const
 {
     std::hash<std::string> hash_string;
     std::hash<uint32_t>    hash_uint32;
@@ -226,30 +226,12 @@ size_t Anvil::ShaderModuleCache::get_hash(const char* in_spirv_blob,
         result_hash ^= hash_uint32(spirv_blob_uint32_ptr[n_spirv_blob_op]);
     }
 
-    if (in_cs_entrypoint_name != nullptr)
-    {
-        result_hash ^= hash_string(in_cs_entrypoint_name);
-    }
-    if (in_fs_entrypoint_name != nullptr)
-    {
-        result_hash ^= hash_string(in_fs_entrypoint_name);
-    }
-    if (in_gs_entrypoint_name != nullptr)
-    {
-        result_hash ^= hash_string(in_gs_entrypoint_name);
-    }
-    if (in_tc_entrypoint_name != nullptr)
-    {
-        result_hash ^= hash_string(in_tc_entrypoint_name);
-    }
-    if (in_te_entrypoint_name != nullptr)
-    {
-        result_hash ^= hash_string(in_te_entrypoint_name);
-    }
-    if (in_vs_entrypoint_name != nullptr)
-    {
-        result_hash ^= hash_string(in_vs_entrypoint_name);
-    }
+    result_hash ^= hash_string(in_cs_entrypoint_name);
+    result_hash ^= hash_string(in_fs_entrypoint_name);
+    result_hash ^= hash_string(in_gs_entrypoint_name);
+    result_hash ^= hash_string(in_tc_entrypoint_name);
+    result_hash ^= hash_string(in_te_entrypoint_name);
+    result_hash ^= hash_string(in_vs_entrypoint_name);
 
     return result_hash;
 }

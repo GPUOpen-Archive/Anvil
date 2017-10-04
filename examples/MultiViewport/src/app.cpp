@@ -238,7 +238,7 @@ void App::draw_frame(void* app_raw_ptr)
     curr_frame_wait_semaphore_ptr   = app_ptr->m_frame_wait_semaphores  [app_ptr->m_n_last_semaphore_used];
 
     /* Determine the semaphore which the swapchain image */
-    n_swapchain_image = app_ptr->m_swapchain_ptr->acquire_image_by_setting_semaphore(curr_frame_wait_semaphore_ptr);
+    n_swapchain_image = app_ptr->m_swapchain_ptr->acquire_image(curr_frame_wait_semaphore_ptr);
 
     /* Submit work chunk and present */
     device_locked_ptr->get_universal_queue(0)->submit_command_buffer_with_signal_wait_semaphores(app_ptr->m_command_buffers[n_swapchain_image],
@@ -905,7 +905,7 @@ void App::init_vulkan()
     /* Create a Vulkan device */
     m_device_ptr = Anvil::SGPUDevice::create(m_physical_device_ptr,
                                              Anvil::DeviceExtensionConfiguration(),
-                                             std::vector<const char*>(), /* layers */
+                                             std::vector<std::string>(), /* layers                               */
                                              false,                      /* transient_command_buffer_allocs_only */
                                              false);                     /* support_resettable_command_buffers   */
 }

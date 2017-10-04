@@ -79,21 +79,19 @@ namespace Anvil
          **/
         virtual ~Swapchain();
 
-        /** Acquires a new swapchain image and waits until it becomes available before returning
-         *  control to the caller.
+        /** Acquires a new swapchain image.
          *
-         *  @return Index of the swapchain image that has been acquired.
-         */
-        uint32_t acquire_image_by_blocking();
-
-        /** Acquires a new swapchain image. Does NOT block until the image becomes available, but instead
-         *  sets the specified semaphore.
-         *
-         *  @param in_semaphore_ptr Semaphore to set. Must NOT be nullptr.
+         *  @param in_semaphore_ptr Semaphore to set upon frame acquisition. May be nullptr (assuming the implications are understood!)
+         *  @param in_should_block  Set to true, if you want to wait on a fence set by vkAcquireNextImage*KHR() functions
+         *                          which are called by this function. The wrapper instantiates a unique fence for each allotted swapchain
+         *                          image, in order to defer the CPU-side wait in time.
+         *                          MUST be true if you need a CPU/GPU sync point (examples include doing CPU writes to memory which is going
+         *                          to be accessed by the GPU while rendering the frame).
          *
          *  @return Index of the swapchain image that the commands should be submitted against.
          **/
-        uint32_t acquire_image_by_setting_semaphore(std::shared_ptr<Anvil::Semaphore> in_semaphore_ptr);
+        uint32_t acquire_image(std::shared_ptr<Anvil::Semaphore> in_opt_semaphore_ptr,
+                               bool                              in_should_block = false);
 
         /* By default, swapchain instance will transparently destroy the underlying Vulkan swapchain handle, right before
          * the window is closed.
@@ -114,6 +112,12 @@ namespace Anvil
         const VkSwapchainCreateFlagsKHR& get_flags() const
         {
             return m_flags;
+        }
+
+        /** Returns height of the swapchain, as specified at creation time */
+        uint32_t get_height() const
+        {
+            return m_size.height;
         }
 
         /** Returns format used by swapchain images */
@@ -186,6 +190,12 @@ namespace Anvil
             return m_swapchain;
         }
 
+        /** Returns width of the swapchain, as specified at creation time */
+        uint32_t get_width() const
+        {
+            return m_size.width;
+        }
+
         /** Retrieves a window, to which the swapchain is bound. Note that under certain
          *  circumstances no window may be assigned. */
         std::shared_ptr<Anvil::Window> get_window() const
@@ -233,6 +243,8 @@ namespace Anvil
         VkPresentModeKHR                                m_present_mode;
         VkSwapchainKHR                                  m_swapchain;
         std::shared_ptr<Anvil::Window>                  m_window_ptr;
+
+        VkExtent2D m_size;
 
         VkImageUsageFlagsVariable(m_usage_flags);
 

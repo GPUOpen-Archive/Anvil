@@ -112,58 +112,8 @@ Anvil::Swapchain::~Swapchain()
 }
 
 /** Please see header for specification */
-uint32_t Anvil::Swapchain::acquire_image_by_blocking()
-{
-    const WindowPlatform window_platform                = m_window_ptr->get_platform();
-    const bool           is_offscreen_rendering_enabled = (window_platform == WINDOW_PLATFORM_DUMMY                     ||
-                                                           window_platform == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS);
-    uint32_t             result                         = UINT32_MAX;
-    VkResult             result_vk                      = VK_ERROR_INITIALIZATION_FAILED;
-
-    ANVIL_REDUNDANT_VARIABLE(result_vk);
-
-    /* Which swap-chain image should we render to? */
-    m_image_available_fence_ptrs.at(m_n_acquire_counter_rounded)->reset();
-
-    if (!is_offscreen_rendering_enabled)
-    {
-        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-        static const uint64_t              timeout          (UINT64_MAX);
-
-        result_vk = m_khr_swapchain_entrypoints.vkAcquireNextImageKHR(device_locked_ptr->get_device_vk(),
-                                                                      m_swapchain,
-                                                                      timeout,
-                                                                      VK_NULL_HANDLE, /* semaphore */
-                                                                      m_image_available_fence_ptrs.at(m_n_acquire_counter_rounded)->get_fence(),
-                                                                     &result);
-
-        anvil_assert_vk_call_succeeded(result_vk);
-
-        result_vk = vkWaitForFences(device_locked_ptr->get_device_vk(),
-                                    1, /* fenceCount */
-                                    m_image_available_fence_ptrs.at(m_n_acquire_counter_rounded)->get_fence_ptr(),
-                                    VK_TRUE, /* waitAll */
-                                    UINT64_MAX);
-
-        anvil_assert_vk_call_succeeded(result_vk);
-
-        /* NOTE: Only bump the frame acquisition counter if we're not emulating a Vulkan swapchain */
-        m_n_acquire_counter        ++;
-        m_n_acquire_counter_rounded = (m_n_acquire_counter_rounded + 1) % m_n_swapchain_images;
-    }
-
-    if (is_offscreen_rendering_enabled)
-    {
-        result = m_n_acquire_counter_rounded;
-    }
-
-    m_last_acquired_image_index = result;
-
-    return result;
-}
-
-/** Please see header for specification */
-uint32_t Anvil::Swapchain::acquire_image_by_setting_semaphore(std::shared_ptr<Anvil::Semaphore> in_semaphore_ptr)
+uint32_t Anvil::Swapchain::acquire_image(std::shared_ptr<Anvil::Semaphore> in_opt_semaphore_ptr,
+                                         bool                              in_should_block)
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr              = m_device_ptr.lock();
     const RenderingSurfaceType         rendering_surface              = m_parent_surface_ptr->get_type();
@@ -178,14 +128,34 @@ uint32_t Anvil::Swapchain::acquire_image_by_setting_semaphore(std::shared_ptr<An
 
     if (!is_offscreen_rendering_enabled)
     {
+        VkFence fence_handle = VK_NULL_HANDLE;
+
+        if (in_should_block)
+        {
+            m_image_available_fence_ptrs.at(m_n_acquire_counter_rounded)->reset();
+
+            fence_handle = m_image_available_fence_ptrs.at(m_n_acquire_counter_rounded)->get_fence();
+        }
+
         result_vk = m_khr_swapchain_entrypoints.vkAcquireNextImageKHR(device_locked_ptr->get_device_vk(),
                                                                       m_swapchain,
                                                                       UINT64_MAX,
-                                                                      in_semaphore_ptr->get_semaphore(),
-                                                                      VK_NULL_HANDLE,
+                                                                      in_opt_semaphore_ptr->get_semaphore(),
+                                                                      fence_handle,
                                                                      &result);
 
         anvil_assert_vk_call_succeeded(result_vk);
+
+        if (fence_handle != VK_NULL_HANDLE)
+        {
+            result_vk = vkWaitForFences(device_locked_ptr->get_device_vk(),
+                                        1, /* fenceCount */
+                                       &fence_handle,
+                                        VK_TRUE, /* waitAll */
+                                        UINT64_MAX);
+
+            anvil_assert_vk_call_succeeded(result_vk);
+        }
 
         /* NOTE: Only bump the frame acquisition counter if we're not emulating a Vulkan swapchain */
         m_n_acquire_counter++;
@@ -196,7 +166,7 @@ uint32_t Anvil::Swapchain::acquire_image_by_setting_semaphore(std::shared_ptr<An
         /* We need to set the semaphore manually in this scenario */
         device_locked_ptr->get_universal_queue(0)->submit_command_buffer_with_signal_semaphores(nullptr, /* cmd_buffer_ptr         */
                                                                                                 1,       /* n_semaphores_to_signal */
-                                                                                               &in_semaphore_ptr,
+                                                                                               &in_opt_semaphore_ptr,
                                                                                                 true); /* should_block */
     }
 
@@ -303,6 +273,8 @@ void Anvil::Swapchain::init()
     ANVIL_REDUNDANT_VARIABLE(result);
 
     m_image_view_format = m_image_format;
+    m_size.width        = m_parent_surface_ptr->get_width ();
+    m_size.height       = m_parent_surface_ptr->get_height();
 
     /* not doing offscreen rendering */
     if (!is_offscreen_rendering_enabled)
@@ -429,7 +401,6 @@ void Anvil::Swapchain::init()
             /* NOTE: The constructor we use below is special, in that the wrapped VkImage instance will not be destroyed
              *       when the Image instance goes out of scope.
              */
-
             m_image_ptrs[n_result_image] = Anvil::Image::create_nonsparse(m_device_ptr,
                                                                           create_info,
                                                                           swapchain_images[n_result_image]);
@@ -441,8 +412,8 @@ void Anvil::Swapchain::init()
                                                                           m_image_format,
                                                                           VK_IMAGE_TILING_OPTIMAL,
                                                                           m_usage_flags,
-                                                                          m_parent_surface_ptr->get_width(),
-                                                                          m_parent_surface_ptr->get_height(),
+                                                                          m_size.width,
+                                                                          m_size.height,
                                                                           1, /* base_mipmap_depth */
                                                                           1,
                                                                           VK_SAMPLE_COUNT_1_BIT,
@@ -472,7 +443,6 @@ void Anvil::Swapchain::init()
     /* Sign up for present submission notifications. This is needed to ensure that number of presented frames ==
      * number of acquired frames at destruction time.
      */
-    if (m_parent_surface_ptr != nullptr)
     {
         std::vector<std::shared_ptr<Anvil::Queue> > queues;
 

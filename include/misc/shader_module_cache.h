@@ -48,12 +48,12 @@ namespace Anvil
         std::shared_ptr<Anvil::ShaderModule> get_cached_shader_module(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                                                       const char*                      in_spirv_blob,
                                                                       uint32_t                         in_n_spirv_blob_bytes,
-                                                                      const char*                      in_cs_entrypoint_name,
-                                                                      const char*                      in_fs_entrypoint_name,
-                                                                      const char*                      in_gs_entrypoint_name,
-                                                                      const char*                      in_tc_entrypoint_name,
-                                                                      const char*                      in_te_entrypoint_name,
-                                                                      const char*                      in_vs_entrypoint_name);
+                                                                      const std::string&               in_cs_entrypoint_name,
+                                                                      const std::string&               in_fs_entrypoint_name,
+                                                                      const std::string&               in_gs_entrypoint_name,
+                                                                      const std::string&               in_tc_entrypoint_name,
+                                                                      const std::string&               in_te_entrypoint_name,
+                                                                      const std::string&               in_vs_entrypoint_name);
 
     private:
         /* Private type definitions */
@@ -72,51 +72,37 @@ namespace Anvil
 
             explicit HashMapItem(std::weak_ptr<Anvil::BaseDevice>     in_device_ptr,
                                  const std::vector<uint32_t>&         in_spirv_blob,
-                                 const char*                          in_cs_entrypoint_name,
-                                 const char*                          in_fs_entrypoint_name,
-                                 const char*                          in_gs_entrypoint_name,
-                                 const char*                          in_tc_entrypoint_name,
-                                 const char*                          in_te_entrypoint_name,
-                                 const char*                          in_vs_entrypoint_name,
+                                 const std::string&                   in_cs_entrypoint_name,
+                                 const std::string&                   in_fs_entrypoint_name,
+                                 const std::string&                   in_gs_entrypoint_name,
+                                 const std::string&                   in_tc_entrypoint_name,
+                                 const std::string&                   in_te_entrypoint_name,
+                                 const std::string&                   in_vs_entrypoint_name,
                                  std::shared_ptr<Anvil::ShaderModule> in_shader_module_ptr)
             {
                 device_ptr         = in_device_ptr;
                 spirv_blob         = in_spirv_blob;
                 shader_module_ptr  = in_shader_module_ptr;
 
-                in_cs_entrypoint_name = (in_cs_entrypoint_name == nullptr) ? "" : in_cs_entrypoint_name;
-                in_fs_entrypoint_name = (in_fs_entrypoint_name == nullptr) ? "" : in_fs_entrypoint_name;
-                in_gs_entrypoint_name = (in_gs_entrypoint_name == nullptr) ? "" : in_gs_entrypoint_name;
-                in_tc_entrypoint_name = (in_tc_entrypoint_name == nullptr) ? "" : in_tc_entrypoint_name;
-                in_te_entrypoint_name = (in_te_entrypoint_name == nullptr) ? "" : in_te_entrypoint_name;
-                in_vs_entrypoint_name = (in_vs_entrypoint_name == nullptr) ? "" : in_vs_entrypoint_name;
-
-                cs_entrypoint_name = std::string(in_cs_entrypoint_name);
-                fs_entrypoint_name = std::string(in_fs_entrypoint_name);
-                gs_entrypoint_name = std::string(in_gs_entrypoint_name);
-                tc_entrypoint_name = std::string(in_tc_entrypoint_name);
-                te_entrypoint_name = std::string(in_te_entrypoint_name);
-                vs_entrypoint_name = std::string(in_vs_entrypoint_name);
+                cs_entrypoint_name = in_cs_entrypoint_name;
+                fs_entrypoint_name = in_fs_entrypoint_name;
+                gs_entrypoint_name = in_gs_entrypoint_name;
+                tc_entrypoint_name = in_tc_entrypoint_name;
+                te_entrypoint_name = in_te_entrypoint_name;
+                vs_entrypoint_name = in_vs_entrypoint_name;
             }
 
             bool matches(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                          const char*                      in_spirv_blob,
                          uint32_t                         in_n_spirv_blob_bytes,
-                         const char*                      in_cs_entrypoint_name,
-                         const char*                      in_fs_entrypoint_name,
-                         const char*                      in_gs_entrypoint_name,
-                         const char*                      in_tc_entrypoint_name,
-                         const char*                      in_te_entrypoint_name,
-                         const char*                      in_vs_entrypoint_name) const
+                         const std::string&               in_cs_entrypoint_name,
+                         const std::string&               in_fs_entrypoint_name,
+                         const std::string&               in_gs_entrypoint_name,
+                         const std::string&               in_tc_entrypoint_name,
+                         const std::string&               in_te_entrypoint_name,
+                         const std::string&               in_vs_entrypoint_name) const
             {
                 bool result = (spirv_blob.size() * sizeof(spirv_blob.at(0)) == in_n_spirv_blob_bytes);
-
-                in_cs_entrypoint_name = (in_cs_entrypoint_name == nullptr) ? "" : in_cs_entrypoint_name;
-                in_fs_entrypoint_name = (in_fs_entrypoint_name == nullptr) ? "" : in_fs_entrypoint_name;
-                in_gs_entrypoint_name = (in_gs_entrypoint_name == nullptr) ? "" : in_gs_entrypoint_name;
-                in_tc_entrypoint_name = (in_tc_entrypoint_name == nullptr) ? "" : in_tc_entrypoint_name;
-                in_te_entrypoint_name = (in_te_entrypoint_name == nullptr) ? "" : in_te_entrypoint_name;
-                in_vs_entrypoint_name = (in_vs_entrypoint_name == nullptr) ? "" : in_vs_entrypoint_name;
 
                 if (result)
                 {
@@ -152,14 +138,14 @@ namespace Anvil
 
         void cache(std::shared_ptr<Anvil::ShaderModule> in_shader_module_ptr);
 
-        size_t get_hash(const char* in_spirv_blob,
-                        uint32_t    in_n_spirv_blob_bytes,
-                        const char* in_cs_entrypoint_name,
-                        const char* in_fs_entrypoint_name,
-                        const char* in_gs_entrypoint_name,
-                        const char* in_tc_entrypoint_name,
-                        const char* in_te_entrypoint_name,
-                        const char* in_vs_entrypoint_name) const;
+        size_t get_hash(const char*        in_spirv_blob,
+                        uint32_t           in_n_spirv_blob_bytes,
+                        const std::string& in_cs_entrypoint_name,
+                        const std::string& in_fs_entrypoint_name,
+                        const std::string& in_gs_entrypoint_name,
+                        const std::string& in_tc_entrypoint_name,
+                        const std::string& in_te_entrypoint_name,
+                        const std::string& in_vs_entrypoint_name) const;
 
         static void on_object_about_to_be_released(void* in_callback_arg,
                                                    void* in_shader_module_cache_raw_ptr);

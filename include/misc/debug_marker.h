@@ -81,8 +81,8 @@ namespace Anvil
          *  @param in_should_force True if the name should be updated, even in cases where the same name been already specified
          *                         in a preceding invocation.
          */
-        void set_name_internal(const char* in_object_name,
-                               bool        in_should_force = false);
+        void set_name_internal(const std::string& in_object_name,
+                               bool               in_should_force = false);
 
         /** Updates tag data associated with the maintained Vulkan object handle.
          *
@@ -285,7 +285,7 @@ namespace Anvil
          *
          *  @param in_object_name New object name to use. Must not be null.
          */
-        void set_name(const char* in_object_name)
+        void set_name(const std::string& in_object_name)
         {
             if (m_worker_ptr != nullptr)
             {
