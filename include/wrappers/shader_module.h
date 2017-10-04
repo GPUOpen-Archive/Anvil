@@ -86,6 +86,26 @@ namespace Anvil
                                                                     const char*                      in_opt_tc_entrypoint_name,
                                                                     const char*                      in_opt_te_entrypoint_name,
                                                                     const char*                      in_opt_vs_entrypoint_name);
+        static std::shared_ptr<ShaderModule> create_from_spirv_blob(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                                    const char*                      in_spirv_blob,
+                                                                    uint32_t                         in_n_spirv_blob_bytes,
+                                                                    const std::string&               in_opt_cs_entrypoint_name,
+                                                                    const std::string&               in_opt_fs_entrypoint_name,
+                                                                    const std::string&               in_opt_gs_entrypoint_name,
+                                                                    const std::string&               in_opt_tc_entrypoint_name,
+                                                                    const std::string&               in_opt_te_entrypoint_name,
+                                                                    const std::string&               in_opt_vs_entrypoint_name)
+        {
+            return create_from_spirv_blob(in_device_ptr,
+                                          in_spirv_blob,
+                                          in_n_spirv_blob_bytes,
+                                          in_opt_cs_entrypoint_name.c_str(),
+                                          in_opt_fs_entrypoint_name.c_str(),
+                                          in_opt_gs_entrypoint_name.c_str(),
+                                          in_opt_tc_entrypoint_name.c_str(),
+                                          in_opt_te_entrypoint_name.c_str(),
+                                          in_opt_vs_entrypoint_name.c_str() );
+        }
 
         /** Destructor. Releases internally maintained Vulkan shader module instance. */
         virtual ~ShaderModule();
@@ -94,7 +114,7 @@ namespace Anvil
          *
          *  Will return nullptr if no entry-point was defined.
          **/
-        const char* get_cs_entrypoint_name() const
+        const std::string& get_cs_entrypoint_name() const
         {
             return m_cs_entrypoint_name;
         }
@@ -111,7 +131,7 @@ namespace Anvil
          *
          *  Will return nullptr if no entry-point was defined.
          **/
-        const char* get_fs_entrypoint_name() const
+        const std::string& get_fs_entrypoint_name() const
         {
             return m_fs_entrypoint_name;
         }
@@ -132,7 +152,7 @@ namespace Anvil
          *
          *  Will return nullptr if no entry-point was defined.
          **/
-        const char* get_gs_entrypoint_name() const
+        const std::string& get_gs_entrypoint_name() const
         {
             return m_gs_entrypoint_name;
         }
@@ -162,7 +182,7 @@ namespace Anvil
          *
          *  Will return nullptr if no entry-point was defined.
          **/
-        const char* get_tc_entrypoint_name() const
+        const std::string& get_tc_entrypoint_name() const
         {
             return m_tc_entrypoint_name;
         }
@@ -172,7 +192,7 @@ namespace Anvil
          *
          *  Will return nullptr if no entry-point was defined.
          **/
-        const char* get_te_entrypoint_name() const
+        const std::string& get_te_entrypoint_name() const
         {
             return m_te_entrypoint_name;
         }
@@ -181,7 +201,7 @@ namespace Anvil
          *
          *  Will return nullptr if no entry-point was defined.
          **/
-        const char* get_vs_entrypoint_name() const
+        const std::string& get_vs_entrypoint_name() const
         {
             return m_vs_entrypoint_name;
         }
@@ -195,12 +215,12 @@ namespace Anvil
         explicit ShaderModule(std::weak_ptr<Anvil::BaseDevice>            in_device_ptr,
                               const char*                                 in_spirv_blob,
                               uint32_t                                    in_n_spirv_blob_bytes,
-                              const char*                                 in_opt_cs_entrypoint_name,
-                              const char*                                 in_opt_fs_entrypoint_name,
-                              const char*                                 in_opt_gs_entrypoint_name,
-                              const char*                                 in_opt_tc_entrypoint_name,
-                              const char*                                 in_opt_te_entrypoint_name,
-                              const char*                                 in_opt_vs_entrypoint_name);
+                              const std::string&                          in_opt_cs_entrypoint_name,
+                              const std::string&                          in_opt_fs_entrypoint_name,
+                              const std::string&                          in_opt_gs_entrypoint_name,
+                              const std::string&                          in_opt_tc_entrypoint_name,
+                              const std::string&                          in_opt_te_entrypoint_name,
+                              const std::string&                          in_opt_vs_entrypoint_name);
 
         ShaderModule           (const ShaderModule&);
         ShaderModule& operator=(const ShaderModule&);
@@ -223,12 +243,12 @@ namespace Anvil
                                                    void* in_shader_module_raw_ptr);
 
         /* Private variables */
-        const char* m_cs_entrypoint_name;
-        const char* m_fs_entrypoint_name;
-        const char* m_gs_entrypoint_name;
-        const char* m_tc_entrypoint_name;
-        const char* m_te_entrypoint_name;
-        const char* m_vs_entrypoint_name;
+        std::string m_cs_entrypoint_name;
+        std::string m_fs_entrypoint_name;
+        std::string m_gs_entrypoint_name;
+        std::string m_tc_entrypoint_name;
+        std::string m_te_entrypoint_name;
+        std::string m_vs_entrypoint_name;
 
         std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
         const Anvil::BaseDevice*         m_device_raw_ptr;
@@ -237,7 +257,7 @@ namespace Anvil
         std::vector<uint32_t>            m_spirv_blob;
 
 #ifdef ANVIL_LINK_WITH_GLSLANG
-        std::string           m_disassembly;
+        std::string m_disassembly;
 #endif
     };
 }; /* namespace Anvil */

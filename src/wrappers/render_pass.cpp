@@ -301,7 +301,7 @@ bool Anvil::RenderPass::add_subpass(const ShaderModuleStageEntryPoint& in_fragme
     new_subpass_index = static_cast<uint32_t>(m_subpasses.size() );
 
     /* Create a new graphics pipeline for the subpass */
-    anvil_assert(in_vertex_shader_entrypoint.name != nullptr);
+    anvil_assert(in_vertex_shader_entrypoint.name.size() != 0);
 
     if (in_opt_pipeline_id == UINT32_MAX)
     {

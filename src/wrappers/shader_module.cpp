@@ -38,14 +38,8 @@ Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::BaseDevice>            in
                                   std::shared_ptr<GLSLShaderToSPIRVGenerator> in_spirv_generator_ptr)
     :DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT),
-     m_cs_entrypoint_name      (nullptr),
      m_device_ptr              (in_device_ptr),
-     m_device_raw_ptr          (in_device_ptr.lock().get() ),
-     m_fs_entrypoint_name      (nullptr),
-     m_gs_entrypoint_name      (nullptr),
-     m_tc_entrypoint_name      (nullptr),
-     m_te_entrypoint_name      (nullptr),
-     m_vs_entrypoint_name      (nullptr)
+     m_device_raw_ptr          (in_device_ptr.lock().get() )
 {
     bool              result                 = false;
     const char*       shader_spirv_blob      = in_spirv_generator_ptr->get_spirv_blob();
@@ -57,13 +51,13 @@ Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::BaseDevice>            in
     anvil_assert(shader_spirv_blob      != nullptr);
     anvil_assert(shader_spirv_blob_size >  0);
 
-    m_cs_entrypoint_name = (shader_stage == SHADER_STAGE_COMPUTE)                 ? "main" : nullptr;
-    m_fs_entrypoint_name = (shader_stage == SHADER_STAGE_FRAGMENT)                ? "main" : nullptr;
+    m_cs_entrypoint_name = (shader_stage == SHADER_STAGE_COMPUTE)                 ? "main" : "";
+    m_fs_entrypoint_name = (shader_stage == SHADER_STAGE_FRAGMENT)                ? "main" : "";
     m_glsl_source_code   = in_spirv_generator_ptr->get_glsl_source_code();
-    m_gs_entrypoint_name = (shader_stage == SHADER_STAGE_GEOMETRY)                ? "main" : nullptr;
-    m_tc_entrypoint_name = (shader_stage == SHADER_STAGE_TESSELLATION_CONTROL)    ? "main" : nullptr;
-    m_te_entrypoint_name = (shader_stage == SHADER_STAGE_TESSELLATION_EVALUATION) ? "main" : nullptr;
-    m_vs_entrypoint_name = (shader_stage == SHADER_STAGE_VERTEX)                  ? "main" : nullptr;
+    m_gs_entrypoint_name = (shader_stage == SHADER_STAGE_GEOMETRY)                ? "main" : "";
+    m_tc_entrypoint_name = (shader_stage == SHADER_STAGE_TESSELLATION_CONTROL)    ? "main" : "";
+    m_te_entrypoint_name = (shader_stage == SHADER_STAGE_TESSELLATION_EVALUATION) ? "main" : "";
+    m_vs_entrypoint_name = (shader_stage == SHADER_STAGE_VERTEX)                  ? "main" : "";
 
     result = init_from_spirv_blob(shader_spirv_blob,
                                   shader_spirv_blob_size);
@@ -75,12 +69,12 @@ Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::BaseDevice>            in
 Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                   const char*                      in_spirv_blob,
                                   uint32_t                         in_n_spirv_blob_bytes,
-                                  const char*                      in_cs_entrypoint_name,
-                                  const char*                      in_fs_entrypoint_name,
-                                  const char*                      in_gs_entrypoint_name,
-                                  const char*                      in_tc_entrypoint_name,
-                                  const char*                      in_te_entrypoint_name,
-                                  const char*                      in_vs_entrypoint_name)
+                                  const std::string&               in_cs_entrypoint_name,
+                                  const std::string&               in_fs_entrypoint_name,
+                                  const std::string&               in_gs_entrypoint_name,
+                                  const std::string&               in_tc_entrypoint_name,
+                                  const std::string&               in_te_entrypoint_name,
+                                  const std::string&               in_vs_entrypoint_name)
     :DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT),
      m_cs_entrypoint_name      (in_cs_entrypoint_name),
@@ -129,12 +123,12 @@ std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModule::create_from_spirv_gene
     result_ptr = shader_module_cache_ptr->get_cached_shader_module(in_device_ptr,
                                                                    in_spirv_generator_ptr->get_spirv_blob(),
                                                                    in_spirv_generator_ptr->get_spirv_blob_size(),
-                                                                   (shader_stage == SHADER_STAGE_COMPUTE)                 ? "main" : nullptr,
-                                                                   (shader_stage == SHADER_STAGE_FRAGMENT)                ? "main" : nullptr,
-                                                                   (shader_stage == SHADER_STAGE_GEOMETRY)                ? "main" : nullptr,
-                                                                   (shader_stage == SHADER_STAGE_TESSELLATION_CONTROL)    ? "main" : nullptr,
-                                                                   (shader_stage == SHADER_STAGE_TESSELLATION_EVALUATION) ? "main" : nullptr,
-                                                                   (shader_stage == SHADER_STAGE_VERTEX)                  ? "main" : nullptr);
+                                                                   (shader_stage == SHADER_STAGE_COMPUTE)                 ? "main" : "",
+                                                                   (shader_stage == SHADER_STAGE_FRAGMENT)                ? "main" : "",
+                                                                   (shader_stage == SHADER_STAGE_GEOMETRY)                ? "main" : "",
+                                                                   (shader_stage == SHADER_STAGE_TESSELLATION_CONTROL)    ? "main" : "",
+                                                                   (shader_stage == SHADER_STAGE_TESSELLATION_EVALUATION) ? "main" : "",
+                                                                   (shader_stage == SHADER_STAGE_VERTEX)                  ? "main" : "");
 
     if (result_ptr == nullptr)
     {

@@ -155,8 +155,8 @@ namespace Anvil
             return m_window;
         }
 
-        /** Returns window's height */
-        uint32_t get_height() const
+        /** Returns window's height, as specified at creation time */
+        uint32_t get_height_at_creation_time() const
         {
             return m_height;
         }
@@ -165,7 +165,7 @@ namespace Anvil
         virtual WindowPlatform get_platform() const = 0;
 
         /* Returns window's width */
-        uint32_t get_width() const
+        uint32_t get_width_at_creation_time() const
         {
             return m_width;
         }
@@ -184,9 +184,9 @@ namespace Anvil
          *
          *  @param new_title Null-terminated string, holding the new title. Must not be NULL.
          */
-        virtual void set_title(const char* in_new_title)
+        virtual void set_title(const std::string& in_new_title)
         {
-            ANVIL_REDUNDANT_ARGUMENT(in_new_title);
+            ANVIL_REDUNDANT_ARGUMENT_CONST(in_new_title);
 
             /* Nop by default */
         }

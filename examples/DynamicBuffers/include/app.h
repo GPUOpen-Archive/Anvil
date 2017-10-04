@@ -101,7 +101,7 @@ private:
     std::vector<VkDeviceSize>      m_sine_offset_data_buffer_offsets;
     VkDeviceSize                   m_sine_offset_data_buffer_size;
     std::shared_ptr<Anvil::Buffer> m_sine_props_data_buffer_ptr;
-    VkDeviceSize                   m_sine_props_data_buffer_size;
+    VkDeviceSize                   m_sine_props_data_buffer_size_per_swapchain_image;
 
     uint32_t       m_n_last_semaphore_used;
     const uint32_t m_n_swapchain_images;

@@ -91,9 +91,9 @@ namespace Anvil
 
         /** Changes the window title.
          *
-         *  @param in_new_title Null-terminated string, holding the new title. Must not be NULL.
+         *  @param in_new_title Null-terminated string, holding the new title.
          */
-        void set_title(const char* in_new_title);
+        void set_title(const std::string& in_new_title) override;
 
     private:
         /* Private functions */

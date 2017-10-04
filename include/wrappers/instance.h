@@ -74,8 +74,8 @@ namespace Anvil
          *                                     will be passed to @param opt_pfn_validation_proc every time
          *                                     a debug callback is received. Ignored otherwise.
          **/
-        static std::shared_ptr<Anvil::Instance> create(const char*                  in_app_name,
-                                                       const char*                  in_engine_name,
+        static std::shared_ptr<Anvil::Instance> create(const std::string&           in_app_name,
+                                                       const std::string&           in_engine_name,
                                                        PFNINSTANCEDEBUGCALLBACKPROC in_opt_pfn_validation_callback_proc,
                                                        void*                        in_validation_proc_user_arg);
 
@@ -148,7 +148,11 @@ namespace Anvil
          *
          *  @return true if the extension was reported as supported, false otherwise.
          **/
-        bool is_instance_extension_supported(const char* in_extension_name) const;
+        bool is_instance_extension_supported(const char*        in_extension_name) const;
+        bool is_instance_extension_supported(const std::string& in_extension_name) const
+        {
+            return is_instance_extension_supported(in_extension_name.c_str() );
+        }
 
         /** Tells if validation support has been requested for this Vulkan Instance wrapper */
         bool is_validation_enabled() const
@@ -160,8 +164,8 @@ namespace Anvil
         /* Private functions */
 
         /** Private constructor. Please use create() function instead. */
-        Instance(const char*                  in_app_name,
-                 const char*                  in_engine_name,
+        Instance(const std::string&           in_app_name,
+                 const std::string&           in_engine_name,
                  PFNINSTANCEDEBUGCALLBACKPROC in_opt_pfn_validation_callback_proc,
                  void*                        in_validation_proc_user_arg);
 
@@ -207,8 +211,8 @@ namespace Anvil
             #endif
         #endif
 
-        const char*                  m_app_name;
-        const char*                  m_engine_name;
+        const std::string            m_app_name;
+        const std::string            m_engine_name;
         PFNINSTANCEDEBUGCALLBACKPROC m_pfn_validation_callback_proc;
         void*                        m_validation_proc_user_arg;
 

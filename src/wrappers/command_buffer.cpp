@@ -373,8 +373,8 @@ Anvil::CommandBufferBase::CopyQueryPoolResultsCommand::CopyQueryPoolResultsComma
 }
 
 /** Please see header for specification */
-Anvil::CommandBufferBase::DebugMarkerBeginEXTCommand::DebugMarkerBeginEXTCommand(const char*  in_marker_name,
-                                                                                 const float* in_color)
+Anvil::CommandBufferBase::DebugMarkerBeginEXTCommand::DebugMarkerBeginEXTCommand(const std::string& in_marker_name,
+                                                                                 const float*       in_color)
     :Command(Anvil::COMMAND_TYPE_DEBUG_MARKER_BEGIN_EXT)
 {
     if (in_color != nullptr)
@@ -401,8 +401,8 @@ Anvil::CommandBufferBase::DebugMarkerEndEXTCommand::DebugMarkerEndEXTCommand()
 }
 
 /** Please see header for specification */
-Anvil::CommandBufferBase::DebugMarkerInsertEXTCommand::DebugMarkerInsertEXTCommand(const char*  in_marker_name,
-                                                                                   const float* in_color)
+Anvil::CommandBufferBase::DebugMarkerInsertEXTCommand::DebugMarkerInsertEXTCommand(const std::string& in_marker_name,
+                                                                                   const float*       in_color)
     :Command(Anvil::COMMAND_TYPE_DEBUG_MARKER_INSERT_EXT)
 {
     if (in_color != nullptr)
@@ -2062,8 +2062,8 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::CommandBufferBase::record_debug_marker_begin_EXT(const char*  in_marker_name,
-                                                             const float* in_opt_color)
+bool Anvil::CommandBufferBase::record_debug_marker_begin_EXT(const std::string& in_marker_name,
+                                                             const float*       in_opt_color)
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
     const auto&                        entrypoints      (device_locked_ptr->get_extension_ext_debug_marker_entrypoints() );
@@ -2103,7 +2103,7 @@ bool Anvil::CommandBufferBase::record_debug_marker_begin_EXT(const char*  in_mar
         marker_info.color[3] = 0.0f;
     }
 
-    marker_info.pMarkerName = in_marker_name;
+    marker_info.pMarkerName = in_marker_name.c_str();
     marker_info.pNext       = nullptr;
     marker_info.sType       = VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT;
 
@@ -2149,8 +2149,8 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::CommandBufferBase::record_debug_marker_insert_EXT(const char*  in_marker_name,
-                                                              const float* in_opt_color)
+bool Anvil::CommandBufferBase::record_debug_marker_insert_EXT(const std::string& in_marker_name,
+                                                              const float*       in_opt_color)
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
     const auto&                        entrypoints      (device_locked_ptr->get_extension_ext_debug_marker_entrypoints() );
@@ -2191,7 +2191,7 @@ bool Anvil::CommandBufferBase::record_debug_marker_insert_EXT(const char*  in_ma
         marker_info.color[3] = 0.0f;
     }
 
-    marker_info.pMarkerName = in_marker_name;
+    marker_info.pMarkerName = in_marker_name.c_str();
     marker_info.pNext       = nullptr;
     marker_info.sType       = VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT;
 

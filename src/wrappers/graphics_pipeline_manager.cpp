@@ -711,7 +711,7 @@ bool Anvil::GraphicsPipelineManager::bake()
                       n_shader < GRAPHICS_SHADER_STAGE_COUNT;
                     ++n_shader)
         {
-            if (current_pipeline_ptr->shader_stages[n_shader].name != nullptr)
+            if (current_pipeline_ptr->shader_stages[n_shader].name.size() != 0)
             {
                 VkPipelineShaderStageCreateInfo      current_shader_stage_create_info;
                 std::shared_ptr<Anvil::ShaderModule> shader_module_ptr;
@@ -727,11 +727,11 @@ bool Anvil::GraphicsPipelineManager::bake()
                 shader_module_ptr = current_pipeline_ptr->shader_stages[n_shader].shader_module_ptr;
 
                 current_shader_stage_create_info.module = shader_module_ptr->get_module();
-                current_shader_stage_create_info.pName  = (n_shader == GRAPHICS_SHADER_STAGE_FRAGMENT)                ? shader_module_ptr->get_fs_entrypoint_name()
-                                                        : (n_shader == GRAPHICS_SHADER_STAGE_GEOMETRY)                ? shader_module_ptr->get_gs_entrypoint_name()
-                                                        : (n_shader == GRAPHICS_SHADER_STAGE_TESSELLATION_CONTROL)    ? shader_module_ptr->get_tc_entrypoint_name()
-                                                        : (n_shader == GRAPHICS_SHADER_STAGE_TESSELLATION_EVALUATION) ? shader_module_ptr->get_te_entrypoint_name()
-                                                        : (n_shader == GRAPHICS_SHADER_STAGE_VERTEX)                  ? shader_module_ptr->get_vs_entrypoint_name()
+                current_shader_stage_create_info.pName  = (n_shader == GRAPHICS_SHADER_STAGE_FRAGMENT)                ? shader_module_ptr->get_fs_entrypoint_name().c_str()
+                                                        : (n_shader == GRAPHICS_SHADER_STAGE_GEOMETRY)                ? shader_module_ptr->get_gs_entrypoint_name().c_str()
+                                                        : (n_shader == GRAPHICS_SHADER_STAGE_TESSELLATION_CONTROL)    ? shader_module_ptr->get_tc_entrypoint_name().c_str()
+                                                        : (n_shader == GRAPHICS_SHADER_STAGE_TESSELLATION_EVALUATION) ? shader_module_ptr->get_te_entrypoint_name().c_str()
+                                                        : (n_shader == GRAPHICS_SHADER_STAGE_VERTEX)                  ? shader_module_ptr->get_vs_entrypoint_name().c_str()
                                                         : nullptr;
 
                 current_shader_stage_create_info.flags               = 0;
@@ -750,8 +750,8 @@ bool Anvil::GraphicsPipelineManager::bake()
         }
 
         /* Form the tessellation state create info descriptor if needed */
-        if (current_pipeline_ptr->shader_stages[GRAPHICS_SHADER_STAGE_TESSELLATION_CONTROL].name    != nullptr ||
-            current_pipeline_ptr->shader_stages[GRAPHICS_SHADER_STAGE_TESSELLATION_EVALUATION].name != nullptr)
+        if (current_pipeline_ptr->shader_stages[GRAPHICS_SHADER_STAGE_TESSELLATION_CONTROL].name.size()    != 0  ||
+            current_pipeline_ptr->shader_stages[GRAPHICS_SHADER_STAGE_TESSELLATION_EVALUATION].name.size() != 0)
         {
             VkPipelineTessellationStateCreateInfo tessellation_state_create_info;
 

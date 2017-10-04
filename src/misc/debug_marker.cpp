@@ -38,12 +38,10 @@ Anvil::DebugMarkerSupportProviderWorker::DebugMarkerSupportProviderWorker(std::w
 }
 
 /** Please see header for specification */
-void Anvil::DebugMarkerSupportProviderWorker::set_name_internal(const char* in_object_name,
-                                                                bool        in_should_force)
+void Anvil::DebugMarkerSupportProviderWorker::set_name_internal(const std::string& in_object_name,
+                                                                bool               in_should_force)
 {
     /* NOTE: We need to support deferred name assignment here. */
-    anvil_assert(in_object_name!= nullptr);
-
     if (m_object_name != in_object_name ||
         in_should_force)
     {
@@ -60,7 +58,7 @@ void Anvil::DebugMarkerSupportProviderWorker::set_name_internal(const char* in_o
             name_info.object      = m_vk_object_handle;
             name_info.objectType  = m_vk_object_type;
             name_info.pNext       = nullptr;
-            name_info.pObjectName = in_object_name;
+            name_info.pObjectName = in_object_name.c_str();
             name_info.sType       = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
 
             result_vk = entrypoints.vkDebugMarkerSetObjectNameEXT(device_locked_ptr->get_device_vk(),
@@ -73,10 +71,10 @@ void Anvil::DebugMarkerSupportProviderWorker::set_name_internal(const char* in_o
 }
 
 /** Please see header for specification */
-void Anvil::DebugMarkerSupportProviderWorker::set_tag_internal (const uint64_t in_tag_name,
-                                                                size_t         in_tag_size,
-                                                                const void*    in_tag_ptr,
-                                                                bool           in_should_force)
+void Anvil::DebugMarkerSupportProviderWorker::set_tag_internal(const uint64_t in_tag_name,
+                                                               size_t         in_tag_size,
+                                                               const void*    in_tag_ptr,
+                                                               bool           in_should_force)
 {
     bool should_update = in_should_force;
 

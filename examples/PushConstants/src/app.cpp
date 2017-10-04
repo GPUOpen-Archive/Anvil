@@ -196,8 +196,9 @@ static const uint32_t g_mesh_data_position_stride       = sizeof(float) * 7;
 
 
 App::App()
-    :m_n_last_semaphore_used(0),
-     m_n_swapchain_images   (N_SWAPCHAIN_IMAGES)
+    :m_n_last_semaphore_used           (0),
+     m_n_swapchain_images              (N_SWAPCHAIN_IMAGES),
+     m_ub_data_size_per_swapchain_image(0)
 {
     // ..
 }
@@ -263,10 +264,11 @@ void App::draw_frame(void* app_raw_ptr)
     present_wait_semaphore_ptr = curr_frame_signal_semaphore_ptr;
 
     /* Determine the semaphore which the swapchain image */
-    n_swapchain_image = app_ptr->m_swapchain_ptr->acquire_image_by_setting_semaphore(curr_frame_wait_semaphore_ptr);
+    n_swapchain_image = app_ptr->m_swapchain_ptr->acquire_image(curr_frame_wait_semaphore_ptr,
+                                                                true); /* in_should_block */
 
     /* Submit work chunk and present */
-    app_ptr->update_data_ub_contents();
+    app_ptr->update_data_ub_contents(n_swapchain_image);
 
     present_queue_ptr->submit_command_buffer_with_signal_wait_semaphores(app_ptr->m_command_buffers[n_swapchain_image],
                                                                          1, /* n_semaphores_to_signal */
@@ -383,19 +385,24 @@ void App::init()
 
 void App::init_buffers()
 {
-    const unsigned char* mesh_data      = get_mesh_data();
-    const uint32_t       mesh_data_size = get_mesh_data_size();
-    const uint32_t       ub_data_size   = sizeof(int)                 * 4 + /* frame index + padding             */
-                                          sizeof(float) * N_TRIANGLES * 4 + /* position (vec2) + rotation (vec2) */
-                                          sizeof(float) * N_TRIANGLES +     /* luminance                         */
-                                          sizeof(float) * N_TRIANGLES;      /* size                              */
+    const unsigned char* mesh_data                        = get_mesh_data();
+    const uint32_t       mesh_data_size                   = get_mesh_data_size();
+    const VkDeviceSize   ub_data_size_per_swapchain_image = sizeof(int)                 * 4 + /* frame index + padding             */
+                                                            sizeof(float) * N_TRIANGLES * 4 + /* position (vec2) + rotation (vec2) */
+                                                            sizeof(float) * N_TRIANGLES +     /* luminance                         */
+                                                            sizeof(float) * N_TRIANGLES;      /* size                              */
+    const auto           ub_data_alignment_requirement    = m_device_ptr.lock()->get_physical_device_properties().limits.minUniformBufferOffsetAlignment;
+    const auto           ub_data_size_total               = N_SWAPCHAIN_IMAGES * (Anvil::Utils::round_up(ub_data_size_per_swapchain_image,
+                                                                                                         ub_data_alignment_requirement) );
+
+    m_ub_data_size_per_swapchain_image = ub_data_size_total / N_SWAPCHAIN_IMAGES;
 
     /* Use a memory allocator to re-use memory blocks wherever possible */
     std::shared_ptr<Anvil::MemoryAllocator> allocator_ptr = Anvil::MemoryAllocator::create_oneshot(m_device_ptr);
 
     /* Set up a buffer to hold uniform data */
     m_data_buffer_ptr = Anvil::Buffer::create_nonsparse(m_device_ptr,
-                                                        ub_data_size,
+                                                        ub_data_size_total,
                                                         Anvil::QUEUE_FAMILY_COMPUTE_BIT | Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
                                                         VK_SHARING_MODE_EXCLUSIVE,
                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
@@ -478,13 +485,13 @@ void App::init_command_buffers()
         }
 
         /* Make sure CPU-written data is flushed before we start rendering */
-        Anvil::BufferBarrier buffer_barrier(VK_ACCESS_HOST_WRITE_BIT,    /* in_source_access_mask      */
-                                             VK_ACCESS_UNIFORM_READ_BIT, /* in_destination_access_mask */
-                                             universal_queue_ptr->get_queue_family_index(), /* in_src_queue_family_index  */
-                                             universal_queue_ptr->get_queue_family_index(), /* in_dst_queue_family_index  */
+        Anvil::BufferBarrier buffer_barrier(VK_ACCESS_HOST_WRITE_BIT,                               /* in_source_access_mask      */
+                                             VK_ACCESS_UNIFORM_READ_BIT,                            /* in_destination_access_mask */
+                                             universal_queue_ptr->get_queue_family_index(),         /* in_src_queue_family_index  */
+                                             universal_queue_ptr->get_queue_family_index(),         /* in_dst_queue_family_index  */
                                              m_data_buffer_ptr,
-                                             0, /* in_offset */
-                                             m_data_buffer_ptr->get_size() );
+                                             m_ub_data_size_per_swapchain_image * n_command_buffer, /* in_offset                  */
+                                             m_ub_data_size_per_swapchain_image);
 
         cmd_buffer_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_HOST_BIT,
                                                 VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
@@ -518,6 +525,7 @@ void App::init_command_buffers()
                                                  m_renderpass_ptr,
                                                  VK_SUBPASS_CONTENTS_INLINE);
         {
+            const uint32_t                         data_ub_offset          = static_cast<uint32_t>(m_ub_data_size_per_swapchain_image * n_command_buffer);
             std::shared_ptr<Anvil::DescriptorSet>  ds_ptr                  = m_dsg_ptr->get_descriptor_set                         (0 /* n_set */);
             const VkDeviceSize                     mesh_data_buffer_offset = 0;
             std::shared_ptr<Anvil::PipelineLayout> pipeline_layout_ptr     = gfx_pipeline_manager_ptr->get_graphics_pipeline_layout(m_pipeline_id);
@@ -536,8 +544,8 @@ void App::init_command_buffers()
                                                         0, /* firstSet */
                                                         1, /* setCount */
                                                        &ds_ptr,
-                                                        0,        /* dynamicOffsetCount */
-                                                        nullptr); /* pDynamicOffsets    */
+                                                        1,               /* dynamicOffsetCount */
+                                                       &data_ub_offset); /* pDynamicOffsets    */
 
             cmd_buffer_ptr->record_bind_vertex_buffers(0, /* startBinding */ 
                                                        1, /* bindingCount */
@@ -566,12 +574,14 @@ void App::init_dsgs()
 
     m_dsg_ptr->add_binding     (0, /* n_set     */
                                 0, /* n_binding */
-                                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
                                 1, /* n_elements */
                                 VK_SHADER_STAGE_VERTEX_BIT);
     m_dsg_ptr->set_binding_item(0, /* n_set     */
                                 0, /* n_binding */
-                                Anvil::DescriptorSet::UniformBufferBindingElement(m_data_buffer_ptr) );
+                                Anvil::DescriptorSet::DynamicUniformBufferBindingElement(m_data_buffer_ptr,
+                                                                                         0, /* in_start_offset */
+                                                                                         m_ub_data_size_per_swapchain_image) );
 }
 
 void App::init_events()
@@ -841,7 +851,7 @@ void App::init_vulkan()
     /* Create a Vulkan device */
     m_device_ptr = Anvil::SGPUDevice::create(m_physical_device_ptr,
                                              Anvil::DeviceExtensionConfiguration(),
-                                             std::vector<const char*>(), /* layers */
+                                             std::vector<std::string>(), /* layers                               */
                                              false,                      /* transient_command_buffer_allocs_only */
                                              false);                     /* support_resettable_command_buffers   */
 }
@@ -868,7 +878,7 @@ void App::run()
 }
 
 /** Updates the buffer memory, which holds position, rotation and size data for all triangles. */
-void App::update_data_ub_contents()
+void App::update_data_ub_contents(uint32_t in_n_swapchain_image)
 {
     struct
     {
@@ -897,7 +907,7 @@ void App::update_data_ub_contents()
         data.size             [n_triangle]         = 0.2f;
     }
 
-    m_data_buffer_ptr->write(0, /* start_offset */
+    m_data_buffer_ptr->write(in_n_swapchain_image * m_ub_data_size_per_swapchain_image, /* start_offset */
                              sizeof(data),
                             &data,
                              m_device_ptr.lock()->get_universal_queue(0) );

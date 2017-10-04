@@ -85,10 +85,11 @@ private:
 
     std::shared_ptr<Anvil::QueryPool> m_query_pool_ptr;
 
-    uint32_t                       m_n_bytes_per_counter;
+    uint32_t                       m_n_bytes_per_query;
     std::shared_ptr<Anvil::Buffer> m_query_bo_ptr;
     std::shared_ptr<Anvil::Event>  m_query_data_copied_event;
     std::shared_ptr<Anvil::Buffer> m_time_bo_ptr;
+    uint32_t                       m_time_n_bytes_per_swapchain_image;
 
     std::shared_ptr<Anvil::PrimaryCommandBuffer> m_render_tri1_and_generate_ot_data_cmd_buffers[N_SWAPCHAIN_IMAGES];
     std::shared_ptr<Anvil::PrimaryCommandBuffer> m_render_tri2_and_quad_cmd_buffers            [N_SWAPCHAIN_IMAGES];

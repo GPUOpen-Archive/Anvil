@@ -400,7 +400,7 @@ std::shared_ptr<Anvil::Queue> Anvil::BaseDevice::get_sparse_binding_queue(uint32
 
 /* Initializes a new Device instance */
 void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
-                             const std::vector<const char*>&     in_layers,
+                             const std::vector<std::string>&     in_layers,
                              bool                                in_transient_command_buffer_allocs_only,
                              bool                                in_support_resettable_command_buffer_allocs)
 {
@@ -413,49 +413,23 @@ void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
 
     /* If validation is enabled, retrieve names of all suported validation layers and
      * append them to the list of layers the user has alreaedy specified. **/
-    layers_final = in_layers;
+    for (auto current_layer : in_layers)
+    {
+        layers_final.push_back(current_layer.c_str() );
+    }
 
     if (is_validation_enabled)
     {
-        #ifdef VK_API_VERSION
+        if (is_layer_supported("VK_LAYER_LUNARG_standard_validation") )
         {
-            /* This is a backward-compatible solution, which should work for older SDK versions. */
-            const Anvil::Layers& physical_device_layers = physical_device_ptr->get_layers();
-
-            for (auto& current_physical_device_layer : physical_device_layers)
-            {
-                const std::string& current_layer_description = current_physical_device_layer.description;
-                const std::string& current_layer_name        = current_physical_device_layer.name;
-
-                if (current_layer_description == "LunarG Validation Layer" &&
-                    std::find(layers_final.begin(),
-                              layers_final.end(),
-                              current_layer_name) == layers_final.end() )
-                {
-                    layers_final.push_back(current_layer_name.c_str() );
-                }
-            }
+            layers_final.push_back("VK_LAYER_LUNARG_standard_validation");
         }
-        #else
+        else
         {
-            /* This is needed for SDK 1.0.11.0, likely future versions too. 
-             *
-             * NOTE: Older SDK versions used VK_LAYER_LUNARG_standard_validation, but the latest ones
-             *       appear to have switched to VK_LAYER_LUNARG_core_validation. Need to take this
-             *       into account here.
-             */
-            if (is_layer_supported("VK_LAYER_LUNARG_standard_validation") )
-            {
-                layers_final.push_back("VK_LAYER_LUNARG_standard_validation");
-            }
-            else
-            {
-                anvil_assert(is_layer_supported("VK_LAYER_LUNARG_core_validation") );
+            anvil_assert(is_layer_supported("VK_LAYER_LUNARG_core_validation") );
 
-                layers_final.push_back("VK_LAYER_LUNARG_core_validation");
-            }
+            layers_final.push_back("VK_LAYER_LUNARG_core_validation");
         }
-        #endif
     }
 
     /* Go through the extension struct, verify availability of the requested extensions,
@@ -757,7 +731,7 @@ Anvil::SGPUDevice::~SGPUDevice()
 /* Please see header for specification */
 std::weak_ptr<Anvil::SGPUDevice> Anvil::SGPUDevice::create(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
                                                            const DeviceExtensionConfiguration&  in_extensions,
-                                                           const std::vector<const char*>&      in_layers,
+                                                           const std::vector<std::string>&      in_layers,
                                                            bool                                 in_transient_command_buffer_allocs_only,
                                                            bool                                 in_support_resettable_command_buffer_allocs)
 {
@@ -1018,7 +992,7 @@ void Anvil::SGPUDevice::init_device()
 }
 
 /** Please see header for specification */
-bool Anvil::SGPUDevice::is_layer_supported(const char* in_layer_name) const
+bool Anvil::SGPUDevice::is_layer_supported(const std::string& in_layer_name) const
 {
     std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_parent_physical_device_ptr);
 
@@ -1026,7 +1000,7 @@ bool Anvil::SGPUDevice::is_layer_supported(const char* in_layer_name) const
 }
 
 /** Please see header for specification */
-bool Anvil::SGPUDevice::is_physical_device_extension_supported(const char* in_extension_name) const
+bool Anvil::SGPUDevice::is_physical_device_extension_supported(const std::string& in_extension_name) const
 {
     std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_parent_physical_device_ptr);
 
