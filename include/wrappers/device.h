@@ -296,6 +296,13 @@ namespace Anvil
                                                                         VkImageTiling                               in_tiling,
                                                                         std::vector<VkSparseImageFormatProperties>& out_result) const = 0;
 
+
+        /** Returns surface capabilities, as reported for physical device(s) which have been used to instantiate
+         *  this logical device instance.
+         **/
+        virtual bool get_physical_device_surface_capabilities(std::shared_ptr<Anvil::RenderingSurface> in_surface_ptr,
+                                                              VkSurfaceCapabilitiesKHR*                out_result_ptr) const = 0;
+
         /** Returns a pipeline cache, created specifically for this device.
          *
          *  @return As per description
@@ -716,6 +723,10 @@ namespace Anvil
                                                                 VkImageUsageFlags                           in_usage,
                                                                 VkImageTiling                               in_tiling,
                                                                 std::vector<VkSparseImageFormatProperties>& out_result) const override;
+
+        /** See documentation in BaseDevice for more details */
+        bool get_physical_device_surface_capabilities(std::shared_ptr<Anvil::RenderingSurface> in_surface_ptr,
+                                                      VkSurfaceCapabilitiesKHR*                out_result_ptr) const override;
 
         /** See documentation in BaseDevice for more details */
         const Anvil::QueueFamilyInfo* get_queue_family_info(uint32_t in_queue_family_index) const override;

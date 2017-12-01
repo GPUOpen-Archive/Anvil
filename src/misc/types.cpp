@@ -1738,7 +1738,8 @@ void Anvil::Utils::convert_queue_family_bits_to_family_indices(std::weak_ptr<Anv
 }
 
 /** Please see header for specification */
-VkAccessFlags Anvil::Utils::get_access_mask_from_image_layout(VkImageLayout in_layout)
+VkAccessFlags Anvil::Utils::get_access_mask_from_image_layout(VkImageLayout          in_layout,
+                                                              Anvil::QueueFamilyType in_queue_family_type)
 {
     VkAccessFlags result = 0;
 
@@ -1839,6 +1840,62 @@ VkAccessFlags Anvil::Utils::get_access_mask_from_image_layout(VkImageLayout in_l
         }
     }
 
+    switch (in_queue_family_type)
+    {
+        case Anvil::QUEUE_FAMILY_TYPE_COMPUTE:
+        {
+            result &= (VK_ACCESS_INDIRECT_COMMAND_READ_BIT |
+                       VK_ACCESS_MEMORY_READ_BIT           |
+                       VK_ACCESS_MEMORY_WRITE_BIT          |
+                       VK_ACCESS_SHADER_READ_BIT           |
+                       VK_ACCESS_SHADER_WRITE_BIT          |
+                       VK_ACCESS_TRANSFER_READ_BIT         |
+                       VK_ACCESS_TRANSFER_WRITE_BIT        |
+                       VK_ACCESS_UNIFORM_READ_BIT);
+
+            break;
+        }
+
+        case Anvil::QUEUE_FAMILY_TYPE_TRANSFER:
+        {
+            result &= (VK_ACCESS_MEMORY_READ_BIT    |
+                       VK_ACCESS_MEMORY_WRITE_BIT   |
+                       VK_ACCESS_TRANSFER_READ_BIT  |
+                       VK_ACCESS_TRANSFER_WRITE_BIT);
+
+            break;
+        }
+
+        case Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL:
+        {
+            result &= (VK_ACCESS_COLOR_ATTACHMENT_READ_BIT          |
+                       VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT         |
+                       VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT  |
+                       VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
+                       VK_ACCESS_INDIRECT_COMMAND_READ_BIT          |
+                       VK_ACCESS_INDEX_READ_BIT                     |
+                       VK_ACCESS_MEMORY_READ_BIT                    |
+                       VK_ACCESS_MEMORY_WRITE_BIT                   |
+                       VK_ACCESS_SHADER_READ_BIT                    |
+                       VK_ACCESS_SHADER_WRITE_BIT                   |
+                       VK_ACCESS_TRANSFER_READ_BIT                  |
+                       VK_ACCESS_TRANSFER_WRITE_BIT                 |
+                       VK_ACCESS_UNIFORM_READ_BIT                   |
+                       VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT);
+
+            break;
+        }
+
+        case Anvil::QUEUE_FAMILY_TYPE_UNDEFINED:
+        {
+            break;
+        }
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
 
     return result;
 }
@@ -2239,6 +2296,53 @@ const char* Anvil::Utils::get_raw_string(VkSampleCountFlagBits in_sample_count)
 }
 
 /* Please see header for specification */
+const char* Anvil::Utils::get_raw_string(Anvil::ShaderStage in_shader_stage)
+{
+    const char* result = "?";
+
+    switch (in_shader_stage)
+    {
+        case SHADER_STAGE_COMPUTE:                 result = "SHADER_STAGE_COMPUTE";                 break;
+        case SHADER_STAGE_FRAGMENT:                result = "SHADER_STAGE_FRAGMENT";                break;
+        case SHADER_STAGE_GEOMETRY:                result = "SHADER_STAGE_GEOMETRY";                break;
+        case SHADER_STAGE_TESSELLATION_CONTROL:    result = "SHADER_STAGE_TESSELLATION_CONTROL";    break;
+        case SHADER_STAGE_TESSELLATION_EVALUATION: result = "SHADER_STAGE_TESSELLATION_EVALUATION"; break;
+        case SHADER_STAGE_VERTEX:                  result = "SHADER_STAGE_VERTEX";                  break;
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
+
+    return result;
+}
+
+/* Please see header for specification */
+const char* Anvil::Utils::get_raw_string(VkShaderStageFlagBits in_shader_stage)
+{
+    const char* result = "?";
+
+    switch (in_shader_stage)
+    {
+        case VK_SHADER_STAGE_ALL_GRAPHICS:                result = "VK_SHADER_STAGE_ALL_GRAPHICS";                break;
+        case VK_SHADER_STAGE_COMPUTE_BIT:                 result = "VK_SHADER_STAGE_COMPUTE_BIT";                 break;
+        case VK_SHADER_STAGE_FRAGMENT_BIT:                result = "VK_SHADER_STAGE_FRAGMENT_BIT";                break;
+        case VK_SHADER_STAGE_GEOMETRY_BIT:                result = "VK_SHADER_STAGE_GEOMETRY_BIT";                break;
+        case VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT:    result = "VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT";    break;
+        case VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT: result = "VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT"; break;
+        case VK_SHADER_STAGE_VERTEX_BIT:                  result = "VK_SHADER_STAGE_VERTEX_BIT";                  break;
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
+
+    return result;
+}
+
+/* Please see header for specification */
 const char* Anvil::Utils::get_raw_string(VkSharingMode in_sharing_mode)
 {
     static const char* sharing_modes[] =
@@ -2269,6 +2373,29 @@ const char* Anvil::Utils::get_raw_string(VkStencilOp in_stencil_op)
         case VK_STENCIL_OP_INVERT:              result = "VK_STENCIL_OP_INVERT";              break;
         case VK_STENCIL_OP_INCREMENT_AND_WRAP:  result = "VK_STENCIL_OP_INCREMENT_AND_WRAP";  break;
         case VK_STENCIL_OP_DECREMENT_AND_WRAP:  result = "VK_STENCIL_OP_DECREMENT_AND_WRAP";  break;
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
+
+    return result;
+}
+
+/* Please see header for specification */
+VkShaderStageFlagBits Anvil::Utils::get_shader_stage_flag_bits_from_shader_stage(Anvil::ShaderStage in_shader_stage)
+{
+    VkShaderStageFlagBits result = VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
+
+    switch (in_shader_stage)
+    {
+        case Anvil::ShaderStage::SHADER_STAGE_COMPUTE:                 result = VK_SHADER_STAGE_COMPUTE_BIT;                 break;
+        case Anvil::ShaderStage::SHADER_STAGE_FRAGMENT:                result = VK_SHADER_STAGE_FRAGMENT_BIT;                break;
+        case Anvil::ShaderStage::SHADER_STAGE_GEOMETRY:                result = VK_SHADER_STAGE_GEOMETRY_BIT;                break;
+        case Anvil::ShaderStage::SHADER_STAGE_TESSELLATION_CONTROL:    result = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;    break;
+        case Anvil::ShaderStage::SHADER_STAGE_TESSELLATION_EVALUATION: result = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT; break;
+        case Anvil::ShaderStage::SHADER_STAGE_VERTEX:                  result = VK_SHADER_STAGE_VERTEX_BIT;                  break;
 
         default:
         {

@@ -41,7 +41,7 @@ namespace Anvil
     {
         /* Call-back issued whenever the originating renderpass becomes dirty
          *
-         * callback_arg: source RenderPass instance
+         * callback_arg: Pointer to OnRenderPassBakeNeededCallbackArgument instance.
          */
         RENDER_PASS_CALLBACK_ID_BAKING_NEEDED,
 

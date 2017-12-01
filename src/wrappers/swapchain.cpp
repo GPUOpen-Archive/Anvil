@@ -64,17 +64,11 @@ Anvil::Swapchain::Swapchain(std::weak_ptr<Anvil::BaseDevice>         in_device_p
     anvil_assert(in_parent_surface_ptr != nullptr);
     anvil_assert(in_usage_flags        != 0);
 
-    m_image_available_fence_ptrs.resize(in_n_images);
-    m_image_ptrs.resize                (in_n_images);
-    m_image_view_ptrs.resize           (in_n_images);
+    m_image_ptrs.resize     (in_n_images);
+    m_image_view_ptrs.resize(in_n_images);
 
-    for (uint32_t n_fence = 0;
-                  n_fence < in_n_images;
-                ++n_fence)
-    {
-        m_image_available_fence_ptrs[n_fence] = Anvil::Fence::create(m_device_ptr,
-                                                                     false /* create_signalled */);
-    }
+    m_image_available_fence_ptr = Anvil::Fence::create(m_device_ptr,
+                                                       false /* create_signalled */);
 
     init();
 
@@ -95,20 +89,26 @@ Anvil::Swapchain::~Swapchain()
         m_parent_surface_ptr = nullptr;
     }
 
-    m_image_ptrs.clear                ();
-    m_image_available_fence_ptrs.clear();
-    m_image_view_ptrs.clear           ();
+    m_image_ptrs.clear               ();
+    m_image_available_fence_ptr.reset();
+    m_image_view_ptrs.clear          ();
 
     for (auto queue_ptr : m_observed_queues)
     {
-        queue_ptr->unregister_from_callbacks(QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
-                                             on_present_request_issued,
-                                             this); /* in_user_arg */
+        queue_ptr->unregister_from_callbacks(
+            QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
+            std::bind(&Swapchain::on_present_request_issued,
+                      this),
+            this
+        );
     }
 
-    m_window_ptr->unregister_from_callbacks(WINDOW_CALLBACK_ID_ABOUT_TO_CLOSE,
-                                            on_parent_window_about_to_close,
-                                            this);
+    m_window_ptr->unregister_from_callbacks(
+        WINDOW_CALLBACK_ID_ABOUT_TO_CLOSE,
+        std::bind(&Swapchain::on_parent_window_about_to_close,
+                  this),
+        this
+    );
 }
 
 /** Please see header for specification */
@@ -132,9 +132,9 @@ uint32_t Anvil::Swapchain::acquire_image(std::shared_ptr<Anvil::Semaphore> in_op
 
         if (in_should_block)
         {
-            m_image_available_fence_ptrs.at(m_n_acquire_counter_rounded)->reset();
+            m_image_available_fence_ptr->reset();
 
-            fence_handle = m_image_available_fence_ptrs.at(m_n_acquire_counter_rounded)->get_fence();
+            fence_handle = m_image_available_fence_ptr->get_fence();
         }
 
         result_vk = m_khr_swapchain_entrypoints.vkAcquireNextImageKHR(device_locked_ptr->get_device_vk(),
@@ -156,24 +156,28 @@ uint32_t Anvil::Swapchain::acquire_image(std::shared_ptr<Anvil::Semaphore> in_op
 
             anvil_assert_vk_call_succeeded(result_vk);
         }
-
-        /* NOTE: Only bump the frame acquisition counter if we're not emulating a Vulkan swapchain */
-        m_n_acquire_counter++;
-        m_n_acquire_counter_rounded = (m_n_acquire_counter_rounded + 1) % m_n_swapchain_images;
     }
     else
     {
-        /* We need to set the semaphore manually in this scenario */
-        device_locked_ptr->get_universal_queue(0)->submit_command_buffer_with_signal_semaphores(nullptr, /* cmd_buffer_ptr         */
-                                                                                                1,       /* n_semaphores_to_signal */
-                                                                                               &in_opt_semaphore_ptr,
-                                                                                                true); /* should_block */
-    }
+        if (in_should_block)
+        {
+            vkDeviceWaitIdle(m_device_ptr.lock()->get_device_vk() );
+        }
 
-    if (is_offscreen_rendering_enabled)
-    {
+        if (in_opt_semaphore_ptr != nullptr)
+        {
+            /* We need to set the semaphore manually in this scenario */
+            device_locked_ptr->get_universal_queue(0)->submit_command_buffer_with_signal_semaphores(nullptr, /* cmd_buffer_ptr         */
+                                                                                                    1,       /* n_semaphores_to_signal */
+                                                                                                   &in_opt_semaphore_ptr,
+                                                                                                    true); /* should_block */
+        }
+
         result = m_n_acquire_counter_rounded;
     }
+
+    m_n_acquire_counter++;
+    m_n_acquire_counter_rounded = (m_n_acquire_counter_rounded + 1) % m_n_swapchain_images;
 
     m_last_acquired_image_index = result;
 
@@ -487,9 +491,12 @@ void Anvil::Swapchain::init()
 
         for (auto queue_ptr : queues)
         {
-            queue_ptr->register_for_callbacks(QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
-                                              on_present_request_issued,
-                                              this); /* in_user_arg */
+            queue_ptr->register_for_callbacks(
+                QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
+                std::bind(&Swapchain::on_present_request_issued,
+                          this),
+                this
+            );
 
             m_observed_queues.push_back(queue_ptr);
         }
@@ -498,37 +505,25 @@ void Anvil::Swapchain::init()
     /* Sign up for "about to close the parent window" notifications. Swapchain instance SHOULD be deinitialized
      * before the window is destroyed, so we're going to act as nice citizens.
      */
-    m_window_ptr->register_for_callbacks(WINDOW_CALLBACK_ID_ABOUT_TO_CLOSE,
-                                         on_parent_window_about_to_close,
-                                         this);
+    m_window_ptr->register_for_callbacks(
+        WINDOW_CALLBACK_ID_ABOUT_TO_CLOSE,
+        std::bind(&Swapchain::on_parent_window_about_to_close,
+                  this),
+        this
+    );
 }
 
 /** TODO */
-void Anvil::Swapchain::on_parent_window_about_to_close(void* in_window_ptr,
-                                                       void* in_swapchain_raw_ptr)
+void Anvil::Swapchain::on_parent_window_about_to_close()
 {
-    Anvil::Swapchain* swapchain_ptr = static_cast<Anvil::Swapchain*>(in_swapchain_raw_ptr);
-
-    ANVIL_REDUNDANT_ARGUMENT(in_window_ptr);
-    anvil_assert            (swapchain_ptr != nullptr);
-
-    if (swapchain_ptr->m_destroy_swapchain_before_parent_window_closes)
+    if (m_destroy_swapchain_before_parent_window_closes)
     {
-        swapchain_ptr->destroy_swapchain();
+        destroy_swapchain();
     }
 }
 
 /** TODO */
-void Anvil::Swapchain::on_present_request_issued(void* in_queue_raw_ptr,
-                                                 void* in_swapchain_raw_ptr)
+void Anvil::Swapchain::on_present_request_issued()
 {
-    Anvil::Swapchain* swapchain_ptr = static_cast<Anvil::Swapchain*>(in_swapchain_raw_ptr);
-
-    ANVIL_REDUNDANT_ARGUMENT(in_queue_raw_ptr);
-
-    if (swapchain_ptr->m_swapchain != VK_NULL_HANDLE)
-    {
-        /* Only bump the present counter if a real (ie. non-emulated) swapchain is being used. */
-        swapchain_ptr->m_n_present_counter++;
-    }
+    m_n_present_counter++;
 }

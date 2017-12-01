@@ -1373,7 +1373,7 @@ bool Anvil::CommandBufferBase::record_bind_descriptor_sets(VkPipelineBindPoint  
                                                            const uint32_t*                        in_dynamic_offset_ptrs)
 {
     /* Note: Command supported inside and outside the renderpass. */
-    VkDescriptorSet dss_vk[16];
+    VkDescriptorSet dss_vk[100];
     bool            result = false;
 
     anvil_assert(in_set_count < sizeof(dss_vk) / sizeof(dss_vk[0]) );
@@ -1512,7 +1512,7 @@ bool Anvil::CommandBufferBase::record_bind_vertex_buffers(uint32_t              
                                                           const VkDeviceSize*             in_offset_ptrs)
 {
     /* Note: Command supported inside and outside the renderpass. */
-    VkBuffer buffers[16];
+    VkBuffer buffers[100];
     bool     result = false;
 
     anvil_assert(in_binding_count < sizeof(buffers) / sizeof(buffers[0]) );
@@ -2647,9 +2647,9 @@ bool Anvil::CommandBufferBase::record_pipeline_barrier(VkPipelineStageFlags     
                                                        const ImageBarrier*  const in_image_memory_barriers_ptr)
 {
     /* NOTE: The command can be executed both inside and outside a renderpass */
-    VkBufferMemoryBarrier buffer_barriers_vk[16];
-    VkImageMemoryBarrier  image_barriers_vk [16];
-    VkMemoryBarrier       memory_barriers_vk[16];
+    VkBufferMemoryBarrier buffer_barriers_vk[100];
+    VkImageMemoryBarrier  image_barriers_vk [100];
+    VkMemoryBarrier       memory_barriers_vk[100];
     bool                  result = false;
 
     if (!m_recording_in_progress)
@@ -2678,17 +2678,17 @@ bool Anvil::CommandBufferBase::record_pipeline_barrier(VkPipelineStageFlags     
 
     if (get_n_of_callback_subscribers(COMMAND_BUFFER_CALLBACK_ID_PIPELINE_BARRIER_COMMAND_RECORDED) > 0)
     {
-        PipelineBarrierCommand                     command_data(in_src_stage_mask,
-                                                                in_dst_stage_mask,
-                                                                in_by_region,
-                                                                in_memory_barrier_count,
-                                                                in_memory_barriers_ptr,
-                                                                in_buffer_memory_barrier_count,
-                                                                in_buffer_memory_barriers_ptr,
-                                                                in_image_memory_barrier_count,
-                                                                in_image_memory_barriers_ptr);
-        PipelineBarrierCommandRecordedCallbackData callback_data(this,
-                                                                &command_data);
+        PipelineBarrierCommand                       command_data(in_src_stage_mask,
+                                                                  in_dst_stage_mask,
+                                                                  in_by_region,
+                                                                  in_memory_barrier_count,
+                                                                  in_memory_barriers_ptr,
+                                                                  in_buffer_memory_barrier_count,
+                                                                  in_buffer_memory_barriers_ptr,
+                                                                  in_image_memory_barrier_count,
+                                                                  in_image_memory_barriers_ptr);
+        OnPipelineBarrierCommandRecordedCallbackData callback_data(this,
+                                                                  &command_data);
 
         callback(COMMAND_BUFFER_CALLBACK_ID_PIPELINE_BARRIER_COMMAND_RECORDED,
                 &callback_data);
@@ -3322,10 +3322,10 @@ bool Anvil::CommandBufferBase::record_wait_events(uint32_t                      
 
 {
     /* NOTE: The command can be executed both inside and outside a renderpass */
-    VkEvent               events            [16];
-    VkBufferMemoryBarrier buffer_barriers_vk[16];
-    VkImageMemoryBarrier  image_barriers_vk [16];
-    VkMemoryBarrier       memory_barriers_vk[16];
+    VkEvent               events            [100];
+    VkBufferMemoryBarrier buffer_barriers_vk[100];
+    VkImageMemoryBarrier  image_barriers_vk [100];
+    VkMemoryBarrier       memory_barriers_vk[100];
     bool                  result = false;
 
     anvil_assert(in_event_count                 > 0); /* as per spec - easy to miss */
@@ -3649,7 +3649,7 @@ bool Anvil::PrimaryCommandBuffer::record_execute_commands(uint32_t              
                                                           std::shared_ptr<Anvil::SecondaryCommandBuffer>* in_cmd_buffer_ptrs)
 {
     /* NOTE: The command can be executed both inside and outside a renderpass */
-    VkCommandBuffer cmd_buffers[16];
+    VkCommandBuffer cmd_buffers[100];
     bool            result = false;
 
     anvil_assert(in_cmd_buffers_count < sizeof(cmd_buffers) / sizeof(cmd_buffers[0]) );
@@ -3817,9 +3817,6 @@ bool Anvil::SecondaryCommandBuffer::start_recording(bool                        
     bool                               result    = false;
     VkResult                           result_vk;
 
-    anvil_assert((in_occlusion_query_used_by_primary_command_buffer && in_required_occlusion_query_support_scope == OCCLUSION_QUERY_SUPPORT_SCOPE_NOT_REQUIRED) ||
-                 !in_occlusion_query_used_by_primary_command_buffer);
-
     if (m_recording_in_progress)
     {
         anvil_assert(!m_recording_in_progress);
@@ -3828,11 +3825,12 @@ bool Anvil::SecondaryCommandBuffer::start_recording(bool                        
     }
 
     command_buffer_inheritance_info.framebuffer          = (in_framebuffer_ptr                                != nullptr) ? in_framebuffer_ptr->get_framebuffer(in_render_pass_ptr) : VK_NULL_HANDLE;
-    command_buffer_inheritance_info.occlusionQueryEnable = (!in_occlusion_query_used_by_primary_command_buffer)           ? VK_TRUE                                                 : VK_FALSE;
+    command_buffer_inheritance_info.occlusionQueryEnable = (in_occlusion_query_used_by_primary_command_buffer)            ? VK_TRUE                                                 : VK_FALSE;
     command_buffer_inheritance_info.pipelineStatistics   = in_required_pipeline_statistics_scope;
     command_buffer_inheritance_info.pNext                = nullptr;
-    command_buffer_inheritance_info.queryFlags           = (in_required_occlusion_query_support_scope == OCCLUSION_QUERY_SUPPORT_SCOPE_REQUIRED_PRECISE) ? VK_QUERY_CONTROL_PRECISE_BIT          : 0u;
-    command_buffer_inheritance_info.renderPass           = (in_render_pass_ptr != nullptr)                                                               ? in_render_pass_ptr->get_render_pass() : VK_NULL_HANDLE;
+    command_buffer_inheritance_info.queryFlags           = (in_occlusion_query_used_by_primary_command_buffer                                                    &&
+                                                            in_required_occlusion_query_support_scope         == OCCLUSION_QUERY_SUPPORT_SCOPE_REQUIRED_PRECISE) ? VK_QUERY_CONTROL_PRECISE_BIT          : 0u;
+    command_buffer_inheritance_info.renderPass           = (in_render_pass_ptr                                != nullptr)                                        ? in_render_pass_ptr->get_render_pass() : VK_NULL_HANDLE;
     command_buffer_inheritance_info.sType                = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
     command_buffer_inheritance_info.subpass              = in_subpass_id;
 

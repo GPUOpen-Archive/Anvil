@@ -24,6 +24,9 @@
 #ifndef MISC_DEBUG_H
 #define MISC_DEBUG_H
 
+#include "misc/types.h"
+
+
 #ifdef _DEBUG
     #define anvil_assert(assertion)                  \
         if (!(assertion))                            \
@@ -58,9 +61,9 @@ namespace Anvil
      *  @param in_line     Line index
      *  @param in_message  Null-terminated text string holding the tokenized condition which failed.
      **/
-    typedef void (*PFNASSERTIONFAILEDCALLBACKPROC)(const char*  in_filename,
-                                                   unsigned int in_line,
-                                                   const char*  in_message);
+    typedef std::function< void(const char*  in_filename,
+                                unsigned int in_line,
+                                const char*  in_message)> AssertionFailedCallbackFunction;
 
     /** Assertion failure interceptor.
      *
@@ -78,10 +81,10 @@ namespace Anvil
     /** Modifies the assertion failure handler entry-point, which is going to be used by Anvil in case
      *  an assertion failure occurs.
      *
-     *  @param in_new_callback_func_ptr New entry-point to use. Must not be nullptr.
+     *  @param in_new_callback_func New entry-point to use. Must not be nullptr.
      *
      **/
-    void set_assertion_failure_handler(PFNASSERTIONFAILEDCALLBACKPROC in_new_callback_func_ptr);
+    void set_assertion_failure_handler(AssertionFailedCallbackFunction in_new_callback_func);
 };
 
 #endif /* MISC_DEBUG_H */

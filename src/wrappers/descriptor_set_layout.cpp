@@ -93,8 +93,13 @@ bool Anvil::DescriptorSetLayout::add_binding(uint32_t                           
                                            in_stage_flags,
                                            in_immutable_sampler_ptrs);
 
-    callback(DESCRIPTOR_SET_LAYOUT_CALLBACK_ID_BINDING_ADDED,
-             this);
+    {
+        OnNewBindingAddedToDescriptorSetLayoutCallbackArgument callback_argument(this);
+
+        callback(DESCRIPTOR_SET_LAYOUT_CALLBACK_ID_BINDING_ADDED,
+                &callback_argument);
+
+    }
 
     m_dirty = true;
     result  = true;

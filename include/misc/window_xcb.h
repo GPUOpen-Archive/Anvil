@@ -35,11 +35,11 @@ namespace Anvil
     {
     public:
         /* Public functions */
-        static std::shared_ptr<Anvil::Window> create(const std::string&     in_title,
-                                                     unsigned int           in_width,
-                                                     unsigned int           in_height,
-                                                     PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
-                                                     void*                  in_present_callback_func_user_arg);
+        static std::shared_ptr<Anvil::Window> create(const std::string&             in_title,
+                                                     unsigned int                   in_width,
+                                                     unsigned int                   in_height,
+                                                     bool                           in_closable,
+                                                     Anvil::PresentCallbackFunction in_present_callback_func);
 
         static std::shared_ptr<Anvil::Window> create(xcb_connection_t* in_connection_ptr,
                                                      WindowHandle      in_window_handle);
@@ -68,13 +68,13 @@ namespace Anvil
         }
 
     private:
-        WindowXcb(const std::string&     in_title,
-                  unsigned int           in_width,
-                  unsigned int           in_height,
-                  PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
-                  void*                  in_present_callback_func_user_arg);
-        WindowXcb(xcb_connection_t*      in_connection_ptr,
-                  WindowHandle           in_window_handle);
+        WindowXcb(const std::string&             in_title,
+                  unsigned int                   in_width,
+                  unsigned int                   in_height,
+                  bool                           in_closable,
+                  Anvil::PresentCallbackFunction in_present_callback_func);
+        WindowXcb(xcb_connection_t*              in_connection_ptr,
+                  WindowHandle                   in_window_handle);
 
         /** Creates a new system window and prepares it for usage. */
         bool init();

@@ -319,8 +319,9 @@ bool Anvil::Formats::get_format_aspects(VkFormat                         in_form
         out_aspects_ptr->push_back(VK_IMAGE_ASPECT_COLOR_BIT);
     }
 
-    if (format_layout == Anvil::COMPONENT_LAYOUT_D ||
-        format_layout == Anvil::COMPONENT_LAYOUT_DS)
+    if (format_layout == Anvil::COMPONENT_LAYOUT_D  ||
+        format_layout == Anvil::COMPONENT_LAYOUT_DS ||
+        format_layout == Anvil::COMPONENT_LAYOUT_XD)
     {
         out_aspects_ptr->push_back(VK_IMAGE_ASPECT_DEPTH_BIT);
     }

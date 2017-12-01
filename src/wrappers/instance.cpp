@@ -27,16 +27,14 @@
 #include "wrappers/physical_device.h"
 
 /** Please see header for specification */
-Anvil::Instance::Instance(const std::string&           in_app_name,
-                          const std::string&           in_engine_name,
-                          PFNINSTANCEDEBUGCALLBACKPROC in_opt_pfn_validation_callback_proc,
-                          void*                        in_validation_proc_user_arg)
+Anvil::Instance::Instance(const std::string&    in_app_name,
+                          const std::string&    in_engine_name,
+                          DebugCallbackFunction in_opt_validation_callback_function)
     :m_app_name                    (in_app_name),
      m_debug_callback_data         (0),
      m_engine_name                 (in_engine_name),
      m_global_layer                (""),
-     m_pfn_validation_callback_proc(in_opt_pfn_validation_callback_proc),
-     m_validation_proc_user_arg    (in_validation_proc_user_arg)
+     m_validation_callback_function(in_opt_validation_callback_function)
 {
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_INSTANCE,
                                                   this);
@@ -60,10 +58,9 @@ Anvil::Instance::~Instance()
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Instance> Anvil::Instance::create(const std::string&           in_app_name,
-                                                         const std::string&           in_engine_name,
-                                                         PFNINSTANCEDEBUGCALLBACKPROC in_opt_pfn_validation_callback_proc,
-                                                         void*                        in_validation_proc_user_arg)
+std::shared_ptr<Anvil::Instance> Anvil::Instance::create(const std::string&    in_app_name,
+                                                         const std::string&    in_engine_name,
+                                                         DebugCallbackFunction in_opt_validation_callback_proc)
 {
     std::shared_ptr<Anvil::Instance> new_instance_ptr;
 
@@ -71,8 +68,7 @@ std::shared_ptr<Anvil::Instance> Anvil::Instance::create(const std::string&     
         new Instance(
             in_app_name,
             in_engine_name,
-            in_opt_pfn_validation_callback_proc,
-            in_validation_proc_user_arg)
+            in_opt_validation_callback_proc)
     );
 
     new_instance_ptr->init();
@@ -100,11 +96,10 @@ VkBool32 VKAPI_PTR Anvil::Instance::debug_callback_pfn_proc(VkDebugReportFlagsEX
     ANVIL_REDUNDANT_ARGUMENT(in_msg_code);
     ANVIL_REDUNDANT_ARGUMENT(in_user_data);
 
-    return instance_ptr->m_pfn_validation_callback_proc(in_message_flags,
+    return instance_ptr->m_validation_callback_function(in_message_flags,
                                                         in_object_type,
                                                         in_layer_prefix_ptr,
-                                                        in_message_ptr,
-                                                        instance_ptr->m_validation_proc_user_arg);
+                                                        in_message_ptr);
 }
 
 /** Please see header for specification */
@@ -123,6 +118,8 @@ void Anvil::Instance::destroy()
     {
         m_physical_devices.back()->destroy();
     }
+
+    m_shader_module_cache_ptr.reset();
 }
 
 /** Enumerates and caches all layers supported by the Vulkan Instance. */
@@ -349,7 +346,7 @@ void Anvil::Instance::init()
         #endif
     };
 
-    if (m_pfn_validation_callback_proc != nullptr)
+    if (m_validation_callback_function != nullptr)
     {
         for (uint32_t n_extension = 0;
                       n_extension < sizeof(desired_extensions_with_validation) / sizeof(desired_extensions_with_validation[0]);
@@ -399,7 +396,7 @@ void Anvil::Instance::init()
 
         /* If validation is enabled and this is a layer which issues debug call-backs, cache it, so that
          * we can request for it at vkCreateInstance() call time */
-        if (m_pfn_validation_callback_proc != nullptr                  &&
+        if (m_validation_callback_function != nullptr                               &&
             std::find(layer_extensions.begin(),
                       layer_extensions.end(),
                       VK_EXT_DEBUG_REPORT_EXTENSION_NAME) != layer_extensions.end() )
@@ -440,7 +437,7 @@ void Anvil::Instance::init()
     /* Continue initializing */
     init_func_pointers();
 
-    if (m_pfn_validation_callback_proc != nullptr)
+    if (m_validation_callback_function != nullptr)
     {
         init_debug_callbacks();
     }

@@ -24,19 +24,19 @@
 #include "misc/window.h"
 
 /** Please see header for specification */
-Anvil::Window::Window(const std::string&     in_title,
-                      unsigned int           in_width,
-                      unsigned int           in_height,
-                      PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
-                      void*                  in_present_callback_func_user_arg)
-    :CallbacksSupportProvider        (WINDOW_CALLBACK_ID_COUNT),
-     m_height                        (in_height),
-     m_present_callback_func_ptr     (in_present_callback_func_ptr),
-     m_present_callback_func_user_arg(in_present_callback_func_user_arg),
-     m_title                         (in_title),
-     m_width                         (in_width),
-     m_window_should_close           (false),
-     m_window_close_finished         (false)
+Anvil::Window::Window(const std::string&      in_title,
+                      unsigned int            in_width,
+                      unsigned int            in_height,
+                      bool                    in_closable,
+                      PresentCallbackFunction in_present_callback_func)
+    :CallbacksSupportProvider(WINDOW_CALLBACK_ID_COUNT),
+     m_closable              (in_closable),
+     m_height                (in_height),
+     m_present_callback_func (in_present_callback_func),
+     m_title                 (in_title),
+     m_width                 (in_width),
+     m_window_should_close   (false),
+     m_window_close_finished (false)
 {
     /* Stub */
 }

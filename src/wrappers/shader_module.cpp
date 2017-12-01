@@ -105,9 +105,13 @@ Anvil::ShaderModule::~ShaderModule()
     destroy();
 
     /* Unregister from any callbacks we have subscribed for */
-    object_tracker_ptr->unregister_from_callbacks(Anvil::OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED,
-                                                  on_object_about_to_be_released,
-                                                  this);
+    object_tracker_ptr->unregister_from_callbacks(
+        Anvil::OBJECT_TRACKER_CALLBACK_ID_ON_DEVICE_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+        std::bind(&ShaderModule::on_object_about_to_be_released,
+                  this,
+                  std::placeholders::_1),
+        this
+    );
 }
 
 /** Please see header for specification */
@@ -262,26 +266,25 @@ bool Anvil::ShaderModule::init_from_spirv_blob(const char* in_spirv_blob,
     }
 
     /* Sign for device destruction notification, in which case we need to destroy the shader module. */
-    Anvil::ObjectTracker::get()->register_for_callbacks(Anvil::OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED,
-                                                        on_object_about_to_be_released,
-                                                        this);
+    Anvil::ObjectTracker::get()->register_for_callbacks(
+        Anvil::OBJECT_TRACKER_CALLBACK_ID_ON_DEVICE_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+        std::bind(&ShaderModule::on_object_about_to_be_released,
+                  this,
+                  std::placeholders::_1),
+        this
+    );
 
     return is_vk_call_successful(result_vk);
 }
 
 /** TODO */
-void Anvil::ShaderModule::on_object_about_to_be_released(void* in_callback_arg,
-                                                         void* in_shader_module_raw_ptr)
+void Anvil::ShaderModule::on_object_about_to_be_released(void* in_callback_arg_ptr)
 {
-    const ObjectTrackerOnObjectAboutToBeUnregisteredCallbackArg* callback_arg_ptr  = reinterpret_cast<const ObjectTrackerOnObjectAboutToBeUnregisteredCallbackArg*>(in_callback_arg);
-    Anvil::ShaderModule*                                         shader_module_ptr = reinterpret_cast<Anvil::ShaderModule*>                                        (in_shader_module_raw_ptr);
+    const auto callback_arg_ptr  = reinterpret_cast<const OnObjectAboutToBeUnregisteredCallbackArgument*>(in_callback_arg_ptr);
 
-    if (callback_arg_ptr->object_type == OBJECT_TYPE_DEVICE)
+    if (m_device_raw_ptr == callback_arg_ptr->object_raw_ptr)
     {
-        if (shader_module_ptr->m_device_raw_ptr == callback_arg_ptr->object_raw_ptr)
-        {
-            /* Make sure to release the shader module handle before we let the object actually proceed with destruction! */
-            shader_module_ptr->destroy();
-        }
+        /* Make sure to release the shader module handle before we let the object actually proceed with destruction! */
+        destroy();
     }
 }

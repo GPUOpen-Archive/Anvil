@@ -22,13 +22,15 @@
 #ifndef MISC_TYPES_H
 #define MISC_TYPES_H
 
+#include <array>
+#include <atomic>
 #include <cstdio>
 #include <forward_list>
 #include <mutex>
 #include <string>
 
 #include "config.h"
-
+#include "misc/debug.h"
 
 /* Disable some of the warnings we cannot work around because they are caused
  * by external dependencies (ie. Vulkan header)
@@ -523,10 +525,10 @@ namespace Anvil
     class  BaseDevice;
     class  Buffer;
     class  BufferView;
+    struct CallbackArgument;
     class  CommandBufferBase;
     class  CommandPool;
     class  ComputePipelineManager;
-    class  DAGRenderer;
     class  DescriptorPool;
     class  DescriptorSet;
     class  DescriptorSetGroup;
@@ -534,6 +536,7 @@ namespace Anvil
     class  Event;
     class  Fence;
     class  Framebuffer;
+    class  GLSLShaderToSPIRVGenerator;
     class  GraphicsPipelineManager;
     class  Image;
     class  ImageView;
@@ -1560,7 +1563,7 @@ namespace Anvil
         OBJECT_TYPE_SHADER_MODULE,
         OBJECT_TYPE_SWAPCHAIN,
 
-        /* For DOT serialization, we also need a handful of fake object types. */
+        OBJECT_TYPE_GLSL_SHADER_TO_SPIRV_GENERATOR,
         OBJECT_TYPE_GRAPHICS_PIPELINE,
 
         /* Always last */
@@ -1905,8 +1908,12 @@ namespace Anvil
                                                          uint32_t*                        out_opt_n_queue_family_indices_ptr);
 
         /** Returns an access mask which has all the access bits, relevant to the user-specified image layout,
-         *  enabled. */
-        VkAccessFlags get_access_mask_from_image_layout(VkImageLayout in_layout);
+         *  enabled.
+         *
+         *  The access mask can be further restricted to the specified queue family type.
+         */
+        VkAccessFlags get_access_mask_from_image_layout(VkImageLayout          in_layout,
+                                                        Anvil::QueueFamilyType in_queue_family_type = Anvil::QUEUE_FAMILY_TYPE_UNDEFINED);
 
         /** Converts a pair of VkMemoryPropertyFlags and VkMemoryHeapFlags bitfields to a corresponding Anvil::MemoryFeatureFlags
          *  enum.
@@ -2055,6 +2062,22 @@ namespace Anvil
          */
         const char* get_raw_string(VkSampleCountFlagBits in_sample_count);
 
+        /** Converts the specified Anvil::ShaderStage value to a raw string
+         *
+         *  @param in_shader_stage Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(Anvil::ShaderStage in_shader_stage);
+
+        /** Converts the specified VkShaderStageFlagBits value to a raw string
+         *
+         *  @param in_shader_stage Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(VkShaderStageFlagBits in_shader_stage);
+
         /** Converts the specified VkSharingMode value to a raw string
          *
          *  @param in_sharing_mode Input value.
@@ -2070,6 +2093,9 @@ namespace Anvil
          *  @return Non-NULL value if successful, NULL otherwise.
          */
         const char* get_raw_string(VkStencilOp in_stencil_op);
+
+        /* Returns Vulkan equivalent of @param in_shader_stage */
+        VkShaderStageFlagBits get_shader_stage_flag_bits_from_shader_stage(Anvil::ShaderStage in_shader_stage);
 
         /** Converts an Anvil::MemoryFeatureFlags value to a pair of corresponding Vulkan enum values.
          *

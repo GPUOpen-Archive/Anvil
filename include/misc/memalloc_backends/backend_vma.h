@@ -95,11 +95,8 @@ namespace Anvil
                  *
                  *  @param in_memory_block_ptr Raw pointer to the memory block which is about to be destroyed.
                  *                             Must NOT be null. Must be valid at call time.
-                 *  @param in_user_arg         Pointer to VMAAllocator instance owning the allocation. Must NOT
-                 *                             be null. Must be valid at call time.
                  */
-                static void on_vma_alloced_mem_block_gone_out_of_scope(Anvil::MemoryBlock* in_memory_block_ptr,
-                                                                       void*               in_user_arg);
+                void on_vma_alloced_mem_block_gone_out_of_scope(Anvil::MemoryBlock* in_memory_block_ptr);
 
             private:
                 /* Private functions */

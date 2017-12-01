@@ -39,7 +39,7 @@ namespace Anvil
     {
         /* Notification sent out whenever pool is reset.
          *
-         * Callback arg: originating DescriptorPool instance
+         * Callback arg: Pointer to OnDescriptorPoolResetCallbackArgument instance.
          */
         DESCRIPTOR_POOL_CALLBACK_ID_POOL_RESET,
 

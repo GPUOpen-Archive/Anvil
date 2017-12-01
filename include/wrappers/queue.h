@@ -41,7 +41,7 @@ namespace Anvil
     {
         /* Notification fired right after vkQueuePresentKHR() has been issued for a swapchain.
          *
-         * callback_arg: originating Queue instance ptr.
+         * callback_arg: Pointer to PresentRequestIssuedCallbackArgument instance.
          */
         QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
 
@@ -93,6 +93,12 @@ namespace Anvil
         uint32_t get_queue_family_index() const
         {
             return m_queue_family_index;
+        }
+
+        /** Retrieves index of the queue */
+        uint32_t get_queue_index() const
+        {
+            return m_queue_index;
         }
 
         /** Presents the specified swapchain image using this queue. This queue must support presentation
@@ -278,6 +284,7 @@ namespace Anvil
         VkQueue                          m_queue;
         uint32_t                         m_queue_family_index;
         uint32_t                         m_queue_index;
+        std::shared_ptr<Anvil::Fence>    m_submit_fence_ptr;
         bool                             m_supports_sparse_bindings;
     };
 }; /* namespace Anvil */
