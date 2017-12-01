@@ -114,8 +114,12 @@ bool Anvil::RenderPass::add_color_attachment(VkFormat                in_format,
     result = true;
 
     /* Notify the subscribers about the event */
-    callback(RENDER_PASS_CALLBACK_ID_BAKING_NEEDED,
-             this);
+    {
+        OnRenderPassBakeNeededCallbackArgument callback_argument(this);
+
+        callback(RENDER_PASS_CALLBACK_ID_BAKING_NEEDED,
+                &callback_argument);
+    }
 
 end:
     return result;
@@ -165,8 +169,12 @@ bool Anvil::RenderPass::add_dependency(SubPass*             in_destination_subpa
         m_dirty = true;
 
         /* Notify the subscribers about the event */
-        callback(RENDER_PASS_CALLBACK_ID_BAKING_NEEDED,
-                this);
+        {
+            OnRenderPassBakeNeededCallbackArgument callback_argument(this);
+
+            callback(RENDER_PASS_CALLBACK_ID_BAKING_NEEDED,
+                    &callback_argument);
+        }
     }
 
     return true;
@@ -446,8 +454,12 @@ bool Anvil::RenderPass::add_subpass_attachment(SubPassID              in_subpass
     result  = true;
 
     /* Notify the subscribers about the event */
-    callback(RENDER_PASS_CALLBACK_ID_BAKING_NEEDED,
-             this);
+    {
+        OnRenderPassBakeNeededCallbackArgument callback_argument(this);
+
+        callback(RENDER_PASS_CALLBACK_ID_BAKING_NEEDED,
+                &callback_argument);
+    }
 
 end:
     return result;
@@ -1387,8 +1399,12 @@ bool Anvil::RenderPass::set_subpass_graphics_pipeline_id(SubPassID          in_s
     result  = true;
 
     /* Notify the subscribers about the event */
-    callback(RENDER_PASS_CALLBACK_ID_BAKING_NEEDED,
-             this);
+    {
+        OnRenderPassBakeNeededCallbackArgument callback_argument(this);
+
+        callback(RENDER_PASS_CALLBACK_ID_BAKING_NEEDED,
+                &callback_argument);
+    }
 
 end:
     return result;

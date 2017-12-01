@@ -113,9 +113,13 @@ Anvil::Framebuffer::~Framebuffer()
                              nullptr /* pAllocator */);
 
         /* Carry on and release the renderpass the framebuffer had been baked for */
-        fb_iterator->first->unregister_from_callbacks(RENDER_PASS_CALLBACK_ID_BAKING_NEEDED,
-                                                      on_renderpass_changed,
-                                                      this);
+        fb_iterator->first->unregister_from_callbacks(
+            RENDER_PASS_CALLBACK_ID_BAKING_NEEDED,
+            std::bind(&Framebuffer::on_renderpass_changed,
+                      this,
+                      std::placeholders::_1),
+            this
+        );
     }
 
     m_baked_framebuffers.clear();
@@ -267,9 +271,13 @@ bool Anvil::Framebuffer::bake(std::shared_ptr<Anvil::RenderPass> in_render_pass_
     }
 
     /* If the render pass is ever changed, make sure we re-bake the framebuffer when needed */
-    in_render_pass_ptr->register_for_callbacks(RENDER_PASS_CALLBACK_ID_BAKING_NEEDED,
-                                               &on_renderpass_changed,
-                                               this);
+    in_render_pass_ptr->register_for_callbacks(
+        RENDER_PASS_CALLBACK_ID_BAKING_NEEDED,
+        std::bind(&Framebuffer::on_renderpass_changed,
+                  this,
+                  std::placeholders::_1),
+        this
+    );
 
     /* All done */
     result = true;
@@ -386,20 +394,16 @@ void Anvil::Framebuffer::get_size(uint32_t* out_framebuffer_width_ptr,
  *
  *  Marks the framebuffer as dirty, forcing the framebuffer to be rebaked next time it is used.
  *
- *  @param in_raw_renderpass_ptr  RenderPass instance which has invoked the call-back. Never nullptr.
- *  @param in_raw_framebuffer_ptr Framebuffer instance this call-back is fired against. Never nullptr.
- *
  **/
-void Anvil::Framebuffer::on_renderpass_changed(void* in_raw_renderpass_ptr,
-                                               void* in_raw_framebuffer_ptr)
+void Anvil::Framebuffer::on_renderpass_changed(CallbackArgument* in_callback_argument_ptr)
 {
-    Framebuffer*                framebuffer_ptr   = reinterpret_cast<Framebuffer*>(in_raw_framebuffer_ptr);
-    std::shared_ptr<RenderPass> renderpass_ptr    = std::shared_ptr<RenderPass>   (reinterpret_cast<RenderPass*>(in_raw_renderpass_ptr),
-                                                                                   Anvil::NullDeleter<RenderPass>() );
+    auto callback_argument_ptr = dynamic_cast<OnRenderPassBakeNeededCallbackArgument*>(in_callback_argument_ptr);
+    auto renderpass_ptr        = std::shared_ptr<RenderPass>                          (callback_argument_ptr->renderpass_ptr,
+                                                                                       Anvil::NullDeleter<RenderPass>() );
 
-    auto baked_fb_iterator = framebuffer_ptr->m_baked_framebuffers.find(renderpass_ptr);
+    auto baked_fb_iterator = m_baked_framebuffers.find(renderpass_ptr);
 
-    if (baked_fb_iterator == framebuffer_ptr->m_baked_framebuffers.end() )
+    if (baked_fb_iterator == m_baked_framebuffers.end() )
     {
         anvil_assert_fail();
 

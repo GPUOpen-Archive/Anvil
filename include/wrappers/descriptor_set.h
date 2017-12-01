@@ -880,10 +880,8 @@ namespace Anvil
         DescriptorSet           (const DescriptorSet&);
         DescriptorSet& operator=(const DescriptorSet&);
 
-        static void on_binding_added_to_layout(void* in_layout_raw_ptr,
-                                               void* in_ds_raw_ptr);
-        static void on_parent_pool_reset      (void* in_pool_raw_ptr,
-                                               void* in_ds_raw_ptr);
+        void on_binding_added_to_layout();
+        void on_parent_pool_reset      ();
 
         void alloc_bindings();
 

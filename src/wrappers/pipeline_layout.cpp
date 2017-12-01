@@ -30,8 +30,7 @@
 
 /** Please see header for specification */
 Anvil::PipelineLayout::PipelineLayout(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
-    :CallbacksSupportProvider  (PIPELINE_LAYOUT_CALLBACK_ID_COUNT),
-     DebugMarkerSupportProvider(in_device_ptr,
+    :DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_LAYOUT_EXT)
 {
 
@@ -51,8 +50,7 @@ Anvil::PipelineLayout::PipelineLayout(std::weak_ptr<Anvil::BaseDevice>          
                                       std::shared_ptr<Anvil::DescriptorSetGroup> in_dsg_ptr,
                                       const Anvil::PushConstantRanges&           in_push_constant_ranges,
                                       bool                                       in_is_immutable)
-    :CallbacksSupportProvider  (PIPELINE_LAYOUT_CALLBACK_ID_COUNT),
-     DebugMarkerSupportProvider(in_device_ptr,
+    :DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_LAYOUT_EXT)
 {
     m_device_ptr                  = in_device_ptr;
@@ -72,9 +70,6 @@ Anvil::PipelineLayout::PipelineLayout(std::weak_ptr<Anvil::BaseDevice>          
 /** Please see header for specification */
 Anvil::PipelineLayout::~PipelineLayout()
 {
-    callback(PIPELINE_LAYOUT_CALLBACK_ID_OBJECT_ABOUT_TO_BE_DELETED,
-             this);
-
     m_dsg_ptr = nullptr;
 
     Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_PIPELINE_LAYOUT,

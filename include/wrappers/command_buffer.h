@@ -37,6 +37,7 @@
 
 #include "misc/callbacks.h"
 #include "misc/debug_marker.h"
+#include "misc/io.h"
 #include "misc/types.h"
 
 #ifdef _DEBUG
@@ -287,26 +288,6 @@ namespace Anvil
             /* Stub */
         }
     } PipelineBarrierCommand;
-
-    /* Structure passed as a COMMAND_BUFFER_CALLBACK_ID_PIPELINE_BARRIER_COMMAND_RECORDED call-back argument */
-    typedef struct PipelineBarrierCommandRecordedCallbackData
-    {
-        CommandBufferBase*            command_buffer_ptr;
-        const PipelineBarrierCommand* command_details_ptr;
-
-        /** Constructor.
-         *
-         *  @param in_command_buffer_ptr  Command buffer instance the command is being recorded for.
-         *  @param in_command_details_ptr Structure holding all arguments to be passed to the vkCmdPipelineBarrier() call.
-         **/
-        explicit PipelineBarrierCommandRecordedCallbackData(CommandBufferBase*            in_command_buffer_ptr,
-                                                            const PipelineBarrierCommand* in_command_details_ptr)
-            :command_buffer_ptr (in_command_buffer_ptr),
-             command_details_ptr(in_command_details_ptr) 
-        {
-            /* Stub */
-        }
-    } PipelineBarrierCommandRecordedCallbackData;
 
     /** Implements base functionality of a command buffer object, such as common command registration
      *  support or validation. Also encapsulates command wrapper structure declarations.

@@ -36,40 +36,20 @@
 namespace Anvil
 {
     /** Prototype of a function, which renders frame contents & presents it */
-    typedef void (*PFNPRESENTCALLBACKPROC)(void* in_user_arg);
-
-    /* Structure passed as a WINDOW_CALLBACK_ID_KEYPRESS_RELEASED call-back argument */
-    typedef struct KeypressReleasedCallbackData
-    {
-        KeyID   released_key_id;
-        Window* window_ptr;
-
-        /** Constructor.
-         *
-         *  @param in_command_buffer_ptr  Command buffer instance the command is being recorded for.
-         *  @param in_command_details_ptr Structure holding all arguments to be passed to the vkCmdBeginRenderPass() call.
-         **/
-        explicit KeypressReleasedCallbackData(Window* in_window_ptr,
-                                              KeyID   in_released_key_id)
-            :released_key_id(in_released_key_id),
-             window_ptr     (in_window_ptr)
-        {
-            /* Stub */
-        }
-    } KeypressReleasedCallbackData;
+    typedef std::function<void()> PresentCallbackFunction;;
 
     /* Enumerates available window call-back types.*/
     enum WindowCallbackID
     {
         /* Call-back issued right before OS is requested to close the window.
          *
-         * callback_arg: pointer to the Window instance
+         * callback_arg: Pointer to OnWindowAboutToCloseCallbackArgument instance.
          */
         WINDOW_CALLBACK_ID_ABOUT_TO_CLOSE,
 
         /* Call-back issued when the user releases a pressed key.
          *
-         * callback_arg: pointer to a KeypressReleasedCallbackData instance.
+         * callback_arg: pointer to a OnKeypressReleasedCallbackArgument instance.
          **/
         WINDOW_CALLBACK_ID_KEYPRESS_RELEASED,
 
@@ -128,20 +108,21 @@ namespace Anvil
          *  A window instance should be created in the same thread, from which the run() function
          *  is going to be invoked.
          *
-         *  @param in_title                          Name to use for the window's title bar.
-         *  @param in_width                          Window's width. Note that this value should not exceed screen's width.
-         *  @param in_height                         Window's height. Note that this value should not exceed screen's height.
-         *  @param in_present_callback_func_ptr      Call-back to use in order to render & present the updated frame contents.
-         *                                           Must not be nullptr.
-         *  @param in_present_callback_func_user_arg Argument to pass to the @param in_present_callback_func_ptr call-back. May
-         *                                           be nullptr.
+         *  @param in_title                 Name to use for the window's title bar.
+         *  @param in_width                 Window's width. Note that this value should not exceed screen's width.
+         *  @param in_height                Window's height. Note that this value should not exceed screen's height.
+         *  @param in_closable              Tells if the user should be able to close the button. Depending on the OS,
+         *                                  this may translate to greyed out close button or close button clicks simply
+         *                                  being ignored.
+         *  @param in_present_callback_func Call-back to use in order to render & present the updated frame contents.
+         *                                  Must not be nullptr.
          *
          **/
-        Window(const std::string&     in_title,
-               unsigned int           in_width,
-               unsigned int           in_height,
-               PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
-               void*                  in_present_callback_func_user_arg);
+        Window(const std::string&      in_title,
+               unsigned int            in_width,
+               unsigned int            in_height,
+               bool                    in_closable,
+               PresentCallbackFunction in_present_callback_func);
 
         /** Closes the window and unblocks the thread executing the message pump. */
         virtual void close() { /* Stub */ }
@@ -199,18 +180,18 @@ namespace Anvil
 
     protected:
         /* protected variables */
-        PFNPRESENTCALLBACKPROC m_present_callback_func_ptr;
-        void*                  m_present_callback_func_user_arg;
+        PresentCallbackFunction m_present_callback_func;
 
-        unsigned int m_height;
-        std::string  m_title;
-        unsigned int m_width;
-        bool         m_window_should_close;
-        bool         m_window_close_finished;
+        bool            m_closable;
+        unsigned int    m_height;
+        std::string     m_title;
+        unsigned int    m_width;
+        volatile bool   m_window_should_close;
+        volatile bool   m_window_close_finished;
 
         /* Window handle */
-        WindowHandle m_window;
-        bool         m_window_owned;
+        WindowHandle    m_window;
+        bool            m_window_owned;
 
         /* protected functions */
         virtual ~Window();

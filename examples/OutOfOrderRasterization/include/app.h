@@ -59,14 +59,12 @@ private:
     void update_fps         ();
     void update_teapot_props(uint32_t n_current_swapchain_image);
 
-    static void     draw_frame            (void*                      app_raw_ptr);
-    static void     on_keypress_event     (void*                      callback_data_raw_ptr,
-                                           void*                      app_raw_ptr);
-    static VkBool32 on_validation_callback(VkDebugReportFlagsEXT      message_flags,
-                                           VkDebugReportObjectTypeEXT object_type,
-                                           const char*                layer_prefix,
-                                           const char*                message,
-                                           void*                      user_arg);
+    void     draw_frame            ();
+    void     on_keypress_event     (Anvil::CallbackArgument*   callback_data_raw_ptr);
+    VkBool32 on_validation_callback(VkDebugReportFlagsEXT      message_flags,
+                                    VkDebugReportObjectTypeEXT object_type,
+                                    const char*                layer_prefix,
+                                    const char*                message);
 
     /* Private variables */
     std::weak_ptr<Anvil::BaseDevice>         m_device_ptr;

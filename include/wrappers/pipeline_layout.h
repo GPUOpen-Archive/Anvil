@@ -41,20 +41,8 @@ namespace Anvil
 
     typedef std::vector<PushConstantRange> PushConstantRanges;
 
-    typedef enum
-    {
-        /* Notification fired when a pipeline layout instance is about to be deleted.
-         *
-         * callback_arg: originating PipelineLayout instance ptr.
-         */
-        PIPELINE_LAYOUT_CALLBACK_ID_OBJECT_ABOUT_TO_BE_DELETED,
-
-        PIPELINE_LAYOUT_CALLBACK_ID_COUNT
-    } PipelineLayoutCallbackID;
-
     /** Vulkan Pipeline Layout wrapper */
-    class PipelineLayout : public CallbacksSupportProvider,
-                           public DebugMarkerSupportProvider<PipelineLayout>
+    class PipelineLayout : public DebugMarkerSupportProvider<PipelineLayout>
     {
     public:
         /* Public functions */

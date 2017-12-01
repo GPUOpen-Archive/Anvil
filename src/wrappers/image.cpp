@@ -261,12 +261,17 @@ Anvil::Image::Image(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
 }
 
 /** Please see header for specification */
-void Anvil::Image::change_image_layout(std::shared_ptr<Anvil::Queue>  in_queue_ptr,
-                                       VkAccessFlags                  in_src_access_mask,
-                                       VkImageLayout                  in_src_layout,
-                                       VkAccessFlags                  in_dst_access_mask,
-                                       VkImageLayout                  in_dst_layout,
-                                       const VkImageSubresourceRange& in_subresource_range)
+void Anvil::Image::change_image_layout(std::shared_ptr<Anvil::Queue>            in_queue_ptr,
+                                       VkAccessFlags                            in_src_access_mask,
+                                       VkImageLayout                            in_src_layout,
+                                       VkAccessFlags                            in_dst_access_mask,
+                                       VkImageLayout                            in_dst_layout,
+                                       const VkImageSubresourceRange&           in_subresource_range,
+                                       const uint32_t                           in_opt_n_wait_semaphores,
+                                       const VkPipelineStageFlags*              in_opt_wait_dst_stage_mask_ptrs,
+                                       const std::shared_ptr<Anvil::Semaphore>* in_opt_wait_semaphore_ptrs,
+                                       const uint32_t                           in_opt_n_set_semaphores,
+                                       const std::shared_ptr<Anvil::Semaphore>* in_opt_set_semaphore_ptrs)
 {
     std::shared_ptr<Anvil::BaseDevice>           device_locked_ptr             (m_device_ptr);
     Anvil::QueueFamilyType                       in_queue_family_type          (Anvil::QUEUE_FAMILY_TYPE_UNDEFINED);
@@ -307,8 +312,13 @@ void Anvil::Image::change_image_layout(std::shared_ptr<Anvil::Queue>  in_queue_p
     }
     transition_command_buffer_ptr->stop_recording();
 
-    in_queue_ptr->submit_command_buffer(transition_command_buffer_ptr,
-                                        true /* should_block */);
+    in_queue_ptr->submit_command_buffer_with_signal_wait_semaphores(transition_command_buffer_ptr,
+                                                                    in_opt_n_set_semaphores,
+                                                                    in_opt_set_semaphore_ptrs,
+                                                                    in_opt_n_wait_semaphores,
+                                                                    in_opt_wait_semaphore_ptrs,
+                                                                    in_opt_wait_dst_stage_mask_ptrs,
+                                                                    true /* should_block */);
 }
 
 /** Please see header for specification */
@@ -654,7 +664,7 @@ std::shared_ptr<Anvil::MemoryBlock> Anvil::Image::get_memory_block()
 
     if (m_is_sparse)
     {
-        ImageCallbackIsAllocPendingQueryData callback_arg(shared_from_this() );
+        IsImageMemoryAllocPendingQueryCallbackArgument callback_arg(shared_from_this() );
 
         callback(IMAGE_CALLBACK_ID_IS_ALLOC_PENDING,
                 &callback_arg);
@@ -669,8 +679,10 @@ std::shared_ptr<Anvil::MemoryBlock> Anvil::Image::get_memory_block()
 
     if (is_callback_needed)
     {
+        OnMemoryBlockNeededForImageCallbackArgument callback_argument(shared_from_this() );
+
         callback_safe(IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
-                      this);
+                     &callback_argument);
     }
 
     return m_memory_block_ptr;
@@ -1365,8 +1377,8 @@ VkImageSubresourceRange Anvil::Image::get_subresource_range() const
 
     result.baseArrayLayer = 0;
     result.baseMipLevel   = 0;
-    result.layerCount     = m_n_layers;
-    result.levelCount     = m_n_mipmaps;
+    result.layerCount     = VK_REMAINING_ARRAY_LAYERS;
+    result.levelCount     = VK_REMAINING_MIP_LEVELS;
 
     return result;
 }

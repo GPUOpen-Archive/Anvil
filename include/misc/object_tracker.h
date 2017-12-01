@@ -32,7 +32,7 @@
  *  ObjectTracker::check_for_leaks() to determine, if there are any wrapper objects alive. If so,
  *  brief info on each such instance will be printed out to stdout.
  *
- *  Object Tracker is not thread-safe at the moment.
+ *  Object Tracker is thread-safe.
  **/
 #ifndef MISC_OBJECT_TRACKER_H
 #define MISC_OBJECT_TRACKER_H
@@ -47,9 +47,10 @@ namespace Anvil
     {
         /* Callback issued when a new Anvil object is instantiated
          *
-         * @param callback_arg ObjectTrackerOnObjectRegisteredCallbackArg structure instance
+         * @param callback_arg OnObjectRegisteredCallbackArgument structure instance
          **/
         OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_REGISTERED,
+
 
         /* Callback issued when an existing Anvil object instance is about to go out of scope.
          *
@@ -58,36 +59,24 @@ namespace Anvil
          * This callback MAY be issued FROM WITHIN the object's destructor, implying all WEAK POINTERS pointing
          * to the wrapper instance will have been expired at the time of the callback.
          *
-         * @param callback_arg ObjectTrackerOnObjectAboutToBeUnregisteredCallbackArg structure instance
+         * @param callback_arg OnObjectAboutToBeUnregisteredCallbackArgument structure instance
          **/
         OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED,
 
+        /* Specialized case of OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED.
+         *
+         * Uses the same callback argument.
+         */
+        OBJECT_TRACKER_CALLBACK_ID_ON_DEVICE_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+
+        /* Specialized case of OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED.
+         *
+         * Uses the same callback argument.
+         */
+        OBJECT_TRACKER_CALLBACK_ID_ON_PIPELINE_LAYOUT_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+
         OBJECT_TRACKER_CALLBACK_ID_COUNT,
     } ObjectTrackerCallbackID;
-
-    typedef struct ObjectTrackerOnObjectRegisteredCallbackArg
-    {
-        void*      object_raw_ptr;
-        ObjectType object_type;
-
-        ObjectTrackerOnObjectRegisteredCallbackArg()
-        {
-            object_raw_ptr = nullptr;
-            object_type    = OBJECT_TYPE_UNKNOWN;
-        }
-
-        ObjectTrackerOnObjectRegisteredCallbackArg(const ObjectType& in_object_type,
-                                                   void*             in_object_raw_ptr)
-        {
-            anvil_assert(in_object_raw_ptr != nullptr);
-
-            object_raw_ptr = in_object_raw_ptr;
-            object_type    = in_object_type;
-        }
-    } ObjectTrackerOnObjectRegisteredCallbackArg;
-
-    typedef ObjectTrackerOnObjectRegisteredCallbackArg ObjectTrackerOnObjectAboutToBeUnregisteredCallbackArg;
-
 
     class ObjectTracker : public CallbacksSupportProvider
     {
@@ -111,8 +100,8 @@ namespace Anvil
         void check_for_leaks() const;
 
         /** Retrieves an alive object of user-specified type at given index. */
-        const void* get_object_at_index(ObjectType in_object_type,
-                                        uint32_t   in_alloc_index) const;
+        void* get_object_at_index(ObjectType in_object_type,
+                                  uint32_t   in_alloc_index) const;
 
         /** Registers a new object of the specified type.
          *
@@ -140,8 +129,8 @@ namespace Anvil
 
         typedef struct ObjectAllocation
         {
-            uint32_t    n_allocation;
-            const void* object_ptr;
+            uint32_t n_allocation;
+            void*    object_ptr;
 
             /** Dummy constructor. Should only be used by STL */
             ObjectAllocation()
@@ -155,8 +144,8 @@ namespace Anvil
              *  @param in_n_allocation Index of the memory allocation.
              *  @param in_object_ptr   Pointer to the object.
              */
-            ObjectAllocation(uint32_t    in_n_allocation,
-                             const void* in_object_ptr)
+            ObjectAllocation(uint32_t in_n_allocation,
+                             void*    in_object_ptr)
             {
                 n_allocation = in_n_allocation;
                 object_ptr   = in_object_ptr;
@@ -179,8 +168,9 @@ namespace Anvil
         const char* get_object_type_name(ObjectType in_object_type) const;
 
         /* Private members */
-        ObjectAllocations m_object_allocations       [OBJECT_TYPE_COUNT];
-        uint32_t          m_n_objects_allocated_array[OBJECT_TYPE_COUNT];
+        mutable std::mutex m_cs;
+        ObjectAllocations  m_object_allocations       [OBJECT_TYPE_COUNT];
+        uint32_t           m_n_objects_allocated_array[OBJECT_TYPE_COUNT];
     };
 }; /* namespace Anvil */
 

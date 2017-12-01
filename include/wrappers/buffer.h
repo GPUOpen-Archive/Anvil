@@ -40,21 +40,6 @@
 
 namespace Anvil
 {
-    typedef struct BufferCallbackIsAllocPendingQueryData
-    {
-        explicit BufferCallbackIsAllocPendingQueryData(std::shared_ptr<Anvil::Buffer> in_buffer_ptr)
-            :buffer_ptr(in_buffer_ptr),
-             result    (false)
-        {
-            /* Stub */
-        }
-
-        BufferCallbackIsAllocPendingQueryData& operator=(const BufferCallbackIsAllocPendingQueryData&) = delete;
-
-        const std::shared_ptr<const Anvil::Buffer> buffer_ptr;
-        bool                                       result;
-    } BufferCallbackIsAllocPendingQueryData;
-
     /* Enumerates available buffer call-back types.*/
     enum BufferCallbackID
     {
@@ -67,7 +52,7 @@ namespace Anvil
          * This call-back is needed for memory allocator to support implicit bake operations
          * for sparse images.
          *
-         * callback_arg: BufferCallbackIsAllocPendingQueryData*
+         * callback_arg: Pointer to IsBufferMemoryAllocPendingQueryCallbackArgument instance.
          **/
         BUFFER_CALLBACK_ID_IS_ALLOC_PENDING,
 
@@ -76,7 +61,7 @@ namespace Anvil
          *
          * This call-back is needed by memory allocator in order to support implicit bake operations.
          *
-         * callback_arg: Calling back buffer instance;
+         * callback_arg: Pointer to OnMemoryBlockNeededForBufferCallbackArgument instance.
          **/
         BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
 

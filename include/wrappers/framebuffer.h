@@ -191,8 +191,7 @@ namespace Anvil
         Framebuffer& operator=(const Framebuffer&);
         Framebuffer           (const Framebuffer&);
 
-        static void on_renderpass_changed(void* in_raw_renderpass_ptr,
-                                          void* in_raw_framebuffer_ptr);
+        void on_renderpass_changed(Anvil::CallbackArgument* in_callback_argument_ptr);
 
         /* Private members */
         FramebufferAttachments           m_attachments;

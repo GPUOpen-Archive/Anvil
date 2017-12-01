@@ -136,7 +136,8 @@ namespace Anvil
 
         ShaderModuleCache();
 
-        void cache(std::shared_ptr<Anvil::ShaderModule> in_shader_module_ptr);
+        void cache               (std::shared_ptr<Anvil::ShaderModule> in_shader_module_ptr);
+        void update_subscriptions(bool                                 in_should_init);
 
         size_t get_hash(const char*        in_spirv_blob,
                         uint32_t           in_n_spirv_blob_bytes,
@@ -147,10 +148,8 @@ namespace Anvil
                         const std::string& in_te_entrypoint_name,
                         const std::string& in_vs_entrypoint_name) const;
 
-        static void on_object_about_to_be_released(void* in_callback_arg,
-                                                   void* in_shader_module_cache_raw_ptr);
-        static void on_object_registered          (void* in_callback_arg,
-                                                   void* in_shader_module_cache_raw_ptr);
+        void on_object_about_to_be_released(CallbackArgument* in_callback_arg_ptr);
+        void on_object_registered          (CallbackArgument* in_callback_arg_ptr);
 
         /* Private variables */
         std::mutex                     m_cs;

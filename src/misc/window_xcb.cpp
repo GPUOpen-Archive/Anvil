@@ -40,11 +40,11 @@ typedef struct
 
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Window> Anvil::WindowXcb::create(const std::string&     in_title,
-                                                        unsigned int           in_width,
-                                                        unsigned int           in_height,
-                                                        PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
-                                                        void*                  in_present_callback_func_user_arg)
+std::shared_ptr<Anvil::Window> Anvil::WindowXcb::create(const std::string&             in_title,
+                                                        unsigned int                   in_width,
+                                                        unsigned int                   in_height,
+                                                        bool                           in_closable,
+                                                        Anvil::PresentCallbackFunction in_present_callback_func)
 {
     std::shared_ptr<Anvil::WindowXcb> result_ptr;
 
@@ -52,8 +52,8 @@ std::shared_ptr<Anvil::Window> Anvil::WindowXcb::create(const std::string&     i
         new Anvil::WindowXcb(in_title,
                              in_width,
                              in_height,
-                             in_present_callback_func_ptr,
-                             in_present_callback_func_user_arg)
+                             in_closable,
+                             in_present_callback_func)
     );
 
     if (result_ptr)
@@ -89,16 +89,16 @@ std::shared_ptr<Anvil::Window> Anvil::WindowXcb::create(xcb_connection_t* in_con
 }
 
 /** Please see header for specification */
-Anvil::WindowXcb::WindowXcb(const std::string&     in_title,
-                            unsigned int           in_width,
-                            unsigned int           in_height,
-                            PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
-                            void*                  in_present_callback_func_user_arg)
+Anvil::WindowXcb::WindowXcb(const std::string&             in_title,
+                            unsigned int                   in_width,
+                            unsigned int                   in_height,
+                            bool                           in_closable,
+                            Anvil::PresentCallbackFunction in_present_callback_func)
     :Window(in_title,
             in_width,
             in_height,
-            in_present_callback_func_ptr,
-            in_present_callback_func_user_arg)
+            in_closable,
+            in_present_callback_func)
 {
     m_connection_ptr = nullptr;
     m_window_owned   = true;
@@ -108,10 +108,10 @@ Anvil::WindowXcb::WindowXcb(const std::string&     in_title,
 Anvil::WindowXcb::WindowXcb(xcb_connection_t*  in_connection_ptr,
                             WindowHandle       in_window_handle)
     :Window("",
-            0,        /* width                          */
-            0,        /* height                         */
-            nullptr,  /* present_callback_func_ptr      */
-            nullptr)  /* present_callback_func_user_arg */
+            0,        /* in_width                 */
+            0,        /* in_height                */
+            true,     /* in_closable              */
+            nullptr)  /* in_present_callback_func */
 {
     /* NOTE: Window title/size info is extracted at init time */
     m_connection_ptr = in_connection_ptr;
@@ -142,8 +142,10 @@ void Anvil::WindowXcb::close()
 
     if (!m_window_should_close)
     {
+        OnWindowAboutToCloseCallbackArgument callback_argument(this);
+
         callback(WINDOW_CALLBACK_ID_ABOUT_TO_CLOSE,
-                 this);
+                &callback_argument);
 
         m_window_should_close = true;
 
@@ -365,7 +367,8 @@ void Anvil::WindowXcb::run()
             {
                 case XCB_CLIENT_MESSAGE:
                 {
-                    if (reinterpret_cast<xcb_client_message_event_t*>(event_ptr)->data.data32[0] == m_atom_wm_delete_window_ptr->atom)
+                    if (reinterpret_cast<xcb_client_message_event_t*>(event_ptr)->data.data32[0] == m_atom_wm_delete_window_ptr->atom &&
+                        m_closable)
                     {
                         running = false;
                     }
@@ -382,11 +385,11 @@ void Anvil::WindowXcb::run()
                                                                                         const_cast<xcb_key_release_event_t*>(key_ptr),
                                                                                         0);
 
-                    KeypressReleasedCallbackData callback_data(this,
-                                                               static_cast<Anvil::KeyID>(sym));
+                    OnKeypressReleasedCallbackArgument callback_argument(this,
+                                                                         static_cast<Anvil::KeyID>(sym));
 
-                    this->callback(WINDOW_CALLBACK_ID_KEYPRESS_RELEASED,
-                                  &callback_data);
+                    callback(WINDOW_CALLBACK_ID_KEYPRESS_RELEASED,
+                            &callback_argument);
 
                     break;
                 }
@@ -400,7 +403,10 @@ void Anvil::WindowXcb::run()
 
                 case XCB_EXPOSE:
                 {
-                    m_present_callback_func_ptr(m_present_callback_func_user_arg);
+                    if (m_present_callback_func != nullptr)
+                    {
+                        m_present_callback_func();
+                    }
 
                     running = !m_window_should_close;
                     break;
@@ -416,7 +422,10 @@ void Anvil::WindowXcb::run()
         }
         else
         {
-            m_present_callback_func_ptr(m_present_callback_func_user_arg);
+            if (m_present_callback_func != nullptr)
+            {
+                m_present_callback_func();
+            }
 
             running = !m_window_should_close;
         }

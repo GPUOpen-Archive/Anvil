@@ -64,12 +64,11 @@ private:
     void get_scissor_viewport_info(VkRect2D*   out_scissors,
                                    VkViewport* out_viewports);
 
-    static void     draw_frame            (void*                      app_raw_ptr);
-    static VkBool32 on_validation_callback(VkDebugReportFlagsEXT      message_flags,
-                                           VkDebugReportObjectTypeEXT object_type,
-                                           const char*                layer_prefix,
-                                           const char*                message,
-                                           void*                      user_arg);
+    void     draw_frame            ();
+    VkBool32 on_validation_callback(VkDebugReportFlagsEXT      message_flags,
+                                    VkDebugReportObjectTypeEXT object_type,
+                                    const char*                layer_prefix,
+                                    const char*                message);
 
     /* Private variables */
     std::weak_ptr<Anvil::SGPUDevice>         m_device_ptr;

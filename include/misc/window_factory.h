@@ -48,22 +48,23 @@ namespace Anvil
 
         /* Creates a Window wrapper instance by opening a new system window.
          *
-         * @param in_platform                       Window platform to use. See WindowPlatform documentation
-         *                                          for more details.
-         * @param in_title                          Title to use for the new window.
-         * @param in_width                          Width of the new window.
-         * @param in_height                         Height of the new window.
-         * @param in_present_callback_func_ptr      Callback function to use for rendering frame contents.
-         * @param in_present_callback_func_user_arg User argument to pass with the callback function invocation.
+         * @param in_platform              Window platform to use. See WindowPlatform documentation
+         *                                 for more details.
+         * @param in_title                 Title to use for the new window.
+         * @param in_width                 Width of the new window.
+         * @param in_height                Height of the new window.
+         * @param in_closable              Should the "close button" of the window be accesible to the user? Depending on the OS,
+         *                                 this may translate to the button being greyed out or not reacting to the user's requests.
+         * @param in_present_callback_func Callback function to use for rendering frame contents.
          *
          * @return A new Window wrapper instance if successful, null otherwise.
          **/
-        static std::shared_ptr<Window> create_window(WindowPlatform         in_platform,
-                                                     const std::string&     in_title,
-                                                     unsigned int           in_width,
-                                                     unsigned int           in_height,
-                                                     PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
-                                                     void*                  in_present_callback_func_user_arg);
+        static std::shared_ptr<Window> create_window(WindowPlatform                 in_platform,
+                                                     const std::string&             in_title,
+                                                     unsigned int                   in_width,
+                                                     unsigned int                   in_height,
+                                                     bool                           in_closable,
+                                                     Anvil::PresentCallbackFunction in_present_callback_func);
 
         /* Creates a Window wrapper instance using app-managed window handle.
          *

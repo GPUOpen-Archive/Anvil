@@ -42,8 +42,7 @@
 namespace Anvil
 {
     /** "About to be deleted" call-back function prototype. */
-    typedef void (*PFNMEMORYBLOCKDESTRUCTIONCALLBACKPROC)(Anvil::MemoryBlock* in_memory_block_ptr,
-                                                          void*               in_user_arg);
+    typedef std::function<void (Anvil::MemoryBlock* in_memory_block_ptr)> OnMemoryBlockReleaseCallbackFunction;
 
     /** Wrapper class for memory objects. Please see header for more details */
     class MemoryBlock : public std::enable_shared_from_this<MemoryBlock>
@@ -86,15 +85,14 @@ namespace Anvil
          *
          *  TODO
          */
-        static std::shared_ptr<MemoryBlock> create_derived_with_custom_delete_proc(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
-                                                                                   VkDeviceMemory                        in_memory,
-                                                                                   uint32_t                              in_allowed_memory_bits,
-                                                                                   Anvil::MemoryFeatureFlags             in_memory_features,
-                                                                                   uint32_t                              in_memory_type_index,
-                                                                                   VkDeviceSize                          in_size,
-                                                                                   VkDeviceSize                          in_start_offset,
-                                                                                   PFNMEMORYBLOCKDESTRUCTIONCALLBACKPROC in_pfn_destroy_memory_block_proc,
-                                                                                   void*                                 in_destroy_memory_block_proc_user_arg);
+        static std::shared_ptr<MemoryBlock> create_derived_with_custom_delete_proc(std::weak_ptr<Anvil::BaseDevice>     in_device_ptr,
+                                                                                   VkDeviceMemory                       in_memory,
+                                                                                   uint32_t                             in_allowed_memory_bits,
+                                                                                   Anvil::MemoryFeatureFlags            in_memory_features,
+                                                                                   uint32_t                             in_memory_type_index,
+                                                                                   VkDeviceSize                         in_size,
+                                                                                   VkDeviceSize                         in_start_offset,
+                                                                                   OnMemoryBlockReleaseCallbackFunction in_on_release_callback_function);
 
         /** Releases the Vulkan counterpart and unregisters the wrapper instance from the object tracker */
         virtual ~MemoryBlock();
@@ -249,15 +247,14 @@ namespace Anvil
                     VkDeviceSize                 in_size);
 
         /** Please see create_derived_with_custom_delete_proc() for documentation */
-        MemoryBlock(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
-                    VkDeviceMemory                        in_memory,
-                    uint32_t                              in_allowed_memory_bits,
-                    Anvil::MemoryFeatureFlags             in_memory_features,
-                    uint32_t                              in_memory_type_index,
-                    VkDeviceSize                          in_size,
-                    VkDeviceSize                          in_start_offset,
-                    PFNMEMORYBLOCKDESTRUCTIONCALLBACKPROC in_pfn_destroy_memory_block_proc,
-                    void*                                 in_destroy_memory_block_proc_user_arg);
+        MemoryBlock(std::weak_ptr<Anvil::BaseDevice>    in_device_ptr,
+                    VkDeviceMemory                      in_memory,
+                    uint32_t                            in_allowed_memory_bits,
+                    Anvil::MemoryFeatureFlags           in_memory_features,
+                    uint32_t                            in_memory_type_index,
+                    VkDeviceSize                        in_size,
+                    VkDeviceSize                        in_start_offset,
+                   OnMemoryBlockReleaseCallbackFunction in_on_release_callback_function);
 
         MemoryBlock           (const MemoryBlock&);
         MemoryBlock& operator=(const MemoryBlock&);
@@ -265,17 +262,13 @@ namespace Anvil
         void     close_gpu_memory_access     ();
         uint32_t get_device_memory_type_index(uint32_t                  in_memory_type_bits,
                                               Anvil::MemoryFeatureFlags in_memory_features);
-        bool     open_gpu_memory_access      (VkDeviceSize              in_start_offset,
-                                              VkDeviceSize              in_size);
+        bool     open_gpu_memory_access      ();
 
         /* Private members */
-        void*                                 m_destroy_memory_block_proc_user_arg;
-        PFNMEMORYBLOCKDESTRUCTIONCALLBACKPROC m_pfn_destroy_memory_block_proc;
+        OnMemoryBlockReleaseCallbackFunction m_on_release_callback_function;
 
-        void*        m_gpu_data_ptr;
-        bool         m_gpu_data_user_mapped;
-        VkDeviceSize m_gpu_data_user_size;
-        VkDeviceSize m_gpu_data_user_start_offset;
+        std::atomic<uint32_t> m_gpu_data_map_count; /* Only set for root memory blocks */
+        void*                 m_gpu_data_ptr;       /* Only set for root memory blocks */
 
         uint32_t                            m_allowed_memory_bits;
         std::weak_ptr<Anvil::BaseDevice>    m_device_ptr;

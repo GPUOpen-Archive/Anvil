@@ -162,13 +162,14 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
      */
     for (auto& current_item_ptr : in_items)
     {
-        VkMemoryRequirements                memory_requirements_vk;
-        VmaMemoryRequirements               memory_requirements_vma;
-        std::shared_ptr<Anvil::MemoryBlock> new_memory_block_ptr;
-        VkMemoryHeapFlags                   required_mem_heap_flags     = 0;
-        VkMemoryPropertyFlags               required_mem_property_flags = 0;
-        uint32_t                            result_mem_type_index       = UINT32_MAX;
-        VkMappedMemoryRange                 result_mem_range;
+        VkMemoryRequirements                        memory_requirements_vk;
+        VmaMemoryRequirements                       memory_requirements_vma;
+        std::shared_ptr<Anvil::MemoryBlock>         new_memory_block_ptr;
+        Anvil::OnMemoryBlockReleaseCallbackFunction release_callback_function;
+        VkMemoryHeapFlags                           required_mem_heap_flags     = 0;
+        VkMemoryPropertyFlags                       required_mem_property_flags = 0;
+        uint32_t                                    result_mem_type_index       = UINT32_MAX;
+        VkMappedMemoryRange                         result_mem_range;
 
         Anvil::Utils::get_vk_property_flags_from_memory_feature_flags(current_item_ptr->alloc_memory_required_features,
                                                                      &required_mem_property_flags,
@@ -204,6 +205,12 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
         anvil_assert(result_mem_range.sType == VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE);
 
         /* Bake the block and stash it */
+        release_callback_function = std::bind(
+            &VMAAllocator::on_vma_alloced_mem_block_gone_out_of_scope,
+            m_vma_allocator_ptr,
+            std::placeholders::_1
+        );
+
         new_memory_block_ptr = Anvil::MemoryBlock::create_derived_with_custom_delete_proc(m_device_ptr,
                                                                                           result_mem_range.memory,
                                                                                           memory_requirements_vk.memoryTypeBits,
@@ -211,9 +218,7 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
                                                                                           result_mem_type_index,
                                                                                           memory_requirements_vk.size,
                                                                                           result_mem_range.offset,
-                                                                                          VMAAllocator::on_vma_alloced_mem_block_gone_out_of_scope,
-                                                                                          m_vma_allocator_ptr.get()
-        );
+                                                                                          release_callback_function);
 
         if (new_memory_block_ptr == nullptr)
         {
@@ -279,13 +284,9 @@ void Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::on_new_vma_mem_block_all
 }
 
 /** Please see header for specification */
-void Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::on_vma_alloced_mem_block_gone_out_of_scope(Anvil::MemoryBlock*              in_memory_block_ptr,
-                                                                                                   void*                            in_user_arg)
+void Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::on_vma_alloced_mem_block_gone_out_of_scope(Anvil::MemoryBlock* in_memory_block_ptr)
 {
     VkMappedMemoryRange mem_range;
-    VMAAllocator*       vma_allocator_ptr = reinterpret_cast<VMAAllocator*>(in_user_arg);
-
-    anvil_assert(vma_allocator_ptr != nullptr);
 
     /* Only physically deallocate those memory blocks that are not derivatives of another memory blocks! */
     if (in_memory_block_ptr->get_parent_memory_block() == nullptr)
@@ -296,17 +297,17 @@ void Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::on_vma_alloced_mem_block
         mem_range.size   = in_memory_block_ptr->get_size();
         mem_range.sType  = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
 
-        vmaFreeMemory(vma_allocator_ptr->get_handle(),
+        vmaFreeMemory(get_handle(),
                      &mem_range);
 
         /* Remove one cached pointer to the VMA wrapper class instance. This means that VMA instance
          * is going to be destroyed in case the vector's size reaches zero!
          */
-        anvil_assert(vma_allocator_ptr->m_refcount_helper.size() >= 1);
+        anvil_assert(m_refcount_helper.size() >= 1);
 
-        vma_allocator_ptr->m_refcount_helper.pop_back();
+        m_refcount_helper.pop_back();
 
-        /* WARNING: vma_allocator_ptr is potentially nullptr from this point onward!: */
+        /* WARNING: *this is potentially out of scope from this point onward!: */
     }
 }
 

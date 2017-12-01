@@ -260,10 +260,9 @@ void App::deinit()
     m_window_ptr.reset();
 }
 
-void App::draw_frame(void* app_raw_ptr)
+void App::draw_frame()
 {
-    App*                                         app_ptr                            = static_cast<App*>(app_raw_ptr);
-    std::shared_ptr<Anvil::BaseDevice>           device_locked_ptr                  = app_ptr->m_device_ptr.lock();
+    std::shared_ptr<Anvil::BaseDevice>           device_locked_ptr                  = m_device_ptr.lock();
     std::shared_ptr<Anvil::SGPUDevice>           sgpu_device_locked_ptr             = std::dynamic_pointer_cast<Anvil::SGPUDevice>(device_locked_ptr);
     static const VkPipelineStageFlags            dst_stage_mask                     = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
     const uint32_t                               n_physical_devices                 = 1;
@@ -274,21 +273,21 @@ void App::draw_frame(void* app_raw_ptr)
     const VkPipelineStageFlags                   wait_stage_mask                    = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
     /* Determine the signal + wait semaphores to use for drawing this frame */
-    app_ptr->m_n_last_semaphore_used = (app_ptr->m_n_last_semaphore_used + 1) % app_ptr->m_n_swapchain_images;
+    m_n_last_semaphore_used = (m_n_last_semaphore_used + 1) % m_n_swapchain_images;
 
-    auto&       curr_frame_signal_semaphores             = app_ptr->m_frame_signal_semaphore_bundles.at (app_ptr->m_n_last_semaphore_used);
-    const auto& curr_frame_wait_semaphores               = app_ptr->m_frame_wait_semaphore_bundles.at   (app_ptr->m_n_last_semaphore_used);
+    auto&       curr_frame_signal_semaphores             = m_frame_signal_semaphore_bundles.at (m_n_last_semaphore_used);
+    const auto& curr_frame_wait_semaphores               = m_frame_wait_semaphore_bundles.at   (m_n_last_semaphore_used);
     const auto& curr_frame_acqusition_wait_semaphore_ptr = curr_frame_wait_semaphores.semaphores.at(0);
     auto&       curr_frame_present_wait_semaphore_ptr    = curr_frame_signal_semaphores.semaphores.at(0);
 
     /* Determine the semaphore which the swapchain image */
-    n_swapchain_image = app_ptr->m_swapchain_ptr->acquire_image(curr_frame_acqusition_wait_semaphore_ptr,
-                                                                true); /* in_should_block */
+    n_swapchain_image = m_swapchain_ptr->acquire_image(curr_frame_acqusition_wait_semaphore_ptr,
+                                                       true); /* in_should_block */
 
     /* if the frame has already been rendered to in the past, then given the fact we use FIFO presentation mode,
      * we should be safe to extract the timestamps which must have been written by now.
      */
-    if (app_ptr->m_frame_drawn_status[n_swapchain_image])
+    if (m_frame_drawn_status[n_swapchain_image])
     {
         uint64_t timestamps[2]; /* top of pipe, bottom of pipe */
 
@@ -303,56 +302,56 @@ void App::draw_frame(void* app_raw_ptr)
         {
             auto current_physical_device_ptr = physical_devices_ptr[n_iteration];
 
-            app_ptr->m_query_results_buffer_ptr->read(n_swapchain_image * sizeof(uint64_t) * 2, /* top of pipe, bottom of pipe */
-                                                      sizeof(timestamps),
-                                                      timestamps);
+            m_query_results_buffer_ptr->read(n_swapchain_image * sizeof(uint64_t) * 2, /* top of pipe, bottom of pipe */
+                                             sizeof(timestamps),
+                                             timestamps);
 
             anvil_assert(timestamps[1] != timestamps[0]);
 
-            app_ptr->m_timestamp_deltas.push_back(timestamps[1] - timestamps[0]);
+            m_timestamp_deltas.push_back(timestamps[1] - timestamps[0]);
         }
 
-        if (app_ptr->m_timestamp_deltas.size() >= N_TIMESTAMP_DELTAS_PER_AVERAGE_FPS_CALCULATION)
+        if (m_timestamp_deltas.size() >= N_TIMESTAMP_DELTAS_PER_AVERAGE_FPS_CALCULATION)
         {
-            app_ptr->update_fps();
+            update_fps();
         }
     }
 
     /* Update the teapot properties data for the current swapchain image */
-    app_ptr->update_teapot_props(n_swapchain_image);
+    update_teapot_props(n_swapchain_image);
 
     /* Submit work chunks and present */
-    if (app_ptr->m_ooo_enabled)
+    if (m_ooo_enabled)
     {
-        render_cmdbuffer_ptr = app_ptr->m_render_cmdbuffers_ooo_on.at(n_swapchain_image);
+        render_cmdbuffer_ptr = m_render_cmdbuffers_ooo_on.at(n_swapchain_image);
     }
     else
     {
-        render_cmdbuffer_ptr = app_ptr->m_render_cmdbuffers_ooo_off.at(n_swapchain_image);
+        render_cmdbuffer_ptr = m_render_cmdbuffers_ooo_off.at(n_swapchain_image);
     }
 
-    app_ptr->m_present_queue_ptr->submit_command_buffer_with_signal_wait_semaphores(render_cmdbuffer_ptr,
-                                                                                    1, /* n_semaphores_to_signal */
-                                                                                   &curr_frame_present_wait_semaphore_ptr,
-                                                                                    1, /* n_semaphores_to_wait_on */
-                                                                                   &curr_frame_acqusition_wait_semaphore_ptr,
-                                                                                   &wait_stage_mask,
-                                                                                    false /* should_block */);
+    m_present_queue_ptr->submit_command_buffer_with_signal_wait_semaphores(render_cmdbuffer_ptr,
+                                                                           1, /* n_semaphores_to_signal */
+                                                                          &curr_frame_present_wait_semaphore_ptr,
+                                                                           1, /* n_semaphores_to_wait_on */
+                                                                          &curr_frame_acqusition_wait_semaphore_ptr,
+                                                                          &wait_stage_mask,
+                                                                           false /* should_block */);
 
-    app_ptr->m_present_queue_ptr->present(app_ptr->m_swapchain_ptr,
-                                          n_swapchain_image,
-                                          1, /* n_wait_semaphores */
-                                         &curr_frame_present_wait_semaphore_ptr);
+    m_present_queue_ptr->present(m_swapchain_ptr,
+                                 n_swapchain_image,
+                                 1, /* n_wait_semaphores */
+                                &curr_frame_present_wait_semaphore_ptr);
 
-    ++app_ptr->m_n_frames_drawn;
+    ++m_n_frames_drawn;
 
-    app_ptr->m_frame_drawn_status[n_swapchain_image] = true;
+    m_frame_drawn_status[n_swapchain_image] = true;
 
     #if defined(ENABLE_OFFSCREEN_RENDERING)
     {
-        if (app_ptr->m_n_frames_drawn >= N_FRAMES_TO_RENDER)
+        if (m_n_frames_drawn >= N_FRAMES_TO_RENDER)
         {
-            app_ptr->m_window_ptr->close();
+            m_window_ptr->close();
         }
     }
     #endif
@@ -1001,13 +1000,17 @@ void App::init_window()
                                                        "OutOfOrderRasterization example",
                                                        WINDOW_WIDTH,
                                                        WINDOW_HEIGHT,
-                                                       draw_frame,
-                                                       this);
+                                                       true, /* in_closable */
+                                                       std::bind(&App::draw_frame,
+                                                                 this) );
 
     /* Sign up for keypress notifications */
     m_window_ptr->register_for_callbacks(Anvil::WINDOW_CALLBACK_ID_KEYPRESS_RELEASED,
-                                         on_keypress_event,
-                                         this);
+                                         std::bind(&App::on_keypress_event,
+                                                   this,
+                                                   std::placeholders::_1),
+                                         this
+    );
 }
 
 void App::init_vulkan()
@@ -1016,11 +1019,15 @@ void App::init_vulkan()
     m_instance_ptr = Anvil::Instance::create("OutOfOrderRasterization",  /* app_name */
                                              "OutOfOrderRasterization",  /* engine_name */
 #ifdef ENABLE_VALIDATION
-                                             on_validation_callback,
+                                             std::bind(&App::on_validation_callback,
+                                                       this,
+                                                       std::placeholders::_1,
+                                                       std::placeholders::_2,
+                                                       std::placeholders::_3,
+                                                       std::placeholders::_4) );
 #else
-                                             nullptr,
+                                             nullptr);
 #endif
-                                             nullptr);   /* validation_proc_user_arg */
 
     /* Determine which extensions we need to request for */
     std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_instance_ptr->get_physical_device(0) );
@@ -1033,12 +1040,10 @@ void App::init_vulkan()
                                              false);                     /* support_resettable_command_buffers   */
 }
 
-void App::on_keypress_event(void* callback_data_raw_ptr,
-                            void* app_raw_ptr)
+void App::on_keypress_event(Anvil::CallbackArgument* callback_data_raw_ptr)
 {
-    App*                                 app_ptr           = static_cast<App*>                                (app_raw_ptr);
-    Anvil::KeypressReleasedCallbackData* callback_data_ptr = static_cast<Anvil::KeypressReleasedCallbackData*>(callback_data_raw_ptr);
-    std::shared_ptr<Anvil::BaseDevice>   device_locked_ptr = app_ptr->m_device_ptr.lock();
+    Anvil::OnKeypressReleasedCallbackArgument* callback_data_ptr = static_cast<Anvil::OnKeypressReleasedCallbackArgument*>(callback_data_raw_ptr);
+    std::shared_ptr<Anvil::BaseDevice>         device_locked_ptr = m_device_ptr.lock();
 
     #ifndef ENABLE_OFFSCREEN_RENDERING
     {
@@ -1048,15 +1053,15 @@ void App::on_keypress_event(void* callback_data_raw_ptr,
 
             if (device_locked_ptr->is_extension_enabled("VK_AMD_rasterization_order") )
             {
-                app_ptr->m_ooo_enabled = !app_ptr->m_ooo_enabled;
+                m_ooo_enabled = !m_ooo_enabled;
 
                 /* Note: this code should be wrapped in a critical section */
                 {
-                    app_ptr->m_timestamp_deltas.clear();
+                    m_timestamp_deltas.clear();
                 }
 
                 printf("[!] Now using %s rasterization order.\n\n",
-                       (app_ptr->m_ooo_enabled) ? "relaxed" : "strict");
+                       (m_ooo_enabled) ? "relaxed" : "strict");
             }
             else
             {
@@ -1066,7 +1071,7 @@ void App::on_keypress_event(void* callback_data_raw_ptr,
         else
         if (callback_data_ptr->released_key_id == 'r' || callback_data_ptr->released_key_id == 'R')
         {
-            app_ptr->m_should_rotate = !app_ptr->m_should_rotate;
+            m_should_rotate = !m_should_rotate;
         }
     }
     #endif
@@ -1075,8 +1080,7 @@ void App::on_keypress_event(void* callback_data_raw_ptr,
 VkBool32 App::on_validation_callback(VkDebugReportFlagsEXT      message_flags,
                                      VkDebugReportObjectTypeEXT object_type,
                                      const char*                layer_prefix,
-                                     const char*                message,
-                                     void*                      user_arg)
+                                     const char*                message)
 {
     if ((message_flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) != 0)
     {

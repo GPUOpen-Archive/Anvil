@@ -317,7 +317,6 @@ bool Anvil::RenderingSurface::init()
     const bool                         is_dummy_window_platform(window_platform == WINDOW_PLATFORM_DUMMY                     ||
                                                                 window_platform == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS);
 
-
     for (uint32_t n_physical_device = 0;
                   n_physical_device < n_physical_devices;
                 ++n_physical_device)
@@ -390,44 +389,37 @@ bool Anvil::RenderingSurface::init()
          * the logical device to present using the surface we've just spawned and the physical device user has specified? */
         const auto&                        queue_families        (device_locked_ptr->get_physical_device_queue_families() );
         std::shared_ptr<Anvil::SGPUDevice> sgpu_device_locked_ptr(std::dynamic_pointer_cast<Anvil::SGPUDevice>(device_locked_ptr) );
+        auto physical_device_locked_ptr = sgpu_device_locked_ptr->get_physical_device().lock();
+        auto physical_device_caps_ptr   = &m_physical_device_capabilities[0];
 
-        for (uint32_t n_physical_device = 0;
-                      n_physical_device < n_physical_devices;
-                    ++n_physical_device)
+        switch (m_type)
         {
-            std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(sgpu_device_locked_ptr->get_physical_device() );
-
-            auto& result_caps = m_physical_device_capabilities.at(0);
-
-            switch (m_type)
+            case Anvil::RENDERING_SURFACE_TYPE_GENERAL:
             {
-                case Anvil::RENDERING_SURFACE_TYPE_GENERAL:
+                for (uint32_t n_queue_family = 0;
+                              n_queue_family < static_cast<uint32_t>(queue_families.size() );
+                            ++n_queue_family)
                 {
-                    for (uint32_t n_queue_family = 0;
-                                  n_queue_family < static_cast<uint32_t>(queue_families.size() );
-                                ++n_queue_family)
+                    VkBool32 is_presentation_supported = VK_FALSE;
+
+                    result = vkGetPhysicalDeviceSurfaceSupportKHR(physical_device_locked_ptr->get_physical_device(),
+                                                                  n_queue_family,
+                                                                  m_surface,
+                                                                 &is_presentation_supported);
+
+                    if (is_vk_call_successful(result)         &&
+                        is_presentation_supported == VK_TRUE)
                     {
-                        VkBool32 is_presentation_supported = VK_FALSE;
-
-                        result = vkGetPhysicalDeviceSurfaceSupportKHR(physical_device_locked_ptr->get_physical_device(),
-                                                                      n_queue_family,
-                                                                      m_surface,
-                                                                     &is_presentation_supported);
-
-                        if (is_vk_call_successful(result)         &&
-                            is_presentation_supported == VK_TRUE)
-                        {
-                            result_caps.present_capable_queue_fams.push_back(n_queue_family);
-                        }
+                        physical_device_caps_ptr->present_capable_queue_fams.push_back(n_queue_family);
                     }
-
-                    break;
                 }
 
-                default:
-                {
-                    anvil_assert_fail();
-                }
+                break;
+            }
+
+            default:
+            {
+                anvil_assert_fail();
             }
         }
     }
@@ -443,8 +435,8 @@ bool Anvil::RenderingSurface::init()
             if (sgpu_device_locked_ptr->get_n_universal_queues() > 0)
             {
                 std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr = sgpu_device_locked_ptr->get_physical_device().lock();
-                auto&                                  result_caps                = m_physical_device_capabilities.at          (0);
-            
+                auto&                                  result_caps                = m_physical_device_capabilities[0];
+
                 result_caps.present_capable_queue_fams.push_back(sgpu_device_locked_ptr->get_universal_queue(0)->get_queue_family_index() );
             }
         }
