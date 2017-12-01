@@ -40,21 +40,21 @@ namespace Anvil
          *
          * NOTE: This function resets that last system error assigned to the calling thread.
          *
-         * @param in_title                          Title to use for the window.
-         * @param in_width                          New window's width. Must not be 0.
-         * @param in_height                         New window's height. Must not be 0.
-         * @param in_present_callback_func_ptr      Func pointer to a function which is going to render frame contents to
-         *                                          the swapchain image. Must not be null.
-         * @param in_present_callback_func_user_arg User-specific argument to be passed with @param in_present_callback_func_ptr
-         *                                          invocation. May be null.
+         * @param in_title                 Title to use for the window.
+         * @param in_width                 New window's width. Must not be 0.
+         * @param in_height                New window's height. Must not be 0.
+         * @param in_closable              Determines if window's close button should be greyed out, prohibiting
+         *                                 the user from being able to destroy the window on their own.
+         * @param in_present_callback_func Func pointer to a function which is going to render frame contents to
+         *                                 the swapchain image. Must not be null.
          *
          * @return New Anvil::Window instance if successful, or null otherwise.
          */
-        static std::shared_ptr<Anvil::Window> create(const std::string&     in_title,
-                                                     unsigned int           in_width,
-                                                     unsigned int           in_height,
-                                                     PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
-                                                     void*                  in_present_callback_func_user_arg);
+        static std::shared_ptr<Anvil::Window> create(const std::string&             in_title,
+                                                     unsigned int                   in_width,
+                                                     unsigned int                   in_height,
+                                                     bool                           in_closable,
+                                                     Anvil::PresentCallbackFunction in_present_callback_func);
 
         /* Creates a window wrapper instance from an existing window handle.
          *
@@ -98,17 +98,16 @@ namespace Anvil
     private:
         /* Private functions */
 
-        WindowWin3264(const std::string&     in_title,
-                      unsigned int           in_width,
-                      unsigned int           in_height,
-                      PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
-                      void*                  in_present_callback_func_user_arg);
-        WindowWin3264(HWND                   in_handle,
-                      const std::string&     in_title,
-                      unsigned int           in_width,
-                      unsigned int           in_height,
-                      PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
-                      void*                  in_present_callback_func_user_arg);
+        WindowWin3264(const std::string&             in_title,
+                      unsigned int                   in_width,
+                      unsigned int                   in_height,
+                      bool                           in_closable,
+                      Anvil::PresentCallbackFunction in_present_callback_func);
+        WindowWin3264(HWND                           in_handle,
+                      const std::string&             in_title,
+                      unsigned int                   in_width,
+                      unsigned int                   in_height,
+                      PresentCallbackFunction        in_present_callback_func);
 
         /** Creates a new system window and prepares it for usage. */
         bool init();

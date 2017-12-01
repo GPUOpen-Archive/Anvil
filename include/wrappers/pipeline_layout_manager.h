@@ -97,8 +97,8 @@ namespace Anvil
          **/
         static std::shared_ptr<PipelineLayoutManager> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
 
-        static void on_pipeline_layout_dropped(void* in_callback_arg,
-                                               void* in_user_arg);
+        void on_pipeline_layout_dropped();
+        void update_subscriptions      (bool in_should_init);
 
         /* Private members */
         std::weak_ptr<Anvil::BaseDevice> m_device_ptr;

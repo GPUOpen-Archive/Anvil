@@ -29,6 +29,7 @@
 #define MISC_GLSL_TO_SPIRV_H
 
 #include "config.h"
+#include "misc/callbacks.h"
 #include "misc/debug.h"
 #include "misc/types.h"
 #include <map>
@@ -82,10 +83,21 @@ namespace Anvil
         };
     #endif
 
+    typedef enum
+    {
+        /* Call-back issued right before the conversion starts.
+         *
+         * @param callback_arg OnGLSLToSPIRVConversionAboutToBeStartedCallbackArgument instance.
+         */
+        GLSL_SHADER_TO_SPIRV_GENERATOR_CALLBACK_ID_CONVERSION_ABOUT_TO_START,
+
+        GLSL_SHADER_TO_SPIRV_GENERATOR_CALLBACK_ID_COUNT
+    } GLSLShaderToSPIRVGeneratorCallbackID;
+
     /** Loads a GLSL shader from the file specified at creation time, customizes it with a user-specified set of #defines,
      *  and then converts the source code to a SPIR-V blob.
      **/
-    class GLSLShaderToSPIRVGenerator
+    class GLSLShaderToSPIRVGenerator : public CallbacksSupportProvider
     {
     public:
         /* Public type definitions */
@@ -107,17 +119,17 @@ namespace Anvil
 
         /** Creates a new GLSLShaderToSPIRVGenerator instance.
          *
-         *  @param in_device_ptr   Logical device, whose limit values should be passed to glslang. Must not
-         *                         be NULL.
-         *  @param in_mode         Defines type of contents specified under @param in_data.
-         *  @param in_data         If @param in_mode is MODE_LOAD_SOURCE_FROM_FILE, @param in_data holds the name
-         *                         of the file (possibly including path) where the GLSL source code is stored.
-         *                         If @param in_mode is MODE_USE_SPECIFIED_SOURCE, @param in_data holds GLSL source code
-         *                         which should be used. This mode is NOT supported if ANVIL_LINK_WITH_GLSLANG
-         *                         macro is undefined.
-         *  @param in_shader_stage Shader stage described by the file.
+         *  @param in_opt_device_ptr Logical device, whose limit values should be passed to glslang. May be null
+         *                           if the object is only intended to be used for forming GLSL source code.
+         *  @param in_mode           Defines type of contents specified under @param in_data.
+         *  @param in_data           If @param in_mode is MODE_LOAD_SOURCE_FROM_FILE, @param in_data holds the name
+         *                           of the file (possibly including path) where the GLSL source code is stored.
+         *                           If @param in_mode is MODE_USE_SPECIFIED_SOURCE, @param in_data holds GLSL source code
+         *                           which should be used. This mode is NOT supported if ANVIL_LINK_WITH_GLSLANG
+         *                           macro is undefined.
+         *  @param in_shader_stage   Shader stage described by the file.
          **/
-         static std::shared_ptr<GLSLShaderToSPIRVGenerator> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+         static std::shared_ptr<GLSLShaderToSPIRVGenerator> create(std::weak_ptr<Anvil::BaseDevice> in_opt_device_ptr,
                                                                    const Mode&                      in_mode,
                                                                    std::string                      in_data,
                                                                    ShaderStage                      in_shader_stage);
@@ -240,11 +252,16 @@ namespace Anvil
           * Otherwise, an assertion failure will occur, as the returned string will have a size of 0.
           *
           */
-         const std::string& get_glsl_source_code() const
+         const std::string& get_glsl_source_code()
          {
-             anvil_assert(m_final_glsl_source_code.size() != 0);
+             if (m_glsl_source_code_dirty)
+             {
+                 bake_glsl_source_code();
 
-             return m_final_glsl_source_code;
+                 anvil_assert(!m_glsl_source_code_dirty);
+             }
+
+             return m_glsl_source_code;
          }
 
          /** Tells what shader stage the encapsulated GLSL shader descirbes. */
@@ -309,6 +326,8 @@ namespace Anvil
                                             std::string                      in_data,
                                             ShaderStage                      in_shader_stage);
 
+        bool bake_glsl_source_code();
+
         #ifdef ANVIL_LINK_WITH_GLSLANG
             bool        bake_spirv_blob_by_calling_glslang(const char* in_body);
             EShLanguage get_glslang_shader_stage          () const;
@@ -319,15 +338,17 @@ namespace Anvil
 
         /* Private members */
         #ifdef ANVIL_LINK_WITH_GLSLANG
-            GLSLangLimits m_limits;
-            std::string   m_program_info_log;
-            std::string   m_shader_info_log;
+            std::unique_ptr<GLSLangLimits> m_limits_ptr;
+            std::string                    m_program_info_log;
+            std::string                    m_shader_info_log;
         #endif
 
         std::string m_data;
         Mode        m_mode;
 
-        std::string       m_final_glsl_source_code;
+        std::string       m_glsl_source_code;
+        bool              m_glsl_source_code_dirty;
+
         ShaderStage       m_shader_stage;
         std::vector<char> m_spirv_blob;
 

@@ -261,12 +261,19 @@ Anvil::DescriptorSet::DescriptorSet(std::weak_ptr<Anvil::BaseDevice>            
 {
     alloc_bindings();
 
-    in_layout_ptr->register_for_callbacks    (Anvil::DESCRIPTOR_SET_LAYOUT_CALLBACK_ID_BINDING_ADDED,
-                                              on_binding_added_to_layout,
-                                              this);
-    m_parent_pool_ptr->register_for_callbacks(Anvil::DESCRIPTOR_POOL_CALLBACK_ID_POOL_RESET,
-                                              on_parent_pool_reset,
-                                              this);
+    in_layout_ptr->register_for_callbacks(
+        Anvil::DESCRIPTOR_SET_LAYOUT_CALLBACK_ID_BINDING_ADDED,
+        std::bind(&DescriptorSet::on_binding_added_to_layout,
+                  this),
+        this
+    );
+
+    m_parent_pool_ptr->register_for_callbacks(
+        Anvil::DESCRIPTOR_POOL_CALLBACK_ID_POOL_RESET,
+        std::bind(&DescriptorSet::on_parent_pool_reset,
+                  this),
+        this
+    );
 
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_DESCRIPTOR_SET,
                                                  this);
@@ -758,42 +765,26 @@ end:
  *  This will resize a number of internally managed vectors.
  *
  *  @param layout_raw_ptr Ignored.
- *  @param ds_raw_ptr     Pointer to a DescriptorSet instance which uses the modified layout as the parent.
- *                        Never nullptr.
  *
  **/
-void Anvil::DescriptorSet::on_binding_added_to_layout(void* in_layout_raw_ptr,
-                                                      void* in_ds_raw_ptr)
+void Anvil::DescriptorSet::on_binding_added_to_layout()
 {
-    Anvil::DescriptorSet* ds_ptr = static_cast<Anvil::DescriptorSet*>(in_ds_raw_ptr);
-
-    ANVIL_REDUNDANT_ARGUMENT(in_layout_raw_ptr);
-
-    ds_ptr->alloc_bindings();
+    alloc_bindings();
 }
 
 /** Called back whenever parent descriptor pool is reset.
  *
  *  Resets m_descriptor_set back to VK_NULL_HANDLE and marks the descriptor set as unusable.
  *
- *  @param pool_raw_ptr Ignored.
- *  @param ds_raw_ptr   Affected DescriptorSet instance. Never nullptr.
- *
  **/
-void Anvil::DescriptorSet::on_parent_pool_reset(void* in_pool_raw_ptr,
-                                                void* in_ds_raw_ptr)
+void Anvil::DescriptorSet::on_parent_pool_reset()
 {
-    Anvil::DescriptorSet* ds_ptr = static_cast<Anvil::DescriptorSet*>(in_ds_raw_ptr);
-
-    ANVIL_REDUNDANT_ARGUMENT(in_ds_raw_ptr);
-    ANVIL_REDUNDANT_ARGUMENT(in_pool_raw_ptr);
-
     /* This descriptor set instance is no longer usable.
      *
      * To restore functionality, a new Vulkan DS handle should be assigned to this instance
      * by calling set_new_vk_handle() */
-    ds_ptr->m_descriptor_set = VK_NULL_HANDLE;
-    ds_ptr->m_unusable       = true;
+    m_descriptor_set = VK_NULL_HANDLE;
+    m_unusable       = true;
 }
 
 /** Please see header for specification */

@@ -95,7 +95,8 @@ void Anvil::BaseDevice::destroy()
     m_pipeline_layout_manager_ptr   = nullptr;
 
     /* Proceed with device-specific instances */
-    m_queue_fams.clear();
+    m_queue_fams.clear           ();
+    m_sparse_binding_queues.clear();
 
     for (Anvil::QueueFamilyType queue_family_type = Anvil::QUEUE_FAMILY_TYPE_FIRST;
                                 queue_family_type < Anvil::QUEUE_FAMILY_TYPE_COUNT + 1;
@@ -954,6 +955,15 @@ bool Anvil::SGPUDevice::get_physical_device_sparse_image_format_properties(VkFor
     }
 
     return true;
+}
+
+/* Please see header for specification */
+bool Anvil::SGPUDevice::get_physical_device_surface_capabilities(std::shared_ptr<Anvil::RenderingSurface> in_surface_ptr,
+                                                                 VkSurfaceCapabilitiesKHR*                out_result_ptr) const
+{
+    return (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_parent_physical_device_ptr.lock()->get_physical_device(),
+                                                      in_surface_ptr->get_surface(),
+                                                      out_result_ptr) == VK_SUCCESS);
 }
 
 /* Please see header for specification */

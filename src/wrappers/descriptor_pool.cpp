@@ -247,8 +247,10 @@ bool Anvil::DescriptorPool::reset()
         {
             /* Alloced descriptor sets went out of scope. Send out a call-back, so that descriptor set
              * wrapper instances can mark themselves as unusable */
+            OnDescriptorPoolResetCallbackArgument callback_argument(this);
+
             callback(DESCRIPTOR_POOL_CALLBACK_ID_POOL_RESET,
-                     this);
+                    &callback_argument);
         }
     }
     else

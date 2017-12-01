@@ -60,8 +60,8 @@ Result XCBLoader::init()
 
     if (m_initialized == false)
     {
-        // resolve symbols from libxcb-keysyms.so
-        m_library_handles[XCB_LOADER_LIBRARIES_XCB_KEYSYMS] = dlopen("libxcb-keysyms.so",
+        // resolve symbols from libxcb-keysyms.so.1
+        m_library_handles[XCB_LOADER_LIBRARIES_XCB_KEYSYMS] = dlopen("libxcb-keysyms.so.1",
                                                                      RTLD_LAZY);
 
         if (m_library_handles[XCB_LOADER_LIBRARIES_XCB_KEYSYMS] == nullptr)
@@ -76,8 +76,8 @@ Result XCBLoader::init()
                                                                                                     "xcb_key_release_lookup_keysym") );
         }
 
-        // resolve symbols from libxcb.so
-        m_library_handles[XCB_LOADER_LIBRARIES_XCB] = dlopen("libxcb.so",
+        // resolve symbols from libxcb.so.1
+        m_library_handles[XCB_LOADER_LIBRARIES_XCB] = dlopen("libxcb.so.1",
                                                              RTLD_LAZY);
 
         if (m_library_handles[XCB_LOADER_LIBRARIES_XCB] == nullptr)

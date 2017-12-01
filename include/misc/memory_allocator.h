@@ -37,8 +37,7 @@
 
 namespace Anvil
 {
-    typedef void (*PFNMEMORYALLOCATORBAKECALLBACKPROC)(Anvil::MemoryAllocator* in_memory_allocator_ptr,
-                                                       void*                   in_user_arg);
+    typedef std::function<void (Anvil::MemoryAllocator* in_memory_allocator_ptr) > MemoryAllocatorBakeCallbackFunction;
 
     /** Implements a simple memory allocator. For more details, please see the header. */
     class MemoryAllocator : public std::enable_shared_from_this<MemoryAllocator>
@@ -277,12 +276,10 @@ namespace Anvil
          *  Calling this function more than once for the same MemoryAllocator instance will trigger
          *  an assertion failure.
          *
-         *  @param in_pfn_post_bake_callback_ptr Function pointer to assign. Must not be null.
-         *  @param in_callback_user_arg          User argument to pass with the callback. Can be null.
+         *  @param in_post_bake_callback_function Function pointer to assign. Must not be null.
          *
          */
-        void set_post_bake_callback(PFNMEMORYALLOCATORBAKECALLBACKPROC in_pfn_post_bake_callback,
-                                    void*                              in_callback_user_arg);
+        void set_post_bake_callback(MemoryAllocatorBakeCallbackFunction in_post_bake_callback_function);
 
          /** Destructor.
           *
@@ -299,12 +296,9 @@ namespace Anvil
                                  Anvil::MemoryFeatureFlags      in_memory_features,
                                  uint32_t*                      out_opt_filtered_memory_types_ptr) const;
 
-        static void on_is_alloc_pending_for_buffer_query(void* in_callback_arg,
-                                                         void* in_user_arg);
-        static void on_is_alloc_pending_for_image_query (void* in_callback_arg,
-                                                         void* in_user_arg);
-        static void on_implicit_bake_needed             (void* in_callback_arg,
-                                                         void* in_user_arg);
+        void on_is_alloc_pending_for_buffer_query(CallbackArgument* in_callback_arg_ptr);
+        void on_is_alloc_pending_for_image_query (CallbackArgument* in_callback_arg_ptr);
+        void on_implicit_bake_needed             ();
 
         /** Constructor.
          *
@@ -321,8 +315,7 @@ namespace Anvil
         Items                                    m_items;
         std::map<const void*, bool>              m_per_object_pending_alloc_status;
 
-        PFNMEMORYALLOCATORBAKECALLBACKPROC m_pfn_post_bake_callback_ptr;
-        void*                              m_post_bake_callback_user_arg;
+        MemoryAllocatorBakeCallbackFunction m_post_bake_callback_function;
     };
 };
 

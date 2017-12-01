@@ -219,12 +219,11 @@ void App::deinit()
     m_window_ptr.reset();
 }
 
-void App::draw_frame(void* app_raw_ptr)
+void App::draw_frame()
 {
-    App*                               app_ptr                         = static_cast<App*>(app_raw_ptr);
     std::shared_ptr<Anvil::Semaphore>  curr_frame_signal_semaphore_ptr;
     std::shared_ptr<Anvil::Semaphore>  curr_frame_wait_semaphore_ptr;
-    std::shared_ptr<Anvil::SGPUDevice> device_locked_ptr               = app_ptr->m_device_ptr.lock();
+    std::shared_ptr<Anvil::SGPUDevice> device_locked_ptr               = m_device_ptr.lock();
     static uint32_t                    n_frames_rendered               = 0;
     uint32_t                           n_swapchain_image;
     std::shared_ptr<Anvil::Queue>      present_queue_ptr               = device_locked_ptr->get_universal_queue(0);
@@ -232,29 +231,29 @@ void App::draw_frame(void* app_raw_ptr)
     const VkPipelineStageFlags         wait_stage_mask                 = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
     /* Determine the signal + wait semaphores to use for drawing this frame */
-    app_ptr->m_n_last_semaphore_used = (app_ptr->m_n_last_semaphore_used + 1) % app_ptr->m_n_swapchain_images;
+    m_n_last_semaphore_used = (m_n_last_semaphore_used + 1) % m_n_swapchain_images;
 
-    curr_frame_signal_semaphore_ptr = app_ptr->m_frame_signal_semaphores[app_ptr->m_n_last_semaphore_used];
-    curr_frame_wait_semaphore_ptr   = app_ptr->m_frame_wait_semaphores  [app_ptr->m_n_last_semaphore_used];
+    curr_frame_signal_semaphore_ptr = m_frame_signal_semaphores[m_n_last_semaphore_used];
+    curr_frame_wait_semaphore_ptr   = m_frame_wait_semaphores  [m_n_last_semaphore_used];
 
     present_wait_semaphore_ptr = curr_frame_signal_semaphore_ptr;
 
     /* Determine the semaphore which the swapchain image */
-    n_swapchain_image = app_ptr->m_swapchain_ptr->acquire_image(curr_frame_wait_semaphore_ptr,
-                                                                true); /* in_should_block */
+    n_swapchain_image = m_swapchain_ptr->acquire_image(curr_frame_wait_semaphore_ptr,
+                                                       true); /* in_should_block */
 
     /* Update time data */
-    const float time = float(app_ptr->m_time.get_time_in_msec() ) / 1000.0f;
+    const float time = float(m_time.get_time_in_msec() ) / 1000.0f;
 
-    app_ptr->m_time_bo_ptr->write(n_swapchain_image * app_ptr->m_time_n_bytes_per_swapchain_image, /* start_offset */
-                                  sizeof(time),
-                                 &time);
+    m_time_bo_ptr->write(n_swapchain_image * m_time_n_bytes_per_swapchain_image, /* start_offset */
+                         sizeof(time),
+                        &time);
 
     /* Submit work chunks and present */
     std::shared_ptr<Anvil::CommandBufferBase> cmd_buffers[] =
     {
-        app_ptr->m_render_tri1_and_generate_ot_data_cmd_buffers[n_swapchain_image],
-        app_ptr->m_render_tri2_and_quad_cmd_buffers            [n_swapchain_image]
+        m_render_tri1_and_generate_ot_data_cmd_buffers[n_swapchain_image],
+        m_render_tri2_and_quad_cmd_buffers            [n_swapchain_image]
     };
     const uint32_t n_cmd_buffers = sizeof(cmd_buffers) / sizeof(cmd_buffers[0]);
 
@@ -267,7 +266,7 @@ void App::draw_frame(void* app_raw_ptr)
                                              &wait_stage_mask,
                                               false); /* should_block */
 
-    present_queue_ptr->present(app_ptr->m_swapchain_ptr,
+    present_queue_ptr->present(m_swapchain_ptr,
                                n_swapchain_image,
                                1, /* n_wait_semaphores */
                               &present_wait_semaphore_ptr);
@@ -278,7 +277,7 @@ void App::draw_frame(void* app_raw_ptr)
     {
         if (n_frames_rendered >= N_FRAMES_TO_RENDER)
         {
-            app_ptr->m_window_ptr->close();
+            m_window_ptr->close();
         }
     }
     #endif
@@ -964,8 +963,9 @@ void App::init_window()
                                                        APP_NAME,
                                                        1280,
                                                        720,
-                                                       draw_frame,
-                                                       this);
+                                                       true, /* in_closable */
+                                                       std::bind(&App::draw_frame,
+                                                                 this) );
 }
 
 void App::init_vulkan()
@@ -974,11 +974,15 @@ void App::init_vulkan()
     m_instance_ptr = Anvil::Instance::create(APP_NAME,  /* app_name */
                                              APP_NAME,  /* engine_name */
 #ifdef ENABLE_VALIDATION
-                                             on_validation_callback,
+                                             std::bind(&App::on_validation_callback,
+                                                       this,
+                                                       std::placeholders::_1,
+                                                       std::placeholders::_2,
+                                                       std::placeholders::_3,
+                                                       std::placeholders::_4) );
 #else
-                                             nullptr,
+                                             nullptr);
 #endif
-                                             nullptr);   /* validation_proc_user_arg */
 
     m_physical_device_ptr = m_instance_ptr->get_physical_device(0);
 
@@ -993,8 +997,7 @@ void App::init_vulkan()
 VkBool32 App::on_validation_callback(VkDebugReportFlagsEXT      message_flags,
                                      VkDebugReportObjectTypeEXT object_type,
                                      const char*                layer_prefix,
-                                     const char*                message,
-                                     void*                      user_arg)
+                                     const char*                message)
 {
     if ((message_flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) != 0)
     {

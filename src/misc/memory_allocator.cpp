@@ -224,16 +224,25 @@ Anvil::MemoryAllocator::Item::~Item()
 /* Please see header for specification */
 void Anvil::MemoryAllocator::Item::register_for_callbacks()
 {
+    auto on_implicit_bake_needed_callback_func              = std::bind(&Anvil::MemoryAllocator::on_implicit_bake_needed,
+                                                                        memory_allocator_ptr.get() );
+    auto on_is_alloc_pending_for_buffer_query_callback_func = std::bind(&Anvil::MemoryAllocator::on_is_alloc_pending_for_buffer_query,
+                                                                        memory_allocator_ptr.get(),
+                                                                        std::placeholders::_1);
+    auto on_is_alloc_pending_for_image_query_callback_func  = std::bind(&Anvil::MemoryAllocator::on_is_alloc_pending_for_image_query,
+                                                                        memory_allocator_ptr.get(),
+                                                                        std::placeholders::_1);
+
     if (buffer_ptr != nullptr)
     {
         /* Sign up for "is alloc pending" callback in order to support sparsely bound/sparse buffers */
         if (!buffer_ptr->is_callback_registered(BUFFER_CALLBACK_ID_IS_ALLOC_PENDING,
-                                                on_is_alloc_pending_for_buffer_query,
-                                                memory_allocator_ptr.get() ))
+                                                on_is_alloc_pending_for_buffer_query_callback_func,
+                                                buffer_ptr.get() ))
         {
             buffer_ptr->register_for_callbacks(BUFFER_CALLBACK_ID_IS_ALLOC_PENDING,
-                                               on_is_alloc_pending_for_buffer_query,
-                                               memory_allocator_ptr.get() );
+                                               on_is_alloc_pending_for_buffer_query_callback_func,
+                                               buffer_ptr.get() );
 
             buffer_has_is_alloc_pending_callback_registered = true;
         }
@@ -244,12 +253,12 @@ void Anvil::MemoryAllocator::Item::register_for_callbacks()
 
         /* Sign up for "memory needed" callback so that we can trigger an implicit bake operation */
         if (!buffer_ptr->is_callback_registered(BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
-                                                on_implicit_bake_needed,
-                                                memory_allocator_ptr.get() ))
+                                                on_implicit_bake_needed_callback_func,
+                                                buffer_ptr.get() ))
         {
             buffer_ptr->register_for_callbacks(BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
-                                               on_implicit_bake_needed,
-                                               memory_allocator_ptr.get() );
+                                               on_implicit_bake_needed_callback_func,
+                                               buffer_ptr.get() );
 
             buffer_has_memory_block_needed_callback_registered = true;
         }
@@ -263,12 +272,12 @@ void Anvil::MemoryAllocator::Item::register_for_callbacks()
     {
         /* Sign up for "is alloc pending" callback in order to support sparse images */
         if (!image_ptr->is_callback_registered(IMAGE_CALLBACK_ID_IS_ALLOC_PENDING,
-                                               on_is_alloc_pending_for_image_query,
-                                               memory_allocator_ptr.get() ))
+                                               on_is_alloc_pending_for_image_query_callback_func,
+                                               image_ptr.get() ))
         {
             image_ptr->register_for_callbacks(IMAGE_CALLBACK_ID_IS_ALLOC_PENDING,
-                                              on_is_alloc_pending_for_image_query,
-                                              memory_allocator_ptr.get() );
+                                              on_is_alloc_pending_for_image_query_callback_func,
+                                              image_ptr.get() );
 
             image_has_is_alloc_pending_callback_registered = true;
         }
@@ -279,12 +288,12 @@ void Anvil::MemoryAllocator::Item::register_for_callbacks()
 
         /* Sign up for "memory needed" callback so that we can trigger an implicit bake operation */
         if (!image_ptr->is_callback_registered(IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
-                                               on_implicit_bake_needed,
-                                               memory_allocator_ptr.get() ))
+                                               on_implicit_bake_needed_callback_func,
+                                               image_ptr.get() ))
         {
             image_ptr->register_for_callbacks(IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
-                                              on_implicit_bake_needed,
-                                              memory_allocator_ptr.get() );
+                                              on_implicit_bake_needed_callback_func,
+                                              image_ptr.get() );
 
             image_has_memory_block_needed_callback_registered = true;
         }
@@ -299,20 +308,29 @@ void Anvil::MemoryAllocator::Item::register_for_callbacks()
 /* Please see header for specification */
 void Anvil::MemoryAllocator::Item::unregister_from_callbacks()
 {
+    auto on_implicit_bake_needed_callback_func              = std::bind(&Anvil::MemoryAllocator::on_implicit_bake_needed,
+                                                                        memory_allocator_ptr.get() );
+    auto on_is_alloc_pending_for_buffer_query_callback_func = std::bind(&Anvil::MemoryAllocator::on_is_alloc_pending_for_buffer_query,
+                                                                        memory_allocator_ptr.get(),
+                                                                        std::placeholders::_1);
+    auto on_is_alloc_pending_for_image_query_callback_func  = std::bind(&Anvil::MemoryAllocator::on_is_alloc_pending_for_image_query,
+                                                                        memory_allocator_ptr.get(),
+                                                                        std::placeholders::_1);
+
     if (buffer_ptr != nullptr)
     {
         if (buffer_has_is_alloc_pending_callback_registered)
         {
             buffer_ptr->unregister_from_callbacks(BUFFER_CALLBACK_ID_IS_ALLOC_PENDING,
-                                                  on_is_alloc_pending_for_buffer_query,
-                                                  memory_allocator_ptr.get() );
+                                                  on_is_alloc_pending_for_buffer_query_callback_func,
+                                                  buffer_ptr.get() );
         }
 
         if (buffer_has_memory_block_needed_callback_registered)
         {
             buffer_ptr->unregister_from_callbacks(BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
-                                                  on_implicit_bake_needed,
-                                                  memory_allocator_ptr.get() );
+                                                  on_implicit_bake_needed_callback_func,
+                                                  buffer_ptr.get() );
         }
     }
 
@@ -321,15 +339,15 @@ void Anvil::MemoryAllocator::Item::unregister_from_callbacks()
         if (image_has_is_alloc_pending_callback_registered)
         {
             image_ptr->unregister_from_callbacks(IMAGE_CALLBACK_ID_IS_ALLOC_PENDING,
-                                                 on_is_alloc_pending_for_image_query,
-                                                 memory_allocator_ptr.get() );
+                                                 on_is_alloc_pending_for_image_query_callback_func,
+                                                 image_ptr.get() );
         }
 
         if (image_has_memory_block_needed_callback_registered)
         {
             image_ptr->unregister_from_callbacks(IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
-                                                 on_implicit_bake_needed,
-                                                 memory_allocator_ptr.get() );
+                                                 on_implicit_bake_needed_callback_func,
+                                                 image_ptr.get() );
         }
     }
 }
@@ -338,11 +356,10 @@ void Anvil::MemoryAllocator::Item::unregister_from_callbacks()
 /* Please see header for specification */
 Anvil::MemoryAllocator::MemoryAllocator(std::weak_ptr<Anvil::BaseDevice>         in_device_ptr,
                                         std::shared_ptr<IMemoryAllocatorBackend> in_backend_ptr)
-    :m_backend_ptr                (in_backend_ptr),
-     m_device_ptr                 (in_device_ptr),
-     m_pfn_post_bake_callback_ptr (nullptr),
-     m_post_bake_callback_user_arg(nullptr) 
+    :m_backend_ptr(in_backend_ptr),
+     m_device_ptr (in_device_ptr)
 {
+    /* Stub */
 }
 
 /* Please see header for specification */
@@ -803,6 +820,7 @@ bool Anvil::MemoryAllocator::bake()
     anvil_assert(m_items.size() > 0);
 
     result = m_backend_ptr->bake(m_items);
+    anvil_assert(result);
 
     /* Prepare a sparse memory binding structure, if we're going to need one */
     for (auto item_iterator  = m_items.begin();
@@ -954,6 +972,46 @@ bool Anvil::MemoryAllocator::bake()
                         UINT64_MAX);
     }
 
+    /* If the user does not keep the memory allocator around and all items are assigned memory backing,
+     * the m_items.erase() call we do close to the end of this func may invoke destruction of this object.
+     * There's a post-alloc call-back that we still need to do after all items are traversed, so, in order
+     * to prevent the premature destruction of the allocator, cache a shared ptr to this instance, so that
+     * the allocator only goes out of scope when this function leaves.
+     */
+    this_ptr = shared_from_this();
+
+    for (uint32_t n_item = 0;
+                  n_item < m_items.size();
+                ++n_item
+        )
+    {
+        auto item_iterator = m_items.begin() + n_item;
+        auto item_ptr      = *item_iterator;
+
+        if (item_ptr->is_baked)
+        {
+            decltype(m_per_object_pending_alloc_status)::iterator alloc_status_map_iterator;
+
+            switch (item_ptr->type)
+            {
+                case ITEM_TYPE_BUFFER:                   alloc_status_map_iterator = m_per_object_pending_alloc_status.find(item_ptr->buffer_ptr.get() ); break;
+                case ITEM_TYPE_IMAGE_WHOLE:              /* fall-through */
+                case ITEM_TYPE_SPARSE_IMAGE_MIPTAIL:     /* fall-through */
+                case ITEM_TYPE_SPARSE_IMAGE_SUBRESOURCE: alloc_status_map_iterator = m_per_object_pending_alloc_status.find(item_ptr->image_ptr.get() );  break;
+
+                default:
+                {
+                    anvil_assert_fail();
+                }
+            }
+
+            if (alloc_status_map_iterator != m_per_object_pending_alloc_status.end() )
+            {
+                m_per_object_pending_alloc_status.erase(alloc_status_map_iterator);
+            }
+        }
+    }
+
     /* Perform post-alloc fill actions */
     for (const auto& current_item_ptr : m_items)
     {
@@ -1014,55 +1072,11 @@ bool Anvil::MemoryAllocator::bake()
         }
     }
 
-    /* If the user does not keep the memory allocator around and all items are assigned memory backing,
-     * the m_items.erase() call we do close to the end of this func may invoke destruction of this object.
-     * There's a post-alloc call-back that we still need to do after all items are traversed, so, in order
-     * to prevent the premature destruction of the allocator, cache a shared ptr to this instance, so that
-     * the allocator only goes out of scope when this function leaves.
-     */
-    this_ptr = shared_from_this();
+    m_items.clear();
 
-    for (uint32_t n_item = 0;
-                  n_item < m_items.size();
-        )
+    if (m_post_bake_callback_function != nullptr)
     {
-        auto item_iterator = m_items.begin() + n_item;
-        auto item_ptr      = *item_iterator;
-
-        if (item_ptr->is_baked)
-        {
-            decltype(m_per_object_pending_alloc_status)::iterator alloc_status_map_iterator;
-
-            switch (item_ptr->type)
-            {
-                case ITEM_TYPE_BUFFER:                   alloc_status_map_iterator = m_per_object_pending_alloc_status.find(item_ptr->buffer_ptr.get() ); break;
-                case ITEM_TYPE_IMAGE_WHOLE:              /* fall-through */
-                case ITEM_TYPE_SPARSE_IMAGE_MIPTAIL:     /* fall-through */
-                case ITEM_TYPE_SPARSE_IMAGE_SUBRESOURCE: alloc_status_map_iterator = m_per_object_pending_alloc_status.find(item_ptr->image_ptr.get() );  break;
-
-                default:
-                {
-                    anvil_assert_fail();
-                }
-            }
-
-            if (alloc_status_map_iterator != m_per_object_pending_alloc_status.end() )
-            {
-                m_per_object_pending_alloc_status.erase(alloc_status_map_iterator);
-            }
-
-            m_items.erase(item_iterator);
-        }
-        else
-        {
-            ++n_item;
-        }
-    }
-
-    if (m_pfn_post_bake_callback_ptr != nullptr)
-    {
-        m_pfn_post_bake_callback_ptr(this,
-                                     m_post_bake_callback_user_arg);
+        m_post_bake_callback_function(this);
     }
 
 end:
@@ -1156,56 +1170,45 @@ end:
 }
 
 /* Please see header for specification */
-void Anvil::MemoryAllocator::on_is_alloc_pending_for_buffer_query(void* in_callback_arg,
-                                                                  void* in_user_arg)
+void Anvil::MemoryAllocator::on_is_alloc_pending_for_buffer_query(CallbackArgument* in_callback_arg_ptr)
 {
-    MemoryAllocator*                       allocator_ptr             = reinterpret_cast<MemoryAllocator*>                      (in_user_arg);
-    BufferCallbackIsAllocPendingQueryData* query_ptr                 = reinterpret_cast<BufferCallbackIsAllocPendingQueryData*>(in_callback_arg);
-    auto                                   alloc_status_map_iterator = allocator_ptr->m_per_object_pending_alloc_status.find   (query_ptr->buffer_ptr.get() );
+    IsBufferMemoryAllocPendingQueryCallbackArgument* query_ptr                 = dynamic_cast<IsBufferMemoryAllocPendingQueryCallbackArgument*>(in_callback_arg_ptr);
+    auto                                             alloc_status_map_iterator = m_per_object_pending_alloc_status.find                        (query_ptr->buffer_ptr.get() );
 
-    if (alloc_status_map_iterator != allocator_ptr->m_per_object_pending_alloc_status.end() )
+    if (alloc_status_map_iterator != m_per_object_pending_alloc_status.end() )
     {
         query_ptr->result = true;
     }
 }
 
 /* Please see header for specification */
-void Anvil::MemoryAllocator::on_is_alloc_pending_for_image_query(void* in_callback_arg,
-                                                                 void* in_user_arg)
+void Anvil::MemoryAllocator::on_is_alloc_pending_for_image_query(CallbackArgument* in_callback_arg_ptr)
 {
-    MemoryAllocator*                      allocator_ptr             = reinterpret_cast<MemoryAllocator*>                     (in_user_arg);
-    ImageCallbackIsAllocPendingQueryData* query_ptr                 = reinterpret_cast<ImageCallbackIsAllocPendingQueryData*>(in_callback_arg);
-    auto                                  alloc_status_map_iterator = allocator_ptr->m_per_object_pending_alloc_status.find(query_ptr->image_ptr.get() );
+    IsImageMemoryAllocPendingQueryCallbackArgument* query_ptr                 = dynamic_cast<IsImageMemoryAllocPendingQueryCallbackArgument*>(in_callback_arg_ptr);
+    auto                                            alloc_status_map_iterator = m_per_object_pending_alloc_status.find                       (query_ptr->image_ptr.get() );
 
-    if (alloc_status_map_iterator != allocator_ptr->m_per_object_pending_alloc_status.end() )
+    if (alloc_status_map_iterator != m_per_object_pending_alloc_status.end() )
     {
         query_ptr->result = true;
     }
 }
 
 /* Please see header for specification */
-void Anvil::MemoryAllocator::on_implicit_bake_needed(void* in_callback_arg,
-                                                     void* in_user_arg)
+void Anvil::MemoryAllocator::on_implicit_bake_needed()
 {
-    MemoryAllocator* allocator_ptr = reinterpret_cast<MemoryAllocator*>(in_user_arg);
-
-    ANVIL_REDUNDANT_ARGUMENT(in_callback_arg);
-
     /* Sanity checks */
-    anvil_assert(allocator_ptr->m_items.size() >= 1);
+    anvil_assert(m_items.size() >= 1);
 
-    allocator_ptr->bake();
+    bake();
 }
 
 /* Please see header for specification */
-void Anvil::MemoryAllocator::set_post_bake_callback(PFNMEMORYALLOCATORBAKECALLBACKPROC pfn_post_bake_callback,
-                                                    void*                              callback_user_arg)
+void Anvil::MemoryAllocator::set_post_bake_callback(MemoryAllocatorBakeCallbackFunction in_post_bake_callback_function)
 {
-    anvil_assert(m_pfn_post_bake_callback_ptr == nullptr);
+    anvil_assert(m_post_bake_callback_function == nullptr);
 
-    if (m_pfn_post_bake_callback_ptr == nullptr)
+    if (m_post_bake_callback_function == nullptr)
     {
-        m_pfn_post_bake_callback_ptr  = pfn_post_bake_callback;
-        m_post_bake_callback_user_arg = callback_user_arg;
+        m_post_bake_callback_function = in_post_bake_callback_function;
     }
 }

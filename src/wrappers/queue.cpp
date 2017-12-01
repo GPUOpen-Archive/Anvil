@@ -62,6 +62,10 @@ Anvil::Queue::Queue(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
     /* Determine whether the queue supports sparse bindings */
     m_supports_sparse_bindings = !!(device_locked_ptr->get_queue_family_info(in_queue_family_index)->flags & VK_QUEUE_SPARSE_BINDING_BIT);
 
+    /* Cache a fence that may be optionally used for submissions */
+    m_submit_fence_ptr = Anvil::Fence::create(m_device_ptr,
+                                              false /* create_signalled */);
+
     /* OK, register the wrapper instance and leave */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_QUEUE,
                                                   this);
@@ -70,7 +74,7 @@ Anvil::Queue::Queue(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
 /** Please see header for specification */
 Anvil::Queue::~Queue()
 {
-    /* Queues are indestructible. Nothing to do here. */
+    m_submit_fence_ptr.reset();
 
     Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_QUEUE,
                                                     this);
@@ -259,6 +263,16 @@ VkResult Anvil::Queue::present(std::shared_ptr<Anvil::Swapchain>  in_swapchain_p
                                                                                                      &dst_stage_mask,
                                                                                                       true); /* should_block */
 
+                for (uint32_t n_presentation = 0;
+                              n_presentation < 1;
+                            ++n_presentation)
+                {
+                    OnPresentRequestIssuedCallbackArgument callback_argument(in_swapchain_ptr.get() );
+
+                    CallbacksSupportProvider::callback(QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
+                                                      &callback_argument);
+                }
+
                 result = VK_SUCCESS;
                 goto end;
             }
@@ -283,8 +297,8 @@ VkResult Anvil::Queue::present(std::shared_ptr<Anvil::Swapchain>  in_swapchain_p
     image_presentation_info.swapchainCount     = 1;
     image_presentation_info.waitSemaphoreCount = in_n_wait_semaphores;
 
-    result = swapchain_entrypoints.vkQueuePresentKHR(m_queue,
-                                                    &image_presentation_info);
+    result                    = swapchain_entrypoints.vkQueuePresentKHR(m_queue,
+                                                                        &image_presentation_info);
 
     anvil_assert_vk_call_succeeded(result);
 
@@ -342,10 +356,14 @@ VkResult Anvil::Queue::present(std::shared_ptr<Anvil::Swapchain>  in_swapchain_p
                     anvil_assert(presentation_results[0] == VK_SUCCESS);
                 }
             }
-        }
 
-        CallbacksSupportProvider::callback(QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
-                                           in_swapchain_ptr.get() );
+            {
+                OnPresentRequestIssuedCallbackArgument callback_argument(in_swapchain_ptr.get() );
+
+                CallbacksSupportProvider::callback(QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
+                                                  &callback_argument);
+            }
+        }
     }
 
 end:
@@ -381,8 +399,9 @@ void Anvil::Queue::submit_command_buffers(uint32_t                              
     if (in_opt_fence_ptr == nullptr &&
         in_should_block)
     {
-        in_opt_fence_ptr = Anvil::Fence::create(m_device_ptr,
-                                                false /* create_signalled */);
+        m_submit_fence_ptr->reset();
+
+        in_opt_fence_ptr = m_submit_fence_ptr;
     }
 
     for (uint32_t n_command_buffer = 0;

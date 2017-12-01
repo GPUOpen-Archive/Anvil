@@ -27,7 +27,7 @@
 /** Please see header for documentation */
 Anvil::ShaderModuleCache::ShaderModuleCache()
 {
-    /* Stub */
+    update_subscriptions(true);
 }
 
 /** Please see header for documentation */
@@ -35,14 +35,7 @@ Anvil::ShaderModuleCache::~ShaderModuleCache()
 {
     std::unique_lock<std::mutex> lock(m_cs);
     {
-        auto object_tracker_ptr = Anvil::ObjectTracker::get();
-
-        object_tracker_ptr->unregister_from_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED,
-                                                      on_object_about_to_be_released,
-                                                      this);
-        object_tracker_ptr->unregister_from_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_REGISTERED,
-                                                      on_object_registered,
-                                                      this);
+        update_subscriptions(false);
     }
 }
 
@@ -130,21 +123,11 @@ void Anvil::ShaderModuleCache::cache(std::shared_ptr<Anvil::ShaderModule> in_sha
 
 std::shared_ptr<Anvil::ShaderModuleCache> Anvil::ShaderModuleCache::create()
 {
-    auto                                      object_tracker_ptr = Anvil::ObjectTracker::get();
     std::shared_ptr<Anvil::ShaderModuleCache> result_ptr;
 
     result_ptr.reset(
         new Anvil::ShaderModuleCache()
     );
-
-    /* Sign up for object creation / release notifications. We're going to need this in order to cache shader module instances
-     * which are created by the app. */
-    object_tracker_ptr->register_for_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED,
-                                               on_object_about_to_be_released,
-                                               result_ptr.get() );
-    object_tracker_ptr->register_for_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_REGISTERED,
-                                               on_object_registered,
-                                               result_ptr.get() );
 
     return result_ptr;
 }
@@ -237,15 +220,11 @@ size_t Anvil::ShaderModuleCache::get_hash(const char*        in_spirv_blob,
 }
 
 /** TODO */
-void Anvil::ShaderModuleCache::on_object_about_to_be_released(void* in_callback_arg,
-                                                              void* in_shader_module_cache_raw_ptr)
+void Anvil::ShaderModuleCache::on_object_about_to_be_released(CallbackArgument* in_callback_arg_ptr)
 {
-    const Anvil::ObjectTrackerOnObjectAboutToBeUnregisteredCallbackArg* callback_arg_ptr        = static_cast<Anvil::ObjectTrackerOnObjectAboutToBeUnregisteredCallbackArg*>(in_callback_arg);
-    Anvil::ShaderModuleCache*                                           shader_module_cache_ptr = static_cast<Anvil::ShaderModuleCache*>                                    (in_shader_module_cache_raw_ptr);
+    const Anvil::OnObjectAboutToBeUnregisteredCallbackArgument* callback_arg_ptr = dynamic_cast<Anvil::OnObjectAboutToBeUnregisteredCallbackArgument*>(in_callback_arg_ptr);
 
-    anvil_assert            (callback_arg_ptr        != nullptr);
-    anvil_assert            (shader_module_cache_ptr != nullptr);
-    ANVIL_REDUNDANT_VARIABLE(shader_module_cache_ptr);
+    anvil_assert(callback_arg_ptr != nullptr);
 
     if (callback_arg_ptr->object_type == OBJECT_TYPE_SHADER_MODULE)
     {
@@ -259,19 +238,47 @@ void Anvil::ShaderModuleCache::on_object_about_to_be_released(void* in_callback_
 }
 
 /** TODO */
-void Anvil::ShaderModuleCache::on_object_registered(void* in_callback_arg,
-                                                    void* in_shader_module_cache_raw_ptr)
+void Anvil::ShaderModuleCache::on_object_registered(CallbackArgument* in_callback_arg_ptr)
 {
-    const Anvil::ObjectTrackerOnObjectRegisteredCallbackArg* callback_arg_ptr        = static_cast<Anvil::ObjectTrackerOnObjectRegisteredCallbackArg*>(in_callback_arg);
-    Anvil::ShaderModuleCache*                                shader_module_cache_ptr = static_cast<Anvil::ShaderModuleCache*>                         (in_shader_module_cache_raw_ptr);
+    const auto callback_arg_ptr = dynamic_cast<Anvil::OnObjectRegisteredCallbackArgument*>(in_callback_arg_ptr);
 
-    anvil_assert(callback_arg_ptr        != nullptr);
-    anvil_assert(shader_module_cache_ptr != nullptr);
+    anvil_assert(callback_arg_ptr != nullptr);
 
     if (callback_arg_ptr->object_type == OBJECT_TYPE_SHADER_MODULE)
     {
         auto shader_module_ptr = static_cast<Anvil::ShaderModule*>(callback_arg_ptr->object_raw_ptr);
 
-        shader_module_cache_ptr->cache(shader_module_ptr->shared_from_this() );
+        cache(shader_module_ptr->shared_from_this() );
+    }
+}
+
+void Anvil::ShaderModuleCache::update_subscriptions(bool in_should_init)
+{
+    auto object_tracker_ptr = Anvil::ObjectTracker::get();
+
+    auto on_object_about_to_be_released_func = std::bind(&ShaderModuleCache::on_object_about_to_be_released,
+                                                         this,
+                                                         std::placeholders::_1);
+    auto on_object_registered_func           = std::bind(&ShaderModuleCache::on_object_registered,
+                                                         this,
+                                                         std::placeholders::_1);
+
+    if (in_should_init)
+    {
+        object_tracker_ptr->register_for_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+                                                   on_object_about_to_be_released_func,
+                                                   this);
+        object_tracker_ptr->register_for_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_REGISTERED,
+                                                   on_object_registered_func,
+                                                   this);
+    }
+    else
+    {
+        object_tracker_ptr->unregister_from_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+                                                      on_object_about_to_be_released_func,
+                                                      this);
+        object_tracker_ptr->unregister_from_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_REGISTERED,
+                                                      on_object_registered_func,
+                                                      this);
     }
 }

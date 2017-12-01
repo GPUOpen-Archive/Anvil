@@ -42,7 +42,7 @@ namespace Anvil
     {
         /* Notification fired whenever a new binding is added to the layout.
          *
-         * callback argument: pointer to the originating DescriptorSetLayout instance
+         * callback argument: pointer to OnNewBindingAddedToDescriptorSetLayoutCallbackArgument instance.
          **/
         DESCRIPTOR_SET_LAYOUT_CALLBACK_ID_BINDING_ADDED,
 

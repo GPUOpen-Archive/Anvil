@@ -33,6 +33,8 @@ Anvil::PipelineLayoutManager::PipelineLayoutManager(std::weak_ptr<Anvil::BaseDev
     :m_device_ptr              (in_device_ptr),
      m_pipeline_layouts_created(0)
 {
+    update_subscriptions(true);
+
     /* Register the object */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_PIPELINE_LAYOUT_MANAGER,
                                                   this);
@@ -41,6 +43,8 @@ Anvil::PipelineLayoutManager::PipelineLayoutManager(std::weak_ptr<Anvil::BaseDev
 /** Destructor */
 Anvil::PipelineLayoutManager::~PipelineLayoutManager()
 {
+    update_subscriptions(false);
+
     /* Unregister the object */
     Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_PIPELINE_LAYOUT_MANAGER,
                                                     this);
@@ -114,10 +118,6 @@ bool Anvil::PipelineLayoutManager::get_layout(std::shared_ptr<DescriptorSetGroup
             }
         }
 
-        new_layout_ptr->register_for_callbacks(PIPELINE_LAYOUT_CALLBACK_ID_OBJECT_ABOUT_TO_BE_DELETED,
-                                               on_pipeline_layout_dropped,
-                                               this);
-
         if (result)
         {
             const PipelineLayoutID pipeline_layout_id = new_layout_ptr->get_id();
@@ -149,24 +149,20 @@ std::shared_ptr<Anvil::PipelineLayout> Anvil::PipelineLayoutManager::get_layout_
 }
 
 /** Called back whenever a pipeline layout is released **/
-void Anvil::PipelineLayoutManager::on_pipeline_layout_dropped(void* in_callback_arg,
-                                                              void* in_user_arg)
+void Anvil::PipelineLayoutManager::on_pipeline_layout_dropped()
 {
-    PipelineLayouts::iterator     layout_iterator;
-    Anvil::PipelineLayoutManager* layout_manager_ptr = static_cast<PipelineLayoutManager*>(in_user_arg);
-
-    ANVIL_REDUNDANT_ARGUMENT(in_callback_arg);
+    PipelineLayouts::iterator layout_iterator;
 
     /* Are we the last standing layout user? */
-    for (layout_iterator  = layout_manager_ptr->m_pipeline_layouts.begin();
-         layout_iterator != layout_manager_ptr->m_pipeline_layouts.end();
+    for (layout_iterator  = m_pipeline_layouts.begin();
+         layout_iterator != m_pipeline_layouts.end();
         )
     {
         if (layout_iterator->second.expired() )
         {
-            layout_manager_ptr->m_pipeline_layouts.erase(layout_iterator);
+            m_pipeline_layouts.erase(layout_iterator);
 
-            layout_iterator = layout_manager_ptr->m_pipeline_layouts.begin();
+            layout_iterator = m_pipeline_layouts.begin();
         }
         else
         {
@@ -179,4 +175,25 @@ void Anvil::PipelineLayoutManager::on_pipeline_layout_dropped(void* in_callback_
 Anvil::PipelineLayoutID Anvil::PipelineLayoutManager::reserve_pipeline_layout_id()
 {
     return m_pipeline_layouts_created++;
+}
+
+void Anvil::PipelineLayoutManager::update_subscriptions(bool in_should_init)
+{
+    const auto callback_func      = std::bind(&PipelineLayoutManager::on_pipeline_layout_dropped,
+                                              this);
+    void*      callback_owner     = this;
+    auto       object_tracker_ptr = Anvil::ObjectTracker::get();
+
+    if (in_should_init)
+    {
+        object_tracker_ptr->register_for_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_PIPELINE_LAYOUT_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+                                                   callback_func,
+                                                   callback_owner);
+    }
+    else
+    {
+        object_tracker_ptr->unregister_from_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_PIPELINE_LAYOUT_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+                                                      callback_func,
+                                                      callback_owner);
+    }
 }

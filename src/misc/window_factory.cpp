@@ -22,12 +22,12 @@
 
 #include "misc/window_factory.h"
 
-std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatform         in_platform,
-                                                                   const std::string&     in_title,
-                                                                   unsigned int           in_width,
-                                                                   unsigned int           in_height,
-                                                                   PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
-                                                                   void*                  in_present_callback_func_user_arg)
+std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatform          in_platform,
+                                                                   const std::string&      in_title,
+                                                                   unsigned int            in_width,
+                                                                   unsigned int            in_height,
+                                                                   bool                    in_closable,
+                                                                   PresentCallbackFunction in_present_callback_func)
 {
     std::shared_ptr<Anvil::Window> result_ptr;
 
@@ -38,8 +38,7 @@ std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatfor
             result_ptr = Anvil::DummyWindow::create(in_title,
                                                     in_width,
                                                     in_height,
-                                                    in_present_callback_func_ptr,
-                                                    in_present_callback_func_user_arg);
+                                                    in_present_callback_func);
 
             break;
         }
@@ -49,8 +48,7 @@ std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatfor
             result_ptr = Anvil::DummyWindowWithPNGSnapshots::create(in_title,
                                                                     in_width,
                                                                     in_height,
-                                                                    in_present_callback_func_ptr,
-                                                                    in_present_callback_func_user_arg);
+                                                                    in_present_callback_func);
 
             break;
         }
@@ -63,8 +61,8 @@ std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatfor
                 result_ptr = Anvil::WindowWin3264::create(in_title,
                                                           in_width,
                                                           in_height,
-                                                          in_present_callback_func_ptr,
-                                                          in_present_callback_func_user_arg);
+                                                          in_closable,
+                                                          in_present_callback_func);
 
                 break;
             }
@@ -76,8 +74,8 @@ std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatfor
                 result_ptr = Anvil::WindowXcb::create(in_title,
                                                       in_width,
                                                       in_height,
-                                                      in_present_callback_func_ptr,
-                                                      in_present_callback_func_user_arg);
+                                                      in_closable,
+                                                      in_present_callback_func);
 
                 break;
             }

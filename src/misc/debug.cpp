@@ -31,7 +31,10 @@ static void default_assertion_failure_handler(const char*  in_filename,
                                               const char*  in_message);
 
 
-Anvil::PFNASSERTIONFAILEDCALLBACKPROC g_anvil_assertion_check_failed_func_ptr = default_assertion_failure_handler;
+static Anvil::AssertionFailedCallbackFunction g_anvil_assertion_check_failed_func = std::bind(default_assertion_failure_handler,
+                                                                                              std::placeholders::_1,
+                                                                                              std::placeholders::_2,
+                                                                                              std::placeholders::_3);
 
 
 /** Please see header for specification */
@@ -63,13 +66,13 @@ void Anvil::on_assertion_failed(const char*  in_filename,
     }
     #endif
 
-    g_anvil_assertion_check_failed_func_ptr(in_filename,
-                                            in_line,
-                                            in_message);
+    g_anvil_assertion_check_failed_func(in_filename,
+                                        in_line,
+                                        in_message);
 }
 
 /** Please see header for specification */
-void Anvil::set_assertion_failure_handler(Anvil::PFNASSERTIONFAILEDCALLBACKPROC in_new_callback_func_ptr)
+void Anvil::set_assertion_failure_handler(Anvil::AssertionFailedCallbackFunction in_new_callback_func)
 {
-    g_anvil_assertion_check_failed_func_ptr = in_new_callback_func_ptr;
+    g_anvil_assertion_check_failed_func = in_new_callback_func;
 }

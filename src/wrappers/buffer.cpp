@@ -436,7 +436,7 @@ std::shared_ptr<Anvil::MemoryBlock> Anvil::Buffer::get_memory_block(uint32_t in_
 
     if (m_is_sparse)
     {
-        BufferCallbackIsAllocPendingQueryData callback_arg(shared_from_this() );
+        IsBufferMemoryAllocPendingQueryCallbackArgument callback_arg(shared_from_this() );
 
         callback(BUFFER_CALLBACK_ID_IS_ALLOC_PENDING,
                 &callback_arg);
@@ -450,10 +450,12 @@ std::shared_ptr<Anvil::MemoryBlock> Anvil::Buffer::get_memory_block(uint32_t in_
 
     if (is_callback_needed)
     {
+        OnMemoryBlockNeededForBufferCallbackArgument callback_argument(shared_from_this() );
+
         anvil_assert(m_parent_buffer_ptr == nullptr);
 
         callback_safe(BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
-                      nullptr);
+                     &callback_argument);
     }
 
     if (m_is_sparse)
@@ -523,7 +525,7 @@ bool Anvil::Buffer::read(VkDeviceSize in_start_offset,
             m_device_ptr,
             in_size,
             staging_buffer_queue_fam_bits,
-            VK_SHARING_MODE_EXCLUSIVE,
+            VK_SHARING_MODE_CONCURRENT,
             VK_BUFFER_USAGE_TRANSFER_DST_BIT,
             MEMORY_FEATURE_FLAG_MAPPABLE,
             nullptr);
@@ -727,18 +729,18 @@ bool Anvil::Buffer::write(VkDeviceSize                  in_start_offset,
         else
         {
             /* We can use any queue from the list of queue fams this buffer is compatible, in order to perform the copy op. */
-            if ((m_queue_families & Anvil::QUEUE_FAMILY_DMA_BIT) != 0)
-            {
-                queue_ptr                     = base_device_locked_ptr->get_transfer_queue(0);
-                staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_DMA_BIT;
-                staging_buffer_queue_fam_type = Anvil::QUEUE_FAMILY_TYPE_TRANSFER;
-            }
-            else
             if ((m_queue_families & Anvil::QUEUE_FAMILY_GRAPHICS_BIT) != 0)
             {
                 queue_ptr                     = base_device_locked_ptr->get_universal_queue(0);
                 staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_GRAPHICS_BIT;
                 staging_buffer_queue_fam_type = Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL;
+            }
+            else
+            if ((m_queue_families & Anvil::QUEUE_FAMILY_DMA_BIT) != 0)
+            {
+                queue_ptr                     = base_device_locked_ptr->get_transfer_queue(0);
+                staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_DMA_BIT;
+                staging_buffer_queue_fam_type = Anvil::QUEUE_FAMILY_TYPE_TRANSFER;
             }
             else
             {
@@ -763,7 +765,7 @@ bool Anvil::Buffer::write(VkDeviceSize                  in_start_offset,
             m_device_ptr,
             in_size,
             staging_buffer_queue_fam_bits,
-            VK_SHARING_MODE_EXCLUSIVE,
+            VK_SHARING_MODE_CONCURRENT,
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             Anvil::MEMORY_FEATURE_FLAG_MAPPABLE,
             in_data);
@@ -778,16 +780,32 @@ bool Anvil::Buffer::write(VkDeviceSize                  in_start_offset,
         copy_cmdbuf_ptr->start_recording(true,   /* one_time_submit          */
                                          false); /* simultaneous_use_allowed */
         {
-            VkBufferCopy copy_region;
+            BufferBarrier buffer_barrier(VK_ACCESS_HOST_WRITE_BIT,
+                                         VK_ACCESS_TRANSFER_READ_BIT,
+                                         VK_QUEUE_FAMILY_IGNORED,
+                                         VK_QUEUE_FAMILY_IGNORED,
+                                         staging_buffer_ptr,
+                                         0, /* in_offset */
+                                         staging_buffer_ptr->get_size() );
+            VkBufferCopy  copy_region;
 
             copy_region.dstOffset = in_start_offset;
             copy_region.size      = in_size;
             copy_region.srcOffset = 0;
 
-            copy_cmdbuf_ptr->record_copy_buffer(staging_buffer_ptr,
-                                                shared_from_this(),
-                                                1, /* in_region_count */
-                                               &copy_region);
+            copy_cmdbuf_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_HOST_BIT,
+                                                     VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                                     VK_FALSE,        /* in_by_region                   */
+                                                     0,               /* in_memory_barrier_count        */
+                                                     nullptr,         /* in_memory_barriers_ptr         */
+                                                     1,               /* in_buffer_memory_barrier_count */
+                                                     &buffer_barrier,
+                                                     0,               /* in_image_memory_barrier_count */
+                                                     nullptr);        /* in_image_memory_barriers_ptr  */
+            copy_cmdbuf_ptr->record_copy_buffer     (staging_buffer_ptr,
+                                                     shared_from_this(),
+                                                     1, /* in_region_count */
+                                                    &copy_region);
         }
         copy_cmdbuf_ptr->stop_recording();
 

@@ -62,6 +62,8 @@ Anvil::ObjectTracker* Anvil::ObjectTracker::get()
 /* Please see header for specification */
 void Anvil::ObjectTracker::check_for_leaks() const
 {
+    std::unique_lock<std::mutex> lock(m_cs);
+
     for (ObjectType current_object_type = OBJECT_TYPE_FIRST;
                     current_object_type < OBJECT_TYPE_COUNT;
                     current_object_type = static_cast<ObjectType>(current_object_type + 1))
@@ -131,7 +133,7 @@ const char* Anvil::ObjectTracker::get_object_type_name(ObjectType in_object_type
         "Shader Module",
         "Swapchain",
 
-        /* Fake types: */
+        "GLSL shader -> SPIR-V generator",
         "Graphics Pipeline (fake)"
     };
 
@@ -142,10 +144,11 @@ const char* Anvil::ObjectTracker::get_object_type_name(ObjectType in_object_type
 }
 
 /* Please see header for specification */
-const void* Anvil::ObjectTracker::get_object_at_index(ObjectType in_object_type,
-                                                      uint32_t   in_alloc_index) const
+void* Anvil::ObjectTracker::get_object_at_index(ObjectType in_object_type,
+                                                uint32_t   in_alloc_index) const
 {
-    const void* result = nullptr;
+    std::unique_lock<std::mutex> lock (m_cs);
+    void*                        result(nullptr);
 
     anvil_assert(in_object_type < OBJECT_TYPE_COUNT);
 
@@ -164,39 +167,59 @@ void Anvil::ObjectTracker::register_object(ObjectType in_object_type,
     anvil_assert(in_object_ptr  != nullptr);
     anvil_assert(in_object_type <  OBJECT_TYPE_COUNT);
 
-    m_object_allocations[in_object_type].push_back(ObjectAllocation(m_n_objects_allocated_array[in_object_type]++,
-                                                                    in_object_ptr) );
+    {
+        std::unique_lock<std::mutex> lock(m_cs);
+
+        m_object_allocations[in_object_type].push_back(ObjectAllocation(m_n_objects_allocated_array[in_object_type]++,
+                                                                        in_object_ptr) );
+    }
 
     /* Notify any observers about the new object */
-    ObjectTrackerOnObjectRegisteredCallbackArg callback_arg(in_object_type,
-                                                            in_object_ptr);
+    OnObjectRegisteredCallbackArgument callback_arg(in_object_type,
+                                                    in_object_ptr);
 
-    callback(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_REGISTERED,
-            &callback_arg);
+    callback_safe(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_REGISTERED,
+                 &callback_arg);
 }
 
 /* Please see header for specification */
 void Anvil::ObjectTracker::unregister_object(ObjectType in_object_type,
                                              void*      in_object_ptr)
 {
-    ObjectTrackerOnObjectAboutToBeUnregisteredCallbackArg callback_arg              (in_object_type,
-                                                                                     in_object_ptr);
-    auto                                                  object_allocation_iterator(std::find(m_object_allocations[in_object_type].begin(),
-                                                                                               m_object_allocations[in_object_type].end(),
-                                                                                               in_object_ptr) );
+    OnObjectAboutToBeUnregisteredCallbackArgument callback_arg(in_object_type,
+                                                               in_object_ptr);
 
-    if (object_allocation_iterator == m_object_allocations[in_object_type].end() )
     {
-        anvil_assert_fail();
+        std::unique_lock<std::mutex> lock                      (m_cs);
+        auto                         object_allocation_iterator(std::find(m_object_allocations[in_object_type].begin(),
+                                                                          m_object_allocations[in_object_type].end(),
+                                                                          in_object_ptr) );
 
-        goto end;
+        if (object_allocation_iterator == m_object_allocations[in_object_type].end() )
+        {
+            anvil_assert_fail();
+
+            goto end;
+        }
+
+        m_object_allocations[in_object_type].erase(object_allocation_iterator);
     }
 
-    m_object_allocations[in_object_type].erase(object_allocation_iterator);
+    /* Notify any observers about the event. */
+    if (in_object_type == OBJECT_TYPE_DEVICE)
+    {
+        callback_safe(OBJECT_TRACKER_CALLBACK_ID_ON_DEVICE_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+                     &callback_arg);
+    }
+    else
+    if (in_object_type == OBJECT_TYPE_PIPELINE_LAYOUT)
+    {
+        callback_safe(OBJECT_TRACKER_CALLBACK_ID_ON_PIPELINE_LAYOUT_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+                     &callback_arg);
+    }
 
-    /* Notify any observers about the event */
-    callback(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED,
-            &callback_arg);
+    callback_safe(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+                 &callback_arg);
 
 end:
     ;

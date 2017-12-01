@@ -97,9 +97,8 @@ namespace Anvil
         typedef uint32_t DynamicStateBitfield;
 
         /* Prototype for a call-back function, invoked right after vkCreateGraphicsPipelines() call returns. **/
-        typedef void (*PFNPIPELINEPOSTBAKECALLBACKPROC)(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                        GraphicsPipelineID               in_pipeline_id,
-                                                        void*                            in_user_arg);
+        typedef std::function<void (std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                    GraphicsPipelineID               in_pipeline_id)> PipelinePostBakeFunction;
 
         /* Prototype for a call-back function, invoked before a Vulkan graphics pipeline is created.
          *
@@ -107,10 +106,9 @@ namespace Anvil
          * Anvil::GraphicsPipelineManager will not adjust its internal state to sync with user-modified
          * fields.
          **/
-        typedef void (*PFNPIPELINEPREBAKECALLBACKPROC)(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                       GraphicsPipelineID               in_pipeline_id,
-                                                       VkGraphicsPipelineCreateInfo*    in_graphics_pipeline_create_info_ptr,
-                                                       void*                            in_user_arg);
+        typedef std::function<void (std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                    GraphicsPipelineID               in_pipeline_id,
+                                    VkGraphicsPipelineCreateInfo*    in_graphics_pipeline_create_info_ptr)> PipelinePreBakeFunction;
 
         /* Public functions */
 
@@ -863,15 +861,13 @@ namespace Anvil
          *
          *  This call overwrites any previous set_pipeline_post_bake_callback() calls.
          *
-         *  @param in_graphics_pipeline_id       ID of the graphics pipeline to set the call-back for.
-         *  @param in_pfn_pipeline_pre_bake_proc Function to call back. Must not be nullptr.
-         *  @param in_user_arg                   User argument to pass with the call-back. May be nullptr.
+         *  @param in_graphics_pipeline_id        ID of the graphics pipeline to set the call-back for.
+         *  @param in_pipeline_post_bake_function Function to call back. Must not be nullptr.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool set_pipeline_post_bake_callback(GraphicsPipelineID              in_graphics_pipeline_id,
-                                             PFNPIPELINEPOSTBAKECALLBACKPROC in_pfn_pipeline_post_bake_proc,
-                                             void*                           in_user_arg);
+        bool set_pipeline_post_bake_callback(GraphicsPipelineID       in_graphics_pipeline_id,
+                                             PipelinePostBakeFunction in_pipeline_post_bake_function);
 
         /** Sets a call-back, which GFX pipeline manager will invoke right before a vkCreateGraphicsPipeline() call is made.
          *  This allows the callee to adjust the VkGraphicsPipelineCreateInfo instance, eg. by modifying pNext to user-defined
@@ -887,9 +883,8 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool set_pipeline_pre_bake_callback(GraphicsPipelineID             in_graphics_pipeline_id,
-                                            PFNPIPELINEPREBAKECALLBACKPROC in_pfn_pipeline_pre_bake_proc,
-                                            void*                          in_user_arg);
+        bool set_pipeline_pre_bake_callback(GraphicsPipelineID      in_graphics_pipeline_id,
+                                            PipelinePreBakeFunction in_pfn_pipeline_pre_bake_function);
 
         /** Copies graphics state from @param in_source_pipeline_id to @param in_target_pipeline_id, leaving
          *  the originally assigned renderpass, as well as the subpass ID, unaffected.
@@ -1478,10 +1473,8 @@ namespace Anvil
             VkCullModeFlagsVariable   (cull_mode);
             VkSampleCountFlagsVariable(sample_count);
 
-            PFNPIPELINEPOSTBAKECALLBACKPROC pfn_pipeline_postbake_callback_proc;
-            PFNPIPELINEPREBAKECALLBACKPROC  pfn_pipeline_prebake_callback_proc;
-            void*                           pipeline_postbake_callback_user_arg;
-            void*                           pipeline_prebake_callback_user_arg;
+            PipelinePostBakeFunction post_bake_function;
+            PipelinePreBakeFunction  pre_bake_function;
 
             std::shared_ptr<RenderPass> renderpass_ptr;
             SubPassID                   subpass_id;
@@ -1522,11 +1515,6 @@ namespace Anvil
                 sample_mask_enabled        = false;
                 sample_shading_enabled     = false;
                 stencil_test_enabled       = false;
-
-                pfn_pipeline_postbake_callback_proc = nullptr;
-                pfn_pipeline_prebake_callback_proc  = nullptr;
-                pipeline_postbake_callback_user_arg = nullptr;
-                pipeline_prebake_callback_user_arg  = nullptr;
 
                 renderpass_ptr = in_renderpass_ptr;
                 subpass_id     = in_subpass_id;
@@ -1637,10 +1625,8 @@ namespace Anvil
                 subpass_attachment_blending_properties = in.subpass_attachment_blending_properties;
                 viewports                              = in.viewports;
 
-                pfn_pipeline_postbake_callback_proc = in.pfn_pipeline_postbake_callback_proc;
-                pfn_pipeline_prebake_callback_proc  = in.pfn_pipeline_prebake_callback_proc;
-                pipeline_postbake_callback_user_arg = in.pipeline_postbake_callback_user_arg;
-                pipeline_prebake_callback_user_arg  = in.pipeline_prebake_callback_user_arg;
+                post_bake_function = in.post_bake_function;
+                pre_bake_function  = in.pre_bake_function;
 
                 memcpy(blend_constant,
                        in.blend_constant,

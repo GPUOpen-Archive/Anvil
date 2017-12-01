@@ -106,6 +106,26 @@ namespace Anvil
                                           in_opt_te_entrypoint_name.c_str(),
                                           in_opt_vs_entrypoint_name.c_str() );
         }
+        static std::shared_ptr<ShaderModule> create_from_spirv_blob(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                                    const uint32_t*                  in_spirv_blob,
+                                                                    uint32_t                         in_n_spirv_blob_uint32s,
+                                                                    const std::string&               in_opt_cs_entrypoint_name,
+                                                                    const std::string&               in_opt_fs_entrypoint_name,
+                                                                    const std::string&               in_opt_gs_entrypoint_name,
+                                                                    const std::string&               in_opt_tc_entrypoint_name,
+                                                                    const std::string&               in_opt_te_entrypoint_name,
+                                                                    const std::string&               in_opt_vs_entrypoint_name)
+        {
+            return create_from_spirv_blob(in_device_ptr,
+                                          reinterpret_cast<const char*>(in_spirv_blob),
+                                          in_n_spirv_blob_uint32s * sizeof(uint32_t),
+                                          in_opt_cs_entrypoint_name.c_str(),
+                                          in_opt_fs_entrypoint_name.c_str(),
+                                          in_opt_gs_entrypoint_name.c_str(),
+                                          in_opt_tc_entrypoint_name.c_str(),
+                                          in_opt_te_entrypoint_name.c_str(),
+                                          in_opt_vs_entrypoint_name.c_str() );
+        }
 
         /** Destructor. Releases internally maintained Vulkan shader module instance. */
         virtual ~ShaderModule();
@@ -239,8 +259,7 @@ namespace Anvil
         bool init_from_spirv_blob(const char* in_spirv_blob,
                                   uint32_t    in_n_spirv_blob_bytes);
 
-        static void on_object_about_to_be_released(void* in_callback_arg,
-                                                   void* in_shader_module_raw_ptr);
+        void on_object_about_to_be_released(void* in_callback_arg);
 
         /* Private variables */
         std::string m_cs_entrypoint_name;

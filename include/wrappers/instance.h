@@ -36,11 +36,10 @@
 namespace Anvil
 {
     /** Debug call-back function prototype */
-    typedef VkBool32 (*PFNINSTANCEDEBUGCALLBACKPROC)(VkDebugReportFlagsEXT      in_message_flags,
-                                                     VkDebugReportObjectTypeEXT in_object_type,
-                                                     const char*                in_layer_prefix,
-                                                     const char*                in_message,
-                                                     void*                      in_user_arg);
+    typedef std::function< VkBool32(VkDebugReportFlagsEXT      in_message_flags,
+                                    VkDebugReportObjectTypeEXT in_object_type,
+                                    const char*                in_layer_prefix,
+                                    const char*                in_message)>     DebugCallbackFunction;
 
     class Instance : public std::enable_shared_from_this<Instance>
     {
@@ -63,21 +62,17 @@ namespace Anvil
          *        destroyed correctly.
          *
          *
-         *  @param in_app_name                 Name of the application, to be passed in VkCreateInstanceInfo
-         *                                     structure.
-         *  @param in_engine_name              Name of the engine, to be passed in VkCreateInstanceInfo
-         *                                     structure.
-         *  @param in_opt_pfn_validation_proc  If not nullptr, the specified handled will be called whenever
-         *                                     a call-back from any of the validation layers is received.
-         *                                     Ignored otherwise.
-         *  @param in_validation_proc_user_arg If @param opt_pfn_validation_proc is not nullptr, this argument
-         *                                     will be passed to @param opt_pfn_validation_proc every time
-         *                                     a debug callback is received. Ignored otherwise.
+         *  @param in_app_name                         Name of the application, to be passed in VkCreateInstanceInfo
+         *                                             structure.
+         *  @param in_engine_name                      Name of the engine, to be passed in VkCreateInstanceInfo
+         *                                             structure.
+         *  @param in_opt_validation_callback_function If not nullptr, the specified function will be called whenever
+         *                                             a call-back from any of the validation layers is received.
+         *                                             Ignored otherwise.
          **/
-        static std::shared_ptr<Anvil::Instance> create(const std::string&           in_app_name,
-                                                       const std::string&           in_engine_name,
-                                                       PFNINSTANCEDEBUGCALLBACKPROC in_opt_pfn_validation_callback_proc,
-                                                       void*                        in_validation_proc_user_arg);
+        static std::shared_ptr<Anvil::Instance> create(const std::string&    in_app_name,
+                                                       const std::string&    in_engine_name,
+                                                       DebugCallbackFunction in_opt_validation_callback_proc);
 
         void destroy();
 
@@ -157,17 +152,16 @@ namespace Anvil
         /** Tells if validation support has been requested for this Vulkan Instance wrapper */
         bool is_validation_enabled() const
         {
-            return m_pfn_validation_callback_proc != nullptr;
+            return m_validation_callback_function != nullptr;
         }
 
     private:
         /* Private functions */
 
         /** Private constructor. Please use create() function instead. */
-        Instance(const std::string&           in_app_name,
-                 const std::string&           in_engine_name,
-                 PFNINSTANCEDEBUGCALLBACKPROC in_opt_pfn_validation_callback_proc,
-                 void*                        in_validation_proc_user_arg);
+        Instance(const std::string&    in_app_name,
+                 const std::string&    in_engine_name,
+                 DebugCallbackFunction in_opt_validation_callback_function);
 
         Instance& operator=(const Instance&);
         Instance           (const Instance&);
@@ -197,9 +191,9 @@ namespace Anvil
         /* DebugReport extension function pointers and data */
         VkDebugReportCallbackEXT m_debug_callback_data;
 
-        ExtensionEXTDebugReportEntrypoints       m_ext_debug_report_entrypoints;
-        ExtensionKHRGetPhysicalDeviceProperties2 m_khr_get_physical_device_properties2_entrypoints;
-        ExtensionKHRSurfaceEntrypoints           m_khr_surface_entrypoints;
+        ExtensionEXTDebugReportEntrypoints              m_ext_debug_report_entrypoints;
+        ExtensionKHRGetPhysicalDeviceProperties2        m_khr_get_physical_device_properties2_entrypoints;
+        ExtensionKHRSurfaceEntrypoints                  m_khr_surface_entrypoints;
 
         #ifdef _WIN32
             #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
@@ -211,10 +205,9 @@ namespace Anvil
             #endif
         #endif
 
-        const std::string            m_app_name;
-        const std::string            m_engine_name;
-        PFNINSTANCEDEBUGCALLBACKPROC m_pfn_validation_callback_proc;
-        void*                        m_validation_proc_user_arg;
+        const std::string     m_app_name;
+        const std::string     m_engine_name;
+        DebugCallbackFunction m_validation_callback_function;
 
         std::vector<std::string>                             m_enabled_extensions;
         Anvil::Layer                                         m_global_layer;

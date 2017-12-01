@@ -31,11 +31,10 @@
 #include "miniz/miniz.c"
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Window> Anvil::DummyWindow::create(const std::string&     in_title,
-                                                          unsigned int           in_width,
-                                                          unsigned int           in_height,
-                                                          PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
-                                                          void*                  in_present_callback_func_user_arg)
+std::shared_ptr<Anvil::Window> Anvil::DummyWindow::create(const std::string&      in_title,
+                                                          unsigned int            in_width,
+                                                          unsigned int            in_height,
+                                                          PresentCallbackFunction in_present_callback_func)
 {
     std::shared_ptr<Anvil::DummyWindow> result_ptr;
 
@@ -43,8 +42,7 @@ std::shared_ptr<Anvil::Window> Anvil::DummyWindow::create(const std::string&    
         new Anvil::DummyWindow(in_title,
                                in_width,
                                in_height,
-                               in_present_callback_func_ptr,
-                               in_present_callback_func_user_arg)
+                               in_present_callback_func)
     );
 
     if (result_ptr)
@@ -59,16 +57,15 @@ std::shared_ptr<Anvil::Window> Anvil::DummyWindow::create(const std::string&    
 }
 
 /** Please see header for specification */
-Anvil::DummyWindow::DummyWindow(const std::string&     in_title,
-                                unsigned int           in_width,
-                                unsigned int           in_height,
-                                PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
-                                void*                  in_present_callback_func_user_arg)
+Anvil::DummyWindow::DummyWindow(const std::string&      in_title,
+                                unsigned int            in_width,
+                                unsigned int            in_height,
+                                PresentCallbackFunction in_present_callback_func)
     : Window(in_title,
              in_width,
              in_height,
-             in_present_callback_func_ptr,
-             in_present_callback_func_user_arg)
+             false, /* in_closable */
+             in_present_callback_func)
 {
     m_window_owned = true;
 }
@@ -95,7 +92,10 @@ void Anvil::DummyWindow::run()
 
     while (running && !m_window_should_close)
     {
-        m_present_callback_func_ptr(m_present_callback_func_user_arg);
+        if (m_present_callback_func)
+        {
+            m_present_callback_func();
+        }
 
         running = !m_window_should_close;
     }
@@ -105,11 +105,10 @@ void Anvil::DummyWindow::run()
 
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Window> Anvil::DummyWindowWithPNGSnapshots::create(const std::string&     in_title,
-                                                                          unsigned int           in_width,
-                                                                          unsigned int           in_height,
-                                                                          PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
-                                                                          void*                  in_present_callback_func_user_arg)
+std::shared_ptr<Anvil::Window> Anvil::DummyWindowWithPNGSnapshots::create(const std::string&      in_title,
+                                                                          unsigned int            in_width,
+                                                                          unsigned int            in_height,
+                                                                          PresentCallbackFunction in_present_callback_func)
 {
     std::shared_ptr<Anvil::DummyWindowWithPNGSnapshots> result_ptr;
 
@@ -117,8 +116,7 @@ std::shared_ptr<Anvil::Window> Anvil::DummyWindowWithPNGSnapshots::create(const 
         new Anvil::DummyWindowWithPNGSnapshots(in_title,
                                                in_width,
                                                in_height,
-                                               in_present_callback_func_ptr,
-                                               in_present_callback_func_user_arg)
+                                               in_present_callback_func)
     );
 
     if (result_ptr)
@@ -133,16 +131,14 @@ std::shared_ptr<Anvil::Window> Anvil::DummyWindowWithPNGSnapshots::create(const 
 }
 
 /** Please see header for specification */
-Anvil::DummyWindowWithPNGSnapshots::DummyWindowWithPNGSnapshots(const std::string&     in_title,
-                                                                unsigned int           in_width,
-                                                                unsigned int           in_height,
-                                                                PFNPRESENTCALLBACKPROC in_present_callback_func_ptr,
-                                                                void*                  in_present_callback_func_user_arg)
+Anvil::DummyWindowWithPNGSnapshots::DummyWindowWithPNGSnapshots(const std::string&      in_title,
+                                                                unsigned int            in_width,
+                                                                unsigned int            in_height,
+                                                                PresentCallbackFunction in_present_callback_func)
     :DummyWindow(in_title,
                  in_width,
                  in_height,
-                 in_present_callback_func_ptr,
-                 in_present_callback_func_user_arg)
+                 in_present_callback_func)
 {
     m_height             = in_height;
     m_n_frames_presented = 0;
@@ -353,7 +349,7 @@ void Anvil::DummyWindowWithPNGSnapshots::run()
 
     while (running && !m_window_should_close)
     {
-        m_present_callback_func_ptr(m_present_callback_func_user_arg);
+        m_present_callback_func();
 
         store_swapchain_frame();
 

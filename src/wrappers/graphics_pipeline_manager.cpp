@@ -969,12 +969,11 @@ bool Anvil::GraphicsPipelineManager::bake()
         graphics_pipeline_create_info.flags |= ((current_pipeline_ptr->allow_derivatives)     ? VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT    : 0) |
                                                ((current_pipeline_ptr->disable_optimizations) ? VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT : 0);
 
-        if (current_pipeline_config_ptr->pfn_pipeline_prebake_callback_proc != nullptr)
+        if (current_pipeline_config_ptr->pre_bake_function != nullptr)
         {
-            current_pipeline_config_ptr->pfn_pipeline_prebake_callback_proc(m_device_ptr,
-                                                                            current_pipeline_id,
-                                                                           &graphics_pipeline_create_info,
-                                                                            current_pipeline_config_ptr->pipeline_prebake_callback_user_arg);
+            current_pipeline_config_ptr->pre_bake_function(m_device_ptr,
+                                                           current_pipeline_id,
+                                                          &graphics_pipeline_create_info);
         }
 
         /* Stash the descriptor for now. We will issue one expensive vkCreateGraphicsPipelines() call after all pipeline objects
@@ -1036,11 +1035,10 @@ bool Anvil::GraphicsPipelineManager::bake()
             continue;
         }
 
-        if (m_pipeline_configurations[bake_item_iterator->pipeline_id]->pfn_pipeline_postbake_callback_proc != nullptr)
+        if (m_pipeline_configurations[bake_item_iterator->pipeline_id]->post_bake_function != nullptr)
         {
-            m_pipeline_configurations[bake_item_iterator->pipeline_id]->pfn_pipeline_postbake_callback_proc(m_device_ptr,
-                                                                                                            bake_item_iterator->pipeline_id,
-                                                                                                            m_pipeline_configurations[bake_item_iterator->pipeline_id]->pipeline_postbake_callback_user_arg);
+            m_pipeline_configurations[bake_item_iterator->pipeline_id]->post_bake_function(m_device_ptr,
+                                                                                           bake_item_iterator->pipeline_id);
         }
     }
 
@@ -2646,9 +2644,8 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::GraphicsPipelineManager::set_pipeline_post_bake_callback(GraphicsPipelineID              in_graphics_pipeline_id,
-                                                                     PFNPIPELINEPOSTBAKECALLBACKPROC in_pfn_pipeline_post_bake_proc,
-                                                                     void*                           in_user_arg)
+bool Anvil::GraphicsPipelineManager::set_pipeline_post_bake_callback(GraphicsPipelineID       in_graphics_pipeline_id,
+                                                                     PipelinePostBakeFunction in_pipeline_post_bake_function)
 {
     bool result = false;
 
@@ -2669,18 +2666,16 @@ bool Anvil::GraphicsPipelineManager::set_pipeline_post_bake_callback(GraphicsPip
         pipeline_config_ptr = pipeline_config_iterator->second;
     }
 
-    pipeline_config_ptr->pfn_pipeline_postbake_callback_proc = in_pfn_pipeline_post_bake_proc;
-    pipeline_config_ptr->pipeline_postbake_callback_user_arg = in_user_arg;
+    pipeline_config_ptr->post_bake_function = in_pipeline_post_bake_function;
+    result                                  = true;
 
-    result = true;
 end:
     return result;
 }
 
 /* Please see header for specification */
-bool Anvil::GraphicsPipelineManager::set_pipeline_pre_bake_callback(GraphicsPipelineID             in_graphics_pipeline_id,
-                                                                    PFNPIPELINEPREBAKECALLBACKPROC in_pfn_pipeline_pre_bake_proc,
-                                                                    void*                          in_user_arg)
+bool Anvil::GraphicsPipelineManager::set_pipeline_pre_bake_callback(GraphicsPipelineID      in_graphics_pipeline_id,
+                                                                    PipelinePreBakeFunction in_pfn_pipeline_pre_bake_function)
 {
     bool result = false;
 
@@ -2701,10 +2696,8 @@ bool Anvil::GraphicsPipelineManager::set_pipeline_pre_bake_callback(GraphicsPipe
         pipeline_config_ptr = pipeline_config_iterator->second;
     }
 
-    pipeline_config_ptr->pfn_pipeline_prebake_callback_proc = in_pfn_pipeline_pre_bake_proc;
-    pipeline_config_ptr->pipeline_prebake_callback_user_arg = in_user_arg;
-
-    result = true;
+    pipeline_config_ptr->pre_bake_function = in_pfn_pipeline_pre_bake_function;
+    result                                 = true;
 end:
     return result;
 }

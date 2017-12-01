@@ -36,21 +36,6 @@
 
 namespace Anvil
 {
-    typedef struct ImageCallbackIsAllocPendingQueryData
-    {
-        explicit ImageCallbackIsAllocPendingQueryData(std::shared_ptr<Anvil::Image> in_image_ptr)
-            :image_ptr(in_image_ptr),
-             result   (false)
-        {
-            /* Stub */
-        }
-
-        ImageCallbackIsAllocPendingQueryData& operator=(const ImageCallbackIsAllocPendingQueryData&) = delete;
-
-        const std::shared_ptr<const Anvil::Image> image_ptr;
-        bool                                      result;
-    } ImageCallbackIsAllocPendingQueryData;
-
     /* Enumerates available image call-back types. */
     enum ImageCallbackID
     {
@@ -63,7 +48,7 @@ namespace Anvil
          * This call-back is needed for memory allocator to support implicit bake operations
          * for sparse images.
          *
-         * callback_arg: ImageCallbackIsAllocPendingQueryData*
+         * callback_arg: Pointer to IsImageMemoryAllocPendingQueryCallbackArgument instance.
          **/
         IMAGE_CALLBACK_ID_IS_ALLOC_PENDING,
 
@@ -72,7 +57,7 @@ namespace Anvil
          *
          * This call-back is needed for memory allocator to support implicit bake operations.
          *
-         * callback_arg: Calling back image instance;
+         * callback_arg: Pointer to OnMemoryBlockNeededForImageCallbackArgument instance.
          **/
         IMAGE_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
 
@@ -92,21 +77,34 @@ namespace Anvil
          *
          * This is a blocking call.
          *
-         * @param in_queue_ptr         Queue to use for the transition. The specified queue must support pipeline barrier
-         *                             command. Must not be null.
-         * @param in_src_access_mask   Source access mask to use for the transition.
-         * @param in_src_layout        Image layout to transfer from.
-         * @param in_dst_access_mask   Destination access mask to use for the transition.
-         * @param in_dst_layout        Image layout to transfer to.
-         * @param in_subresource_range Subresource range to use for the transfer operation.
-         *
+         * @param in_queue_ptr                    Queue to use for the transition. The specified queue must support pipeline barrier
+         *                                        command. Must not be null.
+         * @param in_src_access_mask              Source access mask to use for the transition.
+         * @param in_src_layout                   Image layout to transfer from.
+         * @param in_dst_access_mask              Destination access mask to use for the transition.
+         * @param in_dst_layout                   Image layout to transfer to.
+         * @param in_subresource_range            Subresource range to use for the transfer operation.
+         * @param in_opt_n_wait_semaphores        Number of wait semaphores specified at @param in_opt_wait_semaphore_ptrs.
+         *                                        May be 0.
+         * @param in_opt_wait_dst_stage_mask_ptrs A raw array of wait destination stage masks, to be used at submission time. May be null if
+         *                                        @param in_opt_n_wait_semaphores is 0.
+         * @param in_opt_wait_semaphore_ptrs      A raw array of semaphores to wait on before proceeding with submission of a cmd buffer
+         *                                        which changes the layout of the image. May be null if @param in_opt_n_wait_semaphores is 0.
+         * @param in_opt_n_set_semaphores         Number of set semaphores specified at @param in_opt_set_semaphore_ptrs. May be 0.
+         * @param in_opt_set_semaphore_ptrs       A raw array of semaphores to set upon finished execution of the image layout transfer command buffer.
+         *                                        May be null if @param in_opt_n_set_semaphores is 0.
          */
-        void change_image_layout(std::shared_ptr<Anvil::Queue>  in_queue_ptr,
-                                 VkAccessFlags                  in_src_access_mask,
-                                 VkImageLayout                  in_src_layout,
-                                 VkAccessFlags                  in_dst_access_mask,
-                                 VkImageLayout                  in_dst_layout,
-                                 const VkImageSubresourceRange& in_subresource_range);
+        void change_image_layout(std::shared_ptr<Anvil::Queue>            in_queue_ptr,
+                                 VkAccessFlags                            in_src_access_mask,
+                                 VkImageLayout                            in_src_layout,
+                                 VkAccessFlags                            in_dst_access_mask,
+                                 VkImageLayout                            in_dst_layout,
+                                 const VkImageSubresourceRange&           in_subresource_range,
+                                 const uint32_t                           in_opt_n_wait_semaphores        = 0,
+                                 const VkPipelineStageFlags*              in_opt_wait_dst_stage_mask_ptrs = nullptr,
+                                 const std::shared_ptr<Anvil::Semaphore>* in_opt_wait_semaphore_ptrs      = nullptr,
+                                 const uint32_t                           in_opt_n_set_semaphores         = 0,
+                                 const std::shared_ptr<Anvil::Semaphore>* in_opt_set_semaphore_ptrs       = nullptr);
 
         /** Initializes a new non-sparse Image instance *without* a memory backing. A memory region should be bound
          *  to the object by calling Image::set_memory() before using the object for any operations.

@@ -223,16 +223,14 @@ namespace Anvil
         void destroy_swapchain();
         void init             ();
 
-        static void on_parent_window_about_to_close(void* in_window_ptr,
-                                                    void* in_swapchain_raw_ptr);
-        static void on_present_request_issued      (void* in_queue_raw_ptr,
-                                                    void* in_swapchain_raw_ptr);
+        void on_parent_window_about_to_close();
+        void on_present_request_issued      ();
 
         /* Private variables */
         bool                                            m_destroy_swapchain_before_parent_window_closes;
         std::weak_ptr<Anvil::BaseDevice>                m_device_ptr;
         VkSwapchainCreateFlagsKHR                       m_flags;
-        std::vector<std::shared_ptr<Anvil::Fence> >     m_image_available_fence_ptrs;
+        std::shared_ptr<Anvil::Fence>                   m_image_available_fence_ptr;
         VkFormat                                        m_image_format;
         std::vector<std::shared_ptr<Anvil::Image> >     m_image_ptrs;
         VkFormat                                        m_image_view_format;

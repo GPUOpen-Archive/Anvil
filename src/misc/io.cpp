@@ -503,7 +503,7 @@ bool Anvil::IO::read_file(std::string in_filename,
 
         if (fseek(file_handle,
                   in_start_offset,
-                  SEEK_END) != 0)
+                  SEEK_SET) != 0)
         {
             goto end;
         }
