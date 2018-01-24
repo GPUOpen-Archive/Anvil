@@ -30,8 +30,6 @@
 #include "wrappers/image.h"
 #include "wrappers/memory_block.h"
 #include "wrappers/queue.h"
-#include <algorithm>
-
 
 /* Please see header for specification */
 Anvil::MemoryAllocator::Item::Item(std::shared_ptr<Anvil::MemoryAllocator> in_memory_allocator_ptr,
@@ -59,6 +57,33 @@ Anvil::MemoryAllocator::Item::Item(std::shared_ptr<Anvil::MemoryAllocator> in_me
     register_for_callbacks();
 }
 
+Anvil::MemoryAllocator::Item::Item(std::shared_ptr<Anvil::MemoryAllocator> in_memory_allocator_ptr,
+                                   std::shared_ptr<Anvil::Buffer>          in_buffer_ptr,
+                                   VkDeviceSize                            in_alloc_offset,
+                                   VkDeviceSize                            in_alloc_size,
+                                   uint32_t                                in_alloc_memory_types,
+                                   VkDeviceSize                            in_alloc_alignment,
+                                   MemoryFeatureFlags                      in_alloc_required_memory_features,
+                                   uint32_t                                in_alloc_supported_memory_types)
+{
+    anvil_assert(in_alloc_supported_memory_types != 0);
+    anvil_assert(in_memory_allocator_ptr         != nullptr);
+
+    alloc_memory_final_type             = UINT32_MAX;
+    alloc_memory_required_alignment     = in_alloc_alignment;
+    alloc_memory_required_features      = in_alloc_required_memory_features;
+    alloc_memory_supported_memory_types = in_alloc_supported_memory_types;
+    alloc_memory_types                  = in_alloc_memory_types;
+    alloc_offset                        = in_alloc_offset;
+    alloc_size                          = in_alloc_size;
+    buffer_ptr                          = in_buffer_ptr;
+    is_baked                            = false;
+    memory_allocator_ptr                = in_memory_allocator_ptr;
+    type                                = ITEM_TYPE_SPARSE_BUFFER_REGION;
+
+    register_for_callbacks();
+}
+
 /* Please see header for specification */
 Anvil::MemoryAllocator::Item::Item(std::shared_ptr<Anvil::MemoryAllocator> in_memory_allocator_ptr,
                                    std::shared_ptr<Anvil::Image>           in_image_ptr,
@@ -78,6 +103,7 @@ Anvil::MemoryAllocator::Item::Item(std::shared_ptr<Anvil::MemoryAllocator> in_me
     alloc_memory_required_features      = in_alloc_required_memory_features;
     alloc_memory_supported_memory_types = in_alloc_supported_memory_types;
     alloc_memory_types                  = in_alloc_memory_types;
+    alloc_offset                        = UINT64_MAX;
     alloc_size                          = in_alloc_size;
     image_ptr                           = in_image_ptr;
     is_baked                            = false;
@@ -109,6 +135,7 @@ Anvil::MemoryAllocator::Item::Item(std::shared_ptr<Anvil::MemoryAllocator> in_me
     alloc_memory_required_alignment     = in_alloc_alignment;
     alloc_memory_required_features      = in_alloc_required_memory_features;
     alloc_memory_supported_memory_types = in_alloc_supported_memory_types;
+    alloc_offset                        = UINT64_MAX;
     alloc_size                          = in_alloc_size;
     extent                              = in_extent;
     image_ptr                           = in_image_ptr;
@@ -138,6 +165,7 @@ Anvil::MemoryAllocator::Item::Item(std::shared_ptr<Anvil::MemoryAllocator> in_me
     alloc_memory_required_features      = in_alloc_required_memory_features;
     alloc_memory_supported_memory_types = in_alloc_supported_memory_types;
     alloc_memory_types                  = in_alloc_memory_types;
+    alloc_offset                        = UINT64_MAX;
     alloc_size                          = in_alloc_size;
     image_ptr                           = in_image_ptr;
     is_baked                            = false;
@@ -168,6 +196,7 @@ Anvil::MemoryAllocator::Item& Anvil::MemoryAllocator::Item::operator=(const Anvi
     alloc_memory_required_features      = in.alloc_memory_required_features;
     alloc_memory_supported_memory_types = in.alloc_memory_supported_memory_types;
     alloc_memory_types                  = in.alloc_memory_types;
+    alloc_offset                        = in.alloc_offset;
     alloc_size                          = in.alloc_size;
 
     extent         = in.extent;
@@ -203,6 +232,7 @@ Anvil::MemoryAllocator::Item::Item(const Anvil::MemoryAllocator::Item& in)
     alloc_memory_required_features      = in.alloc_memory_required_features;
     alloc_memory_supported_memory_types = in.alloc_memory_supported_memory_types;
     alloc_memory_types                  = in.alloc_memory_types;
+    alloc_offset                        = in.alloc_offset;
     alloc_size                          = in.alloc_size;
     
     extent         = in.extent;
@@ -355,9 +385,11 @@ void Anvil::MemoryAllocator::Item::unregister_from_callbacks()
 
 /* Please see header for specification */
 Anvil::MemoryAllocator::MemoryAllocator(std::weak_ptr<Anvil::BaseDevice>         in_device_ptr,
-                                        std::shared_ptr<IMemoryAllocatorBackend> in_backend_ptr)
-    :m_backend_ptr(in_backend_ptr),
-     m_device_ptr (in_device_ptr)
+                                        std::shared_ptr<IMemoryAllocatorBackend> in_backend_ptr,
+                                        bool                                     in_mt_safe)
+    :MTSafetySupportProvider(in_mt_safe),
+     m_backend_ptr          (in_backend_ptr),
+     m_device_ptr           (in_device_ptr)
 {
     /* Stub */
 }
@@ -365,8 +397,8 @@ Anvil::MemoryAllocator::MemoryAllocator(std::weak_ptr<Anvil::BaseDevice>        
 /* Please see header for specification */
 Anvil::MemoryAllocator::~MemoryAllocator()
 {
-    if (m_backend_ptr->supports_baking()     &&
-        m_items.size()                   > 0)
+    if (m_items.size()                   > 0 &&
+        m_backend_ptr->supports_baking() )
     {
         bake();
     }
@@ -377,6 +409,16 @@ Anvil::MemoryAllocator::~MemoryAllocator()
 bool Anvil::MemoryAllocator::add_buffer(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
                                         MemoryFeatureFlags             in_required_memory_features)
 {
+    std::unique_lock<std::recursive_mutex> mutex_lock;
+    auto                                   mutex_ptr  = get_mutex();
+
+    if (mutex_ptr != nullptr)
+    {
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
+
     return add_buffer_internal(in_buffer_ptr,
                                in_required_memory_features);
 }
@@ -444,8 +486,19 @@ bool Anvil::MemoryAllocator::add_buffer_with_float_data_ptr_based_post_fill(std:
                                                                             std::shared_ptr<float>         in_data_ptr,
                                                                             MemoryFeatureFlags             in_required_memory_features)
 {
-    bool result = add_buffer_internal(in_buffer_ptr,
-                                      in_required_memory_features);
+    std::unique_lock<std::recursive_mutex> mutex_lock;
+    auto                                   mutex_ptr  = get_mutex();
+    bool                                   result;
+
+    if (mutex_ptr != nullptr)
+    {
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
+
+    result = add_buffer_internal(in_buffer_ptr,
+                                 in_required_memory_features);
 
     if (result)
     {
@@ -460,10 +513,21 @@ bool Anvil::MemoryAllocator::add_buffer_with_float_data_vector_ptr_based_post_fi
                                                                                    std::shared_ptr<std::vector<float> > in_data_vector_ptr,
                                                                                    MemoryFeatureFlags                   in_required_memory_features)
 {
+    std::unique_lock<std::recursive_mutex> mutex_lock;
+    auto                                   mutex_ptr  = get_mutex();
+    bool                                   result;
+
+    if (mutex_ptr != nullptr)
+    {
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
+
     anvil_assert(in_data_vector_ptr->size() * sizeof(float) == in_buffer_ptr->get_size() );
 
-    bool result = add_buffer_internal(in_buffer_ptr,
-                                      in_required_memory_features);
+    result = add_buffer_internal(in_buffer_ptr,
+                                 in_required_memory_features);
 
     if (result)
     {
@@ -478,8 +542,19 @@ bool Anvil::MemoryAllocator::add_buffer_with_uchar8_data_ptr_based_post_fill(std
                                                                              std::shared_ptr<unsigned char> in_data_ptr,
                                                                              MemoryFeatureFlags             in_required_memory_features)
 {
-    bool result = add_buffer_internal(in_buffer_ptr,
-                                      in_required_memory_features);
+    std::unique_lock<std::recursive_mutex> mutex_lock;
+    auto                                   mutex_ptr  = get_mutex();
+    bool                                   result;
+
+    if (mutex_ptr != nullptr)
+    {
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
+
+    result = add_buffer_internal(in_buffer_ptr,
+                                 in_required_memory_features);
 
     if (result)
     {
@@ -494,10 +569,21 @@ bool Anvil::MemoryAllocator::add_buffer_with_uchar8_data_vector_ptr_based_post_f
                                                                                     std::shared_ptr<std::vector<unsigned char> > in_data_vector_ptr,
                                                                                     MemoryFeatureFlags                           in_required_memory_features)
 {
+    std::unique_lock<std::recursive_mutex> mutex_lock;
+    auto                                   mutex_ptr  = get_mutex();
+    bool                                   result;
+
+    if (mutex_ptr != nullptr)
+    {
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
+
     anvil_assert(in_data_vector_ptr->size() == in_buffer_ptr->get_size() );
 
-    bool result = add_buffer_internal(in_buffer_ptr,
-                                      in_required_memory_features);
+    result = add_buffer_internal(in_buffer_ptr,
+                                 in_required_memory_features);
 
     if (result)
     {
@@ -512,8 +598,19 @@ bool Anvil::MemoryAllocator::add_buffer_with_uint32_data_ptr_based_post_fill(std
                                                                              std::shared_ptr<uint32_t>      in_data_ptr,
                                                                              MemoryFeatureFlags             in_required_memory_features)
 {
-    bool result = add_buffer_internal(in_buffer_ptr,
-                                      in_required_memory_features);
+    std::unique_lock<std::recursive_mutex> mutex_lock;
+    auto                                   mutex_ptr  = get_mutex();
+    bool                                   result;
+
+    if (mutex_ptr != nullptr)
+    {
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
+
+    result = add_buffer_internal(in_buffer_ptr,
+                                 in_required_memory_features);
 
     if (result)
     {
@@ -528,10 +625,21 @@ bool Anvil::MemoryAllocator::add_buffer_with_uint32_data_vector_ptr_based_post_f
                                                                                     std::shared_ptr<std::vector<uint32_t> > in_data_vector_ptr,
                                                                                     MemoryFeatureFlags                      in_required_memory_features)
 {
+    std::unique_lock<std::recursive_mutex> mutex_lock;
+    auto                                   mutex_ptr  = get_mutex();
+    bool                                   result;
+
+    if (mutex_ptr != nullptr)
+    {
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
+
     anvil_assert(in_data_vector_ptr->size() * sizeof(uint32_t) == in_buffer_ptr->get_size() );
 
-    bool result = add_buffer_internal(in_buffer_ptr,
-                                      in_required_memory_features);
+    result = add_buffer_internal(in_buffer_ptr,
+                                 in_required_memory_features);
 
     if (result)
     {
@@ -545,12 +653,21 @@ bool Anvil::MemoryAllocator::add_buffer_with_uint32_data_vector_ptr_based_post_f
 bool Anvil::MemoryAllocator::add_image_whole(std::shared_ptr<Anvil::Image> in_image_ptr,
                                              MemoryFeatureFlags            in_required_memory_features)
 {
-    uint32_t              filtered_memory_types = 0;
-    VkDeviceSize          image_alignment       = 0;
-    uint32_t              image_memory_types    = 0;
-    VkDeviceSize          image_storage_size    = 0;
-    std::shared_ptr<Item> new_item_ptr;
-    bool                  result                = true;
+    uint32_t                               filtered_memory_types = 0;
+    VkDeviceSize                           image_alignment       = 0;
+    uint32_t                               image_memory_types    = 0;
+    VkDeviceSize                           image_storage_size    = 0;
+    std::unique_lock<std::recursive_mutex> mutex_lock;
+    auto                                   mutex_ptr             = get_mutex();
+    std::shared_ptr<Item>                  new_item_ptr;
+    bool                                   result                = true;
+
+    if (mutex_ptr != nullptr)
+    {
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
 
     /* Sanity checks */
     anvil_assert(m_backend_ptr->supports_baking() );
@@ -590,6 +707,68 @@ end:
 }
 
 /** Please see header for specification */
+bool Anvil::MemoryAllocator::add_sparse_buffer_region(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                                      VkDeviceSize                   in_offset,
+                                                      VkDeviceSize                   in_size,
+                                                      MemoryFeatureFlags             in_required_memory_features)
+{
+    std::unique_lock<std::recursive_mutex> mutex_lock;
+    auto                                   mutex_ptr        = get_mutex();
+    std::shared_ptr<Item>                  new_item_ptr;
+    bool                                   result           = true;
+
+    /* Sanity checks */
+    anvil_assert(in_buffer_ptr                                 != nullptr);
+    anvil_assert(m_backend_ptr->supports_baking        () );
+    anvil_assert(in_buffer_ptr->is_sparse              () );
+    anvil_assert(in_buffer_ptr->get_memory_requirements().size >= in_offset + in_size);
+
+    if (mutex_ptr != nullptr)
+    {
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
+
+    /* Determine how much space we're going to need, what alignment we need
+     * to consider, and so on. */
+    uint32_t    filtered_memory_types = 0;
+    const auto& memory_reqs           = in_buffer_ptr->get_memory_requirements();
+
+    anvil_assert((in_offset % memory_reqs.alignment) == 0);
+
+    if (!is_alloc_supported(memory_reqs.memoryTypeBits,
+                            in_required_memory_features,
+                           &filtered_memory_types) )
+    {
+        result = false;
+
+        goto end;
+    }
+
+    /* Store a new block item descriptor. */
+    new_item_ptr.reset(
+        new Item(shared_from_this(),
+                 in_buffer_ptr,
+                 in_offset,
+                 in_size,
+                 memory_reqs.memoryTypeBits,
+                 memory_reqs.alignment,
+                 in_required_memory_features,
+                 filtered_memory_types)
+    );
+
+    m_items.push_back(new_item_ptr);
+
+    m_per_object_pending_alloc_status[in_buffer_ptr.get()] = true;
+
+end:
+    anvil_assert(result);
+
+    return result;
+}
+
+/** Please see header for specification */
 bool Anvil::MemoryAllocator::add_sparse_image_miptail(std::shared_ptr<Anvil::Image> in_image_ptr,
                                                       VkImageAspectFlagBits         in_aspect,
                                                       uint32_t                      in_n_layer,
@@ -597,6 +776,8 @@ bool Anvil::MemoryAllocator::add_sparse_image_miptail(std::shared_ptr<Anvil::Ima
 {
     const Anvil::SparseImageAspectProperties* aspect_props_ptr      = nullptr;
     uint32_t                                  filtered_memory_types = 0;
+    std::unique_lock<std::recursive_mutex>    mutex_lock;
+    auto                                      mutex_ptr             = get_mutex();
     std::shared_ptr<Item>                     new_item_ptr;
     uint32_t                                  miptail_memory_types  = 0;
     VkDeviceSize                              miptail_offset        = static_cast<VkDeviceSize>(UINT64_MAX);
@@ -606,12 +787,18 @@ bool Anvil::MemoryAllocator::add_sparse_image_miptail(std::shared_ptr<Anvil::Ima
     ANVIL_REDUNDANT_VARIABLE(result);
 
     /* Sanity checks */
-    anvil_assert(in_image_ptr != nullptr);
-
+    anvil_assert(in_image_ptr                                != nullptr);
     anvil_assert(m_backend_ptr->supports_baking  () );
     anvil_assert(in_image_ptr->is_sparse         () );
-    anvil_assert(in_image_ptr->get_image_n_layers()            >  in_n_layer);
+    anvil_assert(in_image_ptr->get_image_n_layers()          >  in_n_layer);
     anvil_assert(in_image_ptr->has_aspects       (in_aspect) );
+
+    if (mutex_ptr != nullptr)
+    {
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
 
     /* Extract aspect-specific properties which includes all the miptail data we're going to need */
     result = in_image_ptr->get_sparse_image_aspect_properties(in_aspect,
@@ -667,10 +854,12 @@ bool Anvil::MemoryAllocator::add_sparse_image_subresource(std::shared_ptr<Anvil:
                                                           VkExtent3D                    in_extent,
                                                           MemoryFeatureFlags            in_required_memory_features)
 {
-    const Anvil::SparseImageAspectProperties* aspect_props_ptr       = nullptr;
-    uint32_t                                  component_size_bits[4] = {0};
-    uint32_t                                  filtered_memory_types  = 0;
+    const Anvil::SparseImageAspectProperties* aspect_props_ptr           = nullptr;
+    uint32_t                                  component_size_bits[4]     = {0};
+    uint32_t                                  filtered_memory_types      = 0;
     uint32_t                                  mip_size[3];
+    std::unique_lock<std::recursive_mutex>    mutex_lock;
+    auto                                      mutex_ptr                  = get_mutex();
     std::shared_ptr<Item>                     new_item_ptr;
     bool                                      result                     = true;
     VkDeviceSize                              total_region_size_in_bytes = 0;
@@ -692,6 +881,12 @@ bool Anvil::MemoryAllocator::add_sparse_image_subresource(std::shared_ptr<Anvil:
     anvil_assert(!Anvil::Formats::is_format_compressed(in_image_ptr->get_image_format() ));                     // TODO
     anvil_assert((Anvil::Utils::is_pow2               (static_cast<int32_t>(in_subresource.aspectMask)) != 0)); // only permit a single aspect
 
+    if (mutex_ptr != nullptr)
+    {
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
 
     /* Extract image properties needed for calculations below. */
     result = in_image_ptr->get_sparse_image_aspect_properties(static_cast<VkImageAspectFlagBits>(in_subresource.aspectMask),
@@ -802,11 +997,20 @@ end:
 bool Anvil::MemoryAllocator::bake()
 {
     std::shared_ptr<Anvil::BaseDevice>          device_locked_ptr           = std::shared_ptr<Anvil::BaseDevice>(m_device_ptr);
+    std::unique_lock<std::recursive_mutex>      mutex_lock;
+    auto                                        mutex_ptr                   = get_mutex();
     bool                                        needs_sparse_memory_binding = false;
     bool                                        result                      = false;
     Anvil::SparseMemoryBindInfoID               sparse_memory_bind_info_id  = UINT32_MAX;
     Anvil::Utils::SparseMemoryBindingUpdateInfo sparse_memory_binding;
     std::shared_ptr<Anvil::MemoryAllocator>     this_ptr;
+
+    if (mutex_ptr != nullptr)
+    {
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
 
     if (!m_backend_ptr->supports_baking() )
     {
@@ -830,6 +1034,7 @@ bool Anvil::MemoryAllocator::bake()
         switch ((*item_iterator)->type)
         {
             case Anvil::MemoryAllocator::ITEM_TYPE_BUFFER:
+            case Anvil::MemoryAllocator::ITEM_TYPE_SPARSE_BUFFER_REGION:
             {
                 needs_sparse_memory_binding |= (*item_iterator)->buffer_ptr->is_sparse(); 
 
@@ -855,7 +1060,8 @@ bool Anvil::MemoryAllocator::bake()
     if (needs_sparse_memory_binding)
     {
         std::shared_ptr<Anvil::Fence> wait_fence_ptr = Anvil::Fence::create(m_device_ptr,
-                                                                            false); /* create_signalled */
+                                                                            false,              /* create_signalled */
+                                                                            MT_SAFETY_DISABLED);
 
         sparse_memory_binding.set_fence(wait_fence_ptr);
 
@@ -897,6 +1103,20 @@ bool Anvil::MemoryAllocator::bake()
                                                                           0, /* opt_memory_block_start_offset */
                                                                           item_ptr->alloc_size);
                     }
+
+                    break;
+                }
+
+                case Anvil::MemoryAllocator::ITEM_TYPE_SPARSE_BUFFER_REGION:
+                {
+                    anvil_assert(item_ptr->buffer_ptr->is_sparse() );
+
+                    sparse_memory_binding.append_buffer_memory_update(sparse_memory_bind_info_id,
+                                                                      item_ptr->buffer_ptr,
+                                                                      item_ptr->alloc_offset,
+                                                                      item_ptr->alloc_memory_block_ptr,
+                                                                      0, /* opt_memory_block_start_offset */
+                                                                      item_ptr->alloc_size);
 
                     break;
                 }
@@ -994,10 +1214,12 @@ bool Anvil::MemoryAllocator::bake()
 
             switch (item_ptr->type)
             {
-                case ITEM_TYPE_BUFFER:                   alloc_status_map_iterator = m_per_object_pending_alloc_status.find(item_ptr->buffer_ptr.get() ); break;
+                case ITEM_TYPE_BUFFER:                   /* fall-through */
+                case ITEM_TYPE_SPARSE_BUFFER_REGION:     alloc_status_map_iterator = m_per_object_pending_alloc_status.find(item_ptr->buffer_ptr.get() ); break;
+
                 case ITEM_TYPE_IMAGE_WHOLE:              /* fall-through */
                 case ITEM_TYPE_SPARSE_IMAGE_MIPTAIL:     /* fall-through */
-                case ITEM_TYPE_SPARSE_IMAGE_SUBRESOURCE: alloc_status_map_iterator = m_per_object_pending_alloc_status.find(item_ptr->image_ptr.get() );  break;
+                case ITEM_TYPE_SPARSE_IMAGE_SUBRESOURCE: alloc_status_map_iterator = m_per_object_pending_alloc_status.find(item_ptr->image_ptr.get() ); break;
 
                 default:
                 {
@@ -1080,13 +1302,21 @@ bool Anvil::MemoryAllocator::bake()
     }
 
 end:
+    if (mutex_lock.owns_lock() )
+    {
+        mutex_lock.unlock();
+    }
+
     return result;
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::MemoryAllocator> Anvil::MemoryAllocator::create_oneshot(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
+std::shared_ptr<Anvil::MemoryAllocator> Anvil::MemoryAllocator::create_oneshot(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                                               MTSafety                         in_mt_safety)
 {
     std::shared_ptr<IMemoryAllocatorBackend> backend_ptr;
+    const bool                               mt_safe    (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                         in_device_ptr) );
     std::shared_ptr<MemoryAllocator>         result_ptr;
 
     backend_ptr.reset(
@@ -1097,7 +1327,8 @@ std::shared_ptr<Anvil::MemoryAllocator> Anvil::MemoryAllocator::create_oneshot(s
     {
         result_ptr.reset(
             new Anvil::MemoryAllocator(in_device_ptr,
-                                       backend_ptr)
+                                       backend_ptr,
+                                       mt_safe)
         );
     }
 
@@ -1105,9 +1336,12 @@ std::shared_ptr<Anvil::MemoryAllocator> Anvil::MemoryAllocator::create_oneshot(s
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::MemoryAllocator> Anvil::MemoryAllocator::create_vma(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
+std::shared_ptr<Anvil::MemoryAllocator> Anvil::MemoryAllocator::create_vma(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                                           MTSafety                         in_mt_safety)
 {
     std::shared_ptr<IMemoryAllocatorBackend> backend_ptr;
+    const bool                               mt_safe    (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                         in_device_ptr) );
     std::shared_ptr<MemoryAllocator>         result_ptr;
 
     backend_ptr = Anvil::MemoryAllocatorBackends::VMA::create(in_device_ptr);
@@ -1116,7 +1350,8 @@ std::shared_ptr<Anvil::MemoryAllocator> Anvil::MemoryAllocator::create_vma(std::
     {
         result_ptr.reset(
             new Anvil::MemoryAllocator(in_device_ptr,
-                                       backend_ptr)
+                                       backend_ptr,
+                                       mt_safe)
         );
     }
 
@@ -1142,11 +1377,11 @@ bool Anvil::MemoryAllocator::is_alloc_supported(uint32_t                  in_mem
                   (1u << n_memory_type) <= in_memory_types;
                 ++n_memory_type)
     {
-        if ((is_coherent_memory_required         && !(memory_props.types[n_memory_type].flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))    ||
-            (is_device_local_memory_required     && !(memory_props.types[n_memory_type].flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))     ||
-            (is_host_cached_memory_required      && !(memory_props.types[n_memory_type].flags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT))      ||
-            (is_lazily_allocated_memory_required && !(memory_props.types[n_memory_type].flags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT)) ||
-            (is_mappable_memory_required         && !(memory_props.types[n_memory_type].flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) )
+        if ((is_coherent_memory_required         && !(memory_props.types[n_memory_type].flags           & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))    ||
+            (is_device_local_memory_required     && !(memory_props.types[n_memory_type].flags           & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))     ||
+            (is_host_cached_memory_required      && !(memory_props.types[n_memory_type].flags           & VK_MEMORY_PROPERTY_HOST_CACHED_BIT))      ||
+            (is_lazily_allocated_memory_required && !(memory_props.types[n_memory_type].flags           & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT)) ||
+            (is_mappable_memory_required         && !(memory_props.types[n_memory_type].flags           & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) )
         {
             in_memory_types &= ~(1 << n_memory_type);
         }
@@ -1174,6 +1409,15 @@ void Anvil::MemoryAllocator::on_is_alloc_pending_for_buffer_query(CallbackArgume
 {
     IsBufferMemoryAllocPendingQueryCallbackArgument* query_ptr                 = dynamic_cast<IsBufferMemoryAllocPendingQueryCallbackArgument*>(in_callback_arg_ptr);
     auto                                             alloc_status_map_iterator = m_per_object_pending_alloc_status.find                        (query_ptr->buffer_ptr.get() );
+    std::unique_lock<std::recursive_mutex>           mutex_lock;
+    auto                                             mutex_ptr                 = get_mutex();
+
+    if (mutex_ptr != nullptr)
+    {
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
 
     if (alloc_status_map_iterator != m_per_object_pending_alloc_status.end() )
     {
@@ -1186,6 +1430,15 @@ void Anvil::MemoryAllocator::on_is_alloc_pending_for_image_query(CallbackArgumen
 {
     IsImageMemoryAllocPendingQueryCallbackArgument* query_ptr                 = dynamic_cast<IsImageMemoryAllocPendingQueryCallbackArgument*>(in_callback_arg_ptr);
     auto                                            alloc_status_map_iterator = m_per_object_pending_alloc_status.find                       (query_ptr->image_ptr.get() );
+    std::unique_lock<std::recursive_mutex>          mutex_lock;
+    auto                                            mutex_ptr                 = get_mutex();
+
+    if (mutex_ptr != nullptr)
+    {
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
 
     if (alloc_status_map_iterator != m_per_object_pending_alloc_status.end() )
     {
@@ -1205,6 +1458,16 @@ void Anvil::MemoryAllocator::on_implicit_bake_needed()
 /* Please see header for specification */
 void Anvil::MemoryAllocator::set_post_bake_callback(MemoryAllocatorBakeCallbackFunction in_post_bake_callback_function)
 {
+    std::unique_lock<std::recursive_mutex> mutex_lock;
+    auto                                   mutex_ptr = get_mutex();
+
+    if (mutex_ptr != nullptr)
+    {
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
+
     anvil_assert(m_post_bake_callback_function == nullptr);
 
     if (m_post_bake_callback_function == nullptr)

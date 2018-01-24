@@ -20,6 +20,7 @@
 // THE SOFTWARE.
 //
 
+#include "misc/base_pipeline_info.h"
 #include "misc/base_pipeline_manager.h"
 #include "misc/debug.h"
 #include "wrappers/descriptor_set_group.h"
@@ -31,10 +32,13 @@
 
 /** Please see header for specification */
 Anvil::BasePipelineManager::BasePipelineManager(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
+                                                bool                                  in_mt_safe,
                                                 bool                                  in_use_pipeline_cache,
                                                 std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr)
-    :m_device_ptr      (in_device_ptr),
-     m_pipeline_counter(0)
+    :CallbacksSupportProvider(BASE_PIPELINE_MANAGER_CALLBACK_ID_COUNT),
+     MTSafetySupportProvider (in_mt_safe),
+     m_device_ptr            (in_device_ptr),
+     m_pipeline_counter      (0)
 {
     anvil_assert(!in_use_pipeline_cache && in_pipeline_cache_to_reuse_ptr == nullptr ||
                   in_use_pipeline_cache);
@@ -51,7 +55,12 @@ Anvil::BasePipelineManager::BasePipelineManager(std::weak_ptr<Anvil::BaseDevice>
     {
         if (in_use_pipeline_cache)
         {
-            m_pipeline_cache_ptr = Anvil::PipelineCache::create(m_device_ptr);
+            m_pipeline_cache_ptr = Anvil::PipelineCache::create(
+                m_device_ptr,
+                in_mt_safe,
+                0,      /* in_initial_data_size */
+                nullptr /* in_initial_data      */
+            );
         }
 
         m_use_pipeline_cache = in_use_pipeline_cache;
@@ -61,9 +70,9 @@ Anvil::BasePipelineManager::BasePipelineManager(std::weak_ptr<Anvil::BaseDevice>
 /** Please see header for specification */
 Anvil::BasePipelineManager::~BasePipelineManager()
 {
-    anvil_assert(m_pipelines.size() == 0);
+    anvil_assert(m_baked_pipelines.size() == 0);
 
-   m_pipeline_layout_manager_ptr.reset();
+    m_pipeline_layout_manager_ptr.reset();
 }
 
 
@@ -71,301 +80,106 @@ Anvil::BasePipelineManager::~BasePipelineManager()
  *
  *  The function does NOT release the layout object, since it's owned by the Pipeline Layout manager.
  *s*/
-void Anvil::BasePipelineManager::Pipeline::release_vulkan_objects()
+void Anvil::BasePipelineManager::Pipeline::release_pipeline()
 {
     if (baked_pipeline != VK_NULL_HANDLE)
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(device_ptr);
 
-        vkDestroyPipeline(device_locked_ptr->get_device_vk(),
-                          baked_pipeline,
-                          nullptr /* pAllocator */);
+        device_locked_ptr->get_pipeline_cache()->lock();
+        lock();
+        {
+            vkDestroyPipeline(device_locked_ptr->get_device_vk(),
+                              baked_pipeline,
+                              nullptr /* pAllocator */);
+        }
+        unlock();
+        device_locked_ptr->get_pipeline_cache()->unlock();
 
         baked_pipeline = VK_NULL_HANDLE;
     }
 }
 
+
 /* Please see header for specification */
-bool Anvil::BasePipelineManager::add_derivative_pipeline_from_sibling_pipeline(bool                               in_disable_optimizations,
-                                                                               bool                               in_allow_derivatives,
-                                                                               uint32_t                           in_n_shader_module_stage_entrypoints,
-                                                                               const ShaderModuleStageEntryPoint* in_shader_module_stage_entrypoint_ptrs,
-                                                                               PipelineID                         in_base_pipeline_id,
-                                                                               PipelineID*                        out_pipeline_id_ptr)
+bool Anvil::BasePipelineManager::add_pipeline(std::unique_ptr<Anvil::BasePipelineInfo> in_pipeline_info_ptr,
+                                              PipelineID*                              out_pipeline_id_ptr)
 {
-    std::shared_ptr<Pipeline> base_pipeline_ptr;
-    PipelineID                new_pipeline_id  = 0;
-    std::shared_ptr<Pipeline> new_pipeline_ptr;
-    bool                      result           = false;
+    const Anvil::PipelineID                base_pipeline_id = in_pipeline_info_ptr->get_base_pipeline_id();
+    std::shared_ptr<Pipeline>              base_pipeline_ptr;
+    auto                                   callback_arg     = Anvil::OnNewPipelineCreatedCallbackData(UINT32_MAX);
+    std::unique_lock<std::recursive_mutex> mutex_lock;
+    auto                                   mutex_ptr        = get_mutex();
+    PipelineID                             new_pipeline_id  = 0;
+    std::unique_ptr<Pipeline>              new_pipeline_ptr;
+    bool                                   result           = false;
 
-    /* Retrieve base pipeline's descriptor */
-    if (m_pipelines.size() <= in_base_pipeline_id)
+    if (mutex_ptr != nullptr)
     {
-        anvil_assert(!(m_pipelines.size() <= in_base_pipeline_id) );
-
-        goto end;
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
     }
-    else
-    {
-        base_pipeline_ptr = m_pipelines.at(in_base_pipeline_id);
 
-        anvil_assert(base_pipeline_ptr != nullptr);
+    if (base_pipeline_id != UINT32_MAX)
+    {
+        auto                     base_pipeline_iterator = m_baked_pipelines.find(base_pipeline_id);
+        Anvil::BasePipelineInfo* base_pipeline_info_ptr = nullptr;
+
+        if (base_pipeline_iterator == m_baked_pipelines.end() )
+        {
+            base_pipeline_iterator = m_outstanding_pipelines.find(base_pipeline_id);
+
+            if (base_pipeline_iterator != m_outstanding_pipelines.end() )
+            {
+                base_pipeline_info_ptr = base_pipeline_iterator->second->pipeline_info_ptr.get();
+            }
+        }
+        else
+        {
+            base_pipeline_info_ptr = base_pipeline_iterator->second->pipeline_info_ptr.get();
+        }
+
+        if (base_pipeline_info_ptr != nullptr)
+        {
+            anvil_assert(base_pipeline_ptr->pipeline_info_ptr->allows_derivatives() );
+        }
+        else
+        {
+            /* Base pipeline ID is invalid */
+            anvil_assert(base_pipeline_info_ptr != nullptr);
+
+            goto end;
+        }
     }
 
     /* Create & store the new descriptor */
-    anvil_assert(base_pipeline_ptr->allow_derivatives);
+    new_pipeline_id = (m_pipeline_counter.fetch_add(1) );
 
-    new_pipeline_id  = (m_pipeline_counter++);
-    new_pipeline_ptr = std::shared_ptr<Pipeline>(new Pipeline(m_device_ptr,
-                                                              in_disable_optimizations,
-                                                              in_allow_derivatives,
-                                                              base_pipeline_ptr,
-                                                              in_n_shader_module_stage_entrypoints,
-                                                              in_shader_module_stage_entrypoint_ptrs) );
+    /* NOTE: in_pipeline_info_ptr becomes NULL after the call below */
+    new_pipeline_ptr.reset(
+        new Pipeline(
+            m_device_ptr,
+            std::move(in_pipeline_info_ptr),
+            is_mt_safe() )
+    );
 
-    anvil_assert(m_pipelines.find(new_pipeline_id) == m_pipelines.end() );
-
-    m_pipelines[new_pipeline_id] = new_pipeline_ptr;
-    *out_pipeline_id_ptr         = new_pipeline_id;
-
-    /* All done */
-    result  = true;
-end:
-    return result;
-}
-
-/* Please see header for specification */
-bool Anvil::BasePipelineManager::add_derivative_pipeline_from_pipeline(bool                               in_disable_optimizations,
-                                                                       bool                               in_allow_derivatives,
-                                                                       uint32_t                           in_n_shader_module_stage_entrypoints,
-                                                                       const ShaderModuleStageEntryPoint* in_shader_module_stage_entrypoint_ptrs,
-                                                                       VkPipeline                         in_base_pipeline,
-                                                                       PipelineID*                        out_pipeline_id_ptr)
-{
-    PipelineID                new_pipeline_id  = 0;
-    std::shared_ptr<Pipeline> new_pipeline_ptr;
-    bool                      result = false;
-
-    if (in_base_pipeline == VK_NULL_HANDLE)
+    if (new_pipeline_ptr->pipeline_info_ptr->is_proxy() )
     {
-        anvil_assert(!(in_base_pipeline != VK_NULL_HANDLE));
-
-        goto end;
-    }
-
-    /* Create & store the new descriptor */
-    new_pipeline_id  = (m_pipeline_counter++);
-    new_pipeline_ptr = std::shared_ptr<Pipeline>(new Pipeline(m_device_ptr,
-                                                              in_disable_optimizations,
-                                                              in_allow_derivatives,
-                                                              in_base_pipeline,
-                                                              in_n_shader_module_stage_entrypoints,
-                                                              in_shader_module_stage_entrypoint_ptrs) );
-
-    *out_pipeline_id_ptr         = new_pipeline_id;
-    m_pipelines[new_pipeline_id] = new_pipeline_ptr;
-
-    /* All done */
-    result = true;
-end:
-    return result;
-}
-
-/* Please see header for specification */
-bool Anvil::BasePipelineManager::add_proxy_pipeline(PipelineID* out_pipeline_id_ptr)
-{
-    PipelineID                new_pipeline_id  = 0;
-    std::shared_ptr<Pipeline> new_pipeline_ptr;
-
-    /* Create & store the new descriptor */
-    new_pipeline_id  = (m_pipeline_counter++);
-    new_pipeline_ptr = std::shared_ptr<Pipeline>(new Pipeline(m_device_ptr,
-                                                              false,   /* in_disable_optimizations */
-                                                              false,   /* in_allow_derivatives     */
-                                                              0,       /* in_n_shaders             */
-                                                              nullptr, /* in_shaders               */
-                                                              true) ); /* in_is_proxy              */
-
-    *out_pipeline_id_ptr         = new_pipeline_id;
-    m_pipelines[new_pipeline_id] = new_pipeline_ptr;
-
-    /* All done */
-    return true;
-}
-
-/* Please see header for specification */
-bool Anvil::BasePipelineManager::add_regular_pipeline(bool                               in_disable_optimizations,
-                                                      bool                               in_allow_derivatives,
-                                                      uint32_t                           in_n_shader_module_stage_entrypoints,
-                                                      const ShaderModuleStageEntryPoint* in_shader_module_stage_entrypoint_ptrs,
-                                                      PipelineID*                        out_pipeline_id_ptr)
-{
-    PipelineID                new_pipeline_id  = 0;
-    std::shared_ptr<Pipeline> new_pipeline_ptr;
-
-    /* Create & store the new descriptor */
-    new_pipeline_id  = (m_pipeline_counter++);
-    new_pipeline_ptr = std::shared_ptr<Pipeline>(new Pipeline(m_device_ptr,
-                                                              in_disable_optimizations,
-                                                              in_allow_derivatives,
-                                                              in_n_shader_module_stage_entrypoints,
-                                                              in_shader_module_stage_entrypoint_ptrs,
-                                                              false /* in_is_proxy */) );
-
-    *out_pipeline_id_ptr         = new_pipeline_id;
-    m_pipelines[new_pipeline_id] = new_pipeline_ptr;
-
-    /* All done */
-    return true;
-}
-
-
-bool Anvil::BasePipelineManager::add_specialization_constant_to_pipeline(PipelineID  in_pipeline_id,
-                                                                         ShaderIndex in_shader_index,
-                                                                         uint32_t    in_constant_id,
-                                                                         uint32_t    in_n_data_bytes,
-                                                                         const void* in_data_ptr)
-{
-    Pipelines::iterator       pipeline_iterator;
-    std::shared_ptr<Pipeline> pipeline_ptr;
-    uint32_t                  data_buffer_size = 0;
-    bool                      result           = false;
-
-    if (in_n_data_bytes == 0)
-    {
-        anvil_assert(!(in_n_data_bytes == 0) );
-
-        goto end;
-    }
-
-    if (in_data_ptr == nullptr)
-    {
-        anvil_assert(!(in_data_ptr == nullptr) );
-
-        goto end;
-    }
-
-    /* Retrieve the pipeline's descriptor */
-    pipeline_iterator = m_pipelines.find(in_pipeline_id);
-
-    if (pipeline_iterator == m_pipelines.end() )
-    {
-        anvil_assert(pipeline_iterator != m_pipelines.end() )
-
-        goto end;
+        m_baked_pipelines[new_pipeline_id] = std::move(new_pipeline_ptr);
     }
     else
     {
-        pipeline_ptr = pipeline_iterator->second;
+        m_outstanding_pipelines[new_pipeline_id] = std::move(new_pipeline_ptr);
     }
 
-    if (pipeline_ptr->is_proxy)
-    {
-        anvil_assert(!pipeline_ptr->is_proxy);
+    *out_pipeline_id_ptr = new_pipeline_id;
 
-        goto end;
-    }
+    /* Inform subscribers about the new pipeline. */
+    callback_arg.new_pipeline_id = new_pipeline_id;
 
-    /* Append specialization constant data and add a new descriptor. */
-    data_buffer_size = static_cast<uint32_t>(pipeline_ptr->specialization_constant_data_buffer.size() );
-
-
-    anvil_assert(pipeline_ptr->specialization_constants_map.find(in_shader_index) != pipeline_ptr->specialization_constants_map.end() );
-
-    pipeline_ptr->specialization_constants_map[in_shader_index].push_back(SpecializationConstant(in_constant_id,
-                                                                                                 in_n_data_bytes,
-                                                                                                 data_buffer_size));
-
-    pipeline_ptr->specialization_constant_data_buffer.resize(data_buffer_size + in_n_data_bytes);
-
-
-    memcpy(&pipeline_ptr->specialization_constant_data_buffer.at(data_buffer_size),
-           in_data_ptr,
-           in_n_data_bytes);
-
-    /* All done */
-    result = true;
-end:
-    return result;
-}
-
-/* Please see header for specification */
-bool Anvil::BasePipelineManager::set_pipeline_dsg(PipelineID                                 in_pipeline_id,
-                                                  std::shared_ptr<Anvil::DescriptorSetGroup> in_dsg_ptr)
-{
-    std::shared_ptr<Pipeline> pipeline_ptr;
-    bool                      result = false;
-
-    if (in_dsg_ptr == nullptr)
-    {
-        anvil_assert(!(in_dsg_ptr == nullptr) );
-
-        goto end;
-    }
-
-    /* Retrieve pipeline's descriptor and attach the specified DSG */
-    if (m_pipelines.find(in_pipeline_id) == m_pipelines.end() )
-    {
-        anvil_assert(!(m_pipelines.find(in_pipeline_id) == m_pipelines.end() ));
-
-        goto end;
-    }
-    else
-    {
-        pipeline_ptr = m_pipelines.at(in_pipeline_id);
-    }
-
-    /* Make sure the DSG has not already been attached */
-    if (pipeline_ptr->dsg_ptr == in_dsg_ptr)
-    {
-        anvil_assert_fail();
-
-        goto end;
-    }
-
-    /* If we reached this place, we can update the DSG */
-    pipeline_ptr->dirty        = true;
-    pipeline_ptr->dsg_ptr      = in_dsg_ptr;
-    pipeline_ptr->layout_dirty = true;
-
-    /* All done */
-    result = true;
-end:
-    return result;
-}
-
-/* Please see header for specification */
-bool Anvil::BasePipelineManager::attach_push_constant_range_to_pipeline(PipelineID         in_pipeline_id,
-                                                                        uint32_t           in_offset,
-                                                                        uint32_t           in_size,
-                                                                        VkShaderStageFlags in_stages)
-{
-    const auto                new_descriptor = Anvil::PushConstantRange(in_offset,
-                                                                        in_size,
-                                                                        in_stages);
-    std::shared_ptr<Pipeline> pipeline_ptr;
-    bool                      result         = false;
-
-    /* Retrieve pipeline's descriptor and add the specified push constant range */
-    if (m_pipelines.find(in_pipeline_id) == m_pipelines.end() )
-    {
-        anvil_assert(!(m_pipelines.find(in_pipeline_id) == m_pipelines.end()));
-
-        goto end;
-    }
-    else
-    {
-        pipeline_ptr = m_pipelines.at(in_pipeline_id);
-    }
-
-    pipeline_ptr->dirty        = true;
-    pipeline_ptr->layout_dirty = true;
-
-    anvil_assert(std::find(pipeline_ptr->push_constant_ranges.begin(),
-                           pipeline_ptr->push_constant_ranges.end(),
-                           new_descriptor) == pipeline_ptr->push_constant_ranges.end());
-
-    pipeline_ptr->push_constant_ranges.push_back(new_descriptor);
+    callback(BASE_PIPELINE_MANAGER_CALLBACK_ID_ON_NEW_PIPELINE_CREATED,
+            &callback_arg);
 
     /* All done */
     result = true;
@@ -415,49 +229,37 @@ void Anvil::BasePipelineManager::bake_specialization_info_vk(const Specializatio
 /* Please see header for specification */
 bool Anvil::BasePipelineManager::delete_pipeline(PipelineID in_pipeline_id)
 {
-    auto pipeline_iterator = m_pipelines.find(in_pipeline_id);
     bool result = false;
 
-    if (pipeline_iterator == m_pipelines.end() )
     {
-        goto end;
-    }
+        std::unique_lock<std::recursive_mutex> mutex_lock;
+        auto                                   mutex_ptr         = get_mutex();
+        Pipelines::iterator                    pipeline_iterator;
 
-    m_pipelines.erase(pipeline_iterator);
+        if (mutex_ptr != nullptr)
+        {
+            mutex_lock = std::move(
+                std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+            );
+        }
 
-    /* All done */
-    result = true;
-end:
-    return result;
-}
+        pipeline_iterator = m_baked_pipelines.find(in_pipeline_id);
 
-/* Please see header for specification */
-bool Anvil::BasePipelineManager::get_general_pipeline_properties(PipelineID in_pipeline_id,
-                                                                 bool*      out_opt_has_optimizations_disabled_ptr,
-                                                                 bool*      out_opt_allows_derivatives_ptr,
-                                                                 bool*      out_opt_is_a_derivative_ptr) const
-{
-    auto pipeline_iterator = m_pipelines.find(in_pipeline_id);
-    bool result = false;
+        if (pipeline_iterator != m_baked_pipelines.end() )
+        {
+            m_baked_pipelines.erase(pipeline_iterator);
+        }
+        else
+        {
+            pipeline_iterator = m_outstanding_pipelines.find(in_pipeline_id);
 
-    if (pipeline_iterator == m_pipelines.end() )
-    {
-        goto end;
-    }
+            if (pipeline_iterator == m_outstanding_pipelines.end() )
+            {
+                goto end;
+            }
 
-    if (out_opt_has_optimizations_disabled_ptr != nullptr)
-    {
-        *out_opt_has_optimizations_disabled_ptr = pipeline_iterator->second->disable_optimizations;
-    }
-
-    if (out_opt_allows_derivatives_ptr != nullptr)
-    {
-        *out_opt_allows_derivatives_ptr = pipeline_iterator->second->allow_derivatives;
-    }
-
-    if (out_opt_is_a_derivative_ptr != nullptr)
-    {
-        *out_opt_is_a_derivative_ptr = pipeline_iterator->second->is_derivative;
+            m_outstanding_pipelines.erase(pipeline_iterator);
+        }
     }
 
     /* All done */
@@ -469,95 +271,127 @@ end:
 /* Please see header for specification */
 VkPipeline Anvil::BasePipelineManager::get_pipeline(PipelineID in_pipeline_id)
 {
-    std::shared_ptr<Pipeline> pipeline_ptr;
-    VkPipeline                result = VK_NULL_HANDLE;
+    std::unique_lock<std::recursive_mutex> mutex_lock;
+    auto                                   mutex_ptr         = get_mutex();
+    Pipelines::const_iterator              pipeline_iterator;
+    Pipeline*                              pipeline_ptr      = nullptr;
+    VkPipeline                             result            = VK_NULL_HANDLE;
 
-    if (m_pipelines.find(in_pipeline_id) == m_pipelines.end() )
+    if (mutex_ptr != nullptr)
     {
-        anvil_assert(!(m_pipelines.find(in_pipeline_id) == m_pipelines.end()) );
-
-        goto end;
-    }
-    else
-    {
-        pipeline_ptr = m_pipelines.at(in_pipeline_id);
-    }
-
-    if (pipeline_ptr->is_proxy)
-    {
-        anvil_assert(!pipeline_ptr->is_proxy);
-
-        goto end;
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
     }
 
-    if (pipeline_ptr->dirty)
+    if (m_outstanding_pipelines.size() > 0)
     {
         bake();
-
-        anvil_assert( pipeline_ptr->baked_pipeline != VK_NULL_HANDLE);
-        anvil_assert(!pipeline_ptr->dirty);
     }
 
-    result = m_pipelines.at(in_pipeline_id)->baked_pipeline;
+    pipeline_iterator = m_baked_pipelines.find(in_pipeline_id);
+
+    if (pipeline_iterator == m_baked_pipelines.end() )
+    {
+        anvil_assert(!(pipeline_iterator == m_baked_pipelines.end()) );
+
+        goto end;
+    }
+
+    pipeline_ptr = pipeline_iterator->second.get();
+
+    if (pipeline_ptr->pipeline_info_ptr->is_proxy() )
+    {
+        anvil_assert(!pipeline_ptr->pipeline_info_ptr->is_proxy() );
+
+        goto end;
+    }
+
+    result = pipeline_ptr->baked_pipeline;
+    anvil_assert(result != VK_NULL_HANDLE);
 end:
     return result;
 }
 
-/* Please see header for specification */
-bool Anvil::BasePipelineManager::get_pipeline_id_at_index(uint32_t    in_n_pipeline,
-                                                          PipelineID* out_pipeline_id_ptr) const
+const Anvil::BasePipelineInfo* Anvil::BasePipelineManager::get_pipeline_info(PipelineID in_pipeline_id) const
 {
-    Pipelines::const_iterator current_pipeline_it = m_pipelines.cbegin();
-    uint32_t                  n_current_pipeline  = 0;
-    bool                      result              = false;
+    std::unique_lock<std::recursive_mutex> mutex_lock;
+    auto                                   mutex_ptr         = get_mutex();
+    Pipelines::const_iterator              pipeline_iterator;
+    Pipeline*                              pipeline_ptr      = nullptr;
+    const Anvil::BasePipelineInfo*         result_ptr        = nullptr;
 
-    if (m_pipelines.size() <= in_n_pipeline)
+    if (mutex_ptr != nullptr)
     {
-        goto end;
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
     }
 
-    while (n_current_pipeline != in_n_pipeline)
+    pipeline_iterator = m_baked_pipelines.find(in_pipeline_id);
+
+    if (pipeline_iterator == m_baked_pipelines.end() )
     {
-        current_pipeline_it++;
-        n_current_pipeline ++;
+        pipeline_iterator = m_outstanding_pipelines.find(in_pipeline_id);
+
+        if (pipeline_iterator == m_outstanding_pipelines.end() )
+        {
+            anvil_assert(!(pipeline_iterator == m_outstanding_pipelines.end() ));
+
+            goto end;
+        }
     }
 
-    *out_pipeline_id_ptr = current_pipeline_it->first;
-    result               = true;
+    pipeline_ptr = pipeline_iterator->second.get();
+    result_ptr   = pipeline_ptr->pipeline_info_ptr.get();
+
 end:
-    return result;
+    return result_ptr;
 }
 
 /* Please see header for specification */
 std::shared_ptr<Anvil::PipelineLayout> Anvil::BasePipelineManager::get_pipeline_layout(PipelineID in_pipeline_id)
 {
-    std::shared_ptr<Pipeline>              pipeline_ptr;
+    std::unique_lock<std::recursive_mutex> mutex_lock;
+    auto                                   mutex_ptr         = get_mutex();
+    Pipelines::iterator                    pipeline_iterator;
+    Pipeline*                              pipeline_ptr      = nullptr;
     std::shared_ptr<Anvil::PipelineLayout> result_ptr;
 
-    if (m_pipelines.find(in_pipeline_id) == m_pipelines.end() )
+    if (mutex_ptr != nullptr)
     {
-        anvil_assert(!(m_pipelines.find(in_pipeline_id) == m_pipelines.end()) );
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
+
+    pipeline_iterator = m_baked_pipelines.find(in_pipeline_id);
+
+    if (pipeline_iterator == m_baked_pipelines.end() )
+    {
+        pipeline_iterator = m_outstanding_pipelines.find(in_pipeline_id);
+
+        if (pipeline_iterator == m_outstanding_pipelines.end() )
+        {
+            anvil_assert(!(pipeline_iterator == m_outstanding_pipelines.end() ));
+
+            goto end;
+        }
+    }
+
+    pipeline_ptr = pipeline_iterator->second.get();
+
+    if (pipeline_ptr->pipeline_info_ptr->is_proxy() )
+    {
+        anvil_assert(!pipeline_ptr->pipeline_info_ptr->is_proxy() );
 
         goto end;
     }
-    else
+
+    if (pipeline_ptr->layout_ptr == nullptr)
     {
-        pipeline_ptr = m_pipelines.at(in_pipeline_id);
-    }
-
-    if (pipeline_ptr->is_proxy)
-    {
-        anvil_assert(!pipeline_ptr->is_proxy);
-
-        goto end;
-    }
-
-    if (pipeline_ptr->layout_dirty)
-    {
-        pipeline_ptr->layout_ptr.reset();
-
-        if (!m_pipeline_layout_manager_ptr->get_layout(pipeline_ptr->dsg_ptr,
-                                                       pipeline_ptr->push_constant_ranges,
+        if (!m_pipeline_layout_manager_ptr->get_layout(pipeline_ptr->pipeline_info_ptr->get_dsg                 (),
+                                                       pipeline_ptr->pipeline_info_ptr->get_push_constant_ranges(),
                                                       &pipeline_ptr->layout_ptr) )
         {
             anvil_assert_fail();
@@ -565,7 +399,12 @@ std::shared_ptr<Anvil::PipelineLayout> Anvil::BasePipelineManager::get_pipeline_
             goto end;
         }
 
-        pipeline_ptr->layout_dirty = false;
+        if (pipeline_ptr->layout_ptr == nullptr)
+        {
+            anvil_assert(!(pipeline_ptr->layout_ptr == nullptr) );
+
+            goto end;
+        }
     }
 
     result_ptr = pipeline_ptr->layout_ptr;
@@ -575,61 +414,204 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::BasePipelineManager::get_shader_stage_properties(PipelineID                   in_pipeline_id,
-                                                             Anvil::ShaderStage           in_shader_stage,
-                                                             ShaderModuleStageEntryPoint* out_opt_result_ptr) const
+bool Anvil::BasePipelineManager::get_shader_info(PipelineID                  in_pipeline_id,
+                                                 Anvil::ShaderStage          in_shader_stage,
+                                                 Anvil::ShaderInfoType       in_info_type,
+                                                 std::vector<unsigned char>* out_data_ptr)
 {
-    auto pipeline_iterator = m_pipelines.find(in_pipeline_id);
-    bool result            = false;
+    std::shared_ptr<Anvil::BaseDevice>       device_ptr        = m_device_ptr.lock();;
+    Anvil::ExtensionAMDShaderInfoEntrypoints entrypoints       = device_ptr->get_extension_amd_shader_info_entrypoints();
+    std::unique_lock<std::recursive_mutex>   mutex_lock;
+    auto                                     mutex_ptr         = get_mutex();
+    Pipelines::const_iterator                pipeline_iterator;
+    Pipeline*                                pipeline_ptr      = nullptr;
+    size_t                                   out_data_size     = out_data_ptr->size();
+    bool                                     result            = false;
+    const VkShaderStageFlagBits              shader_stage_vk   = Anvil::Utils::get_shader_stage_flag_bits_from_shader_stage(in_shader_stage);
+    VkShaderInfoTypeAMD                      vk_info_type;
+    VkResult                                 vk_result;
 
-    if (pipeline_iterator == m_pipelines.end() )
+    if (entrypoints.vkGetShaderInfoAMD == nullptr)
     {
-        anvil_assert(!(pipeline_iterator == m_pipelines.end()) );
+        anvil_assert(!(entrypoints.vkGetShaderInfoAMD == nullptr));
 
         goto end;
     }
 
-    for (const auto& current_stage : pipeline_iterator->second->shader_stages)
+    if (mutex_ptr != nullptr)
     {
-        if (current_stage.stage == in_shader_stage)
-        {
-            if (out_opt_result_ptr != nullptr)
-            {
-                *out_opt_result_ptr = current_stage;
-            }
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
 
-            result = true;
+    if (m_outstanding_pipelines.size() > 0)
+    {
+        bake();
+    }
+
+    pipeline_iterator = m_baked_pipelines.find(in_pipeline_id);
+    if (pipeline_iterator == m_baked_pipelines.end())
+    {
+        anvil_assert(!(pipeline_iterator == m_baked_pipelines.end()));
+
+        goto end;
+    }
+
+    pipeline_ptr = pipeline_iterator->second.get();
+
+    if (pipeline_ptr->baked_pipeline == VK_NULL_HANDLE)
+    {
+        bake();
+
+        anvil_assert(!pipeline_ptr->baked_pipeline != VK_NULL_HANDLE);
+    }
+
+    switch (in_info_type)
+    {
+        case SHADER_INFO_TYPE_BINARY:
+        {
+            vk_info_type = VK_SHADER_INFO_TYPE_BINARY_AMD;
 
             break;
         }
+
+        case SHADER_INFO_TYPE_DISASSEMBLY:
+        {
+            vk_info_type = VK_SHADER_INFO_TYPE_DISASSEMBLY_AMD;
+
+            break;
+        }
+
+        default:
+        {
+            anvil_assert(!"Unknown shader info type");
+
+            goto end;
+        }
     }
 
-    /* All done */
+    if (out_data_size == 0)
+    {
+        vk_result = entrypoints.vkGetShaderInfoAMD(
+            device_ptr->get_device_vk(),
+            pipeline_ptr->baked_pipeline,
+            shader_stage_vk,
+            vk_info_type,
+           &out_data_size,
+            nullptr);
+
+        if (vk_result == VK_ERROR_FEATURE_NOT_PRESENT)
+        {
+            goto end;
+        }
+
+        if (!is_vk_call_successful(vk_result)       ||
+             out_data_size                    == 0)
+        {
+            goto end;
+        }
+
+        out_data_ptr->resize(out_data_size);
+    }
+
+    vk_result = entrypoints.vkGetShaderInfoAMD(
+        device_ptr->get_device_vk(),
+        pipeline_ptr->baked_pipeline,
+        shader_stage_vk,
+        vk_info_type,
+       &out_data_size,
+       &(*out_data_ptr).at(0));
+
+    if (vk_result == VK_ERROR_FEATURE_NOT_PRESENT)
+    {
+        goto end;
+    }
+
+    if (!is_vk_call_successful(vk_result)      ||
+         out_data_size                    == 0)
+    {
+        goto end;
+    }
+
+    result = true;
 end:
     return result;
 }
 
 /* Please see header for specification */
-bool Anvil::BasePipelineManager::set_pipeline_bakeability(PipelineID in_pipeline_id,
-                                                          bool       in_bakeable)
+bool Anvil::BasePipelineManager::get_shader_statistics(PipelineID                  in_pipeline_id,
+                                                       Anvil::ShaderStage          in_shader_stage,
+                                                       VkShaderStatisticsInfoAMD*  out_shader_statistics_ptr)
 {
-    std::shared_ptr<Pipeline> pipeline_ptr;
-    bool                      result        = false;
+    std::shared_ptr<Anvil::BaseDevice>       device_ptr             = m_device_ptr.lock();
+    Anvil::ExtensionAMDShaderInfoEntrypoints entrypoints            = device_ptr->get_extension_amd_shader_info_entrypoints();
+    std::unique_lock<std::recursive_mutex>   mutex_lock;
+    auto                                     mutex_ptr              = get_mutex();
+    Pipelines::const_iterator                pipeline_iterator;
+    Pipeline*                                pipeline_ptr           = nullptr;
+    bool                                     result                 = false;
+    const VkShaderStageFlagBits              shader_stage_vk        = Anvil::Utils::get_shader_stage_flag_bits_from_shader_stage(in_shader_stage);
+    size_t                                   shader_statistics_size = sizeof(VkShaderStatisticsInfoAMD);
+    VkResult                                 vk_result;
 
-    if (m_pipelines.find(in_pipeline_id) == m_pipelines.end() )
+    if (entrypoints.vkGetShaderInfoAMD == nullptr)
     {
-        anvil_assert(!(m_pipelines.find(in_pipeline_id) == m_pipelines.end()) );
+        anvil_assert(!(entrypoints.vkGetShaderInfoAMD == nullptr));
 
         goto end;
     }
-    else
+
+    if (mutex_ptr != nullptr)
     {
-        pipeline_ptr = m_pipelines.at(in_pipeline_id);
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
     }
 
-    pipeline_ptr->is_bakeable = in_bakeable;
+    if (m_outstanding_pipelines.size() > 0)
+    {
+        bake();
+    }
+
+    pipeline_iterator = m_baked_pipelines.find(in_pipeline_id);
+    if (pipeline_iterator == m_baked_pipelines.end())
+    {
+        anvil_assert(!(pipeline_iterator == m_baked_pipelines.end()));
+
+        goto end;
+    }
+
+    pipeline_ptr = pipeline_iterator->second.get();
+
+    if (pipeline_ptr->baked_pipeline == VK_NULL_HANDLE)
+    {
+        bake();
+
+        anvil_assert(!pipeline_ptr->baked_pipeline != VK_NULL_HANDLE);
+    }
+
+    vk_result = entrypoints.vkGetShaderInfoAMD(
+        device_ptr->get_device_vk(),
+        pipeline_ptr->baked_pipeline,
+        shader_stage_vk,
+        VK_SHADER_INFO_TYPE_STATISTICS_AMD,
+       &shader_statistics_size,
+        out_shader_statistics_ptr);
+
+    if (vk_result == VK_ERROR_FEATURE_NOT_PRESENT)
+    {
+        goto end;
+    }
+
+    if (!is_vk_call_successful(vk_result)                                      ||
+         shader_statistics_size           != sizeof(VkShaderStatisticsInfoAMD))
+    {
+        goto end;
+    }
 
     result = true;
+
 end:
     return result;
 }

@@ -29,8 +29,10 @@
 /** Please see header for specification */
 Anvil::Instance::Instance(const std::string&    in_app_name,
                           const std::string&    in_engine_name,
-                          DebugCallbackFunction in_opt_validation_callback_function)
-    :m_app_name                    (in_app_name),
+                          DebugCallbackFunction in_opt_validation_callback_function,
+                          bool                  in_mt_safe)
+    :MTSafetySupportProvider       (in_mt_safe),
+     m_app_name                    (in_app_name),
      m_debug_callback_data         (0),
      m_engine_name                 (in_engine_name),
      m_global_layer                (""),
@@ -50,17 +52,24 @@ Anvil::Instance::~Instance()
 
     if (m_instance != VK_NULL_HANDLE)
     {
-        vkDestroyInstance(m_instance,
-                          nullptr /* pAllocator */);
+        lock();
+        {
+            vkDestroyInstance(m_instance,
+                              nullptr /* pAllocator */);
+        }
+        unlock();
 
         m_instance = VK_NULL_HANDLE;
     }
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Instance> Anvil::Instance::create(const std::string&    in_app_name,
-                                                         const std::string&    in_engine_name,
-                                                         DebugCallbackFunction in_opt_validation_callback_proc)
+std::shared_ptr<Anvil::Instance> Anvil::Instance::create(const std::string&              in_app_name,
+                                                         const std::string&              in_engine_name,
+                                                         DebugCallbackFunction           in_opt_validation_callback_proc,
+                                                         bool                            in_mt_safe,
+                                                         const std::vector<std::string>& in_opt_disallowed_instance_level_extensions,
+                                                         bool                            in_opt_enable_shader_module_cache)
 {
     std::shared_ptr<Anvil::Instance> new_instance_ptr;
 
@@ -68,10 +77,12 @@ std::shared_ptr<Anvil::Instance> Anvil::Instance::create(const std::string&    i
         new Instance(
             in_app_name,
             in_engine_name,
-            in_opt_validation_callback_proc)
+            in_opt_validation_callback_proc,
+            in_mt_safe)
     );
 
-    new_instance_ptr->init();
+    new_instance_ptr->init(in_opt_disallowed_instance_level_extensions,
+                           in_opt_enable_shader_module_cache);
 
     return new_instance_ptr;
 }
@@ -107,9 +118,13 @@ void Anvil::Instance::destroy()
 {
     if (m_debug_callback_data != VK_NULL_HANDLE)
     {
-        m_ext_debug_report_entrypoints.vkDestroyDebugReportCallbackEXT(m_instance,
-                                                                       m_debug_callback_data,
-                                                                       nullptr /* pAllocator */);
+        lock();
+        {
+            m_ext_debug_report_entrypoints.vkDestroyDebugReportCallbackEXT(m_instance,
+                                                                           m_debug_callback_data,
+                                                                           nullptr /* pAllocator */);
+        }
+        unlock();
 
         m_debug_callback_data = VK_NULL_HANDLE;
     }
@@ -301,7 +316,8 @@ const Anvil::ExtensionKHRSurfaceEntrypoints& Anvil::Instance::get_extension_khr_
 #endif
 
 /** Initializes the wrapper. */
-void Anvil::Instance::init()
+void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instance_level_extensions,
+                           bool                            in_enable_shader_module_cache)
 {
     VkApplicationInfo        app_info;
     VkInstanceCreateInfo     create_info;
@@ -411,6 +427,24 @@ void Anvil::Instance::init()
         m_enabled_extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
     }
 
+    if (is_instance_extension_supported(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME) )
+    {
+        m_enabled_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
+    }
+
+    /* Filter out undesired extensions */
+    for (const auto& current_extension_name : in_disallowed_instance_level_extensions)
+    {
+        auto iterator = std::find(m_enabled_extensions.begin(),
+                                  m_enabled_extensions.end  (),
+                                  current_extension_name);
+
+        if (iterator != m_enabled_extensions.end() )
+        {
+            m_enabled_extensions.erase(iterator);
+        }
+    }
+
     /* We're ready to create a new Vulkan instance */
     std::vector<const char*> enabled_extensions_raw;
 
@@ -444,7 +478,10 @@ void Anvil::Instance::init()
 
     enumerate_physical_devices();
 
-    m_shader_module_cache_ptr = Anvil::ShaderModuleCache::create();
+    if (in_enable_shader_module_cache)
+    {
+        m_shader_module_cache_ptr = Anvil::ShaderModuleCache::create();
+    }
 }
 
 /** Initializes debug callback support. */
@@ -549,6 +586,14 @@ void Anvil::Instance::init_func_pointers()
         anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceQueueFamilyProperties2KHR       != nullptr);
         anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceSparseImageFormatProperties2KHR != nullptr);
     }
+}
+
+/** Please see header for specification */
+bool Anvil::Instance::is_instance_extension_enabled(const char* in_extension_name) const
+{
+    return std::find(m_enabled_extensions.begin(),
+                     m_enabled_extensions.end(),
+                     in_extension_name) != m_enabled_extensions.end();
 }
 
 /** Please see header for specification */

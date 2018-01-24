@@ -36,6 +36,7 @@
 #ifndef WRAPPERS_MEMORY_BLOCK_H
 #define WRAPPERS_MEMORY_BLOCK_H
 
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 
 
@@ -45,22 +46,24 @@ namespace Anvil
     typedef std::function<void (Anvil::MemoryBlock* in_memory_block_ptr)> OnMemoryBlockReleaseCallbackFunction;
 
     /** Wrapper class for memory objects. Please see header for more details */
-    class MemoryBlock : public std::enable_shared_from_this<MemoryBlock>
+    class MemoryBlock : public MTSafetySupportProvider,
+                        public std::enable_shared_from_this<MemoryBlock>
     {
     public:
         /* Public functions */
 
         /** Create and bind a new device memory object to the instantiated MemoryBlock object.
          *
-         *  @param in_device_ptr          Device to use.
-         *  @param in_allowed_memory_bits Memory type bits which meet the allocation requirements.
-         *  @param in_size                Required allocation size.
-         *  @param in_memory_features     Required memory features.
+         *  @param in_device_ptr               Device to use.
+         *  @param in_allowed_memory_bits      Memory type bits which meet the allocation requirements.
+         *  @param in_size                     Required allocation size.
+         *  @param in_memory_features          Required memory features.
          **/
          static std::shared_ptr<MemoryBlock> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                                     uint32_t                         in_allowed_memory_bits,
                                                     VkDeviceSize                     in_size,
-                                                    Anvil::MemoryFeatureFlags        in_memory_features);
+                                                    Anvil::MemoryFeatureFlags        in_memory_features,
+                                                    MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Create a memory block whose storage space is maintained by another MemoryBlock instance.
          *
@@ -236,10 +239,11 @@ namespace Anvil
         bool init();
 
         /** Please see create() for documentation */
-        MemoryBlock(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
-                    uint32_t                              in_allowed_memory_bits,
-                    VkDeviceSize                          in_size,
-                    Anvil::MemoryFeatureFlags             in_memory_features);
+        MemoryBlock(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                    uint32_t                         in_allowed_memory_bits,
+                    VkDeviceSize                     in_size,
+                    Anvil::MemoryFeatureFlags        in_memory_features,
+                    bool                             in_mt_safe);
 
         /** Please see create() for documentation */
         MemoryBlock(std::shared_ptr<MemoryBlock> in_parent_memory_block_ptr,
@@ -247,14 +251,14 @@ namespace Anvil
                     VkDeviceSize                 in_size);
 
         /** Please see create_derived_with_custom_delete_proc() for documentation */
-        MemoryBlock(std::weak_ptr<Anvil::BaseDevice>    in_device_ptr,
-                    VkDeviceMemory                      in_memory,
-                    uint32_t                            in_allowed_memory_bits,
-                    Anvil::MemoryFeatureFlags           in_memory_features,
-                    uint32_t                            in_memory_type_index,
-                    VkDeviceSize                        in_size,
-                    VkDeviceSize                        in_start_offset,
-                   OnMemoryBlockReleaseCallbackFunction in_on_release_callback_function);
+        MemoryBlock(std::weak_ptr<Anvil::BaseDevice>     in_device_ptr,
+                    VkDeviceMemory                       in_memory,
+                    uint32_t                             in_allowed_memory_bits,
+                    Anvil::MemoryFeatureFlags            in_memory_features,
+                    uint32_t                             in_memory_type_index,
+                    VkDeviceSize                         in_size,
+                    VkDeviceSize                         in_start_offset,
+                    OnMemoryBlockReleaseCallbackFunction in_on_release_callback_function);
 
         MemoryBlock           (const MemoryBlock&);
         MemoryBlock& operator=(const MemoryBlock&);

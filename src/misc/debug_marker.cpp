@@ -21,6 +21,7 @@
 //
 
 #include "misc/debug_marker.h"
+#include "misc/mt_safety.h"
 #include "wrappers/device.h"
 
 /** Please see header for specification */
@@ -61,8 +62,12 @@ void Anvil::DebugMarkerSupportProviderWorker::set_name_internal(const std::strin
             name_info.pObjectName = in_object_name.c_str();
             name_info.sType       = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
 
-            result_vk = entrypoints.vkDebugMarkerSetObjectNameEXT(device_locked_ptr->get_device_vk(),
-                                                                 &name_info);
+            /* TODO: Host synchronization */
+            {
+                result_vk = entrypoints.vkDebugMarkerSetObjectNameEXT(device_locked_ptr->get_device_vk(),
+                                                                     &name_info);
+            }
+
             anvil_assert_vk_call_succeeded(result_vk);
 
             ANVIL_REDUNDANT_VARIABLE(result_vk);
@@ -119,8 +124,12 @@ void Anvil::DebugMarkerSupportProviderWorker::set_tag_internal(const uint64_t in
             tag_info.tagName    = m_object_tag_name;
             tag_info.tagSize    = in_tag_size;
 
-            result_vk = entrypoints.vkDebugMarkerSetObjectTagEXT(device_locked_ptr->get_device_vk(),
-                                                                &tag_info);
+            /* TODO: Host synchronization */
+            {
+                result_vk = entrypoints.vkDebugMarkerSetObjectTagEXT(device_locked_ptr->get_device_vk(),
+                                                                    &tag_info);
+            }
+
             anvil_assert_vk_call_succeeded(result_vk);
 
             ANVIL_REDUNDANT_VARIABLE(result_vk);

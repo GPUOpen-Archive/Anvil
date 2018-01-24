@@ -82,9 +82,9 @@ private:
     std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_consumer_vs_ptr;
     std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_producer_cs_ptr;
 
-    Anvil::GraphicsPipelineID          m_consumer_pipeline_id;
+    Anvil::PipelineID                  m_consumer_pipeline_id;
     std::shared_ptr<Anvil::RenderPass> m_consumer_render_pass_ptr;
-    Anvil::ComputePipelineID           m_producer_pipeline_id;
+    Anvil::PipelineID                  m_producer_pipeline_id;
 
     std::shared_ptr<Anvil::PrimaryCommandBuffer> m_command_buffers  [N_SWAPCHAIN_IMAGES];
     std::shared_ptr<Anvil::Image>                m_depth_images     [N_SWAPCHAIN_IMAGES];

@@ -263,6 +263,198 @@ static uint32_t layout_to_n_components[] =
 };
 
 /** Please see header for specification */
+bool Anvil::Formats::get_compressed_format_block_size(VkFormat  in_format,
+                                                      uint32_t* out_block_size_uvec2_ptr,
+                                                      uint32_t* out_n_bytes_per_block_ptr)
+{
+    bool result = true;
+
+    switch (in_format)
+    {
+        case VK_FORMAT_ASTC_4x4_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_4x4_SRGB_BLOCK:
+        case VK_FORMAT_BC2_UNORM_BLOCK:
+        case VK_FORMAT_BC2_SRGB_BLOCK:
+        case VK_FORMAT_BC3_UNORM_BLOCK:
+        case VK_FORMAT_BC3_SRGB_BLOCK:
+        case VK_FORMAT_BC5_UNORM_BLOCK:
+        case VK_FORMAT_BC5_SNORM_BLOCK:
+        case VK_FORMAT_BC6H_UFLOAT_BLOCK:
+        case VK_FORMAT_BC6H_SFLOAT_BLOCK:
+        case VK_FORMAT_BC7_UNORM_BLOCK:
+        case VK_FORMAT_BC7_SRGB_BLOCK:
+        case VK_FORMAT_EAC_R11G11_UNORM_BLOCK:
+        case VK_FORMAT_EAC_R11G11_SNORM_BLOCK:
+        case VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK:
+        case VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK:
+        {
+             out_block_size_uvec2_ptr[0] = 4;
+             out_block_size_uvec2_ptr[1] = 4;
+            *out_n_bytes_per_block_ptr   = 128 / 8;
+
+            break;
+        }
+
+        case VK_FORMAT_BC1_RGB_UNORM_BLOCK:
+        case VK_FORMAT_BC1_RGB_SRGB_BLOCK:
+        case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:
+        case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
+        case VK_FORMAT_BC4_UNORM_BLOCK:
+        case VK_FORMAT_BC4_SNORM_BLOCK:
+        case VK_FORMAT_EAC_R11_UNORM_BLOCK:
+        case VK_FORMAT_EAC_R11_SNORM_BLOCK:
+        case VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK:
+        case VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK:
+        case VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK:
+        case VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK:
+        {
+             out_block_size_uvec2_ptr[0] = 4;
+             out_block_size_uvec2_ptr[1] = 4;
+            *out_n_bytes_per_block_ptr   = 64 / 8;
+
+            break;
+        }
+
+        case VK_FORMAT_ASTC_5x4_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_5x4_SRGB_BLOCK:
+        {
+             out_block_size_uvec2_ptr[0] = 5;
+             out_block_size_uvec2_ptr[1] = 4;
+            *out_n_bytes_per_block_ptr   = 128 / 8;
+
+            break;
+        }
+
+        case VK_FORMAT_ASTC_5x5_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_5x5_SRGB_BLOCK:
+        {
+             out_block_size_uvec2_ptr[0] = 5;
+             out_block_size_uvec2_ptr[1] = 5;
+            *out_n_bytes_per_block_ptr   = 128 / 8;
+
+            break;
+        }
+
+        case VK_FORMAT_ASTC_6x5_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_6x5_SRGB_BLOCK:
+        {
+             out_block_size_uvec2_ptr[0] = 6;
+             out_block_size_uvec2_ptr[1] = 5;
+            *out_n_bytes_per_block_ptr   = 128 / 8;
+
+            break;
+        }
+
+        case VK_FORMAT_ASTC_6x6_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_6x6_SRGB_BLOCK:
+        {
+             out_block_size_uvec2_ptr[0] = 6;
+             out_block_size_uvec2_ptr[1] = 6;
+            *out_n_bytes_per_block_ptr   = 128 / 8;
+
+            break;
+        }
+
+        case VK_FORMAT_ASTC_8x5_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_8x5_SRGB_BLOCK:
+        {
+             out_block_size_uvec2_ptr[0] = 8;
+             out_block_size_uvec2_ptr[1] = 5;
+            *out_n_bytes_per_block_ptr   = 128 / 8;
+
+            break;
+        }
+
+        case VK_FORMAT_ASTC_8x6_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_8x6_SRGB_BLOCK:
+        {
+             out_block_size_uvec2_ptr[0] = 8;
+             out_block_size_uvec2_ptr[1] = 6;
+            *out_n_bytes_per_block_ptr   = 128 / 8;
+
+            break;
+        }
+
+        case VK_FORMAT_ASTC_8x8_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_8x8_SRGB_BLOCK:
+        {
+             out_block_size_uvec2_ptr[0] = 8;
+             out_block_size_uvec2_ptr[1] = 8;
+            *out_n_bytes_per_block_ptr   = 128 / 8;
+
+            break;
+        }
+
+        case VK_FORMAT_ASTC_10x5_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_10x5_SRGB_BLOCK:
+        {
+             out_block_size_uvec2_ptr[0] = 10;
+             out_block_size_uvec2_ptr[1] = 5;
+            *out_n_bytes_per_block_ptr   = 128 / 8;
+
+            break;
+        }
+
+        case VK_FORMAT_ASTC_10x6_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_10x6_SRGB_BLOCK:
+        {
+             out_block_size_uvec2_ptr[0] = 10;
+             out_block_size_uvec2_ptr[1] = 6;
+            *out_n_bytes_per_block_ptr   = 128 / 8;
+
+            break;
+        }
+
+        case VK_FORMAT_ASTC_10x8_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_10x8_SRGB_BLOCK:
+        {
+             out_block_size_uvec2_ptr[0] = 10;
+             out_block_size_uvec2_ptr[1] = 8;
+            *out_n_bytes_per_block_ptr   = 128 / 8;
+
+            break;
+        }
+
+        case VK_FORMAT_ASTC_10x10_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_10x10_SRGB_BLOCK:
+        {
+             out_block_size_uvec2_ptr[0] = 10;
+             out_block_size_uvec2_ptr[1] = 10;
+            *out_n_bytes_per_block_ptr   = 128 / 8;
+
+            break;
+        }
+
+        case VK_FORMAT_ASTC_12x10_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_12x10_SRGB_BLOCK:
+        {
+             out_block_size_uvec2_ptr[0] = 12;
+             out_block_size_uvec2_ptr[1] = 10;
+            *out_n_bytes_per_block_ptr   = 128 / 8;
+
+            break;
+        }
+
+        case VK_FORMAT_ASTC_12x12_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_12x12_SRGB_BLOCK:
+        {
+             out_block_size_uvec2_ptr[0] = 12;
+             out_block_size_uvec2_ptr[1] = 12;
+            *out_n_bytes_per_block_ptr   = 128 / 8;
+
+            break;
+        }
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
+
+    return result;
+}
+
+/** Please see header for specification */
 VkFormat Anvil::Formats::get_format(ComponentLayout in_component_layout,
                                     FormatType      in_format_type,
                                     uint32_t        in_n_component0_bits,
@@ -333,7 +525,6 @@ bool Anvil::Formats::get_format_aspects(VkFormat                         in_form
     }
 
     result = true;
-
     return result;
 }
 
@@ -390,6 +581,21 @@ Anvil::FormatType Anvil::Formats::get_format_type(VkFormat in_format)
     anvil_assert(in_format < VK_FORMAT_RANGE_SIZE);
 
     return formats[in_format].format_type;
+}
+
+/** Please see header for specification */
+bool Anvil::Formats::has_depth_aspect(VkFormat in_format)
+{
+    return (formats[in_format].component_layout == Anvil::COMPONENT_LAYOUT_D)  ||
+           (formats[in_format].component_layout == Anvil::COMPONENT_LAYOUT_DS) ||
+           (formats[in_format].component_layout == Anvil::COMPONENT_LAYOUT_XD);
+}
+
+/** Please see header for specification */
+bool Anvil::Formats::has_stencil_aspect(VkFormat in_format)
+{
+    return (formats[in_format].component_layout == Anvil::COMPONENT_LAYOUT_S)  ||
+           (formats[in_format].component_layout == Anvil::COMPONENT_LAYOUT_DS);
 }
 
 /** Please see header for specification */

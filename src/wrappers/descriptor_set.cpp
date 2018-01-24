@@ -21,6 +21,7 @@
 //
 
 #include "misc/debug.h"
+#include "misc/descriptor_set_info.h"
 #include "misc/object_tracker.h"
 #include "wrappers/buffer.h"
 #include "wrappers/buffer_view.h"
@@ -249,9 +250,11 @@ Anvil::DescriptorSet::TexelBufferBindingElement::TexelBufferBindingElement(const
 Anvil::DescriptorSet::DescriptorSet(std::weak_ptr<Anvil::BaseDevice>            in_device_ptr,
                                     std::shared_ptr<Anvil::DescriptorPool>      in_parent_pool_ptr,
                                     std::shared_ptr<Anvil::DescriptorSetLayout> in_layout_ptr,
-                                    VkDescriptorSet                             in_descriptor_set)
+                                    VkDescriptorSet                             in_descriptor_set,
+                                    bool                                        in_mt_safe)
     :DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT),
+     MTSafetySupportProvider   (in_mt_safe),
      m_descriptor_set          (in_descriptor_set),
      m_device_ptr              (in_device_ptr),
      m_dirty                   (true),
@@ -260,13 +263,6 @@ Anvil::DescriptorSet::DescriptorSet(std::weak_ptr<Anvil::BaseDevice>            
      m_unusable                (false)
 {
     alloc_bindings();
-
-    in_layout_ptr->register_for_callbacks(
-        Anvil::DESCRIPTOR_SET_LAYOUT_CALLBACK_ID_BINDING_ADDED,
-        std::bind(&DescriptorSet::on_binding_added_to_layout,
-                  this),
-        this
-    );
 
     m_parent_pool_ptr->register_for_callbacks(
         Anvil::DESCRIPTOR_POOL_CALLBACK_ID_POOL_RESET,
@@ -294,7 +290,8 @@ Anvil::DescriptorSet::~DescriptorSet()
  **/
 void Anvil::DescriptorSet::alloc_bindings()
 {
-    const uint32_t n_bindings = m_layout_ptr->get_n_bindings();
+    const auto     layout_info_ptr = m_layout_ptr->get_info         ();
+    const uint32_t n_bindings      = layout_info_ptr->get_n_bindings();
 
     m_cached_ds_write_items_vk.resize(n_bindings);
 
@@ -305,12 +302,12 @@ void Anvil::DescriptorSet::alloc_bindings()
         uint32_t array_size = 0;
         uint32_t binding_index;
 
-        m_layout_ptr->get_binding_properties(n_binding,
-                                            &binding_index,
-                                             nullptr, /* out_opt_descriptor_type_ptr */
-                                            &array_size,
-                                             nullptr,  /* out_opt_stage_flags_ptr                */
-                                             nullptr); /* out_opt_immutable_samplers_enabled_ptr */
+        layout_info_ptr->get_binding_properties(n_binding,
+                                               &binding_index,
+                                                nullptr, /* out_opt_descriptor_type_ptr */
+                                               &array_size,
+                                                nullptr,  /* out_opt_stage_flags_ptr                */
+                                                nullptr); /* out_opt_immutable_samplers_enabled_ptr */
 
         if (m_bindings[binding_index].size() != array_size)
         {
@@ -324,7 +321,8 @@ void Anvil::DescriptorSet::alloc_bindings()
 /* Please see header for specification */
 bool Anvil::DescriptorSet::bake()
 {
-    bool result = false;
+    const auto layout_info_ptr = m_layout_ptr->get_info();
+    bool       result          = false;
 
     anvil_assert(!m_unusable);
 
@@ -364,12 +362,12 @@ bool Anvil::DescriptorSet::bake()
             const uint32_t        start_ds_texel_buffer_info_items_array_offset = cached_ds_texel_buffer_info_items_array_offset;
             VkWriteDescriptorSet  write_ds_vk;
 
-            if (!m_layout_ptr->get_binding_properties(n_binding,
-                                                     &current_binding_index,
-                                                     &descriptor_type,
-                                                      nullptr, /* out_opt_descriptor_array_size_ptr */
-                                                      nullptr, /* out_opt_stage_flags_ptr           */
-                                                     &immutable_samplers_enabled) )
+            if (!layout_info_ptr->get_binding_properties(n_binding,
+                                                        &current_binding_index,
+                                                        &descriptor_type,
+                                                         nullptr, /* out_opt_descriptor_array_size_ptr */
+                                                         nullptr, /* out_opt_stage_flags_ptr           */
+                                                        &immutable_samplers_enabled) )
             {
                 anvil_assert_fail();
             }
@@ -450,7 +448,7 @@ bool Anvil::DescriptorSet::bake()
             /* We can finally fill the write descriptor */
             if (current_binding_items.size() > 0)
             {
-                write_ds_vk.descriptorCount  = (uint32_t) current_binding_items.size();
+                write_ds_vk.descriptorCount  = static_cast<uint32_t>(current_binding_items.size() );
                 write_ds_vk.descriptorType   = descriptor_type;
                 write_ds_vk.dstArrayElement  = 0;
                 write_ds_vk.dstBinding       = current_binding_index;
@@ -473,11 +471,15 @@ bool Anvil::DescriptorSet::bake()
         {
             std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
-            vkUpdateDescriptorSets(device_locked_ptr->get_device_vk(),
-                                   (uint32_t) m_cached_ds_write_items_vk.size(),
-                                  &m_cached_ds_write_items_vk[0],
-                                   0,        /* copyCount         */
-                                   nullptr); /* pDescriptorCopies */
+            lock();
+            {
+                vkUpdateDescriptorSets(device_locked_ptr->get_device_vk(),
+                                       static_cast<uint32_t>(m_cached_ds_write_items_vk.size() ),
+                                      &m_cached_ds_write_items_vk[0],
+                                       0,        /* copyCount         */
+                                       nullptr); /* pDescriptorCopies */
+            }
+            unlock();
         }
 
         m_dirty = false;
@@ -493,15 +495,19 @@ end:
 std::shared_ptr<Anvil::DescriptorSet> Anvil::DescriptorSet::create(std::weak_ptr<Anvil::BaseDevice>            in_device_ptr,
                                                                    std::shared_ptr<Anvil::DescriptorPool>      in_parent_pool_ptr,
                                                                    std::shared_ptr<Anvil::DescriptorSetLayout> in_layout_ptr,
-                                                                   VkDescriptorSet                             in_descriptor_set)
+                                                                   VkDescriptorSet                             in_descriptor_set,
+                                                                   MTSafety                                    in_mt_safety)
 {
+    const bool                            is_mt_safe = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                       in_device_ptr);
     std::shared_ptr<Anvil::DescriptorSet> result_ptr;
 
     result_ptr.reset(
         new Anvil::DescriptorSet(in_device_ptr,
                                  in_parent_pool_ptr,
                                  in_layout_ptr,
-                                 in_descriptor_set)
+                                 in_descriptor_set,
+                                 is_mt_safe)
     );
 
     return result_ptr;
@@ -758,18 +764,6 @@ bool Anvil::DescriptorSet::get_storage_texel_buffer_binding_properties(uint32_t 
 
 end:
     return result;
-}
-
-/** Entry-point called back whenever a new binding is added to the parent layout.
- *
- *  This will resize a number of internally managed vectors.
- *
- *  @param layout_raw_ptr Ignored.
- *
- **/
-void Anvil::DescriptorSet::on_binding_added_to_layout()
-{
-    alloc_bindings();
 }
 
 /** Called back whenever parent descriptor pool is reset.

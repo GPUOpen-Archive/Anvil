@@ -91,6 +91,12 @@ namespace Anvil
          */
         GLSL_SHADER_TO_SPIRV_GENERATOR_CALLBACK_ID_CONVERSION_ABOUT_TO_START,
 
+        /* Call-back issued right after the conversion ends.
+         *
+         * @param callback_arg OnGLSLToSPIRVConversionFinishedCallbackArgument instance.
+         */
+        GLSL_SHADER_TO_SPIRV_GENERATOR_CALLBACK_ID_CONVERSION_FINISHED,
+
         GLSL_SHADER_TO_SPIRV_GENERATOR_CALLBACK_ID_COUNT
     } GLSLShaderToSPIRVGeneratorCallbackID;
 

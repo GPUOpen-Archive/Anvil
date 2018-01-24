@@ -31,6 +31,7 @@
 #define WRAPPERS_RENDERING_SURFACE_H
 
 #include "misc/debug_marker.h"
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 #include "wrappers/device.h"
 #include "wrappers/physical_device.h"
@@ -40,7 +41,8 @@
 namespace Anvil
 {
     /* Wrapper class for Vulkan rendering surfaces */
-    class RenderingSurface : public DebugMarkerSupportProvider<RenderingSurface>
+    class RenderingSurface : public DebugMarkerSupportProvider<RenderingSurface>,
+                             public MTSafetySupportProvider
     {
     public:
         /* Public type definitions */
@@ -75,7 +77,8 @@ namespace Anvil
          *  Object Tracker. */
         static std::shared_ptr<RenderingSurface> create(std::weak_ptr<Anvil::Instance>   in_instance_ptr,
                                                         std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                        std::shared_ptr<Anvil::Window>   in_window_ptr);
+                                                        std::shared_ptr<Anvil::Window>   in_window_ptr,
+                                                        MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Destructor
          *
@@ -185,6 +188,7 @@ namespace Anvil
         RenderingSurface(std::weak_ptr<Anvil::Instance>   in_instance_ptr,
                          std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                          std::shared_ptr<Anvil::Window>   in_window_ptr,
+                         bool                             in_mt_safe,
                          bool*                            out_safe_to_use_ptr);
 
         RenderingSurface           (const RenderingSurface&);
@@ -199,6 +203,7 @@ namespace Anvil
 
         uint32_t                                               m_height;
         std::map<DeviceGroupIndex, PhysicalDeviceCapabilities> m_physical_device_capabilities;
+        uint32_t                                               m_stream_index;
         VkSurfaceKHR                                           m_surface;
         RenderingSurfaceType                                   m_type;
         uint32_t                                               m_width;

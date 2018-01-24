@@ -24,13 +24,13 @@
  * objects. At baking time, non-overlapping regions of memory storage are distributed to the objects,
  * respect to object-specific alignment requirements.
  *
- * The allocator uses a single memory heap for all allocations, so it may not work in all cases.
- * This will be improved at some point in the future.
+ * MT-safe at an opt-in basis.
  **/
 #ifndef MISC_MEMORY_ALLOCATOR_H
 #define MISC_MEMORY_ALLOCATOR_H
 
 #include "misc/debug.h"
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 #include <vector>
 
@@ -39,8 +39,8 @@ namespace Anvil
 {
     typedef std::function<void (Anvil::MemoryAllocator* in_memory_allocator_ptr) > MemoryAllocatorBakeCallbackFunction;
 
-    /** Implements a simple memory allocator. For more details, please see the header. */
-    class MemoryAllocator : public std::enable_shared_from_this<MemoryAllocator>
+    class MemoryAllocator : public MTSafetySupportProvider,
+                            public std::enable_shared_from_this<MemoryAllocator>
     {
     public:
         /* Public type definitions */
@@ -49,6 +49,7 @@ namespace Anvil
             ITEM_TYPE_BUFFER,
             ITEM_TYPE_IMAGE_WHOLE,
 
+            ITEM_TYPE_SPARSE_BUFFER_REGION,
             ITEM_TYPE_SPARSE_IMAGE_MIPTAIL,
             ITEM_TYPE_SPARSE_IMAGE_SUBRESOURCE,
         } ItemType;
@@ -74,6 +75,7 @@ namespace Anvil
             MemoryFeatureFlags                  alloc_memory_required_features;
             uint32_t                            alloc_memory_supported_memory_types;
             uint32_t                            alloc_memory_types;
+            VkDeviceSize                        alloc_offset;
             VkDeviceSize                        alloc_size;
 
             VkExtent3D         extent;
@@ -85,6 +87,15 @@ namespace Anvil
 
             Item(std::shared_ptr<Anvil::MemoryAllocator> in_memory_allocator_ptr,
                  std::shared_ptr<Anvil::Buffer>          in_buffer_ptr,
+                 VkDeviceSize                            in_alloc_size,
+                 uint32_t                                in_alloc_memory_types,
+                 VkDeviceSize                            in_alloc_alignment,
+                 MemoryFeatureFlags                      in_alloc_required_memory_features,
+                 uint32_t                                in_alloc_supported_memory_types);
+
+            Item(std::shared_ptr<Anvil::MemoryAllocator> in_memory_allocator_ptr,
+                 std::shared_ptr<Anvil::Buffer>          in_buffer_ptr,
+                 VkDeviceSize                            in_alloc_offset,
                  VkDeviceSize                            in_alloc_size,
                  uint32_t                                in_alloc_memory_types,
                  VkDeviceSize                            in_alloc_alignment,
@@ -189,6 +200,20 @@ namespace Anvil
                                                                     std::shared_ptr<std::vector<uint32_t> >      in_data_vector_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features);
 
+        /** TODO
+         *
+         *  @param in_buffer_ptr               TODO
+         *  @param in_offset                   TODO. Must be divisible by VkMemoryRequirements::alignment
+         *  @param in_size                     TODO.
+         *  @param in_required_memory_features TODO
+         *
+         *  @return TODO
+         */
+        bool add_sparse_buffer_region(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
+                                      VkDeviceSize                   in_offset,
+                                      VkDeviceSize                   in_size,
+                                      MemoryFeatureFlags             in_required_memory_features);
+
         /** Adds an Image object which should be assigned storage coming from memory objects
          *  maintained by the Memory Allocator. At baking time, all subresources of the image,
          *  as well as all miptails (in case of resident images) will be assigned memory regions.
@@ -260,7 +285,8 @@ namespace Anvil
          *
          *  @param in_device_ptr Device to use.
          **/
-        static std::shared_ptr<MemoryAllocator> create_oneshot(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
+        static std::shared_ptr<MemoryAllocator> create_oneshot(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                               MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a new VMA memory allocator instance.
          *
@@ -268,7 +294,8 @@ namespace Anvil
          *
          *  @param in_device_ptr Device to use.
          **/
-        static std::shared_ptr<MemoryAllocator> create_vma(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
+        static std::shared_ptr<MemoryAllocator> create_vma(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                           MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Assigns a func pointer which will be called by the allocator after all added objects
          *  have been assigned memory blocks.
@@ -288,7 +315,6 @@ namespace Anvil
         ~MemoryAllocator();
 
     private:
-
         /* Private functions */
         bool add_buffer_internal(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
                                  MemoryFeatureFlags             in_required_memory_features);
@@ -304,7 +330,8 @@ namespace Anvil
          *
          *  Please see create() documentation for specification. */
         MemoryAllocator(std::weak_ptr<Anvil::BaseDevice>         in_device_ptr,
-                        std::shared_ptr<IMemoryAllocatorBackend> in_backend_ptr);
+                        std::shared_ptr<IMemoryAllocatorBackend> in_backend_ptr,
+                        bool                                     in_mt_safe);
 
         MemoryAllocator           (const MemoryAllocator&);
         MemoryAllocator& operator=(const MemoryAllocator&);

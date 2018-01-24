@@ -54,10 +54,10 @@ private:
     void init_vulkan         ();
 
     void     draw_frame            ();
-    VkBool32 on_validation_callback(VkDebugReportFlagsEXT      message_flags,
-                                    VkDebugReportObjectTypeEXT object_type,
-                                    const char*                layer_prefix,
-                                    const char*                message);
+    VkBool32 on_validation_callback(VkDebugReportFlagsEXT      in_message_flags,
+                                    VkDebugReportObjectTypeEXT in_object_type,
+                                    const char*                in_layer_prefix,
+                                    const char*                in_message);
 
     void get_luminance_data(std::shared_ptr<float>* out_result_ptr,
                             uint32_t*               out_result_size_ptr) const;
@@ -92,7 +92,7 @@ private:
     std::shared_ptr<Anvil::Framebuffer>                 m_fbos[N_SWAPCHAIN_IMAGES];
     std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_fs_ptr;
     std::shared_ptr<Anvil::Buffer>                      m_mesh_data_buffer_ptr;
-    Anvil::GraphicsPipelineID                           m_pipeline_id;
+    Anvil::PipelineID                                   m_pipeline_id;
     std::shared_ptr<Anvil::RenderPass>                  m_renderpass_ptr;
     std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_vs_ptr;
 

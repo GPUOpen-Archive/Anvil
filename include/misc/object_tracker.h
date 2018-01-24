@@ -45,14 +45,20 @@ namespace Anvil
 {
     typedef enum
     {
-        /* Callback issued when a new Anvil object is instantiated
+        /* Callback issued when a new GLSLShaderToSPIRVGenerator object is instantiated
          *
          * @param callback_arg OnObjectRegisteredCallbackArgument structure instance
-         **/
-        OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_REGISTERED,
+         */
+        OBJECT_TRACKER_CALLBACK_ID_ON_GLSL_SHADER_TO_SPIRV_GENERATOR_OBJECT_REGISTERED,
+
+        /* Callback issued when a new ShaderModule object is instantiated
+         *
+         * @param callback_arg OnObjectRegisteredCallbackArgument structure instance
+         */
+        OBJECT_TRACKER_CALLBACK_ID_ON_SHADER_MODULE_OBJECT_REGISTERED,
 
 
-        /* Callback issued when an existing Anvil object instance is about to go out of scope.
+        /* Callback issued when an existing Device object instance is about to go out of scope.
          *
          * This callback IS issued BEFORE a corresponding Vulkan handle is destroyed.
          *
@@ -61,19 +67,40 @@ namespace Anvil
          *
          * @param callback_arg OnObjectAboutToBeUnregisteredCallbackArgument structure instance
          **/
-        OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED,
-
-        /* Specialized case of OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED.
-         *
-         * Uses the same callback argument.
-         */
         OBJECT_TRACKER_CALLBACK_ID_ON_DEVICE_OBJECT_ABOUT_TO_BE_UNREGISTERED,
 
-        /* Specialized case of OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED.
+        /* Callback issued when an existing GLSLShaderToSPIRVGenerator object instance is about to go out of scope.
          *
-         * Uses the same callback argument.
-         */
+         * This callback IS issued BEFORE a corresponding Vulkan handle is destroyed.
+         *
+         * This callback MAY be issued FROM WITHIN the object's destructor, implying all WEAK POINTERS pointing
+         * to the wrapper instance will have been expired at the time of the callback.
+         *
+         * @param callback_arg OnObjectAboutToBeUnregisteredCallbackArgument structure instance
+         **/
+        OBJECT_TRACKER_CALLBACK_ID_ON_GLSL_SHADER_TO_SPIRV_GENERATOR_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+
+        /* Callback issued when an existing PipelineLayout object instance is about to go out of scope.
+         *
+         * This callback IS issued BEFORE a corresponding Vulkan handle is destroyed.
+         *
+         * This callback MAY be issued FROM WITHIN the object's destructor, implying all WEAK POINTERS pointing
+         * to the wrapper instance will have been expired at the time of the callback.
+         *
+         * @param callback_arg OnObjectAboutToBeUnregisteredCallbackArgument structure instance
+         **/
         OBJECT_TRACKER_CALLBACK_ID_ON_PIPELINE_LAYOUT_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+
+        /* Callback issued when an existing ShaderModule object instance is about to go out of scope.
+         *
+         * This callback IS issued BEFORE a corresponding Vulkan handle is destroyed.
+         *
+         * This callback MAY be issued FROM WITHIN the object's destructor, implying all WEAK POINTERS pointing
+         * to the wrapper instance will have been expired at the time of the callback.
+         *
+         * @param callback_arg OnObjectAboutToBeUnregisteredCallbackArgument structure instance
+         **/
+        OBJECT_TRACKER_CALLBACK_ID_ON_SHADER_MODULE_OBJECT_ABOUT_TO_BE_UNREGISTERED,
 
         OBJECT_TRACKER_CALLBACK_ID_COUNT,
     } ObjectTrackerCallbackID;

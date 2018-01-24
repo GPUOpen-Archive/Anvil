@@ -83,7 +83,7 @@ private:
     std::shared_ptr<Anvil::Framebuffer>                 m_fbos           [N_SWAPCHAIN_IMAGES];
     std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_fs_ptr;
     std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_gs_ptr;
-    Anvil::GraphicsPipelineID                           m_pipeline_id;
+    Anvil::PipelineID                                   m_pipeline_id;
     std::shared_ptr<Anvil::RenderPass>                  m_renderpass_ptr;
     std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_vs_ptr;
 

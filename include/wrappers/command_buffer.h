@@ -38,6 +38,7 @@
 #include "misc/callbacks.h"
 #include "misc/debug_marker.h"
 #include "misc/io.h"
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 
 #ifdef _DEBUG
@@ -161,12 +162,11 @@ namespace Anvil
      */
     typedef struct BeginRenderPassCommand : public Command
     {
-        std::vector<VkClearValue>                          clear_values;
-        VkSubpassContents                                  contents;
-        std::shared_ptr<Anvil::Framebuffer>                fbo_ptr;
-        std::vector<std::weak_ptr<Anvil::PhysicalDevice> > physical_devices;
-        std::vector<VkRect2D>                              render_areas;
-        std::shared_ptr<Anvil::RenderPass>                 render_pass_ptr;
+        std::vector<VkClearValue>           clear_values;
+        VkSubpassContents                   contents;
+        std::shared_ptr<Anvil::Framebuffer> fbo_ptr;
+        VkRect2D                            render_area;
+        std::shared_ptr<Anvil::RenderPass>  render_pass_ptr;
 
         /** Constructor.
          *
@@ -174,14 +174,12 @@ namespace Anvil
          *
          *  Arguments as per Vulkan API.
          **/
-        explicit BeginRenderPassCommand(uint32_t                                    in_n_clear_values,
-                                        const VkClearValue*                         in_clear_value_ptrs,
-                                        std::shared_ptr<Anvil::Framebuffer>         in_fbo_ptr,
-                                        uint32_t                                    in_n_physical_devices,
-                                        const std::weak_ptr<Anvil::PhysicalDevice>* in_physical_devices,
-                                        const VkRect2D*                             in_render_areas,
-                                        std::shared_ptr<Anvil::RenderPass>          in_render_pass_ptr,
-                                        VkSubpassContents                           in_contents);
+        explicit BeginRenderPassCommand(uint32_t                            in_n_clear_values,
+                                        const VkClearValue*                 in_clear_value_ptrs,
+                                        std::shared_ptr<Anvil::Framebuffer> in_fbo_ptr,
+                                        const VkRect2D&                     in_render_area,
+                                        std::shared_ptr<Anvil::RenderPass>  in_render_pass_ptr,
+                                        VkSubpassContents                   in_contents);
 
         /** Destructor.
          *
@@ -297,7 +295,8 @@ namespace Anvil
      *
      *  Provides core functionality for the PrimaryCommandBuffer and SecondaryCommandBuffer classes.
      */
-    class CommandBufferBase : public DebugMarkerSupportProvider<CommandBufferBase>,
+    class CommandBufferBase : public MTSafetySupportProvider,
+                              public DebugMarkerSupportProvider<CommandBufferBase>,
                               public CallbacksSupportProvider
     {
     public:
@@ -1544,6 +1543,7 @@ namespace Anvil
             ClearDepthStencilImageCommand& operator=(const ClearDepthStencilImageCommand& in);
         } ClearDepthStencilImageCommand;
 
+
         /** Holds all arguments passed to a vkCmdCopyBuffer() command. */
         typedef struct CopyBufferCommand : public Command
         {
@@ -2115,7 +2115,6 @@ namespace Anvil
             ResolveImageCommand& operator=(const ResolveImageCommand&);
         } ResolveImageCommand;
 
-
         /** Holds all arguments passed to a vkCmdSetBlendConstants() command. **/
         typedef struct SetBlendConstantsCommand : public Command
         {
@@ -2393,7 +2392,8 @@ namespace Anvil
         /* Protected functions */
         explicit CommandBufferBase(std::weak_ptr<Anvil::BaseDevice>    in_device_ptr,
                                    std::shared_ptr<Anvil::CommandPool> in_parent_command_pool_ptr,
-                                   CommandBufferType                   in_type);
+                                   CommandBufferType                   in_type,
+                                   bool                                in_mt_safe);
 
         virtual ~CommandBufferBase();
 
@@ -2422,6 +2422,7 @@ namespace Anvil
         bool                              m_is_renderpass_active;
         std::weak_ptr<Anvil::CommandPool> m_parent_command_pool_ptr;
         bool                              m_recording_in_progress;
+        uint32_t                          m_renderpass_device_mask;
         CommandBufferType                 m_type;
 
         static bool m_command_stashing_disabled;
@@ -2548,7 +2549,8 @@ namespace Anvil
          *
          **/
         PrimaryCommandBuffer(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                             std::shared_ptr<CommandPool>     in_parent_command_pool_ptr);
+                             std::shared_ptr<CommandPool>     in_parent_command_pool_ptr,
+                             bool                             in_mt_safe);
 
     private:
         friend class Anvil::CommandPool;
@@ -2610,7 +2612,8 @@ namespace Anvil
          *
          **/
         SecondaryCommandBuffer(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                               std::shared_ptr<CommandPool>     in_parent_command_pool_ptr); 
+                               std::shared_ptr<CommandPool>     in_parent_command_pool_ptr,
+                               bool                             in_mt_safe);
 
     private:
         friend class Anvil::CommandPool;
