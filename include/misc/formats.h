@@ -32,6 +32,10 @@ namespace Anvil
     class Formats
     {
     public:
+        static bool get_compressed_format_block_size(VkFormat  in_format,
+                                                     uint32_t* out_block_size_uvec2_ptr,
+                                                     uint32_t* out_n_bytes_per_block_ptr);
+
         /** Returns a VkFormat which meets the user-specified criteria.
          *
          *  This function does not support block formats.
@@ -99,6 +103,12 @@ namespace Anvil
 
         /** Tells the format type used by @param in_format. */
         static FormatType get_format_type(VkFormat in_format);
+
+        /** Tells whether @param in_format includes a depth aspect */
+        static bool has_depth_aspect(VkFormat in_format);
+
+        /** Tells whether @param in_format includes a stencil aspect */
+        static bool has_stencil_aspect(VkFormat in_format);
 
         /** Tells whether @param in_format format is a block format. */
         static bool is_format_compressed(VkFormat in_format);

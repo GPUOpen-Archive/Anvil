@@ -76,11 +76,19 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
             ++item_iterator)
     {
         /* Assign the item to supported memory types */
+        const auto& required_memory_features = ((*item_iterator)->alloc_memory_required_features);
+        const auto& supported_memory_types   = (*item_iterator)->alloc_memory_supported_memory_types;
+
         for (uint32_t n_memory_type = 0;
                       (1u << n_memory_type) <= (*item_iterator)->alloc_memory_supported_memory_types;
                      ++n_memory_type)
         {
-            if (!((*item_iterator)->alloc_memory_supported_memory_types & (1 << n_memory_type)) )
+            if (!(supported_memory_types & (1 << n_memory_type)) )
+            {
+                continue;
+            }
+
+            if ((memory_props.types.at(n_memory_type).features & required_memory_features) != required_memory_features)
             {
                 continue;
             }
@@ -121,7 +129,8 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
                 new_memory_block_ptr = Anvil::MemoryBlock::create(m_device_ptr,
                                                                   1u << current_memory_type_index,
                                                                   n_bytes_required,
-                                                                  (memory_props.types[current_memory_type_index].features));
+                                                                  (memory_props.types[current_memory_type_index].features),
+                                                                  Anvil::Utils::convert_boolean_to_mt_safety_enum(device_locked_ptr->is_mt_safe()) );
 
                 if (new_memory_block_ptr == nullptr)
                 {

@@ -24,6 +24,7 @@
 #define WRAPPERS_QUERY_POOL_H
 
 #include "misc/debug_marker.h"
+#include "misc/mt_safety.h"
 #include "misc/ref_counter.h"
 #include "misc/pools.h"
 #include "misc/types.h"
@@ -32,7 +33,8 @@
 namespace Anvil
 {
     /* Implements a query pool wrapper. */
-    class QueryPool : public DebugMarkerSupportProvider<QueryPool>
+    class QueryPool : public DebugMarkerSupportProvider<QueryPool>,
+                      public MTSafetySupportProvider
     {
     public:
         /* Public functions */
@@ -52,7 +54,8 @@ namespace Anvil
          **/
         static std::shared_ptr<QueryPool> create_non_ps_query_pool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                                                    VkQueryType                      in_query_type,
-                                                                   uint32_t                         in_n_max_concurrent_queries);
+                                                                   uint32_t                         in_n_max_concurrent_queries,
+                                                                   MTSafety                         in_mt_safety                = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a new pipeline statistics query pool.
          *
@@ -66,7 +69,8 @@ namespace Anvil
          **/
         static std::shared_ptr<QueryPool> create_ps_query_pool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                                                VkQueryPipelineStatisticFlags    in_pipeline_statistics,
-                                                               uint32_t                         in_n_max_concurrent_queries);
+                                                               uint32_t                         in_n_max_concurrent_queries,
+                                                               MTSafety                         in_mt_safety                = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Destructor */
         virtual ~QueryPool();
@@ -88,13 +92,15 @@ namespace Anvil
         /* Constructor. Please see corresponding create() for specification */
         explicit QueryPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                            VkQueryType                      in_query_type,
-                           uint32_t                         in_n_max_concurrent_queries);
+                           uint32_t                         in_n_max_concurrent_queries,
+                           bool                             in_mt_safe);
 
         /* Constructor. Please see corresponding create() for specification */
         explicit QueryPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                            VkQueryType                      in_query_type,
                            VkFlags                          in_query_flags,
-                           uint32_t                         in_n_max_concurrent_queries);
+                           uint32_t                         in_n_max_concurrent_queries,
+                           bool                             in_mt_safe);
 
         /** Initializes the Vulkan counterpart.
          *

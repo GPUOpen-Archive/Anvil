@@ -21,7 +21,7 @@
 //
 #include <memory>
 
-#define N_SWAPCHAIN_IMAGES (3)
+#define N_SWAPCHAIN_IMAGES (2)
 
 
 class App
@@ -60,7 +60,7 @@ private:
     void update_teapot_props(uint32_t n_current_swapchain_image);
 
     void     draw_frame            ();
-    void     on_keypress_event     (Anvil::CallbackArgument*   callback_data_raw_ptr);
+    void     on_keypress_event     (Anvil::CallbackArgument*   in_callback_data_raw_ptr);
     VkBool32 on_validation_callback(VkDebugReportFlagsEXT      message_flags,
                                     VkDebugReportObjectTypeEXT object_type,
                                     const char*                layer_prefix,
@@ -79,8 +79,10 @@ private:
     std::shared_ptr<Anvil::ImageView>                          m_depth_image_view_ptr;
     std::vector<std::shared_ptr<Anvil::Framebuffer> >          m_framebuffers;
     std::shared_ptr<Anvil::ShaderModuleStageEntryPoint>        m_fs_entrypoint_ptr;
-    std::vector<std::shared_ptr<Anvil::PrimaryCommandBuffer> > m_render_cmdbuffers_ooo_on;
+
     std::vector<std::shared_ptr<Anvil::PrimaryCommandBuffer> > m_render_cmdbuffers_ooo_off;
+    std::vector<std::shared_ptr<Anvil::PrimaryCommandBuffer> > m_render_cmdbuffers_ooo_on;
+
     std::vector<std::shared_ptr<Anvil::RenderPass> >           m_renderpasses;
     std::shared_ptr<Anvil::ShaderModuleStageEntryPoint>        m_vs_entrypoint_ptr;
 
@@ -101,10 +103,10 @@ private:
     std::vector<SemaphoreBundle> m_frame_signal_semaphore_bundles;
     std::vector<SemaphoreBundle> m_frame_wait_semaphore_bundles;
 
-    bool                      m_frame_drawn_status[N_SWAPCHAIN_IMAGES];
-    Anvil::GraphicsPipelineID m_general_pipeline_id;
-    Anvil::GraphicsPipelineID m_ooo_disabled_pipeline_id;
-    Anvil::GraphicsPipelineID m_ooo_enabled_pipeline_id;
+    bool              m_frame_drawn_status[N_SWAPCHAIN_IMAGES];
+    Anvil::PipelineID m_general_pipeline_id;
+    Anvil::PipelineID m_ooo_disabled_pipeline_id;
+    Anvil::PipelineID m_ooo_enabled_pipeline_id;
 
     std::shared_ptr<Anvil::Buffer> m_index_buffer_ptr;
     std::shared_ptr<Anvil::Buffer> m_query_results_buffer_ptr;

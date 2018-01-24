@@ -30,11 +30,13 @@
 #define WRAPPERS_FRAMEBUFFER_H
 
 #include "misc/debug_marker.h"
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
-    class Framebuffer : public DebugMarkerSupportProvider<Framebuffer>
+    class Framebuffer : public DebugMarkerSupportProvider<Framebuffer>,
+                        public MTSafetySupportProvider
     {
     public:
         /* Public functions */
@@ -51,7 +53,8 @@ namespace Anvil
         static std::shared_ptr<Framebuffer> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                                    uint32_t                         in_width,
                                                    uint32_t                         in_height,
-                                                   uint32_t                         in_n_layers);
+                                                   uint32_t                         in_n_layers,
+                                                   MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Destructor.
          *
@@ -186,12 +189,11 @@ namespace Anvil
         Framebuffer(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                     uint32_t                         in_width,
                     uint32_t                         in_height,
-                    uint32_t                         in_n_layers);
+                    uint32_t                         in_n_layers,
+                    bool                             in_mt_safe);
 
         Framebuffer& operator=(const Framebuffer&);
         Framebuffer           (const Framebuffer&);
-
-        void on_renderpass_changed(Anvil::CallbackArgument* in_callback_argument_ptr);
 
         /* Private members */
         FramebufferAttachments           m_attachments;

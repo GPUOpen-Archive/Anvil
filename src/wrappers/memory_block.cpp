@@ -32,8 +32,10 @@
 Anvil::MemoryBlock::MemoryBlock(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                 uint32_t                         in_allowed_memory_bits,
                                 VkDeviceSize                     in_size,
-                                Anvil::MemoryFeatureFlags        in_memory_features)
-    :m_allowed_memory_bits    (in_allowed_memory_bits),
+                                Anvil::MemoryFeatureFlags        in_memory_features,
+                                bool                             in_mt_safe)
+    :MTSafetySupportProvider  (in_mt_safe),
+     m_allowed_memory_bits    (in_allowed_memory_bits),
      m_device_ptr             (in_device_ptr),
      m_gpu_data_map_count     (0),
      m_gpu_data_ptr           (nullptr),
@@ -52,6 +54,7 @@ Anvil::MemoryBlock::MemoryBlock(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
 Anvil::MemoryBlock::MemoryBlock(std::shared_ptr<MemoryBlock> in_parent_memory_block_ptr,
                                 VkDeviceSize                 in_start_offset,
                                 VkDeviceSize                 in_size)
+    :MTSafetySupportProvider(false)
 {
     anvil_assert(in_parent_memory_block_ptr                 != nullptr);
     anvil_assert(in_parent_memory_block_ptr->m_gpu_data_ptr == nullptr);
@@ -85,6 +88,7 @@ Anvil::MemoryBlock::MemoryBlock(std::weak_ptr<Anvil::BaseDevice>     in_device_p
                                 VkDeviceSize                         in_size,
                                 VkDeviceSize                         in_start_offset,
                                 OnMemoryBlockReleaseCallbackFunction in_on_release_callback_function)
+    :MTSafetySupportProvider(false)
 {
     anvil_assert(in_on_release_callback_function != nullptr);
 
@@ -128,9 +132,13 @@ Anvil::MemoryBlock::~MemoryBlock()
         {
             std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
-            vkFreeMemory(device_locked_ptr->get_device_vk(),
-                         m_memory,
-                         nullptr /* pAllocator */);
+            lock();
+            {
+                vkFreeMemory(device_locked_ptr->get_device_vk(),
+                             m_memory,
+                             nullptr /* pAllocator */);
+            }
+            unlock();
         }
 
         m_memory = VK_NULL_HANDLE;
@@ -152,8 +160,12 @@ void Anvil::MemoryBlock::close_gpu_memory_access()
 
         if (m_gpu_data_map_count.fetch_sub(1) == 1)
         {
-            vkUnmapMemory(device_locked_ptr->get_device_vk(),
-                          m_memory);
+            lock();
+            {
+                vkUnmapMemory(device_locked_ptr->get_device_vk(),
+                              m_memory);
+            }
+            unlock();
 
             m_gpu_data_ptr = nullptr;
         }
@@ -164,15 +176,19 @@ void Anvil::MemoryBlock::close_gpu_memory_access()
 std::shared_ptr<Anvil::MemoryBlock> Anvil::MemoryBlock::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                                                uint32_t                         in_allowed_memory_bits,
                                                                VkDeviceSize                     in_size,
-                                                               Anvil::MemoryFeatureFlags        in_memory_features)
+                                                               Anvil::MemoryFeatureFlags        in_memory_features,
+                                                               MTSafety                         in_mt_safety)
 {
+    const bool                          mt_safe    = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                     in_device_ptr);
     std::shared_ptr<Anvil::MemoryBlock> result_ptr;
 
     result_ptr.reset(
         new Anvil::MemoryBlock(in_device_ptr,
                                in_allowed_memory_bits,
                                in_size,
-                               in_memory_features)
+                               in_memory_features,
+                               mt_safe)
     );
 
     if (!result_ptr->init() )
@@ -299,7 +315,7 @@ uint32_t Anvil::MemoryBlock::get_device_memory_type_index(uint32_t              
 bool Anvil::MemoryBlock::init()
 {
     VkMemoryAllocateInfo               buffer_data_alloc_info;
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr      (m_device_ptr);
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr     (m_device_ptr);
     VkResult                           result;
     bool                               result_bool = false;
 
@@ -433,12 +449,16 @@ bool Anvil::MemoryBlock::open_gpu_memory_access()
     if (m_gpu_data_map_count.fetch_add(1) == 0)
     {
         /* Map the memory region into process space */
-        result_vk = vkMapMemory(device_locked_ptr->get_device_vk(),
-                                m_memory,
-                                0, /* offset */
-                                m_size,
-                                0, /* flags */
-                                (void**) &m_gpu_data_ptr);
+        lock();
+        {
+            result_vk = vkMapMemory(device_locked_ptr->get_device_vk(),
+                                    m_memory,
+                                    0, /* offset */
+                                    m_size,
+                                    0, /* flags */
+                                    (void**) &m_gpu_data_ptr);
+        }
+        unlock();
 
         anvil_assert_vk_call_succeeded(result_vk);
         result = is_vk_call_successful(result_vk);

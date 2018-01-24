@@ -37,10 +37,14 @@ std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_1D(std::weak_ptr<Anvi
                                                               VkComponentSwizzle               in_swizzle_red,
                                                               VkComponentSwizzle               in_swizzle_green,
                                                               VkComponentSwizzle               in_swizzle_blue,
-                                                              VkComponentSwizzle               in_swizzle_alpha)
+                                                              VkComponentSwizzle               in_swizzle_alpha,
+                                                              MTSafety                         in_mt_safety)
 {
+    const bool                 mt_safe            (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                   in_device_ptr) );
     std::shared_ptr<ImageView> new_image_view_ptr (new ImageView(in_device_ptr,
-                                                                 in_image_ptr) );
+                                                                 in_image_ptr,
+                                                                 mt_safe) );
     const VkComponentSwizzle   swizzle_rgba[]     =
     {
         in_swizzle_red,
@@ -77,10 +81,15 @@ std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_1D_array(std::weak_pt
                                                                     VkComponentSwizzle               in_swizzle_red,
                                                                     VkComponentSwizzle               in_swizzle_green,
                                                                     VkComponentSwizzle               in_swizzle_blue,
-                                                                    VkComponentSwizzle               in_swizzle_alpha)
+                                                                    VkComponentSwizzle               in_swizzle_alpha,
+                                                                    MTSafety                         in_mt_safety)
+
 {
+    const bool                 mt_safe            (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                   in_device_ptr) );
     std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(in_device_ptr,
-                                                                in_image_ptr) );
+                                                                in_image_ptr,
+                                                                mt_safe) );
     const VkComponentSwizzle   swizzle_rgba[]     =
     {
         in_swizzle_red,
@@ -116,10 +125,14 @@ std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_2D(std::weak_ptr<Anvi
                                                               VkComponentSwizzle               in_swizzle_red,
                                                               VkComponentSwizzle               in_swizzle_green,
                                                               VkComponentSwizzle               in_swizzle_blue,
-                                                              VkComponentSwizzle               in_swizzle_alpha)
+                                                              VkComponentSwizzle               in_swizzle_alpha,
+                                                              MTSafety                         in_mt_safety)
 {
+    const bool                 mt_safe            (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                   in_device_ptr) );
     std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(in_device_ptr,
-                                                                in_image_ptr) );
+                                                                in_image_ptr,
+                                                                mt_safe) );
     const VkComponentSwizzle   swizzle_rgba[]     =
     {
         in_swizzle_red,
@@ -156,10 +169,14 @@ std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_2D_array(std::weak_pt
                                                                     VkComponentSwizzle               in_swizzle_red,
                                                                     VkComponentSwizzle               in_swizzle_green,
                                                                     VkComponentSwizzle               in_swizzle_blue,
-                                                                    VkComponentSwizzle               in_swizzle_alpha)
+                                                                    VkComponentSwizzle               in_swizzle_alpha,
+                                                                    MTSafety                         in_mt_safety)
 {
+    const bool                 mt_safe            (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                   in_device_ptr) );
     std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(in_device_ptr,
-                                                                in_image_ptr) );
+                                                                in_image_ptr,
+                                                                mt_safe) );
     const VkComponentSwizzle   swizzle_rgba[]     =
     {
         in_swizzle_red,
@@ -196,10 +213,14 @@ std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_3D(std::weak_ptr<Anvi
                                                               VkComponentSwizzle               in_swizzle_red,
                                                               VkComponentSwizzle               in_swizzle_green,
                                                               VkComponentSwizzle               in_swizzle_blue,
-                                                              VkComponentSwizzle               in_swizzle_alpha)
+                                                              VkComponentSwizzle               in_swizzle_alpha,
+                                                              MTSafety                         in_mt_safety)
 {
+    const bool                 mt_safe            (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                   in_device_ptr) );
     std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(in_device_ptr,
-                                                                in_image_ptr) );
+                                                                in_image_ptr,
+                                                                mt_safe) );
     const VkComponentSwizzle   swizzle_rgba[]     =
     {
         in_swizzle_red,
@@ -235,10 +256,14 @@ std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_cube_map(std::weak_pt
                                                                     VkComponentSwizzle               in_swizzle_red,
                                                                     VkComponentSwizzle               in_swizzle_green,
                                                                     VkComponentSwizzle               in_swizzle_blue,
-                                                                    VkComponentSwizzle               in_swizzle_alpha)
+                                                                    VkComponentSwizzle               in_swizzle_alpha,
+                                                                    MTSafety                         in_mt_safety)
 {
+    const bool                 mt_safe            (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                   in_device_ptr) );
     std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(in_device_ptr,
-                                                                in_image_ptr) );
+                                                                in_image_ptr,
+                                                                mt_safe) );
     const VkComponentSwizzle  swizzle_rgba[]     =
     {
         in_swizzle_red,
@@ -275,10 +300,14 @@ std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_cube_map_array(std::w
                                                                           VkComponentSwizzle               in_swizzle_red,
                                                                           VkComponentSwizzle               in_swizzle_green,
                                                                           VkComponentSwizzle               in_swizzle_blue,
-                                                                          VkComponentSwizzle               in_swizzle_alpha)
+                                                                          VkComponentSwizzle               in_swizzle_alpha,
+                                                                          MTSafety                         in_mt_safety)
 {
+    const bool                 mt_safe            (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                   in_device_ptr) );
     std::shared_ptr<ImageView> new_image_view_ptr(new ImageView(in_device_ptr,
-                                                                in_image_ptr) );
+                                                                in_image_ptr,
+                                                                mt_safe) );
     const VkComponentSwizzle   swizzle_rgba[]     =
     {
         in_swizzle_red,
@@ -310,9 +339,11 @@ std::shared_ptr<Anvil::ImageView> Anvil::ImageView::create_cube_map_array(std::w
  *  @param in_parent_image_ptr Image to create the view for. Must not be nullptr.
  **/
 Anvil::ImageView::ImageView(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                            std::shared_ptr<Anvil::Image>    in_parent_image_ptr)
+                            std::shared_ptr<Anvil::Image>    in_parent_image_ptr,
+                            bool                             in_mt_safe)
     :DebugMarkerSupportProvider(in_device_ptr,
-                                VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT)
+                                VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT),
+     MTSafetySupportProvider   (in_mt_safe)
 {
     anvil_assert(in_parent_image_ptr != nullptr);
 
@@ -340,9 +371,13 @@ Anvil::ImageView::~ImageView()
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
-        vkDestroyImageView(device_locked_ptr->get_device_vk(),
-                           m_image_view,
-                           nullptr /* pAllocator */);
+        lock();
+        {
+            vkDestroyImageView(device_locked_ptr->get_device_vk(),
+                               m_image_view,
+                               nullptr /* pAllocator */);
+        }
+        unlock();
 
         m_image_view = VK_NULL_HANDLE;
     }
@@ -421,9 +456,10 @@ bool Anvil::ImageView::init(VkImageViewType           in_image_view_type,
         goto end;
     }
 
-    if (!m_parent_image_ptr->is_swapchain_image()            &&
-        !m_parent_image_ptr->is_sparse         ()            &&
-         m_parent_image_ptr->get_memory_block  () == nullptr)
+    if (!m_parent_image_ptr->is_swapchain_image  ()            &&
+        !m_parent_image_ptr->is_sparse           ()            &&
+         m_parent_image_ptr->get_memory_block    () == nullptr &&
+         m_parent_image_ptr->get_parent_swapchain() == nullptr)
     {
         anvil_assert(!(m_parent_image_ptr->get_memory_block() == nullptr));
 

@@ -179,10 +179,53 @@ void Anvil::PhysicalDevice::init()
         }
     }
 
-    if (is_device_extension_supported                  ("VK_KHR_16bit_storage")                   &&
-        m_instance_ptr->is_instance_extension_supported("VK_KHR_get_physical_device_properties2") )
+    /* Retrieve additional device info */
+    if (m_instance_ptr->is_instance_extension_supported(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) )
     {
         const auto& gpdp2_entrypoints = m_instance_ptr->get_extension_khr_get_physical_device_properties2_entrypoints();
+
+        if (m_instance_ptr->is_instance_extension_supported(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME) )
+        {
+            VkPhysicalDeviceIDPropertiesKHR device_id_props;
+            VkPhysicalDeviceProperties2KHR  general_props;
+
+            device_id_props.pNext = nullptr;
+            device_id_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR;
+
+            general_props.pNext = &device_id_props;
+            general_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
+
+            gpdp2_entrypoints.vkGetPhysicalDeviceProperties2KHR(m_physical_device,
+                                                               &general_props);
+
+            if (device_id_props.deviceLUIDValid)
+            {
+                static_assert(sizeof(m_device_LUID) == sizeof(device_id_props.deviceLUID), "Anvil asserts a LUID size different than the Vulkan header");
+
+                memcpy(m_device_LUID,
+                      &device_id_props.deviceLUID,
+                       sizeof(m_device_LUID) );
+
+                m_device_LUID_available = true;
+            }
+            else
+            {
+                m_device_LUID_available = false;
+            }
+
+            static_assert(sizeof(m_device_UUID) == sizeof(device_id_props.deviceUUID), "Anvil asserts a UUID size different than the Vulkan header");
+            static_assert(sizeof(m_driver_UUID) == sizeof(device_id_props.driverUUID), "Anvil asserts a UUID size different than the Vulkan header");
+
+            memcpy(m_device_UUID,
+                   device_id_props.deviceUUID,
+                   sizeof(m_device_UUID) );
+            memcpy(m_driver_UUID,
+                   device_id_props.driverUUID,
+                   sizeof(m_driver_UUID) );
+
+            m_device_UUID_available = true;
+            m_driver_UUID_available = true;
+        }
 
         if (is_device_extension_supported(VK_KHR_16BIT_STORAGE_EXTENSION_NAME) )
         {

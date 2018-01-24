@@ -41,9 +41,11 @@ Anvil::Sampler::Sampler(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                         float                            in_min_lod,
                         float                            in_max_lod,
                         VkBorderColor                    in_border_color,
-                        bool                             in_use_unnormalized_coordinates)
+                        bool                             in_use_unnormalized_coordinates,
+                        bool                             in_mt_safe)
     :DebugMarkerSupportProvider    (in_device_ptr,
                                     VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT),
+     MTSafetySupportProvider       (in_mt_safe),
      m_address_mode_u              (in_address_mode_u),
      m_address_mode_v              (in_address_mode_v),
      m_address_mode_w              (in_address_mode_w),
@@ -56,6 +58,7 @@ Anvil::Sampler::Sampler(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
      m_max_anisotropy              (in_max_anisotropy),
      m_max_lod                     (in_max_lod),
      m_min_filter                  (in_min_filter),
+     m_min_lod                     (in_min_lod),
      m_mipmap_mode                 (in_mipmap_mode),
      m_sampler                     (VK_NULL_HANDLE),
      m_use_unnormalized_coordinates(in_use_unnormalized_coordinates)
@@ -112,9 +115,13 @@ Anvil::Sampler::~Sampler()
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
-        vkDestroySampler(device_locked_ptr->get_device_vk(),
-                         m_sampler,
-                         nullptr /* pAllocator */);
+        lock();
+        {
+            vkDestroySampler(device_locked_ptr->get_device_vk(),
+                             m_sampler,
+                             nullptr /* pAllocator */);
+        }
+        unlock();
 
         m_sampler = VK_NULL_HANDLE;
     }
@@ -135,9 +142,12 @@ std::shared_ptr<Anvil::Sampler> Anvil::Sampler::create(std::weak_ptr<Anvil::Base
                                                        float                            in_min_lod,
                                                        float                            in_max_lod,
                                                        VkBorderColor                    in_border_color,
-                                                       bool                             in_use_unnormalized_coordinates)
+                                                       bool                             in_use_unnormalized_coordinates,
+                                                       MTSafety                         in_mt_safety)
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(in_device_ptr);
+    const bool                         mt_safe          (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                         in_device_ptr) );
     std::shared_ptr<Anvil::Sampler>    result_ptr;
 
     result_ptr.reset(
@@ -155,7 +165,8 @@ std::shared_ptr<Anvil::Sampler> Anvil::Sampler::create(std::weak_ptr<Anvil::Base
                            in_min_lod,
                            in_max_lod,
                            in_border_color,
-                           in_use_unnormalized_coordinates)
+                           in_use_unnormalized_coordinates,
+                           mt_safe)
     );
 
     return result_ptr;

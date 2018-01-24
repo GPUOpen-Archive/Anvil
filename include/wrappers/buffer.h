@@ -35,6 +35,7 @@
 
 #include "misc/callbacks.h"
 #include "misc/debug_marker.h"
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 #include "misc/page_tracker.h"
 
@@ -71,7 +72,8 @@ namespace Anvil
 
     class Buffer : public std::enable_shared_from_this<Buffer>,
                    public CallbacksSupportProvider,
-                   public DebugMarkerSupportProvider<Buffer>
+                   public DebugMarkerSupportProvider<Buffer>,
+                   public MTSafetySupportProvider
     {
     public:
         /* Public functions */
@@ -94,7 +96,8 @@ namespace Anvil
                                                                VkDeviceSize                     in_size,
                                                                QueueFamilyBits                  in_queue_families,
                                                                VkSharingMode                    in_queue_sharing_mode,
-                                                               VkBufferUsageFlags               in_usage_flags);
+                                                               VkBufferUsageFlags               in_usage_flags,
+                                                               MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Initializes a new NON-SPARSE buffer object using user-specified parameters.
          *
@@ -121,7 +124,8 @@ namespace Anvil
                                                                VkSharingMode                    in_queue_sharing_mode,
                                                                VkBufferUsageFlags               in_usage_flags,
                                                                Anvil::MemoryFeatureFlags        in_memory_features,
-                                                               const void*                      in_opt_client_data);
+                                                               const void*                      in_opt_client_data,
+                                                               MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a new Buffer wrapper instance. The new NON-SPARSE buffer will reuse a region of the specified
          *  buffer's storage, instead of creating one's own.
@@ -158,7 +162,8 @@ namespace Anvil
                                                             QueueFamilyBits                  in_queue_families,
                                                             VkSharingMode                    in_queue_sharing_mode,
                                                             VkBufferUsageFlags               in_usage_flags,
-                                                            Anvil::SparseResidencyScope      in_residency_scope);
+                                                            Anvil::SparseResidencyScope      in_residency_scope,
+                                                            MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Destroys the Vulkan objects and unregister the Buffer instance from Object Tracker. */
         virtual ~Buffer();
@@ -219,6 +224,11 @@ namespace Anvil
             {
                 return 1;
             }
+        }
+
+        const Anvil::PageTracker* get_page_tracker() const
+        {
+            return m_page_tracker_ptr.get();
         }
 
         /** Returns a pointer to the parent buffer, if one was specified at creation time */
@@ -283,8 +293,6 @@ namespace Anvil
          *  executed either on the transfer queue (if available), or on the universal queue. Afterward, the staging buffer 
          *  will be released.
          *
-         *  This function must not be used to read data from buffers, whose memory backing comes from a multi-instance heap.
-         *
          *  This function blocks until the transfer completes.
          *
          *  @param in_start_offset   As per description. Must be smaller than the underlying memory object's size.
@@ -296,7 +304,7 @@ namespace Anvil
          **/
         bool read(VkDeviceSize in_start_offset,
                   VkDeviceSize in_size,
-                  void*        out_result_ptr);
+                  void*        in_out_result_ptr);
 
         /** Attaches a memory block to the buffer object.
          *
@@ -312,6 +320,7 @@ namespace Anvil
          **/
         bool set_nonsparse_memory(std::shared_ptr<MemoryBlock> in_memory_block_ptr);
 
+
         /** Writes @param in_size bytes, starting from @param in_start_offset, into the wrapped memory object.
          *
          *  If the buffer object uses mappable storage memory, the affected region will be mapped into process space,
@@ -323,8 +332,6 @@ namespace Anvil
          *  transfer the new contents to the target buffer. The operation will be submitted via a transfer queue, if one
          *  is available, or a universal queue otherwise.
          *
-         *  This function must not be used to read data from buffers, whose memory backing comes from a multi-instance heap.
-         *
          *  If the buffer instance uses an exclusive sharing mode and supports more than just one queue family type AND memory
          *  backing the buffer is not mappable, you MUST specify a queue instance that should be used to perform a buffer->buffer
          *  copy op. The queue MUST support transfer ops.
@@ -335,8 +342,7 @@ namespace Anvil
          *  @param in_size           As per description. @param in_start_offset + @param in_size must be lower than or
          *                           equal to the underlying memory object's size.
          *  @param in_data           Data to store. Must not be nullptr.
-         *  @param in_opt_queue_ptr  See documentation above. May be nullptr.
-
+         *
          *  @return true if the operation was successful, false otherwise.
          **/
         bool write(VkDeviceSize                  in_start_offset,
@@ -351,13 +357,15 @@ namespace Anvil
                         QueueFamilyBits                  in_queue_families,
                         VkSharingMode                    in_queue_sharing_mode,
                         VkBufferUsageFlags               in_usage_flags,
-                        Anvil::SparseResidencyScope      in_residency_scope);
+                        Anvil::SparseResidencyScope      in_residency_scope,
+                        bool                             in_mt_safe);
         explicit Buffer(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                         VkDeviceSize                     in_size,
                         QueueFamilyBits                  in_queue_families,
                         VkSharingMode                    in_queue_sharing_mode,
                         VkBufferUsageFlags               in_usage_flags,
-                        MemoryFeatureFlags               in_memory_features);
+                        MemoryFeatureFlags               in_memory_features,
+                        bool                             in_mt_safe);
         explicit Buffer(std::shared_ptr<Anvil::Buffer>   in_parent_buffer_ptr,
                         VkDeviceSize                     in_start_offset,
                         VkDeviceSize                     in_size);

@@ -26,24 +26,27 @@
  *  - encapsulate all logic required to manipulate devices.
  *  - let ObjectTracker detect leaking device instances.
  *
- *  The wrapper is NOT thread-safe.
+ *  The wrapper is thread-safe (on an opt-in basis).
  **/
 #ifndef WRAPPERS_DEVICE_H
 #define WRAPPERS_DEVICE_H
 
 #include "misc/debug.h"
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 #include <algorithm>
 
 namespace Anvil
 {
-    class BaseDevice : public std::enable_shared_from_this<BaseDevice>
+    class BaseDevice : public Anvil::MTSafetySupportProvider,
+                       public std::enable_shared_from_this<BaseDevice>
     {
     public:
         /* Public functions */
 
         /* Constructor */
-        BaseDevice(std::weak_ptr<Anvil::Instance> in_parent_instance_ptr);
+        BaseDevice(std::weak_ptr<Anvil::Instance> in_parent_instance_ptr,
+                   bool                           in_mt_safe);
 
         /** Releases all children queues and unregisters itself from the owning physical device. */
         virtual void destroy();
@@ -108,7 +111,7 @@ namespace Anvil
          **/
         std::shared_ptr<Anvil::DescriptorSetLayout> get_dummy_descriptor_set_layout() const;
 
-        /** Returns a container with entry-points to functions introduced by VK_AMD_draw_indirect_count extension.
+        /** Returns a container with entry-points to functions introduced by VK_AMD_draw_indirect_count  extension.
          *
          *  Will fire an assertion failure if the extension was not requested at device creation time.
          **/
@@ -117,6 +120,17 @@ namespace Anvil
             anvil_assert(m_amd_draw_indirect_count_enabled);
 
             return m_amd_draw_indirect_count_extension_entrypoints;
+        }
+
+        /** Returns a container with entry-points to functions introduced by VK_AMD_shader_info extension.
+        *
+        *  Will fire an assertion failure if the extension was not requested at device creation time.
+        **/
+        const ExtensionAMDShaderInfoEntrypoints& get_extension_amd_shader_info_entrypoints() const
+        {
+            anvil_assert(m_amd_shader_info_enabled);
+
+            return m_amd_shader_info_extension_entrypoints;
         }
 
         /** Returns a container with entry-points to functions introduced by VK_EXT_debug_marker extension.
@@ -182,9 +196,9 @@ namespace Anvil
 
             switch (in_family_type)
             {
-                case QUEUE_FAMILY_TYPE_COMPUTE:           result = static_cast<uint32_t>(m_compute_queues.size() );           break;
-                case QUEUE_FAMILY_TYPE_TRANSFER:          result = static_cast<uint32_t>(m_transfer_queues.size() );          break;
-                case QUEUE_FAMILY_TYPE_UNIVERSAL:         result = static_cast<uint32_t>(m_universal_queues.size() );         break;
+                case QUEUE_FAMILY_TYPE_COMPUTE:   result = static_cast<uint32_t>(m_compute_queues.size() );   break;
+                case QUEUE_FAMILY_TYPE_TRANSFER:  result = static_cast<uint32_t>(m_transfer_queues.size() );  break;
+                case QUEUE_FAMILY_TYPE_UNIVERSAL: result = static_cast<uint32_t>(m_universal_queues.size() ); break;
 
                 default:
                 {
@@ -480,6 +494,11 @@ namespace Anvil
             return m_amd_shader_explicit_vertex_parameter_enabled;
         }
 
+        bool is_amd_shader_info_extension_enabled() const
+        {
+            return m_amd_shader_info_enabled;
+        }
+
         bool is_amd_shader_trinary_minmax_extension_enabled() const
         {
             return m_amd_shader_trinary_minmax_enabled;
@@ -488,6 +507,11 @@ namespace Anvil
         bool is_amd_texture_gather_bias_lod_extension_enabled() const
         {
             return m_amd_texture_gather_bias_lod_enabled;
+        }
+
+        bool is_ext_shader_stencil_export_extension_enabled() const
+        {
+            return m_ext_shader_stencil_export_enabled;
         }
 
         /* Tells whether the device has been created with the specified extension enabled.
@@ -543,6 +567,8 @@ namespace Anvil
             return m_khr_swapchain_enabled;
         }
 
+        bool wait_idle();
+
     protected:
         /* Protected type definitions */
         typedef struct
@@ -564,7 +590,7 @@ namespace Anvil
         BaseDevice& operator=(const BaseDevice&);
         BaseDevice           (const BaseDevice&);
 
-        /** Retrieves family indices of compute, DMA, graphics, transfer queue families for the specified physical device.
+        /** Retrieves family indices of compute, DMA, graphics and transfer queue families for the specified physical device.
          *
          *  @param in_physical_device_ptr           Physical device to use for the query.
          *  @param out_device_queue_family_info_ptr Deref will be used to store the result info. Must not be null.
@@ -595,6 +621,7 @@ namespace Anvil
         VkDevice m_device;
 
         ExtensionAMDDrawIndirectCountEntrypoints m_amd_draw_indirect_count_extension_entrypoints;
+        ExtensionAMDShaderInfoEntrypoints        m_amd_shader_info_extension_entrypoints;
         ExtensionEXTDebugMarkerEntrypoints       m_ext_debug_marker_extension_entrypoints;
         ExtensionKHRMaintenance1Entrypoints      m_khr_maintenance1_extension_entrypoints;
         ExtensionKHRSurfaceEntrypoints           m_khr_surface_extension_entrypoints;
@@ -610,9 +637,11 @@ namespace Anvil
         bool m_amd_rasterization_order_enabled;
         bool m_amd_shader_ballot_enabled;
         bool m_amd_shader_explicit_vertex_parameter_enabled;
+        bool m_amd_shader_info_enabled;
         bool m_amd_shader_trinary_minmax_enabled;
         bool m_amd_texture_gather_bias_lod_enabled;
         bool m_ext_debug_marker_enabled;
+        bool m_ext_shader_stencil_export_enabled;
         bool m_ext_shader_subgroup_ballot_enabled;
         bool m_ext_shader_subgroup_vote_enabled;
         bool m_khr_16bit_storage_enabled;
@@ -620,6 +649,7 @@ namespace Anvil
         bool m_khr_storage_buffer_storage_class_enabled;
         bool m_khr_surface_enabled;
         bool m_khr_swapchain_enabled;
+
 
         std::shared_ptr<Anvil::ComputePipelineManager>  m_compute_pipeline_manager_ptr;
         std::shared_ptr<Anvil::DescriptorSetGroup>      m_dummy_dsg_ptr;
@@ -654,6 +684,9 @@ namespace Anvil
          *                                                     support.
          *  @param in_support_resettable_command_buffer_allocs True if the command pools should be configured for resettable command
          *                                                     buffer support.
+         *  @param in_mt_safe                                  True if command buffer creation and queue submissions should be automatically serialized.
+         *                                                     Set to false if your app is never going to use more than one thread at a time for
+         *                                                     command buffer creation or submission.
          *
          *  @return A new Device instance.
          **/
@@ -661,7 +694,8 @@ namespace Anvil
                                                        const DeviceExtensionConfiguration&  in_extensions,
                                                        const std::vector<std::string>&      in_layers,
                                                        bool                                 in_transient_command_buffer_allocs_only,
-                                                       bool                                 in_support_resettable_command_buffer_allocs);
+                                                       bool                                 in_support_resettable_command_buffer_allocs,
+                                                       bool                                 in_mt_safe = false);
 
         /** Creates a new swapchain instance for the device.
          *
@@ -762,7 +796,8 @@ namespace Anvil
         virtual ~SGPUDevice();
 
         /** Private constructor. Please use create() instead. */
-        SGPUDevice(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr);
+        SGPUDevice(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
+                   bool                                 in_mt_safe);
 
         /* Private variables */
         std::weak_ptr<Anvil::PhysicalDevice> m_parent_physical_device_ptr;

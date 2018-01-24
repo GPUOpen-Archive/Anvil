@@ -308,11 +308,11 @@ namespace Anvil
         void unregister_device(std::shared_ptr<Anvil::BaseDevice> in_device_ptr);
 
         /* Private variables */
-        bool             m_destroyed;
-        FormatProperties m_dummy;
+        bool m_destroyed;
 
         StorageFeatures16Bit             m_16bit_storage_features;
         bool                             m_16bit_storage_features_available;
+        FormatProperties                 m_dummy;
         Anvil::Extensions                m_extensions;
         uint32_t                         m_index;
         std::shared_ptr<Anvil::Instance> m_instance_ptr;
