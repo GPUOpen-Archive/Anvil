@@ -228,7 +228,9 @@
             struct \
             { \
                 uint8_t VK_DEPENDENCY_BY_REGION_BIT : 1; \
-                uint32_t OTHER: 31; \
+                uint8_t VK_DEPENDENCY_VIEW_LOCAL_BIT_KHX : 1; \
+                uint8_t VK_DEPENDENCY_DEVICE_GROUP_BIT_KHX : 1; \
+                uint32_t OTHER: 29; \
             } name##_flags; \
         };
 
@@ -523,20 +525,24 @@ namespace Anvil
 {
     /* Forward declarations */
     class  BaseDevice;
+    class  BasePipelineInfo;
     class  Buffer;
     class  BufferView;
     struct CallbackArgument;
     class  CommandBufferBase;
     class  CommandPool;
+    class  ComputePipelineInfo;
     class  ComputePipelineManager;
     class  DescriptorPool;
     class  DescriptorSet;
     class  DescriptorSetGroup;
+    class  DescriptorSetInfo;
     class  DescriptorSetLayout;
     class  Event;
     class  Fence;
     class  Framebuffer;
     class  GLSLShaderToSPIRVGenerator;
+    class  GraphicsPipelineInfo;
     class  GraphicsPipelineManager;
     class  Image;
     class  ImageView;
@@ -555,6 +561,7 @@ namespace Anvil
     class  Queue;
     class  RenderingSurface;
     class  RenderPass;
+    class  RenderPassInfo;
     class  Sampler;
     class  SecondaryCommandBuffer;
     class  Semaphore;
@@ -578,6 +585,21 @@ namespace Anvil
         ATTACHMENT_TYPE_COUNT,
         ATTACHMENT_TYPE_UNKNOWN = ATTACHMENT_TYPE_COUNT
     };
+
+    typedef enum
+    {
+        DYNAMIC_STATE_BLEND_CONSTANTS_BIT      = 1 << 0,
+        DYNAMIC_STATE_DEPTH_BIAS_BIT           = 1 << 1,
+        DYNAMIC_STATE_DEPTH_BOUNDS_BIT         = 1 << 2,
+        DYNAMIC_STATE_LINE_WIDTH_BIT           = 1 << 3,
+        DYNAMIC_STATE_SCISSOR_BIT              = 1 << 4,
+        DYNAMIC_STATE_STENCIL_COMPARE_MASK_BIT = 1 << 5,
+        DYNAMIC_STATE_STENCIL_REFERENCE_BIT    = 1 << 6,
+        DYNAMIC_STATE_STENCIL_WRITE_MASK_BIT   = 1 << 7,
+        DYNAMIC_STATE_VIEWPORT_BIT             = 1 << 8,
+    } DynamicStateBits;
+
+    typedef uint32_t DynamicStateBitfield;
 
     /** Describes a buffer memory barrier. */
     typedef struct BufferBarrier
@@ -694,9 +716,12 @@ namespace Anvil
         ExtensionAvailability amd_rasterization_order;
         ExtensionAvailability amd_shader_ballot;
         ExtensionAvailability amd_shader_explicit_vertex_parameter;
+        ExtensionAvailability amd_shader_info;
         ExtensionAvailability amd_shader_trinary_minmax;
         ExtensionAvailability amd_texture_gather_bias_lod;
+
         ExtensionAvailability ext_debug_marker;
+        ExtensionAvailability ext_shader_stencil_export;
         ExtensionAvailability ext_shader_subgroup_ballot;
         ExtensionAvailability ext_shader_subgroup_vote;
         ExtensionAvailability khr_16bit_storage;
@@ -720,7 +745,6 @@ namespace Anvil
     {
         /* BaseDevice is implemented by SGPUDevice class */
         DEVICE_TYPE_SINGLE_GPU,
-
     } DeviceType;
 
     /** Holds properties of a single Vulkan Extension */
@@ -759,6 +783,16 @@ namespace Anvil
             vkCmdDrawIndirectCountAMD        = nullptr;
         }
     } ExtensionAMDDrawIndirectCountEntrypoints;
+
+    typedef struct ExtensionAMDShaderInfoEntrypoints
+    {
+        PFN_vkGetShaderInfoAMD vkGetShaderInfoAMD;
+
+        ExtensionAMDShaderInfoEntrypoints()
+        {
+            vkGetShaderInfoAMD = nullptr;
+        }
+    } ExtensionAMDShaderInfoEntrypoints;
 
     typedef struct ExtensionEXTDebugMarkerEntrypoints
     {
@@ -1515,6 +1549,13 @@ namespace Anvil
                                              uint32_t              in_row_size);
     } MipmapRawData;
 
+    typedef enum
+    {
+        MT_SAFETY_INHERIT_FROM_PARENT_DEVICE,
+        MT_SAFETY_ENABLED,
+        MT_SAFETY_DISABLED
+    } MTSafety;
+
     /* Dummy delete functor */
     template<class Type>
     struct NullDeleter
@@ -1626,23 +1667,14 @@ namespace Anvil
     typedef std::pair<StartBindingElementIndex, NumberOfBindingElements> BindingElementArrayRange;
     typedef std::vector<PushConstantRange>                               PushConstantRanges;
 
-    /** A bitmask defining one or more queue family usage.*/
-    typedef enum
-    {
-        QUEUE_FAMILY_COMPUTE_BIT           = 1 << 0,
-        QUEUE_FAMILY_DMA_BIT               = 1 << 1,
-        QUEUE_FAMILY_GRAPHICS_BIT          = 1 << 2,
-    } QueueFamily;
-    typedef int QueueFamilyBits;
-
     /** Holds information about a single Vulkan Queue Family. */
     typedef struct QueueFamilyInfo
     {
         VkQueueFlagsVariable(flags);
 
-        VkExtent3D min_image_transfer_granularity;
-        uint32_t   n_queues;
-        uint32_t   n_timestamp_bits;
+        VkExtent3D        min_image_transfer_granularity;
+        uint32_t          n_queues;
+        uint32_t          n_timestamp_bits;
 
         /** Constructor. Initializes the instance using data provided by the driver.
          *
@@ -1678,14 +1710,14 @@ namespace Anvil
     /** Base pipeline ID. Internal type, used to represent compute / graphics pipeline IDs */
     typedef uint32_t PipelineID;
 
-    /** Pipeline layout ID */
-    typedef uint32_t PipelineLayoutID;
-
-    /** Compute Pipeline ID */
-    typedef PipelineID ComputePipelineID;
-
-    /** Graphics Pipeline ID */
-    typedef PipelineID GraphicsPipelineID;
+    /** A bitmask defining one or more queue family usage.*/
+    typedef enum
+    {
+        QUEUE_FAMILY_COMPUTE_BIT  = 1 << 0,
+        QUEUE_FAMILY_DMA_BIT      = 1 << 1,
+        QUEUE_FAMILY_GRAPHICS_BIT = 1 << 2,
+    } QueueFamily;
+    typedef int QueueFamilyBits;
 
     /* Used internally by Buffer and Image to track page occupancy status */
     typedef union
@@ -1758,6 +1790,17 @@ namespace Anvil
         SHADER_STAGE_COUNT,
         SHADER_STAGE_UNKNOWN = SHADER_STAGE_COUNT
     } ShaderStage;
+
+    /* Specifies the type of query for post-compile information about pipeline shaders */
+    typedef enum
+    {
+        SHADER_INFO_FIRST,
+
+        SHADER_INFO_TYPE_BINARY = SHADER_INFO_FIRST,
+        SHADER_INFO_TYPE_DISASSEMBLY,
+        SHADER_INFO_COUNT,
+        SHADER_INFO_UNKNOWN = SHADER_INFO_COUNT
+    } ShaderInfoType;
 
     /** Holds all information related to a specific shader module stage entry-point. */
     typedef struct ShaderModuleStageEntryPoint
@@ -1836,6 +1879,38 @@ namespace Anvil
         SPARSE_RESIDENCY_SCOPE_UNDEFINED
     } SparseResidencyScope;
 
+    typedef struct SpecializationConstant
+    {
+        uint32_t constant_id;
+        uint32_t n_bytes;
+        uint32_t start_offset;
+
+        /** Dummy constructor. Should only be used by STL containers. */
+        SpecializationConstant()
+        {
+            constant_id  = UINT32_MAX;
+            n_bytes      = UINT32_MAX;
+            start_offset = UINT32_MAX;
+        }
+
+        /** Constructor.
+         *
+         *  @param in_constant_id  Specialization constant ID.
+         *  @param in_n_bytes      Number of bytes consumed by the constant.
+         *  @param in_start_offset Start offset, at which the constant data starts.
+         */
+        SpecializationConstant(uint32_t in_constant_id,
+                               uint32_t in_n_bytes,
+                               uint32_t in_start_offset)
+        {
+            constant_id  = in_constant_id;
+            n_bytes      = in_n_bytes;
+            start_offset = in_start_offset;
+        }
+    } SpecializationConstant;
+
+    typedef std::vector<SpecializationConstant> SpecializationConstants;
+
     /* Holds 16-bit storage features */
     typedef struct StorageFeatures16Bit
     {
@@ -1893,6 +1968,13 @@ namespace Anvil
 
     namespace Utils
     {
+        MTSafety convert_boolean_to_mt_safety_enum(bool in_mt_safe);
+
+        bool convert_mt_safety_enum_to_boolean(MTSafety                         in_mt_safety,
+                                               std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
+
+        Anvil::QueueFamilyBits get_queue_family_bits_from_queue_family_type(Anvil::QueueFamilyType in_queue_family_type);
+
         /** Converts a Anvil::QueueFamilyBits bitfield value to an array of queue family indices.
          *
          *  @param in_queue_families                  Input value to convert from.
@@ -1925,6 +2007,14 @@ namespace Anvil
          */
         Anvil::MemoryFeatureFlags get_memory_feature_flags_from_vk_property_flags(VkMemoryPropertyFlags in_opt_mem_type_flags,
                                                                                   VkMemoryHeapFlags     in_opt_mem_heap_flags);
+
+        /** Converts the specified queue family type to a raw string
+         *
+         *  @param in_queue_family_type Input value.
+         *
+         *  @return Non-NULL value if successful, NULL otherwise.
+         */
+        const char* get_raw_string(Anvil::QueueFamilyType in_queue_family_type);
 
         /** Converts the specified VkAttachmentLoadOp value to a raw string
          *
@@ -2452,14 +2542,6 @@ namespace Anvil
         VkStructureType type;
         const void*     next_ptr;
     } VkStructHeader;
-
-    /* Describes recognized subpass attachment types */
-    enum Result
-    {
-        RESULT_SUCCESS,
-        RESULT_ERROR,
-        RESULT_NOT_SUPPORTED
-    };
 }; /* Anvil namespace */
 
 #endif /* MISC_TYPES_H */

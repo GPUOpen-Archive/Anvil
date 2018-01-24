@@ -26,9 +26,11 @@
 #include "wrappers/semaphore.h"
 
 /* Please see header for specification */
-Anvil::Semaphore::Semaphore(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
+Anvil::Semaphore::Semaphore(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                            bool                             in_mt_safe)
     :DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT),
+     MTSafetySupportProvider   (in_mt_safe),
      m_device_ptr              (in_device_ptr),
      m_semaphore               (VK_NULL_HANDLE)
 {
@@ -48,12 +50,16 @@ Anvil::Semaphore::~Semaphore()
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Semaphore> Anvil::Semaphore::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
+std::shared_ptr<Anvil::Semaphore> Anvil::Semaphore::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                           MTSafety                         in_mt_safety)
 {
+    const bool                        mt_safe    = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                   in_device_ptr);
     std::shared_ptr<Anvil::Semaphore> result_ptr;
 
     result_ptr.reset(
-        new Anvil::Semaphore(in_device_ptr)
+        new Anvil::Semaphore(in_device_ptr,
+                             mt_safe)
     );
 
     return result_ptr;
@@ -66,9 +72,13 @@ void Anvil::Semaphore::release_semaphore()
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
-        vkDestroySemaphore(device_locked_ptr->get_device_vk(),
-                           m_semaphore,
-                           nullptr /* pAllocator */);
+        lock();
+        {
+            vkDestroySemaphore(device_locked_ptr->get_device_vk(),
+                               m_semaphore,
+                               nullptr /* pAllocator */);
+        }
+        unlock();
 
         m_semaphore = VK_NULL_HANDLE;
         set_vk_handle(m_semaphore);

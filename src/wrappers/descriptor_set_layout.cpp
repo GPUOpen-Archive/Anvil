@@ -21,18 +21,21 @@
 //
 
 #include "misc/debug.h"
+#include "misc/descriptor_set_info.h"
 #include "misc/object_tracker.h"
 #include "wrappers/descriptor_set_layout.h"
 #include "wrappers/device.h"
 #include "wrappers/sampler.h"
 
 /** Please see header for specification */
-Anvil::DescriptorSetLayout::DescriptorSetLayout(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
-    :CallbacksSupportProvider  (DESCRIPTOR_SET_LAYOUT_CALLBACK_ID_COUNT),
-     DebugMarkerSupportProvider(in_device_ptr,
+Anvil::DescriptorSetLayout::DescriptorSetLayout(std::unique_ptr<Anvil::DescriptorSetInfo> in_ds_info_ptr,
+                                                std::weak_ptr<Anvil::BaseDevice>          in_device_ptr,
+                                                bool                                      in_mt_safe)
+    :DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT_EXT),
+     MTSafetySupportProvider   (in_mt_safe),
      m_device_ptr              (in_device_ptr),
-     m_dirty                   (true),
+     m_info_ptr                (std::move(in_ds_info_ptr) ),
      m_layout                  (VK_NULL_HANDLE)
 {
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT,
@@ -49,66 +52,46 @@ Anvil::DescriptorSetLayout::~DescriptorSetLayout()
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
-        vkDestroyDescriptorSetLayout(device_locked_ptr->get_device_vk(),
-                                     m_layout,
-                                     nullptr /* pAllocator */);
+        lock();
+        {
+            vkDestroyDescriptorSetLayout(device_locked_ptr->get_device_vk(),
+                                         m_layout,
+                                         nullptr /* pAllocator */);
+        }
+        unlock();
 
         m_layout = VK_NULL_HANDLE;
     }
 }
 
 /** Please see header for specification */
-bool Anvil::DescriptorSetLayout::add_binding(uint32_t                               in_binding_index,
-                                             VkDescriptorType                       in_descriptor_type,
-                                             uint32_t                               in_descriptor_array_size,
-                                             VkShaderStageFlags                     in_stage_flags,
-                                             const std::shared_ptr<Anvil::Sampler>* in_immutable_sampler_ptrs)
+std::shared_ptr<Anvil::DescriptorSetLayout> Anvil::DescriptorSetLayout::create(std::unique_ptr<Anvil::DescriptorSetInfo> in_ds_info_ptr,
+                                                                               std::weak_ptr<Anvil::BaseDevice>          in_device_ptr,
+                                                                               MTSafety                                  in_mt_safety)
 {
-    bool result = false;
+    const bool                                  mt_safe = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                          in_device_ptr);
+    std::shared_ptr<Anvil::DescriptorSetLayout> result_ptr;
 
-    /* Make sure the binding is not already defined */
-    if (m_bindings.find(in_binding_index) != m_bindings.end() )
+    result_ptr.reset(
+        new Anvil::DescriptorSetLayout(std::move(in_ds_info_ptr),
+                                       in_device_ptr,
+                                       mt_safe)
+    );
+
+    if (result_ptr != nullptr)
     {
-        anvil_assert_fail();
-
-        goto end;
-    }
-
-    /* Make sure the sampler array can actually be specified for this descriptor type. */
-    if (in_immutable_sampler_ptrs != nullptr)
-    {
-        if (in_descriptor_type != VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER &&
-            in_descriptor_type != VK_DESCRIPTOR_TYPE_SAMPLER)
+        if (!result_ptr->init() )
         {
-            anvil_assert_fail();
-
-            goto end;
+            result_ptr.reset();
         }
     }
 
-    /* Add a new binding entry and mark the layout as dirty, so that it is re-baked next time
-     * the user calls the getter func */
-    m_bindings[in_binding_index] = Binding(in_descriptor_array_size,
-                                           in_descriptor_type,
-                                           in_stage_flags,
-                                           in_immutable_sampler_ptrs);
-
-    {
-        OnNewBindingAddedToDescriptorSetLayoutCallbackArgument callback_argument(this);
-
-        callback(DESCRIPTOR_SET_LAYOUT_CALLBACK_ID_BINDING_ADDED,
-                &callback_argument);
-
-    }
-
-    m_dirty = true;
-    result  = true;
-end:
-    return result;
+    return result_ptr;
 }
 
 /** Please see header for specification */
-bool Anvil::DescriptorSetLayout::bake()
+bool Anvil::DescriptorSetLayout::init()
 {
     std::vector<VkDescriptorSetLayoutBinding> binding_info_items;
     VkDescriptorSetLayoutCreateInfo           create_info;
@@ -120,32 +103,16 @@ bool Anvil::DescriptorSetLayout::bake()
     VkResult                                  result_vk;
     std::vector<VkSampler>                    sampler_items;
 
-    if (!m_dirty)
-    {
-        result = true;
-
-        goto end;
-    }
-
-    /* Release an existing Vulkan layout, if one's already been baked in the past */
-    if (m_layout != VK_NULL_HANDLE)
-    {
-        vkDestroyDescriptorSetLayout(device_locked_ptr->get_device_vk(),
-                                     m_layout,
-                                     nullptr /* pAllocator */);
-
-        m_layout = VK_NULL_HANDLE;
-        set_vk_handle(VK_NULL_HANDLE);
-    }
+    anvil_assert(m_layout == VK_NULL_HANDLE);
 
     /* Count the number of immutable samplers defined. This is needed because if sampler_items is reallocated
      * after we start building the VkSampler array contents, all previously initialized VkDescriptorSetLayoutBinding
      * instances will start referring to invalid sampler arrays. */
-    for (auto binding_iterator  = m_bindings.begin();
-              binding_iterator != m_bindings.end();
+    for (auto binding_iterator  = m_info_ptr->m_bindings.begin();
+              binding_iterator != m_info_ptr->m_bindings.end();
             ++binding_iterator)
     {
-        const Binding& binding_data = binding_iterator->second;
+        const auto& binding_data = binding_iterator->second;
 
         n_samplers_defined += static_cast<uint32_t>(binding_data.immutable_samplers.size() );
     }
@@ -153,12 +120,12 @@ bool Anvil::DescriptorSetLayout::bake()
     sampler_items.reserve(n_samplers_defined);
 
     /* Determine the number of non-dummy bindings. */
-    if (m_bindings.size() > 1)
+    if (m_info_ptr->m_bindings.size() > 1)
     {
-        n_bindings_defined = static_cast<uint32_t>(m_bindings.size() );
+        n_bindings_defined = static_cast<uint32_t>(m_info_ptr->m_bindings.size() );
     }
     else
-    for (auto binding : m_bindings)
+    for (auto binding : m_info_ptr->m_bindings)
     {
         if (binding.second.descriptor_array_size > 0)
         {
@@ -176,11 +143,11 @@ bool Anvil::DescriptorSetLayout::bake()
 
     if (n_bindings_defined > 0)
     {
-        for (auto binding_iterator  = m_bindings.begin();
-                  binding_iterator != m_bindings.end();
+        for (auto binding_iterator  = m_info_ptr->m_bindings.begin();
+                  binding_iterator != m_info_ptr->m_bindings.end();
                 ++binding_iterator, ++n_binding)
         {
-            const Binding&                binding_data  = binding_iterator->second;
+            const auto&                   binding_data  = binding_iterator->second;
             const BindingIndex&           binding_index = binding_iterator->first;
             VkDescriptorSetLayoutBinding& binding_vk    = binding_info_items[n_binding];
 
@@ -219,7 +186,7 @@ bool Anvil::DescriptorSetLayout::bake()
 
     if (binding_info_items.size() > 0)
     {
-        create_info.pBindings = &binding_info_items[0];
+        create_info.pBindings = &binding_info_items.at(0);
     }
     else
     {
@@ -235,81 +202,9 @@ bool Anvil::DescriptorSetLayout::bake()
     anvil_assert_vk_call_succeeded(result_vk);
     if (is_vk_call_successful(result_vk) )
     {
-        m_dirty = false;
-
         set_vk_handle(m_layout);
     }
 
     result = is_vk_call_successful(result_vk);
-end:
-    return result;
-}
-
-/** Please see header for specification */
-std::shared_ptr<Anvil::DescriptorSetLayout> Anvil::DescriptorSetLayout::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
-{
-    std::shared_ptr<Anvil::DescriptorSetLayout> result_ptr;
-
-    result_ptr.reset(
-        new Anvil::DescriptorSetLayout(in_device_ptr)
-    );
-
-    return result_ptr;
-}
-
-/** Please see header for specification */
-bool Anvil::DescriptorSetLayout::get_binding_properties(uint32_t            in_n_binding,
-                                                        uint32_t*           out_opt_binding_index_ptr,
-                                                        VkDescriptorType*   out_opt_descriptor_type_ptr,
-                                                        uint32_t*           out_opt_descriptor_array_size_ptr,
-                                                        VkShaderStageFlags* out_opt_stage_flags_ptr,
-                                                        bool*               out_opt_immutable_samplers_enabled_ptr)
-{
-    auto binding_iterator = m_bindings.begin();
-    bool result           = false;
-
-    if (m_bindings.size() <= in_n_binding)
-    {
-        goto end;
-    }
-
-    for (uint32_t n_current_binding = 0;
-                  n_current_binding < in_n_binding;
-                ++n_current_binding)
-    {
-        binding_iterator ++;
-    }
-
-    if (binding_iterator != m_bindings.end() )
-    {
-        if (out_opt_binding_index_ptr != nullptr)
-        {
-            *out_opt_binding_index_ptr = binding_iterator->first;
-        }
-
-        if (out_opt_descriptor_array_size_ptr != nullptr)
-        {
-            *out_opt_descriptor_array_size_ptr = binding_iterator->second.descriptor_array_size;
-        }
-
-        if (out_opt_descriptor_type_ptr != nullptr)
-        {
-            *out_opt_descriptor_type_ptr = binding_iterator->second.descriptor_type;
-        }
-
-        if (out_opt_immutable_samplers_enabled_ptr != nullptr)
-        {
-            *out_opt_immutable_samplers_enabled_ptr = (binding_iterator->second.immutable_samplers.size() != 0);
-        }
-
-        if (out_opt_stage_flags_ptr != nullptr)
-        {
-            *out_opt_stage_flags_ptr = binding_iterator->second.stage_flags;
-        }
-
-        result = true;
-    }
-
-end:
     return result;
 }

@@ -42,19 +42,21 @@ namespace Anvil
         explicit PageTracker(VkDeviceSize in_region_size,
                              VkDeviceSize in_page_size);
 
-        /** Retrieves a memory block assigned to the region <in_start_offset_page_aligned, in_start_offset_page_aligned + (page size)>.
+        /** Retrieves a memory block assigned to the region <in_start_offset, in_start_offset + in_size>.
          *
+         *  NOTE: in_size must not be larger than page size of the memory block.
          *  NOTE: The caller should NOT assume subsequent pages are assigned the same memory block, unless the application never binds
          *        more than one memory block to a sparsely-bound buffer / image.
          *
-         *  @param in_start_offset_page_aligned       Start offset of the page. Must be page size-aligned.
-         *  @param out_memory_region_start_offset_ptr Deref will be set to the start offset, which corresponds to @param in_start_offset_page_aligned
+         *  @param in_start_offset                    Start offset of the page..
+         *  @param out_memory_region_start_offset_ptr Deref will be set to the start offset, which corresponds to @param in_start_offset
          *                                            from the returned memory object's PoV. Must not be NULL.
          *
          *  @return Memory block instance bound to the specified page OR null, if no memory block has been assigned to the memory region.
          */
         std::shared_ptr<Anvil::MemoryBlock> get_memory_block(VkDeviceSize  in_start_offset_page_aligned,
-                                                             VkDeviceSize* out_memory_region_start_offset_ptr);
+                                                             VkDeviceSize  in_size,
+                                                             VkDeviceSize* out_memory_region_start_offset_ptr) const;
 
         /** The same memory block is often bound to more than just one page. PageTracker
          *  coalesces such occurences into a single descriptor.

@@ -39,9 +39,11 @@ Anvil::Swapchain::Swapchain(std::weak_ptr<Anvil::BaseDevice>         in_device_p
                             VkImageUsageFlags                        in_usage_flags,
                             VkSwapchainCreateFlagsKHR                in_flags,
                             uint32_t                                 in_n_images,
-                            const ExtensionKHRSwapchainEntrypoints&  in_khr_swapchain_entrypoints)
+                            const ExtensionKHRSwapchainEntrypoints&  in_khr_swapchain_entrypoints,
+                            bool                                     in_mt_safe)
     :DebugMarkerSupportProvider                     (in_device_ptr,
                                                      VK_DEBUG_REPORT_OBJECT_TYPE_SWAPCHAIN_KHR_EXT),
+     MTSafetySupportProvider                        (in_mt_safe),
      m_destroy_swapchain_before_parent_window_closes(true),
      m_device_ptr                                   (in_device_ptr),
      m_flags                                        (in_flags),
@@ -68,7 +70,8 @@ Anvil::Swapchain::Swapchain(std::weak_ptr<Anvil::BaseDevice>         in_device_p
     m_image_view_ptrs.resize(in_n_images);
 
     m_image_available_fence_ptr = Anvil::Fence::create(m_device_ptr,
-                                                       false /* create_signalled */);
+                                                       false,  /* create_signalled */
+                                                       Anvil::Utils::convert_boolean_to_mt_safety_enum(in_mt_safe) );
 
     init();
 
@@ -98,7 +101,8 @@ Anvil::Swapchain::~Swapchain()
         queue_ptr->unregister_from_callbacks(
             QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
             std::bind(&Swapchain::on_present_request_issued,
-                      this),
+                      this,
+                      std::placeholders::_1),
             this
         );
     }
@@ -115,14 +119,16 @@ Anvil::Swapchain::~Swapchain()
 uint32_t Anvil::Swapchain::acquire_image(std::shared_ptr<Anvil::Semaphore> in_opt_semaphore_ptr,
                                          bool                              in_should_block)
 {
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr              = m_device_ptr.lock();
-    const RenderingSurfaceType         rendering_surface              = m_parent_surface_ptr->get_type();
-    uint32_t                           result                         = UINT32_MAX;
-    VkResult                           result_vk                      = VK_ERROR_INITIALIZATION_FAILED;
-    const WindowPlatform               window_platform                = m_window_ptr->get_platform();
-    const bool                         is_offscreen_rendering_enabled = (window_platform   == WINDOW_PLATFORM_DUMMY                     ||
+    std::shared_ptr<Anvil::BaseDevice>   device_locked_ptr             (m_device_ptr);
+    const RenderingSurfaceType           rendering_surface             (m_parent_surface_ptr->get_type() );
+    VkResult                             result_vk                     (VK_ERROR_INITIALIZATION_FAILED);
+    uint32_t                             result                        (UINT32_MAX);
+    std::shared_ptr<Anvil::SGPUDevice>   single_device_locked_ptr      (std::dynamic_pointer_cast<Anvil::SGPUDevice> (device_locked_ptr) );
+    std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr           (single_device_locked_ptr->get_physical_device() );
+    const WindowPlatform                 window_platform               (m_window_ptr->get_platform() );
+    const bool                           is_offscreen_rendering_enabled((window_platform   == WINDOW_PLATFORM_DUMMY                     ||
                                                                          window_platform   == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS) &&
-                                                                        (rendering_surface == Anvil::RENDERING_SURFACE_TYPE_GENERAL);
+                                                                        (rendering_surface == Anvil::RENDERING_SURFACE_TYPE_GENERAL) );
 
     ANVIL_REDUNDANT_VARIABLE(result_vk);
 
@@ -130,38 +136,54 @@ uint32_t Anvil::Swapchain::acquire_image(std::shared_ptr<Anvil::Semaphore> in_op
     {
         VkFence fence_handle = VK_NULL_HANDLE;
 
-        if (in_should_block)
+        if (in_opt_semaphore_ptr != nullptr)
         {
-            m_image_available_fence_ptr->reset();
-
-            fence_handle = m_image_available_fence_ptr->get_fence();
+            in_opt_semaphore_ptr->lock();
         }
 
-        result_vk = m_khr_swapchain_entrypoints.vkAcquireNextImageKHR(device_locked_ptr->get_device_vk(),
-                                                                      m_swapchain,
-                                                                      UINT64_MAX,
-                                                                      in_opt_semaphore_ptr->get_semaphore(),
-                                                                      fence_handle,
-                                                                     &result);
+        m_image_available_fence_ptr->lock();
+        lock();
+        {
+            if (in_should_block)
+            {
+                m_image_available_fence_ptr->reset();
+
+                fence_handle = m_image_available_fence_ptr->get_fence();
+            }
+
+            result_vk = m_khr_swapchain_entrypoints.vkAcquireNextImageKHR(device_locked_ptr->get_device_vk(),
+                                                                          m_swapchain,
+                                                                          UINT64_MAX,
+                                                                          in_opt_semaphore_ptr->get_semaphore(),
+                                                                          fence_handle,
+                                                                         &result);
+
+            if (fence_handle != VK_NULL_HANDLE)
+            {
+                result_vk = vkWaitForFences(device_locked_ptr->get_device_vk(),
+                                            1, /* fenceCount */
+                                           &fence_handle,
+                                            VK_TRUE, /* waitAll */
+                                            UINT64_MAX);
+
+                anvil_assert_vk_call_succeeded(result_vk);
+            }
+        }
+        unlock();
+        m_image_available_fence_ptr->unlock();
+
+        if (in_opt_semaphore_ptr != nullptr)
+        {
+            in_opt_semaphore_ptr->unlock();
+        }
 
         anvil_assert_vk_call_succeeded(result_vk);
-
-        if (fence_handle != VK_NULL_HANDLE)
-        {
-            result_vk = vkWaitForFences(device_locked_ptr->get_device_vk(),
-                                        1, /* fenceCount */
-                                       &fence_handle,
-                                        VK_TRUE, /* waitAll */
-                                        UINT64_MAX);
-
-            anvil_assert_vk_call_succeeded(result_vk);
-        }
     }
     else
     {
         if (in_should_block)
         {
-            vkDeviceWaitIdle(m_device_ptr.lock()->get_device_vk() );
+            m_device_ptr.lock()->wait_idle();
         }
 
         if (in_opt_semaphore_ptr != nullptr)
@@ -193,8 +215,11 @@ std::shared_ptr<Anvil::Swapchain> Anvil::Swapchain::create(std::weak_ptr<Anvil::
                                                            VkImageUsageFlags                        in_usage_flags,
                                                            uint32_t                                 in_n_images,
                                                            const ExtensionKHRSwapchainEntrypoints&  in_khr_swapchain_entrypoints,
+                                                           MTSafety                                 in_mt_safety,
                                                            VkSwapchainCreateFlagsKHR                in_flags)
 {
+    const bool                        mt_safe    = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                   in_device_ptr);
     std::shared_ptr<Anvil::Swapchain> result_ptr;
 
     result_ptr.reset(
@@ -206,7 +231,8 @@ std::shared_ptr<Anvil::Swapchain> Anvil::Swapchain::create(std::weak_ptr<Anvil::
                              in_usage_flags,
                              in_flags,
                              in_n_images,
-                             in_khr_swapchain_entrypoints)
+                             in_khr_swapchain_entrypoints,
+                             mt_safe)
     );
 
     if (in_window_ptr                 != nullptr                                  &&
@@ -229,9 +255,13 @@ void Anvil::Swapchain::destroy_swapchain()
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
-        m_khr_swapchain_entrypoints.vkDestroySwapchainKHR(device_locked_ptr->get_device_vk(),
-                                                          m_swapchain,
-                                                          nullptr /* pAllocator */);
+        lock();
+        {
+            m_khr_swapchain_entrypoints.vkDestroySwapchainKHR(device_locked_ptr->get_device_vk(),
+                                                              m_swapchain,
+                                                              nullptr /* pAllocator */);
+        }
+        unlock();
 
         m_swapchain = VK_NULL_HANDLE;
     }
@@ -287,7 +317,8 @@ void Anvil::Swapchain::init()
 
         #ifdef _DEBUG
         {
-            uint32_t                   n_physical_devices              = 1;
+            const Anvil::DeviceType    device_type                     = device_locked_ptr->get_type();
+            uint32_t                   n_physical_devices              = 0;
             bool                       result_bool                     = false;
             const char*                required_surface_extension_name = nullptr;
             VkSurfaceCapabilitiesKHR   surface_caps;
@@ -307,11 +338,31 @@ void Anvil::Swapchain::init()
             anvil_assert(required_surface_extension_name == nullptr                                                                          ||
                          m_device_ptr.lock()->get_parent_instance().lock()->is_instance_extension_supported(required_surface_extension_name) );
 
+            switch (device_type)
+            {
+                case Anvil::DEVICE_TYPE_SINGLE_GPU: n_physical_devices = 1; break;
+
+                default:
+                {
+                    anvil_assert_fail();
+                }
+            }
+
             for (uint32_t n_physical_device = 0;
                           n_physical_device < n_physical_devices;
                         ++n_physical_device)
             {
-                std::shared_ptr<Anvil::PhysicalDevice> current_physical_device_ptr(sgpu_device_locked_ptr->get_physical_device() );
+                std::shared_ptr<Anvil::PhysicalDevice> current_physical_device_ptr;
+
+                switch (device_type)
+                {
+                    case Anvil::DEVICE_TYPE_SINGLE_GPU: current_physical_device_ptr = sgpu_device_locked_ptr->get_physical_device().lock(); break;
+
+                    default:
+                    {
+                        anvil_assert_fail();
+                    }
+                }
 
                 /* Ensure opaque composite alpha mode is supported */
                 anvil_assert(m_parent_surface_ptr->get_supported_composite_alpha_flags(current_physical_device_ptr,
@@ -361,10 +412,15 @@ void Anvil::Swapchain::init()
         create_info.sType                 = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
         create_info.surface               = m_parent_surface_ptr->get_surface();
 
-        result = m_khr_swapchain_entrypoints.vkCreateSwapchainKHR(device_locked_ptr->get_device_vk(),
-                                                                 &create_info,
-                                                                  nullptr, /* pAllocator */
-                                                                 &m_swapchain);
+        m_parent_surface_ptr->lock();
+        {
+            result = m_khr_swapchain_entrypoints.vkCreateSwapchainKHR(device_locked_ptr->get_device_vk(),
+                                                                     &create_info,
+                                                                      nullptr, /* pAllocator */
+                                                                     &m_swapchain);
+        }
+        m_parent_surface_ptr->unlock();
+
         anvil_assert_vk_call_succeeded(result);
         if (is_vk_call_successful(result) )
         {
@@ -407,7 +463,8 @@ void Anvil::Swapchain::init()
              */
             m_image_ptrs[n_result_image] = Anvil::Image::create_nonsparse(m_device_ptr,
                                                                           create_info,
-                                                                          swapchain_images[n_result_image]);
+                                                                          swapchain_images[n_result_image],
+                                                                          Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe() ) );
         }
         else
         {
@@ -427,7 +484,8 @@ void Anvil::Swapchain::init()
                                                                           0,     /* in_memory_features       */
                                                                           0,     /* in_create_flags          */
                                                                           VK_IMAGE_LAYOUT_GENERAL,
-                                                                          nullptr);
+                                                                          nullptr,
+                                                                          Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe() ) );
         }
 
         /* For each swap-chain image, create a relevant view */
@@ -441,7 +499,8 @@ void Anvil::Swapchain::init()
                                                                          VK_COMPONENT_SWIZZLE_R,
                                                                          VK_COMPONENT_SWIZZLE_G,
                                                                          VK_COMPONENT_SWIZZLE_B,
-                                                                         VK_COMPONENT_SWIZZLE_A);
+                                                                         VK_COMPONENT_SWIZZLE_A,
+                                                                         Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe() ) );
     }
 
     /* Sign up for present submission notifications. This is needed to ensure that number of presented frames ==
@@ -450,42 +509,50 @@ void Anvil::Swapchain::init()
     {
         std::vector<std::shared_ptr<Anvil::Queue> > queues;
 
-        const std::vector<uint32_t>*       queue_fams_with_present_support_ptr(nullptr);
-        std::shared_ptr<Anvil::SGPUDevice> sgpu_device_locked_ptr             (std::dynamic_pointer_cast<Anvil::SGPUDevice>(device_locked_ptr) );
-        auto                               physical_device_ptr                (sgpu_device_locked_ptr->get_physical_device() );
-
-        if (!m_parent_surface_ptr->get_queue_families_with_present_support(physical_device_ptr,
-                                                                          &queue_fams_with_present_support_ptr) )
+        switch (device_locked_ptr->get_type() )
         {
-            anvil_assert_fail();
-        }
-
-        if (queue_fams_with_present_support_ptr == nullptr)
-        {
-            anvil_assert(queue_fams_with_present_support_ptr != nullptr);
-        }
-        else
-        {
-            for (const auto queue_fam : *queue_fams_with_present_support_ptr)
+            case Anvil::DEVICE_TYPE_SINGLE_GPU:
             {
-                const uint32_t n_queues = sgpu_device_locked_ptr->get_n_queues(queue_fam);
+                const std::vector<uint32_t>*       queue_fams_with_present_support_ptr(nullptr);
+                std::shared_ptr<Anvil::SGPUDevice> sgpu_device_locked_ptr             (std::dynamic_pointer_cast<Anvil::SGPUDevice>(device_locked_ptr) );
+                auto                               physical_device_ptr                (sgpu_device_locked_ptr->get_physical_device() );
 
-                for (uint32_t n_queue = 0;
-                              n_queue < n_queues;
-                            ++n_queue)
+                if (!m_parent_surface_ptr->get_queue_families_with_present_support(physical_device_ptr,
+                                                                                  &queue_fams_with_present_support_ptr) )
                 {
-                    auto queue_ptr = sgpu_device_locked_ptr->get_queue(queue_fam,
-                                                                       n_queue);
+                    break;
+                }
 
-                    anvil_assert(queue_ptr != nullptr);
-
-                    if (std::find(queues.begin(),
-                                  queues.end(),
-                                  queue_ptr) == queues.end() )
+                if (queue_fams_with_present_support_ptr == nullptr)
+                {
+                    anvil_assert(queue_fams_with_present_support_ptr != nullptr);
+                }
+                else
+                {
+                    for (const auto queue_fam : *queue_fams_with_present_support_ptr)
                     {
-                        queues.push_back(queue_ptr);
+                        const uint32_t n_queues = sgpu_device_locked_ptr->get_n_queues(queue_fam);
+
+                        for (uint32_t n_queue = 0;
+                                      n_queue < n_queues;
+                                    ++n_queue)
+                        {
+                            auto queue_ptr = sgpu_device_locked_ptr->get_queue(queue_fam,
+                                                                               n_queue);
+
+                            anvil_assert(queue_ptr != nullptr);
+
+                            if (std::find(queues.begin(),
+                                          queues.end(),
+                                          queue_ptr) == queues.end() )
+                            {
+                                queues.push_back(queue_ptr);
+                            }
+                        }
                     }
                 }
+
+                break;
             }
         }
 
@@ -494,7 +561,8 @@ void Anvil::Swapchain::init()
             queue_ptr->register_for_callbacks(
                 QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
                 std::bind(&Swapchain::on_present_request_issued,
-                          this),
+                          this,
+                          std::placeholders::_1),
                 this
             );
 
@@ -523,7 +591,16 @@ void Anvil::Swapchain::on_parent_window_about_to_close()
 }
 
 /** TODO */
-void Anvil::Swapchain::on_present_request_issued()
+void Anvil::Swapchain::on_present_request_issued(Anvil::CallbackArgument* in_callback_raw_ptr)
 {
-    m_n_present_counter++;
+    auto* callback_arg_ptr = dynamic_cast<Anvil::OnPresentRequestIssuedCallbackArgument*>(in_callback_raw_ptr);
+
+    anvil_assert(callback_arg_ptr != nullptr);
+    if (callback_arg_ptr != nullptr)
+    {
+        if (callback_arg_ptr->swapchain_ptr == this)
+        {
+            m_n_present_counter++;
+        }
+    }
 }

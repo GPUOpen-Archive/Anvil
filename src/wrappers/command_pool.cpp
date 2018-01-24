@@ -33,10 +33,12 @@
 Anvil::CommandPool::CommandPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                 bool                             in_transient_allocations_friendly,
                                 bool                             in_support_per_cmdbuf_reset_ops,
-                                Anvil::QueueFamilyType           in_queue_family)
+                                Anvil::QueueFamilyType           in_queue_family,
+                                bool                             in_mt_safe)
 
     :DebugMarkerSupportProvider         (in_device_ptr,
                                          VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_POOL_EXT),
+     MTSafetySupportProvider            (in_mt_safe),
      m_command_pool                     (VK_NULL_HANDLE),
      m_device_ptr                       (in_device_ptr),
      m_is_transient_allocations_friendly(in_transient_allocations_friendly),
@@ -88,9 +90,13 @@ Anvil::CommandPool::~CommandPool()
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
-        vkDestroyCommandPool(device_locked_ptr->get_device_vk(),
-                             m_command_pool,
-                             nullptr /* pAllocator */);
+        lock();
+        {
+            vkDestroyCommandPool(device_locked_ptr->get_device_vk(),
+                                 m_command_pool,
+                                 nullptr /* pAllocator */);
+        }
+        unlock();
 
         m_command_pool = VK_NULL_HANDLE;
     }
@@ -99,8 +105,13 @@ Anvil::CommandPool::~CommandPool()
 /* Please see header for specification */
 std::shared_ptr<Anvil::PrimaryCommandBuffer> Anvil::CommandPool::alloc_primary_level_command_buffer()
 {
-    std::shared_ptr<PrimaryCommandBuffer> new_buffer_ptr(new PrimaryCommandBuffer(m_device_ptr,
-                                                                                  shared_from_this() ));
+    std::shared_ptr<PrimaryCommandBuffer> new_buffer_ptr;
+
+    new_buffer_ptr.reset(
+        new PrimaryCommandBuffer(m_device_ptr,
+                                 shared_from_this(),
+                                 is_mt_safe() )
+    );
 
     return new_buffer_ptr;
 }
@@ -108,8 +119,13 @@ std::shared_ptr<Anvil::PrimaryCommandBuffer> Anvil::CommandPool::alloc_primary_l
 /* Please see header for specification */
 std::shared_ptr<Anvil::SecondaryCommandBuffer> Anvil::CommandPool::alloc_secondary_level_command_buffer()
 {
-    std::shared_ptr<SecondaryCommandBuffer> new_buffer_ptr(new SecondaryCommandBuffer(m_device_ptr,
-                                                                                      shared_from_this() ));
+    std::shared_ptr<SecondaryCommandBuffer> new_buffer_ptr;
+
+    new_buffer_ptr.reset(
+        new SecondaryCommandBuffer(m_device_ptr,
+                                   shared_from_this(),
+                                   is_mt_safe() )
+    );
 
     return new_buffer_ptr;
 }
@@ -118,15 +134,19 @@ std::shared_ptr<Anvil::SecondaryCommandBuffer> Anvil::CommandPool::alloc_seconda
 std::shared_ptr<Anvil::CommandPool> Anvil::CommandPool::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                                                bool                             in_transient_allocations_friendly,
                                                                bool                             in_support_per_cmdbuf_reset_ops,
-                                                               Anvil::QueueFamilyType           in_queue_family)
+                                                               Anvil::QueueFamilyType           in_queue_family,
+                                                               MTSafety                         in_mt_safety)
 {
+    const bool                          is_mt_safe = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                     in_device_ptr);
     std::shared_ptr<Anvil::CommandPool> result_ptr;
 
     result_ptr.reset(
         new Anvil::CommandPool(in_device_ptr,
                                in_transient_allocations_friendly,
                                in_support_per_cmdbuf_reset_ops,
-                               in_queue_family)
+                               in_queue_family,
+                               is_mt_safe)
     );
 
     return result_ptr;
@@ -136,11 +156,16 @@ std::shared_ptr<Anvil::CommandPool> Anvil::CommandPool::create(std::weak_ptr<Anv
 bool Anvil::CommandPool::reset(bool in_release_resources)
 {
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
+    std::unique_lock<std::mutex>       mutex_lock;
     VkResult                           result_vk;
 
-    result_vk = vkResetCommandPool(device_locked_ptr->get_device_vk(),
-                                   m_command_pool,
-                                   ((in_release_resources) ? VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT : 0u) );
+    lock();
+    {
+        result_vk = vkResetCommandPool(device_locked_ptr->get_device_vk(),
+                                       m_command_pool,
+                                       ((in_release_resources) ? VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT : 0u) );
+    }
+    unlock();
 
     anvil_assert_vk_call_succeeded(result_vk);
 
@@ -154,9 +179,13 @@ void Anvil::CommandPool::trim()
 
     if (device_locked_ptr->is_khr_maintenance1_extension_enabled() )
     {
-        device_locked_ptr->get_extension_khr_maintenance1_entrypoints().vkTrimCommandPoolKHR(device_locked_ptr->get_device_vk(),
-                                                                                             m_command_pool,
-                                                                                             0); /* flags */
+        lock();
+        {
+            device_locked_ptr->get_extension_khr_maintenance1_entrypoints().vkTrimCommandPoolKHR(device_locked_ptr->get_device_vk(),
+                                                                                                 m_command_pool,
+                                                                                                 0); /* flags */
+        }
+        unlock();
     }
     else
     {

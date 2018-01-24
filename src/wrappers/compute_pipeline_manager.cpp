@@ -20,6 +20,7 @@
 // THE SOFTWARE.
 //
 
+#include "misc/compute_pipeline_info.h"
 #include "misc/debug.h"
 #include "misc/object_tracker.h"
 #include "wrappers/compute_pipeline_manager.h"
@@ -30,21 +31,12 @@
 #include <algorithm>
 
 
-/** Constructor. Initializes the compute pipeline manager.
- *
- *  @param in_device_ptr              Device to use.
- *  @param in_use_pipeline_cache      true if a VkPipelineCache instance should be used to spawn new pipeline objects.
- *                                    What pipeline cache ends up being used depends on @param pipeline_cache_to_reuse -
- *                                    if a nullptr object is passed via this argument, a new pipeline cache instance will
- *                                    be created, and later released by the destructor. If a non-nullptr object is passed,
- *                                    it will be used instead. In the latter scenario, it is the caller's responsibility
- *                                    to release the cache when no longer needed!
- *  @param in_pipeline_cache_to_reuse Please see above.
- **/
 Anvil::ComputePipelineManager::ComputePipelineManager(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
+                                                      bool                                  in_mt_safe,
                                                       bool                                  in_use_pipeline_cache,
                                                       std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr)
     :BasePipelineManager(in_device_ptr,
+                         in_mt_safe,
                          in_use_pipeline_cache,
                          in_pipeline_cache_to_reuse_ptr)
 {
@@ -61,7 +53,8 @@ Anvil::ComputePipelineManager::~ComputePipelineManager()
     Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_COMPUTE_PIPELINE_MANAGER,
                                                     this);
 
-    m_pipelines.clear();
+    m_baked_pipelines.clear      ();
+    m_outstanding_pipelines.clear();
 }
 
 /** Re-creates Vulkan compute pipeline objects for all added non-proxy pipelines marked
@@ -72,79 +65,83 @@ Anvil::ComputePipelineManager::~ComputePipelineManager()
  **/
 bool Anvil::ComputePipelineManager::bake()
 {
-    std::shared_ptr<Anvil::BaseDevice>                  locked_device_ptr(m_device_ptr);
-    std::vector<VkComputePipelineCreateInfo>            pipeline_create_info_items_vk;
-    bool                                                result = false;
-    std::vector<VkPipeline>                             result_pipeline_items_vk;
-    VkResult                                            result_vk;
-    std::vector<std::vector<VkSpecializationMapEntry> > specialization_map_entries_vk(m_pipelines.size() );
-    std::vector<VkSpecializationInfo>                   specialization_info_vk(m_pipelines.size());
-
-    typedef struct _bake_item
+    typedef struct BakeItem
     {
         VkComputePipelineCreateInfo create_info;
-        std::shared_ptr<Pipeline>   pipeline_ptr;
+        PipelineID                  pipeline_id;
+        Pipeline*                   pipeline_ptr;
 
-        _bake_item(const VkComputePipelineCreateInfo& in_create_info,
-                   std::shared_ptr<Pipeline>          in_pipeline_ptr)
+        BakeItem(const VkComputePipelineCreateInfo& in_create_info,
+                 PipelineID                         in_pipeline_id,
+                 Pipeline*                          in_pipeline_ptr)
         {
             create_info  = in_create_info;
+            pipeline_id  = in_pipeline_id;
             pipeline_ptr = in_pipeline_ptr;
         }
 
-        bool operator==(std::shared_ptr<Pipeline> in_pipeline_ptr)
+        bool operator==(const PipelineID& in_pipeline_id) const
         {
-            return pipeline_ptr == in_pipeline_ptr;
+            return pipeline_id == in_pipeline_id;
         }
-    } _bake_item;
+    } BakeItem;
 
-    std::map<VkPipelineLayout, std::vector<_bake_item> > layout_to_bake_item_map;
-    uint32_t                                             n_current_pipeline      = 0;
+    std::map<VkPipelineLayout, std::vector<BakeItem> > layout_to_bake_item_map;
+    std::shared_ptr<Anvil::BaseDevice>                 locked_device_ptr            (m_device_ptr);
+    std::unique_lock<std::recursive_mutex>             mutex_lock;
+    auto                                               mutex_ptr                    (get_mutex() );
+    uint32_t                                           n_current_pipeline           (0);
+    std::vector<VkComputePipelineCreateInfo>           pipeline_create_info_items_vk;
+    bool                                               result                       (false);
+    std::vector<VkPipeline>                            result_pipeline_items_vk;
+    VkResult                                           result_vk;
 
-    /* Iterate over all compute pipelines and identify the ones marked as dirty. Only these
-     * need to be re-created */
-    for (auto pipeline_iterator  = m_pipelines.begin();
-              pipeline_iterator != m_pipelines.end();
+    if (mutex_ptr != nullptr)
+    {
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
+
+    std::vector<std::vector<VkSpecializationMapEntry> > specialization_map_entries_vk(m_outstanding_pipelines.size() );
+    std::vector<VkSpecializationInfo>                   specialization_info_vk       (m_outstanding_pipelines.size());
+
+    for (auto pipeline_iterator  = m_outstanding_pipelines.begin();
+              pipeline_iterator != m_outstanding_pipelines.end();
             ++pipeline_iterator, ++n_current_pipeline)
     {
-        std::shared_ptr<Pipeline>   current_pipeline_ptr  = pipeline_iterator->second;
-        VkComputePipelineCreateInfo pipeline_create_info;
+        auto                                      current_pipeline_id                      = pipeline_iterator->first;
+        Pipeline*                                 current_pipeline_ptr                     = pipeline_iterator->second.get();
+        const auto                                current_pipeline_info_ptr                = current_pipeline_ptr->pipeline_info_ptr.get();
+        VkComputePipelineCreateInfo               pipeline_create_info;
+        const Anvil::ShaderModuleStageEntryPoint* shader_stage_entry_point_ptr             = nullptr;
+        const unsigned char*                      specialization_constants_data_buffer_ptr = nullptr;
+        const SpecializationConstants*            specialization_constants_ptr             = nullptr;
 
-        if (!current_pipeline_ptr->dirty     ||
-             current_pipeline_ptr->is_proxy)
-        {
-            continue;
-        }
+        anvil_assert(current_pipeline_ptr->baked_pipeline == VK_NULL_HANDLE);
 
-        if (current_pipeline_ptr->baked_pipeline != VK_NULL_HANDLE)
-        {
-            vkDestroyPipeline(locked_device_ptr->get_device_vk(),
-                              current_pipeline_ptr->baked_pipeline,
-                              nullptr /* pAllocator */);
-
-            current_pipeline_ptr->baked_pipeline = VK_NULL_HANDLE;
-        }
-
-        if (current_pipeline_ptr->layout_dirty)
+        if (current_pipeline_ptr->layout_ptr == nullptr)
         {
             current_pipeline_ptr->layout_ptr = get_pipeline_layout(pipeline_iterator->first);
         }
 
-        if (current_pipeline_ptr->specialization_constants_map[0].size() > 0)
-        {
-            anvil_assert(current_pipeline_ptr->specialization_constant_data_buffer.size() > 0);
+        current_pipeline_info_ptr->get_specialization_constants(Anvil::SHADER_STAGE_COMPUTE,
+                                                               &specialization_constants_ptr,
+                                                               &specialization_constants_data_buffer_ptr);
 
-            bake_specialization_info_vk(current_pipeline_ptr->specialization_constants_map.at       (0),
-                                       &current_pipeline_ptr->specialization_constant_data_buffer.at(0),
-                                       &specialization_map_entries_vk[n_current_pipeline],
-                                       &specialization_info_vk[n_current_pipeline]);
+        if (specialization_constants_ptr->size() > 0)
+        {
+            bake_specialization_info_vk(*specialization_constants_ptr,
+                                         specialization_constants_data_buffer_ptr,
+                                        &specialization_map_entries_vk[n_current_pipeline],
+                                        &specialization_info_vk       [n_current_pipeline]);
         }
 
         /* Prepare the Vulkan create info descriptor & store it in the map for later baking */
-        if (current_pipeline_ptr->base_pipeline_ptr != nullptr)
-        {
-            anvil_assert(current_pipeline_ptr->base_pipeline == VK_NULL_HANDLE);
+        const auto current_pipeline_base_pipeline_id = current_pipeline_info_ptr->get_base_pipeline_id();
 
+        if (current_pipeline_base_pipeline_id != UINT32_MAX)
+        {
             /* There are three cases we need to handle separately here:
              *
              * 1. The base pipeline is to be baked in the call we're preparing for. Determine
@@ -158,21 +155,21 @@ bool Anvil::ComputePipelineManager::bake()
             auto& pipeline_vector        = layout_to_bake_item_map[pipeline_create_info.layout];
             auto  base_pipeline_iterator = std::find(pipeline_vector.begin(),
                                                      pipeline_vector.end(),
-                                                     current_pipeline_ptr->base_pipeline_ptr);
+                                                     current_pipeline_ptr->pipeline_info_ptr->get_base_pipeline_id() );
 
             if (base_pipeline_iterator != pipeline_vector.end() )
             {
                 /* Case 1 */
-                pipeline_create_info.basePipelineHandle = current_pipeline_ptr->base_pipeline;
+                pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE;
                 pipeline_create_info.basePipelineIndex  = static_cast<int32_t>(base_pipeline_iterator - pipeline_vector.begin() );
             }
             else
-            if (current_pipeline_ptr->base_pipeline_ptr                 != nullptr           &&
-                current_pipeline_ptr->base_pipeline_ptr->baked_pipeline != VK_NULL_HANDLE)
+            if (base_pipeline_iterator->pipeline_ptr                 != nullptr           &&
+                base_pipeline_iterator->pipeline_ptr->baked_pipeline != VK_NULL_HANDLE)
             {
                 /* Case 2 */
-                pipeline_create_info.basePipelineHandle = current_pipeline_ptr->base_pipeline_ptr->baked_pipeline;
-                pipeline_create_info.basePipelineIndex  = UINT32_MAX; /* unused. */
+                pipeline_create_info.basePipelineHandle = base_pipeline_iterator->pipeline_ptr->baked_pipeline;
+                pipeline_create_info.basePipelineIndex  = UINT32_MAX;
             }
             else
             {
@@ -181,46 +178,45 @@ bool Anvil::ComputePipelineManager::bake()
             }
         }
         else
-        if (current_pipeline_ptr->base_pipeline != VK_NULL_HANDLE)
-        {
-            pipeline_create_info.basePipelineHandle = current_pipeline_ptr->base_pipeline;
-            pipeline_create_info.basePipelineIndex  = UINT32_MAX; /* unused. */
-        }
-        else
         {
             /* No base pipeline requested */
             pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE;
-            pipeline_create_info.basePipelineIndex  = UINT32_MAX; /* unused */
+            pipeline_create_info.basePipelineIndex  = UINT32_MAX;
         }
 
-        anvil_assert(!current_pipeline_ptr->layout_dirty);
+        anvil_assert(current_pipeline_ptr->layout_ptr != nullptr);
+
+        current_pipeline_info_ptr->get_shader_stage_properties(Anvil::SHADER_STAGE_COMPUTE,
+                                                              &shader_stage_entry_point_ptr);
 
         pipeline_create_info.flags                     = 0;
         pipeline_create_info.layout                    = current_pipeline_ptr->layout_ptr->get_pipeline_layout();
         pipeline_create_info.pNext                     = VK_NULL_HANDLE;
         pipeline_create_info.stage.flags               = 0;
-        pipeline_create_info.stage.pName               = current_pipeline_ptr->shader_stages[0].name.c_str();
+        pipeline_create_info.stage.pName               = shader_stage_entry_point_ptr->name.c_str();
         pipeline_create_info.stage.pNext               = nullptr;
-        pipeline_create_info.stage.pSpecializationInfo = (current_pipeline_ptr->specialization_constants_map[0].size() > 0) ? &specialization_info_vk[n_current_pipeline]
-                                                                                                                            : VK_NULL_HANDLE;
+        pipeline_create_info.stage.pSpecializationInfo = (specialization_constants_ptr->size() > 0) ? &specialization_info_vk[n_current_pipeline]
+                                                                                                    : VK_NULL_HANDLE;
         pipeline_create_info.stage.stage               = VK_SHADER_STAGE_COMPUTE_BIT;
         pipeline_create_info.stage.sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         pipeline_create_info.sType                     = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
 
-        pipeline_create_info.stage.module = current_pipeline_ptr->shader_stages[0].shader_module_ptr->get_module();
+        pipeline_create_info.stage.module = shader_stage_entry_point_ptr->shader_module_ptr->get_module();
 
-        if (pipeline_create_info.basePipelineHandle != VK_NULL_HANDLE ||
-            pipeline_create_info.basePipelineIndex  != INT32_MAX)
+        anvil_assert(pipeline_create_info.stage.module != VK_NULL_HANDLE);
+
+        if (pipeline_create_info.basePipelineHandle != VK_NULL_HANDLE                   ||
+            pipeline_create_info.basePipelineIndex  != static_cast<int32_t>(UINT32_MAX) )
         {
             pipeline_create_info.flags |= VK_PIPELINE_CREATE_DERIVATIVE_BIT;
         }
 
-        pipeline_create_info.flags |= ((current_pipeline_ptr->allow_derivatives)                   ? VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT    : 0) |
-                                      ((current_pipeline_ptr->disable_optimizations)               ? VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT : 0) |
-                                      ((pipeline_create_info.basePipelineHandle != VK_NULL_HANDLE) ? VK_PIPELINE_CREATE_DERIVATIVE_BIT           : 0);
+        pipeline_create_info.flags |= ((current_pipeline_info_ptr->allows_derivatives        () ) ? VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT    : 0) |
+                                      ((current_pipeline_info_ptr->has_optimizations_disabled() ) ? VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT : 0);
 
-        layout_to_bake_item_map[pipeline_create_info.layout].push_back(_bake_item(pipeline_create_info,
-                                                                                  current_pipeline_ptr) );
+        layout_to_bake_item_map[pipeline_create_info.layout].push_back(BakeItem(pipeline_create_info,
+                                                                                current_pipeline_id,
+                                                                                current_pipeline_ptr) );
     }
 
     /* We can finally bake the pipeline objects. */
@@ -236,19 +232,23 @@ bool Anvil::ComputePipelineManager::bake()
                   item_iterator != map_iterator->second.end();
                 ++item_iterator)
         {
-            const _bake_item& current_bake_item = *item_iterator;
+            const BakeItem& current_bake_item = *item_iterator;
 
             pipeline_create_info_items_vk.push_back(current_bake_item.create_info);
         }
 
         result_pipeline_items_vk.resize(pipeline_create_info_items_vk.size() );
 
-        result_vk = vkCreateComputePipelines(locked_device_ptr->get_device_vk(),
-                                             m_pipeline_cache_ptr->get_pipeline_cache(),
-                                             (uint32_t) pipeline_create_info_items_vk.size(),
-                                            &pipeline_create_info_items_vk[0],
-                                             nullptr, /* pAllocator */
-                                            &result_pipeline_items_vk[0]);
+        m_pipeline_cache_ptr->lock();
+        {
+            result_vk = vkCreateComputePipelines(locked_device_ptr->get_device_vk(),
+                                                 m_pipeline_cache_ptr->get_pipeline_cache(),
+                                                 static_cast<uint32_t>(pipeline_create_info_items_vk.size() ),
+                                                &pipeline_create_info_items_vk[0],
+                                                 nullptr, /* pAllocator */
+                                                &result_pipeline_items_vk[0]);
+        }
+        m_pipeline_cache_ptr->unlock();
 
         if (!is_vk_call_successful(result_vk))
         {
@@ -261,14 +261,21 @@ bool Anvil::ComputePipelineManager::bake()
                   item_iterator != map_iterator->second.end();
                 ++item_iterator, ++n_current_item)
         {
-            const _bake_item& current_bake_item = *item_iterator;
+            const BakeItem& current_bake_item = *item_iterator;
 
-            anvil_assert(result_pipeline_items_vk[n_current_item] != VK_NULL_HANDLE);
+            anvil_assert(m_baked_pipelines.find(current_bake_item.pipeline_id) == m_baked_pipelines.end() );
+            anvil_assert(result_pipeline_items_vk[n_current_item]    != VK_NULL_HANDLE);
 
             current_bake_item.pipeline_ptr->baked_pipeline  = result_pipeline_items_vk[n_current_item];
-            current_bake_item.pipeline_ptr->dirty           = false;
         }
     }
+
+    for (auto& current_baked_pipeline : m_outstanding_pipelines)
+    {
+        m_baked_pipelines[current_baked_pipeline.first] = std::move(current_baked_pipeline.second);
+    }
+
+    m_outstanding_pipelines.clear();
 
     /* All done */
     result = true;
@@ -278,6 +285,7 @@ end:
 
 /* Please see header for specification */
 std::shared_ptr<Anvil::ComputePipelineManager> Anvil::ComputePipelineManager::create(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
+                                                                                     bool                                  in_mt_safe,
                                                                                      bool                                  in_use_pipeline_cache,
                                                                                      std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr)
 {
@@ -285,6 +293,7 @@ std::shared_ptr<Anvil::ComputePipelineManager> Anvil::ComputePipelineManager::cr
 
     result_ptr.reset(
         new Anvil::ComputePipelineManager(in_device_ptr,
+                                          in_mt_safe,
                                           in_use_pipeline_cache,
                                           in_pipeline_cache_to_reuse_ptr)
     );

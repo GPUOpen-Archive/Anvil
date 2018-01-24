@@ -23,6 +23,7 @@
 #ifndef WRAPPERS_SHADER_MODULE_CACHE_H
 #define WRAPPERS_SHADER_MODULE_CACHE_H
 
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 
 namespace Anvil
@@ -33,7 +34,7 @@ namespace Anvil
      *
      *  Shader module cache is thread-safe.
      */
-    class ShaderModuleCache
+    class ShaderModuleCache : public MTSafetySupportProvider
     {
     public:
         /* Public functions */
@@ -148,11 +149,10 @@ namespace Anvil
                         const std::string& in_te_entrypoint_name,
                         const std::string& in_vs_entrypoint_name) const;
 
-        void on_object_about_to_be_released(CallbackArgument* in_callback_arg_ptr);
-        void on_object_registered          (CallbackArgument* in_callback_arg_ptr);
+        void on_shader_module_object_about_to_be_released(CallbackArgument* in_callback_arg_ptr);
+        void on_shader_module_object_registered          (CallbackArgument* in_callback_arg_ptr);
 
         /* Private variables */
-        std::mutex                     m_cs;
         std::map<size_t, HashMapItems> m_items;
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(ShaderModuleCache);

@@ -31,6 +31,7 @@
 
 #include "misc/callbacks.h"
 #include "misc/debug_marker.h"
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 
 namespace Anvil
@@ -49,6 +50,7 @@ namespace Anvil
 
     class DescriptorPool : public CallbacksSupportProvider,
                            public DebugMarkerSupportProvider<DescriptorPool>,
+                           public MTSafetySupportProvider,
                            public std::enable_shared_from_this<DescriptorPool>
     {
     public:
@@ -65,7 +67,8 @@ namespace Anvil
          **/
         static std::shared_ptr<DescriptorPool> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                                       uint32_t                         in_n_max_sets,
-                                                      bool                             in_releaseable_sets);
+                                                      bool                             in_releaseable_sets,
+                                                      MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Destructor. Releases the Vulkan pool object if instantiated. */
         virtual ~DescriptorPool();
@@ -124,6 +127,11 @@ namespace Anvil
             return m_pool;
         }
 
+        uint32_t get_n_maximum_sets() const
+        {
+            return m_n_max_sets;
+        }
+
         /** Resets the pool.
          *
          *  @return true if successful, false otherwise
@@ -178,7 +186,8 @@ namespace Anvil
         /** Constructor */
         DescriptorPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                        uint32_t                         in_n_max_sets,
-                       bool                             in_releaseable_sets);
+                       bool                             in_releaseable_sets,
+                       bool                             in_mt_safe);
 
         DescriptorPool           (const DescriptorPool&);
         DescriptorPool& operator=(const DescriptorPool&);
@@ -191,12 +200,8 @@ namespace Anvil
         uint32_t m_descriptor_count[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
         uint32_t m_n_max_sets;
 
-        /* The instances stored in this vector are owned by alloc() callers - do not release
-         * unless Vulkan object goes out of scope.
-         */
-        std::vector<std::shared_ptr<Anvil::DescriptorSet> > m_alloced_dses;
-        std::vector<VkDescriptorSet>                        m_ds_cache;
-        std::vector<VkDescriptorSetLayout>                  m_ds_layout_cache;
+        std::vector<VkDescriptorSet>       m_ds_cache;
+        std::vector<VkDescriptorSetLayout> m_ds_layout_cache;
 
         const bool m_releaseable_sets;
     };

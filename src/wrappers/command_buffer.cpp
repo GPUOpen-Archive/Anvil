@@ -20,6 +20,7 @@
 // THE SOFTWARE.
 //
 
+#include "misc/base_pipeline_info.h"
 #include "misc/callbacks.h"
 #include "misc/debug.h"
 #include "wrappers/buffer.h"
@@ -60,15 +61,14 @@ Anvil::CommandBufferBase::BeginQueryCommand::BeginQueryCommand(std::shared_ptr<A
 Anvil::BeginRenderPassCommand::BeginRenderPassCommand(uint32_t                                    in_n_clear_values,
                                                       const VkClearValue*                         in_clear_value_ptrs,
                                                       std::shared_ptr<Anvil::Framebuffer>         in_fbo_ptr,
-                                                      uint32_t                                    in_n_physical_devices,
-                                                      const std::weak_ptr<Anvil::PhysicalDevice>* in_physical_devices,
-                                                      const VkRect2D*                             in_render_areas,
+                                                      const VkRect2D&                             in_render_area,
                                                       std::shared_ptr<Anvil::RenderPass>          in_render_pass_ptr,
                                                       VkSubpassContents                           in_contents)
     :Command(COMMAND_TYPE_BEGIN_RENDER_PASS)
 {
     contents        = in_contents;
     fbo_ptr         = in_fbo_ptr;
+    render_area     = in_render_area;
     render_pass_ptr = in_render_pass_ptr;
 
     for (uint32_t n_clear_value = 0;
@@ -76,14 +76,6 @@ Anvil::BeginRenderPassCommand::BeginRenderPassCommand(uint32_t                  
                 ++n_clear_value)
     {
         clear_values.push_back(in_clear_value_ptrs[n_clear_value]);
-    }
-
-    for (uint32_t n_physical_device = 0;
-                  n_physical_device < in_n_physical_devices;
-                ++n_physical_device)
-    {
-        physical_devices.push_back(in_physical_devices[n_physical_device]);
-        render_areas.push_back    (in_render_areas    [n_physical_device]);
     }
 }
 
@@ -869,8 +861,10 @@ Anvil::CommandBufferBase::WriteTimestampCommand::WriteTimestampCommand(VkPipelin
  **/
 Anvil::CommandBufferBase::CommandBufferBase(std::weak_ptr<Anvil::BaseDevice>    in_device_ptr,
                                             std::shared_ptr<Anvil::CommandPool> in_parent_command_pool_ptr,
-                                            Anvil::CommandBufferType            in_type)
-    :DebugMarkerSupportProvider(in_device_ptr,
+                                            Anvil::CommandBufferType            in_type,
+                                            bool                                in_mt_safe)
+    :MTSafetySupportProvider   (in_mt_safe),
+     DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_BUFFER_EXT),
      CallbacksSupportProvider  (COMMAND_BUFFER_CALLBACK_ID_COUNT),
      m_command_buffer          (VK_NULL_HANDLE),
@@ -878,6 +872,7 @@ Anvil::CommandBufferBase::CommandBufferBase(std::weak_ptr<Anvil::BaseDevice>    
      m_is_renderpass_active    (false),
      m_parent_command_pool_ptr (in_parent_command_pool_ptr),
      m_recording_in_progress   (false),
+     m_renderpass_device_mask  (0),
      m_type                    (in_type)
 {
     anvil_assert(in_parent_command_pool_ptr != nullptr);
@@ -900,10 +895,16 @@ Anvil::CommandBufferBase::~CommandBufferBase()
         std::shared_ptr<Anvil::BaseDevice>  device_locked_ptr      (m_device_ptr);
 
         /* Physically free the command buffer we own */
-        vkFreeCommandBuffers(device_locked_ptr->get_device_vk(),
-                             command_pool_locked_ptr->get_command_pool(),
-                             1, /* commandBufferCount */
-                            &m_command_buffer);
+        command_pool_locked_ptr->lock();
+        lock();
+        {
+            vkFreeCommandBuffers(device_locked_ptr->get_device_vk(),
+                                 command_pool_locked_ptr->get_command_pool(),
+                                 1, /* commandBufferCount */
+                                &m_command_buffer);
+        }
+        unlock();
+        command_pool_locked_ptr->unlock();
 
         m_command_buffer = VK_NULL_HANDLE;
     }
@@ -1331,7 +1332,8 @@ bool Anvil::CommandBufferBase::record_begin_query(std::shared_ptr<Anvil::QueryPo
                                                   VkQueryControlFlags               in_flags)
 {
     /* NOTE: The command can be executed both inside and outside a renderpass */
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_recording_in_progress)
     {
@@ -1353,10 +1355,16 @@ bool Anvil::CommandBufferBase::record_begin_query(std::shared_ptr<Anvil::QueryPo
 
     cache_referenced_query_pool(in_query_pool_ptr);
 
-    vkCmdBeginQuery(m_command_buffer,
-                    in_query_pool_ptr->get_query_pool(),
-                    in_entry,
-                    in_flags);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdBeginQuery(m_command_buffer,
+                        in_query_pool_ptr->get_query_pool(),
+                        in_entry,
+                        in_flags);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -1374,7 +1382,8 @@ bool Anvil::CommandBufferBase::record_bind_descriptor_sets(VkPipelineBindPoint  
 {
     /* Note: Command supported inside and outside the renderpass. */
     VkDescriptorSet dss_vk[100];
-    bool            result = false;
+    auto            parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool            result                         = false;
 
     anvil_assert(in_set_count < sizeof(dss_vk) / sizeof(dss_vk[0]) );
 
@@ -1414,14 +1423,20 @@ bool Anvil::CommandBufferBase::record_bind_descriptor_sets(VkPipelineBindPoint  
         cache_referenced_descriptor_set(in_descriptor_set_ptrs[n_ds]);
     }
 
-    vkCmdBindDescriptorSets(m_command_buffer,
-                            in_pipeline_bind_point,
-                            in_layout_ptr->get_pipeline_layout(),
-                            in_first_set,
-                            in_set_count,
-                            dss_vk,
-                            in_dynamic_offset_count,
-                            in_dynamic_offset_ptrs);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdBindDescriptorSets(m_command_buffer,
+                                in_pipeline_bind_point,
+                                in_layout_ptr->get_pipeline_layout(),
+                                in_first_set,
+                                in_set_count,
+                                dss_vk,
+                                in_dynamic_offset_count,
+                                in_dynamic_offset_ptrs);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -1434,7 +1449,8 @@ bool Anvil::CommandBufferBase::record_bind_index_buffer(std::shared_ptr<Anvil::B
                                                         VkIndexType                    in_index_type)
 {
     /* Note: Command supported inside and outside the renderpass. */
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_recording_in_progress)
     {
@@ -1456,10 +1472,16 @@ bool Anvil::CommandBufferBase::record_bind_index_buffer(std::shared_ptr<Anvil::B
 
     cache_referenced_buffer(in_buffer_ptr);
 
-    vkCmdBindIndexBuffer(m_command_buffer,
-                         in_buffer_ptr->get_buffer(),
-                         in_offset,
-                         in_index_type);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdBindIndexBuffer(m_command_buffer,
+                             in_buffer_ptr->get_buffer(),
+                             in_offset,
+                             in_index_type);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -1471,9 +1493,10 @@ bool Anvil::CommandBufferBase::record_bind_pipeline(VkPipelineBindPoint in_pipel
                                                     Anvil::PipelineID   in_pipeline_id)
 {
     /* Command supported inside and outside the renderpass. */
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-    VkPipeline                         pipeline_vk = VK_NULL_HANDLE;
-    bool                               result      = false;
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr             (m_device_ptr);
+    auto                               parent_command_pool_locked_ptr(m_parent_command_pool_ptr.lock() );
+    VkPipeline                         pipeline_vk                   (VK_NULL_HANDLE);
+    bool                               result                        (false);
 
     if (!m_recording_in_progress)
     {
@@ -1482,9 +1505,11 @@ bool Anvil::CommandBufferBase::record_bind_pipeline(VkPipelineBindPoint in_pipel
         goto end;
     }
 
-    pipeline_vk = (in_pipeline_bind_point == VK_PIPELINE_BIND_POINT_COMPUTE)  ? device_locked_ptr->get_compute_pipeline_manager()->get_compute_pipeline  (in_pipeline_id)
-                : (in_pipeline_bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS) ? device_locked_ptr->get_graphics_pipeline_manager()->get_graphics_pipeline(in_pipeline_id)
-                                                                              : VK_NULL_HANDLE;
+    anvil_assert(in_pipeline_bind_point == VK_PIPELINE_BIND_POINT_COMPUTE ||
+                 in_pipeline_bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+    pipeline_vk = (in_pipeline_bind_point == VK_PIPELINE_BIND_POINT_COMPUTE)  ? device_locked_ptr->get_compute_pipeline_manager()->get_pipeline (in_pipeline_id)
+                                                                              : device_locked_ptr->get_graphics_pipeline_manager()->get_pipeline(in_pipeline_id);
 
     #ifdef STORE_COMMAND_BUFFER_COMMANDS
     {
@@ -1496,9 +1521,15 @@ bool Anvil::CommandBufferBase::record_bind_pipeline(VkPipelineBindPoint in_pipel
     }
     #endif
 
-    vkCmdBindPipeline(m_command_buffer,
-                      in_pipeline_bind_point,
-                      pipeline_vk);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdBindPipeline(m_command_buffer,
+                          in_pipeline_bind_point,
+                          pipeline_vk);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -1513,7 +1544,8 @@ bool Anvil::CommandBufferBase::record_bind_vertex_buffers(uint32_t              
 {
     /* Note: Command supported inside and outside the renderpass. */
     VkBuffer buffers[100];
-    bool     result = false;
+    auto     parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool     result                         = false;
 
     anvil_assert(in_binding_count < sizeof(buffers) / sizeof(buffers[0]) );
 
@@ -1545,11 +1577,17 @@ bool Anvil::CommandBufferBase::record_bind_vertex_buffers(uint32_t              
         cache_referenced_buffer(in_buffer_ptrs[n_binding]);
     }
 
-    vkCmdBindVertexBuffers(m_command_buffer,
-                           in_start_binding,
-                           in_binding_count,
-                           buffers,
-                           in_offset_ptrs);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdBindVertexBuffers(m_command_buffer,
+                               in_start_binding,
+                               in_binding_count,
+                               buffers,
+                               in_offset_ptrs);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -1565,7 +1603,8 @@ bool Anvil::CommandBufferBase::record_blit_image(std::shared_ptr<Anvil::Image> i
                                                  const VkImageBlit*            in_region_ptrs,
                                                  VkFilter                      in_filter)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (m_is_renderpass_active)
     {
@@ -1599,14 +1638,20 @@ bool Anvil::CommandBufferBase::record_blit_image(std::shared_ptr<Anvil::Image> i
     cache_referenced_image(in_src_image_ptr);
     cache_referenced_image(in_dst_image_ptr);
 
-    vkCmdBlitImage(m_command_buffer,
-                   in_src_image_ptr->get_image(),
-                   in_src_image_layout,
-                   in_dst_image_ptr->get_image(),
-                   in_dst_image_layout,
-                   in_region_count,
-                   in_region_ptrs,
-                   in_filter);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdBlitImage(m_command_buffer,
+                       in_src_image_ptr->get_image(),
+                       in_src_image_layout,
+                       in_dst_image_ptr->get_image(),
+                       in_dst_image_layout,
+                       in_region_count,
+                       in_region_ptrs,
+                       in_filter);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -1619,7 +1664,8 @@ bool Anvil::CommandBufferBase::record_clear_attachments(uint32_t                
                                                         uint32_t                 in_n_rects,
                                                         const VkClearRect*       in_rect_ptrs)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_is_renderpass_active)
     {
@@ -1647,11 +1693,17 @@ bool Anvil::CommandBufferBase::record_clear_attachments(uint32_t                
     }
     #endif
 
-    vkCmdClearAttachments(m_command_buffer,
-                          in_n_attachments,
-                          in_attachment_ptrs,
-                          in_n_rects,
-                          in_rect_ptrs);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdClearAttachments(m_command_buffer,
+                              in_n_attachments,
+                              in_attachment_ptrs,
+                              in_n_rects,
+                              in_rect_ptrs);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -1665,7 +1717,8 @@ bool Anvil::CommandBufferBase::record_clear_color_image(std::shared_ptr<Anvil::I
                                                         uint32_t                       in_range_count,
                                                         const VkImageSubresourceRange* in_range_ptrs)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (m_is_renderpass_active)
     {
@@ -1696,12 +1749,18 @@ bool Anvil::CommandBufferBase::record_clear_color_image(std::shared_ptr<Anvil::I
 
     cache_referenced_image(in_image_ptr);
 
-    vkCmdClearColorImage(m_command_buffer,
-                         in_image_ptr->get_image(),
-                         in_image_layout,
-                         in_color_ptr,
-                         in_range_count,
-                         in_range_ptrs);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdClearColorImage(m_command_buffer,
+                             in_image_ptr->get_image(),
+                             in_image_layout,
+                             in_color_ptr,
+                             in_range_count,
+                             in_range_ptrs);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -1715,7 +1774,8 @@ bool Anvil::CommandBufferBase::record_clear_depth_stencil_image(std::shared_ptr<
                                                                 uint32_t                        in_range_count,
                                                                 const VkImageSubresourceRange*  in_range_ptrs)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (m_is_renderpass_active)
     {
@@ -1746,12 +1806,18 @@ bool Anvil::CommandBufferBase::record_clear_depth_stencil_image(std::shared_ptr<
 
     cache_referenced_image(in_image_ptr);
 
-    vkCmdClearDepthStencilImage(m_command_buffer,
-                                in_image_ptr->get_image(),
-                                in_image_layout,
-                                in_depth_stencil_ptr,
-                                in_range_count,
-                                in_range_ptrs);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdClearDepthStencilImage(m_command_buffer,
+                                    in_image_ptr->get_image(),
+                                    in_image_layout,
+                                    in_depth_stencil_ptr,
+                                    in_range_count,
+                                    in_range_ptrs);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -1764,7 +1830,8 @@ bool Anvil::CommandBufferBase::record_copy_buffer(std::shared_ptr<Anvil::Buffer>
                                                   uint32_t                       in_region_count,
                                                   const VkBufferCopy*            in_region_ptrs)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (m_is_renderpass_active)
     {
@@ -1795,11 +1862,17 @@ bool Anvil::CommandBufferBase::record_copy_buffer(std::shared_ptr<Anvil::Buffer>
     cache_referenced_buffer(in_src_buffer_ptr);
     cache_referenced_buffer(in_dst_buffer_ptr);
 
-    vkCmdCopyBuffer(m_command_buffer,
-                    in_src_buffer_ptr->get_buffer(),
-                    in_dst_buffer_ptr->get_buffer(),
-                    in_region_count,
-                    in_region_ptrs);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdCopyBuffer(m_command_buffer,
+                        in_src_buffer_ptr->get_buffer(),
+                        in_dst_buffer_ptr->get_buffer(),
+                        in_region_count,
+                        in_region_ptrs);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -1813,7 +1886,8 @@ bool Anvil::CommandBufferBase::record_copy_buffer_to_image(std::shared_ptr<Anvil
                                                            uint32_t                       in_region_count,
                                                            const VkBufferImageCopy*       in_region_ptrs)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (m_is_renderpass_active)
     {
@@ -1845,12 +1919,18 @@ bool Anvil::CommandBufferBase::record_copy_buffer_to_image(std::shared_ptr<Anvil
     cache_referenced_buffer(in_src_buffer_ptr);
     cache_referenced_image (in_dst_image_ptr);
 
-    vkCmdCopyBufferToImage(m_command_buffer,
-                           in_src_buffer_ptr->get_buffer(),
-                           in_dst_image_ptr->get_image(),
-                           in_dst_image_layout,
-                           in_region_count,
-                           in_region_ptrs);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdCopyBufferToImage(m_command_buffer,
+                               in_src_buffer_ptr->get_buffer(),
+                               in_dst_image_ptr->get_image(),
+                               in_dst_image_layout,
+                               in_region_count,
+                               in_region_ptrs);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -1865,7 +1945,8 @@ bool Anvil::CommandBufferBase::record_copy_image(std::shared_ptr<Anvil::Image> i
                                                  uint32_t                      in_region_count,
                                                  const VkImageCopy*            in_region_ptrs)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (m_is_renderpass_active)
     {
@@ -1898,13 +1979,19 @@ bool Anvil::CommandBufferBase::record_copy_image(std::shared_ptr<Anvil::Image> i
     cache_referenced_image(in_src_image_ptr);
     cache_referenced_image(in_dst_image_ptr);
 
-    vkCmdCopyImage(m_command_buffer,
-                   in_src_image_ptr->get_image(),
-                   in_src_image_layout,
-                   in_dst_image_ptr->get_image(),
-                   in_dst_image_layout,
-                   in_region_count,
-                   in_region_ptrs);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdCopyImage(m_command_buffer,
+                       in_src_image_ptr->get_image(),
+                       in_src_image_layout,
+                       in_dst_image_ptr->get_image(),
+                       in_dst_image_layout,
+                       in_region_count,
+                       in_region_ptrs);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -1918,7 +2005,8 @@ bool Anvil::CommandBufferBase::record_copy_image_to_buffer(std::shared_ptr<Anvil
                                                            uint32_t                       in_region_count,
                                                            const VkBufferImageCopy*       in_region_ptrs)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (m_is_renderpass_active)
     {
@@ -1950,12 +2038,18 @@ bool Anvil::CommandBufferBase::record_copy_image_to_buffer(std::shared_ptr<Anvil
     cache_referenced_image (in_src_image_ptr);
     cache_referenced_buffer(in_dst_buffer_ptr);
 
-    vkCmdCopyImageToBuffer(m_command_buffer,
-                           in_src_image_ptr->get_image(),
-                           in_src_image_layout,
-                           in_dst_buffer_ptr->get_buffer(),
-                           in_region_count,
-                           in_region_ptrs);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdCopyImageToBuffer(m_command_buffer,
+                               in_src_image_ptr->get_image(),
+                               in_src_image_layout,
+                               in_dst_buffer_ptr->get_buffer(),
+                               in_region_count,
+                               in_region_ptrs);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -1971,7 +2065,8 @@ bool Anvil::CommandBufferBase::record_copy_query_pool_results(std::shared_ptr<An
                                                               VkDeviceSize                      in_dst_stride,
                                                               VkQueryResultFlags                in_flags)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (m_is_renderpass_active)
     {
@@ -2005,14 +2100,20 @@ bool Anvil::CommandBufferBase::record_copy_query_pool_results(std::shared_ptr<An
     cache_referenced_query_pool(in_query_pool_ptr);
     cache_referenced_buffer    (in_dst_buffer_ptr);
 
-    vkCmdCopyQueryPoolResults(m_command_buffer,
-                              in_query_pool_ptr->get_query_pool(),
-                              in_start_query,
-                              in_query_count,
-                              in_dst_buffer_ptr->get_buffer(),
-                              in_dst_offset,
-                              in_dst_stride,
-                              in_flags);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdCopyQueryPoolResults(m_command_buffer,
+                                  in_query_pool_ptr->get_query_pool(),
+                                  in_start_query,
+                                  in_query_count,
+                                  in_dst_buffer_ptr->get_buffer(),
+                                  in_dst_offset,
+                                  in_dst_stride,
+                                  in_flags);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2024,7 +2125,8 @@ bool Anvil::CommandBufferBase::record_dispatch(uint32_t in_x,
                                                uint32_t in_y,
                                                uint32_t in_z)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (m_is_renderpass_active)
     {
@@ -2051,10 +2153,16 @@ bool Anvil::CommandBufferBase::record_dispatch(uint32_t in_x,
     }
     #endif
 
-    vkCmdDispatch(m_command_buffer,
-                  in_x,
-                  in_y,
-                  in_z);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdDispatch(m_command_buffer,
+                      in_x,
+                      in_y,
+                      in_z);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2065,10 +2173,11 @@ end:
 bool Anvil::CommandBufferBase::record_debug_marker_begin_EXT(const std::string& in_marker_name,
                                                              const float*       in_opt_color)
 {
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-    const auto&                        entrypoints      (device_locked_ptr->get_extension_ext_debug_marker_entrypoints() );
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr             (m_device_ptr);
+    const auto&                        entrypoints                   (device_locked_ptr->get_extension_ext_debug_marker_entrypoints() );
     VkDebugMarkerMarkerInfoEXT         marker_info;
-    bool                               result      = false;
+    auto                               parent_command_pool_locked_ptr(m_parent_command_pool_ptr.lock() );
+    bool                               result                        (false);
 
     if (!m_recording_in_progress)
     {
@@ -2107,8 +2216,12 @@ bool Anvil::CommandBufferBase::record_debug_marker_begin_EXT(const std::string& 
     marker_info.pNext       = nullptr;
     marker_info.sType       = VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT;
 
-    entrypoints.vkCmdDebugMarkerBeginEXT(m_command_buffer,
-                                        &marker_info);
+    parent_command_pool_locked_ptr->lock();
+    {
+        entrypoints.vkCmdDebugMarkerBeginEXT(m_command_buffer,
+                                            &marker_info);
+    }
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2118,9 +2231,10 @@ end:
 /* Please see header for specification */
 bool Anvil::CommandBufferBase::record_debug_marker_end_EXT()
 {
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-    const auto&                        entrypoints      (device_locked_ptr->get_extension_ext_debug_marker_entrypoints() );
-    bool                               result           (false);
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr             (m_device_ptr);
+    const auto&                        entrypoints                   (device_locked_ptr->get_extension_ext_debug_marker_entrypoints() );
+    auto                               parent_command_pool_locked_ptr(m_parent_command_pool_ptr.lock() );
+    bool                               result                        (false);
 
     if (!m_recording_in_progress)
     {
@@ -2141,7 +2255,11 @@ bool Anvil::CommandBufferBase::record_debug_marker_end_EXT()
     }
     #endif
 
-    entrypoints.vkCmdDebugMarkerEndEXT(m_command_buffer);
+    parent_command_pool_locked_ptr->lock();
+    {
+        entrypoints.vkCmdDebugMarkerEndEXT(m_command_buffer);
+    }
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2152,10 +2270,11 @@ end:
 bool Anvil::CommandBufferBase::record_debug_marker_insert_EXT(const std::string& in_marker_name,
                                                               const float*       in_opt_color)
 {
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-    const auto&                        entrypoints      (device_locked_ptr->get_extension_ext_debug_marker_entrypoints() );
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr             (m_device_ptr);
+    const auto&                        entrypoints                   (device_locked_ptr->get_extension_ext_debug_marker_entrypoints() );
     VkDebugMarkerMarkerInfoEXT         marker_info;
-    bool                               result           (false);
+    auto                               parent_command_pool_locked_ptr(m_parent_command_pool_ptr.lock() );
+    bool                               result                        (false);
 
     if (!m_recording_in_progress)
     {
@@ -2195,8 +2314,12 @@ bool Anvil::CommandBufferBase::record_debug_marker_insert_EXT(const std::string&
     marker_info.pNext       = nullptr;
     marker_info.sType       = VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT;
 
-    entrypoints.vkCmdDebugMarkerInsertEXT(m_command_buffer,
-                                         &marker_info);
+    parent_command_pool_locked_ptr->lock();
+    {
+        entrypoints.vkCmdDebugMarkerInsertEXT(m_command_buffer,
+                                             &marker_info);
+    }
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2207,7 +2330,8 @@ end:
 bool Anvil::CommandBufferBase::record_dispatch_indirect(std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
                                                         VkDeviceSize                   in_offset)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (m_is_renderpass_active)
     {
@@ -2235,9 +2359,15 @@ bool Anvil::CommandBufferBase::record_dispatch_indirect(std::shared_ptr<Anvil::B
 
     cache_referenced_buffer(in_buffer_ptr);
 
-    vkCmdDispatchIndirect(m_command_buffer,
-                          in_buffer_ptr->get_buffer(),
-                          in_offset);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdDispatchIndirect(m_command_buffer,
+                              in_buffer_ptr->get_buffer(),
+                              in_offset);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2250,7 +2380,8 @@ bool Anvil::CommandBufferBase::record_draw(uint32_t in_vertex_count,
                                            uint32_t in_first_vertex,
                                            uint32_t in_first_instance)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_is_renderpass_active)
     {
@@ -2278,11 +2409,17 @@ bool Anvil::CommandBufferBase::record_draw(uint32_t in_vertex_count,
     }
     #endif
 
-    vkCmdDraw(m_command_buffer,
-              in_vertex_count,
-              in_instance_count,
-              in_first_vertex,
-              in_first_instance);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdDraw(m_command_buffer,
+                  in_vertex_count,
+                  in_instance_count,
+                  in_first_vertex,
+                  in_first_instance);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2296,7 +2433,8 @@ bool Anvil::CommandBufferBase::record_draw_indexed(uint32_t in_index_count,
                                                    int32_t  in_vertex_offset,
                                                    uint32_t in_first_instance)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_is_renderpass_active)
     {
@@ -2325,12 +2463,18 @@ bool Anvil::CommandBufferBase::record_draw_indexed(uint32_t in_index_count,
     }
     #endif
 
-    vkCmdDrawIndexed(m_command_buffer,
-                     in_index_count,
-                     in_instance_count,
-                     in_first_index,
-                     in_vertex_offset,
-                     in_first_instance);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdDrawIndexed(m_command_buffer,
+                         in_index_count,
+                         in_instance_count,
+                         in_first_index,
+                         in_vertex_offset,
+                         in_first_instance);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2343,7 +2487,8 @@ bool Anvil::CommandBufferBase::record_draw_indexed_indirect(std::shared_ptr<Anvi
                                                             uint32_t                       in_count,
                                                             uint32_t                       in_stride)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_is_renderpass_active)
     {
@@ -2373,11 +2518,17 @@ bool Anvil::CommandBufferBase::record_draw_indexed_indirect(std::shared_ptr<Anvi
 
     cache_referenced_buffer(in_buffer_ptr);
 
-    vkCmdDrawIndexedIndirect(m_command_buffer,
-                             in_buffer_ptr->get_buffer(),
-                             in_offset,
-                             in_count,
-                             in_stride);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdDrawIndexedIndirect(m_command_buffer,
+                                 in_buffer_ptr->get_buffer(),
+                                 in_offset,
+                                 in_count,
+                                 in_stride);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2392,9 +2543,10 @@ bool Anvil::CommandBufferBase::record_draw_indexed_indirect_count_AMD(std::share
                                                                       uint32_t                       in_max_draw_count,
                                                                       uint32_t                       in_stride)
 {
-    std::shared_ptr<Anvil::BaseDevice>              device_locked_ptr(m_device_ptr);
+    std::shared_ptr<Anvil::BaseDevice>              device_locked_ptr             (m_device_ptr);
     Anvil::ExtensionAMDDrawIndirectCountEntrypoints entrypoints;
-    bool                                            result           (false);
+    auto                                            parent_command_pool_locked_ptr(m_parent_command_pool_ptr.lock() );
+    bool                                            result                        (false);
 
     if (!m_is_renderpass_active)
     {
@@ -2432,13 +2584,19 @@ bool Anvil::CommandBufferBase::record_draw_indexed_indirect_count_AMD(std::share
     cache_referenced_buffer(in_buffer_ptr);
     cache_referenced_buffer(in_count_buffer_ptr);
 
-    entrypoints.vkCmdDrawIndexedIndirectCountAMD(m_command_buffer,
-                                                 in_buffer_ptr->get_buffer(),
-                                                 in_offset,
-                                                 in_count_buffer_ptr->get_buffer(),
-                                                 in_count_offset,
-                                                 in_max_draw_count,
-                                                 in_stride);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        entrypoints.vkCmdDrawIndexedIndirectCountAMD(m_command_buffer,
+                                                     in_buffer_ptr->get_buffer(),
+                                                     in_offset,
+                                                     in_count_buffer_ptr->get_buffer(),
+                                                     in_count_offset,
+                                                     in_max_draw_count,
+                                                     in_stride);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2451,7 +2609,8 @@ bool Anvil::CommandBufferBase::record_draw_indirect(std::shared_ptr<Anvil::Buffe
                                                     uint32_t                       in_count,
                                                     uint32_t                       in_stride)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_is_renderpass_active)
     {
@@ -2481,11 +2640,17 @@ bool Anvil::CommandBufferBase::record_draw_indirect(std::shared_ptr<Anvil::Buffe
 
     cache_referenced_buffer(in_buffer_ptr);
 
-    vkCmdDrawIndirect(m_command_buffer,
-                      in_buffer_ptr->get_buffer(),
-                      in_offset,
-                      in_count,
-                      in_stride);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdDrawIndirect(m_command_buffer,
+                          in_buffer_ptr->get_buffer(),
+                          in_offset,
+                          in_count,
+                          in_stride);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2500,9 +2665,10 @@ bool Anvil::CommandBufferBase::record_draw_indirect_count_AMD(std::shared_ptr<An
                                                               uint32_t                       in_max_draw_count,
                                                               uint32_t                       in_stride)
 {
-    std::shared_ptr<Anvil::BaseDevice>              device_locked_ptr(m_device_ptr);
+    std::shared_ptr<Anvil::BaseDevice>              device_locked_ptr             (m_device_ptr);
     Anvil::ExtensionAMDDrawIndirectCountEntrypoints entrypoints;
-    bool                                            result           (false);
+    auto                                            parent_command_pool_locked_ptr(m_parent_command_pool_ptr.lock() );
+    bool                                            result                        (false);
 
     if (!m_is_renderpass_active)
     {
@@ -2540,13 +2706,19 @@ bool Anvil::CommandBufferBase::record_draw_indirect_count_AMD(std::shared_ptr<An
     cache_referenced_buffer(in_buffer_ptr);
     cache_referenced_buffer(in_count_buffer_ptr);
 
-    entrypoints.vkCmdDrawIndirectCountAMD(m_command_buffer,
-                                          in_buffer_ptr->get_buffer(),
-                                          in_offset,
-                                          in_count_buffer_ptr->get_buffer(),
-                                          in_count_offset,
-                                          in_max_draw_count,
-                                          in_stride);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        entrypoints.vkCmdDrawIndirectCountAMD(m_command_buffer,
+                                              in_buffer_ptr->get_buffer(),
+                                              in_offset,
+                                              in_count_buffer_ptr->get_buffer(),
+                                              in_count_offset,
+                                              in_max_draw_count,
+                                              in_stride);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2558,7 +2730,8 @@ bool Anvil::CommandBufferBase::record_end_query(std::shared_ptr<Anvil::QueryPool
                                                 Anvil::QueryIndex                 in_entry)
 {
     /* NOTE: The command can be executed both inside and outside a renderpass */
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_recording_in_progress)
     {
@@ -2579,9 +2752,15 @@ bool Anvil::CommandBufferBase::record_end_query(std::shared_ptr<Anvil::QueryPool
 
     cache_referenced_query_pool(in_query_pool_ptr);
 
-    vkCmdEndQuery(m_command_buffer,
-                  in_query_pool_ptr->get_query_pool(),
-                  in_entry);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdEndQuery(m_command_buffer,
+                      in_query_pool_ptr->get_query_pool(),
+                      in_entry);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2594,7 +2773,8 @@ bool Anvil::CommandBufferBase::record_fill_buffer(std::shared_ptr<Anvil::Buffer>
                                                   VkDeviceSize                   in_size,
                                                   uint32_t                       in_data)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (m_is_renderpass_active)
     {
@@ -2624,11 +2804,17 @@ bool Anvil::CommandBufferBase::record_fill_buffer(std::shared_ptr<Anvil::Buffer>
 
     cache_referenced_buffer(in_dst_buffer_ptr);
 
-    vkCmdFillBuffer(m_command_buffer,
-                    in_dst_buffer_ptr->get_buffer(),
-                    in_dst_offset,
-                    in_size,
-                    in_data);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdFillBuffer(m_command_buffer,
+                        in_dst_buffer_ptr->get_buffer(),
+                        in_dst_offset,
+                        in_size,
+                        in_data);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2650,7 +2836,8 @@ bool Anvil::CommandBufferBase::record_pipeline_barrier(VkPipelineStageFlags     
     VkBufferMemoryBarrier buffer_barriers_vk[100];
     VkImageMemoryBarrier  image_barriers_vk [100];
     VkMemoryBarrier       memory_barriers_vk[100];
-    bool                  result = false;
+    auto                  parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool                  result                         = false;
 
     if (!m_recording_in_progress)
     {
@@ -2723,16 +2910,22 @@ bool Anvil::CommandBufferBase::record_pipeline_barrier(VkPipelineStageFlags     
         memory_barriers_vk[n_memory_barrier] = in_memory_barriers_ptr[n_memory_barrier].get_barrier_vk();
     }
 
-    vkCmdPipelineBarrier(m_command_buffer,
-                         in_src_stage_mask,
-                         in_dst_stage_mask,
-                         in_by_region,
-                         in_memory_barrier_count,
-                         memory_barriers_vk,
-                         in_buffer_memory_barrier_count,
-                         buffer_barriers_vk,
-                         in_image_memory_barrier_count,
-                         image_barriers_vk);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdPipelineBarrier(m_command_buffer,
+                             in_src_stage_mask,
+                             in_dst_stage_mask,
+                             in_by_region,
+                             in_memory_barrier_count,
+                             memory_barriers_vk,
+                             in_buffer_memory_barrier_count,
+                             buffer_barriers_vk,
+                             in_image_memory_barrier_count,
+                             image_barriers_vk);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2747,7 +2940,8 @@ bool Anvil::CommandBufferBase::record_push_constants(std::shared_ptr<Anvil::Pipe
                                                      const void*                            in_values)
 {
     /* NOTE: The command can be executed both inside and outside a renderpass */
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_recording_in_progress)
     {
@@ -2769,12 +2963,18 @@ bool Anvil::CommandBufferBase::record_push_constants(std::shared_ptr<Anvil::Pipe
     }
     #endif
 
-    vkCmdPushConstants(m_command_buffer,
-                       in_layout_ptr->get_pipeline_layout(),
-                       in_stage_flags,
-                       in_offset,
-                       in_size,
-                       in_values);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdPushConstants(m_command_buffer,
+                           in_layout_ptr->get_pipeline_layout(),
+                           in_stage_flags,
+                           in_offset,
+                           in_size,
+                           in_values);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2785,7 +2985,8 @@ end:
 bool Anvil::CommandBufferBase::record_reset_event(std::shared_ptr<Anvil::Event> in_event_ptr,
                                                   VkPipelineStageFlags          in_stage_mask)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (m_is_renderpass_active)
     {
@@ -2813,9 +3014,15 @@ bool Anvil::CommandBufferBase::record_reset_event(std::shared_ptr<Anvil::Event> 
 
     cache_referenced_event(in_event_ptr);
 
-    vkCmdResetEvent(m_command_buffer,
-                    in_event_ptr->get_event(),
-                    in_stage_mask);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdResetEvent(m_command_buffer,
+                        in_event_ptr->get_event(),
+                        in_stage_mask);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2827,7 +3034,8 @@ bool Anvil::CommandBufferBase::record_reset_query_pool(std::shared_ptr<Anvil::Qu
                                                        Anvil::QueryIndex                 in_start_query,
                                                        uint32_t                          in_query_count)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (m_is_renderpass_active)
     {
@@ -2856,10 +3064,16 @@ bool Anvil::CommandBufferBase::record_reset_query_pool(std::shared_ptr<Anvil::Qu
 
     cache_referenced_query_pool(in_query_pool_ptr);
 
-    vkCmdResetQueryPool(m_command_buffer,
-                        in_query_pool_ptr->get_query_pool(),
-                        in_start_query,
-                        in_query_count);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdResetQueryPool(m_command_buffer,
+                            in_query_pool_ptr->get_query_pool(),
+                            in_start_query,
+                            in_query_count);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2874,7 +3088,8 @@ bool Anvil::CommandBufferBase::record_resolve_image(std::shared_ptr<Anvil::Image
                                                     uint32_t                      in_region_count,
                                                     const VkImageResolve*         in_region_ptrs)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (m_is_renderpass_active)
     {
@@ -2907,24 +3122,32 @@ bool Anvil::CommandBufferBase::record_resolve_image(std::shared_ptr<Anvil::Image
     cache_referenced_image(in_src_image_ptr);
     cache_referenced_image(in_dst_image_ptr);
 
-    vkCmdResolveImage(m_command_buffer,
-                      in_src_image_ptr->get_image(),
-                      in_src_image_layout,
-                      in_dst_image_ptr->get_image(),
-                      in_dst_image_layout,
-                      in_region_count,
-                      in_region_ptrs);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdResolveImage(m_command_buffer,
+                          in_src_image_ptr->get_image(),
+                          in_src_image_layout,
+                          in_dst_image_ptr->get_image(),
+                          in_dst_image_layout,
+                          in_region_count,
+                          in_region_ptrs);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
     return result;
 }
 
+
 /* Please see header for specification */
 bool Anvil::CommandBufferBase::record_set_blend_constants(const float in_blend_constants[4])
 {
     /* Note: Command supported inside and outside the renderpass. */
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_recording_in_progress)
     {
@@ -2942,8 +3165,14 @@ bool Anvil::CommandBufferBase::record_set_blend_constants(const float in_blend_c
     }
     #endif
 
-    vkCmdSetBlendConstants(m_command_buffer,
-                           in_blend_constants);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdSetBlendConstants(m_command_buffer,
+                               in_blend_constants);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2956,7 +3185,8 @@ bool Anvil::CommandBufferBase::record_set_depth_bias(float in_depth_bias_constan
                                                      float in_slope_scaled_depth_bias)
 {
     /* Note: Command supported inside and outside the renderpass. */
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_recording_in_progress)
     {
@@ -2976,10 +3206,16 @@ bool Anvil::CommandBufferBase::record_set_depth_bias(float in_depth_bias_constan
     }
     #endif
 
-    vkCmdSetDepthBias(m_command_buffer,
-                      in_depth_bias_constant_factor,
-                      in_depth_bias_clamp,
-                      in_slope_scaled_depth_bias);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdSetDepthBias(m_command_buffer,
+                          in_depth_bias_constant_factor,
+                          in_depth_bias_clamp,
+                          in_slope_scaled_depth_bias);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -2991,7 +3227,8 @@ bool Anvil::CommandBufferBase::record_set_depth_bounds(float in_min_depth_bounds
                                                        float in_max_depth_bounds)
 {
     /* Note: Command supported inside and outside the renderpass. */
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_recording_in_progress)
     {
@@ -3010,9 +3247,15 @@ bool Anvil::CommandBufferBase::record_set_depth_bounds(float in_min_depth_bounds
     }
     #endif
 
-    vkCmdSetDepthBounds(m_command_buffer,
-                        in_min_depth_bounds,
-                        in_max_depth_bounds);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdSetDepthBounds(m_command_buffer,
+                            in_min_depth_bounds,
+                            in_max_depth_bounds);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -3023,7 +3266,8 @@ end:
 bool Anvil::CommandBufferBase::record_set_event(std::shared_ptr<Anvil::Event> in_event_ptr,
                                                 VkPipelineStageFlags          in_stage_mask)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (m_is_renderpass_active)
     {
@@ -3051,9 +3295,15 @@ bool Anvil::CommandBufferBase::record_set_event(std::shared_ptr<Anvil::Event> in
 
     cache_referenced_event(in_event_ptr);
 
-    vkCmdSetEvent(m_command_buffer,
-                  in_event_ptr->get_event(),
-                  in_stage_mask);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdSetEvent(m_command_buffer,
+                      in_event_ptr->get_event(),
+                      in_stage_mask);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -3064,7 +3314,8 @@ end:
 bool Anvil::CommandBufferBase::record_set_line_width(float in_line_width)
 {
     /* Note: Command supported inside and outside the renderpass. */
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_recording_in_progress)
     {
@@ -3082,8 +3333,14 @@ bool Anvil::CommandBufferBase::record_set_line_width(float in_line_width)
     }
     #endif
 
-    vkCmdSetLineWidth(m_command_buffer,
-                      in_line_width);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdSetLineWidth(m_command_buffer,
+                          in_line_width);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -3096,7 +3353,8 @@ bool Anvil::CommandBufferBase::record_set_scissor(uint32_t        in_first_sciss
                                                   const VkRect2D* in_scissor_ptrs)
 {
     /* Note: Command supported inside and outside the renderpass. */
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_recording_in_progress)
     {
@@ -3116,10 +3374,16 @@ bool Anvil::CommandBufferBase::record_set_scissor(uint32_t        in_first_sciss
     }
     #endif
 
-    vkCmdSetScissor(m_command_buffer,
-                    in_first_scissor,
-                    in_scissor_count,
-                    in_scissor_ptrs);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdSetScissor(m_command_buffer,
+                        in_first_scissor,
+                        in_scissor_count,
+                        in_scissor_ptrs);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -3131,7 +3395,8 @@ bool Anvil::CommandBufferBase::record_set_stencil_compare_mask(VkStencilFaceFlag
                                                                uint32_t           in_stencil_compare_mask)
 {
     /* Note: Command supported inside and outside the renderpass. */
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_recording_in_progress)
     {
@@ -3150,9 +3415,15 @@ bool Anvil::CommandBufferBase::record_set_stencil_compare_mask(VkStencilFaceFlag
     }
     #endif
 
-    vkCmdSetStencilCompareMask(m_command_buffer,
-                               in_face_mask,
-                               in_stencil_compare_mask);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdSetStencilCompareMask(m_command_buffer,
+                                   in_face_mask,
+                                   in_stencil_compare_mask);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -3164,7 +3435,8 @@ bool Anvil::CommandBufferBase::record_set_stencil_reference(VkStencilFaceFlags i
                                                             uint32_t           in_stencil_reference)
 {
     /* Note: Command supported inside and outside the renderpass. */
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_recording_in_progress)
     {
@@ -3183,9 +3455,15 @@ bool Anvil::CommandBufferBase::record_set_stencil_reference(VkStencilFaceFlags i
     }
     #endif
 
-    vkCmdSetStencilReference(m_command_buffer,
-                             in_face_mask,
-                             in_stencil_reference);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdSetStencilReference(m_command_buffer,
+                                 in_face_mask,
+                                 in_stencil_reference);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -3197,7 +3475,8 @@ bool Anvil::CommandBufferBase::record_set_stencil_write_mask(VkStencilFaceFlags 
                                                              uint32_t           in_stencil_write_mask)
 {
     /* Note: Command supported inside and outside the renderpass. */
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_recording_in_progress)
     {
@@ -3216,9 +3495,15 @@ bool Anvil::CommandBufferBase::record_set_stencil_write_mask(VkStencilFaceFlags 
     }
     #endif
 
-    vkCmdSetStencilWriteMask(m_command_buffer,
-                             in_face_mask,
-                             in_stencil_write_mask);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdSetStencilWriteMask(m_command_buffer,
+                                 in_face_mask,
+                                 in_stencil_write_mask);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -3231,7 +3516,8 @@ bool Anvil::CommandBufferBase::record_set_viewport(uint32_t          in_first_vi
                                                    const VkViewport* in_viewport_ptrs)
 {
     /* Note: Command supported inside and outside the renderpass. */
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_recording_in_progress)
     {
@@ -3251,10 +3537,16 @@ bool Anvil::CommandBufferBase::record_set_viewport(uint32_t          in_first_vi
     }
     #endif
 
-    vkCmdSetViewport(m_command_buffer,
-                     in_first_viewport,
-                     in_viewport_count,
-                     in_viewport_ptrs);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdSetViewport(m_command_buffer,
+                         in_first_viewport,
+                         in_viewport_count,
+                         in_viewport_ptrs);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -3267,7 +3559,8 @@ bool Anvil::CommandBufferBase::record_update_buffer(std::shared_ptr<Anvil::Buffe
                                                     VkDeviceSize                   in_data_size,
                                                     const uint32_t*                in_data_ptr)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (m_is_renderpass_active)
     {
@@ -3297,11 +3590,17 @@ bool Anvil::CommandBufferBase::record_update_buffer(std::shared_ptr<Anvil::Buffe
 
     cache_referenced_buffer(in_dst_buffer_ptr);
 
-    vkCmdUpdateBuffer(m_command_buffer,
-                      in_dst_buffer_ptr->get_buffer(),
-                      in_dst_offset,
-                      in_data_size,
-                      in_data_ptr);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdUpdateBuffer(m_command_buffer,
+                          in_dst_buffer_ptr->get_buffer(),
+                          in_dst_offset,
+                          in_data_size,
+                          in_data_ptr);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -3326,7 +3625,8 @@ bool Anvil::CommandBufferBase::record_wait_events(uint32_t                      
     VkBufferMemoryBarrier buffer_barriers_vk[100];
     VkImageMemoryBarrier  image_barriers_vk [100];
     VkMemoryBarrier       memory_barriers_vk[100];
-    bool                  result = false;
+    auto                  parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool                  result                         = false;
 
     anvil_assert(in_event_count                 > 0); /* as per spec - easy to miss */
     anvil_assert(in_event_count                 < sizeof(events)             / sizeof(events            [0]) );
@@ -3393,17 +3693,23 @@ bool Anvil::CommandBufferBase::record_wait_events(uint32_t                      
         memory_barriers_vk[n_memory_barrier] = in_memory_barriers_ptr[n_memory_barrier].get_barrier_vk();
     }
 
-    vkCmdWaitEvents(m_command_buffer,
-                    in_event_count,
-                    events,
-                    in_src_stage_mask,
-                    in_dst_stage_mask,
-                    in_memory_barrier_count,
-                    memory_barriers_vk,
-                    in_buffer_memory_barrier_count,
-                    buffer_barriers_vk,
-                    in_image_memory_barrier_count,
-                    image_barriers_vk);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdWaitEvents(m_command_buffer,
+                        in_event_count,
+                        events,
+                        in_src_stage_mask,
+                        in_dst_stage_mask,
+                        in_memory_barrier_count,
+                        memory_barriers_vk,
+                        in_buffer_memory_barrier_count,
+                        buffer_barriers_vk,
+                        in_image_memory_barrier_count,
+                        image_barriers_vk);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -3416,7 +3722,8 @@ bool Anvil::CommandBufferBase::record_write_timestamp(VkPipelineStageFlagBits   
                                                       Anvil::QueryIndex                 in_query_index)
 {
     /* NOTE: The command can be executed both inside and outside a renderpass */
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_recording_in_progress)
     {
@@ -3438,10 +3745,16 @@ bool Anvil::CommandBufferBase::record_write_timestamp(VkPipelineStageFlagBits   
 
     cache_referenced_query_pool(in_query_pool_ptr);
 
-    vkCmdWriteTimestamp(m_command_buffer,
-                        in_pipeline_stage,
-                        in_query_pool_ptr->get_query_pool(),
-                        in_query_index);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdWriteTimestamp(m_command_buffer,
+                            in_pipeline_stage,
+                            in_query_pool_ptr->get_query_pool(),
+                            in_query_index);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -3461,8 +3774,12 @@ bool Anvil::CommandBufferBase::reset(bool in_should_release_resources)
         goto end;
     }
 
-    result_vk = vkResetCommandBuffer(m_command_buffer,
-                                     (in_should_release_resources) ? VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT : 0u);
+    lock();
+    {
+        result_vk = vkResetCommandBuffer(m_command_buffer,
+                                         (in_should_release_resources) ? VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT : 0u);
+    }
+    unlock();
 
     if (!is_vk_call_successful(result_vk) )
     {
@@ -3485,7 +3802,8 @@ end:
 /* Please see header for specification */
 bool Anvil::CommandBufferBase::stop_recording()
 {
-    bool     result = false;
+    auto     parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool     result                         = false;
     VkResult result_vk;
 
     if (!m_recording_in_progress)
@@ -3495,7 +3813,13 @@ bool Anvil::CommandBufferBase::stop_recording()
         goto end;
     }
 
-    result_vk = vkEndCommandBuffer(m_command_buffer);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        result_vk = vkEndCommandBuffer(m_command_buffer);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     if (!is_vk_call_successful(result_vk))
     {
@@ -3512,11 +3836,12 @@ end:
 
 /* Please see header for specification */
 Anvil::PrimaryCommandBuffer::PrimaryCommandBuffer(std::weak_ptr<Anvil::BaseDevice>    in_device_ptr,
-                                                  std::shared_ptr<Anvil::CommandPool> in_parent_command_pool_ptr)
+                                                  std::shared_ptr<Anvil::CommandPool> in_parent_command_pool_ptr,
+                                                  bool                                in_mt_safe)
     :CommandBufferBase(in_device_ptr,
                        in_parent_command_pool_ptr,
-                       COMMAND_BUFFER_TYPE_PRIMARY)
-
+                       COMMAND_BUFFER_TYPE_PRIMARY,
+                       in_mt_safe)
 {
     VkCommandBufferAllocateInfo        alloc_info;
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(in_device_ptr);
@@ -3530,12 +3855,15 @@ Anvil::PrimaryCommandBuffer::PrimaryCommandBuffer(std::weak_ptr<Anvil::BaseDevic
     alloc_info.pNext              = nullptr;
     alloc_info.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 
-    result_vk = vkAllocateCommandBuffers(device_locked_ptr->get_device_vk(),
-                                        &alloc_info,
-                                        &m_command_buffer);
+    in_parent_command_pool_ptr->lock();
+    {
+        result_vk = vkAllocateCommandBuffers(device_locked_ptr->get_device_vk(),
+                                            &alloc_info,
+                                            &m_command_buffer);
+    }
+    in_parent_command_pool_ptr->unlock();
 
     anvil_assert_vk_call_succeeded(result_vk);
-
 }
 
 /* Please see header for specification */
@@ -3546,10 +3874,11 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass(uint32_t             
                                                            std::shared_ptr<Anvil::RenderPass>  in_render_pass_ptr,
                                                            VkSubpassContents                   in_contents)
 {
-    std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr;
+    auto                                 parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
     VkRenderPassBeginInfo                render_pass_begin_info;
-    bool                                 result                 = false;
-    std::shared_ptr<Anvil::SGPUDevice>   sgpu_device_locked_ptr(std::dynamic_pointer_cast<Anvil::SGPUDevice>(m_device_ptr.lock() ) );
+    bool                                 result                         = false;
+    auto                                 sgpu_device_locked_ptr         = std::shared_ptr<Anvil::SGPUDevice>(std::dynamic_pointer_cast<Anvil::SGPUDevice>(m_device_ptr.lock() ) );
+    std::weak_ptr<Anvil::PhysicalDevice> physical_device_ptr            = sgpu_device_locked_ptr->get_physical_device();
 
     if (m_is_renderpass_active)
     {
@@ -3565,11 +3894,6 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass(uint32_t             
         goto end;
     }
 
-
-    anvil_assert(sgpu_device_locked_ptr != nullptr); /* User attempted to call this function prototype with in_n_physical_devices set to 0 */
-
-    physical_device_ptr = sgpu_device_locked_ptr->get_physical_device();
-
     #ifdef STORE_COMMAND_BUFFER_COMMANDS
     {
         if (!m_command_stashing_disabled)
@@ -3577,9 +3901,7 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass(uint32_t             
             m_commands.push_back(BeginRenderPassCommand(in_n_clear_values,
                                                         in_clear_value_ptrs,
                                                         in_fbo_ptr,
-                                                        1, /* in_n_physical_devices */
-                                                       &physical_device_ptr,
-                                                       &in_render_area,
+                                                        in_render_area,
                                                         in_render_pass_ptr,
                                                         in_contents) );
         }
@@ -3597,9 +3919,15 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass(uint32_t             
     cache_referenced_framebuffer(in_fbo_ptr);
     cache_referenced_renderpass (in_render_pass_ptr);
 
-    vkCmdBeginRenderPass(m_command_buffer,
-                        &render_pass_begin_info,
-                         in_contents);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdBeginRenderPass(m_command_buffer,
+                            &render_pass_begin_info,
+                             in_contents);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     m_is_renderpass_active = true;
     result                 = true;
@@ -3610,7 +3938,8 @@ end:
 /* Please see header for specification */
 bool Anvil::PrimaryCommandBuffer::record_end_render_pass()
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_is_renderpass_active)
     {
@@ -3635,7 +3964,13 @@ bool Anvil::PrimaryCommandBuffer::record_end_render_pass()
     }
     #endif
 
-    vkCmdEndRenderPass(m_command_buffer);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdEndRenderPass(m_command_buffer);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     m_is_renderpass_active = false;
     result                 = true;
@@ -3643,14 +3978,14 @@ end:
     return result;
 }
 
-
 /* Please see header for specification */
 bool Anvil::PrimaryCommandBuffer::record_execute_commands(uint32_t                                        in_cmd_buffers_count,
                                                           std::shared_ptr<Anvil::SecondaryCommandBuffer>* in_cmd_buffer_ptrs)
 {
     /* NOTE: The command can be executed both inside and outside a renderpass */
     VkCommandBuffer cmd_buffers[100];
-    bool            result = false;
+    auto            parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool            result                         = false;
 
     anvil_assert(in_cmd_buffers_count < sizeof(cmd_buffers) / sizeof(cmd_buffers[0]) );
 
@@ -3680,9 +4015,15 @@ bool Anvil::PrimaryCommandBuffer::record_execute_commands(uint32_t              
         cache_referenced_command_buffer(in_cmd_buffer_ptrs[n_cmd_buffer]);
     }
 
-    vkCmdExecuteCommands(m_command_buffer,
-                         in_cmd_buffers_count,
-                         cmd_buffers);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdExecuteCommands(m_command_buffer,
+                             in_cmd_buffers_count,
+                             cmd_buffers);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -3692,7 +4033,8 @@ end:
 /* Please see header for specification */
 bool Anvil::PrimaryCommandBuffer::record_next_subpass(VkSubpassContents in_contents)
 {
-    bool result = false;
+    auto parent_command_pool_locked_ptr = m_parent_command_pool_ptr.lock();
+    bool result                         = false;
 
     if (!m_is_renderpass_active)
     {
@@ -3717,8 +4059,14 @@ bool Anvil::PrimaryCommandBuffer::record_next_subpass(VkSubpassContents in_conte
     }
     #endif
 
-    vkCmdNextSubpass(m_command_buffer,
-                     in_contents);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        vkCmdNextSubpass(m_command_buffer,
+                         in_contents);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     result = true;
 end:
@@ -3730,8 +4078,9 @@ bool Anvil::PrimaryCommandBuffer::start_recording(bool in_one_time_submit,
                                                   bool in_simultaneous_use_allowed)
 {
     VkCommandBufferBeginInfo           command_buffer_begin_info;
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr         (m_device_ptr);
-    bool                               result                    (false);
+    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr             (m_device_ptr);
+    auto                               parent_command_pool_locked_ptr(m_parent_command_pool_ptr.lock() );
+    bool                               result                        (false);
     VkResult                           result_vk;
 
     if (m_recording_in_progress)
@@ -3747,8 +4096,14 @@ bool Anvil::PrimaryCommandBuffer::start_recording(bool in_one_time_submit,
     command_buffer_begin_info.pInheritanceInfo = nullptr;  /* Only relevant for secondary-level command buffers */
     command_buffer_begin_info.sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-    result_vk = vkBeginCommandBuffer(m_command_buffer,
-                                    &command_buffer_begin_info);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        result_vk = vkBeginCommandBuffer(m_command_buffer,
+                                        &command_buffer_begin_info);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     if (!is_vk_call_successful(result_vk) )
     {
@@ -3776,10 +4131,12 @@ end:
 
 /* Please see header for specification */
 Anvil::SecondaryCommandBuffer::SecondaryCommandBuffer(std::weak_ptr<Anvil::BaseDevice>    in_device_ptr,
-                                                      std::shared_ptr<Anvil::CommandPool> in_parent_command_pool_ptr)
+                                                      std::shared_ptr<Anvil::CommandPool> in_parent_command_pool_ptr,
+                                                      bool                                in_mt_safe)
     :CommandBufferBase(in_device_ptr,
                        in_parent_command_pool_ptr,
-                       COMMAND_BUFFER_TYPE_SECONDARY)
+                       COMMAND_BUFFER_TYPE_SECONDARY,
+                       in_mt_safe)
 {
     VkCommandBufferAllocateInfo        command_buffer_alloc_info;
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(in_device_ptr);
@@ -3793,9 +4150,13 @@ Anvil::SecondaryCommandBuffer::SecondaryCommandBuffer(std::weak_ptr<Anvil::BaseD
     command_buffer_alloc_info.pNext              = nullptr;
     command_buffer_alloc_info.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 
-    result_vk = vkAllocateCommandBuffers(device_locked_ptr->get_device_vk(),
-                                        &command_buffer_alloc_info,
-                                        &m_command_buffer);
+    in_parent_command_pool_ptr->lock();
+    {
+        result_vk = vkAllocateCommandBuffers(device_locked_ptr->get_device_vk(),
+                                            &command_buffer_alloc_info,
+                                            &m_command_buffer);
+    }
+    in_parent_command_pool_ptr->unlock();
 
     anvil_assert_vk_call_succeeded(result_vk);
 }
@@ -3814,7 +4175,8 @@ bool Anvil::SecondaryCommandBuffer::start_recording(bool                        
     VkCommandBufferBeginInfo           command_buffer_begin_info;
     VkCommandBufferInheritanceInfo     command_buffer_inheritance_info;
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr              (m_device_ptr);
-    bool                               result    = false;
+    auto                               parent_command_pool_locked_ptr (m_parent_command_pool_ptr.lock() );
+    bool                               result                         (false);
     VkResult                           result_vk;
 
     if (m_recording_in_progress)
@@ -3851,8 +4213,14 @@ bool Anvil::SecondaryCommandBuffer::start_recording(bool                        
         cache_referenced_renderpass(in_render_pass_ptr);
     }
 
-    result_vk = vkBeginCommandBuffer(m_command_buffer,
-                                    &command_buffer_begin_info);
+    parent_command_pool_locked_ptr->lock();
+    lock();
+    {
+        result_vk = vkBeginCommandBuffer(m_command_buffer,
+                                        &command_buffer_begin_info);
+    }
+    unlock();
+    parent_command_pool_locked_ptr->unlock();
 
     if (!is_vk_call_successful(result_vk) )
     {
@@ -3871,6 +4239,7 @@ bool Anvil::SecondaryCommandBuffer::start_recording(bool                        
     clear_referenced_objects();
 
     m_is_renderpass_active = in_renderpass_usage_only;
+
     m_recording_in_progress = true;
     result                  = true;
 

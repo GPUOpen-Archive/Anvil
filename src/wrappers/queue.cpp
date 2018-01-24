@@ -39,11 +39,13 @@
 /** Please see header for specification */
 Anvil::Queue::Queue(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                     uint32_t                         in_queue_family_index,
-                    uint32_t                         in_queue_index)
+                    uint32_t                         in_queue_index,
+                    bool                             in_mt_safe)
 
     :CallbacksSupportProvider  (QUEUE_CALLBACK_ID_COUNT),
      DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_QUEUE_EXT),
+     MTSafetySupportProvider   (in_mt_safe),
      m_device_ptr              (in_device_ptr),
      m_queue                   (VK_NULL_HANDLE),
      m_queue_family_index      (in_queue_family_index),
@@ -64,7 +66,8 @@ Anvil::Queue::Queue(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
 
     /* Cache a fence that may be optionally used for submissions */
     m_submit_fence_ptr = Anvil::Fence::create(m_device_ptr,
-                                              false /* create_signalled */);
+                                              false /* create_signalled */,
+                                              Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe()) );
 
     /* OK, register the wrapper instance and leave */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_QUEUE,
@@ -85,6 +88,7 @@ bool Anvil::Queue::bind_sparse_memory(Anvil::Utils::SparseMemoryBindingUpdateInf
 {
     const VkBindSparseInfo*       bind_info_items   = nullptr;
     std::shared_ptr<Anvil::Fence> fence_ptr;
+    const bool                    mt_safe           = is_mt_safe();
     uint32_t                      n_bind_info_items = 0;
     VkResult                      result            = VK_ERROR_INITIALIZATION_FAILED;
 
@@ -92,10 +96,23 @@ bool Anvil::Queue::bind_sparse_memory(Anvil::Utils::SparseMemoryBindingUpdateInf
                                         &bind_info_items,
                                         &fence_ptr);
 
-    result = vkQueueBindSparse(m_queue,
-                               n_bind_info_items,
-                               bind_info_items,
-                               (fence_ptr != nullptr) ? fence_ptr->get_fence() : VK_NULL_HANDLE);
+    if (mt_safe)
+    {
+        bind_sparse_memory_lock_unlock(in_update,
+                                       true); /* in_should_lock */
+    }
+    {
+        result = vkQueueBindSparse(m_queue,
+                                   n_bind_info_items,
+                                   bind_info_items,
+                                   (fence_ptr != nullptr) ? fence_ptr->get_fence() : VK_NULL_HANDLE);
+    }
+    if (mt_safe)
+    {
+        bind_sparse_memory_lock_unlock(in_update,
+                                       false); /* in_should_lock */
+    }
+
     anvil_assert(result == VK_SUCCESS);
 
     for (uint32_t n_bind_info = 0;
@@ -199,17 +216,177 @@ bool Anvil::Queue::bind_sparse_memory(Anvil::Utils::SparseMemoryBindingUpdateInf
     return (result == VK_SUCCESS);
 }
 
+void Anvil::Queue::bind_sparse_memory_lock_unlock(Anvil::Utils::SparseMemoryBindingUpdateInfo& in_update,
+                                                  bool                                         in_should_lock)
+{
+    const VkBindSparseInfo*       bind_info_items   = nullptr;
+    std::shared_ptr<Anvil::Fence> fence_ptr;
+    uint32_t                      n_bind_info_items = 0;
+
+    in_update.get_bind_sparse_call_args(&n_bind_info_items,
+                                        &bind_info_items,
+                                        &fence_ptr);
+
+    if (in_should_lock)
+    {
+        lock();
+    }
+    else
+    {
+        unlock();
+    }
+
+    if (fence_ptr != nullptr)
+    {
+        if (in_should_lock)
+        {
+            fence_ptr->lock();
+        }
+        else
+        {
+            fence_ptr->unlock();
+        }
+    }
+
+    for (uint32_t n_bind_info_item = 0;
+                  n_bind_info_item < n_bind_info_items;
+                ++n_bind_info_item)
+    {
+        uint32_t                                 n_buffer_memory_updates       = 0;
+        uint32_t                                 n_image_memory_updates        = 0;
+        uint32_t                                 n_image_opaque_memory_updates = 0;
+        uint32_t                                 n_signal_sems                 = 0;
+        uint32_t                                 n_wait_sems                   = 0;
+        const std::shared_ptr<Anvil::Semaphore>* signal_sem_ptrs               = nullptr;
+        const std::shared_ptr<Anvil::Semaphore>* wait_sem_ptrs                 = nullptr;
+
+        in_update.get_bind_info_properties(n_bind_info_item,
+                                          &n_buffer_memory_updates,
+                                          &n_image_memory_updates,
+                                          &n_image_opaque_memory_updates,
+                                          &n_signal_sems,
+                                          &signal_sem_ptrs,
+                                          &n_wait_sems,
+                                          &wait_sem_ptrs);
+
+        for (uint32_t n_signal_sem = 0;
+                      n_signal_sem < n_signal_sems;
+                    ++n_signal_sem)
+        {
+            if (in_should_lock)
+            {
+                signal_sem_ptrs[n_signal_sem]->lock();
+            }
+            else
+            {
+                signal_sem_ptrs[n_signal_sem]->unlock();
+            }
+        }
+
+        for (uint32_t n_wait_sem = 0;
+                      n_wait_sem < n_wait_sems;
+                    ++n_wait_sem)
+        {
+            if (in_should_lock)
+            {
+                wait_sem_ptrs[n_wait_sem]->lock();
+            }
+            else
+            {
+                wait_sem_ptrs[n_wait_sem]->unlock();
+            }
+        }
+
+        for (uint32_t n_buffer_memory_update = 0;
+                      n_buffer_memory_update < n_buffer_memory_updates;
+                    ++n_buffer_memory_update)
+        {
+            std::shared_ptr<Anvil::Buffer> buffer_ptr;
+
+            in_update.get_buffer_memory_update_properties(n_bind_info_item,
+                                                          n_buffer_memory_update,
+                                                         &buffer_ptr,
+                                                          nullptr,  /* out_opt_buffer_memory_start_offset_ptr */
+                                                          nullptr,  /* out_opt_memory_block_ptr               */
+                                                          nullptr,  /* out_opt_memory_block_start_offset_ptr  */
+                                                          nullptr); /* out_opt_size_ptr                       */
+
+            if (in_should_lock)
+            {
+                buffer_ptr->lock();
+            }
+            else
+            {
+                buffer_ptr->unlock();
+            }
+        }
+
+        for (uint32_t n_image_memory_update = 0;
+                      n_image_memory_update < n_image_memory_updates;
+                    ++n_image_memory_update)
+        {
+            std::shared_ptr<Anvil::Image> image_ptr;
+
+            in_update.get_image_memory_update_properties(n_bind_info_item,
+                                                         n_image_memory_update,
+                                                        &image_ptr,
+                                                         nullptr,  /* out_opt_subresource_ptr               */
+                                                         nullptr,  /* out_opt_offset_ptr                    */
+                                                         nullptr,  /* out_opt_extent_ptr                    */
+                                                         nullptr,  /* out_opt_flags_ptr                     */
+                                                         nullptr,  /* out_opt_memory_block_ptr_ptr          */
+                                                         nullptr); /* out_opt_memory_block_start_offset_ptr */
+
+            if (in_should_lock)
+            {
+                image_ptr->lock();
+            }
+            else
+            {
+                image_ptr->unlock();
+            }
+        }
+
+        for (uint32_t n_opaque_image_memory_update = 0;
+                      n_opaque_image_memory_update < n_image_opaque_memory_updates;
+                    ++n_opaque_image_memory_update)
+        {
+            std::shared_ptr<Anvil::Image> image_ptr;
+
+            in_update.get_image_opaque_memory_update_properties(n_bind_info_item,
+                                                                n_opaque_image_memory_update,
+                                                               &image_ptr,
+                                                                nullptr,  /* out_opt_resource_offset_ptr           */
+                                                                nullptr,  /* out_opt_size_ptr                      */
+                                                                nullptr,  /* out_opt_flags_ptr                     */
+                                                                nullptr,  /* out_opt_memory_block_ptr_ptr          */
+                                                                nullptr); /* out_opt_memory_block_start_offset_ptr */
+
+            if (in_should_lock)
+            {
+                image_ptr->lock();
+            }
+            else
+            {
+                image_ptr->unlock();
+            }
+        }
+    }
+}
+
 /** Please see header for specification */
 std::shared_ptr<Anvil::Queue> Anvil::Queue::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                                    uint32_t                         in_queue_family_index,
-                                                   uint32_t                         in_queue_index)
+                                                   uint32_t                         in_queue_index,
+                                                   bool                             in_mt_safe)
 {
     std::shared_ptr<Queue> result_ptr;
 
     result_ptr.reset(
         new Anvil::Queue(in_device_ptr,
                          in_queue_family_index,
-                         in_queue_index)
+                         in_queue_index,
+                         in_mt_safe)
     );
 
     return result_ptr;
@@ -221,17 +398,16 @@ VkResult Anvil::Queue::present(std::shared_ptr<Anvil::Swapchain>  in_swapchain_p
                                uint32_t                           in_n_wait_semaphores,
                                std::shared_ptr<Anvil::Semaphore>* in_wait_semaphore_ptrs)
 {
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr      (m_device_ptr);
-    VkPresentInfoKHR                   image_presentation_info;
-    VkResult                           presentation_results   [MAX_SWAPCHAINS];
-    VkResult                           result;
-    const auto&                        swapchain_entrypoints (m_device_ptr.lock()->get_extension_khr_swapchain_entrypoints() );
-    VkSwapchainKHR                     swapchains_vk          [MAX_SWAPCHAINS];
-    VkSemaphore                        wait_semaphores_vk     [8];
+    std::shared_ptr<Anvil::BaseDevice>      device_locked_ptr      (m_device_ptr);
+    VkPresentInfoKHR                        image_presentation_info;
+    VkResult                                presentation_results   [MAX_SWAPCHAINS];
+    VkResult                                result;
+    const ExtensionKHRSwapchainEntrypoints* swapchain_entrypoints_ptr(nullptr);
+    VkSwapchainKHR                          swapchains_vk          [MAX_SWAPCHAINS];
+    VkSemaphore                             wait_semaphores_vk     [8];
 
     /* Sanity checks */
     anvil_assert(in_n_wait_semaphores <  sizeof(wait_semaphores_vk) / sizeof(wait_semaphores_vk[0]) );
-    anvil_assert(in_swapchain_ptr     != nullptr);
 
     /* If the application is only interested in off-screen rendering, do *not* post the present request,
      * since the fake swapchain image is not presentable. We still have to wait on the user-specified
@@ -263,9 +439,6 @@ VkResult Anvil::Queue::present(std::shared_ptr<Anvil::Swapchain>  in_swapchain_p
                                                                                                      &dst_stage_mask,
                                                                                                       true); /* should_block */
 
-                for (uint32_t n_presentation = 0;
-                              n_presentation < 1;
-                            ++n_presentation)
                 {
                     OnPresentRequestIssuedCallbackArgument callback_argument(in_swapchain_ptr.get() );
 
@@ -279,7 +452,12 @@ VkResult Anvil::Queue::present(std::shared_ptr<Anvil::Swapchain>  in_swapchain_p
         }
     }
 
-    swapchains_vk[0] = in_swapchain_ptr->get_swapchain_vk();
+    /* Convert arrays of Anvil objects to raw Vulkan handle arrays */
+    {
+        anvil_assert(in_swapchain_ptr != nullptr);
+
+        swapchains_vk[0] = in_swapchain_ptr->get_swapchain_vk();
+    }
 
     for (uint32_t n_wait_semaphore = 0;
                   n_wait_semaphore < in_n_wait_semaphores;
@@ -297,63 +475,82 @@ VkResult Anvil::Queue::present(std::shared_ptr<Anvil::Swapchain>  in_swapchain_p
     image_presentation_info.swapchainCount     = 1;
     image_presentation_info.waitSemaphoreCount = in_n_wait_semaphores;
 
-    result                    = swapchain_entrypoints.vkQueuePresentKHR(m_queue,
-                                                                        &image_presentation_info);
+    swapchain_entrypoints_ptr = &m_device_ptr.lock()->get_extension_khr_swapchain_entrypoints();
+
+    present_lock_unlock(1,
+                       &in_swapchain_ptr,
+                        in_n_wait_semaphores,
+                        in_wait_semaphore_ptrs,
+                        true);
+    {
+        result = swapchain_entrypoints_ptr->vkQueuePresentKHR(m_queue,
+                                                             &image_presentation_info);
+    }
+    present_lock_unlock(1,
+                       &in_swapchain_ptr,
+                        in_n_wait_semaphores,
+                        in_wait_semaphore_ptrs,
+                        false);
 
     anvil_assert_vk_call_succeeded(result);
 
     if (is_vk_call_successful(result) )
     {
-        anvil_assert(is_vk_call_successful(presentation_results[0]));
-
-        /* Return the most important error code reported */
-        if (result != VK_ERROR_DEVICE_LOST)
+        for (uint32_t n_presentation = 0;
+                      n_presentation < 1;
+                    ++n_presentation)
         {
-            switch (presentation_results[0])
+            anvil_assert(is_vk_call_successful(presentation_results[n_presentation]));
+
+            /* Return the most important error code reported */
+            if (result != VK_ERROR_DEVICE_LOST)
             {
-                case VK_ERROR_DEVICE_LOST:
+                switch (presentation_results[n_presentation])
                 {
-                    result = VK_ERROR_DEVICE_LOST;
-
-                    break;
-                }
-
-                case VK_ERROR_SURFACE_LOST_KHR:
-                {
-                    if (result != VK_ERROR_DEVICE_LOST)
+                    case VK_ERROR_DEVICE_LOST:
                     {
-                        result = VK_ERROR_SURFACE_LOST_KHR;
+                        result = VK_ERROR_DEVICE_LOST;
+
+                        break;
                     }
 
-                    break;
-                }
-
-                case VK_ERROR_OUT_OF_DATE_KHR:
-                {
-                    if (result != VK_ERROR_DEVICE_LOST      &&
-                        result != VK_ERROR_SURFACE_LOST_KHR)
+                    case VK_ERROR_SURFACE_LOST_KHR:
                     {
-                        result = VK_ERROR_OUT_OF_DATE_KHR;
+                        if (result != VK_ERROR_DEVICE_LOST)
+                        {
+                            result = VK_ERROR_SURFACE_LOST_KHR;
+                        }
+
+                        break;
                     }
 
-                    break;
-                }
-
-                case VK_SUBOPTIMAL_KHR:
-                {
-                    if (result != VK_ERROR_DEVICE_LOST      &&
-                        result != VK_ERROR_SURFACE_LOST_KHR &&
-                        result != VK_ERROR_OUT_OF_DATE_KHR)
+                    case VK_ERROR_OUT_OF_DATE_KHR:
                     {
-                        result = VK_SUBOPTIMAL_KHR;
+                        if (result != VK_ERROR_DEVICE_LOST      &&
+                            result != VK_ERROR_SURFACE_LOST_KHR)
+                        {
+                            result = VK_ERROR_OUT_OF_DATE_KHR;
+                        }
+
+                        break;
                     }
 
-                    break;
-                }
+                    case VK_SUBOPTIMAL_KHR:
+                    {
+                        if (result != VK_ERROR_DEVICE_LOST      &&
+                            result != VK_ERROR_SURFACE_LOST_KHR &&
+                            result != VK_ERROR_OUT_OF_DATE_KHR)
+                        {
+                            result = VK_SUBOPTIMAL_KHR;
+                        }
 
-                default:
-                {
-                    anvil_assert(presentation_results[0] == VK_SUCCESS);
+                        break;
+                    }
+
+                    default:
+                    {
+                        anvil_assert(presentation_results[n_presentation] == VK_SUCCESS);
+                    }
                 }
             }
 
@@ -371,6 +568,51 @@ end:
 }
 
 /** Please see header for specification */
+void Anvil::Queue::present_lock_unlock(uint32_t                                 in_n_swapchains,
+                                       const std::shared_ptr<Anvil::Swapchain>* in_swapchains,
+                                       uint32_t                                 in_n_wait_semaphores,
+                                       std::shared_ptr<Anvil::Semaphore>*       in_wait_semaphore_ptrs,
+                                       bool                                     in_should_lock)
+{
+    if (in_should_lock)
+    {
+        lock();
+    }
+    else
+    {
+        unlock();
+    }
+
+    for (uint32_t n_semaphore = 0;
+                  n_semaphore < in_n_wait_semaphores;
+                ++n_semaphore)
+    {
+        if (in_should_lock)
+        {
+            in_wait_semaphore_ptrs[n_semaphore]->lock();
+        }
+        else
+        {
+            in_wait_semaphore_ptrs[n_semaphore]->unlock();
+        }
+    }
+
+    for (uint32_t n_swapchain = 0;
+                  n_swapchain < in_n_swapchains;
+                ++n_swapchain)
+    {
+        if (in_should_lock)
+        {
+            in_swapchains[n_swapchain]->lock();
+        }
+        else
+        {
+            in_swapchains[n_swapchain]->unlock();
+        }
+    }
+}
+
+/** Please see header for specification */
 void Anvil::Queue::submit_command_buffers(uint32_t                                         in_n_command_buffers,
                                           std::shared_ptr<Anvil::CommandBufferBase> const* in_opt_cmd_buffer_ptrs,
                                           uint32_t                                         in_n_semaphores_to_signal,
@@ -381,7 +623,8 @@ void Anvil::Queue::submit_command_buffers(uint32_t                              
                                           bool                                             in_should_block,
                                           std::shared_ptr<Anvil::Fence>                    in_opt_fence_ptr)
 {
-    VkResult        result     (VK_ERROR_INITIALIZATION_FAILED);
+    bool            needs_fence_reset(false);
+    VkResult        result           (VK_ERROR_INITIALIZATION_FAILED);
     VkSubmitInfo    submit_info;
 
     VkCommandBuffer cmd_buffers_vk      [64];
@@ -396,14 +639,6 @@ void Anvil::Queue::submit_command_buffers(uint32_t                              
     anvil_assert(in_n_semaphores_to_wait_on < sizeof(wait_semaphores_vk)   / sizeof(wait_semaphores_vk  [0]) );
 
     /* Prepare for the submission */
-    if (in_opt_fence_ptr == nullptr &&
-        in_should_block)
-    {
-        m_submit_fence_ptr->reset();
-
-        in_opt_fence_ptr = m_submit_fence_ptr;
-    }
-
     for (uint32_t n_command_buffer = 0;
                   n_command_buffer < in_n_command_buffers;
                 ++n_command_buffer)
@@ -415,7 +650,9 @@ void Anvil::Queue::submit_command_buffers(uint32_t                              
                   n_signal_semaphore < in_n_semaphores_to_signal;
                 ++n_signal_semaphore)
     {
-        signal_semaphores_vk[n_signal_semaphore] = in_opt_semaphore_to_signal_ptr_ptrs[n_signal_semaphore]->get_semaphore();
+        auto sem_ptr = in_opt_semaphore_to_signal_ptr_ptrs[n_signal_semaphore];
+
+        signal_semaphores_vk[n_signal_semaphore] = sem_ptr->get_semaphore();
     }
 
     for (uint32_t n_wait_semaphore = 0;
@@ -435,23 +672,129 @@ void Anvil::Queue::submit_command_buffers(uint32_t                              
     submit_info.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.waitSemaphoreCount   = in_n_semaphores_to_wait_on;
 
-    /* Go for it */
-    result = vkQueueSubmit(m_queue,
-                           1, /* submitCount */
-                          &submit_info,
-                          (in_opt_fence_ptr != nullptr) ? in_opt_fence_ptr->get_fence() 
-                                                        : VK_NULL_HANDLE);
-    anvil_assert_vk_call_succeeded(result);
+     /* Go for it */
+     if (in_opt_fence_ptr == nullptr &&
+         in_should_block)
+     {
+         in_opt_fence_ptr  = m_submit_fence_ptr;
+         needs_fence_reset = true;
+     }
 
-    if (in_should_block)
+     submit_command_buffers_lock_unlock(in_n_command_buffers,
+                                        in_opt_cmd_buffer_ptrs,
+                                        in_n_semaphores_to_signal,
+                                        in_opt_semaphore_to_signal_ptr_ptrs,
+                                        in_n_semaphores_to_wait_on,
+                                        in_opt_semaphore_to_wait_on_ptr_ptrs,
+                                        in_opt_fence_ptr,
+                                        true); /* in_should_lock */
+     {
+        if (needs_fence_reset)
+        {
+            m_submit_fence_ptr->reset();
+        }
+
+         result = vkQueueSubmit(m_queue,
+                                1, /* submitCount */
+                               &submit_info,
+                               (in_opt_fence_ptr != nullptr) ? in_opt_fence_ptr->get_fence() 
+                                                             : VK_NULL_HANDLE);
+
+        if (in_should_block)
+        {
+            /* Wait till initialization finishes GPU-side */
+            result = vkWaitForFences(m_device_ptr.lock()->get_device_vk(),
+                                     1, /* fenceCount */
+                                     in_opt_fence_ptr->get_fence_ptr(),
+                                     VK_TRUE,     /* waitAll */
+                                     UINT64_MAX); /* timeout */
+
+            anvil_assert_vk_call_succeeded(result);
+        }
+     }
+     submit_command_buffers_lock_unlock(in_n_command_buffers,
+                                        in_opt_cmd_buffer_ptrs,
+                                        in_n_semaphores_to_signal,
+                                        in_opt_semaphore_to_signal_ptr_ptrs,
+                                        in_n_semaphores_to_wait_on,
+                                        in_opt_semaphore_to_wait_on_ptr_ptrs,
+                                        in_opt_fence_ptr,
+                                        false); /* in_should_lock */
+
+
+     anvil_assert_vk_call_succeeded(result);
+}
+
+void Anvil::Queue::submit_command_buffers_lock_unlock(uint32_t                                         in_n_command_buffers,
+                                                      std::shared_ptr<Anvil::CommandBufferBase> const* in_opt_cmd_buffer_ptrs,
+                                                      uint32_t                                         in_n_semaphores_to_signal,
+                                                      std::shared_ptr<Anvil::Semaphore> const*         in_opt_semaphore_to_signal_ptr_ptrs,
+                                                      uint32_t                                         in_n_semaphores_to_wait_on,
+                                                      std::shared_ptr<Anvil::Semaphore> const*         in_opt_semaphore_to_wait_on_ptr_ptrs,
+                                                      std::shared_ptr<Anvil::Fence>                    in_opt_fence_ptr,
+                                                      bool                                             in_should_lock)
+{
+    if (in_should_lock)
     {
-        /* Wait till initialization finishes GPU-side */
-        result = vkWaitForFences(m_device_ptr.lock()->get_device_vk(),
-                                 1, /* fenceCount */
-                                 in_opt_fence_ptr->get_fence_ptr(),
-                                 VK_TRUE,     /* waitAll */
-                                 UINT64_MAX); /* timeout */
+        lock();
+    }
+    else
+    {
+        unlock();
+    }
 
-        anvil_assert_vk_call_succeeded(result);
+    for (uint32_t n_command_buffer = 0;
+                  n_command_buffer < in_n_command_buffers;
+                ++n_command_buffer)
+    {
+        if (in_should_lock)
+        {
+            in_opt_cmd_buffer_ptrs[n_command_buffer]->lock();
+        }
+        else
+        {
+            in_opt_cmd_buffer_ptrs[n_command_buffer]->unlock();
+        }
+    }
+
+    for (uint32_t n_signal_semaphore = 0;
+                  n_signal_semaphore < in_n_semaphores_to_signal;
+                ++n_signal_semaphore)
+    {
+        if (in_should_lock)
+        {
+            in_opt_semaphore_to_signal_ptr_ptrs[n_signal_semaphore]->lock();
+        }
+        else
+        {
+            in_opt_semaphore_to_signal_ptr_ptrs[n_signal_semaphore]->unlock();
+        }
+    }
+
+    for (uint32_t n_wait_semaphore = 0;
+                  n_wait_semaphore < in_n_semaphores_to_wait_on;
+                ++n_wait_semaphore)
+    {
+        if (in_should_lock)
+        {
+            in_opt_semaphore_to_wait_on_ptr_ptrs[n_wait_semaphore]->lock();
+        }
+        else
+        {
+            in_opt_semaphore_to_wait_on_ptr_ptrs[n_wait_semaphore]->unlock();
+        }
+    }
+
+    if (in_opt_fence_ptr != nullptr)
+    {
+        if (in_should_lock)
+        {
+            in_opt_fence_ptr->lock();
+        }
+        else
+        {
+            in_opt_fence_ptr->unlock();
+        }
     }
 }
+

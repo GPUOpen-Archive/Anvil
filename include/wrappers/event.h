@@ -32,12 +32,14 @@
 #define WRAPPERS_EVENT_H
 
 #include "misc/debug_marker.h"
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
     /** Wrapper class for Vulkan events */
-    class Event : public DebugMarkerSupportProvider<Event>
+    class Event : public DebugMarkerSupportProvider<Event>,
+                  public MTSafetySupportProvider
     {
     public:
         /* Public functions */
@@ -48,7 +50,8 @@ namespace Anvil
          *
          *  @param in_device_ptr Device to use.
          */
-        static std::shared_ptr<Event> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
+        static std::shared_ptr<Event> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                             MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Destructor.
          *
@@ -89,7 +92,8 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. */
-        Event(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
+        Event(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+              bool                             in_mt_safe);
 
         Event           (const Event&);
         Event& operator=(const Event&);

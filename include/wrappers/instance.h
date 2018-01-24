@@ -31,6 +31,7 @@
 #ifndef WRAPPERS_INSTANCE_H
 #define WRAPPERS_INSTANCE_H
 
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 
 namespace Anvil
@@ -41,7 +42,8 @@ namespace Anvil
                                     const char*                in_layer_prefix,
                                     const char*                in_message)>     DebugCallbackFunction;
 
-    class Instance : public std::enable_shared_from_this<Instance>
+    class Instance : public Anvil::MTSafetySupportProvider,
+                     public std::enable_shared_from_this<Instance>
     {
     public:
         /** Destructor */
@@ -62,17 +64,26 @@ namespace Anvil
          *        destroyed correctly.
          *
          *
-         *  @param in_app_name                         Name of the application, to be passed in VkCreateInstanceInfo
-         *                                             structure.
-         *  @param in_engine_name                      Name of the engine, to be passed in VkCreateInstanceInfo
-         *                                             structure.
-         *  @param in_opt_validation_callback_function If not nullptr, the specified function will be called whenever
-         *                                             a call-back from any of the validation layers is received.
-         *                                             Ignored otherwise.
+         *  @param in_app_name                                 Name of the application, to be passed in VkCreateInstanceInfo
+         *                                                     structure.
+         *  @param in_engine_name                              Name of the engine, to be passed in VkCreateInstanceInfo
+         *                                                     structure.
+         *  @param in_opt_validation_callback_function         If not nullptr, the specified function will be called whenever
+         *                                                     a call-back from any of the validation layers is received.
+         *                                                     Ignored otherwise.
+         *  @param in_mt_safe                                  True if all instance-based operations where external host synchronization
+         *                                                     is required should be automatically synchronized by Anvil.
+         *  @param in_opt_disallowed_instance_level_extensions Optional vector holding instance-level extension names that must NOT be
+         *                                                     requested at creation time. 
+         *  @param in_opt_enable_shader_module_cache           True if all spawned shader modules should be cached throughout instance lifetime.
+         *                                                     False if they should be released as soon as all shared pointers go out of scope.
          **/
-        static std::shared_ptr<Anvil::Instance> create(const std::string&    in_app_name,
-                                                       const std::string&    in_engine_name,
-                                                       DebugCallbackFunction in_opt_validation_callback_proc);
+        static std::shared_ptr<Anvil::Instance> create(const std::string&              in_app_name,
+                                                       const std::string&              in_engine_name,
+                                                       DebugCallbackFunction           in_opt_validation_callback_proc,
+                                                       bool                            in_mt_safe,
+                                                       const std::vector<std::string>& in_opt_disallowed_instance_level_extensions = std::vector<std::string>(),
+                                                       bool                            in_opt_enable_shader_module_cache           = true);
 
         void destroy();
 
@@ -137,6 +148,12 @@ namespace Anvil
             return m_shader_module_cache_ptr;
         }
 
+        bool is_instance_extension_enabled(const char*        in_extension_name) const;
+        bool is_instance_extension_enabled(const std::string& in_extension_name) const
+        {
+            return is_instance_extension_enabled(in_extension_name.c_str() );
+        }
+
         /** Tells whether the specified instance extension is supported.
          *
          *  @param in_extension_name Name of the extension to use for the query.
@@ -161,7 +178,8 @@ namespace Anvil
         /** Private constructor. Please use create() function instead. */
         Instance(const std::string&    in_app_name,
                  const std::string&    in_engine_name,
-                 DebugCallbackFunction in_opt_validation_callback_function);
+                 DebugCallbackFunction in_opt_validation_callback_function,
+                 bool                  in_mt_safe);
 
         Instance& operator=(const Instance&);
         Instance           (const Instance&);
@@ -172,7 +190,8 @@ namespace Anvil
         void enumerate_instance_layers ();
         void enumerate_layer_extensions(Anvil::Layer* layer_ptr);
         void enumerate_physical_devices();
-        void init                      ();
+        void init                      (const std::vector<std::string>& in_disallowed_instance_level_extensions,
+                                        bool                            in_enable_shader_module_cache);
         void init_debug_callbacks      ();
         void init_func_pointers        ();
 

@@ -178,8 +178,17 @@ void Anvil::ObjectTracker::register_object(ObjectType in_object_type,
     OnObjectRegisteredCallbackArgument callback_arg(in_object_type,
                                                     in_object_ptr);
 
-    callback_safe(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_REGISTERED,
-                 &callback_arg);
+    if (in_object_type == OBJECT_TYPE_GLSL_SHADER_TO_SPIRV_GENERATOR)
+    {
+        callback_safe(OBJECT_TRACKER_CALLBACK_ID_ON_GLSL_SHADER_TO_SPIRV_GENERATOR_OBJECT_REGISTERED,
+                     &callback_arg);
+    }
+    else
+    if (in_object_type == OBJECT_TYPE_SHADER_MODULE)
+    {
+        callback_safe(OBJECT_TRACKER_CALLBACK_ID_ON_SHADER_MODULE_OBJECT_REGISTERED,
+                     &callback_arg);
+    }
 }
 
 /* Please see header for specification */
@@ -212,14 +221,23 @@ void Anvil::ObjectTracker::unregister_object(ObjectType in_object_type,
                      &callback_arg);
     }
     else
+    if (in_object_type == OBJECT_TYPE_GLSL_SHADER_TO_SPIRV_GENERATOR)
+    {
+        callback_safe(OBJECT_TRACKER_CALLBACK_ID_ON_GLSL_SHADER_TO_SPIRV_GENERATOR_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+                     &callback_arg);
+    }
+    else
     if (in_object_type == OBJECT_TYPE_PIPELINE_LAYOUT)
     {
         callback_safe(OBJECT_TRACKER_CALLBACK_ID_ON_PIPELINE_LAYOUT_OBJECT_ABOUT_TO_BE_UNREGISTERED,
                      &callback_arg);
     }
-
-    callback_safe(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED,
-                 &callback_arg);
+    else
+    if (in_object_type == OBJECT_TYPE_SHADER_MODULE)
+    {
+        callback_safe(OBJECT_TRACKER_CALLBACK_ID_ON_SHADER_MODULE_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+                     &callback_arg);
+    }
 
 end:
     ;

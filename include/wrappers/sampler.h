@@ -31,13 +31,15 @@
 #define WRAPPERS_SAMPLER_H
 
 #include "misc/debug_marker.h"
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 
 
 namespace Anvil
 {
     /** Wrapper class for Vulkan samplers */
-    class Sampler : public DebugMarkerSupportProvider<Sampler>
+    class Sampler : public DebugMarkerSupportProvider<Sampler>,
+                    public MTSafetySupportProvider
     {
     public:
         /* Public functions */
@@ -62,7 +64,8 @@ namespace Anvil
                                                float                            in_min_lod,
                                                float                            in_max_lod,
                                                VkBorderColor                    in_border_color,
-                                               bool                             in_use_unnormalized_coordinates);
+                                               bool                             in_use_unnormalized_coordinates,
+                                               MTSafety                         in_mt_safety           = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Destructor.
          *
@@ -171,7 +174,8 @@ namespace Anvil
                 float                            in_min_lod,
                 float                            in_max_lod,
                 VkBorderColor                    in_border_color,
-                bool                             in_use_unnormalized_coordinates);
+                bool                             in_use_unnormalized_coordinates,
+                bool                             in_mt_safe);
 
         Sampler           (const Sampler&);
         Sampler& operator=(const Sampler&);

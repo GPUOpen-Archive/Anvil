@@ -26,9 +26,11 @@
 #include "wrappers/event.h"
 
 /* Please see header for specification */
-Anvil::Event::Event(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
+Anvil::Event::Event(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                    bool                             in_mt_safe)
     :DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_EVENT_EXT),
+     MTSafetySupportProvider   (in_mt_safe),
      m_device_ptr              (in_device_ptr),
      m_event                   (VK_NULL_HANDLE)
 {
@@ -73,12 +75,16 @@ Anvil::Event::~Event()
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::Event> Anvil::Event::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
+std::shared_ptr<Anvil::Event> Anvil::Event::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                   MTSafety                         in_mt_safety)
 {
+    const bool             mt_safe    = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                        in_device_ptr);
     std::shared_ptr<Event> result_ptr;
 
     result_ptr.reset(
-        new Anvil::Event(in_device_ptr)
+        new Anvil::Event(in_device_ptr,
+                         mt_safe)
     );
 
     return result_ptr;
@@ -106,9 +112,13 @@ void Anvil::Event::release_event()
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
-        vkDestroyEvent(device_locked_ptr->get_device_vk(),
-                       m_event,
-                       nullptr /* pAllocator */);
+        lock();
+        {
+            vkDestroyEvent(device_locked_ptr->get_device_vk(),
+                           m_event,
+                           nullptr /* pAllocator */);
+        }
+        unlock();
 
         m_event = VK_NULL_HANDLE;
     }
@@ -120,8 +130,13 @@ bool Anvil::Event::reset()
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
     VkResult                           result;
 
-    result = vkResetEvent(device_locked_ptr->get_device_vk(),
-                          m_event);
+    lock();
+    {
+        result = vkResetEvent(device_locked_ptr->get_device_vk(),
+                              m_event);
+    }
+    unlock();
+
     anvil_assert_vk_call_succeeded(result);
 
     return (result == VK_SUCCESS);
@@ -133,8 +148,13 @@ bool Anvil::Event::set()
     std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
     VkResult                           result;
 
-    result = vkSetEvent(device_locked_ptr->get_device_vk(),
-                        m_event);
+    lock();
+    {
+        result = vkSetEvent(device_locked_ptr->get_device_vk(),
+                            m_event);
+    }
+    unlock();
+
     anvil_assert_vk_call_succeeded(result);
 
     return (result == VK_SUCCESS);

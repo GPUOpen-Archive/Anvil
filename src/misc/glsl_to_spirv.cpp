@@ -249,7 +249,6 @@ Anvil::GLSLShaderToSPIRVGenerator::GLSLShaderToSPIRVGenerator(std::weak_ptr<Anvi
                 new GLSLangLimits(in_device_ptr)
             );
         }
-
     }
     #endif
 }
@@ -588,12 +587,13 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob()
         /* If this assertion check explodes, you're trying to build a SPIR-V blob with a generator, which has
          * been initialized with a null device instance. This is illegal.
          */
-        OnGLSLToSPIRVConversionAboutToBeStartedCallbackArgument callback_arg(this);
+        OnGLSLToSPIRVConversionAboutToBeStartedCallbackArgument conversion_about_to_be_started_callback_arg(this);
+        OnGLSLToSPIRVConversionFinishedCallbackArgument         conversion_finished_callback_arg           (this);
 
         anvil_assert(m_limits_ptr != nullptr);
 
         callback(GLSL_SHADER_TO_SPIRV_GENERATOR_CALLBACK_ID_CONVERSION_ABOUT_TO_START,
-                &callback_arg);
+                &conversion_about_to_be_started_callback_arg);
 
         if (new_program_ptr != nullptr &&
             new_shader_ptr  != nullptr)
@@ -663,6 +663,9 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob()
                    &spirv_blob[0],
                    m_spirv_blob.size() );
         }
+
+        callback(GLSL_SHADER_TO_SPIRV_GENERATOR_CALLBACK_ID_CONVERSION_FINISHED,
+                &conversion_finished_callback_arg);
 
         /* All done */
         result = true;

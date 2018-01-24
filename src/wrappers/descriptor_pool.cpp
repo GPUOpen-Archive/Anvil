@@ -31,10 +31,12 @@
 /* Please see header for specification */
 Anvil::DescriptorPool::DescriptorPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                       uint32_t                         in_n_max_sets,
-                                      bool                             in_releaseable_sets)
+                                      bool                             in_releaseable_sets,
+                                      bool                             in_mt_safe)
     :CallbacksSupportProvider  (DESCRIPTOR_POOL_CALLBACK_ID_COUNT),
      DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_POOL_EXT),
+     MTSafetySupportProvider   (in_mt_safe),
      m_baked                   (false),
      m_device_ptr              (in_device_ptr),
      m_n_max_sets              (in_n_max_sets),
@@ -61,9 +63,13 @@ Anvil::DescriptorPool::~DescriptorPool()
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
-        vkDestroyDescriptorPool(device_locked_ptr->get_device_vk(),
-                                m_pool,
-                                nullptr /* pAllocator */);
+        lock();
+        {
+            vkDestroyDescriptorPool(device_locked_ptr->get_device_vk(),
+                                    m_pool,
+                                    nullptr /* pAllocator */);
+        }
+        unlock();
 
         m_pool = VK_NULL_HANDLE;
     }
@@ -93,7 +99,8 @@ bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                      
             out_descriptor_sets_ptr[n_set] = Anvil::DescriptorSet::create(m_device_ptr,
                                                                           shared_from_this(),
                                                                           in_descriptor_set_layouts_ptr[n_set],
-                                                                          m_ds_cache[n_set]);
+                                                                          m_ds_cache[n_set],
+                                                                          Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe()) );
         }
     }
 
@@ -132,9 +139,13 @@ bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                      
     ds_alloc_info.pSetLayouts        = &m_ds_layout_cache[0];
     ds_alloc_info.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 
-    result_vk = vkAllocateDescriptorSets(device_locked_ptr->get_device_vk(),
-                                        &ds_alloc_info,
-                                         out_descriptor_sets_vk_ptr);
+    lock();
+    {
+        result_vk = vkAllocateDescriptorSets(device_locked_ptr->get_device_vk(),
+                                            &ds_alloc_info,
+                                             out_descriptor_sets_vk_ptr);
+    }
+    unlock();
 
     if (out_opt_result_ptr != nullptr)
     {
@@ -157,9 +168,13 @@ void Anvil::DescriptorPool::bake()
 
     if (m_pool != VK_NULL_HANDLE)
     {
-        vkDestroyDescriptorPool(device_locked_ptr->get_device_vk(),
-                                m_pool,
-                                nullptr /* pAllocator */);
+        lock();
+        {
+            vkDestroyDescriptorPool(device_locked_ptr->get_device_vk(),
+                                    m_pool,
+                                    nullptr /* pAllocator */);
+        }
+        unlock();
 
         set_vk_handle(VK_NULL_HANDLE);
         m_pool = VK_NULL_HANDLE;
@@ -179,15 +194,6 @@ void Anvil::DescriptorPool::bake()
 
             n_descriptor_types_used++;
         }
-    }
-
-    if (n_descriptor_types_used == 0)
-    {
-        /* If an empty pool is needed, request space for a single dummy descriptor. */
-        descriptor_pool_sizes[0].descriptorCount = 1;
-        descriptor_pool_sizes[0].type            = VK_DESCRIPTOR_TYPE_SAMPLER;
-
-        n_descriptor_types_used = 1;
     }
 
     /* Set up the descriptor pool instance */
@@ -216,14 +222,18 @@ void Anvil::DescriptorPool::bake()
 /* Please see header for specification */
 std::shared_ptr<Anvil::DescriptorPool> Anvil::DescriptorPool::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                                                      uint32_t                         in_n_max_sets,
-                                                                     bool                             in_releaseable_sets)
+                                                                     bool                             in_releaseable_sets,
+                                                                     MTSafety                         in_mt_safety)
 {
+    const bool                             is_mt_safe = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                        in_device_ptr);
     std::shared_ptr<Anvil::DescriptorPool> result_ptr;
 
     result_ptr.reset(
         new Anvil::DescriptorPool(in_device_ptr,
                                   in_n_max_sets,
-                                  in_releaseable_sets)
+                                  in_releaseable_sets,
+                                  is_mt_safe)
     );
 
     return result_ptr;
@@ -238,9 +248,15 @@ bool Anvil::DescriptorPool::reset()
     {
         std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
 
-        result_vk = vkResetDescriptorPool(device_locked_ptr->get_device_vk(),
-                                          m_pool,
-                                          0 /* flags */);
+        /* TODO: Host synchronization to VkDescriptorSetObjects alloc'ed from the pool. */
+        lock();
+        {
+            result_vk = vkResetDescriptorPool(device_locked_ptr->get_device_vk(),
+                                              m_pool,
+                                              0 /* flags */);
+        }
+        unlock();
+
         anvil_assert_vk_call_succeeded(result_vk);
 
         if (is_vk_call_successful(result_vk) )

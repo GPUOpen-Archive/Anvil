@@ -32,12 +32,14 @@
 #define WRAPPERS_FENCE_H
 
 #include "misc/debug_marker.h"
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
     /* Wrapper class for Vulkan fences */
-    class Fence : public DebugMarkerSupportProvider<Fence>
+    class Fence : public DebugMarkerSupportProvider<Fence>,
+                  public MTSafetySupportProvider
     {
     public:
         /* Public functions */
@@ -57,7 +59,8 @@ namespace Anvil
          *                             False to make it unsignalled at creation time.
          */
         static std::shared_ptr<Fence> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                      bool                                    in_create_signalled);
+                                      bool                                    in_create_signalled,
+                                      MTSafety                                in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Retrieves a raw handle to the underlying Vulkan fence instance */
         VkFence get_fence() const
@@ -107,7 +110,8 @@ namespace Anvil
          *  Please see documentation of create() for specification
          */
         Fence(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-              bool                             in_create_signalled);
+              bool                             in_create_signalled,
+              bool                             in_mt_safe);
 
         Fence           (const Fence&);
         Fence& operator=(const Fence&);

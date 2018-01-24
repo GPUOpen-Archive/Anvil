@@ -94,8 +94,10 @@ Anvil::DeviceExtensionConfiguration::DeviceExtensionConfiguration()
     amd_rasterization_order              = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     amd_shader_ballot                    = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     amd_shader_explicit_vertex_parameter = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    amd_shader_info                      = EXTENSION_AVAILABILITY_IGNORE;
     amd_shader_trinary_minmax            = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     amd_texture_gather_bias_lod          = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    ext_shader_stencil_export            = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     ext_shader_subgroup_ballot           = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     ext_shader_subgroup_vote             = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     khr_16bit_storage                    = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
@@ -151,9 +153,11 @@ bool Anvil::DeviceExtensionConfiguration::is_supported_by_physical_device(std::w
         ExtensionItem(VK_AMD_RASTERIZATION_ORDER_EXTENSION_NAME,              amd_rasterization_order              == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_AMD_SHADER_BALLOT_EXTENSION_NAME,                    amd_shader_ballot                    == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_AMD_SHADER_EXPLICIT_VERTEX_PARAMETER_EXTENSION_NAME, amd_shader_explicit_vertex_parameter == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_AMD_SHADER_INFO_EXTENSION_NAME,                      amd_shader_info                      == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_AMD_SHADER_TRINARY_MINMAX_EXTENSION_NAME,            amd_shader_trinary_minmax            == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_AMD_TEXTURE_GATHER_BIAS_LOD_EXTENSION_NAME,          amd_texture_gather_bias_lod          == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_EXT_DEBUG_MARKER_EXTENSION_NAME,                     ext_debug_marker                     == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem("VK_EXT_shader_stencil_export",                         ext_shader_stencil_export            == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_EXT_SHADER_SUBGROUP_BALLOT_EXTENSION_NAME,           ext_shader_subgroup_vote             == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_EXT_SHADER_SUBGROUP_VOTE_EXTENSION_NAME,             ext_shader_subgroup_vote             == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_KHR_16BIT_STORAGE_EXTENSION_NAME,                    khr_16bit_storage                    == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
@@ -212,6 +216,7 @@ bool Anvil::DeviceExtensionConfiguration::operator==(const Anvil::DeviceExtensio
              (amd_rasterization_order              == in_config.amd_rasterization_order)              &&
              (amd_shader_ballot                    == in_config.amd_shader_ballot)                    &&
              (amd_shader_explicit_vertex_parameter == in_config.amd_shader_explicit_vertex_parameter) &&
+             (amd_shader_info                      == in_config.amd_shader_info)                      &&
              (amd_shader_trinary_minmax            == in_config.amd_shader_trinary_minmax)            &&
              (amd_texture_gather_bias_lod          == in_config.amd_texture_gather_bias_lod)          &&
              (ext_debug_marker                     == in_config.ext_debug_marker)                     &&
@@ -1332,7 +1337,8 @@ bool Anvil::Utils::SparseMemoryBindingUpdateInfo::get_bind_info_properties(Spars
         *out_opt_n_signal_semaphores_ptr = static_cast<uint32_t>(binding_iterator->signal_semaphores.size() );
     }
 
-    if (out_opt_signal_semaphores_ptr_ptr != nullptr)
+    if (out_opt_signal_semaphores_ptr_ptr          != nullptr &&
+        binding_iterator->signal_semaphores.size() >  0)
     {
         *out_opt_signal_semaphores_ptr_ptr = &binding_iterator->signal_semaphores[0];
     }
@@ -1342,7 +1348,8 @@ bool Anvil::Utils::SparseMemoryBindingUpdateInfo::get_bind_info_properties(Spars
         *out_opt_n_wait_semaphores_ptr = static_cast<uint32_t>(binding_iterator->wait_semaphores.size() );
     }
 
-    if (out_opt_wait_semaphores_ptr_ptr != nullptr)
+    if (out_opt_wait_semaphores_ptr_ptr          != nullptr &&
+        binding_iterator->wait_semaphores.size() >  0)
     {
         *out_opt_wait_semaphores_ptr_ptr = &binding_iterator->wait_semaphores[0];
     }
@@ -1634,7 +1641,7 @@ Anvil::MemoryFeatureFlags Anvil::Utils::get_memory_feature_flags_from_vk_propert
 {
     Anvil::MemoryFeatureFlags result = 0;
 
-    ANVIL_REDUNDANT_ARGUMENT(in_mem_heap_flags);
+    ANVIL_REDUNDANT_ARGUMENT_CONST(in_mem_heap_flags);
 
     if ((in_mem_type_flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)
     {
@@ -1659,6 +1666,40 @@ Anvil::MemoryFeatureFlags Anvil::Utils::get_memory_feature_flags_from_vk_propert
     if ((in_mem_type_flags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) != 0)
     {
         result |= MEMORY_FEATURE_FLAG_LAZILY_ALLOCATED;
+    }
+
+    return result;
+}
+
+Anvil::MTSafety Anvil::Utils::convert_boolean_to_mt_safety_enum(bool in_mt_safe)
+{
+    return (in_mt_safe) ? MT_SAFETY_ENABLED
+                        : MT_SAFETY_DISABLED;
+}
+
+bool Anvil::Utils::convert_mt_safety_enum_to_boolean(Anvil::MTSafety                  in_mt_safety,
+                                                     std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
+{
+    bool result = false;
+
+    switch (in_mt_safety)
+    {
+        case MT_SAFETY_DISABLED: result = false; break;
+        case MT_SAFETY_ENABLED:  result = true;  break;
+
+        case MT_SAFETY_INHERIT_FROM_PARENT_DEVICE:
+        {
+            anvil_assert(!in_device_ptr.expired() );
+            anvil_assert( in_device_ptr.lock   () != nullptr);
+
+            result = in_device_ptr.lock()->is_mt_safe();
+            break;
+        }
+
+        default:
+        {
+            anvil_assert_fail();
+        }
     }
 
     return result;
@@ -1898,6 +1939,42 @@ VkAccessFlags Anvil::Utils::get_access_mask_from_image_layout(VkImageLayout     
     }
 
     return result;
+}
+
+/* Please see header for specification */
+Anvil::QueueFamilyBits Anvil::Utils::get_queue_family_bits_from_queue_family_type(Anvil::QueueFamilyType in_queue_family_type)
+{
+    Anvil::QueueFamilyBits result = 0;
+
+    switch (in_queue_family_type)
+    {
+        case Anvil::QUEUE_FAMILY_TYPE_COMPUTE:   result = Anvil::QUEUE_FAMILY_COMPUTE_BIT;                                    break;
+        case Anvil::QUEUE_FAMILY_TYPE_TRANSFER:  result = Anvil::QUEUE_FAMILY_DMA_BIT;                                        break;
+        case Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL: result = Anvil::QUEUE_FAMILY_COMPUTE_BIT | Anvil::QUEUE_FAMILY_GRAPHICS_BIT; break;
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
+
+    return result;
+}
+
+/* Please see header for specification */
+const char* Anvil::Utils::get_raw_string(Anvil::QueueFamilyType in_queue_family_type)
+{
+    static const char* result_strings[] =
+    {
+        "Compute",
+        "Transfer",
+        "Universal",
+    };
+    static const uint32_t n_result_strings = sizeof(result_strings) / sizeof(result_strings[0]);
+
+    static_assert(n_result_strings == QUEUE_FAMILY_TYPE_COUNT, "");
+
+    return result_strings[in_queue_family_type];
 }
 
 /* Please see header for specification */

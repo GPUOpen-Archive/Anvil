@@ -35,11 +35,13 @@
 #define WRAPPERS_DESCRIPTOR_SET_H
 
 #include "misc/debug_marker.h"
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
-    class DescriptorSet : public DebugMarkerSupportProvider<DescriptorSet>
+    class DescriptorSet : public DebugMarkerSupportProvider<DescriptorSet>,
+                          public MTSafetySupportProvider
     {
     public:
         /** Represents a single buffer object, which can be bound to a specific descriptor set slot */
@@ -464,7 +466,8 @@ namespace Anvil
         static std::shared_ptr<DescriptorSet> create(std::weak_ptr<Anvil::BaseDevice>            in_device_ptr,
                                                      std::shared_ptr<Anvil::DescriptorPool>      in_parent_pool_ptr,
                                                      std::shared_ptr<Anvil::DescriptorSetLayout> in_layout_ptr,
-                                                     VkDescriptorSet                             in_descriptor_set);
+                                                     VkDescriptorSet                             in_descriptor_set,
+                                                     MTSafety                                    in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Tells how many array items have been declared for a binding at a given index
          *
@@ -875,13 +878,13 @@ namespace Anvil
         DescriptorSet(std::weak_ptr<Anvil::BaseDevice>            in_device_ptr,
                       std::shared_ptr<Anvil::DescriptorPool>      in_parent_pool_ptr,
                       std::shared_ptr<Anvil::DescriptorSetLayout> in_layout_ptr,
-                      VkDescriptorSet                             in_descriptor_set);
+                      VkDescriptorSet                             in_descriptor_set,
+                      bool                                        in_mt_safe);
 
         DescriptorSet           (const DescriptorSet&);
         DescriptorSet& operator=(const DescriptorSet&);
 
-        void on_binding_added_to_layout();
-        void on_parent_pool_reset      ();
+        void on_parent_pool_reset();
 
         void alloc_bindings();
 
