@@ -93,10 +93,10 @@ private:
     std::shared_ptr<Anvil::PrimaryCommandBuffer> m_render_tri1_and_generate_ot_data_cmd_buffers[N_SWAPCHAIN_IMAGES];
     std::shared_ptr<Anvil::PrimaryCommandBuffer> m_render_tri2_and_quad_cmd_buffers            [N_SWAPCHAIN_IMAGES];
 
-    Anvil::GraphicsPipelineID m_1stpass_depth_test_always_pipeline_id;
-    Anvil::GraphicsPipelineID m_1stpass_depth_test_equal_pipeline_id;
-    Anvil::GraphicsPipelineID m_2ndpass_depth_test_off_quad_pipeline_id;
-    Anvil::GraphicsPipelineID m_2ndpass_depth_test_off_tri_pipeline_id;
+    Anvil::PipelineID m_1stpass_depth_test_always_pipeline_id;
+    Anvil::PipelineID m_1stpass_depth_test_equal_pipeline_id;
+    Anvil::PipelineID m_2ndpass_depth_test_off_quad_pipeline_id;
+    Anvil::PipelineID m_2ndpass_depth_test_off_tri_pipeline_id;
 
     std::shared_ptr<Anvil::Framebuffer> m_fbos[N_SWAPCHAIN_IMAGES];
 

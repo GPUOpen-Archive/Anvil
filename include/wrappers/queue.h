@@ -33,6 +33,7 @@
 #include "misc/callbacks.h"
 #include "misc/debug.h"
 #include "misc/debug_marker.h"
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 
 namespace Anvil
@@ -41,7 +42,7 @@ namespace Anvil
     {
         /* Notification fired right after vkQueuePresentKHR() has been issued for a swapchain.
          *
-         * callback_arg: Pointer to PresentRequestIssuedCallbackArgument instance.
+         * callback_arg: Pointer to OnPresentRequestIssuedCallbackArgument instance.
          */
         QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
 
@@ -49,7 +50,8 @@ namespace Anvil
     } QueueCallbacKID;
 
     class Queue : public CallbacksSupportProvider,
-                  public DebugMarkerSupportProvider<Queue>
+                  public DebugMarkerSupportProvider<Queue>,
+                  public MTSafetySupportProvider
     {
     public:
         /* Public functions */
@@ -63,10 +65,14 @@ namespace Anvil
          *  @param in_device_ptr         Device to retrieve the queue from.
          *  @param in_queue_family_index Index of the queue family to retrieve the queue from.
          *  @param in_queue_index        Index of the queue to retrieve.
+         *  @param in_mt_safe            True if queue submissions should be protected by a mutex, guaranteeing
+         *                               no more than one thread at a time will ever submit a cmd buffer to the
+         *                               same cmd queue.
          **/
         static std::shared_ptr<Anvil::Queue> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                                     uint32_t                         in_queue_family_index,
-                                                    uint32_t                         in_queue_index);
+                                                    uint32_t                         in_queue_index,
+                                                    bool                             in_mt_safe);
 
         /** Destructor */
         virtual ~Queue();
@@ -105,6 +111,7 @@ namespace Anvil
          *  for the swapchain's rendering surface in order for this call to succeed.
          *
          *  This function will only succeed if supports_presentation() returns true.
+         *  This function will only succeed if used for a single-GPU device instance.
          *
          *  NOTE: If you are presenting to an off-screen window, make sure to transition
          *        the image to VK_IMAGE_LAYOUT_GENERAL, instead of VK_IMAGE_LAYOUT_PRESENT_SRC_KHR.
@@ -135,7 +142,7 @@ namespace Anvil
          *  If @param in_should_block is true and @param in_opt_fence_ptr is nullptr, the function will create
          *  a new fence, wait on it, and then release it prior to leaving. This may come at a performance cost.
          *
-         *  @param in_n_command_buffers                   Number of command buffers under @param opt_cmd_buffer_ptrs
+         *  @param in_n_command_buffers                   Number of command buffers under @param in_opt_cmd_buffer_ptrs
          *                                                which should be executed. May be 0.
          *  @param in_opt_cmd_buffer_ptrs                 Array of command buffers to execute. Can be nullptr if
          *                                                @param n_command_buffers is 0.
@@ -146,15 +153,15 @@ namespace Anvil
          *  @param in_n_semaphores_to_wait_on             Number of semaphores to wait on before executing command buffers.
          *                                                May be 0.
          *  @param in_opt_semaphore_to_wait_on_ptr_ptrs   Array of semaphores to wait on prior to execution. May be nullptr
-         *                                                if @param n_semaphores_to_wait_on is 0.
-         *  @param in_opt_dst_stage_masks_to_wait_on_ptrs Array of size @param n_semaphores_to_wait_on, specifying stages
+         *                                                if @param in_n_semaphores_to_wait_on is 0.
+         *  @param in_opt_dst_stage_masks_to_wait_on_ptrs Array of size @param in_n_semaphores_to_wait_on, specifying stages
          *                                                at which the wait ops should be performed. May be nullptr if
          *                                                @param n_semaphores_to_wait_on is 0.
          *  @param in_should_block                        true if the function should wait for the scheduled commands to
          *                                                finish executing, false otherwise.
          *  @param in_opt_fence_ptr                       Fence to use when submitting the comamnd buffers to the queue.
-         *                                                The fence will be waited on if @param should_block is true.
-         *                                                If @param should_block is false, the fence will be passed at
+         *                                                The fence will be waited on if @param in_should_block is true.
+         *                                                If @param in_should_block is false, the fence will be passed at
          *                                                submit call time, but will not be waited on.
          **/
         void submit_command_buffers(uint32_t                                         in_n_command_buffers,
@@ -270,11 +277,34 @@ namespace Anvil
 
     private:
         /* Private functions */
+        VkResult present_internal   (uint32_t                                 in_n_swapchains,
+                                     const std::shared_ptr<Anvil::Swapchain>* in_swapchains,
+                                     const uint32_t*                          in_swapchain_image_indices,
+                                     const uint32_t*                          in_device_masks,
+                                     uint32_t                                 in_n_wait_semaphores,
+                                     std::shared_ptr<Anvil::Semaphore>*       in_wait_semaphore_ptrs);
+        void     present_lock_unlock(uint32_t                                 in_n_swapchains,
+                                     const std::shared_ptr<Anvil::Swapchain>* in_swapchains,
+                                     uint32_t                                 in_n_wait_semaphores,
+                                     std::shared_ptr<Anvil::Semaphore>*       in_wait_semaphore_ptrs,
+                                     bool                                     in_should_lock);
+
+        void bind_sparse_memory_lock_unlock    (Anvil::Utils::SparseMemoryBindingUpdateInfo&     in_update,
+                                                bool                                             in_should_lock);
+        void submit_command_buffers_lock_unlock(uint32_t                                         in_n_command_buffers,
+                                                std::shared_ptr<Anvil::CommandBufferBase> const* in_opt_cmd_buffer_ptrs,
+                                                uint32_t                                         in_n_semaphores_to_signal,
+                                                std::shared_ptr<Anvil::Semaphore> const*         in_opt_semaphore_to_signal_ptr_ptrs,
+                                                uint32_t                                         in_n_semaphores_to_wait_on,
+                                                std::shared_ptr<Anvil::Semaphore> const*         in_opt_semaphore_to_wait_on_ptr_ptrs,
+                                                std::shared_ptr<Anvil::Fence>                    in_opt_fence_ptr,
+                                                bool                                             in_should_lock);
 
         /* Constructor. Please see create() for specification */
         Queue(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
               uint32_t                         in_queue_family_index,
-              uint32_t                         in_queue_index);
+              uint32_t                         in_queue_index,
+              bool                             in_mt_safe);
 
         Queue          (const Queue&);
         Queue operator=(const Queue&);

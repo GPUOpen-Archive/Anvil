@@ -29,8 +29,10 @@
 #include "config.h"
 #include <string>
 #include "misc/glsl_to_spirv.h"
+#include "misc/graphics_pipeline_info.h"
 #include "misc/io.h"
 #include "misc/object_tracker.h"
+#include "misc/render_pass_info.h"
 #include "misc/time.h"
 #include "misc/window_factory.h"
 #include "wrappers/buffer.h"
@@ -390,7 +392,7 @@ void App::init_command_buffers()
                 render_tri1_and_generate_ot_data_cmd_buffer_ptr->record_bind_pipeline       (VK_PIPELINE_BIND_POINT_GRAPHICS,
                                                                                              m_1stpass_depth_test_always_pipeline_id);
                 render_tri1_and_generate_ot_data_cmd_buffer_ptr->record_bind_descriptor_sets(VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                                                                             gfx_pipeline_manager_ptr->get_graphics_pipeline_layout(m_1stpass_depth_test_always_pipeline_id),
+                                                                                             gfx_pipeline_manager_ptr->get_pipeline_layout(m_1stpass_depth_test_always_pipeline_id),
                                                                                              0, /* in_first_set */
                                                                                              1, /* in_set_count */
                                                                                             &tri_1stpass_ds0_ptr,
@@ -492,7 +494,7 @@ void App::init_command_buffers()
                 render_tri2_and_quad_cmd_buffer_ptr->record_bind_pipeline       (VK_PIPELINE_BIND_POINT_GRAPHICS,
                                                                                  m_2ndpass_depth_test_off_tri_pipeline_id);
                 render_tri2_and_quad_cmd_buffer_ptr->record_bind_descriptor_sets(VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                                                                 gfx_pipeline_manager_ptr->get_graphics_pipeline_layout(m_2ndpass_depth_test_off_tri_pipeline_id),
+                                                                                 gfx_pipeline_manager_ptr->get_pipeline_layout(m_2ndpass_depth_test_off_tri_pipeline_id),
                                                                                  0, /* in_first_set */
                                                                                  1, /* in_set_count */
                                                                                 &tri_2ndpass_ds0_ptr,
@@ -510,7 +512,7 @@ void App::init_command_buffers()
                 render_tri2_and_quad_cmd_buffer_ptr->record_bind_pipeline       (VK_PIPELINE_BIND_POINT_GRAPHICS,
                                                                                  m_2ndpass_depth_test_off_quad_pipeline_id);
                 render_tri2_and_quad_cmd_buffer_ptr->record_bind_descriptor_sets(VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                                                                 gfx_pipeline_manager_ptr->get_graphics_pipeline_layout(m_2ndpass_depth_test_off_quad_pipeline_id),
+                                                                                 gfx_pipeline_manager_ptr->get_pipeline_layout(m_2ndpass_depth_test_off_quad_pipeline_id),
                                                                                  0, /* in_first_set */
                                                                                  1, /* in_set_count */
                                                                                 &quad_2ndpass_ds0_ptr,
@@ -535,43 +537,48 @@ void App::init_command_buffers()
 
 void App::init_dsgs()
 {
-    m_2ndpass_quad_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr,
-                                                               false, /* releaseable_sets */
-                                                               1);    /* n_sets           */
-    m_2ndpass_tri_dsg_ptr  = Anvil::DescriptorSetGroup::create(m_device_ptr,
-                                                               false, /* releaseable_sets */
-                                                               1);    /* n_sets           */
+    std::vector<std::unique_ptr<Anvil::DescriptorSetInfo> > dsg_1stpass_info_ptrs     (1);
+    std::vector<std::unique_ptr<Anvil::DescriptorSetInfo> > quad_dsg_2ndpass_info_ptrs(1);
+    std::vector<std::unique_ptr<Anvil::DescriptorSetInfo> > tri_dsg_2ndpass_info_ptrs (1);
+
+    dsg_1stpass_info_ptrs     [0] = Anvil::DescriptorSetInfo::create();
+    quad_dsg_2ndpass_info_ptrs[0] = Anvil::DescriptorSetInfo::create();
+    tri_dsg_2ndpass_info_ptrs [0] = Anvil::DescriptorSetInfo::create();
+
+
+    dsg_1stpass_info_ptrs[0]->add_binding     (0, /* binding */
+                                               VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+                                               1, /* n_elements */
+                                               VK_SHADER_STAGE_VERTEX_BIT);
+    tri_dsg_2ndpass_info_ptrs[0]->add_binding (0, /* binding */
+                                               VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+                                               1, /* n_elements */
+                                               VK_SHADER_STAGE_VERTEX_BIT);
+    quad_dsg_2ndpass_info_ptrs[0]->add_binding(0, /* binding */
+                                               VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+                                               1, /* n_elements */
+                                               VK_SHADER_STAGE_VERTEX_BIT);
+
     m_1stpass_dsg_ptr      = Anvil::DescriptorSetGroup::create(m_device_ptr,
-                                                               false, /* releaseable_sets */
-                                                               1);    /* n_sets           */
+                                                               dsg_1stpass_info_ptrs,
+                                                               false); /* in_releaseable_sets */
+    m_2ndpass_tri_dsg_ptr  = Anvil::DescriptorSetGroup::create(m_device_ptr,
+                                                               tri_dsg_2ndpass_info_ptrs,
+                                                               false); /* in_releaseable_sets */
+    m_2ndpass_quad_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr,
+                                                               quad_dsg_2ndpass_info_ptrs,
+                                                               false); /* in_releaseable_sets */
 
-    m_1stpass_dsg_ptr->add_binding     (0, /* n_set   */
-                                        0, /* binding */
-                                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
-                                        1, /* n_elements */
-                                        VK_SHADER_STAGE_VERTEX_BIT);
-    m_1stpass_dsg_ptr->set_binding_item(0, /* n_set         */
-                                        0, /* binding_index */
-                                        Anvil::DescriptorSet::DynamicUniformBufferBindingElement(m_time_bo_ptr,
-                                                                                                 0, /* in_start_offset */
-                                                                                                 m_time_n_bytes_per_swapchain_image) );
-
-    m_2ndpass_tri_dsg_ptr->add_binding     (0, /* n_set   */
-                                            0, /* binding */
-                                            VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
-                                            1, /* n_elements */
-                                            VK_SHADER_STAGE_VERTEX_BIT);
-    m_2ndpass_tri_dsg_ptr->set_binding_item(0, /* n_set         */
-                                            0, /* binding_index */
-                                            Anvil::DescriptorSet::DynamicUniformBufferBindingElement(m_time_bo_ptr,
-                                                                                                     0, /* in_start_offset */
-                                                                                                     m_time_n_bytes_per_swapchain_image) );
-
-    m_2ndpass_quad_dsg_ptr->add_binding     (0, /* n_set   */
-                                             0, /* binding */
-                                             VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
-                                             1, /* n_elements */
-                                             VK_SHADER_STAGE_VERTEX_BIT);
+    m_1stpass_dsg_ptr->set_binding_item     (0, /* n_set         */
+                                             0, /* binding_index */
+                                             Anvil::DescriptorSet::DynamicUniformBufferBindingElement(m_time_bo_ptr,
+                                                                                                      0, /* in_start_offset */
+                                                                                                      m_time_n_bytes_per_swapchain_image) );
+    m_2ndpass_tri_dsg_ptr->set_binding_item (0, /* n_set         */
+                                             0, /* binding_index */
+                                             Anvil::DescriptorSet::DynamicUniformBufferBindingElement(m_time_bo_ptr,
+                                                                                                      0, /* in_start_offset */
+                                                                                                      m_time_n_bytes_per_swapchain_image) );
     m_2ndpass_quad_dsg_ptr->set_binding_item(0, /* n_set         */
                                              0, /* binding_index */
                                              Anvil::DescriptorSet::DynamicUniformBufferBindingElement(m_query_bo_ptr,
@@ -663,158 +670,176 @@ void App::init_renderpasses()
         Anvil::RenderPassAttachmentID      ds_attachment_id;
         const bool                         is_2nd_renderpass = (n_renderpass == 1);
         std::shared_ptr<Anvil::RenderPass> renderpass_ptr;
-        
-        renderpass_ptr = Anvil::RenderPass::create(m_device_ptr,
-                                                   m_swapchain_ptr);
+
+        {
+            std::unique_ptr<Anvil::RenderPassInfo> renderpass_info_ptr(new Anvil::RenderPassInfo(m_device_ptr) );
+
+            renderpass_info_ptr->add_color_attachment(m_swapchain_ptr->get_image_format(),
+                                                      VK_SAMPLE_COUNT_1_BIT,
+                                                      (!is_2nd_renderpass) ? VK_ATTACHMENT_LOAD_OP_CLEAR
+                                                                           : VK_ATTACHMENT_LOAD_OP_LOAD,
+                                                      VK_ATTACHMENT_STORE_OP_STORE,
+                                                      VK_IMAGE_LAYOUT_UNDEFINED,
+#ifdef ENABLE_OFFSCREEN_RENDERING
+                                                      VK_IMAGE_LAYOUT_GENERAL,
+#else
+                                                      VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+    #endif
+                                                      false, /* may_alias */
+                                                     &color_attachment_id);
+
+            renderpass_info_ptr->add_depth_stencil_attachment(m_depth_image_ptr->get_image_format(),
+                                                              VK_SAMPLE_COUNT_1_BIT,
+                                                              (!is_2nd_renderpass) ? VK_ATTACHMENT_LOAD_OP_CLEAR
+                                                                                   : VK_ATTACHMENT_LOAD_OP_LOAD,
+                                                              VK_ATTACHMENT_STORE_OP_STORE,
+                                                              VK_ATTACHMENT_LOAD_OP_DONT_CARE,  /* stencil_load_op  */
+                                                              VK_ATTACHMENT_STORE_OP_DONT_CARE, /* stencil_store_op */
+                                                              VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                              VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                              false, /* may_alias */
+                                                              &ds_attachment_id);
+
+            if (is_2nd_renderpass)
+            {
+                renderpass_info_ptr->add_subpass(&m_renderpass_2ndpass_depth_test_off_tri_subpass_id);
+                renderpass_info_ptr->add_subpass(&m_renderpass_2ndpass_depth_test_off_quad_subpass_id);
+
+                renderpass_info_ptr->add_subpass_color_attachment(m_renderpass_2ndpass_depth_test_off_tri_subpass_id,
+                                                                  VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                                  color_attachment_id,
+                                                                  0, /* location */
+                                                                  nullptr); /* opt_attachment_resolve_ptr */
+                renderpass_info_ptr->add_subpass_color_attachment(m_renderpass_2ndpass_depth_test_off_quad_subpass_id,
+                                                                  VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                                  color_attachment_id,
+                                                                  0, /* location */
+                                                                  nullptr); /* opt_attachment_resolve_ptr */
+
+                /* Vulkan requires applications to synchronize subpass execution via subpass dependencies.
+                 * Even though technically we would be fine with both subpasses being executed in parallel,
+                 * as the rasterized geometry never overlaps, we have to define a dependency .. */
+                renderpass_info_ptr->add_subpass_to_subpass_dependency(m_renderpass_2ndpass_depth_test_off_tri_subpass_id,
+                                                                       m_renderpass_2ndpass_depth_test_off_quad_subpass_id,
+                                                                       VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,  /* in_source_stage_mask       */
+                                                                       VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,    /* in_destination_stage_mask  */
+                                                                       0,                                    /* in_source_access_mask      */
+                                                                       0,                                    /* in_destination_access_mask */
+                                                                       VK_TRUE);                             /* in_by_region               */
+            }
+            else
+            {
+                renderpass_info_ptr->add_subpass(&m_renderpass_1stpass_depth_test_always_subpass_id);
+                renderpass_info_ptr->add_subpass(&m_renderpass_1stpass_depth_test_equal_ot_subpass_id);
+
+                renderpass_info_ptr->add_subpass_color_attachment(m_renderpass_1stpass_depth_test_always_subpass_id,
+                                                                  VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                                  color_attachment_id,
+                                                                  0, /* location */
+                                                                  nullptr); /* opt_attachment_resolve_ptr */
+                renderpass_info_ptr->add_subpass_color_attachment(m_renderpass_1stpass_depth_test_equal_ot_subpass_id,
+                                                                  VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                                  color_attachment_id,
+                                                                  0, /* location */
+                                                                  nullptr); /* opt_attachment_resolve_ptr */
+
+                renderpass_info_ptr->add_subpass_depth_stencil_attachment(m_renderpass_1stpass_depth_test_always_subpass_id,
+                                                                          ds_attachment_id,
+                                                                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+                renderpass_info_ptr->add_subpass_depth_stencil_attachment(m_renderpass_1stpass_depth_test_equal_ot_subpass_id,
+                                                                          ds_attachment_id,
+                                                                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+
+
+                /* depth_test_equal_ot subpass must not start before depth_test_always subpass finishes rasterizing */
+                renderpass_info_ptr->add_subpass_to_subpass_dependency(m_renderpass_1stpass_depth_test_always_subpass_id,
+                                                                       m_renderpass_1stpass_depth_test_equal_ot_subpass_id,
+                                                                       VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,  /* in_source_stage_mask      */
+                                                                       VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, /* in_destination_stage_mask */
+                                                                       VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                                                                       VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
+                                                                       VK_TRUE); /* in_by_region */
+            }
+
+            renderpass_ptr = Anvil::RenderPass::create(std::move(renderpass_info_ptr),
+                                                       m_swapchain_ptr);
+        }
 
         renderpass_ptr->set_name( (n_renderpass == 0) ? "Quad renderpass"
                                                       : "Triangle renderpass");
 
-        renderpass_ptr->add_color_attachment(m_swapchain_ptr->get_image_format(),
-                                             VK_SAMPLE_COUNT_1_BIT,
-                                             (!is_2nd_renderpass) ? VK_ATTACHMENT_LOAD_OP_CLEAR
-                                                                  : VK_ATTACHMENT_LOAD_OP_LOAD,
-                                             VK_ATTACHMENT_STORE_OP_STORE,
-                                             VK_IMAGE_LAYOUT_UNDEFINED,
-#ifdef ENABLE_OFFSCREEN_RENDERING
-                                             VK_IMAGE_LAYOUT_GENERAL,
-#else
-                                             VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-#endif
-                                             false, /* may_alias */
-                                            &color_attachment_id);
-
-        renderpass_ptr->add_depth_stencil_attachment(m_depth_image_ptr->get_image_format(),
-                                                     VK_SAMPLE_COUNT_1_BIT,
-                                                     (!is_2nd_renderpass) ? VK_ATTACHMENT_LOAD_OP_CLEAR
-                                                                          : VK_ATTACHMENT_LOAD_OP_LOAD,
-                                                     VK_ATTACHMENT_STORE_OP_STORE,
-                                                     VK_ATTACHMENT_LOAD_OP_DONT_CARE,  /* stencil_load_op  */
-                                                     VK_ATTACHMENT_STORE_OP_DONT_CARE, /* stencil_store_op */
-                                                     VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                                     VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                                     false, /* may_alias */
-                                                     &ds_attachment_id);
-
         if (is_2nd_renderpass)
         {
-            renderpass_ptr->add_subpass(*m_tri_fs_ptr,
-                                        Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader_entrypoint        */
-                                        Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader_entrypoint    */
-                                        Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader_entrypoint */
-                                        *m_tri_vs_ptr,
-                                       &m_renderpass_2ndpass_depth_test_off_tri_subpass_id);
-            renderpass_ptr->add_subpass(*m_quad_fs_ptr,
-                                        Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader_entrypoint        */
-                                        Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader_entrypoint    */
-                                        Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader_entrypoint */
-                                        *m_quad_vs_ptr,
-                                       &m_renderpass_2ndpass_depth_test_off_quad_subpass_id);
+            auto depth_test_off_tri_subpass_gfx_pipeline_info_ptr  = Anvil::GraphicsPipelineInfo::create_regular_pipeline_info(false, /* in_disable_optimizations */
+                                                                                                                               false, /* in_allow_derivatives     */
+                                                                                                                               renderpass_ptr,
+                                                                                                                               m_renderpass_2ndpass_depth_test_off_tri_subpass_id,
+                                                                                                                               *m_tri_fs_ptr,
+                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* in_geometry_shader_entrypoint        */
+                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* in_tess_control_shader_entrypoint    */
+                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* in_tess_evaluation_shader_entrypoint */
+                                                                                                                               *m_tri_vs_ptr);
+            auto depth_test_off_quad_subpass_gfx_pipeline_info_ptr = Anvil::GraphicsPipelineInfo::create_regular_pipeline_info(false, /* in_disable_optimizations */
+                                                                                                                               false, /* in_allow_derivatives     */
+                                                                                                                               renderpass_ptr,
+                                                                                                                               m_renderpass_2ndpass_depth_test_off_quad_subpass_id,
+                                                                                                                              *m_quad_fs_ptr,
+                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader_entrypoint        */
+                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader_entrypoint    */
+                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader_entrypoint */
+                                                                                                                              *m_quad_vs_ptr);
 
 
-            renderpass_ptr->add_subpass_color_attachment(m_renderpass_2ndpass_depth_test_off_tri_subpass_id,
-                                                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                                         color_attachment_id,
-                                                         0, /* location */
-                                                         nullptr); /* opt_attachment_resolve_ptr */
-            renderpass_ptr->add_subpass_color_attachment(m_renderpass_2ndpass_depth_test_off_quad_subpass_id,
-                                                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                                         color_attachment_id,
-                                                         0, /* location */
-                                                         nullptr); /* opt_attachment_resolve_ptr */
+
+            depth_test_off_tri_subpass_gfx_pipeline_info_ptr->set_dsg(m_2ndpass_tri_dsg_ptr);
+
+            depth_test_off_quad_subpass_gfx_pipeline_info_ptr->set_dsg               (m_2ndpass_quad_dsg_ptr);
+            depth_test_off_quad_subpass_gfx_pipeline_info_ptr->set_primitive_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
 
 
-            renderpass_ptr->get_subpass_graphics_pipeline_id(m_renderpass_2ndpass_depth_test_off_tri_subpass_id,
-                                                            &m_2ndpass_depth_test_off_tri_pipeline_id);
-            renderpass_ptr->get_subpass_graphics_pipeline_id(m_renderpass_2ndpass_depth_test_off_quad_subpass_id,
-                                                            &m_2ndpass_depth_test_off_quad_pipeline_id);
-
-
-            gfx_pipeline_manager_ptr->set_pipeline_dsg(m_2ndpass_depth_test_off_tri_pipeline_id,
-                                                       m_2ndpass_tri_dsg_ptr);
-
-            gfx_pipeline_manager_ptr->set_pipeline_dsg             (m_2ndpass_depth_test_off_quad_pipeline_id,
-                                                                    m_2ndpass_quad_dsg_ptr);
-            gfx_pipeline_manager_ptr->set_input_assembly_properties(m_2ndpass_depth_test_off_quad_pipeline_id,
-                                                                    VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
-
-            /* Vulkan requires applications to synchronize subpass execution via subpass dependencies.
-             * Even though technically we would be fine with both subpasses being executed in parallel,
-             * as the rasterized geometry never overlaps, we have to define a dependency .. */
-            renderpass_ptr->add_subpass_to_subpass_dependency(m_renderpass_2ndpass_depth_test_off_tri_subpass_id,
-                                                              m_renderpass_2ndpass_depth_test_off_quad_subpass_id,
-                                                              VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,  /* source_stage_mask      */
-                                                              VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,    /* destination_stage_mask */
-                                                              0,                                    /* source_access_mask      */
-                                                              0,                                    /* destination_access_mask */
-                                                              VK_TRUE);                             /* by_region               */
+            gfx_pipeline_manager_ptr->add_pipeline(std::move(depth_test_off_quad_subpass_gfx_pipeline_info_ptr),
+                                                  &m_2ndpass_depth_test_off_quad_pipeline_id);
+            gfx_pipeline_manager_ptr->add_pipeline(std::move(depth_test_off_tri_subpass_gfx_pipeline_info_ptr),
+                                                  &m_2ndpass_depth_test_off_tri_pipeline_id);
 
             m_renderpass_quad_ptr = renderpass_ptr;
         }
         else
         {
-            renderpass_ptr->add_subpass(*m_tri_fs_ptr,
-                                        Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader_entrypoint        */
-                                        Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader_entrypoint    */
-                                        Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader_entrypoint */
-                                        *m_tri_vs_ptr,
-                                       &m_renderpass_1stpass_depth_test_always_subpass_id);
-            renderpass_ptr->add_subpass(*m_tri_fs_ptr,
-                                        Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader_entrypoint        */
-                                        Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader_entrypoint    */
-                                        Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader_entrypoint */
-                                        *m_tri_vs_ptr,
-                                       &m_renderpass_1stpass_depth_test_equal_ot_subpass_id);
+            auto depth_test_always_subpass_gfx_pipeline_info_ptr   = Anvil::GraphicsPipelineInfo::create_regular_pipeline_info(false, /* in_disable_optimizations */
+                                                                                                                               false, /* in_allow_derivatives     */
+                                                                                                                               renderpass_ptr,
+                                                                                                                               m_renderpass_1stpass_depth_test_always_subpass_id,
+                                                                                                                              *m_tri_fs_ptr,
+                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader_entrypoint        */
+                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader_entrypoint    */
+                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader_entrypoint */
+                                                                                                                              *m_tri_vs_ptr);
+            auto depth_test_equal_ot_subpass_gfx_pipeline_info_ptr = Anvil::GraphicsPipelineInfo::create_regular_pipeline_info(false, /* in_disable_optimizations */
+                                                                                                                               false, /* in_allow_derivatives     */
+                                                                                                                               renderpass_ptr,
+                                                                                                                               m_renderpass_1stpass_depth_test_equal_ot_subpass_id,
+                                                                                                                              *m_tri_fs_ptr,
+                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader_entrypoint        */
+                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader_entrypoint    */
+                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader_entrypoint */
+                                                                                                                              *m_tri_vs_ptr);
+
+            depth_test_always_subpass_gfx_pipeline_info_ptr->set_dsg            (m_1stpass_dsg_ptr);
+            depth_test_always_subpass_gfx_pipeline_info_ptr->toggle_depth_test  (true, /* in_should_enable */
+                                                                                 VK_COMPARE_OP_ALWAYS);
+            depth_test_always_subpass_gfx_pipeline_info_ptr->toggle_depth_writes(true); /* in_should_enable */
+
+            depth_test_equal_ot_subpass_gfx_pipeline_info_ptr->set_dsg            (m_1stpass_dsg_ptr);
+            depth_test_equal_ot_subpass_gfx_pipeline_info_ptr->toggle_depth_test  (true, /* in_should_enable */
+                                                                                   VK_COMPARE_OP_EQUAL);
+            depth_test_equal_ot_subpass_gfx_pipeline_info_ptr->toggle_depth_writes(true); /* in_should_enable */
 
 
-            renderpass_ptr->add_subpass_color_attachment(m_renderpass_1stpass_depth_test_always_subpass_id,
-                                                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                                         color_attachment_id,
-                                                         0, /* location */
-                                                         nullptr); /* opt_attachment_resolve_ptr */
-            renderpass_ptr->add_subpass_color_attachment(m_renderpass_1stpass_depth_test_equal_ot_subpass_id,
-                                                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                                         color_attachment_id,
-                                                         0, /* location */
-                                                         nullptr); /* opt_attachment_resolve_ptr */
-
-            renderpass_ptr->add_subpass_depth_stencil_attachment(m_renderpass_1stpass_depth_test_always_subpass_id,
-                                                                 ds_attachment_id,
-                                                                 VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-            renderpass_ptr->add_subpass_depth_stencil_attachment(m_renderpass_1stpass_depth_test_equal_ot_subpass_id,
-                                                                 ds_attachment_id,
-                                                                 VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-
-
-            renderpass_ptr->get_subpass_graphics_pipeline_id(m_renderpass_1stpass_depth_test_always_subpass_id,
-                                                            &m_1stpass_depth_test_always_pipeline_id);
-            renderpass_ptr->get_subpass_graphics_pipeline_id(m_renderpass_1stpass_depth_test_equal_ot_subpass_id,
-                                                            &m_1stpass_depth_test_equal_pipeline_id);
-
-            gfx_pipeline_manager_ptr->set_pipeline_dsg   (m_1stpass_depth_test_always_pipeline_id,
-                                                          m_1stpass_dsg_ptr);
-            gfx_pipeline_manager_ptr->toggle_depth_test  (m_1stpass_depth_test_always_pipeline_id,
-                                                          true, /* should_enable */
-                                                          VK_COMPARE_OP_ALWAYS);
-            gfx_pipeline_manager_ptr->toggle_depth_writes(m_1stpass_depth_test_always_pipeline_id,
-                                                          true); /* should_enable */
-
-            gfx_pipeline_manager_ptr->set_pipeline_dsg   (m_1stpass_depth_test_equal_pipeline_id,
-                                                          m_1stpass_dsg_ptr);
-            gfx_pipeline_manager_ptr->toggle_depth_test  (m_1stpass_depth_test_equal_pipeline_id,
-                                                          true, /* should_enable */
-                                                          VK_COMPARE_OP_EQUAL);
-            gfx_pipeline_manager_ptr->toggle_depth_writes(m_1stpass_depth_test_equal_pipeline_id,
-                                                          true); /* should_enable */
-
-            /* depth_test_equal_ot subpass must not start before depth_test_always subpass finishes rasterizing */
-            renderpass_ptr->add_subpass_to_subpass_dependency(m_renderpass_1stpass_depth_test_always_subpass_id,
-                                                              m_renderpass_1stpass_depth_test_equal_ot_subpass_id,
-                                                              VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,  /* source_stage_mask      */
-                                                              VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, /* destination_stage_mask */
-                                                              VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-                                                              VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
-                                                              VK_TRUE); /* by_region */
+            gfx_pipeline_manager_ptr->add_pipeline(std::move(depth_test_always_subpass_gfx_pipeline_info_ptr),
+                                                  &m_1stpass_depth_test_always_pipeline_id);
+            gfx_pipeline_manager_ptr->add_pipeline(std::move(depth_test_equal_ot_subpass_gfx_pipeline_info_ptr),
+                                                  &m_1stpass_depth_test_equal_pipeline_id);
 
             m_renderpass_tris_ptr = renderpass_ptr;
         }
@@ -965,24 +990,26 @@ void App::init_window()
                                                        720,
                                                        true, /* in_closable */
                                                        std::bind(&App::draw_frame,
-                                                                 this) );
+                                                                 this)
+    );
 }
 
 void App::init_vulkan()
 {
     /* Create a Vulkan instance */
-    m_instance_ptr = Anvil::Instance::create(APP_NAME,  /* app_name */
-                                             APP_NAME,  /* engine_name */
+    m_instance_ptr = Anvil::Instance::create(APP_NAME,  /* in_app_name    */
+                                             APP_NAME,  /* in_engine_name */
 #ifdef ENABLE_VALIDATION
                                              std::bind(&App::on_validation_callback,
                                                        this,
                                                        std::placeholders::_1,
                                                        std::placeholders::_2,
                                                        std::placeholders::_3,
-                                                       std::placeholders::_4) );
+                                                       std::placeholders::_4),
 #else
-                                             nullptr);
+                                             Anvil::DebugCallbackFunction(),
 #endif
+                                             false); /* in_mt_safe */
 
     m_physical_device_ptr = m_instance_ptr->get_physical_device(0);
 

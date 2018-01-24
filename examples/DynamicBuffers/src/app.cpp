@@ -26,13 +26,17 @@
 /* Uncomment the #define below to enable validation */
 // #define ENABLE_VALIDATION
 
+
 #include <string>
 #include <cmath>
 #include "config.h"
+#include "misc/compute_pipeline_info.h"
 #include "misc/glsl_to_spirv.h"
+#include "misc/graphics_pipeline_info.h"
 #include "misc/io.h"
 #include "misc/memory_allocator.h"
 #include "misc/object_tracker.h"
+#include "misc/render_pass_info.h"
 #include "misc/time.h"
 #include "misc/window_factory.h"
 #include "wrappers/buffer.h"
@@ -66,7 +70,6 @@
         #error Anvil has not been built with XCB window system support. The application can only be built in offscreen rendering mode.
     #endif
 #endif
-
 
 /* Low-level #defines follow.. */
 #define APP_NAME "Dynamic buffers example"
@@ -517,7 +520,7 @@ void App::init_command_buffers()
     VkImageSubresourceRange                         subresource_range;
     std::shared_ptr<Anvil::Queue>                   universal_queue_ptr         (device_locked_ptr->get_universal_queue(0) );
 
-    producer_pipeline_layout_ptr = device_locked_ptr->get_compute_pipeline_manager()->get_compute_pipeline_layout(m_producer_pipeline_id);
+    producer_pipeline_layout_ptr = device_locked_ptr->get_compute_pipeline_manager()->get_pipeline_layout(m_producer_pipeline_id);
 
     subresource_range.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
     subresource_range.baseArrayLayer = 0;
@@ -702,7 +705,7 @@ void App::init_command_buffers()
             std::shared_ptr<Anvil::PipelineLayout> renderer_pipeline_layout_ptr;
             static const VkDeviceSize              sine_color_buffer_start_offset = 0;
 
-            renderer_pipeline_layout_ptr = gfx_pipeline_manager_ptr->get_graphics_pipeline_layout(m_consumer_pipeline_id);
+            renderer_pipeline_layout_ptr = gfx_pipeline_manager_ptr->get_pipeline_layout(m_consumer_pipeline_id);
 
             draw_cmd_buffer_ptr->record_bind_pipeline       (VK_PIPELINE_BIND_POINT_GRAPHICS,
                                                              m_consumer_pipeline_id);
@@ -773,20 +776,17 @@ void App::init_compute_pipelines()
     bool                                           result;
 
     /* Create & configure the compute pipeline */
-    result = compute_manager_ptr->add_regular_pipeline(false, /* disable_optimizations */
-                                                       false, /* allow_derivatives     */
-                                                       *m_producer_cs_ptr,
-                                                      &m_producer_pipeline_id);
-    anvil_assert(result);
+    auto producer_pipeline_info_ptr = Anvil::ComputePipelineInfo::create_regular_pipeline_info(false, /* in_disable_optimizations */
+                                                                                               false, /* in_allow_derivatives     */
+                                                                                              *m_producer_cs_ptr);
 
-    result = compute_manager_ptr->attach_push_constant_range_to_pipeline(m_producer_pipeline_id,
-                                                                         0,  /* offset */
-                                                                         4,  /* size   */
-                                                                         VK_SHADER_STAGE_COMPUTE_BIT);
-    anvil_assert(result);
-
-    result = compute_manager_ptr->set_pipeline_dsg(m_producer_pipeline_id,
-                                                   m_producer_dsg_ptr);
+    producer_pipeline_info_ptr->attach_push_constant_range(0,  /* offset */
+                                                           4,  /* size   */
+                                                           VK_SHADER_STAGE_COMPUTE_BIT);
+    producer_pipeline_info_ptr->set_dsg                   (m_producer_dsg_ptr);
+    
+    result = compute_manager_ptr->add_pipeline(std::move(producer_pipeline_info_ptr),
+                                              &m_producer_pipeline_id);
     anvil_assert(result);
 
     result = compute_manager_ptr->bake();
@@ -795,26 +795,41 @@ void App::init_compute_pipelines()
 
 void App::init_dsgs()
 {
+    auto consumer_dsg_info_ptrs = std::vector<std::unique_ptr<Anvil::DescriptorSetInfo> >(2);
+    auto producer_dsg_info_ptrs = std::vector<std::unique_ptr<Anvil::DescriptorSetInfo> >(2);
+
+    consumer_dsg_info_ptrs[0] = Anvil::DescriptorSetInfo::create();
+    consumer_dsg_info_ptrs[1] = Anvil::DescriptorSetInfo::create();
+    producer_dsg_info_ptrs[0] = Anvil::DescriptorSetInfo::create();
+    producer_dsg_info_ptrs[1] = Anvil::DescriptorSetInfo::create();
+
+    consumer_dsg_info_ptrs[0]->add_binding(0, /* binding    */
+                                           VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
+                                           1, /* n_elements */
+                                           VK_SHADER_STAGE_VERTEX_BIT);
+    consumer_dsg_info_ptrs[1]->add_binding(0, /* binding    */
+                                           VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
+                                           1, /* n_elements */
+                                           VK_SHADER_STAGE_VERTEX_BIT);
+
+    producer_dsg_info_ptrs[0]->add_binding(0, /* binding    */
+                                           VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
+                                           1, /* n_elements */
+                                           VK_SHADER_STAGE_COMPUTE_BIT);
+    producer_dsg_info_ptrs[0]->add_binding(1, /* binding    */
+                                           VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
+                                           1, /* n_elements */
+                                           VK_SHADER_STAGE_COMPUTE_BIT);
+    producer_dsg_info_ptrs[1]->add_binding(0, /* binding    */
+                                           VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+                                           1, /* n_elements */
+                                           VK_SHADER_STAGE_COMPUTE_BIT);
+
     /* Create the descriptor set layouts for the generator program. */
     m_producer_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr,
-                                                           false, /* releaseable_sets */
-                                                           2      /* n_sets           */);
+                                                           producer_dsg_info_ptrs,
+                                                           false); /* releaseable_sets */
 
-    m_producer_dsg_ptr->add_binding(0, /* n_set      */
-                                    0, /* binding    */
-                                    VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
-                                    1, /* n_elements */
-                                    VK_SHADER_STAGE_COMPUTE_BIT);
-    m_producer_dsg_ptr->add_binding(0, /* n_set      */
-                                    1, /* binding    */
-                                    VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
-                                    1, /* n_elements */
-                                    VK_SHADER_STAGE_COMPUTE_BIT);
-    m_producer_dsg_ptr->add_binding(1, /* n_set      */
-                                    0, /* binding    */
-                                    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
-                                    1, /* n_elements */
-                                    VK_SHADER_STAGE_COMPUTE_BIT);
 
     m_producer_dsg_ptr->set_binding_item(0, /* n_set         */
                                          0, /* binding_index */
@@ -834,20 +849,9 @@ void App::init_dsgs()
 
     /* Set up the descriptor set layout for the renderer program.  */
     m_consumer_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr,
-                                                           false, /* releaseable_sets */
-                                                           2      /* n_sets           */);
+                                                           consumer_dsg_info_ptrs,
+                                                           false); /* releaseable_sets */
 
-
-    m_consumer_dsg_ptr->add_binding(0, /* n_set      */
-                                    0, /* binding    */
-                                    VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
-                                    1, /* n_elements */
-                                    VK_SHADER_STAGE_VERTEX_BIT);
-    m_consumer_dsg_ptr->add_binding(1, /* n_set      */
-                                    0, /* binding    */
-                                    VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
-                                    1, /* n_elements */
-                                    VK_SHADER_STAGE_VERTEX_BIT);
 
     m_consumer_dsg_ptr->set_binding_item(0, /* n_set         */
                                          0, /* binding_index */
@@ -863,6 +867,7 @@ void App::init_dsgs()
 
 void App::init_events()
 {
+    /* Stub */
 }
 
 void App::init_framebuffers()
@@ -896,9 +901,9 @@ void App::init_framebuffers()
 
 void App::init_gfx_pipelines()
 {
-    std::shared_ptr<Anvil::SGPUDevice>              device_locked_ptr(m_device_ptr);
-    std::shared_ptr<Anvil::GraphicsPipelineManager> gfx_manager_ptr  (device_locked_ptr->get_graphics_pipeline_manager() );
-    bool                                            result;
+    auto device_locked_ptr   = m_device_ptr.lock                               ();
+    auto gfx_manager_ptr     = device_locked_ptr->get_graphics_pipeline_manager();
+    auto renderpass_info_ptr = std::unique_ptr<Anvil::RenderPassInfo>(new Anvil::RenderPassInfo(device_locked_ptr) );
 
     /* Create a renderpass instance */
     #ifdef ENABLE_OFFSCREEN_RENDERING
@@ -911,79 +916,73 @@ void App::init_gfx_pipelines()
     Anvil::RenderPassAttachmentID render_pass_depth_attachment_id = -1;
     Anvil::SubPassID              render_pass_subpass_id          = -1;
 
-    m_consumer_render_pass_ptr = Anvil::RenderPass::create(m_device_ptr,
+    renderpass_info_ptr->add_color_attachment(m_swapchain_ptr->get_image_format(),
+                                              VK_SAMPLE_COUNT_1_BIT,
+                                              VK_ATTACHMENT_LOAD_OP_CLEAR,
+                                              VK_ATTACHMENT_STORE_OP_STORE,
+                                              VK_IMAGE_LAYOUT_UNDEFINED,
+                                              final_layout,
+                                              false, /* may_alias */
+                                             &render_pass_color_attachment_id);
+
+    renderpass_info_ptr->add_depth_stencil_attachment(m_depth_images[0]->get_image_format(),
+                                                      m_depth_images[0]->get_image_sample_count(),
+                                                      VK_ATTACHMENT_LOAD_OP_CLEAR,                      /* depth_load_op    */
+                                                      VK_ATTACHMENT_STORE_OP_DONT_CARE,                 /* depth_store_op   */
+                                                      VK_ATTACHMENT_LOAD_OP_DONT_CARE,                  /* stencil_load_op  */
+                                                      VK_ATTACHMENT_STORE_OP_DONT_CARE,                 /* stencil_store_op */
+                                                      VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, /* initial_layout   */
+                                                      VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, /* final_layout     */
+                                                      false,                                            /* may_alias        */
+                                                     &render_pass_depth_attachment_id);
+
+    renderpass_info_ptr->add_subpass(&render_pass_subpass_id);
+
+    renderpass_info_ptr->add_subpass_color_attachment        (render_pass_subpass_id,
+                                                              VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                              render_pass_color_attachment_id,
+                                                              0,        /* location                      */
+                                                              nullptr); /* opt_attachment_resolve_id_ptr */
+    renderpass_info_ptr->add_subpass_depth_stencil_attachment(render_pass_subpass_id,
+                                                              render_pass_depth_attachment_id,
+                                                              VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+
+    m_consumer_render_pass_ptr = Anvil::RenderPass::create(std::move(renderpass_info_ptr),
                                                            m_swapchain_ptr);
 
     m_consumer_render_pass_ptr->set_name("Consumer renderpass");
 
-    result = m_consumer_render_pass_ptr->add_color_attachment(m_swapchain_ptr->get_image_format(),
-                                                              VK_SAMPLE_COUNT_1_BIT,
-                                                              VK_ATTACHMENT_LOAD_OP_CLEAR,
-                                                              VK_ATTACHMENT_STORE_OP_STORE,
-                                                              VK_IMAGE_LAYOUT_UNDEFINED,
-                                                              final_layout,
-                                                              false, /* may_alias */
-                                                             &render_pass_color_attachment_id);
-    anvil_assert(result);
-
-    result = m_consumer_render_pass_ptr->add_depth_stencil_attachment(m_depth_images[0]->get_image_format(),
-                                                                      m_depth_images[0]->get_image_sample_count(),
-                                                                      VK_ATTACHMENT_LOAD_OP_CLEAR,                      /* depth_load_op    */
-                                                                      VK_ATTACHMENT_STORE_OP_DONT_CARE,                 /* depth_store_op   */
-                                                                      VK_ATTACHMENT_LOAD_OP_DONT_CARE,                  /* stencil_load_op  */
-                                                                      VK_ATTACHMENT_STORE_OP_DONT_CARE,                 /* stencil_store_op */
-                                                                      VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, /* initial_layout   */
-                                                                      VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, /* final_layout     */
-                                                                      false,                                            /* may_alias        */
-                                                                      &render_pass_depth_attachment_id);
-    anvil_assert(result);
-
-    result  = m_consumer_render_pass_ptr->add_subpass(*m_consumer_fs_ptr,
-                                                      Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader        */
-                                                      Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader    */
-                                                      Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader */
-                                                      *m_consumer_vs_ptr,
-                                                     &render_pass_subpass_id);
-    anvil_assert(result);
-
-    result  = m_consumer_render_pass_ptr->add_subpass_color_attachment        (render_pass_subpass_id,
-                                                                               VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                                                               render_pass_color_attachment_id,
-                                                                               0,        /* location                      */
-                                                                               nullptr); /* opt_attachment_resolve_id_ptr */
-    result &= m_consumer_render_pass_ptr->add_subpass_depth_stencil_attachment(render_pass_subpass_id,
-                                                                               render_pass_depth_attachment_id,
-                                                                               VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-    anvil_assert(result);
 
     /* Set up the graphics pipeline for the main subpass */
-    result = m_consumer_render_pass_ptr->get_subpass_graphics_pipeline_id(render_pass_subpass_id,
-                                                                         &m_consumer_pipeline_id);
-    anvil_assert(result);
+    auto consumer_pipeline_info_ptr = Anvil::GraphicsPipelineInfo::create_regular_pipeline_info(false, /* in_disable_optimizations */
+        false, /* in_allow_derivatives */
+        m_consumer_render_pass_ptr,
+        render_pass_subpass_id,
+       *m_consumer_fs_ptr,
+        Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader        */
+        Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader    */
+        Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader */
+       *m_consumer_vs_ptr);
 
-    gfx_manager_ptr->add_vertex_attribute         (m_consumer_pipeline_id,
-                                                   0, /* location */
-                                                   VK_FORMAT_R8G8_UNORM,
-                                                   0,                /* offset_in_bytes */
-                                                   sizeof(char) * 2, /* stride_in_bytes */
-                                                   VK_VERTEX_INPUT_RATE_INSTANCE);
-    gfx_manager_ptr->set_pipeline_dsg             (m_consumer_pipeline_id,
-                                                   m_consumer_dsg_ptr);
-    gfx_manager_ptr->set_input_assembly_properties(m_consumer_pipeline_id,
-                                                   VK_PRIMITIVE_TOPOLOGY_LINE_STRIP);
-    gfx_manager_ptr->set_rasterization_properties (m_consumer_pipeline_id,
-                                                   VK_POLYGON_MODE_FILL,
-                                                   VK_CULL_MODE_NONE,
-                                                   VK_FRONT_FACE_COUNTER_CLOCKWISE,
-                                                   1.0f /* line_width */);
-    gfx_manager_ptr->toggle_depth_test            (m_consumer_pipeline_id,
-                                                   true, /* should_enable */
-                                                   VK_COMPARE_OP_LESS_OR_EQUAL);
-    gfx_manager_ptr->toggle_depth_writes          (m_consumer_pipeline_id,
-                                                   true); /* should_enable */
-    gfx_manager_ptr->toggle_dynamic_states        (m_consumer_pipeline_id,
-                                                   true, /* should_enable */
-                                                   Anvil::GraphicsPipelineManager::DYNAMIC_STATE_LINE_WIDTH_BIT);
+    consumer_pipeline_info_ptr->add_vertex_attribute         (0, /* location */
+                                                              VK_FORMAT_R8G8_UNORM,
+                                                              0,                /* offset_in_bytes */
+                                                              sizeof(char) * 2, /* stride_in_bytes */
+                                                              VK_VERTEX_INPUT_RATE_INSTANCE);
+    consumer_pipeline_info_ptr->set_dsg                      (m_consumer_dsg_ptr);
+    consumer_pipeline_info_ptr->set_primitive_topology       (VK_PRIMITIVE_TOPOLOGY_LINE_STRIP);
+    consumer_pipeline_info_ptr->set_rasterization_properties (VK_POLYGON_MODE_FILL,
+                                                              VK_CULL_MODE_NONE,
+                                                              VK_FRONT_FACE_COUNTER_CLOCKWISE,
+                                                              1.0f /* line_width */);
+    consumer_pipeline_info_ptr->toggle_depth_test            (true, /* should_enable */
+                                                              VK_COMPARE_OP_LESS_OR_EQUAL);
+    consumer_pipeline_info_ptr->toggle_depth_writes          (true); /* should_enable */
+    consumer_pipeline_info_ptr->toggle_dynamic_states        (true, /* should_enable */
+                                                              Anvil::DYNAMIC_STATE_LINE_WIDTH_BIT);
+
+    gfx_manager_ptr->add_pipeline(std::move(consumer_pipeline_info_ptr),
+                                 &m_consumer_pipeline_id);
 }
 
 void App::init_images()
@@ -1161,7 +1160,8 @@ void App::init_window()
                                                        720,
                                                        true, /* in_closable */
                                                        std::bind(&App::draw_frame,
-                                                                 this) );
+                                                                 this)
+    );
 }
 
 void App::init_vulkan()
@@ -1175,10 +1175,11 @@ void App::init_vulkan()
                                                        std::placeholders::_1,
                                                        std::placeholders::_2,
                                                        std::placeholders::_3,
-                                                       std::placeholders::_4) );
+                                                       std::placeholders::_4),
 #else
-                                             nullptr);
+                                             Anvil::DebugCallbackFunction(),
 #endif
+                                             false); /* in_mt_safe */
 
     m_physical_device_ptr = m_instance_ptr->get_physical_device(0);
 

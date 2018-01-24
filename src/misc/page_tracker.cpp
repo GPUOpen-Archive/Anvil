@@ -38,22 +38,15 @@ Anvil::PageTracker::PageTracker(VkDeviceSize in_region_size,
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::MemoryBlock> Anvil::PageTracker::get_memory_block(VkDeviceSize  in_start_offset_page_aligned,
-                                                                         VkDeviceSize* out_memory_region_start_offset_ptr)
+std::shared_ptr<Anvil::MemoryBlock> Anvil::PageTracker::get_memory_block(VkDeviceSize  in_start_offset,
+                                                                         VkDeviceSize  in_size,
+                                                                         VkDeviceSize* out_memory_region_start_offset_ptr) const
 {
     std::shared_ptr<Anvil::MemoryBlock> result_ptr;
 
-    /* Sanity checks */
-    if ((in_start_offset_page_aligned % m_page_size) != 0)
+    if (in_size > m_page_size)
     {
-        anvil_assert( (in_start_offset_page_aligned % m_page_size) == 0);
-
-        goto end;
-    }
-
-    if (in_start_offset_page_aligned + m_page_size > m_n_total_pages * m_page_size)
-    {
-        anvil_assert(!(in_start_offset_page_aligned + m_page_size > m_n_total_pages * m_page_size) );
+        anvil_assert(!(in_size > m_page_size) );
 
         goto end;
     }
@@ -61,11 +54,11 @@ std::shared_ptr<Anvil::MemoryBlock> Anvil::PageTracker::get_memory_block(VkDevic
     /* Handle the request */
     for (const auto& current_memory_block : m_memory_blocks)
     {
-        if (current_memory_block.start_offset                             <= in_start_offset_page_aligned               &&
-            current_memory_block.start_offset + current_memory_block.size >= in_start_offset_page_aligned + m_page_size)
+        if (current_memory_block.start_offset                             <= in_start_offset           &&
+            current_memory_block.start_offset + current_memory_block.size >= in_start_offset + in_size)
         {
             result_ptr                          = current_memory_block.memory_block_ptr;
-            *out_memory_region_start_offset_ptr = current_memory_block.start_offset + in_start_offset_page_aligned;
+            *out_memory_region_start_offset_ptr = in_start_offset - current_memory_block.start_offset;
 
             break;
         }
@@ -81,10 +74,12 @@ bool Anvil::PageTracker::set_binding(std::shared_ptr<MemoryBlock> in_memory_bloc
                                      VkDeviceSize                 in_start_offset,
                                      VkDeviceSize                 in_size)
 {
-    uint32_t n_pages;
-    uint32_t occupancy_item_start_index;
-    uint32_t occupancy_vec_start_index;
-    bool     result                     = false;
+    const auto end_offset_page_aligned    = Anvil::Utils::round_up(in_start_offset + in_size,
+                                                                   m_page_size);
+    uint32_t   n_pages;
+    uint32_t   occupancy_item_start_index;
+    uint32_t   occupancy_vec_start_index;
+    bool       result                     = false;
 
     /* Sanity checks */
     if (in_start_offset + in_size > m_region_size)
@@ -101,9 +96,11 @@ bool Anvil::PageTracker::set_binding(std::shared_ptr<MemoryBlock> in_memory_bloc
         goto end;
     }
 
-    if ((in_size % m_page_size) != 0)
+    if (((in_start_offset + in_size) % m_page_size) != 0              &&
+        end_offset_page_aligned                     != m_region_size)
     {
-        anvil_assert(!(in_size % m_page_size) != 0);
+        anvil_assert(!((in_start_offset + in_size) % m_page_size) != 0              &&
+                       end_offset_page_aligned                    != m_region_size);
 
         goto end;
     }

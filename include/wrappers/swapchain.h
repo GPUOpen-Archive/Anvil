@@ -33,6 +33,7 @@
 #define WRAPPERS_SWAPCHAIN_H
 
 #include "misc/debug_marker.h"
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 #include "wrappers/device.h"
 #include "wrappers/fence.h"
@@ -43,7 +44,8 @@
 namespace Anvil
 {
     /* Wrapper class for a Vulkan Swapchain */
-    class Swapchain : public DebugMarkerSupportProvider<Swapchain>
+    class Swapchain : public DebugMarkerSupportProvider<Swapchain>,
+                      public MTSafetySupportProvider
     {
     public:
         /* Public functions */
@@ -62,7 +64,6 @@ namespace Anvil
          *  @param in_flags                     Swapchain create flags to pass, when creating the swapchain.
          *
          */
-
         static std::shared_ptr<Swapchain> create(std::weak_ptr<Anvil::BaseDevice>         in_device_ptr,
                                                  std::shared_ptr<Anvil::RenderingSurface> in_parent_surface_ptr,
                                                  std::shared_ptr<Anvil::Window>           in_window_ptr,
@@ -71,6 +72,7 @@ namespace Anvil
                                                  VkImageUsageFlags                        in_usage_flags,
                                                  uint32_t                                 in_n_images,
                                                  const ExtensionKHRSwapchainEntrypoints&  in_khr_swapchain_entrypoints,
+                                                 MTSafety                                 in_mt_safety,
                                                  VkSwapchainCreateFlagsKHR                in_flags                     = 0);
 
         /** Destructor.
@@ -215,7 +217,8 @@ namespace Anvil
                   VkImageUsageFlags                        in_usage_flags,
                   uint32_t                                 in_n_images,
                   VkSwapchainCreateFlagsKHR                in_flags,
-                  const ExtensionKHRSwapchainEntrypoints&  in_khr_swapchain_entrypoints);
+                  const ExtensionKHRSwapchainEntrypoints&  in_khr_swapchain_entrypoints,
+                  bool                                     in_mt_safe);
 
         Swapchain           (const Swapchain&);
         Swapchain& operator=(const Swapchain&);
@@ -224,7 +227,7 @@ namespace Anvil
         void init             ();
 
         void on_parent_window_about_to_close();
-        void on_present_request_issued      ();
+        void on_present_request_issued      (Anvil::CallbackArgument* in_callback_raw_ptr);
 
         /* Private variables */
         bool                                            m_destroy_swapchain_before_parent_window_closes;

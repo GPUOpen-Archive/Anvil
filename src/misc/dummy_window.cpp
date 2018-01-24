@@ -27,6 +27,7 @@
 #include "wrappers/semaphore.h"
 #include "wrappers/swapchain.h"
 #include <sstream>
+#include <thread>
 
 #include "miniz/miniz.c"
 
@@ -88,16 +89,24 @@ bool Anvil::DummyWindow::init()
 /* Please see header for specification */
 void Anvil::DummyWindow::run()
 {
-    bool running = true;
-
-    while (running && !m_window_should_close)
+    if (m_present_callback_func)
     {
-        if (m_present_callback_func)
+        bool running = true;
+
+        while (running && !m_window_should_close)
         {
             m_present_callback_func();
-        }
 
-        running = !m_window_should_close;
+            running = !m_window_should_close;
+        }
+    }
+    else
+    {
+        do
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(30) );
+        }
+        while (!m_window_should_close);
     }
 
     m_window_close_finished = true;
@@ -175,7 +184,10 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
 
     raw_image_size = 4 /* RGBA8 */ * swapchain_image_width * swapchain_image_height;
 
-    result_ptr.reset(new unsigned char[raw_image_size]);
+    result_ptr.reset(
+        new unsigned char[raw_image_size],
+        std::default_delete<unsigned char[]>()
+    );
 
     raw_image_buffer_ptr = Anvil::Buffer::create_nonsparse(device_locked_ptr,
                                                            raw_image_size,
@@ -183,7 +195,8 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
                                                            VK_SHARING_MODE_EXCLUSIVE,
                                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                            Anvil::MEMORY_FEATURE_FLAG_MAPPABLE,
-                                                           nullptr); /* opt_client_data          */
+                                                           nullptr, /* opt_client_data */
+                                                           MT_SAFETY_DISABLED);
 
     /* 2. Create the intermediate image */
     VkImageBlit                   intermediate_image_blit;
@@ -206,7 +219,8 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
                                                             0,      /* in_memory_features       */
                                                             0,      /* in_create_flags          */
                                                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                                            nullptr); /* in_ mipmaps_ptr */
+                                                            nullptr, /* in_ mipmaps_ptr */
+                                                            MT_SAFETY_DISABLED);
 
     /* 3. Set up the command buffer */
     std::shared_ptr<Anvil::PrimaryCommandBuffer> command_buffer_ptr;

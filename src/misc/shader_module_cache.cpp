@@ -26,6 +26,7 @@
 
 /** Please see header for documentation */
 Anvil::ShaderModuleCache::ShaderModuleCache()
+    :MTSafetySupportProvider(true)
 {
     update_subscriptions(true);
 }
@@ -33,10 +34,7 @@ Anvil::ShaderModuleCache::ShaderModuleCache()
 /** Please see header for documentation */
 Anvil::ShaderModuleCache::~ShaderModuleCache()
 {
-    std::unique_lock<std::mutex> lock(m_cs);
-    {
-        update_subscriptions(false);
-    }
+    update_subscriptions(false);
 }
 
 /** TODO */
@@ -63,7 +61,7 @@ void Anvil::ShaderModuleCache::cache(std::shared_ptr<Anvil::ShaderModule> in_sha
     anvil_assert(in_shader_module_ptr != nullptr);
 
     {
-        std::unique_lock<std::mutex> lock(m_cs);
+        std::unique_lock<std::recursive_mutex> mutex_lock(*get_mutex() );
 
         auto items_map_iterator    = m_items.find(hash);
         bool should_store_new_item = false;
@@ -146,7 +144,7 @@ std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModuleCache::get_cached_shader
     std::shared_ptr<Anvil::ShaderModule> result_ptr;
 
     {
-        std::unique_lock<std::mutex> lock(m_cs);
+        std::unique_lock<std::recursive_mutex> mutex_lock(*get_mutex() );
 
         const auto hash              (get_hash(in_spirv_blob,
                                                in_n_spirv_blob_bytes,
@@ -220,64 +218,56 @@ size_t Anvil::ShaderModuleCache::get_hash(const char*        in_spirv_blob,
 }
 
 /** TODO */
-void Anvil::ShaderModuleCache::on_object_about_to_be_released(CallbackArgument* in_callback_arg_ptr)
+void Anvil::ShaderModuleCache::on_shader_module_object_about_to_be_released(CallbackArgument* in_callback_arg_ptr)
 {
-    const Anvil::OnObjectAboutToBeUnregisteredCallbackArgument* callback_arg_ptr = dynamic_cast<Anvil::OnObjectAboutToBeUnregisteredCallbackArgument*>(in_callback_arg_ptr);
+    /* Technically we should never reach this place, as shader module cache does not implement
+     * any sort of GC mechanism.
+     *
+     * Please investigate if this assertion check fires.
+     */
+    ANVIL_REDUNDANT_ARGUMENT(in_callback_arg_ptr);
 
-    anvil_assert(callback_arg_ptr != nullptr);
-
-    if (callback_arg_ptr->object_type == OBJECT_TYPE_SHADER_MODULE)
-    {
-        /* Technically we should never reach this place, as shader module cache does not implement
-         * any sort of GC mechanism.
-         *
-         * Please investigate if this assertion check fires.
-         */
-        anvil_assert_fail();
-    }
+    anvil_assert_fail();
 }
 
 /** TODO */
-void Anvil::ShaderModuleCache::on_object_registered(CallbackArgument* in_callback_arg_ptr)
+void Anvil::ShaderModuleCache::on_shader_module_object_registered(CallbackArgument* in_callback_arg_ptr)
 {
     const auto callback_arg_ptr = dynamic_cast<Anvil::OnObjectRegisteredCallbackArgument*>(in_callback_arg_ptr);
 
     anvil_assert(callback_arg_ptr != nullptr);
 
-    if (callback_arg_ptr->object_type == OBJECT_TYPE_SHADER_MODULE)
-    {
-        auto shader_module_ptr = static_cast<Anvil::ShaderModule*>(callback_arg_ptr->object_raw_ptr);
+    auto shader_module_ptr = static_cast<Anvil::ShaderModule*>(callback_arg_ptr->object_raw_ptr);
 
-        cache(shader_module_ptr->shared_from_this() );
-    }
+    cache(shader_module_ptr->shared_from_this() );
 }
 
 void Anvil::ShaderModuleCache::update_subscriptions(bool in_should_init)
 {
     auto object_tracker_ptr = Anvil::ObjectTracker::get();
 
-    auto on_object_about_to_be_released_func = std::bind(&ShaderModuleCache::on_object_about_to_be_released,
+    auto on_object_about_to_be_released_func = std::bind(&ShaderModuleCache::on_shader_module_object_about_to_be_released,
                                                          this,
                                                          std::placeholders::_1);
-    auto on_object_registered_func           = std::bind(&ShaderModuleCache::on_object_registered,
+    auto on_object_registered_func           = std::bind(&ShaderModuleCache::on_shader_module_object_registered,
                                                          this,
                                                          std::placeholders::_1);
 
     if (in_should_init)
     {
-        object_tracker_ptr->register_for_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+        object_tracker_ptr->register_for_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_SHADER_MODULE_OBJECT_ABOUT_TO_BE_UNREGISTERED,
                                                    on_object_about_to_be_released_func,
                                                    this);
-        object_tracker_ptr->register_for_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_REGISTERED,
+        object_tracker_ptr->register_for_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_SHADER_MODULE_OBJECT_REGISTERED,
                                                    on_object_registered_func,
                                                    this);
     }
     else
     {
-        object_tracker_ptr->unregister_from_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_ABOUT_TO_BE_UNREGISTERED,
+        object_tracker_ptr->unregister_from_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_SHADER_MODULE_OBJECT_ABOUT_TO_BE_UNREGISTERED,
                                                       on_object_about_to_be_released_func,
                                                       this);
-        object_tracker_ptr->unregister_from_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_OBJECT_REGISTERED,
+        object_tracker_ptr->unregister_from_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_SHADER_MODULE_OBJECT_REGISTERED,
                                                       on_object_registered_func,
                                                       this);
     }

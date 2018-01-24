@@ -25,16 +25,18 @@
  *  - caches all pipeline layout wrappers and re-uses already instantiated wrappers,
  *    if user-requested one is already available.
  *
+ *  Opt-in MT-safety available.
  **/
 #ifndef PIPELINE_LAYOUT_MANAGER_H
 #define PIPELINE_LAYOUT_MANAGER_H
 
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 #include <memory>
 
 namespace Anvil
 {
-    class PipelineLayoutManager
+    class PipelineLayoutManager : public MTSafetySupportProvider
     {
     public:
         /* Public functions */
@@ -57,32 +59,23 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_layout(std::shared_ptr<DescriptorSetGroup>     in_dsg_ptr,
-                        const PushConstantRanges&               in_push_constant_ranges,
-                        std::shared_ptr<Anvil::PipelineLayout>* out_pipeline_layout_ptr);
-
-        /** Retrieves a PipelineLayout instance, assigned to the specific pipeline layout ID */
-        std::shared_ptr<Anvil::PipelineLayout> get_layout_by_id(Anvil::PipelineLayoutID in_id) const;
+        bool get_layout(std::shared_ptr<const DescriptorSetGroup> in_dsg_ptr,
+                        const PushConstantRanges&                 in_push_constant_ranges,
+                        std::shared_ptr<Anvil::PipelineLayout>*   out_pipeline_layout_ptr);
 
     protected:
         /* Protected functions */
-
-        /** Marks specified pipeline layout ID as used.
-         *
-         *  NOTE: This function should only be used by PipelineLayout.
-         **/
-        PipelineLayoutID reserve_pipeline_layout_id();
 
     private:
         /* Private type declarations */
 
         /* NOTE: We do NOT own pipeline layouts. As soon as all wrapper instances are out of scope,
-         *       we drop the ID.
-         */
-        typedef std::map<Anvil::PipelineLayoutID, std::weak_ptr<Anvil::PipelineLayout> > PipelineLayouts;
+         *       we drop the entry. */
+        typedef std::vector<Anvil::PipelineLayout*> PipelineLayouts;
 
         /* Private functions */
-        PipelineLayoutManager(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
+        PipelineLayoutManager(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                              bool                             in_mt_safe);
 
         PipelineLayoutManager           (const PipelineLayoutManager&);
         PipelineLayoutManager& operator=(const PipelineLayoutManager&);
@@ -92,21 +85,21 @@ namespace Anvil
          *  NOTE: This function should only be used by Device.
          *
          *  @param in_device_ptr Device to initialize the manager for.
+         *  @param in_mt_safe    Set to true if the instance should provide multi-threaded access safety.
          *
          *  @return PipelineLayoutManager instance, or nullptr if the function failed.
          **/
-        static std::shared_ptr<PipelineLayoutManager> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
+        static std::shared_ptr<PipelineLayoutManager> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                             bool                             in_mt_safe);
 
-        void on_pipeline_layout_dropped();
-        void update_subscriptions      (bool in_should_init);
+        void on_pipeline_layout_dropped(CallbackArgument* in_callback_arg_raw_ptr);
+        void update_subscriptions      (bool              in_should_init);
 
         /* Private members */
         std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
         PipelineLayouts                  m_pipeline_layouts;
-        Anvil::PipelineLayoutID          m_pipeline_layouts_created;
 
         friend class BaseDevice;
-        friend class PipelineLayout;
     };
 }; /* Vulkan namespace */
 

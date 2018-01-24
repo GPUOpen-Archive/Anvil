@@ -30,12 +30,14 @@
 #ifndef WRAPPERS_BUFFER_VIEW_H
 #define WRAPPERS_BUFFER_VIEW_H
 
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
     /** Wrapper class for Vulkan buffer views */
-    class BufferView : public DebugMarkerSupportProvider<BufferView>
+    class BufferView : public DebugMarkerSupportProvider<BufferView>,
+                       public MTSafetySupportProvider
     {
     public:
         /* Public functions */
@@ -46,7 +48,8 @@ namespace Anvil
                                                   std::shared_ptr<Anvil::Buffer>   in_buffer_ptr,
                                                   VkFormat                         in_format,
                                                   VkDeviceSize                     in_start_offset,
-                                                  VkDeviceSize                     in_size);
+                                                  VkDeviceSize                     in_size,
+                                                  MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Destructor */
         virtual ~BufferView();
@@ -93,7 +96,8 @@ namespace Anvil
                    std::shared_ptr<Anvil::Buffer>   in_buffer_ptr,
                    VkFormat                         in_format,
                    VkDeviceSize                     in_start_offset,
-                   VkDeviceSize                     in_size);
+                   VkDeviceSize                     in_size,
+                   bool                             in_mt_safe);
 
         BufferView           (const BufferView&);
         BufferView& operator=(const BufferView&);

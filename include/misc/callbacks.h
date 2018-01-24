@@ -120,6 +120,8 @@ namespace Anvil
         }
     } OnGLSLToSPIRVConversionAboutToBeStartedCallbackArgument;
 
+    typedef OnGLSLToSPIRVConversionAboutToBeStartedCallbackArgument OnGLSLToSPIRVConversionFinishedCallbackArgument;
+
     typedef struct OnKeypressReleasedCallbackArgument : public Anvil::CallbackArgument
     {
         KeyID         released_key_id;
@@ -174,6 +176,16 @@ namespace Anvil
             descriptor_set_layout_ptr = in_descriptor_set_layout_ptr;
         }
     } OnNewBindingAddedToDescriptorSetLayoutCallbackArgument;
+
+    typedef struct OnNewPipelineCreatedCallbackData : public Anvil::CallbackArgument
+    {
+        PipelineID new_pipeline_id;
+
+        explicit OnNewPipelineCreatedCallbackData(PipelineID in_new_pipeline_id)
+        {
+            new_pipeline_id = in_new_pipeline_id;
+        }
+    } OnNewPipelineCreatedCallbackData;
 
     typedef struct OnObjectRegisteredCallbackArgument : Anvil::CallbackArgument
     {
@@ -313,6 +325,8 @@ namespace Anvil
                                     CallbackFunction in_callback_function,
                                     void*            in_callback_function_owner_ptr) const
         {
+            std::unique_lock<std::recursive_mutex> mutex_lock(m_mutex);
+
             anvil_assert(in_callback_id < m_callback_id_count);
 
             return std::find(m_callbacks[in_callback_id].begin(),
@@ -339,6 +353,8 @@ namespace Anvil
                                     CallbackFunction in_callback_function,
                                     void*            in_callback_owner_ptr)
         {
+            std::unique_lock<std::recursive_mutex> mutex_lock(m_mutex);
+
             anvil_assert(in_callback_id        <  m_callback_id_count);
             anvil_assert(in_callback_function  != nullptr);
             anvil_assert(in_callback_owner_ptr != nullptr);
@@ -375,6 +391,8 @@ namespace Anvil
                                        CallbackFunction in_callback_function,
                                        void*            in_callback_function_owner_ptr)
         {
+            std::unique_lock<std::recursive_mutex> mutex_lock(m_mutex);
+
             anvil_assert(in_callback_id       <  m_callback_id_count);
             anvil_assert(in_callback_function != nullptr);
             anvil_assert(!m_callbacks_locked);
@@ -408,6 +426,8 @@ namespace Anvil
         void callback(CallbackID        in_callback_id,
                       CallbackArgument* in_callback_arg_ptr)
         {
+            std::unique_lock<std::recursive_mutex> mutex_lock(m_mutex);
+
             anvil_assert(in_callback_id < m_callback_id_count);
             anvil_assert(!m_callbacks_locked);
 
@@ -446,6 +466,8 @@ namespace Anvil
         void callback_safe(CallbackID        in_callback_id,
                            CallbackArgument* in_callback_arg_ptr)
         {
+            std::unique_lock<std::recursive_mutex> mutex_lock(m_mutex);
+
             anvil_assert(in_callback_id < m_callback_id_count);
             anvil_assert(!m_callbacks_locked);
 
@@ -494,6 +516,8 @@ namespace Anvil
 
             if (in_callback_id < m_callback_id_count)
             {
+                std::unique_lock<std::recursive_mutex> mutex_lock(m_mutex);
+
                 result = static_cast<uint32_t>(m_callbacks[in_callback_id].size() );
             }
 
@@ -531,9 +555,10 @@ namespace Anvil
         typedef std::vector<Callback> Callbacks;
 
         /* Private variables */
-        CallbackID    m_callback_id_count;
-        Callbacks*    m_callbacks;
-        volatile bool m_callbacks_locked;
+        CallbackID                   m_callback_id_count;
+        Callbacks*                   m_callbacks;
+        volatile bool                m_callbacks_locked;
+        mutable std::recursive_mutex m_mutex;
     };
 } /* namespace Anvil */
 

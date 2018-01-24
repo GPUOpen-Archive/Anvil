@@ -22,6 +22,7 @@
 
 #include "misc/debug.h"
 #include "misc/object_tracker.h"
+#include "misc/render_pass_info.h"
 #include "wrappers/device.h"
 #include "wrappers/framebuffer.h"
 #include "wrappers/image.h"
@@ -32,8 +33,7 @@
 bool Anvil::Framebuffer::RenderPassComparator::operator()(std::shared_ptr<Anvil::RenderPass> in_a_ptr,
                                                           std::shared_ptr<Anvil::RenderPass> in_b_ptr) const
 {
-    return in_a_ptr->get_render_pass(false /* allow_rebaking */) <
-           in_b_ptr->get_render_pass(false /* allow_rebaking */);
+    return in_a_ptr->get_render_pass() < in_b_ptr->get_render_pass();
 }
 
 
@@ -69,10 +69,12 @@ Anvil::Framebuffer::FramebufferAttachment::~FramebufferAttachment()
 Anvil::Framebuffer::Framebuffer(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                 uint32_t                         in_width,
                                 uint32_t                         in_height,
-                                uint32_t                         in_n_layers)
+                                uint32_t                         in_n_layers,
+                                bool                             in_mt_safe)
     :DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT,
                                 true), /* in_use_delegate_workers */
+     MTSafetySupportProvider   (in_mt_safe),
      m_device_ptr              (in_device_ptr)
 {
     anvil_assert(in_width    >= 1);
@@ -108,18 +110,13 @@ Anvil::Framebuffer::~Framebuffer()
         anvil_assert(fb_iterator->second.framebuffer != VK_NULL_HANDLE);
 
         /* Destroy the Vulkan framebuffer object */
-        vkDestroyFramebuffer(device_locked_ptr->get_device_vk(),
-                             fb_iterator->second.framebuffer,
-                             nullptr /* pAllocator */);
-
-        /* Carry on and release the renderpass the framebuffer had been baked for */
-        fb_iterator->first->unregister_from_callbacks(
-            RENDER_PASS_CALLBACK_ID_BAKING_NEEDED,
-            std::bind(&Framebuffer::on_renderpass_changed,
-                      this,
-                      std::placeholders::_1),
-            this
-        );
+        lock();
+        {
+            vkDestroyFramebuffer(device_locked_ptr->get_device_vk(),
+                                 fb_iterator->second.framebuffer,
+                                 nullptr /* pAllocator */);
+        }
+        unlock();
     }
 
     m_baked_framebuffers.clear();
@@ -217,14 +214,21 @@ bool Anvil::Framebuffer::bake(std::shared_ptr<Anvil::RenderPass> in_render_pass_
         goto end;
     }
 
-    /* Release the existing Vulkan object handle, if one is already present */
+    /* Release the existing Vulkan object handle, if one is already present
+     *
+     * TODO: Leverage the concept of render pass compatibility here!
+     */
     baked_fb_iterator = m_baked_framebuffers.find(in_render_pass_ptr);
 
     if (baked_fb_iterator != m_baked_framebuffers.end() )
     {
-        vkDestroyFramebuffer(device_locked_ptr->get_device_vk(),
-                             baked_fb_iterator->second.framebuffer,
-                             nullptr /* pAllocator */);
+        lock();
+        {
+            vkDestroyFramebuffer(device_locked_ptr->get_device_vk(),
+                                 baked_fb_iterator->second.framebuffer,
+                                 nullptr /* pAllocator */);
+        }
+        unlock();
 
         DebugMarkerSupportProvider::remove_delegate(baked_fb_iterator->second.framebuffer);
 
@@ -242,7 +246,9 @@ bool Anvil::Framebuffer::bake(std::shared_ptr<Anvil::RenderPass> in_render_pass_
     }
 
     /* Prepare the create info descriptor */
-    fb_create_info.attachmentCount = (uint32_t) image_view_attachments.size();
+    anvil_assert(in_render_pass_ptr->get_render_pass_info()->get_n_attachments() == image_view_attachments.size() );
+
+    fb_create_info.attachmentCount = static_cast<uint32_t>(image_view_attachments.size() );
     fb_create_info.flags           = 0;
     fb_create_info.height          = m_framebuffer_size[1];
     fb_create_info.layers          = m_framebuffer_size[2];
@@ -270,15 +276,6 @@ bool Anvil::Framebuffer::bake(std::shared_ptr<Anvil::RenderPass> in_render_pass_
         DebugMarkerSupportProvider::add_delegate(result_fb);
     }
 
-    /* If the render pass is ever changed, make sure we re-bake the framebuffer when needed */
-    in_render_pass_ptr->register_for_callbacks(
-        RENDER_PASS_CALLBACK_ID_BAKING_NEEDED,
-        std::bind(&Framebuffer::on_renderpass_changed,
-                  this,
-                  std::placeholders::_1),
-        this
-    );
-
     /* All done */
     result = true;
 
@@ -290,15 +287,19 @@ end:
 std::shared_ptr<Anvil::Framebuffer> Anvil::Framebuffer::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
                                                                uint32_t                         in_width,
                                                                uint32_t                         in_height,
-                                                               uint32_t                         in_n_layers)
+                                                               uint32_t                         in_n_layers,
+                                                               MTSafety                         in_mt_safety)
 {
+    const bool                          mt_safe    = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                     in_device_ptr);
     std::shared_ptr<Anvil::Framebuffer> result_ptr;
 
     result_ptr.reset(
         new Anvil::Framebuffer(in_device_ptr,
                                in_width,
                                in_height,
-                               in_n_layers)
+                               in_n_layers,
+                               mt_safe)
     );
 
     return result_ptr;
@@ -388,30 +389,4 @@ void Anvil::Framebuffer::get_size(uint32_t* out_framebuffer_width_ptr,
     *out_framebuffer_width_ptr  = m_framebuffer_size[0];
     *out_framebuffer_height_ptr = m_framebuffer_size[1];
     *out_framebuffer_depth_ptr  = m_framebuffer_size[2];
-}
-
-/** Called back whenever any renderpass using this framebuffer instance is changed.
- *
- *  Marks the framebuffer as dirty, forcing the framebuffer to be rebaked next time it is used.
- *
- **/
-void Anvil::Framebuffer::on_renderpass_changed(CallbackArgument* in_callback_argument_ptr)
-{
-    auto callback_argument_ptr = dynamic_cast<OnRenderPassBakeNeededCallbackArgument*>(in_callback_argument_ptr);
-    auto renderpass_ptr        = std::shared_ptr<RenderPass>                          (callback_argument_ptr->renderpass_ptr,
-                                                                                       Anvil::NullDeleter<RenderPass>() );
-
-    auto baked_fb_iterator = m_baked_framebuffers.find(renderpass_ptr);
-
-    if (baked_fb_iterator == m_baked_framebuffers.end() )
-    {
-        anvil_assert_fail();
-
-        goto end;
-    }
-
-    /* Mark as dirty so that the framebuffer is rebaked the next time it is requested. */
-    baked_fb_iterator->second.dirty = true;
-end:
-    ;
 }

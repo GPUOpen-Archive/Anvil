@@ -29,11 +29,13 @@
 #define WRAPPERS_IMAGE_VIEW_H
 
 #include "misc/debug_marker.h"
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
-    class ImageView : public DebugMarkerSupportProvider<ImageView>
+    class ImageView : public DebugMarkerSupportProvider<ImageView>,
+                      public MTSafetySupportProvider
     {
     public:
         /* Public functions */
@@ -65,7 +67,8 @@ namespace Anvil
                                                     VkComponentSwizzle               in_swizzle_red,
                                                     VkComponentSwizzle               in_swizzle_green,
                                                     VkComponentSwizzle               in_swizzle_blue,
-                                                    VkComponentSwizzle               in_swizzle_alpha);
+                                                    VkComponentSwizzle               in_swizzle_alpha,
+                                                    MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a single-sample 1D array image view wrapper instance.
          *
@@ -96,7 +99,9 @@ namespace Anvil
                                                           VkComponentSwizzle               in_swizzle_red,
                                                           VkComponentSwizzle               in_swizzle_green,
                                                           VkComponentSwizzle               in_swizzle_blue,
-                                                          VkComponentSwizzle               in_swizzle_alpha);
+                                                          VkComponentSwizzle               in_swizzle_alpha,
+                                                          MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+
 
         /** Creates a single-sample or a multi-sample 2D image view wrapper instance. The view will be
          *  single-sample if @param in_image_ptr uses 1 sample per texel, and multi-sample otherwise.
@@ -126,7 +131,8 @@ namespace Anvil
                                                     VkComponentSwizzle               in_swizzle_red,
                                                     VkComponentSwizzle               in_swizzle_green,
                                                     VkComponentSwizzle               in_swizzle_blue,
-                                                    VkComponentSwizzle               in_swizzle_alpha);
+                                                    VkComponentSwizzle               in_swizzle_alpha,
+                                                    MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a single-sample or a multi-sample 2D array image view wrapper instance. The view will be
          *  single-sample if @param in_image_ptr uses 1 sample per texel, and multi-sample otherwise.
@@ -158,7 +164,8 @@ namespace Anvil
                                                           VkComponentSwizzle               in_swizzle_red,
                                                           VkComponentSwizzle               in_swizzle_green,
                                                           VkComponentSwizzle               in_swizzle_blue,
-                                                          VkComponentSwizzle               in_swizzle_alpha);
+                                                          VkComponentSwizzle               in_swizzle_alpha,
+                                                          MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a single-sample 3D image view wrapper instance.
          *
@@ -189,7 +196,8 @@ namespace Anvil
                                                     VkComponentSwizzle               in_swizzle_red,
                                                     VkComponentSwizzle               in_swizzle_green,
                                                     VkComponentSwizzle               in_swizzle_blue,
-                                                    VkComponentSwizzle               in_swizzle_alpha);
+                                                    VkComponentSwizzle               in_swizzle_alpha,
+                                                    MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a cube-map image view wrapper instance.
          *
@@ -218,7 +226,8 @@ namespace Anvil
                                                           VkComponentSwizzle               in_swizzle_red,
                                                           VkComponentSwizzle               in_swizzle_green,
                                                           VkComponentSwizzle               in_swizzle_blue,
-                                                          VkComponentSwizzle               in_swizzle_alpha);
+                                                          VkComponentSwizzle               in_swizzle_alpha,
+                                                          MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a cube-map array image view wrapper instance.
          *
@@ -250,7 +259,8 @@ namespace Anvil
                                                                 VkComponentSwizzle               in_swizzle_red,
                                                                 VkComponentSwizzle               in_swizzle_green,
                                                                 VkComponentSwizzle               in_swizzle_blue,
-                                                                VkComponentSwizzle               in_swizzle_alpha);
+                                                                VkComponentSwizzle               in_swizzle_alpha,
+                                                                MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Destructor. Should only be called when the reference counter drops to zero.
          *
@@ -333,7 +343,7 @@ namespace Anvil
             result.aspectMask     = m_aspect_mask;
             result.baseArrayLayer = m_n_base_layer;
             result.baseMipLevel   = m_n_base_mipmap_level;
-            result.layerCount     = (m_type == VK_IMAGE_VIEW_TYPE_3D) ? m_n_slices : m_n_layers;
+            result.layerCount     = m_n_layers; /* TODO: do NOT use m_n_slices here, subresource ranges never describe number of slices via .layerCount */
             result.levelCount     = m_n_mipmaps;
 
             return result;
@@ -370,7 +380,8 @@ namespace Anvil
         ImageView& operator=(const ImageView&);
 
         ImageView(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                  std::shared_ptr<Anvil::Image>    in_parent_image_ptr);
+                  std::shared_ptr<Anvil::Image>    in_parent_image_ptr,
+                  bool                             in_mt_safe);
 
         bool init(VkImageViewType           in_image_view_type,
                   uint32_t                  in_n_base_layer,

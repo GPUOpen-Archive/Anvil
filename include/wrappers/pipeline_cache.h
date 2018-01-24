@@ -32,12 +32,14 @@
 #define WRAPPERS_PIPELINE_CACHE_H
 
 #include "misc/debug_marker.h"
+#include "misc/mt_safety.h"
 #include "misc/types.h"
 
 
 namespace Anvil
 {
-    class PipelineCache : public DebugMarkerSupportProvider<PipelineCache>
+    class PipelineCache : public DebugMarkerSupportProvider<PipelineCache>,
+                          public MTSafetySupportProvider
     {
     public:
         /* Public functions */
@@ -45,11 +47,14 @@ namespace Anvil
         /** Constructor.
          *
          *  @param in_device_ptr        Vulkan device to initialize the pipeline cache with.
+         *  @param in_mt_safe           True if MT-safety should be enforced for functions that operate on the
+         *                              underlying Vulkan handle.
          *  @param in_initial_data_size Number of bytes available under @param in_initial_data. Can be 0.
          *  @param in_initial_data      Initial data to initialize the new pipeline cache instance with.
          *                              May be nullptr if @param in_initial_data_size is 0.
          **/
         static std::shared_ptr<Anvil::PipelineCache> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                            bool                             in_mt_safe,
                                                             size_t                           in_initial_data_size = 0,
                                                             const void*                      in_initial_data      = nullptr);
 
@@ -67,7 +72,10 @@ namespace Anvil
         bool get_data(size_t*      out_n_data_bytes_ptr,
                       const void** out_data_ptr);
 
-        /** Retrieves raw Vulkan pipeline cache handle */
+        /** Retrieves raw Vulkan pipeline cache handle.
+         *
+         *  NOTE: Clients must guarantee MT-safety when operating directly with the Vulkan handle.
+         */
         const VkPipelineCache& get_pipeline_cache() const
         {
             return m_pipeline_cache;
@@ -88,6 +96,7 @@ namespace Anvil
 
         /* Constructor. See create() for specification */
         PipelineCache(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                      bool                             in_mt_safe,
                       size_t                           in_initial_data_size,
                       const void*                      in_initial_data);
 

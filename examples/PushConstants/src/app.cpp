@@ -26,13 +26,16 @@
 /* Uncomment the #define below to enable validation */
 // #define ENABLE_VALIDATION
 
+
 #include <string>
 #include <cmath>
 #include "config.h"
 #include "misc/glsl_to_spirv.h"
+#include "misc/graphics_pipeline_info.h"
 #include "misc/io.h"
 #include "misc/memory_allocator.h"
 #include "misc/object_tracker.h"
+#include "misc/render_pass_info.h"
 #include "misc/time.h"
 #include "misc/window_factory.h"
 #include "wrappers/buffer.h"
@@ -527,7 +530,7 @@ void App::init_command_buffers()
             const uint32_t                         data_ub_offset          = static_cast<uint32_t>(m_ub_data_size_per_swapchain_image * n_command_buffer);
             std::shared_ptr<Anvil::DescriptorSet>  ds_ptr                  = m_dsg_ptr->get_descriptor_set                         (0 /* n_set */);
             const VkDeviceSize                     mesh_data_buffer_offset = 0;
-            std::shared_ptr<Anvil::PipelineLayout> pipeline_layout_ptr     = gfx_pipeline_manager_ptr->get_graphics_pipeline_layout(m_pipeline_id);
+            std::shared_ptr<Anvil::PipelineLayout> pipeline_layout_ptr     = gfx_pipeline_manager_ptr->get_pipeline_layout(m_pipeline_id);
 
             cmd_buffer_ptr->record_bind_pipeline(VK_PIPELINE_BIND_POINT_GRAPHICS,
                                                  m_pipeline_id);
@@ -567,15 +570,21 @@ void App::init_command_buffers()
 
 void App::init_dsgs()
 {
-    m_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr,
-                                                  false, /* releaseable_sets */
-                                                  1      /* n_sets           */);
+    {
+        auto dsg_info_ptrs = std::vector<std::unique_ptr<Anvil::DescriptorSetInfo> >(1);
 
-    m_dsg_ptr->add_binding     (0, /* n_set     */
-                                0, /* n_binding */
-                                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
-                                1, /* n_elements */
-                                VK_SHADER_STAGE_VERTEX_BIT);
+        dsg_info_ptrs[0] = Anvil::DescriptorSetInfo::create();
+
+        dsg_info_ptrs[0]->add_binding(0, /* n_binding */
+                                      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+                                      1, /* n_elements */
+                                      VK_SHADER_STAGE_VERTEX_BIT);
+
+        m_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr,
+                                                      dsg_info_ptrs,
+                                                      false); /* releaseable_sets */
+    }
+
     m_dsg_ptr->set_binding_item(0, /* n_set     */
                                 0, /* n_binding */
                                 Anvil::DescriptorSet::DynamicUniformBufferBindingElement(m_data_buffer_ptr,
@@ -585,6 +594,7 @@ void App::init_dsgs()
 
 void App::init_events()
 {
+    /* Stub */
 }
 
 void App::init_framebuffers()
@@ -620,100 +630,93 @@ void App::init_framebuffers()
 void App::init_gfx_pipelines()
 {
     std::shared_ptr<Anvil::SGPUDevice>              device_locked_ptr       (m_device_ptr);
+    std::unique_ptr<Anvil::GraphicsPipelineInfo>    gfx_pipeline_info_ptr;
     std::shared_ptr<Anvil::GraphicsPipelineManager> gfx_pipeline_manager_ptr(device_locked_ptr->get_graphics_pipeline_manager() );
-    bool                                            result;
 
     /* Create a renderpass for the pipeline */
     Anvil::RenderPassAttachmentID render_pass_color_attachment_id;
     Anvil::SubPassID              render_pass_subpass_id;
 
-    m_renderpass_ptr = Anvil::RenderPass::create(m_device_ptr,
-                                                 m_swapchain_ptr);
+    {
+        std::unique_ptr<Anvil::RenderPassInfo> render_pass_info_ptr(new Anvil::RenderPassInfo(m_device_ptr) );
+
+        render_pass_info_ptr->add_color_attachment(m_swapchain_ptr->get_image_format(),
+                                                   VK_SAMPLE_COUNT_1_BIT,
+                                                   VK_ATTACHMENT_LOAD_OP_CLEAR,
+                                                   VK_ATTACHMENT_STORE_OP_STORE,
+                                                   VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+#ifdef ENABLE_OFFSCREEN_RENDERING
+                                                   VK_IMAGE_LAYOUT_GENERAL,
+#else
+                                                   VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+#endif
+                                                   false, /* may_alias */
+                                                  &render_pass_color_attachment_id);
+
+
+        render_pass_info_ptr->add_subpass                 (&render_pass_subpass_id);
+        render_pass_info_ptr->add_subpass_color_attachment(render_pass_subpass_id,
+                                                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                           render_pass_color_attachment_id,
+                                                           0,        /* location                      */
+                                                           nullptr); /* opt_attachment_resolve_id_ptr */
+
+
+        m_renderpass_ptr = Anvil::RenderPass::create(std::move(render_pass_info_ptr),
+                                                     m_swapchain_ptr);
+    }
 
     m_renderpass_ptr->set_name("Main renderpass");
 
-    result = m_renderpass_ptr->add_color_attachment(m_swapchain_ptr->get_image_format(),
-                                                     VK_SAMPLE_COUNT_1_BIT,
-                                                     VK_ATTACHMENT_LOAD_OP_CLEAR,
-                                                     VK_ATTACHMENT_STORE_OP_STORE,
-                                                     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-#ifdef ENABLE_OFFSCREEN_RENDERING
-                                                     VK_IMAGE_LAYOUT_GENERAL,
-#else
-                                                     VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-#endif
-                                                     false, /* may_alias */
-                                                    &render_pass_color_attachment_id);
-    anvil_assert(result);
+    gfx_pipeline_info_ptr = Anvil::GraphicsPipelineInfo::create_regular_pipeline_info(false, /* in_disable_optimizations */
+                                                                                      false, /* in_allow_derivatives     */
+                                                                                      m_renderpass_ptr,
+                                                                                      render_pass_subpass_id,
+                                                                                      *m_fs_ptr,
+                                                                                      Anvil::ShaderModuleStageEntryPoint(), /* in_geometry_shader        */
+                                                                                      Anvil::ShaderModuleStageEntryPoint(), /* in_tess_control_shader    */
+                                                                                      Anvil::ShaderModuleStageEntryPoint(), /* in_tess_evaluation_shader */
+                                                                                      *m_vs_ptr);
 
 
-    result = m_renderpass_ptr->add_subpass(*m_fs_ptr,
-                                            Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader        */
-                                            Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader    */
-                                            Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader */
-                                            *m_vs_ptr,
-                                           &render_pass_subpass_id);
-    anvil_assert(result);
+
+    gfx_pipeline_info_ptr->set_dsg                              (m_dsg_ptr);
+    gfx_pipeline_info_ptr->attach_push_constant_range           (0, /* in_offset */
+                                                                 sizeof(float) * 4 /* vec4 */ * 4 /* vec4 values */,
+                                                                 VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT);
+    gfx_pipeline_info_ptr->set_rasterization_properties         (VK_POLYGON_MODE_FILL,
+                                                                 VK_CULL_MODE_NONE,
+                                                                 VK_FRONT_FACE_COUNTER_CLOCKWISE,
+                                                                 1.0f); /* in_line_width       */
+    gfx_pipeline_info_ptr->set_color_blend_attachment_properties(0,     /* in_attachment_id    */
+                                                                 true,  /* in_blending_enabled */
+                                                                 VK_BLEND_OP_ADD,
+                                                                 VK_BLEND_OP_ADD,
+                                                                 VK_BLEND_FACTOR_SRC_ALPHA,
+                                                                 VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                                                                 VK_BLEND_FACTOR_SRC_ALPHA,
+                                                                 VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                                                                 VK_COLOR_COMPONENT_A_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_R_BIT);
+
+    gfx_pipeline_info_ptr->add_vertex_attribute(0, /* in_location */
+                                                get_mesh_data_position_format(),
+                                                get_mesh_data_position_start_offset(),
+                                                get_mesh_data_position_stride(),
+                                                VK_VERTEX_INPUT_RATE_VERTEX);
+    gfx_pipeline_info_ptr->add_vertex_attribute(1, /* location */
+                                                get_mesh_data_color_format      (),
+                                                get_mesh_data_color_start_offset(),
+                                                get_mesh_data_color_stride      (),
+                                                VK_VERTEX_INPUT_RATE_VERTEX);
 
 
-    result = m_renderpass_ptr->get_subpass_graphics_pipeline_id(render_pass_subpass_id,
-                                                                &m_pipeline_id);
-    anvil_assert(result);
-
-
-    result = m_renderpass_ptr->add_subpass_color_attachment(render_pass_subpass_id,
-                                                             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                                             render_pass_color_attachment_id,
-                                                             0,        /* location                      */
-                                                             nullptr); /* opt_attachment_resolve_id_ptr */
-    anvil_assert(result);
-
-
-    result  = gfx_pipeline_manager_ptr->set_pipeline_dsg                      (m_pipeline_id,
-                                                                               m_dsg_ptr);
-    result &= gfx_pipeline_manager_ptr->attach_push_constant_range_to_pipeline(m_pipeline_id,
-                                                                               0, /* offset */
-                                                                               sizeof(float) * 4 /* vec4 */ * 4 /* vec4 values */,
-                                                                               VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT);
-
-    anvil_assert(result);
-
-
-    gfx_pipeline_manager_ptr->set_rasterization_properties         (m_pipeline_id,
-                                                                    VK_POLYGON_MODE_FILL,
-                                                                    VK_CULL_MODE_NONE,
-                                                                    VK_FRONT_FACE_COUNTER_CLOCKWISE,
-                                                                    1.0f); /* line_width */
-    gfx_pipeline_manager_ptr->set_color_blend_attachment_properties(m_pipeline_id,
-                                                                    0, /* attachment_id */
-                                                                    true, /* blending_enabled */
-                                                                    VK_BLEND_OP_ADD,
-                                                                    VK_BLEND_OP_ADD,
-                                                                    VK_BLEND_FACTOR_SRC_ALPHA,
-                                                                    VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-                                                                    VK_BLEND_FACTOR_SRC_ALPHA,
-                                                                    VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-                                                                    VK_COLOR_COMPONENT_A_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_R_BIT);
-
-    result = gfx_pipeline_manager_ptr->add_vertex_attribute(m_pipeline_id,
-                                                            0, /* location */
-                                                            get_mesh_data_position_format(),
-                                                            get_mesh_data_position_start_offset(),
-                                                            get_mesh_data_position_stride(),
-                                                            VK_VERTEX_INPUT_RATE_VERTEX);
-    anvil_assert(result);
-
-    result = gfx_pipeline_manager_ptr->add_vertex_attribute(m_pipeline_id,
-                                                            1, /* location */
-                                                            get_mesh_data_color_format(),
-                                                            get_mesh_data_color_start_offset(),
-                                                            get_mesh_data_color_stride(),
-                                                            VK_VERTEX_INPUT_RATE_VERTEX);
-    anvil_assert(result);
+    gfx_pipeline_manager_ptr->add_pipeline(std::move(gfx_pipeline_info_ptr),
+                                          &m_pipeline_id);
 }
 
 void App::init_images()
 {
+    /* Stub */
 }
 
 void App::init_semaphores()
@@ -838,21 +841,24 @@ void App::init_window()
 void App::init_vulkan()
 {
     /* Create a Vulkan instance */
-    m_instance_ptr = Anvil::Instance::create(APP_NAME,  /* app_name */
-                                             APP_NAME,  /* engine_name */
+    m_instance_ptr = Anvil::Instance::create(APP_NAME,  /* in_app_name    */
+                                             APP_NAME,  /* in_engine_name */
 #ifdef ENABLE_VALIDATION
                                              std::bind(&App::on_validation_callback,
                                                        this,
                                                        std::placeholders::_1,
                                                        std::placeholders::_2,
                                                        std::placeholders::_3,
-                                                       std::placeholders::_4) );
-
+                                                       std::placeholders::_4),
 #else
-                                             nullptr);
+                                             Anvil::DebugCallbackFunction(),
 #endif
+                                             false); /* in_mt_safe */
 
     m_physical_device_ptr = m_instance_ptr->get_physical_device(0);
+
+    /* Determine which extensions we need to request for */
+    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_instance_ptr->get_physical_device(0) );
 
     /* Create a Vulkan device */
     m_device_ptr = Anvil::SGPUDevice::create(m_physical_device_ptr,
@@ -862,16 +868,16 @@ void App::init_vulkan()
                                              false);                     /* support_resettable_command_buffers   */
 }
 
-VkBool32 App::on_validation_callback(VkDebugReportFlagsEXT      message_flags,
-                                     VkDebugReportObjectTypeEXT object_type,
-                                     const char*                layer_prefix,
-                                     const char*                message)
+VkBool32 App::on_validation_callback(VkDebugReportFlagsEXT      in_message_flags,
+                                     VkDebugReportObjectTypeEXT in_object_type,
+                                     const char*                in_layer_prefix,
+                                     const char*                in_message)
 {
-    if ((message_flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) != 0)
+    if ((in_message_flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) != 0)
     {
         fprintf(stderr,
                 "[!] %s\n",
-                message);
+                in_message);
     }
 
     return false;

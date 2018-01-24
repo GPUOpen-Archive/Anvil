@@ -29,9 +29,10 @@
 
 
 /** Constructor. */
-Anvil::PipelineLayoutManager::PipelineLayoutManager(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
-    :m_device_ptr              (in_device_ptr),
-     m_pipeline_layouts_created(0)
+Anvil::PipelineLayoutManager::PipelineLayoutManager(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                    bool                             in_mt_safe)
+    :MTSafetySupportProvider(in_mt_safe),
+     m_device_ptr           (in_device_ptr)
 {
     update_subscriptions(true);
 
@@ -43,6 +44,8 @@ Anvil::PipelineLayoutManager::PipelineLayoutManager(std::weak_ptr<Anvil::BaseDev
 /** Destructor */
 Anvil::PipelineLayoutManager::~PipelineLayoutManager()
 {
+    anvil_assert(m_pipeline_layouts.size() == 0);
+
     update_subscriptions(false);
 
     /* Unregister the object */
@@ -51,39 +54,48 @@ Anvil::PipelineLayoutManager::~PipelineLayoutManager()
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::PipelineLayoutManager> Anvil::PipelineLayoutManager::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
+std::shared_ptr<Anvil::PipelineLayoutManager> Anvil::PipelineLayoutManager::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
+                                                                                   bool                             in_mt_safe)
 {
     std::shared_ptr<Anvil::BaseDevice>            device_locked_ptr(in_device_ptr);
     std::shared_ptr<Anvil::PipelineLayoutManager> result_ptr;
 
-    result_ptr.reset(new Anvil::PipelineLayoutManager(in_device_ptr) );
+    result_ptr.reset(
+        new Anvil::PipelineLayoutManager(in_device_ptr,
+                                         in_mt_safe)
+    );
+
     anvil_assert(result_ptr != nullptr);
 
     return result_ptr;
 }
 
 /* Please see header for specification */
-bool Anvil::PipelineLayoutManager::get_layout(std::shared_ptr<DescriptorSetGroup>     in_dsg_ptr,
-                                              const PushConstantRanges&               in_push_constant_ranges,
-                                              std::shared_ptr<Anvil::PipelineLayout>* out_pipeline_layout_ptr_ptr)
+bool Anvil::PipelineLayoutManager::get_layout(std::shared_ptr<const DescriptorSetGroup> in_dsg_ptr,
+                                              const PushConstantRanges&                 in_push_constant_ranges,
+                                              std::shared_ptr<Anvil::PipelineLayout>*   out_pipeline_layout_ptr_ptr)
 {
-    bool result = false;
+    std::unique_lock<std::recursive_mutex> mutex_lock;
+    auto                                   mutex_ptr  = get_mutex();
+    bool                                   result     = false;
+
+    if (mutex_ptr != nullptr)
+    {
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
+    }
 
     for (auto layout_iterator  = m_pipeline_layouts.begin();
               layout_iterator != m_pipeline_layouts.end();
             ++layout_iterator)
     {
-        if (layout_iterator->second.expired() )
-        {
-            continue;
-        }
-
-        std::shared_ptr<Anvil::PipelineLayout> current_pipeline_layout_ptr = layout_iterator->second.lock();
+        auto current_pipeline_layout_ptr = *layout_iterator;
 
         if (current_pipeline_layout_ptr->get_attached_dsg()                  == in_dsg_ptr              &&
             current_pipeline_layout_ptr->get_attached_push_constant_ranges() == in_push_constant_ranges)
         {
-            *out_pipeline_layout_ptr_ptr = current_pipeline_layout_ptr;
+            *out_pipeline_layout_ptr_ptr = current_pipeline_layout_ptr->shared_from_this();
             result                       = true;
 
             break;
@@ -94,93 +106,50 @@ bool Anvil::PipelineLayoutManager::get_layout(std::shared_ptr<DescriptorSetGroup
     {
         result = true;
 
-        /* Try to create a new layout for the specified DSG + push constant range set */
-        std::shared_ptr<Anvil::PipelineLayout> new_layout_ptr = Anvil::PipelineLayout::create(m_device_ptr);
+        std::shared_ptr<Anvil::PipelineLayout> new_layout_ptr = Anvil::PipelineLayout::create(m_device_ptr,
+                                                                                              in_dsg_ptr,
+                                                                                              in_push_constant_ranges,
+                                                                                              is_mt_safe() );
 
-        result = new_layout_ptr->set_dsg(in_dsg_ptr);
+        m_pipeline_layouts.push_back(new_layout_ptr.get() );
 
-        if (!result)
-        {
-            goto end;
-        }
-
-        for (auto push_constant_range_iterator  = in_push_constant_ranges.begin();
-                  push_constant_range_iterator != in_push_constant_ranges.end();
-                ++push_constant_range_iterator)
-        {
-            result = new_layout_ptr->attach_push_constant_range((*push_constant_range_iterator).offset,
-                                                                (*push_constant_range_iterator).size,
-                                                                (*push_constant_range_iterator).stages);
-
-            if (!result)
-            {
-                goto end;
-            }
-        }
-
-        if (result)
-        {
-            const PipelineLayoutID pipeline_layout_id = new_layout_ptr->get_id();
-
-            anvil_assert(m_pipeline_layouts.find(pipeline_layout_id) == m_pipeline_layouts.end() );
-
-            new_layout_ptr->bake();
-
-            m_pipeline_layouts[pipeline_layout_id] = new_layout_ptr;
-            *out_pipeline_layout_ptr_ptr           = new_layout_ptr;
-        }
+        *out_pipeline_layout_ptr_ptr = new_layout_ptr;
     }
-end:
+
     return result;
 }
 
-/* Please see header for specification */
-std::shared_ptr<Anvil::PipelineLayout> Anvil::PipelineLayoutManager::get_layout_by_id(Anvil::PipelineLayoutID in_id) const
-{
-    if (m_pipeline_layouts.find(in_id) == m_pipeline_layouts.end() ||
-        m_pipeline_layouts.at  (in_id).expired() )
-    {
-        return std::shared_ptr<Anvil::PipelineLayout>();
-    }
-    else
-    {
-        return m_pipeline_layouts.at(in_id).lock();
-    }
-}
-
 /** Called back whenever a pipeline layout is released **/
-void Anvil::PipelineLayoutManager::on_pipeline_layout_dropped()
+void Anvil::PipelineLayoutManager::on_pipeline_layout_dropped(CallbackArgument* in_callback_arg_raw_ptr)
 {
-    PipelineLayouts::iterator layout_iterator;
+    auto                                   callback_arg_ptr = dynamic_cast<Anvil::OnObjectAboutToBeUnregisteredCallbackArgument*>(in_callback_arg_raw_ptr);
+    PipelineLayouts::iterator              layout_iterator;
+    std::unique_lock<std::recursive_mutex> mutex_lock;
+    auto                                   mutex_ptr  = get_mutex();
 
-    /* Are we the last standing layout user? */
-    for (layout_iterator  = m_pipeline_layouts.begin();
-         layout_iterator != m_pipeline_layouts.end();
-        )
+    if (mutex_ptr != nullptr)
     {
-        if (layout_iterator->second.expired() )
-        {
-            m_pipeline_layouts.erase(layout_iterator);
-
-            layout_iterator = m_pipeline_layouts.begin();
-        }
-        else
-        {
-            ++layout_iterator;
-        }
+        mutex_lock = std::move(
+            std::unique_lock<std::recursive_mutex>(*mutex_ptr)
+        );
     }
-}
 
-/* Please see header for specification */
-Anvil::PipelineLayoutID Anvil::PipelineLayoutManager::reserve_pipeline_layout_id()
-{
-    return m_pipeline_layouts_created++;
+    layout_iterator = std::find(m_pipeline_layouts.begin(),
+                                m_pipeline_layouts.end  (),
+                                callback_arg_ptr->object_raw_ptr);
+
+    anvil_assert(layout_iterator != m_pipeline_layouts.end() );
+    if (layout_iterator != m_pipeline_layouts.end() )
+    {
+        m_pipeline_layouts.erase(layout_iterator);
+    }
 }
 
 void Anvil::PipelineLayoutManager::update_subscriptions(bool in_should_init)
 {
     const auto callback_func      = std::bind(&PipelineLayoutManager::on_pipeline_layout_dropped,
-                                              this);
+                                              this,
+                                              std::placeholders::_1);
     void*      callback_owner     = this;
     auto       object_tracker_ptr = Anvil::ObjectTracker::get();
 
