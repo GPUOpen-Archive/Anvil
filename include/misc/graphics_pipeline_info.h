@@ -376,6 +376,9 @@ namespace Anvil
 
         /** Tells the number of patch control points associated with this instance. **/
         uint32_t get_n_patch_control_points() const;
+        
+        /** Tells the number of vertex attributes (as specified by the owner) associated with this instance. **/
+        uint32_t get_n_vertex_attribute_properties() const;
 
         /** Returns properties of a vertex attribute at a given index. These properties are as specified by the owner.
          *
