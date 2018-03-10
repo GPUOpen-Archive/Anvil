@@ -735,6 +735,11 @@ uint32_t Anvil::GraphicsPipelineInfo::get_n_patch_control_points() const
     return m_n_patch_control_points;
 }
 
+uint32_t Anvil::GraphicsPipelineInfo::get_n_vertex_attribute_properties() const
+{
+    return m_attributes.size();
+}
+
 bool Anvil::GraphicsPipelineInfo::get_vertex_attribute_properties(uint32_t           in_n_vertex_input_attribute,
                                                                   uint32_t*          out_opt_location_ptr,
                                                                   VkFormat*          out_opt_format_ptr,
