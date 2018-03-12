@@ -2756,8 +2756,7 @@ end:
 bool Anvil::CommandBufferBase::record_set_event(Anvil::Event*        in_event_ptr,
                                                 VkPipelineStageFlags in_stage_mask)
 {
-    const Anvil::DeviceType device_type = m_device_ptr->get_type();
-    bool                    result      = false;
+    bool result = false;
 
     if (m_is_renderpass_active)
     {
