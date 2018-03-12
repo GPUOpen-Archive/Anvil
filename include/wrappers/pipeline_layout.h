@@ -41,8 +41,7 @@ namespace Anvil
 
     /** Vulkan Pipeline Layout wrapper */
     class PipelineLayout : public DebugMarkerSupportProvider<PipelineLayout>,
-                           public MTSafetySupportProvider,
-                           public std::enable_shared_from_this<PipelineLayout>
+                           public MTSafetySupportProvider
     {
     public:
         /* Public functions */
@@ -52,16 +51,15 @@ namespace Anvil
          **/
         virtual ~PipelineLayout();
 
-        /** Retrieves a descriptor set group, as assigned to the pipeline layout. */
-        std::shared_ptr<const Anvil::DescriptorSetGroup> get_attached_dsg() const
-        {
-            return m_dsg_ptr;
-        }
-
         /** Retrieves a vector of push constant ranges, attached to the pipeline layout. */
         const PushConstantRanges& get_attached_push_constant_ranges() const
         {
             return m_push_constant_ranges;
+        }
+
+        const std::vector<Anvil::DescriptorSetInfoUniquePtr>* get_ds_info_ptrs() const
+        {
+            return &m_ds_info_ptrs;
         }
 
         /** Retrieves a raw Vulkan pipeline layout handle.
@@ -72,11 +70,6 @@ namespace Anvil
          **/
         VkPipelineLayout get_pipeline_layout()
         {
-            if (m_dirty)
-            {
-                bake();
-            }
-
             return m_layout_vk;
         }
 
@@ -84,10 +77,9 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. Please see create() for specification */
-        PipelineLayout(std::weak_ptr<Anvil::BaseDevice>                 in_device_ptr,
-                       std::shared_ptr<const Anvil::DescriptorSetGroup> in_dsg_ptr,
-                       const PushConstantRanges&                        in_push_constant_ranges,
-                       bool                                             in_mt_safe);
+        PipelineLayout(const Anvil::BaseDevice*   in_device_ptr,
+                       const PushConstantRanges&  in_push_constant_ranges,
+                       bool                       in_mt_safe);
 
         PipelineLayout           (const PipelineLayout&);
         PipelineLayout& operator=(const PipelineLayout&);
@@ -96,30 +88,29 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool bake();
+        bool bake(const std::vector<DescriptorSetInfoUniquePtr>* in_ds_info_items_ptr);
 
-        /** Initializes a new wrapper instance with user-specified descriptor set groups (appended
-         *  one after another, in the user-defined order) defined at creation time.
+        /** Initializes a new wrapper instance using information extracted from user-specified descriptor set groups (appended
+         *  one after another, in the user-defined order).
          *
          *  This constructor can be used to initialize immutable pipeline layouts. If @param in_is_immutable
          *  is set to true, attach_dsg() and attach_push_constant_range() calls invoked for such object
          *  will result in a failure.
          *
          *  @param in_device_ptr           Device to use. Must not be nullptr.
-         *  @param in_dsg_ptr              Descriptor set group to use for the pipeline layout.
+         *  @param in_ds_info_items_ptr    TODO
          *  @param in_push_constant_ranges Push constant ranges to define for the pipeline layout.
          *
          **/
-        static std::shared_ptr<PipelineLayout> create(std::weak_ptr<Anvil::BaseDevice>                 in_device_ptr,
-                                                      std::shared_ptr<const Anvil::DescriptorSetGroup> in_dsg_ptr,
-                                                      const PushConstantRanges&                        in_push_constant_ranges,
-                                                      bool                                             in_mt_safe);
+        static PipelineLayoutUniquePtr create(const Anvil::BaseDevice*                       in_device_ptr,
+                                              const std::vector<DescriptorSetInfoUniquePtr>* in_ds_info_items_ptr,
+                                              const PushConstantRanges&                      in_push_constant_ranges,
+                                              bool                                           in_mt_safe);
 
         /* Private variables */
-        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
-
-        bool                                             m_dirty;
-        std::shared_ptr<const Anvil::DescriptorSetGroup> m_dsg_ptr;
+        const Anvil::BaseDevice*                         m_device_ptr;
+        std::vector<Anvil::DescriptorSetInfoUniquePtr>   m_ds_info_ptrs;
+        std::vector<Anvil::DescriptorSetLayoutUniquePtr> m_ds_layout_ptrs;
         VkPipelineLayout                                 m_layout_vk;
         PushConstantRanges                               m_push_constant_ranges;
 

@@ -31,12 +31,13 @@ Anvil::ComputePipelineInfo::~ComputePipelineInfo()
     /* Stub */
 }
 
-std::unique_ptr<Anvil::ComputePipelineInfo> Anvil::ComputePipelineInfo::create_derivative_pipeline_info(bool                               in_disable_optimizations,
-                                                                                                        bool                               in_allow_derivatives,
-                                                                                                        const ShaderModuleStageEntryPoint& in_compute_shader_stage_entrypoint_info,
-                                                                                                        Anvil::PipelineID                  in_base_pipeline_id)
+Anvil::ComputePipelineInfoUniquePtr Anvil::ComputePipelineInfo::create_derivative_pipeline_info(bool                               in_disable_optimizations,
+                                                                                                bool                               in_allow_derivatives,
+                                                                                                const ShaderModuleStageEntryPoint& in_compute_shader_stage_entrypoint_info,
+                                                                                                Anvil::PipelineID                  in_base_pipeline_id)
 {
-    std::unique_ptr<Anvil::ComputePipelineInfo> result_ptr;
+    Anvil::ComputePipelineInfoUniquePtr result_ptr(nullptr,
+                                                   std::default_delete<Anvil::ComputePipelineInfo>() );
 
     result_ptr.reset(
         new ComputePipelineInfo()
@@ -54,9 +55,10 @@ std::unique_ptr<Anvil::ComputePipelineInfo> Anvil::ComputePipelineInfo::create_d
     return result_ptr;
 }
 
-std::unique_ptr<Anvil::ComputePipelineInfo> Anvil::ComputePipelineInfo::create_proxy_pipeline_info()
+Anvil::ComputePipelineInfoUniquePtr Anvil::ComputePipelineInfo::create_proxy_pipeline_info()
 {
-    std::unique_ptr<Anvil::ComputePipelineInfo> result_ptr;
+    Anvil::ComputePipelineInfoUniquePtr result_ptr(nullptr,
+                                                   std::default_delete<Anvil::ComputePipelineInfo>() );
 
     result_ptr.reset(
         new ComputePipelineInfo()
@@ -70,11 +72,12 @@ std::unique_ptr<Anvil::ComputePipelineInfo> Anvil::ComputePipelineInfo::create_p
     return result_ptr;
 }
 
-std::unique_ptr<Anvil::ComputePipelineInfo> Anvil::ComputePipelineInfo::create_regular_pipeline_info(bool                               in_disable_optimizations,
-                                                                                                     bool                               in_allow_derivatives,
-                                                                                                     const ShaderModuleStageEntryPoint& in_compute_shader_stage_entrypoint_info)
+Anvil::ComputePipelineInfoUniquePtr Anvil::ComputePipelineInfo::create_regular_pipeline_info(bool                               in_disable_optimizations,
+                                                                                             bool                               in_allow_derivatives,
+                                                                                             const ShaderModuleStageEntryPoint& in_compute_shader_stage_entrypoint_info)
 {
-    std::unique_ptr<Anvil::ComputePipelineInfo> result_ptr;
+    Anvil::ComputePipelineInfoUniquePtr result_ptr(nullptr,
+                                                   std::default_delete<Anvil::ComputePipelineInfo>() );
 
     result_ptr.reset(
         new ComputePipelineInfo()

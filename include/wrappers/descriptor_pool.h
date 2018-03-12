@@ -50,8 +50,7 @@ namespace Anvil
 
     class DescriptorPool : public CallbacksSupportProvider,
                            public DebugMarkerSupportProvider<DescriptorPool>,
-                           public MTSafetySupportProvider,
-                           public std::enable_shared_from_this<DescriptorPool>
+                           public MTSafetySupportProvider
     {
     public:
         /* Public functions */
@@ -59,16 +58,19 @@ namespace Anvil
         /** Creates a new DescriptorPool instance. Sets up the wrapper, but does not immediately
          *  bake a new Vulkan pool.
          *
-         *  @param in_device_ptr       Device to use.
-         *  @param in_n_max_sets       Maximum number of sets to be allocable from the pool. Must be at
-         *                             least 1.
-         *  @param in_releaseable_sets true if the sets should be releaseable with vkFreeDescriptorSet()
-         *                             calls. false otherwise.
+         *  @param in_device_ptr                    Device to use.
+         *  @param in_n_max_sets                    Maximum number of sets to be allocable from the pool. Must be at
+         *                                          least 1.
+         *  @param in_flags                         See DescriptorPoolFlagBits documentation for more details.
+         *  @param in_descriptor_count_per_type_ptr Pointer to an array holding info regarding the number of descriptors to preallocate
+         *                                          slots for in the pool. Exactly VK_DESCRIPTOR_TYPE_RANGE_SIZE uint32s will be read
+         *                                          from the array. Must not be null.
          **/
-        static std::shared_ptr<DescriptorPool> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                      uint32_t                         in_n_max_sets,
-                                                      bool                             in_releaseable_sets,
-                                                      MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static DescriptorPoolUniquePtr create(const Anvil::BaseDevice*   in_device_ptr,
+                                              uint32_t                   in_n_max_sets,
+                                              const DescriptorPoolFlags& in_flags,
+                                              const uint32_t*            in_descriptor_count_per_type_ptr,
+                                              MTSafety                   in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Destructor. Releases the Vulkan pool object if instantiated. */
         virtual ~DescriptorPool();
@@ -90,26 +92,20 @@ namespace Anvil
          *                                       This may be useful for KHR_maintenance1-aware applications.
          *  @return true if successful, false otherwise.
          **/
-        bool alloc_descriptor_sets(uint32_t                                     in_n_sets,
-                                   std::shared_ptr<Anvil::DescriptorSetLayout>* in_descriptor_set_layouts_ptr,
-                                   std::shared_ptr<Anvil::DescriptorSet>*       out_descriptor_sets_ptr,
-                                   VkResult*                                    out_opt_result_ptr = nullptr);
+        bool alloc_descriptor_sets(uint32_t                       in_n_sets,
+                                   const DescriptorSetAllocation* in_ds_allocations_ptr,
+                                   DescriptorSetUniquePtr*        out_descriptor_sets_ptr,
+                                   VkResult*                      out_opt_result_ptr = nullptr);
 
-        bool alloc_descriptor_sets(uint32_t                                     in_n_sets,
-                                   std::shared_ptr<Anvil::DescriptorSetLayout>* in_descriptor_set_layouts_ptr,
-                                   VkDescriptorSet*                             out_descriptor_sets_vk_ptr,
-                                   VkResult*                                    out_opt_result_ptr = nullptr);
+        bool alloc_descriptor_sets(uint32_t                       in_n_sets,
+                                   const DescriptorSetAllocation* in_ds_allocations_ptr,
+                                   VkDescriptorSet*               out_descriptor_sets_vk_ptr,
+                                   VkResult*                      out_opt_result_ptr = nullptr);
 
-        /** Tells if the pool allocated from the pool can be freed with vkFreeDescriptorSet() call. */
-        bool are_sets_releaseable() const
+        const Anvil::DescriptorPoolFlags& get_flags() const
         {
-            return m_releaseable_sets;
+            return m_flags;
         }
-
-        /** Releases previously baked Vulkan pool handle and instantiates a new Vulkan object, according
-         *  to how the wrapper has been configured.
-         **/
-        void bake();
 
         /** Returns a raw Vulkan handle for the pool.
          *
@@ -119,11 +115,6 @@ namespace Anvil
          **/
         const VkDescriptorPool& get_descriptor_pool()
         {
-            if (!m_baked)
-            {
-                bake();
-            }
-
             return m_pool;
         }
 
@@ -138,72 +129,31 @@ namespace Anvil
          **/
         bool reset();
 
-        /** Configures how many descriptors of user-specified type should be allocable for a single
-         *  set, that's going to be allocated from the pool.
-         *
-         *  This function may mark the pool as dirty, meaning it will be re-baked at the next
-         *  get_descriptor_pool() call time.
-         *
-         *  @param in_descriptor_type Type of the descriptor to adjust the number of slots.
-         *  @param in_n_slots_in_pool Number of descriptors of the specified type to be allocable for
-         *                            a single set.
-         *
-         **/
-        void set_descriptor_array_size(VkDescriptorType in_descriptor_type,
-                                       uint32_t         in_n_slots_in_pool)
-        {
-            anvil_assert(in_descriptor_type < VK_DESCRIPTOR_TYPE_RANGE_SIZE);
-            if (in_descriptor_type < VK_DESCRIPTOR_TYPE_RANGE_SIZE)
-            {
-                if (m_descriptor_count[in_descriptor_type] != in_n_slots_in_pool)
-                {
-                    m_baked                                = false;
-                    m_descriptor_count[in_descriptor_type] = in_n_slots_in_pool;
-                }
-            }
-        }
-
-        /** Updates the maximum number of sets which can be allocated from the pool.
-         *
-         *  This function may mark the pool as dirty, meaning it will be re-baked at the next
-         *  get_descriptor_pool() call time.
-         *
-         *  @param in_n_maximum_sets New maximum number of allocable sets.
-         **/
-        void set_n_maximum_sets(uint32_t in_n_maximum_sets)
-        {
-            anvil_assert(in_n_maximum_sets != 0);
-
-            if (m_n_max_sets != in_n_maximum_sets)
-            {
-                m_baked      = false;
-                m_n_max_sets = in_n_maximum_sets;
-            }
-        }
     private:
         /* Private functions */
 
+        bool init();
+
         /** Constructor */
-        DescriptorPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                       uint32_t                         in_n_max_sets,
-                       bool                             in_releaseable_sets,
-                       bool                             in_mt_safe);
+        DescriptorPool(const Anvil::BaseDevice*   in_device_ptr,
+                       uint32_t                   in_n_max_sets,
+                       const DescriptorPoolFlags& in_flags,
+                       const uint32_t*            in_descriptor_count_per_type_ptr,
+                       bool                       in_mt_safe);
 
         DescriptorPool           (const DescriptorPool&);
         DescriptorPool& operator=(const DescriptorPool&);
 
         /* Private variables */
-        bool                             m_baked;
-        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
-        VkDescriptorPool                 m_pool;
+        const Anvil::BaseDevice* m_device_ptr;
+        VkDescriptorPool         m_pool;
 
         uint32_t m_descriptor_count[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
         uint32_t m_n_max_sets;
 
         std::vector<VkDescriptorSet>       m_ds_cache;
         std::vector<VkDescriptorSetLayout> m_ds_layout_cache;
-
-        const bool m_releaseable_sets;
+        const DescriptorPoolFlags&         m_flags;
     };
 
 }; /* namespace Anvil */

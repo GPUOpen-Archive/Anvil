@@ -59,7 +59,7 @@ namespace Anvil
         {
         public:
             /* Constructor. */
-            explicit GLSLangLimits(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
+            explicit GLSLangLimits(const Anvil::BaseDevice* in_device_ptr);
 
             /* Destructor */
             ~GLSLangLimits()
@@ -135,10 +135,10 @@ namespace Anvil
          *                           macro is undefined.
          *  @param in_shader_stage   Shader stage described by the file.
          **/
-         static std::shared_ptr<GLSLShaderToSPIRVGenerator> create(std::weak_ptr<Anvil::BaseDevice> in_opt_device_ptr,
-                                                                   const Mode&                      in_mode,
-                                                                   std::string                      in_data,
-                                                                   ShaderStage                      in_shader_stage);
+         static Anvil::GLSLShaderToSPIRVGeneratorUniquePtr create(const Anvil::BaseDevice* in_opt_device_ptr,
+                                                                  const Mode&              in_mode,
+                                                                  std::string              in_data,
+                                                                  ShaderStage              in_shader_stage);
 
          /** Destructor. Releases all created Vulkan objects, as well as the SPIR-V blob data. */
          ~GLSLShaderToSPIRVGenerator();
@@ -221,7 +221,7 @@ namespace Anvil
           *
           * @return true if successful, false otherwise.
           **/
-         bool bake_spirv_blob();
+         bool bake_spirv_blob() const;
 
          /* Converts a ExtensionBehavior enum value to a corresponding GLSL definition */
          std::string get_extension_behavior_glsl_code(const ExtensionBehavior& in_value) const;
@@ -258,7 +258,7 @@ namespace Anvil
           * Otherwise, an assertion failure will occur, as the returned string will have a size of 0.
           *
           */
-         const std::string& get_glsl_source_code()
+         const std::string& get_glsl_source_code() const
          {
              if (m_glsl_source_code_dirty)
              {
@@ -284,7 +284,7 @@ namespace Anvil
           *
           *  @return SPIR-V blob or nullptr if the function failed.
           **/
-         const char* get_spirv_blob()
+         const char* get_spirv_blob() const
          {
              if (m_spirv_blob.size() == 0)
              {
@@ -300,7 +300,7 @@ namespace Anvil
          }
 
          /** Returns the number of bytes the SPIR-V blob, accessible via get_spirv_blob(), takes. */
-         const uint32_t get_spirv_blob_size()
+         const uint32_t get_spirv_blob_size() const
          {
              if (m_spirv_blob.size() == 0)
              {
@@ -327,15 +327,15 @@ namespace Anvil
         ANVIL_DISABLE_COPY_CONSTRUCTOR   (GLSLShaderToSPIRVGenerator);
 
         /* Constructor. Please see create() documentation for specification */
-        explicit GLSLShaderToSPIRVGenerator(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                            const Mode&                      in_mode,
-                                            std::string                      in_data,
-                                            ShaderStage                      in_shader_stage);
+        explicit GLSLShaderToSPIRVGenerator(const Anvil::BaseDevice* in_device_ptr,
+                                            const Mode&              in_mode,
+                                            std::string              in_data,
+                                            ShaderStage              in_shader_stage);
 
-        bool bake_glsl_source_code();
+        bool bake_glsl_source_code() const;
 
         #ifdef ANVIL_LINK_WITH_GLSLANG
-            bool        bake_spirv_blob_by_calling_glslang(const char* in_body);
+            bool        bake_spirv_blob_by_calling_glslang(const char* in_body) const;
             EShLanguage get_glslang_shader_stage          () const;
         #else
             bool bake_spirv_blob_by_spawning_glslang_process(const std::string& in_glsl_filename_with_path,
@@ -345,18 +345,18 @@ namespace Anvil
         /* Private members */
         #ifdef ANVIL_LINK_WITH_GLSLANG
             std::unique_ptr<GLSLangLimits> m_limits_ptr;
-            std::string                    m_program_info_log;
-            std::string                    m_shader_info_log;
+            mutable std::string            m_program_info_log;
+            mutable std::string            m_shader_info_log;
         #endif
 
         std::string m_data;
         Mode        m_mode;
 
-        std::string       m_glsl_source_code;
-        bool              m_glsl_source_code_dirty;
+        mutable std::string m_glsl_source_code;
+        mutable bool        m_glsl_source_code_dirty;
 
-        ShaderStage       m_shader_stage;
-        std::vector<char> m_spirv_blob;
+        ShaderStage               m_shader_stage;
+        mutable std::vector<char> m_spirv_blob;
 
         DefinitionNameToValueMap            m_definition_values;
         ExtensionNameToExtensionBehaviorMap m_extension_behaviors;

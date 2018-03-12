@@ -42,10 +42,10 @@ namespace Anvil
        using BasePipelineManager::bake;
 
         /* Public functions */
-       static std::shared_ptr<ComputePipelineManager> create(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
-                                                             bool                                  in_mt_safe,
-                                                             bool                                  in_use_pipeline_cache,
-                                                             std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr);
+       static std::unique_ptr<ComputePipelineManager> create(Anvil::BaseDevice*    in_device_ptr,
+                                                             bool                  in_mt_safe,
+                                                             bool                  in_use_pipeline_cache,
+                                                             Anvil::PipelineCache* in_pipeline_cache_to_reuse_ptr);
 
        virtual ~ComputePipelineManager();
 
@@ -53,10 +53,10 @@ namespace Anvil
 
        private:
            /* Constructor */
-           explicit ComputePipelineManager(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
-                                           bool                                  in_mt_safe,
-                                           bool                                  in_use_pipeline_cache          = false,
-                                           std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr = nullptr);
+           explicit ComputePipelineManager(Anvil::BaseDevice*    in_device_ptr,
+                                           bool                  in_mt_safe,
+                                           bool                  in_use_pipeline_cache          = false,
+                                           Anvil::PipelineCache* in_pipeline_cache_to_reuse_ptr = nullptr);
 
            ANVIL_DISABLE_ASSIGNMENT_OPERATOR(ComputePipelineManager);
            ANVIL_DISABLE_COPY_CONSTRUCTOR   (ComputePipelineManager);

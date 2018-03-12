@@ -28,10 +28,10 @@
 
 
 /* Please see header for specification */
-Anvil::QueryPool::QueryPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                            VkQueryType                      in_query_type,
-                            uint32_t                         in_n_max_concurrent_queries,
-                            bool                             in_mt_safe)
+Anvil::QueryPool::QueryPool(const Anvil::BaseDevice* in_device_ptr,
+                            VkQueryType              in_query_type,
+                            uint32_t                 in_n_max_concurrent_queries,
+                            bool                     in_mt_safe)
     :DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_QUERY_POOL_EXT),
      MTSafetySupportProvider   (in_mt_safe),
@@ -41,8 +41,7 @@ Anvil::QueryPool::QueryPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
     anvil_assert(in_query_type == VK_QUERY_TYPE_OCCLUSION ||
                  in_query_type == VK_QUERY_TYPE_TIMESTAMP);
 
-    init(in_device_ptr,
-         in_query_type,
+    init(in_query_type,
          0, /* in_flags - irrelevant */
          in_n_max_concurrent_queries);
 
@@ -52,19 +51,18 @@ Anvil::QueryPool::QueryPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
 }
 
 /* Please see header for specification */
-Anvil::QueryPool::QueryPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                            VkQueryType                      in_query_type,
-                            VkFlags                          in_query_flags,
-                            uint32_t                         in_n_max_concurrent_queries,
-                            bool                             in_mt_safe)
+Anvil::QueryPool::QueryPool(const Anvil::BaseDevice* in_device_ptr,
+                            VkQueryType              in_query_type,
+                            VkFlags                  in_query_flags,
+                            uint32_t                 in_n_max_concurrent_queries,
+                            bool                     in_mt_safe)
     :DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_QUERY_POOL_EXT),
      MTSafetySupportProvider   (in_mt_safe),
      m_device_ptr              (in_device_ptr),
      m_n_max_indices           (in_n_max_concurrent_queries)
 {
-    init(in_device_ptr,
-         in_query_type,
+    init(in_query_type,
          in_query_flags,
          in_n_max_concurrent_queries);
 
@@ -83,11 +81,9 @@ Anvil::QueryPool::~QueryPool()
 
     if (m_query_pool_vk != VK_NULL_HANDLE)
     {
-        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-
         lock();
         {
-            vkDestroyQueryPool(device_locked_ptr->get_device_vk(),
+            vkDestroyQueryPool(m_device_ptr->get_device_vk(),
                                m_query_pool_vk,
                                nullptr /* pAllocator */);
         }
@@ -98,14 +94,15 @@ Anvil::QueryPool::~QueryPool()
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::QueryPool> Anvil::QueryPool::create_non_ps_query_pool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                                             VkQueryType                      in_query_type,
-                                                                             uint32_t                         in_n_max_concurrent_queries,
-                                                                             MTSafety                         in_mt_safety)
+Anvil::QueryPoolUniquePtr Anvil::QueryPool::create_non_ps_query_pool(const Anvil::BaseDevice* in_device_ptr,
+                                                                     VkQueryType              in_query_type,
+                                                                     uint32_t                 in_n_max_concurrent_queries,
+                                                                     MTSafety                 in_mt_safety)
 {
-    const bool                        mt_safe    = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
-                                                                                                   in_device_ptr);
-    std::shared_ptr<Anvil::QueryPool> result_ptr;
+    const bool         mt_safe    = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                    in_device_ptr);
+    QueryPoolUniquePtr result_ptr(nullptr,
+                                  std::default_delete<QueryPool>() );
 
     result_ptr.reset(
         new Anvil::QueryPool(in_device_ptr,
@@ -118,14 +115,15 @@ std::shared_ptr<Anvil::QueryPool> Anvil::QueryPool::create_non_ps_query_pool(std
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::QueryPool> Anvil::QueryPool::create_ps_query_pool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                                         VkQueryPipelineStatisticFlags    in_pipeline_statistics,
-                                                                         uint32_t                         in_n_max_concurrent_queries,
-                                                                         MTSafety                         in_mt_safety)
+Anvil::QueryPoolUniquePtr Anvil::QueryPool::create_ps_query_pool(const Anvil::BaseDevice*      in_device_ptr,
+                                                                 VkQueryPipelineStatisticFlags in_pipeline_statistics,
+                                                                 uint32_t                      in_n_max_concurrent_queries,
+                                                                 MTSafety                      in_mt_safety)
 {
-    const bool                        mt_safe    = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
-                                                                                                   in_device_ptr);
-    std::shared_ptr<Anvil::QueryPool> result_ptr;
+    const bool         mt_safe    = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                    in_device_ptr);
+    QueryPoolUniquePtr result_ptr(nullptr,
+                                  std::default_delete<QueryPool>() );
 
     result_ptr.reset(
         new Anvil::QueryPool(in_device_ptr,
@@ -139,14 +137,12 @@ std::shared_ptr<Anvil::QueryPool> Anvil::QueryPool::create_ps_query_pool(std::we
 }
 
 /* Please see header for specification */
-void Anvil::QueryPool::init(std::weak_ptr<Anvil::BaseDevice>  in_device_ptr,
-                            VkQueryType                       in_query_type,
-                            VkFlags                           in_query_flags,
-                            uint32_t                          in_n_max_concurrent_queries)
+void Anvil::QueryPool::init(VkQueryType in_query_type,
+                            VkFlags     in_query_flags,
+                            uint32_t    in_n_max_concurrent_queries)
 {
-    VkQueryPoolCreateInfo              create_info;
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-    VkResult                           result_vk        (VK_ERROR_INITIALIZATION_FAILED);
+    VkQueryPoolCreateInfo create_info;
+    VkResult              result_vk   (VK_ERROR_INITIALIZATION_FAILED);
 
     ANVIL_REDUNDANT_VARIABLE(result_vk);
 
@@ -157,7 +153,7 @@ void Anvil::QueryPool::init(std::weak_ptr<Anvil::BaseDevice>  in_device_ptr,
     create_info.queryType          = in_query_type;
     create_info.sType              = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
 
-    result_vk = vkCreateQueryPool(device_locked_ptr->get_device_vk(),
+    result_vk = vkCreateQueryPool(m_device_ptr->get_device_vk(),
                                  &create_info,
                                   nullptr, /* pAllocator */
                                  &m_query_pool_vk);

@@ -22,7 +22,6 @@
 
 #include "misc/debug.h"
 #include "misc/object_tracker.h"
-#include "misc/shader_module_cache.h"
 #include "wrappers/instance.h"
 #include "wrappers/physical_device.h"
 
@@ -64,16 +63,16 @@ Anvil::Instance::~Instance()
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Instance> Anvil::Instance::create(const std::string&              in_app_name,
-                                                         const std::string&              in_engine_name,
-                                                         DebugCallbackFunction           in_opt_validation_callback_proc,
-                                                         bool                            in_mt_safe,
-                                                         const std::vector<std::string>& in_opt_disallowed_instance_level_extensions,
-                                                         bool                            in_opt_enable_shader_module_cache)
+Anvil::InstanceUniquePtr Anvil::Instance::create(const std::string&              in_app_name,
+                                                 const std::string&              in_engine_name,
+                                                 DebugCallbackFunction           in_opt_validation_callback_proc,
+                                                 bool                            in_mt_safe,
+                                                 const std::vector<std::string>& in_opt_disallowed_instance_level_extensions)
 {
-    std::shared_ptr<Anvil::Instance> new_instance_ptr;
+    InstanceUniquePtr new_instance_ptr(nullptr,
+                                       std::default_delete<Anvil::Instance>() );
 
-    new_instance_ptr = std::shared_ptr<Anvil::Instance>(
+    new_instance_ptr.reset(
         new Instance(
             in_app_name,
             in_engine_name,
@@ -81,8 +80,7 @@ std::shared_ptr<Anvil::Instance> Anvil::Instance::create(const std::string&     
             in_mt_safe)
     );
 
-    new_instance_ptr->init(in_opt_disallowed_instance_level_extensions,
-                           in_opt_enable_shader_module_cache);
+    new_instance_ptr->init(in_opt_disallowed_instance_level_extensions);
 
     return new_instance_ptr;
 }
@@ -129,12 +127,17 @@ void Anvil::Instance::destroy()
         m_debug_callback_data = VK_NULL_HANDLE;
     }
 
-    while (m_physical_devices.size() > 0)
-    {
-        m_physical_devices.back()->destroy();
-    }
+    m_physical_devices.clear();
 
-    m_shader_module_cache_ptr.reset();
+    #ifdef _DEBUG
+    {
+        /* Make sure no physical devices are still registered with Object Tracker at this point */
+        auto object_manager_ptr = Anvil::ObjectTracker::get();
+
+        anvil_assert(object_manager_ptr->get_object_at_index(Anvil::OBJECT_TYPE_PHYSICAL_DEVICE,
+                                                             0) == nullptr);
+    }
+    #endif
 }
 
 /** Enumerates and caches all layers supported by the Vulkan Instance. */
@@ -261,11 +264,15 @@ void Anvil::Instance::enumerate_physical_devices()
                       n_physical_device < n_physical_devices;
                     ++n_physical_device)
     {
-        std::shared_ptr<Anvil::PhysicalDevice> new_physical_device_ptr;
+        std::unique_ptr<Anvil::PhysicalDevice> new_physical_device_ptr;
 
-        Anvil::PhysicalDevice::create(shared_from_this(),
+        new_physical_device_ptr = Anvil::PhysicalDevice::create(this,
                                       n_physical_device,
                                       devices[n_physical_device]);
+
+        m_physical_devices.push_back(
+            std::move(new_physical_device_ptr)
+        );
     }
 }
 
@@ -316,8 +323,7 @@ const Anvil::ExtensionKHRSurfaceEntrypoints& Anvil::Instance::get_extension_khr_
 #endif
 
 /** Initializes the wrapper. */
-void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instance_level_extensions,
-                           bool                            in_enable_shader_module_cache)
+void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instance_level_extensions)
 {
     VkApplicationInfo        app_info;
     VkInstanceCreateInfo     create_info;
@@ -477,11 +483,6 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
     }
 
     enumerate_physical_devices();
-
-    if (in_enable_shader_module_cache)
-    {
-        m_shader_module_cache_ptr = Anvil::ShaderModuleCache::create();
-    }
 }
 
 /** Initializes debug callback support. */
@@ -602,34 +603,4 @@ bool Anvil::Instance::is_instance_extension_supported(const char* in_extension_n
     return std::find(m_global_layer.extensions.begin(),
                      m_global_layer.extensions.end(),
                      in_extension_name) != m_global_layer.extensions.end();
-}
-
-/** Please see header for specification */
-void Anvil::Instance::register_physical_device(std::shared_ptr<Anvil::PhysicalDevice> in_physical_device_ptr)
-{
-    auto iterator = std::find(m_physical_devices.begin(),
-                              m_physical_devices.end(),
-                              in_physical_device_ptr);
-
-    anvil_assert(iterator == m_physical_devices.end() );
-
-    if (iterator == m_physical_devices.end() )
-    {
-        m_physical_devices.push_back(in_physical_device_ptr);
-    }
-}
-
-/** Please see header for specification */
-void Anvil::Instance::unregister_physical_device(std::shared_ptr<Anvil::PhysicalDevice> in_physical_device_ptr)
-{
-    auto iterator = std::find(m_physical_devices.begin(),
-                              m_physical_devices.end(),
-                              in_physical_device_ptr);
-
-    anvil_assert(iterator != m_physical_devices.end() );
-
-    if (iterator != m_physical_devices.end() )
-    {
-        m_physical_devices.erase(iterator);
-    }
 }

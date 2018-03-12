@@ -35,10 +35,10 @@ namespace Anvil
     {
     public:
         /* Public functions */
-        static std::shared_ptr<Anvil::Window> create(const std::string&             in_title,
-                                                     unsigned int                   in_width,
-                                                     unsigned int                   in_height,
-                                                     Anvil::PresentCallbackFunction in_present_callback_func);
+        static Anvil::WindowUniquePtr create(const std::string&             in_title,
+                                             unsigned int                   in_width,
+                                             unsigned int                   in_height,
+                                             Anvil::PresentCallbackFunction in_present_callback_func);
 
         virtual ~DummyWindow()
         {
@@ -80,10 +80,10 @@ namespace Anvil
     {
     public:
         /* Public methods */
-        static std::shared_ptr<Anvil::Window> create(const std::string&      in_title,
-                                                     unsigned int            in_width,
-                                                     unsigned int            in_height,
-                                                     PresentCallbackFunction in_present_callback_func);
+        static Anvil::WindowUniquePtr create(const std::string&      in_title,
+                                             unsigned int            in_width,
+                                             unsigned int            in_height,
+                                             PresentCallbackFunction in_present_callback_func);
 
         /** Destructor */
         virtual ~DummyWindowWithPNGSnapshots()
@@ -105,7 +105,7 @@ namespace Anvil
          *
          *  @param in_swapchain_ptr Swapchain to assign. Must not be NULL.
          */
-        void set_swapchain(std::weak_ptr<Anvil::Swapchain> in_swapchain_ptr);
+        void set_swapchain(Anvil::Swapchain* in_swapchain_ptr);
 
     private:
         /* Private functions */
@@ -124,7 +124,7 @@ namespace Anvil
          *
          *  @return As per summary.
          */
-        std::shared_ptr<unsigned char> get_swapchain_image_raw_r8g8b8a8_unorm_data(std::shared_ptr<Anvil::Image> in_swapchain_image_ptr);
+        std::unique_ptr<uint8_t[]> get_swapchain_image_raw_r8g8b8a8_unorm_data(Anvil::Image* in_swapchain_image_ptr);
 
         /** Grabs fake swapchain image contents and stores it in a PNG file. */
         void store_swapchain_frame();
@@ -135,7 +135,7 @@ namespace Anvil
         std::string m_title;
         uint32_t    m_width;
 
-        std::weak_ptr<Anvil::Swapchain> m_swapchain_ptr;
+        Anvil::Swapchain* m_swapchain_ptr;
     };
 }; /* namespace Anvil */
 

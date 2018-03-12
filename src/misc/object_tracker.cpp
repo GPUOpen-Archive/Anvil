@@ -111,6 +111,8 @@ const char* Anvil::ObjectTracker::get_object_type_name(ObjectType in_object_type
         "Descriptor Set",
         "Descriptor Set Group",
         "Descriptor Set Layout",
+        "Descriptor Set Layout Manager",
+        "Descriptor Update Template",
         "Device",
         "Event",
         "Fence",

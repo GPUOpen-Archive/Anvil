@@ -29,13 +29,11 @@
 
 
 /** Constructor. */
-Anvil::PipelineLayoutManager::PipelineLayoutManager(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                    bool                             in_mt_safe)
+Anvil::PipelineLayoutManager::PipelineLayoutManager(const Anvil::BaseDevice* in_device_ptr,
+                                                    bool                     in_mt_safe)
     :MTSafetySupportProvider(in_mt_safe),
      m_device_ptr           (in_device_ptr)
 {
-    update_subscriptions(true);
-
     /* Register the object */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_PIPELINE_LAYOUT_MANAGER,
                                                   this);
@@ -44,9 +42,8 @@ Anvil::PipelineLayoutManager::PipelineLayoutManager(std::weak_ptr<Anvil::BaseDev
 /** Destructor */
 Anvil::PipelineLayoutManager::~PipelineLayoutManager()
 {
+    /* If this assertion check explodes, your app has not released all pipelines it has created. */
     anvil_assert(m_pipeline_layouts.size() == 0);
-
-    update_subscriptions(false);
 
     /* Unregister the object */
     Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_PIPELINE_LAYOUT_MANAGER,
@@ -54,11 +51,11 @@ Anvil::PipelineLayoutManager::~PipelineLayoutManager()
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::PipelineLayoutManager> Anvil::PipelineLayoutManager::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                                                   bool                             in_mt_safe)
+Anvil::PipelineLayoutManagerUniquePtr Anvil::PipelineLayoutManager::create(const Anvil::BaseDevice* in_device_ptr,
+                                                                           bool                     in_mt_safe)
 {
-    std::shared_ptr<Anvil::BaseDevice>            device_locked_ptr(in_device_ptr);
-    std::shared_ptr<Anvil::PipelineLayoutManager> result_ptr;
+    PipelineLayoutManagerUniquePtr result_ptr(nullptr,
+                                              std::default_delete<PipelineLayoutManager>() );
 
     result_ptr.reset(
         new Anvil::PipelineLayoutManager(in_device_ptr,
@@ -66,18 +63,19 @@ std::shared_ptr<Anvil::PipelineLayoutManager> Anvil::PipelineLayoutManager::crea
     );
 
     anvil_assert(result_ptr != nullptr);
-
     return result_ptr;
 }
 
 /* Please see header for specification */
-bool Anvil::PipelineLayoutManager::get_layout(std::shared_ptr<const DescriptorSetGroup> in_dsg_ptr,
-                                              const PushConstantRanges&                 in_push_constant_ranges,
-                                              std::shared_ptr<Anvil::PipelineLayout>*   out_pipeline_layout_ptr_ptr)
+bool Anvil::PipelineLayoutManager::get_layout(const std::vector<DescriptorSetInfoUniquePtr>* in_ds_info_items_ptr,
+                                              const PushConstantRanges&                      in_push_constant_ranges,
+                                              Anvil::PipelineLayoutUniquePtr*                out_pipeline_layout_ptr_ptr)
 {
     std::unique_lock<std::recursive_mutex> mutex_lock;
-    auto                                   mutex_ptr  = get_mutex();
-    bool                                   result     = false;
+    auto                                   mutex_ptr                   = get_mutex();
+    const uint32_t                         n_descriptor_sets_in_in_dsg = static_cast<uint32_t>(in_ds_info_items_ptr->size() );
+    bool                                   result                      = false;
+    Anvil::PipelineLayout*                 result_pipeline_layout_ptr  = nullptr;
 
     if (mutex_ptr != nullptr)
     {
@@ -90,40 +88,98 @@ bool Anvil::PipelineLayoutManager::get_layout(std::shared_ptr<const DescriptorSe
               layout_iterator != m_pipeline_layouts.end();
             ++layout_iterator)
     {
-        auto current_pipeline_layout_ptr = *layout_iterator;
+        auto&      current_pipeline_layout_container_ptr     = *layout_iterator;
+        auto&      current_pipeline_layout_ptr               = current_pipeline_layout_container_ptr->pipeline_layout_ptr;
+        auto       current_pipeline_ds_info_ptrs             = current_pipeline_layout_ptr->get_ds_info_ptrs();
+        bool       dss_match                                 = true;
+        const auto n_descriptor_sets_in_current_pipeline_dsg = static_cast<uint32_t>(current_pipeline_ds_info_ptrs->size() );
 
-        if (current_pipeline_layout_ptr->get_attached_dsg()                  == in_dsg_ptr              &&
-            current_pipeline_layout_ptr->get_attached_push_constant_ranges() == in_push_constant_ranges)
+        if (n_descriptor_sets_in_current_pipeline_dsg != n_descriptor_sets_in_in_dsg)
         {
-            *out_pipeline_layout_ptr_ptr = current_pipeline_layout_ptr->shared_from_this();
-            result                       = true;
-
-            break;
+            continue;
         }
+
+        if (current_pipeline_layout_ptr->get_attached_push_constant_ranges() != in_push_constant_ranges)
+        {
+            continue;
+        }
+
+        for (uint32_t n_ds = 0;
+                      n_ds < n_descriptor_sets_in_in_dsg && dss_match;
+                    ++n_ds)
+        {
+            auto&       in_dsg_ds_info_ptr               = in_ds_info_items_ptr->at         (n_ds);
+            const auto& current_pipeline_dsg_ds_info_ptr = current_pipeline_ds_info_ptrs->at(n_ds);
+
+            if ((in_dsg_ds_info_ptr != nullptr && current_pipeline_dsg_ds_info_ptr == nullptr) ||
+                (in_dsg_ds_info_ptr == nullptr && current_pipeline_dsg_ds_info_ptr != nullptr) )
+            {
+                dss_match = false;
+
+                break;
+            }
+
+            if (in_dsg_ds_info_ptr               != nullptr &&
+                current_pipeline_dsg_ds_info_ptr != nullptr)
+            {
+                if (!(*in_dsg_ds_info_ptr == *current_pipeline_dsg_ds_info_ptr) )
+                {
+                    dss_match = false;
+
+                    break;
+                }
+            }
+        }
+
+        if (!dss_match)
+        {
+            continue;
+        }
+
+        result                       = true;
+        result_pipeline_layout_ptr   = current_pipeline_layout_container_ptr->pipeline_layout_ptr.get();
+
+        current_pipeline_layout_container_ptr->n_references.fetch_add(1);
+
+        break;
     }
 
     if (!result)
     {
-        result = true;
+        auto new_layout_ptr           = Anvil::PipelineLayout::create(m_device_ptr,
+                                                                      in_ds_info_items_ptr,
+                                                                      in_push_constant_ranges,
+                                                                      is_mt_safe() );
+        auto new_layout_container_ptr = std::unique_ptr<PipelineLayoutContainer>(
+            new PipelineLayoutContainer()
+        );
 
-        std::shared_ptr<Anvil::PipelineLayout> new_layout_ptr = Anvil::PipelineLayout::create(m_device_ptr,
-                                                                                              in_dsg_ptr,
-                                                                                              in_push_constant_ranges,
-                                                                                              is_mt_safe() );
+        result                                        = true;
+        result_pipeline_layout_ptr                    = new_layout_ptr.get();
+        new_layout_container_ptr->pipeline_layout_ptr = std::move(new_layout_ptr);
 
-        m_pipeline_layouts.push_back(new_layout_ptr.get() );
+        m_pipeline_layouts.push_back(
+            std::move(new_layout_container_ptr)
+        );
+    }
 
-        *out_pipeline_layout_ptr_ptr = new_layout_ptr;
+    if (result)
+    {
+        anvil_assert(result_pipeline_layout_ptr != nullptr);
+
+        *out_pipeline_layout_ptr_ptr = Anvil::PipelineLayoutUniquePtr(result_pipeline_layout_ptr,
+                                                                      std::bind(&PipelineLayoutManager::on_pipeline_layout_dereferenced,
+                                                                                this,
+                                                                                result_pipeline_layout_ptr)
+        );
     }
 
     return result;
 }
 
-/** Called back whenever a pipeline layout is released **/
-void Anvil::PipelineLayoutManager::on_pipeline_layout_dropped(CallbackArgument* in_callback_arg_raw_ptr)
+void Anvil::PipelineLayoutManager::on_pipeline_layout_dereferenced(Anvil::PipelineLayout* in_layout_ptr)
 {
-    auto                                   callback_arg_ptr = dynamic_cast<Anvil::OnObjectAboutToBeUnregisteredCallbackArgument*>(in_callback_arg_raw_ptr);
-    PipelineLayouts::iterator              layout_iterator;
+    bool                                   has_found  = false;
     std::unique_lock<std::recursive_mutex> mutex_lock;
     auto                                   mutex_ptr  = get_mutex();
 
@@ -134,35 +190,25 @@ void Anvil::PipelineLayoutManager::on_pipeline_layout_dropped(CallbackArgument* 
         );
     }
 
-    layout_iterator = std::find(m_pipeline_layouts.begin(),
-                                m_pipeline_layouts.end  (),
-                                callback_arg_ptr->object_raw_ptr);
-
-    anvil_assert(layout_iterator != m_pipeline_layouts.end() );
-    if (layout_iterator != m_pipeline_layouts.end() )
+    for (auto layout_iterator  = m_pipeline_layouts.begin();
+              layout_iterator != m_pipeline_layouts.end()    && !has_found;
+            ++layout_iterator)
     {
-        m_pipeline_layouts.erase(layout_iterator);
-    }
-}
+        auto& current_pipeline_layout_container_ptr = *layout_iterator;
+        auto& current_pipeline_layout_ptr           = current_pipeline_layout_container_ptr->pipeline_layout_ptr;
 
-void Anvil::PipelineLayoutManager::update_subscriptions(bool in_should_init)
-{
-    const auto callback_func      = std::bind(&PipelineLayoutManager::on_pipeline_layout_dropped,
-                                              this,
-                                              std::placeholders::_1);
-    void*      callback_owner     = this;
-    auto       object_tracker_ptr = Anvil::ObjectTracker::get();
+        if (current_pipeline_layout_ptr.get() == in_layout_ptr)
+        {
+            has_found = true;
 
-    if (in_should_init)
-    {
-        object_tracker_ptr->register_for_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_PIPELINE_LAYOUT_OBJECT_ABOUT_TO_BE_UNREGISTERED,
-                                                   callback_func,
-                                                   callback_owner);
+            if (current_pipeline_layout_container_ptr->n_references.fetch_sub(1) == 1)
+            {
+                m_pipeline_layouts.erase(layout_iterator);
+            }
+
+            break;
+        }
     }
-    else
-    {
-        object_tracker_ptr->unregister_from_callbacks(OBJECT_TRACKER_CALLBACK_ID_ON_PIPELINE_LAYOUT_OBJECT_ABOUT_TO_BE_UNREGISTERED,
-                                                      callback_func,
-                                                      callback_owner);
-    }
+
+    anvil_assert(has_found);
 }

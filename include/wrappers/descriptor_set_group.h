@@ -55,6 +55,7 @@
 #include "misc/mt_safety.h"
 #include "misc/types.h"
 #include "wrappers/descriptor_set.h"
+#include "wrappers/descriptor_set_layout.h"
 
 namespace Anvil
 {
@@ -99,11 +100,11 @@ namespace Anvil
          *  @param in_device_ptr   Device to use.
          *  @param in_ds_info_ptrs TODO.
          */
-        static std::shared_ptr<DescriptorSetGroup> create(std::weak_ptr<Anvil::BaseDevice>                         in_device_ptr,
-                                                          std::vector<std::unique_ptr<Anvil::DescriptorSetInfo> >& in_ds_info_ptrs,
-                                                          bool                                                     in_releaseable_sets,
-                                                          MTSafety                                                 in_mt_safety                = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE,
-                                                          const std::vector<OverheadAllocation>&                   in_opt_overhead_allocations = std::vector<OverheadAllocation>() );
+        static Anvil::DescriptorSetGroupUniquePtr create(const Anvil::BaseDevice*                        in_device_ptr,
+                                                         std::vector<Anvil::DescriptorSetInfoUniquePtr>& in_ds_info_ptrs,
+                                                         bool                                            in_releaseable_sets,
+                                                         MTSafety                                        in_mt_safety                = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE,
+                                                         const std::vector<OverheadAllocation>&          in_opt_overhead_allocations = std::vector<OverheadAllocation>() );
 
         /** Creates a new DescriptorSetGroup instance.
          *
@@ -114,8 +115,8 @@ namespace Anvil
          *  @param in_parent_dsg_ptr   Pointer to a DSG without a parent. Must not be nullptr.
          *  @param in_releaseable_sets See the documentation above for more details.
          **/
-        static std::shared_ptr<DescriptorSetGroup> create(std::shared_ptr<DescriptorSetGroup> in_parent_dsg_ptr,
-                                                          bool                                in_releaseable_sets);
+        static DescriptorSetGroupUniquePtr create(const DescriptorSetGroup* in_parent_dsg_ptr,
+                                                  bool                      in_releaseable_sets);
 
         /** Retrieves a Vulkan instance of the descriptor set, as configured for the DSG instance's set
          *  at index @param in_n_set.
@@ -127,7 +128,10 @@ namespace Anvil
          *
          *  @return Pointer to the requested Anvil::DescriptorSet instance.
          **/
-        std::shared_ptr<Anvil::DescriptorSet> get_descriptor_set(uint32_t in_n_set) const;
+        Anvil::DescriptorSet* get_descriptor_set(uint32_t in_n_set);
+
+        const std::vector<const Anvil::DescriptorSetInfo*>* get_descriptor_set_info() const;
+        const Anvil::DescriptorSetInfo*                     get_descriptor_set_info(uint32_t in_n_set) const;
 
         /** Retrieves a Vulkan instace of the descriptor set layout, as configured for the DSG instance's
          *  set at index @param in_n_set.
@@ -136,7 +140,7 @@ namespace Anvil
          *
          *  @return Requested Anvil::DescriptorSetLayout instance.
          */
-        std::shared_ptr<Anvil::DescriptorSetLayout> get_descriptor_set_layout(uint32_t in_n_set) const;
+        Anvil::DescriptorSetLayout* get_descriptor_set_layout(uint32_t in_n_set) const;
 
         /** Returns the total number of added descriptor sets.
          *
@@ -183,20 +187,42 @@ namespace Anvil
         bool set_binding_array_items(uint32_t                  in_n_set,
                                      BindingIndex              in_binding_index,
                                      BindingElementArrayRange  in_element_range,
-                                     const BindingElementType* in_elements)
+                                     const BindingElementType* in_elements_ptr)
         {
             anvil_assert(m_descriptor_sets.find(in_n_set) != m_descriptor_sets.end() );
 
-            if (m_descriptor_sets[in_n_set].descriptor_set_ptr == nullptr)
+            if (m_descriptor_sets[in_n_set]->descriptor_set_ptr == nullptr)
             {
                 bake_descriptor_sets();
 
-                anvil_assert(m_descriptor_sets[in_n_set].descriptor_set_ptr != nullptr);
+                anvil_assert(m_descriptor_sets[in_n_set]->descriptor_set_ptr != nullptr);
             }
 
-            m_descriptor_sets[in_n_set].descriptor_set_ptr->set_binding_array_items(in_binding_index,
-                                                                                    in_element_range,
-                                                                                    in_elements);
+            m_descriptor_sets[in_n_set]->descriptor_set_ptr->set_binding_array_items(in_binding_index,
+                                                                                     in_element_range,
+                                                                                     in_elements_ptr);
+
+            return true;
+        }
+
+        template<typename BindingElementType>
+        bool set_binding_array_items(uint32_t                         in_n_set,
+                                     BindingIndex                     in_binding_index,
+                                     BindingElementArrayRange         in_element_range,
+                                     const BindingElementType* const* in_elements_ptr_ptr)
+        {
+            anvil_assert(m_descriptor_sets.find(in_n_set) != m_descriptor_sets.end() );
+
+            if (m_descriptor_sets[in_n_set]->descriptor_set_ptr == nullptr)
+            {
+                bake_descriptor_sets();
+
+                anvil_assert(m_descriptor_sets[in_n_set]->descriptor_set_ptr != nullptr);
+            }
+
+            m_descriptor_sets[in_n_set]->descriptor_set_ptr->set_binding_array_items(in_binding_index,
+                                                                                     in_element_range,
+                                                                                     in_elements_ptr_ptr);
 
             return true;
         }
@@ -220,28 +246,16 @@ namespace Anvil
         /* Private type declarations */
 
         /* Encapsulates all info related to a single descriptor set */
-        typedef struct DescriptorSetInfo
+        typedef struct DescriptorSetInfoContainer
         {
-            std::shared_ptr<Anvil::DescriptorSet>       descriptor_set_ptr;
-            std::shared_ptr<Anvil::DescriptorSetLayout> layout_ptr;
+            Anvil::DescriptorSetUniquePtr       descriptor_set_ptr;
+            Anvil::DescriptorSetLayoutUniquePtr layout_ptr;
 
             /* Dummy constructor */
-            DescriptorSetInfo()
+            DescriptorSetInfoContainer()
             {
                 /* Stub */
             }
-
-            /** Copy constructor.
-             *
-             *  Retains non-null descriptor set and layout wrapper instances.
-             **/
-            DescriptorSetInfo(const DescriptorSetInfo& in);
-
-            /** Assignment operator.
-             *
-             *  Retains non-null descriptor set and layout wrapper instances.
-             **/
-            DescriptorSetInfo& operator=(const DescriptorSetInfo& in);
 
             /** Deinitializes a DescriptorSet instance by releasing the Vulkan descriptor set layout object,
              *  if it's not nullptr.
@@ -249,34 +263,36 @@ namespace Anvil
              *  The function does not release the VkDescriptorSet instance it also holds. This object
              *  should be released by the DescriptorSetGroup destructor instead.
              */
-            ~DescriptorSetInfo();
-        } DescriptorSetInfo;
+            ~DescriptorSetInfoContainer();
+        } DescriptorSetInfoContainer;
 
         /* Private functions */
 
         /** Please see create() documentation for more details. */
-        DescriptorSetGroup(std::weak_ptr<Anvil::BaseDevice>                        in_device_ptr,
-                           std::vector<std::unique_ptr<Anvil::DescriptorSetInfo> > in_ds_info_ptrs,
-                           bool                                                    in_releaseable_sets,
-                           MTSafety                                                in_mt_safety                = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE,
-                           const std::vector<OverheadAllocation>&                  in_opt_overhead_allocations = std::vector<OverheadAllocation>() );
+        DescriptorSetGroup(const Anvil::BaseDevice*                in_device_ptr,
+                           std::vector<DescriptorSetInfoUniquePtr> in_ds_info_ptrs,
+                           bool                                    in_releaseable_sets,
+                           MTSafety                                in_mt_safety                = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE,
+                           const std::vector<OverheadAllocation>&  in_opt_overhead_allocations = std::vector<OverheadAllocation>() );
 
         /** Please see create() documentation for more details. */
-        DescriptorSetGroup(std::shared_ptr<DescriptorSetGroup> in_parent_dsg_ptr,
-                           bool                                in_releaseable_sets);
+        DescriptorSetGroup(const DescriptorSetGroup* in_parent_dsg_ptr,
+                           bool                      in_releaseable_sets);
 
-        void bake_descriptor_pool();
+        bool bake_descriptor_pool();
         bool bake_descriptor_sets();
 
         /* Private members */
-        mutable std::shared_ptr<Anvil::DescriptorPool>          m_descriptor_pool_ptr;
-        mutable std::map<uint32_t, DescriptorSetInfo>           m_descriptor_sets;
-        std::weak_ptr<Anvil::BaseDevice>                        m_device_ptr;
-        std::vector<std::unique_ptr<Anvil::DescriptorSetInfo> > m_ds_info_ptrs;
-        uint32_t                                                m_overhead_allocations[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
+        mutable DescriptorPoolUniquePtr                                          m_descriptor_pool_ptr;
+        mutable std::map<uint32_t, std::unique_ptr<DescriptorSetInfoContainer> > m_descriptor_sets;
+        const Anvil::BaseDevice*                                                 m_device_ptr;
+        std::vector<const Anvil::DescriptorSetInfo*>                             m_ds_info_ptrs;
+        uint32_t                                                                 m_overhead_allocations         [VK_DESCRIPTOR_TYPE_RANGE_SIZE];
+        uint32_t                                                                 m_pool_size_per_descriptor_type[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
 
-        std::shared_ptr<Anvil::DescriptorSetGroup> m_parent_dsg_ptr;
-        bool                                       m_releaseable_sets;
+        uint32_t                         m_n_unique_dses;
+        const Anvil::DescriptorSetGroup* m_parent_dsg_ptr;
+        bool                             m_releaseable_sets;
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(DescriptorSetGroup);
         ANVIL_DISABLE_COPY_CONSTRUCTOR(DescriptorSetGroup);

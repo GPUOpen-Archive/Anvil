@@ -21,7 +21,9 @@
 //
 
 #include "misc/debug.h"
+#include "misc/descriptor_set_info.h"
 #include "misc/object_tracker.h"
+#include "misc/struct_chainer.h"
 #include "wrappers/descriptor_pool.h"
 #include "wrappers/descriptor_set.h"
 #include "wrappers/descriptor_set_layout.h"
@@ -29,23 +31,23 @@
 
 
 /* Please see header for specification */
-Anvil::DescriptorPool::DescriptorPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                      uint32_t                         in_n_max_sets,
-                                      bool                             in_releaseable_sets,
-                                      bool                             in_mt_safe)
+Anvil::DescriptorPool::DescriptorPool(const Anvil::BaseDevice*          in_device_ptr,
+                                      uint32_t                          in_n_max_sets,
+                                      const Anvil::DescriptorPoolFlags& in_flags,
+                                      const uint32_t*                   in_descriptor_count_per_type_ptr,
+                                      bool                              in_mt_safe)
     :CallbacksSupportProvider  (DESCRIPTOR_POOL_CALLBACK_ID_COUNT),
      DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_POOL_EXT),
      MTSafetySupportProvider   (in_mt_safe),
-     m_baked                   (false),
      m_device_ptr              (in_device_ptr),
+     m_flags                   (in_flags),
      m_n_max_sets              (in_n_max_sets),
-     m_pool                    (VK_NULL_HANDLE),
-     m_releaseable_sets        (in_releaseable_sets)
+     m_pool                    (VK_NULL_HANDLE)
 {
-    memset(m_descriptor_count,
-           0,
-           sizeof(m_descriptor_count) );
+    memcpy(m_descriptor_count,
+           in_descriptor_count_per_type_ptr,
+           sizeof(uint32_t) * VK_DESCRIPTOR_TYPE_RANGE_SIZE);
 
     /* Register the object in the Object Tracker */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_DESCRIPTOR_POOL,
@@ -61,11 +63,9 @@ Anvil::DescriptorPool::~DescriptorPool()
 
     if (m_pool != VK_NULL_HANDLE)
     {
-        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-
         lock();
         {
-            vkDestroyDescriptorPool(device_locked_ptr->get_device_vk(),
+            vkDestroyDescriptorPool(m_device_ptr->get_device_vk(),
                                     m_pool,
                                     nullptr /* pAllocator */);
         }
@@ -76,17 +76,17 @@ Anvil::DescriptorPool::~DescriptorPool()
 }
 
 /* Please see header for specification */
-bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                                     in_n_sets,
-                                                  std::shared_ptr<Anvil::DescriptorSetLayout>* in_descriptor_set_layouts_ptr,
-                                                  std::shared_ptr<Anvil::DescriptorSet>*       out_descriptor_sets_ptr,
-                                                  VkResult*                                    out_opt_result_ptr)
+bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                       in_n_sets,
+                                                  const DescriptorSetAllocation* in_ds_allocations_ptr,
+                                                  DescriptorSetUniquePtr*        out_descriptor_sets_ptr,
+                                                  VkResult*                      out_opt_result_ptr)
 {
     bool result = false;
 
     m_ds_cache.resize(in_n_sets);
 
     result = alloc_descriptor_sets(in_n_sets,
-                                   in_descriptor_set_layouts_ptr,
+                                   in_ds_allocations_ptr,
                                   &m_ds_cache.at(0),
                                    out_opt_result_ptr);
 
@@ -97,10 +97,29 @@ bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                      
                     ++n_set)
         {
             out_descriptor_sets_ptr[n_set] = Anvil::DescriptorSet::create(m_device_ptr,
-                                                                          shared_from_this(),
-                                                                          in_descriptor_set_layouts_ptr[n_set],
+                                                                          this,
+                                                                          in_ds_allocations_ptr[n_set].ds_layout_ptr,
                                                                           m_ds_cache[n_set],
                                                                           Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe()) );
+
+            if (out_descriptor_sets_ptr[n_set] == nullptr)
+            {
+                anvil_assert_fail();
+
+                result = false;
+                goto end;
+            }
+        }
+    }
+
+end:
+    if (!result)
+    {
+        for (uint32_t n_set = 0;
+                      n_set < in_n_sets;
+                    ++n_set)
+        {
+            out_descriptor_sets_ptr[n_set].reset();
         }
     }
 
@@ -108,42 +127,53 @@ bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                      
 }
 
 /* Please see header for specification */
-bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                                     in_n_sets,
-                                                  std::shared_ptr<Anvil::DescriptorSetLayout>* in_descriptor_set_layouts_ptr,
-                                                  VkDescriptorSet*                             out_descriptor_sets_vk_ptr,
-                                                  VkResult*                                    out_opt_result_ptr)
+bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                       in_n_sets,
+                                                  const DescriptorSetAllocation* in_ds_allocations_ptr,
+                                                  VkDescriptorSet*               out_descriptor_sets_vk_ptr,
+                                                  VkResult*                      out_opt_result_ptr)
 {
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-    VkDescriptorSetAllocateInfo        ds_alloc_info;
-    VkResult                           result_vk;
-
-    if (!m_baked)
-    {
-        bake();
-
-        anvil_assert(m_baked);
-    }
-
-    m_ds_layout_cache.resize(in_n_sets);
-
-    for (uint32_t n_set = 0;
-                  n_set < in_n_sets;
-                ++n_set)
-    {
-        m_ds_layout_cache[n_set] = in_descriptor_set_layouts_ptr[n_set]->get_layout();
-    }
-
-    ds_alloc_info.descriptorPool     = m_pool;
-    ds_alloc_info.descriptorSetCount = in_n_sets;
-    ds_alloc_info.pNext              = nullptr;
-    ds_alloc_info.pSetLayouts        = &m_ds_layout_cache[0];
-    ds_alloc_info.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    bool                                              result         (false);
+    VkResult                                          result_vk;
+    Anvil::StructChainer<VkDescriptorSetAllocateInfo> struct_chainer;
 
     lock();
     {
-        result_vk = vkAllocateDescriptorSets(device_locked_ptr->get_device_vk(),
-                                            &ds_alloc_info,
-                                             out_descriptor_sets_vk_ptr);
+        m_ds_layout_cache.resize(in_n_sets);
+
+        for (uint32_t n_set = 0;
+                      n_set < in_n_sets;
+                    ++n_set)
+        {
+            if (in_ds_allocations_ptr[n_set].ds_layout_ptr != nullptr)
+            {
+                m_ds_layout_cache[n_set] = in_ds_allocations_ptr[n_set].ds_layout_ptr->get_layout();
+            }
+            else
+            {
+                /* This is a "gap" set. */
+                m_ds_layout_cache[n_set] = m_device_ptr->get_dummy_descriptor_set_layout()->get_layout();
+            }
+        }
+
+        {
+            VkDescriptorSetAllocateInfo ds_alloc_info;
+
+            ds_alloc_info.descriptorPool     = m_pool;
+            ds_alloc_info.descriptorSetCount = in_n_sets;
+            ds_alloc_info.pNext              = nullptr;
+            ds_alloc_info.pSetLayouts        = &m_ds_layout_cache.at(0);
+            ds_alloc_info.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+
+            struct_chainer.append_struct(ds_alloc_info);
+        }
+
+        {
+            auto chain_ptr = struct_chainer.create_chain();
+
+            result_vk = vkAllocateDescriptorSets(m_device_ptr->get_device_vk(),
+                                                 chain_ptr->get_root_struct(),
+                                                 out_descriptor_sets_vk_ptr);
+        }
     }
     unlock();
 
@@ -152,33 +182,50 @@ bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                      
         *out_opt_result_ptr = result_vk;
     }
 
-    return is_vk_call_successful(result_vk);
+    result = is_vk_call_successful(result_vk);
+
+    return result;
 }
 
 /* Please see header for specification */
-void Anvil::DescriptorPool::bake()
+Anvil::DescriptorPoolUniquePtr Anvil::DescriptorPool::create(const Anvil::BaseDevice*          in_device_ptr,
+                                                             uint32_t                          in_n_max_sets,
+                                                             const Anvil::DescriptorPoolFlags& in_flags,
+                                                             const uint32_t*                   in_descriptor_count_per_type_ptr,
+                                                             MTSafety                          in_mt_safety)
 {
-    VkDescriptorPoolCreateInfo         descriptor_pool_create_info;
-    VkDescriptorPoolSize               descriptor_pool_sizes[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr      (m_device_ptr);
-    uint32_t                           n_descriptor_types_used(0);
-    VkResult                           result_vk              (VK_ERROR_INITIALIZATION_FAILED);
+    const bool              is_mt_safe = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                         in_device_ptr);
+    DescriptorPoolUniquePtr result_ptr(nullptr,
+                                       std::default_delete<Anvil::DescriptorPool>() );
 
-    ANVIL_REDUNDANT_VARIABLE(result_vk);
+    result_ptr.reset(
+        new Anvil::DescriptorPool(in_device_ptr,
+                                  in_n_max_sets,
+                                  in_flags,
+                                  in_descriptor_count_per_type_ptr,
+                                  is_mt_safe)
+    );
 
-    if (m_pool != VK_NULL_HANDLE)
+    if (result_ptr != nullptr)
     {
-        lock();
+        if (!result_ptr->init() )
         {
-            vkDestroyDescriptorPool(device_locked_ptr->get_device_vk(),
-                                    m_pool,
-                                    nullptr /* pAllocator */);
+            result_ptr.reset();
         }
-        unlock();
-
-        set_vk_handle(VK_NULL_HANDLE);
-        m_pool = VK_NULL_HANDLE;
     }
+
+    return result_ptr;
+}
+
+/* Please see header for specification */
+bool Anvil::DescriptorPool::init()
+{
+    VkDescriptorPoolCreateInfo descriptor_pool_create_info;
+    VkDescriptorPoolSize       descriptor_pool_sizes[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
+    uint32_t                   n_descriptor_types_used                             (0);
+    bool                       result                                              (false);
+    VkResult                   result_vk                                           (VK_ERROR_INITIALIZATION_FAILED);
 
     /* Convert the counters to an arrayed, linear representation */
     for (uint32_t n_descriptor_type = 0;
@@ -197,15 +244,14 @@ void Anvil::DescriptorPool::bake()
     }
 
     /* Set up the descriptor pool instance */
-    descriptor_pool_create_info.flags         = (m_releaseable_sets) ? VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT
-                                                                     : 0u;
+    descriptor_pool_create_info.flags         = ((m_flags & Anvil::DESCRIPTOR_POOL_FLAG_CREATE_FREE_DESCRIPTOR_SET_BIT) ? VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT : 0u);
     descriptor_pool_create_info.maxSets       = m_n_max_sets;
     descriptor_pool_create_info.pNext         = nullptr;
     descriptor_pool_create_info.poolSizeCount = n_descriptor_types_used;
     descriptor_pool_create_info.pPoolSizes    = descriptor_pool_sizes;
     descriptor_pool_create_info.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 
-    result_vk = vkCreateDescriptorPool(device_locked_ptr->get_device_vk(),
+    result_vk = vkCreateDescriptorPool(m_device_ptr->get_device_vk(),
                                       &descriptor_pool_create_info,
                                        nullptr, /* pAllocator */
                                       &m_pool);
@@ -215,28 +261,16 @@ void Anvil::DescriptorPool::bake()
     {
         set_vk_handle(m_pool);
     }
+    else
+    {
+        anvil_assert(result);
 
-    m_baked = true;
-}
+        goto end;
+    }
 
-/* Please see header for specification */
-std::shared_ptr<Anvil::DescriptorPool> Anvil::DescriptorPool::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                                     uint32_t                         in_n_max_sets,
-                                                                     bool                             in_releaseable_sets,
-                                                                     MTSafety                         in_mt_safety)
-{
-    const bool                             is_mt_safe = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
-                                                                                                        in_device_ptr);
-    std::shared_ptr<Anvil::DescriptorPool> result_ptr;
-
-    result_ptr.reset(
-        new Anvil::DescriptorPool(in_device_ptr,
-                                  in_n_max_sets,
-                                  in_releaseable_sets,
-                                  is_mt_safe)
-    );
-
-    return result_ptr;
+    result = true;
+end:
+    return result;
 }
 
 /* Please see header for specification */
@@ -246,12 +280,10 @@ bool Anvil::DescriptorPool::reset()
 
     if (m_pool != VK_NULL_HANDLE)
     {
-        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-
         /* TODO: Host synchronization to VkDescriptorSetObjects alloc'ed from the pool. */
         lock();
         {
-            result_vk = vkResetDescriptorPool(device_locked_ptr->get_device_vk(),
+            result_vk = vkResetDescriptorPool(m_device_ptr->get_device_vk(),
                                               m_pool,
                                               0 /* flags */);
         }

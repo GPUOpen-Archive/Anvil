@@ -41,7 +41,8 @@ namespace Anvil
          *
          * Should only be used by Anvil::MemoryAllocator
          */
-        class VMA : public Anvil::MemoryAllocator::IMemoryAllocatorBackend
+        class VMA : public Anvil::MemoryAllocator::IMemoryAllocatorBackend,
+                    public std::enable_shared_from_this<VMA>
         {
         public:
             /* Public functions */
@@ -52,7 +53,7 @@ namespace Anvil
              *
              *  @param in_device_ptr Vulkan device the memory allocations are going to be made for.
              **/
-            static std::shared_ptr<VMA> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
+            static std::unique_ptr<VMA> create(const Anvil::BaseDevice* in_device_ptr);
 
             /** Destructor. */
             virtual ~VMA();
@@ -73,7 +74,7 @@ namespace Anvil
                  *
                  *  @param in_device_ptr Device the allocator should be initialized for.
                  **/
-                static std::shared_ptr<VMAAllocator> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
+                static std::shared_ptr<VMAAllocator> create(const Anvil::BaseDevice* in_device_ptr);
 
                 /** Destructor */
                 virtual ~VMAAllocator();
@@ -101,20 +102,20 @@ namespace Anvil
             private:
                 /* Private functions */
 
-                VMAAllocator(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
+                VMAAllocator(const Anvil::BaseDevice* in_device_ptr);
 
                 bool init();
 
                 /* Private variables */
-                VmaAllocator                     m_allocator;
-                std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
+                VmaAllocator             m_allocator;
+                const Anvil::BaseDevice* m_device_ptr;
 
                 std::vector<std::shared_ptr<VMAAllocator> > m_refcount_helper;
             };
 
             /* Private functions */
 
-            VMA(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
+            VMA(const Anvil::BaseDevice* in_device_ptr);
 
             bool init();
 
@@ -124,8 +125,8 @@ namespace Anvil
             bool supports_baking()                                         const;
 
             /* Private variables */
-            std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
-            std::shared_ptr<VMAAllocator>    m_vma_allocator_ptr;
+            const Anvil::BaseDevice*      m_device_ptr;
+            std::shared_ptr<VMAAllocator> m_vma_allocator_ptr;
         };
     };
 };

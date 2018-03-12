@@ -62,9 +62,9 @@ namespace Anvil
             /* Stub */
         }
 
-        virtual PoolItem create_item ()                     = 0;
-        virtual void     release_item(PoolItem in_item_ptr) = 0;
-        virtual void     reset_item  (PoolItem in_item_ptr) = 0;
+        virtual PoolItem create_item ()                      = 0;
+        virtual void     release_item(PoolItem  in_item_ptr) = 0;
+        virtual void     reset_item  (PoolItem& in_item_ptr) = 0;
     };
 
     /** Generic pool implementation  */
@@ -80,13 +80,16 @@ namespace Anvil
 
         PoolItemContainer(PoolItemPtrType in_item)
         {
-            item = in_item;
+            item = std::move(in_item);
         }
 
         bool operator==(const PoolItemType* in_item_ptr) const
         {
             return item.get() == in_item_ptr;
         }
+
+        PoolItemContainer(const PoolItemContainer&) = delete;
+        PoolItemContainer& operator=(const PoolItemContainer&) = delete;
     };
 
     /** A functor which returns an object back to the pool.
@@ -145,9 +148,13 @@ namespace Anvil
                           n_item < in_n_items_to_preallocate;
                         ++n_item)
             {
-                PoolItemContainer<PoolItemType, PoolItemPtrType> new_item_container(m_worker_ptr->create_item() );
+                std::unique_ptr<PoolItemContainer<PoolItemType, PoolItemPtrType> > new_item_container_ptr(
+                    new PoolItemContainer<PoolItemType, PoolItemPtrType>(m_worker_ptr->create_item() )
+                );
 
-                m_available_pool_item_containers.push_back(new_item_container);
+                m_available_pool_item_containers.push_back(
+                    std::move(new_item_container_ptr)
+                );
             }
         }
 
@@ -160,18 +167,22 @@ namespace Anvil
         {
             while (!m_active_pool_item_containers.empty())
             {
-                Anvil::PoolItemContainer<PoolItemType, PoolItemPtrType> current_item_container = m_active_pool_item_containers.front();
+                std::unique_ptr<Anvil::PoolItemContainer<PoolItemType, PoolItemPtrType> >& current_item_container = m_active_pool_item_containers.back();
 
-                m_worker_ptr->release_item(current_item_container.item);
+                m_worker_ptr->release_item(
+                    std::move(current_item_container->item)
+                );
 
                 m_active_pool_item_containers.pop_back();
             }
 
             while (!m_available_pool_item_containers.empty())
             {
-                Anvil::PoolItemContainer<PoolItemType, PoolItemPtrType> current_item_container = m_available_pool_item_containers.front();
+                std::unique_ptr<Anvil::PoolItemContainer<PoolItemType, PoolItemPtrType> >& current_item_container = m_available_pool_item_containers.back();
 
-                m_worker_ptr->release_item(current_item_container.item);
+                m_worker_ptr->release_item(
+                    std::move(current_item_container->item)
+                );
 
                 m_available_pool_item_containers.pop_back();
             }
@@ -205,19 +216,26 @@ namespace Anvil
 
             if (!m_available_pool_item_containers.empty())
             {
-                result = PoolItemPtrType(m_available_pool_item_containers.back().item.get(),
+                result = PoolItemPtrType(m_available_pool_item_containers.back()->item.get(),
                                          release_functor);
 
-                m_active_pool_item_containers.push_back  (m_available_pool_item_containers.back() );
+                m_active_pool_item_containers.push_back(
+                    std::move(m_available_pool_item_containers.back() )
+                );
+
                 m_available_pool_item_containers.pop_back();
             }
             else
             {
-                PoolItemContainer<PoolItemType, PoolItemPtrType> new_item_container(m_worker_ptr->create_item() );
+                std::unique_ptr<PoolItemContainer<PoolItemType, PoolItemPtrType> > new_item_container(
+                    new PoolItemContainer<PoolItemType, PoolItemPtrType>(m_worker_ptr->create_item() )
+                );
 
-                m_active_pool_item_containers.push_back(new_item_container);
+                m_active_pool_item_containers.push_back(
+                    std::move(new_item_container)
+                );
 
-                result = PoolItemPtrType(m_active_pool_item_containers.back().item.get(),
+                result = PoolItemPtrType(m_active_pool_item_containers.back()->item.get(),
                                          release_functor);
             }
 
@@ -229,8 +247,8 @@ namespace Anvil
         /** Stores the provided instance back in the pool. */
         void return_item(PoolItemType* in_item_ptr)
         {
-            PoolItemContainer<PoolItemType, PoolItemPtrType> container;
-            bool                                             has_found = false;
+            std::unique_ptr<PoolItemContainer<PoolItemType, PoolItemPtrType> > container;
+            bool                                                               has_found = false;
 
             ANVIL_REDUNDANT_VARIABLE(has_found);
 
@@ -238,9 +256,9 @@ namespace Anvil
                       iterator != m_active_pool_item_containers.end();
                     ++iterator)
             {
-                if (iterator->item.get() == in_item_ptr)
+                if ((*iterator)->item.get() == in_item_ptr)
                 {
-                    container = *iterator;
+                    container = std::move(*iterator);
                     has_found = true;
 
                     m_active_pool_item_containers.erase(iterator);
@@ -251,12 +269,14 @@ namespace Anvil
 
             anvil_assert(has_found);
 
-            m_available_pool_item_containers.push_back(container);
+            m_available_pool_item_containers.push_back(
+                std::move(container)
+            );
         }
 
     protected:
         /* Protected type declarations */
-        typedef std::vector<PoolItemContainer<PoolItemType, PoolItemPtrType> > PoolItemContainers;
+        typedef std::vector<std::unique_ptr<PoolItemContainer<PoolItemType, PoolItemPtrType> > > PoolItemContainers;
 
         /* Protected functions */
 
@@ -278,8 +298,8 @@ namespace Anvil
 
 
     /** Implements IPoolWorker interface for primary command buffers. */
-    template<class CommandBuffer>
-    class CommandBufferPoolWorker : public IPoolWorker<std::shared_ptr<CommandBuffer> >
+    template<class CommandBufferPtr>
+    class CommandBufferPoolWorker : public IPoolWorker<CommandBufferPtr>
     {
     public:
         /* Public functions */
@@ -291,7 +311,7 @@ namespace Anvil
          *  @param in_parent_command_pool_ptr Command pool instance, from which command buffers
          *                                    should be spawned. Must not be nullptr.
          **/
-        CommandBufferPoolWorker(std::shared_ptr<Anvil::CommandPool> in_parent_command_pool_ptr)
+        CommandBufferPoolWorker(Anvil::CommandPool* in_parent_command_pool_ptr)
             :m_parent_command_pool_ptr(in_parent_command_pool_ptr)
         {
             anvil_assert(m_parent_command_pool_ptr != nullptr)
@@ -306,25 +326,9 @@ namespace Anvil
             /* Stub */
         }
 
-        /** Creates a new primary / secondary command buffer instance. The command buffer
-         *  is taken from the pool specified at worker instantiation time. **/
-        virtual std::shared_ptr<CommandBuffer> create_item() = 0;
-
-        /** Resets contents of the specified command buffer.
-         *
-         *  @param in_item_ptr Command buffer to reset. Must not be nullptr.
-         **/
-        virtual void reset_item(std::shared_ptr<CommandBuffer> in_item_ptr) = 0;
-
-        /** Releases the specified command buffer. **/
-        void release_item(std::shared_ptr<CommandBuffer> in_item_ptr)
-        {
-            /* Nop */
-        }
-
     protected:
         /* Protected variables */
-        std::shared_ptr<Anvil::CommandPool> m_parent_command_pool_ptr;
+        Anvil::CommandPool* m_parent_command_pool_ptr;
 
     private:
         /* Private functions */
@@ -332,10 +336,10 @@ namespace Anvil
         bool operator=         (const CommandBufferPoolWorker&);
     };
 
-    class PrimaryCommandBufferPoolWorker : public CommandBufferPoolWorker<Anvil::PrimaryCommandBuffer>
+    class PrimaryCommandBufferPoolWorker : public CommandBufferPoolWorker<Anvil::PrimaryCommandBufferUniquePtr>
     {
     public:
-        PrimaryCommandBufferPoolWorker(std::shared_ptr<Anvil::CommandPool> in_parent_command_pool_ptr)
+        PrimaryCommandBufferPoolWorker(Anvil::CommandPool* in_parent_command_pool_ptr)
             :CommandBufferPoolWorker(in_parent_command_pool_ptr)
         {
             /* Stub */
@@ -346,17 +350,22 @@ namespace Anvil
              /* Stub */
         }
 
-        std::shared_ptr<Anvil::PrimaryCommandBuffer> create_item();
-        void                                         reset_item (std::shared_ptr<Anvil::PrimaryCommandBuffer> in_item_ptr);
+        Anvil::PrimaryCommandBufferUniquePtr create_item ();
+        void                                 reset_item  (Anvil::PrimaryCommandBufferUniquePtr& in_item_ptr);
+
+        void release_item(Anvil::PrimaryCommandBufferUniquePtr in_item_ptr)
+        {
+            /* Stub */
+        }
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(PrimaryCommandBufferPoolWorker);
         ANVIL_DISABLE_COPY_CONSTRUCTOR   (PrimaryCommandBufferPoolWorker);
     };
 
-    class SecondaryCommandBufferPoolWorker : public CommandBufferPoolWorker<Anvil::SecondaryCommandBuffer>
+    class SecondaryCommandBufferPoolWorker : public CommandBufferPoolWorker<Anvil::SecondaryCommandBufferUniquePtr>
     {
     public:
-        SecondaryCommandBufferPoolWorker(std::shared_ptr<Anvil::CommandPool> in_parent_command_pool_ptr)
+        SecondaryCommandBufferPoolWorker(Anvil::CommandPool* in_parent_command_pool_ptr)
             :CommandBufferPoolWorker(in_parent_command_pool_ptr)
         {
             /* Stub */
@@ -367,8 +376,13 @@ namespace Anvil
              /* Stub */
         }
 
-        std::shared_ptr<Anvil::SecondaryCommandBuffer> create_item();
-        void                                           reset_item (std::shared_ptr<Anvil::SecondaryCommandBuffer> in_item_ptr);
+        Anvil::SecondaryCommandBufferUniquePtr create_item ();
+        void                                   reset_item  (Anvil::SecondaryCommandBufferUniquePtr& in_item_ptr);
+
+        void release_item(Anvil::SecondaryCommandBufferUniquePtr in_item_ptr)
+        {
+            /* Stub */
+        }
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(SecondaryCommandBufferPoolWorker);
         ANVIL_DISABLE_COPY_CONSTRUCTOR   (SecondaryCommandBufferPoolWorker);
@@ -386,14 +400,13 @@ namespace Anvil
          *  @param in_n_preallocated_items    Number of command buffers to preallocate at creation time.
          *
          **/
-        static std::shared_ptr<CommandBufferPool<PoolWorker, CommandBufferType, CommandBufferPtrType> > create(std::shared_ptr<Anvil::CommandPool> in_parent_command_pool_ptr,
-                                                                                                               uint32_t                            in_n_preallocated_items)
+        static std::unique_ptr<CommandBufferPool<PoolWorker, CommandBufferType, CommandBufferPtrType> > create(Anvil::CommandPool* in_parent_command_pool_ptr,
+                                                                                                               uint32_t            in_n_preallocated_items)
         {
-            std::shared_ptr<CommandBufferPool<PoolWorker, CommandBufferType, CommandBufferPtrType> > result_ptr;
+            std::unique_ptr<CommandBufferPool<PoolWorker, CommandBufferType, CommandBufferPtrType> > result_ptr;
 
             result_ptr.reset(
-                new CommandBufferPool<PoolWorker, CommandBufferType, CommandBufferPtrType>(in_parent_command_pool_ptr,
-                                                                                           in_n_preallocated_items,
+                new CommandBufferPool<PoolWorker, CommandBufferType, CommandBufferPtrType>(in_n_preallocated_items,
                                                                                            new PoolWorker(in_parent_command_pool_ptr))
             );
 
@@ -409,9 +422,8 @@ namespace Anvil
     private:
 
         /* Constructor. Please see create() for documentation */
-        CommandBufferPool(std::shared_ptr<Anvil::CommandPool> in_parent_command_pool_ptr,
-                          uint32_t                            in_n_preallocated_items,
-                          PoolWorker*                         in_pool_worker_ptr)
+        CommandBufferPool(uint32_t    in_n_preallocated_items,
+                          PoolWorker* in_pool_worker_ptr)
             :GenericPool<CommandBufferType, CommandBufferPtrType>(in_n_preallocated_items,
                                                                   in_pool_worker_ptr)
         {
@@ -421,8 +433,8 @@ namespace Anvil
     };
 
     /* Command pool specializations */
-    typedef CommandBufferPool<PrimaryCommandBufferPoolWorker,   PrimaryCommandBuffer,   std::shared_ptr<PrimaryCommandBuffer> >   PrimaryCommandBufferPool;
-    typedef CommandBufferPool<SecondaryCommandBufferPoolWorker, SecondaryCommandBuffer, std::shared_ptr<SecondaryCommandBuffer> > SecondaryCommandBufferPool;
+    typedef CommandBufferPool<PrimaryCommandBufferPoolWorker,   PrimaryCommandBuffer,   PrimaryCommandBufferUniquePtr>   PrimaryCommandBufferPool;
+    typedef CommandBufferPool<SecondaryCommandBufferPoolWorker, SecondaryCommandBuffer, SecondaryCommandBufferUniquePtr> SecondaryCommandBufferPool;
 
 }; /* namespace Anvil */
 

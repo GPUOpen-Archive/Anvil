@@ -26,8 +26,8 @@
 #include "wrappers/semaphore.h"
 
 /* Please see header for specification */
-Anvil::Semaphore::Semaphore(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                            bool                             in_mt_safe)
+Anvil::Semaphore::Semaphore(const Anvil::BaseDevice* in_device_ptr,
+                            bool                     in_mt_safe)
     :DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT),
      MTSafetySupportProvider   (in_mt_safe),
@@ -50,12 +50,13 @@ Anvil::Semaphore::~Semaphore()
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Semaphore> Anvil::Semaphore::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                           MTSafety                         in_mt_safety)
+Anvil::SemaphoreUniquePtr Anvil::Semaphore::create(const Anvil::BaseDevice* in_device_ptr,
+                                                   MTSafety                 in_mt_safety)
 {
-    const bool                        mt_safe    = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
-                                                                                                   in_device_ptr);
-    std::shared_ptr<Anvil::Semaphore> result_ptr;
+    const bool         mt_safe    = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                    in_device_ptr);
+    SemaphoreUniquePtr result_ptr(nullptr,
+                                  std::default_delete<Semaphore>() );
 
     result_ptr.reset(
         new Anvil::Semaphore(in_device_ptr,
@@ -70,11 +71,9 @@ void Anvil::Semaphore::release_semaphore()
 {
     if (m_semaphore != VK_NULL_HANDLE)
     {
-        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-
         lock();
         {
-            vkDestroySemaphore(device_locked_ptr->get_device_vk(),
+            vkDestroySemaphore(m_device_ptr->get_device_vk(),
                                m_semaphore,
                                nullptr /* pAllocator */);
         }
@@ -88,7 +87,6 @@ void Anvil::Semaphore::release_semaphore()
 /* Please see header for specification */
 void Anvil::Semaphore::reset()
 {
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr    (m_device_ptr);
     VkResult                           result               (VK_ERROR_INITIALIZATION_FAILED);
     VkSemaphoreCreateInfo              semaphore_create_info;
 
@@ -101,7 +99,7 @@ void Anvil::Semaphore::reset()
     semaphore_create_info.pNext = nullptr;
     semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-    result = vkCreateSemaphore(device_locked_ptr->get_device_vk(),
+    result = vkCreateSemaphore(m_device_ptr->get_device_vk(),
                               &semaphore_create_info,
                                nullptr, /* pAllocator */
                               &m_semaphore);

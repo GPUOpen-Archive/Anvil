@@ -31,10 +31,10 @@
 #include <algorithm>
 
 
-Anvil::ComputePipelineManager::ComputePipelineManager(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
-                                                      bool                                  in_mt_safe,
-                                                      bool                                  in_use_pipeline_cache,
-                                                      std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr)
+Anvil::ComputePipelineManager::ComputePipelineManager(Anvil::BaseDevice*    in_device_ptr,
+                                                      bool                  in_mt_safe,
+                                                      bool                  in_use_pipeline_cache,
+                                                      Anvil::PipelineCache* in_pipeline_cache_to_reuse_ptr)
     :BasePipelineManager(in_device_ptr,
                          in_mt_safe,
                          in_use_pipeline_cache,
@@ -87,7 +87,6 @@ bool Anvil::ComputePipelineManager::bake()
     } BakeItem;
 
     std::map<VkPipelineLayout, std::vector<BakeItem> > layout_to_bake_item_map;
-    std::shared_ptr<Anvil::BaseDevice>                 locked_device_ptr            (m_device_ptr);
     std::unique_lock<std::recursive_mutex>             mutex_lock;
     auto                                               mutex_ptr                    (get_mutex() );
     uint32_t                                           n_current_pipeline           (0);
@@ -122,7 +121,9 @@ bool Anvil::ComputePipelineManager::bake()
 
         if (current_pipeline_ptr->layout_ptr == nullptr)
         {
-            current_pipeline_ptr->layout_ptr = get_pipeline_layout(pipeline_iterator->first);
+            get_pipeline_layout(pipeline_iterator->first);
+
+            anvil_assert(current_pipeline_ptr->layout_ptr != nullptr);
         }
 
         current_pipeline_info_ptr->get_specialization_constants(Anvil::SHADER_STAGE_COMPUTE,
@@ -191,7 +192,7 @@ bool Anvil::ComputePipelineManager::bake()
 
         pipeline_create_info.flags                     = 0;
         pipeline_create_info.layout                    = current_pipeline_ptr->layout_ptr->get_pipeline_layout();
-        pipeline_create_info.pNext                     = VK_NULL_HANDLE;
+        pipeline_create_info.pNext                     = nullptr;
         pipeline_create_info.stage.flags               = 0;
         pipeline_create_info.stage.pName               = shader_stage_entry_point_ptr->name.c_str();
         pipeline_create_info.stage.pNext               = nullptr;
@@ -241,7 +242,7 @@ bool Anvil::ComputePipelineManager::bake()
 
         m_pipeline_cache_ptr->lock();
         {
-            result_vk = vkCreateComputePipelines(locked_device_ptr->get_device_vk(),
+            result_vk = vkCreateComputePipelines(m_device_ptr->get_device_vk(),
                                                  m_pipeline_cache_ptr->get_pipeline_cache(),
                                                  static_cast<uint32_t>(pipeline_create_info_items_vk.size() ),
                                                 &pipeline_create_info_items_vk[0],
@@ -284,12 +285,12 @@ end:
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::ComputePipelineManager> Anvil::ComputePipelineManager::create(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
-                                                                                     bool                                  in_mt_safe,
-                                                                                     bool                                  in_use_pipeline_cache,
-                                                                                     std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr)
+std::unique_ptr<Anvil::ComputePipelineManager> Anvil::ComputePipelineManager::create(Anvil::BaseDevice*    in_device_ptr,
+                                                                                     bool                  in_mt_safe,
+                                                                                     bool                  in_use_pipeline_cache,
+                                                                                     Anvil::PipelineCache* in_pipeline_cache_to_reuse_ptr)
 {
-    std::shared_ptr<Anvil::ComputePipelineManager> result_ptr;
+    std::unique_ptr<Anvil::ComputePipelineManager> result_ptr;
 
     result_ptr.reset(
         new Anvil::ComputePipelineManager(in_device_ptr,

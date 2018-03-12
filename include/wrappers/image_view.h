@@ -57,18 +57,18 @@ namespace Anvil
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static std::shared_ptr<ImageView> create_1D(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                    std::shared_ptr<Image>           in_image_ptr,
-                                                    uint32_t                         in_n_base_layer,
-                                                    uint32_t                         in_n_base_mipmap_level,
-                                                    uint32_t                         in_n_mipmaps,
-                                                    VkImageAspectFlags               in_aspect_mask,
-                                                    VkFormat                         in_format,
-                                                    VkComponentSwizzle               in_swizzle_red,
-                                                    VkComponentSwizzle               in_swizzle_green,
-                                                    VkComponentSwizzle               in_swizzle_blue,
-                                                    VkComponentSwizzle               in_swizzle_alpha,
-                                                    MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::ImageViewUniquePtr create_1D(const Anvil::BaseDevice* in_device_ptr,
+                                                   Image*                   in_image_ptr,
+                                                   uint32_t                 in_n_base_layer,
+                                                   uint32_t                 in_n_base_mipmap_level,
+                                                   uint32_t                 in_n_mipmaps,
+                                                   VkImageAspectFlags       in_aspect_mask,
+                                                   VkFormat                 in_format,
+                                                   VkComponentSwizzle       in_swizzle_red,
+                                                   VkComponentSwizzle       in_swizzle_green,
+                                                   VkComponentSwizzle       in_swizzle_blue,
+                                                   VkComponentSwizzle       in_swizzle_alpha,
+                                                   MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a single-sample 1D array image view wrapper instance.
          *
@@ -88,19 +88,19 @@ namespace Anvil
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static std::shared_ptr<ImageView> create_1D_array(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                          std::shared_ptr<Image>           in_image_ptr,
-                                                          uint32_t                         in_n_base_layer,
-                                                          uint32_t                         in_n_layers,
-                                                          uint32_t                         in_n_base_mipmap_level,
-                                                          uint32_t                         in_n_mipmaps,
-                                                          VkImageAspectFlags               in_aspect_mask,
-                                                          VkFormat                         in_format,
-                                                          VkComponentSwizzle               in_swizzle_red,
-                                                          VkComponentSwizzle               in_swizzle_green,
-                                                          VkComponentSwizzle               in_swizzle_blue,
-                                                          VkComponentSwizzle               in_swizzle_alpha,
-                                                          MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::ImageViewUniquePtr create_1D_array(const Anvil::BaseDevice* in_device_ptr,
+                                                         Image*                   in_image_ptr,
+                                                         uint32_t                 in_n_base_layer,
+                                                         uint32_t                 in_n_layers,
+                                                         uint32_t                 in_n_base_mipmap_level,
+                                                         uint32_t                 in_n_mipmaps,
+                                                         VkImageAspectFlags       in_aspect_mask,
+                                                         VkFormat                 in_format,
+                                                         VkComponentSwizzle       in_swizzle_red,
+                                                         VkComponentSwizzle       in_swizzle_green,
+                                                         VkComponentSwizzle       in_swizzle_blue,
+                                                         VkComponentSwizzle       in_swizzle_alpha,
+                                                         MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
 
         /** Creates a single-sample or a multi-sample 2D image view wrapper instance. The view will be
@@ -121,18 +121,18 @@ namespace Anvil
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static std::shared_ptr<ImageView> create_2D(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                    std::shared_ptr<Image>           in_image_ptr,
-                                                    uint32_t                         in_n_base_layer,
-                                                    uint32_t                         in_n_base_mipmap_level,
-                                                    uint32_t                         in_n_mipmaps,
-                                                    VkImageAspectFlags               in_aspect_mask,
-                                                    VkFormat                         in_format,
-                                                    VkComponentSwizzle               in_swizzle_red,
-                                                    VkComponentSwizzle               in_swizzle_green,
-                                                    VkComponentSwizzle               in_swizzle_blue,
-                                                    VkComponentSwizzle               in_swizzle_alpha,
-                                                    MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::ImageViewUniquePtr create_2D(const Anvil::BaseDevice* in_device_ptr,
+                                                   Image*                   in_image_ptr,
+                                                   uint32_t                 in_n_base_layer,
+                                                   uint32_t                 in_n_base_mipmap_level,
+                                                   uint32_t                 in_n_mipmaps,
+                                                   VkImageAspectFlags       in_aspect_mask,
+                                                   VkFormat                 in_format,
+                                                   VkComponentSwizzle       in_swizzle_red,
+                                                   VkComponentSwizzle       in_swizzle_green,
+                                                   VkComponentSwizzle       in_swizzle_blue,
+                                                   VkComponentSwizzle       in_swizzle_alpha,
+                                                   MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a single-sample or a multi-sample 2D array image view wrapper instance. The view will be
          *  single-sample if @param in_image_ptr uses 1 sample per texel, and multi-sample otherwise.
@@ -153,19 +153,19 @@ namespace Anvil
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static std::shared_ptr<ImageView> create_2D_array(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                          std::shared_ptr<Anvil::Image>    in_image_ptr,
-                                                          uint32_t                         in_n_base_layer,
-                                                          uint32_t                         in_n_layers,
-                                                          uint32_t                         in_n_base_mipmap_level,
-                                                          uint32_t                         in_n_mipmaps,
-                                                          VkImageAspectFlags               in_aspect_mask,
-                                                          VkFormat                         in_format,
-                                                          VkComponentSwizzle               in_swizzle_red,
-                                                          VkComponentSwizzle               in_swizzle_green,
-                                                          VkComponentSwizzle               in_swizzle_blue,
-                                                          VkComponentSwizzle               in_swizzle_alpha,
-                                                          MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::ImageViewUniquePtr create_2D_array(const Anvil::BaseDevice* in_device_ptr,
+                                                         Anvil::Image*            in_image_ptr,
+                                                         uint32_t                 in_n_base_layer,
+                                                         uint32_t                 in_n_layers,
+                                                         uint32_t                 in_n_base_mipmap_level,
+                                                         uint32_t                 in_n_mipmaps,
+                                                         VkImageAspectFlags       in_aspect_mask,
+                                                         VkFormat                 in_format,
+                                                         VkComponentSwizzle       in_swizzle_red,
+                                                         VkComponentSwizzle       in_swizzle_green,
+                                                         VkComponentSwizzle       in_swizzle_blue,
+                                                         VkComponentSwizzle       in_swizzle_alpha,
+                                                         MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a single-sample 3D image view wrapper instance.
          *
@@ -185,19 +185,19 @@ namespace Anvil
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static std::shared_ptr<ImageView> create_3D(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                    std::shared_ptr<Image>           in_image_ptr,
-                                                    uint32_t                         in_n_base_slice,
-                                                    uint32_t                         in_n_slices,
-                                                    uint32_t                         in_n_base_mipmap_level,
-                                                    uint32_t                         in_n_mipmaps,
-                                                    VkImageAspectFlags               in_aspect_mask,
-                                                    VkFormat                         in_format,
-                                                    VkComponentSwizzle               in_swizzle_red,
-                                                    VkComponentSwizzle               in_swizzle_green,
-                                                    VkComponentSwizzle               in_swizzle_blue,
-                                                    VkComponentSwizzle               in_swizzle_alpha,
-                                                    MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::ImageViewUniquePtr create_3D(const Anvil::BaseDevice* in_device_ptr,
+                                                   Image*                   in_image_ptr,
+                                                   uint32_t                 in_n_base_slice,
+                                                   uint32_t                 in_n_slices,
+                                                   uint32_t                 in_n_base_mipmap_level,
+                                                   uint32_t                 in_n_mipmaps,
+                                                   VkImageAspectFlags       in_aspect_mask,
+                                                   VkFormat                 in_format,
+                                                   VkComponentSwizzle       in_swizzle_red,
+                                                   VkComponentSwizzle       in_swizzle_green,
+                                                   VkComponentSwizzle       in_swizzle_blue,
+                                                   VkComponentSwizzle       in_swizzle_alpha,
+                                                   MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a cube-map image view wrapper instance.
          *
@@ -216,18 +216,18 @@ namespace Anvil
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static std::shared_ptr<ImageView> create_cube_map(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                          std::shared_ptr<Anvil::Image>    in_image_ptr,
-                                                          uint32_t                         in_n_base_layer,
-                                                          uint32_t                         in_n_base_mipmap_level,
-                                                          uint32_t                         in_n_mipmaps,
-                                                          VkImageAspectFlags               in_aspect_mask,
-                                                          VkFormat                         in_format,
-                                                          VkComponentSwizzle               in_swizzle_red,
-                                                          VkComponentSwizzle               in_swizzle_green,
-                                                          VkComponentSwizzle               in_swizzle_blue,
-                                                          VkComponentSwizzle               in_swizzle_alpha,
-                                                          MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::ImageViewUniquePtr create_cube_map(const Anvil::BaseDevice* in_device_ptr,
+                                                         Anvil::Image*            in_image_ptr,
+                                                         uint32_t                 in_n_base_layer,
+                                                         uint32_t                 in_n_base_mipmap_level,
+                                                         uint32_t                 in_n_mipmaps,
+                                                         VkImageAspectFlags       in_aspect_mask,
+                                                         VkFormat                 in_format,
+                                                         VkComponentSwizzle       in_swizzle_red,
+                                                         VkComponentSwizzle       in_swizzle_green,
+                                                         VkComponentSwizzle       in_swizzle_blue,
+                                                         VkComponentSwizzle       in_swizzle_alpha,
+                                                         MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a cube-map array image view wrapper instance.
          *
@@ -248,19 +248,19 @@ namespace Anvil
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
-        static std::shared_ptr<ImageView> create_cube_map_array(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                                std::shared_ptr<Anvil::Image>    in_image_ptr,
-                                                                uint32_t                         in_n_base_layer,
-                                                                uint32_t                         in_n_cube_maps,
-                                                                uint32_t                         in_n_base_mipmap_level,
-                                                                uint32_t                         in_n_mipmaps,
-                                                                VkImageAspectFlags               in_aspect_mask,
-                                                                VkFormat                         in_format,
-                                                                VkComponentSwizzle               in_swizzle_red,
-                                                                VkComponentSwizzle               in_swizzle_green,
-                                                                VkComponentSwizzle               in_swizzle_blue,
-                                                                VkComponentSwizzle               in_swizzle_alpha,
-                                                                MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::ImageViewUniquePtr create_cube_map_array(const Anvil::BaseDevice* in_device_ptr,
+                                                               Anvil::Image*            in_image_ptr,
+                                                               uint32_t                 in_n_base_layer,
+                                                               uint32_t                 in_n_cube_maps,
+                                                               uint32_t                 in_n_base_mipmap_level,
+                                                               uint32_t                 in_n_mipmaps,
+                                                               VkImageAspectFlags       in_aspect_mask,
+                                                               VkFormat                 in_format,
+                                                               VkComponentSwizzle       in_swizzle_red,
+                                                               VkComponentSwizzle       in_swizzle_green,
+                                                               VkComponentSwizzle       in_swizzle_blue,
+                                                               VkComponentSwizzle       in_swizzle_alpha,
+                                                               MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Destructor. Should only be called when the reference counter drops to zero.
          *
@@ -328,7 +328,12 @@ namespace Anvil
         }
 
         /** Returns a pointer to the parent image, from which the image view has been created. */
-        std::shared_ptr<Anvil::Image> get_parent_image() const
+        const Anvil::Image* get_parent_image() const
+        {
+            return m_parent_image_ptr;
+        }
+
+        Anvil::Image* get_parent_image()
         {
             return m_parent_image_ptr;
         }
@@ -372,16 +377,16 @@ namespace Anvil
          *
          *  @return True if an intersection was found, false otherwise.
          */
-        bool intersects(std::shared_ptr<Anvil::ImageView> in_image_view_ptr) const;
+        bool intersects(const Anvil::ImageView* in_image_view_ptr) const;
 
     private:
         /* Private functions */
         ImageView           (const ImageView&);
         ImageView& operator=(const ImageView&);
 
-        ImageView(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                  std::shared_ptr<Anvil::Image>    in_parent_image_ptr,
-                  bool                             in_mt_safe);
+        ImageView(const Anvil::BaseDevice* in_device_ptr,
+                  Anvil::Image*            in_parent_image_ptr,
+                  bool                     in_mt_safe);
 
         bool init(VkImageViewType           in_image_view_type,
                   uint32_t                  in_n_base_layer,
@@ -394,9 +399,9 @@ namespace Anvil
                   const VkComponentSwizzle* in_swizzle_rgba_ptr);
 
         /* Private members */
-        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
-        VkImageView                      m_image_view;
-        std::shared_ptr<Anvil::Image>    m_parent_image_ptr;
+        const Anvil::BaseDevice* m_device_ptr;
+        VkImageView              m_image_view;
+        Anvil::Image*            m_parent_image_ptr;
 
         VkImageAspectFlagsVariable(m_aspect_mask);
 

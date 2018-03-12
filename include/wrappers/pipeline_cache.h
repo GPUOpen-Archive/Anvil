@@ -53,10 +53,10 @@ namespace Anvil
          *  @param in_initial_data      Initial data to initialize the new pipeline cache instance with.
          *                              May be nullptr if @param in_initial_data_size is 0.
          **/
-        static std::shared_ptr<Anvil::PipelineCache> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                            bool                             in_mt_safe,
-                                                            size_t                           in_initial_data_size = 0,
-                                                            const void*                      in_initial_data      = nullptr);
+        static Anvil::PipelineCacheUniquePtr create(const Anvil::BaseDevice* in_device_ptr,
+                                                    bool                    in_mt_safe,
+                                                    size_t                  in_initial_data_size = 0,
+                                                    const void*             in_initial_data      = nullptr);
 
         /** Destroys the Vulkan counterpart and unregisters the wrapper instance from the object tracker. */
         virtual ~PipelineCache();
@@ -88,24 +88,24 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool merge(uint32_t                                           in_n_pipeline_caches,
-                   std::shared_ptr<const Anvil::PipelineCache> const* in_src_cache_ptrs);
+        bool merge(uint32_t                           in_n_pipeline_caches,
+                   const Anvil::PipelineCache* const* in_src_cache_ptrs);
 
     private:
         /* Private functions */
 
         /* Constructor. See create() for specification */
-        PipelineCache(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                      bool                             in_mt_safe,
-                      size_t                           in_initial_data_size,
-                      const void*                      in_initial_data);
+        PipelineCache(const Anvil::BaseDevice* in_device_ptr,
+                      bool                     in_mt_safe,
+                      size_t                   in_initial_data_size,
+                      const void*              in_initial_data);
 
         PipelineCache           (const PipelineCache&);
         PipelineCache& operator=(const PipelineCache&);
 
         /* Private variables */
-        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
-        VkPipelineCache                  m_pipeline_cache;
+        const Anvil::BaseDevice* m_device_ptr;
+        VkPipelineCache          m_pipeline_cache;
     };
 }; /* namespace Anvil */
 

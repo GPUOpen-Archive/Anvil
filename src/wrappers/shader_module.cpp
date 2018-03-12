@@ -34,14 +34,13 @@
 
 
 /** Please see header for specification */
-Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::BaseDevice>            in_device_ptr,
-                                  std::shared_ptr<GLSLShaderToSPIRVGenerator> in_spirv_generator_ptr,
-                                  bool                                        in_mt_safe)
+Anvil::ShaderModule::ShaderModule(const Anvil::BaseDevice*    in_device_ptr,
+                                  GLSLShaderToSPIRVGenerator* in_spirv_generator_ptr,
+                                  bool                        in_mt_safe)
     :DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT),
      MTSafetySupportProvider   (in_mt_safe),
-     m_device_ptr              (in_device_ptr),
-     m_device_raw_ptr          (in_device_ptr.lock().get() )
+     m_device_ptr              (in_device_ptr)
 {
     bool              result                 = false;
     const char*       shader_spirv_blob      = in_spirv_generator_ptr->get_spirv_blob();
@@ -68,22 +67,21 @@ Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::BaseDevice>            in
 }
 
 /** Please see header for specification */
-Anvil::ShaderModule::ShaderModule(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                  const char*                      in_spirv_blob,
-                                  uint32_t                         in_n_spirv_blob_bytes,
-                                  const std::string&               in_cs_entrypoint_name,
-                                  const std::string&               in_fs_entrypoint_name,
-                                  const std::string&               in_gs_entrypoint_name,
-                                  const std::string&               in_tc_entrypoint_name,
-                                  const std::string&               in_te_entrypoint_name,
-                                  const std::string&               in_vs_entrypoint_name,
-                                  bool                             in_mt_safe)
+Anvil::ShaderModule::ShaderModule(const Anvil::BaseDevice* in_device_ptr,
+                                  const char*              in_spirv_blob,
+                                  uint32_t                 in_n_spirv_blob_bytes,
+                                  const std::string&       in_cs_entrypoint_name,
+                                  const std::string&       in_fs_entrypoint_name,
+                                  const std::string&       in_gs_entrypoint_name,
+                                  const std::string&       in_tc_entrypoint_name,
+                                  const std::string&       in_te_entrypoint_name,
+                                  const std::string&       in_vs_entrypoint_name,
+                                  bool                     in_mt_safe)
     :DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT),
      MTSafetySupportProvider   (in_mt_safe),
      m_cs_entrypoint_name      (in_cs_entrypoint_name),
      m_device_ptr              (in_device_ptr),
-     m_device_raw_ptr          (in_device_ptr.lock().get() ),
      m_fs_entrypoint_name      (in_fs_entrypoint_name),
      m_gs_entrypoint_name      (in_gs_entrypoint_name),
      m_tc_entrypoint_name      (in_tc_entrypoint_name),
@@ -111,7 +109,7 @@ Anvil::ShaderModule::~ShaderModule()
     /* Unregister from any callbacks we have subscribed for */
     object_tracker_ptr->unregister_from_callbacks(
         Anvil::OBJECT_TRACKER_CALLBACK_ID_ON_DEVICE_OBJECT_ABOUT_TO_BE_UNREGISTERED,
-        std::bind(&ShaderModule::on_object_about_to_be_released,
+        std::bind(&ShaderModule::on_device_about_to_be_released,
                   this,
                   std::placeholders::_1),
         this
@@ -119,15 +117,16 @@ Anvil::ShaderModule::~ShaderModule()
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModule::create_from_spirv_generator(std::weak_ptr<Anvil::BaseDevice>            in_device_ptr,
-                                                                                      std::shared_ptr<GLSLShaderToSPIRVGenerator> in_spirv_generator_ptr,
-                                                                                      MTSafety                                    in_mt_safety)
+Anvil::ShaderModuleUniquePtr Anvil::ShaderModule::create_from_spirv_generator(const Anvil::BaseDevice*    in_device_ptr,
+                                                                              GLSLShaderToSPIRVGenerator* in_spirv_generator_ptr,
+                                                                              MTSafety                    in_mt_safety)
 {
-    const bool                           mt_safe                 = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
-                                                                                                                   in_device_ptr);
-    std::shared_ptr<Anvil::ShaderModule> result_ptr;
-    auto                                 shader_module_cache_ptr = in_device_ptr.lock()->get_parent_instance().lock()->get_shader_module_cache();
-    const auto                           shader_stage            = in_spirv_generator_ptr->get_shader_stage();
+    const bool                   mt_safe                 = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                           in_device_ptr);
+    Anvil::ShaderModuleUniquePtr result_ptr              = Anvil::ShaderModuleUniquePtr(nullptr,
+                                                                                        std::default_delete<ShaderModule>() );
+    auto                         shader_module_cache_ptr = in_device_ptr->get_shader_module_cache();
+    const auto                   shader_stage            = in_spirv_generator_ptr->get_shader_stage();
 
     if (shader_module_cache_ptr != nullptr)
     {
@@ -147,12 +146,18 @@ std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModule::create_from_spirv_gene
 
             if (result_ptr == nullptr)
             {
-                /* Nope? Need to create a new instance then. */
-                result_ptr.reset(
+                /* Nope? Need to create a new instance then.
+                 *
+                 * Make sure not to specify any deleter. The created shader module is going to be observed and acquired
+                 * by the cache which will take care of destroying at tear-down time. */
+                result_ptr = Anvil::ShaderModuleUniquePtr(
                     new Anvil::ShaderModule(in_device_ptr,
                                             in_spirv_generator_ptr,
-                                            mt_safe)
-                );
+                                            mt_safe),
+                    [](Anvil::ShaderModule*)
+                    {
+                        /* Stub */
+                    });
 
                 Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
                                                              result_ptr.get() );
@@ -162,12 +167,14 @@ std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModule::create_from_spirv_gene
     }
     else
     {
-        /* Just spawn the new instance .. */
+        /* Just spawn a new instance .. */
         result_ptr.reset(
             new Anvil::ShaderModule(in_device_ptr,
                                     in_spirv_generator_ptr,
                                     mt_safe)
         );
+
+        anvil_assert(result_ptr->get_module() != VK_NULL_HANDLE);
 
         Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
                                                      result_ptr.get() );
@@ -177,21 +184,22 @@ std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModule::create_from_spirv_gene
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModule::create_from_spirv_blob(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                                                 const char*                      in_spirv_blob,
-                                                                                 uint32_t                         in_n_spirv_blob_bytes,
-                                                                                 const char*                      in_cs_entrypoint_name,
-                                                                                 const char*                      in_fs_entrypoint_name,
-                                                                                 const char*                      in_gs_entrypoint_name,
-                                                                                 const char*                      in_tc_entrypoint_name,
-                                                                                 const char*                      in_te_entrypoint_name,
-                                                                                 const char*                      in_vs_entrypoint_name,
-                                                                                 MTSafety                         in_mt_safety)
+Anvil::ShaderModuleUniquePtr Anvil::ShaderModule::create_from_spirv_blob(const Anvil::BaseDevice* in_device_ptr,
+                                                                         const char*              in_spirv_blob,
+                                                                         uint32_t                 in_n_spirv_blob_bytes,
+                                                                         const char*              in_cs_entrypoint_name,
+                                                                         const char*              in_fs_entrypoint_name,
+                                                                         const char*              in_gs_entrypoint_name,
+                                                                         const char*              in_tc_entrypoint_name,
+                                                                         const char*              in_te_entrypoint_name,
+                                                                         const char*              in_vs_entrypoint_name,
+                                                                         MTSafety                 in_mt_safety)
 {
-    const bool                           mt_safe                 = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
-                                                                                                                   in_device_ptr);
-    std::shared_ptr<Anvil::ShaderModule> result_ptr;
-    auto                                 shader_module_cache_ptr = in_device_ptr.lock()->get_parent_instance().lock()->get_shader_module_cache();
+    const bool                   mt_safe                 = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                                           in_device_ptr);
+    Anvil::ShaderModuleUniquePtr result_ptr              (nullptr,
+                                                          std::default_delete<ShaderModule>() );
+    auto                         shader_module_cache_ptr = in_device_ptr->get_shader_module_cache();
 
     if (shader_module_cache_ptr != nullptr)
     {
@@ -211,8 +219,11 @@ std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModule::create_from_spirv_blob
 
             if (result_ptr == nullptr)
             {
-                /* Nope? Need to create a new instance then. */
-                result_ptr.reset(
+                /* Nope? Need to create a new instance then.
+                 *
+                 * Make sure not to specify any deleter. The created shader module is going to be observed and acquired
+                 * by the cache which will take care of destroying at tear-down time. */
+                result_ptr = Anvil::ShaderModuleUniquePtr(
                     new Anvil::ShaderModule(in_device_ptr,
                                             in_spirv_blob,
                                             in_n_spirv_blob_bytes,
@@ -222,8 +233,11 @@ std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModule::create_from_spirv_blob
                                             in_tc_entrypoint_name,
                                             in_te_entrypoint_name,
                                             in_vs_entrypoint_name,
-                                            mt_safe)
-                );
+                                            mt_safe),
+                    [](Anvil::ShaderModule*)
+                    {
+                        /* Stub */
+                    });
 
                 Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
                                                              result_ptr.get() );
@@ -247,6 +261,8 @@ std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModule::create_from_spirv_blob
                                     mt_safe)
         );
 
+        anvil_assert(result_ptr->get_module() != VK_NULL_HANDLE);
+
         Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
                                                      result_ptr.get() );
     }
@@ -261,7 +277,7 @@ void Anvil::ShaderModule::destroy()
     {
         lock();
         {
-            vkDestroyShaderModule(m_device_raw_ptr->get_device_vk(),
+            vkDestroyShaderModule(m_device_ptr->get_device_vk(),
                                   m_module,
                                   nullptr /* pAllocator */);
         }
@@ -296,9 +312,8 @@ const std::string& Anvil::ShaderModule::get_disassembly()
 bool Anvil::ShaderModule::init_from_spirv_blob(const char* in_spirv_blob,
                                                uint32_t    in_n_spirv_blob_bytes)
 {
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-    VkResult                           result_vk;
-    VkShaderModuleCreateInfo           shader_module_create_info;
+    VkResult                 result_vk;
+    VkShaderModuleCreateInfo shader_module_create_info;
 
     /* Set up the "shader module" create info descriptor */
     anvil_assert((in_n_spirv_blob_bytes % sizeof(uint32_t) ) == 0);
@@ -309,7 +324,7 @@ bool Anvil::ShaderModule::init_from_spirv_blob(const char* in_spirv_blob,
     shader_module_create_info.pNext    = nullptr;
     shader_module_create_info.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 
-    result_vk = vkCreateShaderModule(device_locked_ptr->get_device_vk(),
+    result_vk = vkCreateShaderModule(m_device_ptr->get_device_vk(),
                                     &shader_module_create_info,
                                      nullptr, /* pAllocator */
                                     &m_module);
@@ -329,7 +344,7 @@ bool Anvil::ShaderModule::init_from_spirv_blob(const char* in_spirv_blob,
     /* Sign for device destruction notification, in which case we need to destroy the shader module. */
     Anvil::ObjectTracker::get()->register_for_callbacks(
         Anvil::OBJECT_TRACKER_CALLBACK_ID_ON_DEVICE_OBJECT_ABOUT_TO_BE_UNREGISTERED,
-        std::bind(&ShaderModule::on_object_about_to_be_released,
+        std::bind(&ShaderModule::on_device_about_to_be_released,
                   this,
                   std::placeholders::_1),
         this
@@ -339,11 +354,11 @@ bool Anvil::ShaderModule::init_from_spirv_blob(const char* in_spirv_blob,
 }
 
 /** TODO */
-void Anvil::ShaderModule::on_object_about_to_be_released(void* in_callback_arg_ptr)
+void Anvil::ShaderModule::on_device_about_to_be_released(void* in_callback_arg_ptr)
 {
     const auto callback_arg_ptr  = reinterpret_cast<const OnObjectAboutToBeUnregisteredCallbackArgument*>(in_callback_arg_ptr);
 
-    if (m_device_raw_ptr == callback_arg_ptr->object_raw_ptr)
+    if (m_device_ptr == callback_arg_ptr->object_raw_ptr)
     {
         /* Make sure to release the shader module handle before we let the object actually proceed with destruction! */
         destroy();

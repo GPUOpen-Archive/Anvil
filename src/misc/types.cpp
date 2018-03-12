@@ -20,14 +20,25 @@
 // THE SOFTWARE.
 //
 
+#include <cfloat>
+#include <cmath>
 #include "misc/debug.h"
+#include "misc/descriptor_set_info.h"
 #include "wrappers/buffer.h"
+#include "wrappers/descriptor_set_layout.h"
 #include "wrappers/device.h"
 #include "wrappers/image.h"
 #include "wrappers/memory_block.h"
 #include "wrappers/physical_device.h"
 #include "wrappers/semaphore.h"
 #include "wrappers/shader_module.h"
+
+#define BOOL_TO_VK_BOOL32(x) ((x)             ? VK_TRUE : VK_FALSE);
+#define VK_BOOL32_TO_BOOL(x) ((x == VK_FALSE) ? false   : true)
+
+#ifdef max
+    #undef max
+#endif
 
 /** Please see header for specification */
 Anvil::BufferBarrier::BufferBarrier(const BufferBarrier& in)
@@ -44,13 +55,13 @@ Anvil::BufferBarrier::BufferBarrier(const BufferBarrier& in)
 }
 
 /** Please see header for specification */
-Anvil::BufferBarrier::BufferBarrier(VkAccessFlags                  in_source_access_mask,
-                                    VkAccessFlags                  in_destination_access_mask,
-                                    uint32_t                       in_src_queue_family_index,
-                                    uint32_t                       in_dst_queue_family_index,
-                                    std::shared_ptr<Anvil::Buffer> in_buffer_ptr,
-                                    VkDeviceSize                   in_offset,
-                                    VkDeviceSize                   in_size)
+Anvil::BufferBarrier::BufferBarrier(VkAccessFlags  in_source_access_mask,
+                                    VkAccessFlags  in_destination_access_mask,
+                                    uint32_t       in_src_queue_family_index,
+                                    uint32_t       in_dst_queue_family_index,
+                                    Anvil::Buffer* in_buffer_ptr,
+                                    VkDeviceSize   in_offset,
+                                    VkDeviceSize   in_size)
 {
     buffer                 = in_buffer_ptr->get_buffer();
     buffer_ptr             = in_buffer_ptr;
@@ -84,6 +95,28 @@ Anvil::BufferBarrier::~BufferBarrier()
     /* Stub */
 }
 
+Anvil::DescriptorSetAllocation::DescriptorSetAllocation(const Anvil::DescriptorSetLayout* in_ds_layout_ptr)
+{
+    anvil_assert( in_ds_layout_ptr != nullptr);
+
+    ds_layout_ptr = in_ds_layout_ptr;
+}
+
+/** Please see header for specification */
+VkDescriptorUpdateTemplateEntryKHR Anvil::DescriptorUpdateTemplateEntry::get_vk_descriptor_update_template_entry_khr() const
+{
+    VkDescriptorUpdateTemplateEntryKHR result;
+
+    result.descriptorCount = n_descriptors;
+    result.descriptorType  = descriptor_type;
+    result.dstArrayElement = n_destination_array_element;
+    result.dstBinding      = n_destination_binding;
+    result.offset          = offset;
+    result.stride          = stride;
+
+    return result;
+}
+
 /** Please see header for specification */
 Anvil::DeviceExtensionConfiguration::DeviceExtensionConfiguration()
 {
@@ -94,14 +127,19 @@ Anvil::DeviceExtensionConfiguration::DeviceExtensionConfiguration()
     amd_rasterization_order              = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     amd_shader_ballot                    = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     amd_shader_explicit_vertex_parameter = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
-    amd_shader_info                      = EXTENSION_AVAILABILITY_IGNORE;
+    amd_shader_fragment_mask             = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    amd_shader_image_load_store_lod      = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    amd_shader_info                      = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     amd_shader_trinary_minmax            = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     amd_texture_gather_bias_lod          = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     ext_shader_stencil_export            = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     ext_shader_subgroup_ballot           = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     ext_shader_subgroup_vote             = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     khr_16bit_storage                    = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    khr_bind_memory2                     = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    khr_descriptor_update_template       = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     khr_maintenance1                     = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+    khr_maintenance3                     = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     khr_storage_buffer_storage_class     = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     khr_surface                          = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
     khr_swapchain                        = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
@@ -125,8 +163,8 @@ Anvil::DeviceExtensionConfiguration::DeviceExtensionConfiguration()
 }
 
 /** Please see header for specification */
-bool Anvil::DeviceExtensionConfiguration::is_supported_by_physical_device(std::weak_ptr<const Anvil::PhysicalDevice> in_physical_device_ptr,
-                                                                          std::vector<std::string>*                  out_opt_unsupported_extensions_ptr) const
+bool Anvil::DeviceExtensionConfiguration::is_supported_by_physical_device(const Anvil::PhysicalDevice* in_physical_device_ptr,
+                                                                          std::vector<std::string>*    out_opt_unsupported_extensions_ptr) const
 {
     typedef struct ExtensionItem
     {
@@ -141,9 +179,8 @@ bool Anvil::DeviceExtensionConfiguration::is_supported_by_physical_device(std::w
         }
     } ExtensionItem;
 
-    std::shared_ptr<const Anvil::PhysicalDevice> physical_device_locked_ptr(in_physical_device_ptr);
-    bool                                         result                    (true);
-    std::vector<ExtensionItem>                   extensions =
+    bool                       result     = true;
+    std::vector<ExtensionItem> extensions =
     {
         ExtensionItem(VK_AMD_DRAW_INDIRECT_COUNT_EXTENSION_NAME,              amd_draw_indirect_count              == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_AMD_GCN_SHADER_EXTENSION_NAME,                       amd_gcn_shader                       == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
@@ -153,15 +190,20 @@ bool Anvil::DeviceExtensionConfiguration::is_supported_by_physical_device(std::w
         ExtensionItem(VK_AMD_RASTERIZATION_ORDER_EXTENSION_NAME,              amd_rasterization_order              == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_AMD_SHADER_BALLOT_EXTENSION_NAME,                    amd_shader_ballot                    == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_AMD_SHADER_EXPLICIT_VERTEX_PARAMETER_EXTENSION_NAME, amd_shader_explicit_vertex_parameter == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_AMD_SHADER_FRAGMENT_MASK_EXTENSION_NAME,             amd_shader_fragment_mask             == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_AMD_SHADER_IMAGE_LOAD_STORE_LOD_EXTENSION_NAME,      amd_shader_image_load_store_lod      == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_AMD_SHADER_INFO_EXTENSION_NAME,                      amd_shader_info                      == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_AMD_SHADER_TRINARY_MINMAX_EXTENSION_NAME,            amd_shader_trinary_minmax            == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_AMD_TEXTURE_GATHER_BIAS_LOD_EXTENSION_NAME,          amd_texture_gather_bias_lod          == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_EXT_DEBUG_MARKER_EXTENSION_NAME,                     ext_debug_marker                     == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem("VK_EXT_shader_stencil_export",                         ext_shader_stencil_export            == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
-        ExtensionItem(VK_EXT_SHADER_SUBGROUP_BALLOT_EXTENSION_NAME,           ext_shader_subgroup_vote             == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_EXT_SHADER_SUBGROUP_BALLOT_EXTENSION_NAME,           ext_shader_subgroup_ballot           == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_EXT_SHADER_SUBGROUP_VOTE_EXTENSION_NAME,             ext_shader_subgroup_vote             == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_KHR_16BIT_STORAGE_EXTENSION_NAME,                    khr_16bit_storage                    == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,                    khr_bind_memory2                     == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_KHR_DESCRIPTOR_UPDATE_TEMPLATE_EXTENSION_NAME,       khr_descriptor_update_template       == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_KHR_MAINTENANCE1_EXTENSION_NAME,                     khr_maintenance1                     == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
+        ExtensionItem(VK_KHR_MAINTENANCE3_EXTENSION_NAME,                     khr_maintenance3                     == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem("VK_KHR_storage_buffer_storage_class",                  khr_storage_buffer_storage_class     == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_KHR_SURFACE_EXTENSION_NAME,                          khr_surface                          == Anvil::EXTENSION_AVAILABILITY_REQUIRE),
         ExtensionItem(VK_KHR_SWAPCHAIN_EXTENSION_NAME,                        khr_swapchain                        == Anvil::EXTENSION_AVAILABILITY_REQUIRE)
@@ -185,7 +227,7 @@ bool Anvil::DeviceExtensionConfiguration::is_supported_by_physical_device(std::w
 
     for (const auto& current_extension : extensions)
     {
-        if (!physical_device_locked_ptr->is_device_extension_supported(current_extension.extension_name) &&
+        if (!in_physical_device_ptr->is_device_extension_supported(current_extension.extension_name) &&
              current_extension.is_required)
         {
             result = false;
@@ -216,13 +258,20 @@ bool Anvil::DeviceExtensionConfiguration::operator==(const Anvil::DeviceExtensio
              (amd_rasterization_order              == in_config.amd_rasterization_order)              &&
              (amd_shader_ballot                    == in_config.amd_shader_ballot)                    &&
              (amd_shader_explicit_vertex_parameter == in_config.amd_shader_explicit_vertex_parameter) &&
+             (amd_shader_fragment_mask             == in_config.amd_shader_fragment_mask)             &&
+             (amd_shader_image_load_store_lod      == in_config.amd_shader_image_load_store_lod)      &&
              (amd_shader_info                      == in_config.amd_shader_info)                      &&
              (amd_shader_trinary_minmax            == in_config.amd_shader_trinary_minmax)            &&
              (amd_texture_gather_bias_lod          == in_config.amd_texture_gather_bias_lod)          &&
              (ext_debug_marker                     == in_config.ext_debug_marker)                     &&
+             (ext_shader_stencil_export            == in_config.ext_shader_stencil_export)            &&
              (ext_shader_subgroup_ballot           == in_config.ext_shader_subgroup_ballot)           &&
              (ext_shader_subgroup_vote             == in_config.ext_shader_subgroup_vote)             &&
              (khr_16bit_storage                    == in_config.khr_16bit_storage)                    &&
+             (khr_bind_memory2                     == in_config.khr_bind_memory2)                     &&
+             (khr_descriptor_update_template       == in_config.khr_descriptor_update_template)       &&
+             (khr_maintenance1                     == in_config.khr_maintenance1)                     &&
+             (khr_maintenance3                     == in_config.khr_maintenance3)                     &&
              (khr_storage_buffer_storage_class     == in_config.khr_storage_buffer_storage_class)     &&
              (khr_surface                          == in_config.khr_surface)                          &&
              (khr_swapchain                        == in_config.khr_swapchain);
@@ -272,15 +321,15 @@ Anvil::ImageBarrier::ImageBarrier(const ImageBarrier& in)
 }
 
 /** Please see header for specification */
-Anvil::ImageBarrier::ImageBarrier(VkAccessFlags                 in_source_access_mask,
-                                  VkAccessFlags                 in_destination_access_mask,
-                                  bool                          in_by_region_barrier,
-                                  VkImageLayout                 in_old_layout,
-                                  VkImageLayout                 in_new_layout,
-                                  uint32_t                      in_src_queue_family_index,
-                                  uint32_t                      in_dst_queue_family_index,
-                                  std::shared_ptr<Anvil::Image> in_image_ptr,
-                                  VkImageSubresourceRange       in_image_subresource_range)
+Anvil::ImageBarrier::ImageBarrier(VkAccessFlags           in_source_access_mask,
+                                  VkAccessFlags           in_destination_access_mask,
+                                  bool                    in_by_region_barrier,
+                                  VkImageLayout           in_old_layout,
+                                  VkImageLayout           in_new_layout,
+                                  uint32_t                in_src_queue_family_index,
+                                  uint32_t                in_dst_queue_family_index,
+                                  Anvil::Image*           in_image_ptr,
+                                  VkImageSubresourceRange in_image_subresource_range)
 {
     by_region              = in_by_region_barrier;
     dst_access_mask        = static_cast<VkAccessFlagBits>(in_destination_access_mask);
@@ -317,6 +366,42 @@ Anvil::ImageBarrier::ImageBarrier(VkAccessFlags                 in_source_access
 Anvil::ImageBarrier::~ImageBarrier()
 {
     /* Stub */
+}
+
+Anvil::KHR16BitStorageFeatures::KHR16BitStorageFeatures(const VkPhysicalDevice16BitStorageFeaturesKHR& in_features)
+{
+    is_input_output_storage_supported                     = VK_BOOL32_TO_BOOL(in_features.storageInputOutput16);
+    is_push_constant_16_bit_storage_supported             = VK_BOOL32_TO_BOOL(in_features.storagePushConstant16);
+    is_storage_buffer_16_bit_access_supported             = VK_BOOL32_TO_BOOL(in_features.storageBuffer16BitAccess);
+    is_uniform_and_storage_buffer_16_bit_access_supported = VK_BOOL32_TO_BOOL(in_features.uniformAndStorageBuffer16BitAccess);
+}
+
+bool Anvil::KHR16BitStorageFeatures::operator==(const KHR16BitStorageFeatures& in_features) const
+{
+    return (in_features.is_input_output_storage_supported                     == is_input_output_storage_supported                      &&
+            in_features.is_push_constant_16_bit_storage_supported             == is_push_constant_16_bit_storage_supported              &&
+            in_features.is_storage_buffer_16_bit_access_supported             == is_storage_buffer_16_bit_access_supported              &&
+            in_features.is_uniform_and_storage_buffer_16_bit_access_supported == is_uniform_and_storage_buffer_16_bit_access_supported);
+}
+
+Anvil::KHRMaintenance3Properties::KHRMaintenance3Properties()
+    :max_memory_allocation_size(std::numeric_limits<VkDeviceSize>::max() ),
+     max_per_set_descriptors   (UINT32_MAX)
+{
+    /* Stub */
+}
+
+Anvil::KHRMaintenance3Properties::KHRMaintenance3Properties(const VkPhysicalDeviceMaintenance3PropertiesKHR& in_props)
+    :max_memory_allocation_size(in_props.maxMemoryAllocationSize),
+     max_per_set_descriptors   (in_props.maxPerSetDescriptors)
+{
+    /* Stub */
+}
+
+bool Anvil::KHRMaintenance3Properties::operator==(const Anvil::KHRMaintenance3Properties& in_props) const
+{
+    return (max_memory_allocation_size == in_props.max_memory_allocation_size &&
+            max_per_set_descriptors    == in_props.max_per_set_descriptors);
 }
 
 /* Please see header for specification */
@@ -947,6 +1032,456 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_array_from_uchar_vect
     return result;
 }
 
+Anvil::PhysicalDeviceLimits::PhysicalDeviceLimits()
+    :buffer_image_granularity                             (std::numeric_limits<VkDeviceSize>::max() ),
+     discrete_queue_priorities                            (UINT32_MAX),
+     framebuffer_color_sample_counts                      (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     framebuffer_depth_sample_counts                      (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     framebuffer_no_attachments_sample_counts             (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     framebuffer_stencil_sample_counts                    (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     line_width_granularity                               (FLT_MAX),
+     max_bound_descriptor_sets                            (UINT32_MAX),
+     max_clip_distances                                   (UINT32_MAX),
+     max_color_attachments                                (UINT32_MAX),
+     max_combined_clip_and_cull_distances                 (UINT32_MAX),
+     max_compute_shared_memory_size                       (UINT32_MAX),
+     max_compute_work_group_invocations                   (UINT32_MAX),
+     max_cull_distances                                   (UINT32_MAX),
+     max_descriptor_set_input_attachments                 (UINT32_MAX),
+     max_descriptor_set_sampled_images                    (UINT32_MAX),
+     max_descriptor_set_samplers                          (UINT32_MAX),
+     max_descriptor_set_storage_buffers                   (UINT32_MAX),
+     max_descriptor_set_storage_buffers_dynamic           (UINT32_MAX),
+     max_descriptor_set_storage_images                    (UINT32_MAX),
+     max_descriptor_set_uniform_buffers                   (UINT32_MAX),
+     max_descriptor_set_uniform_buffers_dynamic           (UINT32_MAX),
+     max_draw_indexed_index_value                         (UINT32_MAX),
+     max_draw_indirect_count                              (UINT32_MAX),
+     max_fragment_combined_output_resources               (UINT32_MAX),
+     max_fragment_dual_src_attachments                    (UINT32_MAX),
+     max_fragment_input_components                        (UINT32_MAX),
+     max_fragment_output_attachments                      (UINT32_MAX),
+     max_framebuffer_height                               (UINT32_MAX),
+     max_framebuffer_layers                               (UINT32_MAX),
+     max_framebuffer_width                                (UINT32_MAX),
+     max_geometry_input_components                        (UINT32_MAX),
+     max_geometry_output_components                       (UINT32_MAX),
+     max_geometry_output_vertices                         (UINT32_MAX),
+     max_geometry_shader_invocations                      (UINT32_MAX),
+     max_geometry_total_output_components                 (UINT32_MAX),
+     max_image_array_layers                               (UINT32_MAX),
+     max_image_dimension_1D                               (UINT32_MAX),
+     max_image_dimension_2D                               (UINT32_MAX),
+     max_image_dimension_3D                               (UINT32_MAX),
+     max_image_dimension_cube                             (UINT32_MAX),
+     max_interpolation_offset                             (FLT_MAX),
+     max_memory_allocation_count                          (UINT32_MAX),
+     max_per_stage_descriptor_input_attachments           (UINT32_MAX),
+     max_per_stage_descriptor_sampled_images              (UINT32_MAX),
+     max_per_stage_descriptor_samplers                    (UINT32_MAX),
+     max_per_stage_descriptor_storage_buffers             (UINT32_MAX),
+     max_per_stage_descriptor_storage_images              (UINT32_MAX),
+     max_per_stage_descriptor_uniform_buffers             (UINT32_MAX),
+     max_per_stage_resources                              (UINT32_MAX),
+     max_push_constants_size                              (UINT32_MAX),
+     max_sample_mask_words                                (UINT32_MAX),
+     max_sampler_allocation_count                         (UINT32_MAX),
+     max_sampler_anisotropy                               (FLT_MAX),
+     max_sampler_lod_bias                                 (FLT_MAX),
+     max_storage_buffer_range                             (UINT32_MAX),
+     max_viewports                                        (UINT32_MAX),
+     max_tessellation_control_per_patch_output_components (UINT32_MAX),
+     max_tessellation_control_per_vertex_input_components (UINT32_MAX),
+     max_tessellation_control_per_vertex_output_components(UINT32_MAX),
+     max_tessellation_control_total_output_components     (UINT32_MAX),
+     max_tessellation_evaluation_input_components         (UINT32_MAX),
+     max_tessellation_evaluation_output_components        (UINT32_MAX),
+     max_tessellation_generation_level                    (UINT32_MAX),
+     max_tessellation_patch_size                          (UINT32_MAX),
+     max_texel_buffer_elements                            (UINT32_MAX),
+     max_texel_gather_offset                              (UINT32_MAX),
+     max_texel_offset                                     (UINT32_MAX),
+     max_uniform_buffer_range                             (UINT32_MAX),
+     max_vertex_input_attributes                          (UINT32_MAX),
+     max_vertex_input_attribute_offset                    (UINT32_MAX),
+     max_vertex_input_bindings                            (UINT32_MAX),
+     max_vertex_input_binding_stride                      (UINT32_MAX),
+     max_vertex_output_components                         (UINT32_MAX),
+     min_interpolation_offset                             (FLT_MAX),
+     min_memory_map_alignment                             (std::numeric_limits<size_t>::max      () ),
+     min_storage_buffer_offset_alignment                  (std::numeric_limits<VkDeviceSize>::max() ),
+     min_texel_buffer_offset_alignment                    (std::numeric_limits<VkDeviceSize>::max() ),
+     min_texel_gather_offset                              (INT32_MAX),
+     min_texel_offset                                     (INT32_MAX),
+     min_uniform_buffer_offset_alignment                  (std::numeric_limits<VkDeviceSize>::max() ),
+     mipmap_precision_bits                                (UINT32_MAX),
+     non_coherent_atom_size                               (std::numeric_limits<VkDeviceSize>::max() ),
+     optimal_buffer_copy_offset_alignment                 (std::numeric_limits<VkDeviceSize>::max() ),
+     optimal_buffer_copy_row_pitch_alignment              (std::numeric_limits<VkDeviceSize>::max() ),
+     point_size_granularity                               (FLT_MAX),
+     sampled_image_color_sample_counts                    (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM), 
+     sampled_image_depth_sample_counts                    (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     sampled_image_integer_sample_counts                  (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     sampled_image_stencil_sample_counts                  (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     sparse_address_space_size                            (std::numeric_limits<VkDeviceSize>::max() ),
+     standard_sample_locations                            (false),
+     storage_image_sample_counts                          (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     strict_lines                                         (false),
+     sub_pixel_interpolation_offset_bits                  (UINT32_MAX),
+     sub_pixel_precision_bits                             (UINT32_MAX),
+     sub_texel_precision_bits                             (UINT32_MAX),
+     timestamp_compute_and_graphics                       (false),
+     timestamp_period                                     (FLT_MAX),
+     viewport_sub_pixel_bits                              (UINT32_MAX)
+{
+    line_width_range[0] = FLT_MAX;
+    line_width_range[1] = FLT_MAX;
+
+    max_compute_work_group_count[0] = UINT32_MAX;
+    max_compute_work_group_count[1] = UINT32_MAX;
+    max_compute_work_group_count[2] = UINT32_MAX;
+
+    max_compute_work_group_size[0] = UINT32_MAX;
+    max_compute_work_group_size[1] = UINT32_MAX;
+    max_compute_work_group_size[2] = UINT32_MAX;
+
+    max_viewport_dimensions[0] = UINT32_MAX;
+    max_viewport_dimensions[1] = UINT32_MAX;
+
+    point_size_range[0] = FLT_MAX;
+    point_size_range[1] = FLT_MAX;
+
+    viewport_bounds_range[0] = FLT_MAX;
+    viewport_bounds_range[1] = FLT_MAX;
+}
+
+Anvil::PhysicalDeviceLimits::PhysicalDeviceLimits(const VkPhysicalDeviceLimits& in_device_limits)
+    :buffer_image_granularity                             (in_device_limits.bufferImageGranularity),
+     discrete_queue_priorities                            (in_device_limits.discreteQueuePriorities),
+     framebuffer_color_sample_counts                      (in_device_limits.framebufferColorSampleCounts),
+     framebuffer_depth_sample_counts                      (in_device_limits.framebufferDepthSampleCounts),
+     framebuffer_no_attachments_sample_counts             (in_device_limits.framebufferNoAttachmentsSampleCounts),
+     framebuffer_stencil_sample_counts                    (in_device_limits.framebufferStencilSampleCounts),
+     line_width_granularity                               (in_device_limits.lineWidthGranularity),
+     max_bound_descriptor_sets                            (in_device_limits.maxBoundDescriptorSets),
+     max_clip_distances                                   (in_device_limits.maxClipDistances),
+     max_color_attachments                                (in_device_limits.maxColorAttachments),
+     max_combined_clip_and_cull_distances                 (in_device_limits.maxCombinedClipAndCullDistances),
+     max_compute_shared_memory_size                       (in_device_limits.maxComputeSharedMemorySize),
+     max_compute_work_group_invocations                   (in_device_limits.maxComputeWorkGroupInvocations),
+     max_cull_distances                                   (in_device_limits.maxCullDistances),
+     max_descriptor_set_input_attachments                 (in_device_limits.maxDescriptorSetInputAttachments),
+     max_descriptor_set_sampled_images                    (in_device_limits.maxDescriptorSetSampledImages),
+     max_descriptor_set_samplers                          (in_device_limits.maxDescriptorSetSamplers),
+     max_descriptor_set_storage_buffers                   (in_device_limits.maxDescriptorSetStorageBuffers),
+     max_descriptor_set_storage_buffers_dynamic           (in_device_limits.maxDescriptorSetStorageBuffersDynamic),
+     max_descriptor_set_storage_images                    (in_device_limits.maxDescriptorSetStorageImages),
+     max_descriptor_set_uniform_buffers                   (in_device_limits.maxDescriptorSetUniformBuffers),
+     max_descriptor_set_uniform_buffers_dynamic           (in_device_limits.maxDescriptorSetUniformBuffersDynamic),
+     max_draw_indexed_index_value                         (in_device_limits.maxDrawIndexedIndexValue),
+     max_draw_indirect_count                              (in_device_limits.maxDrawIndirectCount),
+     max_fragment_combined_output_resources               (in_device_limits.maxFragmentCombinedOutputResources),
+     max_fragment_dual_src_attachments                    (in_device_limits.maxFragmentDualSrcAttachments),
+     max_fragment_input_components                        (in_device_limits.maxFragmentInputComponents),
+     max_fragment_output_attachments                      (in_device_limits.maxFragmentOutputAttachments),
+     max_framebuffer_height                               (in_device_limits.maxFramebufferHeight),
+     max_framebuffer_layers                               (in_device_limits.maxFramebufferLayers),
+     max_framebuffer_width                                (in_device_limits.maxFramebufferWidth),
+     max_geometry_input_components                        (in_device_limits.maxGeometryInputComponents),
+     max_geometry_output_components                       (in_device_limits.maxGeometryOutputComponents),
+     max_geometry_output_vertices                         (in_device_limits.maxGeometryOutputVertices),
+     max_geometry_shader_invocations                      (in_device_limits.maxGeometryShaderInvocations),
+     max_geometry_total_output_components                 (in_device_limits.maxGeometryTotalOutputComponents),
+     max_image_array_layers                               (in_device_limits.maxImageArrayLayers),
+     max_image_dimension_1D                               (in_device_limits.maxImageDimension1D),
+     max_image_dimension_2D                               (in_device_limits.maxImageDimension2D),
+     max_image_dimension_3D                               (in_device_limits.maxImageDimension3D),
+     max_image_dimension_cube                             (in_device_limits.maxImageDimensionCube),
+     max_interpolation_offset                             (in_device_limits.maxInterpolationOffset),
+     max_memory_allocation_count                          (in_device_limits.maxMemoryAllocationCount),
+     max_per_stage_descriptor_input_attachments           (in_device_limits.maxPerStageDescriptorInputAttachments),
+     max_per_stage_descriptor_sampled_images              (in_device_limits.maxPerStageDescriptorSampledImages),
+     max_per_stage_descriptor_samplers                    (in_device_limits.maxPerStageDescriptorSamplers),
+     max_per_stage_descriptor_storage_buffers             (in_device_limits.maxPerStageDescriptorStorageBuffers),
+     max_per_stage_descriptor_storage_images              (in_device_limits.maxPerStageDescriptorStorageImages),
+     max_per_stage_descriptor_uniform_buffers             (in_device_limits.maxPerStageDescriptorUniformBuffers),
+     max_per_stage_resources                              (in_device_limits.maxPerStageResources),
+     max_push_constants_size                              (in_device_limits.maxPushConstantsSize),
+     max_sample_mask_words                                (in_device_limits.maxSampleMaskWords),
+     max_sampler_allocation_count                         (in_device_limits.maxSamplerAllocationCount),
+     max_sampler_anisotropy                               (in_device_limits.maxSamplerAnisotropy),
+     max_sampler_lod_bias                                 (in_device_limits.maxSamplerLodBias),
+     max_storage_buffer_range                             (in_device_limits.maxStorageBufferRange),
+     max_viewports                                        (in_device_limits.maxViewports),
+     max_tessellation_control_per_patch_output_components (in_device_limits.maxTessellationControlPerPatchOutputComponents),
+     max_tessellation_control_per_vertex_input_components (in_device_limits.maxTessellationControlPerVertexInputComponents),
+     max_tessellation_control_per_vertex_output_components(in_device_limits.maxTessellationControlPerVertexOutputComponents),
+     max_tessellation_control_total_output_components     (in_device_limits.maxTessellationControlTotalOutputComponents),
+     max_tessellation_evaluation_input_components         (in_device_limits.maxTessellationEvaluationInputComponents),
+     max_tessellation_evaluation_output_components        (in_device_limits.maxTessellationEvaluationOutputComponents),
+     max_tessellation_generation_level                    (in_device_limits.maxTessellationGenerationLevel),
+     max_tessellation_patch_size                          (in_device_limits.maxTessellationPatchSize),
+     max_texel_buffer_elements                            (in_device_limits.maxTexelBufferElements),
+     max_texel_gather_offset                              (in_device_limits.maxTexelGatherOffset),
+     max_texel_offset                                     (in_device_limits.maxTexelOffset),
+     max_uniform_buffer_range                             (in_device_limits.maxUniformBufferRange),
+     max_vertex_input_attributes                          (in_device_limits.maxVertexInputAttributes),
+     max_vertex_input_attribute_offset                    (in_device_limits.maxVertexInputAttributeOffset),
+     max_vertex_input_bindings                            (in_device_limits.maxVertexInputBindings),
+     max_vertex_input_binding_stride                      (in_device_limits.maxVertexInputBindingStride),
+     max_vertex_output_components                         (in_device_limits.maxVertexOutputComponents),
+     min_interpolation_offset                             (in_device_limits.minInterpolationOffset),
+     min_memory_map_alignment                             (in_device_limits.minMemoryMapAlignment),
+     min_storage_buffer_offset_alignment                  (in_device_limits.minStorageBufferOffsetAlignment),
+     min_texel_buffer_offset_alignment                    (in_device_limits.minTexelBufferOffsetAlignment),
+     min_texel_gather_offset                              (in_device_limits.minTexelGatherOffset),
+     min_texel_offset                                     (in_device_limits.minTexelOffset),
+     min_uniform_buffer_offset_alignment                  (in_device_limits.minUniformBufferOffsetAlignment),
+     mipmap_precision_bits                                (in_device_limits.mipmapPrecisionBits),
+     non_coherent_atom_size                               (in_device_limits.nonCoherentAtomSize),
+     optimal_buffer_copy_offset_alignment                 (in_device_limits.optimalBufferCopyOffsetAlignment),
+     optimal_buffer_copy_row_pitch_alignment              (in_device_limits.optimalBufferCopyRowPitchAlignment),
+     point_size_granularity                               (in_device_limits.pointSizeGranularity),
+     sampled_image_color_sample_counts                    (in_device_limits.sampledImageColorSampleCounts),
+     sampled_image_depth_sample_counts                    (in_device_limits.sampledImageDepthSampleCounts),
+     sampled_image_integer_sample_counts                  (in_device_limits.sampledImageIntegerSampleCounts),
+     sampled_image_stencil_sample_counts                  (in_device_limits.sampledImageStencilSampleCounts),
+     sparse_address_space_size                            (in_device_limits.sparseAddressSpaceSize),
+     standard_sample_locations                            (VK_BOOL32_TO_BOOL(in_device_limits.standardSampleLocations) ),
+     storage_image_sample_counts                          (in_device_limits.storageImageSampleCounts),
+     strict_lines                                         (VK_BOOL32_TO_BOOL(in_device_limits.strictLines) ),
+     sub_pixel_interpolation_offset_bits                  (in_device_limits.subPixelInterpolationOffsetBits),
+     sub_pixel_precision_bits                             (in_device_limits.subPixelPrecisionBits),
+     sub_texel_precision_bits                             (in_device_limits.subTexelPrecisionBits),
+     timestamp_compute_and_graphics                       (VK_BOOL32_TO_BOOL(in_device_limits.timestampComputeAndGraphics) ),
+     timestamp_period                                     (in_device_limits.timestampPeriod),
+     viewport_sub_pixel_bits                              (in_device_limits.viewportSubPixelBits)
+{
+    memcpy(line_width_range,
+           in_device_limits.lineWidthRange,
+           sizeof(line_width_range) );
+
+    memcpy(max_compute_work_group_count,
+           in_device_limits.maxComputeWorkGroupCount,
+           sizeof(max_compute_work_group_count) );
+
+    memcpy(max_compute_work_group_size,
+           in_device_limits.maxComputeWorkGroupSize,
+           sizeof(max_compute_work_group_size) );
+
+    memcpy(max_viewport_dimensions,
+           in_device_limits.maxViewportDimensions,
+           sizeof(max_viewport_dimensions) );
+
+    memcpy(point_size_range,
+           in_device_limits.pointSizeRange,
+           sizeof(point_size_range) );
+
+    memcpy(viewport_bounds_range,
+           in_device_limits.viewportBoundsRange,
+           sizeof(viewport_bounds_range) );
+}
+
+bool Anvil::PhysicalDeviceLimits::operator==(const Anvil::PhysicalDeviceLimits& in_device_limits) const
+{
+    bool result = false;
+
+     if (buffer_image_granularity                              == in_device_limits.buffer_image_granularity                              &&
+         discrete_queue_priorities                             == in_device_limits.discrete_queue_priorities                             &&
+         framebuffer_color_sample_counts                       == in_device_limits.framebuffer_color_sample_counts                       &&
+         framebuffer_depth_sample_counts                       == in_device_limits.framebuffer_depth_sample_counts                       &&
+         framebuffer_no_attachments_sample_counts              == in_device_limits.framebuffer_no_attachments_sample_counts              &&
+         framebuffer_stencil_sample_counts                     == in_device_limits.framebuffer_stencil_sample_counts                     &&
+         max_bound_descriptor_sets                             == in_device_limits.max_bound_descriptor_sets                             &&
+         max_clip_distances                                    == in_device_limits.max_clip_distances                                    &&
+         max_color_attachments                                 == in_device_limits.max_color_attachments                                 &&
+         max_combined_clip_and_cull_distances                  == in_device_limits.max_combined_clip_and_cull_distances                  &&
+         max_compute_shared_memory_size                        == in_device_limits.max_compute_shared_memory_size                        &&
+         max_compute_work_group_count[0]                       == in_device_limits.max_compute_work_group_count[0]                       &&
+         max_compute_work_group_count[1]                       == in_device_limits.max_compute_work_group_count[1]                       &&
+         max_compute_work_group_count[2]                       == in_device_limits.max_compute_work_group_count[2]                       &&
+         max_compute_work_group_invocations                    == in_device_limits.max_compute_work_group_invocations                    &&
+         max_compute_work_group_size[0]                        == in_device_limits.max_compute_work_group_size[0]                        &&
+         max_compute_work_group_size[1]                        == in_device_limits.max_compute_work_group_size[1]                        &&
+         max_compute_work_group_size[2]                        == in_device_limits.max_compute_work_group_size[2]                        &&
+         max_cull_distances                                    == in_device_limits.max_cull_distances                                    &&
+         max_descriptor_set_input_attachments                  == in_device_limits.max_descriptor_set_input_attachments                  &&
+         max_descriptor_set_sampled_images                     == in_device_limits.max_descriptor_set_sampled_images                     &&
+         max_descriptor_set_samplers                           == in_device_limits.max_descriptor_set_samplers                           &&
+         max_descriptor_set_storage_buffers                    == in_device_limits.max_descriptor_set_storage_buffers                    &&
+         max_descriptor_set_storage_buffers_dynamic            == in_device_limits.max_descriptor_set_storage_buffers_dynamic            &&
+         max_descriptor_set_storage_images                     == in_device_limits.max_descriptor_set_storage_images                     &&
+         max_descriptor_set_uniform_buffers                    == in_device_limits.max_descriptor_set_uniform_buffers                    &&
+         max_descriptor_set_uniform_buffers_dynamic            == in_device_limits.max_descriptor_set_uniform_buffers_dynamic            &&
+         max_draw_indexed_index_value                          == in_device_limits.max_draw_indexed_index_value                          &&
+         max_draw_indirect_count                               == in_device_limits.max_draw_indirect_count                               &&
+         max_fragment_combined_output_resources                == in_device_limits.max_fragment_combined_output_resources                &&
+         max_fragment_dual_src_attachments                     == in_device_limits.max_fragment_dual_src_attachments                     &&
+         max_fragment_input_components                         == in_device_limits.max_fragment_input_components                         &&
+         max_fragment_output_attachments                       == in_device_limits.max_fragment_output_attachments                       &&
+         max_framebuffer_height                                == in_device_limits.max_framebuffer_height                                &&
+         max_framebuffer_layers                                == in_device_limits.max_framebuffer_layers                                &&
+         max_framebuffer_width                                 == in_device_limits.max_framebuffer_width                                 &&
+         max_geometry_input_components                         == in_device_limits.max_geometry_input_components                         &&
+         max_geometry_output_components                        == in_device_limits.max_geometry_output_components                        &&
+         max_geometry_output_vertices                          == in_device_limits.max_geometry_output_vertices                          &&
+         max_geometry_shader_invocations                       == in_device_limits.max_geometry_shader_invocations                       &&
+         max_geometry_total_output_components                  == in_device_limits.max_geometry_total_output_components                  &&
+         max_image_array_layers                                == in_device_limits.max_image_array_layers                                &&
+         max_image_dimension_1D                                == in_device_limits.max_image_dimension_1D                                &&
+         max_image_dimension_2D                                == in_device_limits.max_image_dimension_2D                                &&
+         max_image_dimension_3D                                == in_device_limits.max_image_dimension_3D                                &&
+         max_image_dimension_cube                              == in_device_limits.max_image_dimension_cube                              &&
+         max_memory_allocation_count                           == in_device_limits.max_memory_allocation_count                           &&
+         max_per_stage_descriptor_input_attachments            == in_device_limits.max_per_stage_descriptor_input_attachments            &&
+         max_per_stage_descriptor_sampled_images               == in_device_limits.max_per_stage_descriptor_sampled_images               &&
+         max_per_stage_descriptor_samplers                     == in_device_limits.max_per_stage_descriptor_samplers                     &&
+         max_per_stage_descriptor_storage_buffers              == in_device_limits.max_per_stage_descriptor_storage_buffers              &&
+         max_per_stage_descriptor_storage_images               == in_device_limits.max_per_stage_descriptor_storage_images               &&
+         max_per_stage_descriptor_uniform_buffers              == in_device_limits.max_per_stage_descriptor_uniform_buffers              &&
+         max_per_stage_resources                               == in_device_limits.max_per_stage_resources                               &&
+         max_push_constants_size                               == in_device_limits.max_push_constants_size                               &&
+         max_sample_mask_words                                 == in_device_limits.max_sample_mask_words                                 &&
+         max_sampler_allocation_count                          == in_device_limits.max_sampler_allocation_count                          &&
+         max_storage_buffer_range                              == in_device_limits.max_storage_buffer_range                              &&
+         max_viewport_dimensions[0]                            == in_device_limits.max_viewport_dimensions[0]                            &&
+         max_viewport_dimensions[1]                            == in_device_limits.max_viewport_dimensions[1]                            &&
+         max_viewports                                         == in_device_limits.max_viewports                                         &&
+         max_tessellation_control_per_patch_output_components  == in_device_limits.max_tessellation_control_per_patch_output_components  &&
+         max_tessellation_control_per_vertex_input_components  == in_device_limits.max_tessellation_control_per_vertex_input_components  &&
+         max_tessellation_control_per_vertex_output_components == in_device_limits.max_tessellation_control_per_vertex_output_components &&
+         max_tessellation_control_total_output_components      == in_device_limits.max_tessellation_control_total_output_components      &&
+         max_tessellation_evaluation_input_components          == in_device_limits.max_tessellation_evaluation_input_components          &&
+         max_tessellation_evaluation_output_components         == in_device_limits.max_tessellation_evaluation_output_components         &&
+         max_tessellation_generation_level                     == in_device_limits.max_tessellation_generation_level                     &&
+         max_tessellation_patch_size                           == in_device_limits.max_tessellation_patch_size                           &&
+         max_texel_buffer_elements                             == in_device_limits.max_texel_buffer_elements                             &&
+         max_texel_gather_offset                               == in_device_limits.max_texel_gather_offset                               &&
+         max_texel_offset                                      == in_device_limits.max_texel_offset                                      &&
+         max_uniform_buffer_range                              == in_device_limits.max_uniform_buffer_range                              &&
+         max_vertex_input_attributes                           == in_device_limits.max_vertex_input_attributes                           &&
+         max_vertex_input_attribute_offset                     == in_device_limits.max_vertex_input_attribute_offset                     &&
+         max_vertex_input_bindings                             == in_device_limits.max_vertex_input_bindings                             &&
+         max_vertex_input_binding_stride                       == in_device_limits.max_vertex_input_binding_stride                       &&
+         max_vertex_output_components                          == in_device_limits.max_vertex_output_components                          &&
+         min_memory_map_alignment                              == in_device_limits.min_memory_map_alignment                              &&
+         min_storage_buffer_offset_alignment                   == in_device_limits.min_storage_buffer_offset_alignment                   &&
+         min_texel_buffer_offset_alignment                     == in_device_limits.min_texel_buffer_offset_alignment                     &&
+         min_texel_gather_offset                               == in_device_limits.min_texel_gather_offset                               &&
+         min_texel_offset                                      == in_device_limits.min_texel_offset                                      &&
+         min_uniform_buffer_offset_alignment                   == in_device_limits.min_uniform_buffer_offset_alignment                   &&
+         mipmap_precision_bits                                 == in_device_limits.mipmap_precision_bits                                 &&
+         non_coherent_atom_size                                == in_device_limits.non_coherent_atom_size                                &&
+         optimal_buffer_copy_offset_alignment                  == in_device_limits.optimal_buffer_copy_offset_alignment                  &&
+         optimal_buffer_copy_row_pitch_alignment               == in_device_limits.optimal_buffer_copy_row_pitch_alignment               &&
+         sampled_image_color_sample_counts                     == in_device_limits.sampled_image_color_sample_counts                     &&
+         sampled_image_depth_sample_counts                     == in_device_limits.sampled_image_depth_sample_counts                     &&
+         sampled_image_integer_sample_counts                   == in_device_limits.sampled_image_integer_sample_counts                   &&
+         sampled_image_stencil_sample_counts                   == in_device_limits.sampled_image_stencil_sample_counts                   &&
+         sparse_address_space_size                             == in_device_limits.sparse_address_space_size                             &&
+         standard_sample_locations                             == in_device_limits.standard_sample_locations                             &&
+         storage_image_sample_counts                           == in_device_limits.storage_image_sample_counts                           &&
+         strict_lines                                          == in_device_limits.strict_lines                                          &&
+         sub_pixel_interpolation_offset_bits                   == in_device_limits.sub_pixel_interpolation_offset_bits                   &&
+         sub_pixel_precision_bits                              == in_device_limits.sub_pixel_precision_bits                              &&
+         sub_texel_precision_bits                              == in_device_limits.sub_texel_precision_bits                              &&
+         timestamp_compute_and_graphics                        == in_device_limits.timestamp_compute_and_graphics                        &&
+         viewport_sub_pixel_bits                               == in_device_limits.viewport_sub_pixel_bits)
+     {
+         /* Floats */
+         if (fabs(line_width_range[0]      - in_device_limits.line_width_range[0])      < 1e-5f &&
+             fabs(line_width_range[1]      - in_device_limits.line_width_range[1])      < 1e-5f &&
+             fabs(line_width_granularity   - in_device_limits.line_width_granularity)   < 1e-5f &&
+             fabs(max_interpolation_offset - in_device_limits.max_interpolation_offset) < 1e-5f &&
+             fabs(max_sampler_anisotropy   - in_device_limits.max_sampler_anisotropy)   < 1e-5f &&
+             fabs(max_sampler_lod_bias     - in_device_limits.max_sampler_lod_bias)     < 1e-5f &&
+             fabs(min_interpolation_offset - in_device_limits.min_interpolation_offset) < 1e-5f &&
+             fabs(point_size_granularity   - in_device_limits.point_size_granularity)   < 1e-5f &&
+             fabs(point_size_range[0]      - in_device_limits.point_size_range[0])      < 1e-5f &&
+             fabs(point_size_range[1]      - in_device_limits.point_size_range[1])      < 1e-5f &&
+             fabs(timestamp_period         - in_device_limits.timestamp_period)         < 1e-5f &&
+             fabs(viewport_bounds_range[0] - in_device_limits.viewport_bounds_range[0]) < 1e-5f &&
+             fabs(viewport_bounds_range[1] - in_device_limits.viewport_bounds_range[1]) < 1e-5f)
+         {
+             result = true;
+         }
+     }
+
+    return result;
+}
+
+Anvil::PhysicalDevicePropertiesCoreVK10::PhysicalDevicePropertiesCoreVK10(const VkPhysicalDeviceProperties& in_physical_device_properties)
+     :api_version      (in_physical_device_properties.apiVersion),
+      device_id        (in_physical_device_properties.deviceID),
+      device_type      (in_physical_device_properties.deviceType),
+      driver_version   (in_physical_device_properties.driverVersion),
+      limits           (PhysicalDeviceLimits          (in_physical_device_properties.limits)           ),
+      sparse_properties(PhysicalDeviceSparseProperties(in_physical_device_properties.sparseProperties) ),
+      vendor_id        (in_physical_device_properties.vendorID)
+{
+    memcpy(device_name,
+           in_physical_device_properties.deviceName,
+           sizeof(device_name) );
+    memcpy(pipeline_cache_uuid,
+           in_physical_device_properties.pipelineCacheUUID,
+           sizeof(pipeline_cache_uuid) );
+}
+
+bool Anvil::PhysicalDevicePropertiesCoreVK10::operator==(const PhysicalDevicePropertiesCoreVK10& in_props) const
+{
+    bool result = false;
+
+    if (in_props.api_version       == api_version       &&
+        in_props.device_id         == device_id         &&
+        in_props.device_type       == device_type       &&
+        in_props.driver_version    == driver_version    &&
+        in_props.limits            == limits            &&
+        in_props.sparse_properties == sparse_properties &&
+        in_props.vendor_id         == vendor_id)
+    {
+        if (memcmp(device_name,
+                   in_props.device_name,
+                   sizeof(device_name) )         == 0 &&
+            memcmp(pipeline_cache_uuid,
+                   in_props.pipeline_cache_uuid,
+                   sizeof(pipeline_cache_uuid) ) == 0)
+        {
+            result = true;
+        }
+    }
+
+    return result;
+}
+
+Anvil::PhysicalDeviceSparseProperties::PhysicalDeviceSparseProperties()
+    :residency_standard_2D_block_shape            (false),
+     residency_standard_2D_multisample_block_shape(false),
+     residency_standard_3D_block_shape            (false),
+     residency_aligned_mip_size                   (false),
+     residency_non_resident_strict                (false)
+{
+    /* Stub */
+}
+
+Anvil::PhysicalDeviceSparseProperties::PhysicalDeviceSparseProperties(const VkPhysicalDeviceSparseProperties& in_sparse_props)
+    :residency_standard_2D_block_shape            (VK_BOOL32_TO_BOOL(in_sparse_props.residencyStandard2DBlockShape)            ),
+     residency_standard_2D_multisample_block_shape(VK_BOOL32_TO_BOOL(in_sparse_props.residencyStandard2DMultisampleBlockShape) ),
+     residency_standard_3D_block_shape            (VK_BOOL32_TO_BOOL(in_sparse_props.residencyStandard3DBlockShape)            ),
+     residency_aligned_mip_size                   (VK_BOOL32_TO_BOOL(in_sparse_props.residencyAlignedMipSize)                  ),
+     residency_non_resident_strict                (VK_BOOL32_TO_BOOL(in_sparse_props.residencyNonResidentStrict)               )
+{
+    /* Stub */
+}
+
+bool Anvil::PhysicalDeviceSparseProperties::operator==(const Anvil::PhysicalDeviceSparseProperties& in_props) const
+{
+    return (residency_standard_2D_block_shape             == in_props.residency_standard_2D_block_shape             &&
+            residency_standard_2D_multisample_block_shape == in_props.residency_standard_2D_multisample_block_shape &&
+            residency_standard_3D_block_shape             == in_props.residency_standard_3D_block_shape             &&
+            residency_aligned_mip_size                    == in_props.residency_aligned_mip_size                    &&
+            residency_non_resident_strict                 == in_props.residency_non_resident_strict);
+}
+
 /** Please see header for specification */
 bool Anvil::operator==(const Anvil::QueueFamilyInfo& in1,
                        const Anvil::QueueFamilyInfo& in2)
@@ -962,19 +1497,33 @@ bool Anvil::operator==(const Anvil::QueueFamilyInfo& in1,
 /** Please see header for specification */
 Anvil::ShaderModuleStageEntryPoint::ShaderModuleStageEntryPoint()
 {
-    stage = SHADER_STAGE_UNKNOWN;
+    shader_module_ptr = nullptr;
+    stage             = SHADER_STAGE_UNKNOWN;
 }
 
 /** Please see header for specification */
-Anvil::ShaderModuleStageEntryPoint::ShaderModuleStageEntryPoint(const std::string&            in_name,
-                                                                std::shared_ptr<ShaderModule> in_shader_module_ptr,
-                                                                ShaderStage                   in_stage)
+Anvil::ShaderModuleStageEntryPoint::ShaderModuleStageEntryPoint(const std::string& in_name,
+                                                                ShaderModule*      in_shader_module_ptr,
+                                                                ShaderStage        in_stage)
 {
     anvil_assert(in_shader_module_ptr != nullptr);
 
     name              = in_name;
     shader_module_ptr = in_shader_module_ptr;
     stage             = in_stage;
+}
+
+Anvil::ShaderModuleStageEntryPoint::ShaderModuleStageEntryPoint(const std::string&    in_name,
+                                                                ShaderModuleUniquePtr in_shader_module_ptr,
+                                                                ShaderStage           in_stage)
+{
+    anvil_assert(in_shader_module_ptr != nullptr);
+
+    name              = in_name;
+    shader_module_ptr = in_shader_module_ptr.get();
+    stage             = in_stage;
+
+    shader_module_owned_ptr = std::move(in_shader_module_ptr);
 }
 
 /** Please see header for specification */
@@ -1007,11 +1556,294 @@ Anvil::Utils::SparseMemoryBindingUpdateInfo::SparseMemoryBindingUpdateInfo()
     m_dirty = true;
 }
 
+bool Anvil::PhysicalDeviceFeatures::operator==(const PhysicalDeviceFeatures& in_physical_device_features) const
+{
+    const bool core_vk1_0_features_match        = (*core_vk1_0_features_ptr == *in_physical_device_features.core_vk1_0_features_ptr);
+    bool       khr_16bit_storage_features_match = false;
+
+    if (khr_16bit_storage_features_ptr                             != nullptr &&
+        in_physical_device_features.khr_16bit_storage_features_ptr != nullptr)
+    {
+        khr_16bit_storage_features_match = (*khr_16bit_storage_features_ptr == *in_physical_device_features.khr_16bit_storage_features_ptr);
+    }
+    else
+    {
+        khr_16bit_storage_features_match = (khr_16bit_storage_features_ptr                             == nullptr &&
+                                            in_physical_device_features.khr_16bit_storage_features_ptr == nullptr);
+    }
+
+    return core_vk1_0_features_match        &&
+           khr_16bit_storage_features_match;
+}
+
+Anvil::PhysicalDeviceFeaturesCoreVK10::PhysicalDeviceFeaturesCoreVK10()
+    :alpha_to_one                                (false),
+     depth_bias_clamp                            (false),
+     depth_bounds                                (false),
+     depth_clamp                                 (false),
+     draw_indirect_first_instance                (false),
+     dual_src_blend                              (false),
+     fill_mode_non_solid                         (false),
+     fragment_stores_and_atomics                 (false),
+     full_draw_index_uint32                      (false),
+     geometry_shader                             (false),
+     image_cube_array                            (false),
+     independent_blend                           (false),
+     inherited_queries                           (false),
+     large_points                                (false),
+     logic_ip                                    (false),
+     multi_draw_indirect                         (false),
+     multi_viewport                              (false),
+     occlusion_query_precise                     (false),
+     pipeline_statistics_query                   (false),
+     robust_buffer_access                        (false),
+     sampler_anisotropy                          (false),
+     sample_rate_shading                         (false),
+     shader_clip_distance                        (false),
+     shader_cull_distance                        (false),
+     shader_float64                              (false),
+     shader_image_gather_extended                (false),
+     shader_int16                                (false),
+     shader_int64                                (false),
+     shader_resource_residency                   (false),
+     shader_resource_min_lod                     (false),
+     shader_sampled_image_array_dynamic_indexing (false),
+     shader_storage_buffer_array_dynamic_indexing(false),
+     shader_storage_image_array_dynamic_indexing (false),
+     shader_storage_image_extended_formats       (false),
+     shader_storage_image_multisample            (false),
+     shader_storage_image_read_without_format    (false),
+     shader_storage_image_write_without_format   (false),
+     shader_tessellation_and_geometry_point_size (false),
+     shader_uniform_buffer_array_dynamic_indexing(false),
+     sparse_binding                              (false),
+     sparse_residency_2_samples                  (false),
+     sparse_residency_4_samples                  (false),
+     sparse_residency_8_samples                  (false),
+     sparse_residency_16_samples                 (false),
+     sparse_residency_aliased                    (false),
+     sparse_residency_buffer                     (false),
+     sparse_residency_image_2D                   (false),
+     sparse_residency_image_3D                   (false),
+     tessellation_shader                         (false),
+     texture_compression_ASTC_LDR                (false),
+     texture_compression_BC                      (false),
+     texture_compression_ETC2                    (false),
+     variable_multisample_rate                   (false),
+     vertex_pipeline_stores_and_atomics          (false),
+     wide_lines                                  (false)
+{
+    /* Stub */
+}
+
+Anvil::PhysicalDeviceFeaturesCoreVK10::PhysicalDeviceFeaturesCoreVK10(const VkPhysicalDeviceFeatures& in_physical_device_features)
+    :alpha_to_one                                (VK_BOOL32_TO_BOOL(in_physical_device_features.alphaToOne) ),
+     depth_bias_clamp                            (VK_BOOL32_TO_BOOL(in_physical_device_features.depthBiasClamp) ),
+     depth_bounds                                (VK_BOOL32_TO_BOOL(in_physical_device_features.depthBounds) ),
+     depth_clamp                                 (VK_BOOL32_TO_BOOL(in_physical_device_features.depthClamp) ),
+     draw_indirect_first_instance                (VK_BOOL32_TO_BOOL(in_physical_device_features.drawIndirectFirstInstance) ),
+     dual_src_blend                              (VK_BOOL32_TO_BOOL(in_physical_device_features.dualSrcBlend) ),
+     fill_mode_non_solid                         (VK_BOOL32_TO_BOOL(in_physical_device_features.fillModeNonSolid) ),
+     fragment_stores_and_atomics                 (VK_BOOL32_TO_BOOL(in_physical_device_features.fragmentStoresAndAtomics) ),
+     full_draw_index_uint32                      (VK_BOOL32_TO_BOOL(in_physical_device_features.fullDrawIndexUint32) ),
+     geometry_shader                             (VK_BOOL32_TO_BOOL(in_physical_device_features.geometryShader) ),
+     image_cube_array                            (VK_BOOL32_TO_BOOL(in_physical_device_features.imageCubeArray) ),
+     independent_blend                           (VK_BOOL32_TO_BOOL(in_physical_device_features.independentBlend) ),
+     inherited_queries                           (VK_BOOL32_TO_BOOL(in_physical_device_features.inheritedQueries) ),
+     large_points                                (VK_BOOL32_TO_BOOL(in_physical_device_features.largePoints) ),
+     logic_ip                                    (VK_BOOL32_TO_BOOL(in_physical_device_features.logicOp) ),
+     multi_draw_indirect                         (VK_BOOL32_TO_BOOL(in_physical_device_features.multiDrawIndirect) ),
+     multi_viewport                              (VK_BOOL32_TO_BOOL(in_physical_device_features.multiViewport) ),
+     occlusion_query_precise                     (VK_BOOL32_TO_BOOL(in_physical_device_features.occlusionQueryPrecise) ),
+     pipeline_statistics_query                   (VK_BOOL32_TO_BOOL(in_physical_device_features.pipelineStatisticsQuery) ),
+     robust_buffer_access                        (VK_BOOL32_TO_BOOL(in_physical_device_features.robustBufferAccess) ),
+     sampler_anisotropy                          (VK_BOOL32_TO_BOOL(in_physical_device_features.samplerAnisotropy) ),
+     sample_rate_shading                         (VK_BOOL32_TO_BOOL(in_physical_device_features.sampleRateShading) ),
+     shader_clip_distance                        (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderClipDistance) ),
+     shader_cull_distance                        (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderCullDistance) ),
+     shader_float64                              (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderFloat64) ),
+     shader_image_gather_extended                (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderImageGatherExtended) ),
+     shader_int16                                (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderInt16) ),
+     shader_int64                                (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderInt64) ),
+     shader_resource_residency                   (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderResourceResidency) ),
+     shader_resource_min_lod                     (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderResourceMinLod) ),
+     shader_sampled_image_array_dynamic_indexing (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderSampledImageArrayDynamicIndexing) ),
+     shader_storage_buffer_array_dynamic_indexing(VK_BOOL32_TO_BOOL(in_physical_device_features.shaderStorageBufferArrayDynamicIndexing) ),
+     shader_storage_image_array_dynamic_indexing (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderStorageImageArrayDynamicIndexing) ),
+     shader_storage_image_extended_formats       (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderStorageImageExtendedFormats) ),
+     shader_storage_image_multisample            (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderStorageImageMultisample) ),
+     shader_storage_image_read_without_format    (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderStorageImageReadWithoutFormat) ),
+     shader_storage_image_write_without_format   (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderStorageImageWriteWithoutFormat) ),
+     shader_tessellation_and_geometry_point_size (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderTessellationAndGeometryPointSize) ),
+     shader_uniform_buffer_array_dynamic_indexing(VK_BOOL32_TO_BOOL(in_physical_device_features.shaderUniformBufferArrayDynamicIndexing) ),
+     sparse_binding                              (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseBinding) ),
+     sparse_residency_2_samples                  (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseResidency2Samples) ),
+     sparse_residency_4_samples                  (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseResidency4Samples) ),
+     sparse_residency_8_samples                  (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseResidency8Samples) ),
+     sparse_residency_16_samples                 (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseResidency16Samples) ),
+     sparse_residency_aliased                    (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseResidencyAliased) ),
+     sparse_residency_buffer                     (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseResidencyBuffer) ),
+     sparse_residency_image_2D                   (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseResidencyImage2D) ),
+     sparse_residency_image_3D                   (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseResidencyImage3D) ),
+     tessellation_shader                         (VK_BOOL32_TO_BOOL(in_physical_device_features.tessellationShader) ),
+     texture_compression_ASTC_LDR                (VK_BOOL32_TO_BOOL(in_physical_device_features.textureCompressionASTC_LDR) ),
+     texture_compression_BC                      (VK_BOOL32_TO_BOOL(in_physical_device_features.textureCompressionBC) ),
+     texture_compression_ETC2                    (VK_BOOL32_TO_BOOL(in_physical_device_features.textureCompressionETC2) ),
+     variable_multisample_rate                   (VK_BOOL32_TO_BOOL(in_physical_device_features.variableMultisampleRate) ),
+     vertex_pipeline_stores_and_atomics          (VK_BOOL32_TO_BOOL(in_physical_device_features.vertexPipelineStoresAndAtomics) ),
+     wide_lines                                  (VK_BOOL32_TO_BOOL(in_physical_device_features.wideLines) )
+{
+    /* Stub */
+}
+
+VkPhysicalDeviceFeatures Anvil::PhysicalDeviceFeaturesCoreVK10::get_vk_physical_device_features() const
+{
+    VkPhysicalDeviceFeatures result;
+
+    result.alphaToOne                              = BOOL_TO_VK_BOOL32(alpha_to_one);
+    result.depthBiasClamp                          = BOOL_TO_VK_BOOL32(depth_bias_clamp);
+    result.depthBounds                             = BOOL_TO_VK_BOOL32(depth_bounds);
+    result.depthClamp                              = BOOL_TO_VK_BOOL32(depth_clamp);
+    result.drawIndirectFirstInstance               = BOOL_TO_VK_BOOL32(draw_indirect_first_instance);
+    result.dualSrcBlend                            = BOOL_TO_VK_BOOL32(dual_src_blend);
+    result.fillModeNonSolid                        = BOOL_TO_VK_BOOL32(fill_mode_non_solid);
+    result.fragmentStoresAndAtomics                = BOOL_TO_VK_BOOL32(fragment_stores_and_atomics);
+    result.fullDrawIndexUint32                     = BOOL_TO_VK_BOOL32(full_draw_index_uint32);
+    result.geometryShader                          = BOOL_TO_VK_BOOL32(geometry_shader);
+    result.imageCubeArray                          = BOOL_TO_VK_BOOL32(image_cube_array);
+    result.independentBlend                        = BOOL_TO_VK_BOOL32(independent_blend);
+    result.inheritedQueries                        = BOOL_TO_VK_BOOL32(inherited_queries);
+    result.largePoints                             = BOOL_TO_VK_BOOL32(large_points);
+    result.logicOp                                 = BOOL_TO_VK_BOOL32(logic_ip);
+    result.multiDrawIndirect                       = BOOL_TO_VK_BOOL32(multi_draw_indirect);
+    result.multiViewport                           = BOOL_TO_VK_BOOL32(multi_viewport);
+    result.occlusionQueryPrecise                   = BOOL_TO_VK_BOOL32(occlusion_query_precise);
+    result.pipelineStatisticsQuery                 = BOOL_TO_VK_BOOL32(pipeline_statistics_query);
+    result.robustBufferAccess                      = BOOL_TO_VK_BOOL32(robust_buffer_access);
+    result.samplerAnisotropy                       = BOOL_TO_VK_BOOL32(sampler_anisotropy);
+    result.sampleRateShading                       = BOOL_TO_VK_BOOL32(sample_rate_shading);
+    result.shaderClipDistance                      = BOOL_TO_VK_BOOL32(shader_clip_distance);
+    result.shaderCullDistance                      = BOOL_TO_VK_BOOL32(shader_cull_distance);
+    result.shaderFloat64                           = BOOL_TO_VK_BOOL32(shader_float64);
+    result.shaderImageGatherExtended               = BOOL_TO_VK_BOOL32(shader_image_gather_extended);
+    result.shaderInt16                             = BOOL_TO_VK_BOOL32(shader_int16);
+    result.shaderInt64                             = BOOL_TO_VK_BOOL32(shader_int64);
+    result.shaderResourceResidency                 = BOOL_TO_VK_BOOL32(shader_resource_residency);
+    result.shaderResourceMinLod                    = BOOL_TO_VK_BOOL32(shader_resource_min_lod);
+    result.shaderSampledImageArrayDynamicIndexing  = BOOL_TO_VK_BOOL32(shader_sampled_image_array_dynamic_indexing);
+    result.shaderStorageBufferArrayDynamicIndexing = BOOL_TO_VK_BOOL32(shader_storage_buffer_array_dynamic_indexing);
+    result.shaderStorageImageArrayDynamicIndexing  = BOOL_TO_VK_BOOL32(shader_storage_image_array_dynamic_indexing);
+    result.shaderStorageImageExtendedFormats       = BOOL_TO_VK_BOOL32(shader_storage_image_extended_formats);
+    result.shaderStorageImageMultisample           = BOOL_TO_VK_BOOL32(shader_storage_image_multisample);
+    result.shaderStorageImageReadWithoutFormat     = BOOL_TO_VK_BOOL32(shader_storage_image_read_without_format);
+    result.shaderStorageImageWriteWithoutFormat    = BOOL_TO_VK_BOOL32(shader_storage_image_write_without_format);
+    result.shaderTessellationAndGeometryPointSize  = BOOL_TO_VK_BOOL32(shader_tessellation_and_geometry_point_size);
+    result.shaderUniformBufferArrayDynamicIndexing = BOOL_TO_VK_BOOL32(shader_uniform_buffer_array_dynamic_indexing);
+    result.sparseBinding                           = BOOL_TO_VK_BOOL32(sparse_binding);
+    result.sparseResidency2Samples                 = BOOL_TO_VK_BOOL32(sparse_residency_2_samples);
+    result.sparseResidency4Samples                 = BOOL_TO_VK_BOOL32(sparse_residency_4_samples);
+    result.sparseResidency8Samples                 = BOOL_TO_VK_BOOL32(sparse_residency_8_samples);
+    result.sparseResidency16Samples                = BOOL_TO_VK_BOOL32(sparse_residency_16_samples);
+    result.sparseResidencyAliased                  = BOOL_TO_VK_BOOL32(sparse_residency_aliased);
+    result.sparseResidencyBuffer                   = BOOL_TO_VK_BOOL32(sparse_residency_buffer);
+    result.sparseResidencyImage2D                  = BOOL_TO_VK_BOOL32(sparse_residency_image_2D);
+    result.sparseResidencyImage3D                  = BOOL_TO_VK_BOOL32(sparse_residency_image_3D);
+    result.tessellationShader                      = BOOL_TO_VK_BOOL32(tessellation_shader);
+    result.textureCompressionASTC_LDR              = BOOL_TO_VK_BOOL32(texture_compression_ASTC_LDR);
+    result.textureCompressionBC                    = BOOL_TO_VK_BOOL32(texture_compression_BC);
+    result.textureCompressionETC2                  = BOOL_TO_VK_BOOL32(texture_compression_ETC2);
+    result.variableMultisampleRate                 = BOOL_TO_VK_BOOL32(variable_multisample_rate);
+    result.vertexPipelineStoresAndAtomics          = BOOL_TO_VK_BOOL32(vertex_pipeline_stores_and_atomics);
+    result.wideLines                               = BOOL_TO_VK_BOOL32(wide_lines);
+
+    return result;
+}
+
+bool Anvil::PhysicalDeviceFeaturesCoreVK10::operator==(const Anvil::PhysicalDeviceFeaturesCoreVK10& in_data) const
+{
+    return (alpha_to_one                                 == in_data.alpha_to_one)                                 &&
+           (depth_bias_clamp                             == in_data.depth_bias_clamp)                             &&
+           (depth_bounds                                 == in_data.depth_bounds)                                 &&
+           (depth_clamp                                  == in_data.depth_clamp)                                  &&
+           (draw_indirect_first_instance                 == in_data.draw_indirect_first_instance)                 &&
+           (dual_src_blend                               == in_data.dual_src_blend)                               &&
+           (fill_mode_non_solid                          == in_data.fill_mode_non_solid)                          &&
+           (fragment_stores_and_atomics                  == in_data.fragment_stores_and_atomics)                  &&
+           (full_draw_index_uint32                       == in_data.full_draw_index_uint32)                       &&
+           (geometry_shader                              == in_data.geometry_shader)                              &&
+           (image_cube_array                             == in_data.image_cube_array)                             &&
+           (independent_blend                            == in_data.independent_blend)                            &&
+           (inherited_queries                            == in_data.inherited_queries)                            &&
+           (large_points                                 == in_data.large_points)                                 &&
+           (logic_ip                                     == in_data.logic_ip)                                     &&
+           (multi_draw_indirect                          == in_data.multi_draw_indirect)                          &&
+           (multi_viewport                               == in_data.multi_viewport)                               &&
+           (occlusion_query_precise                      == in_data.occlusion_query_precise)                      &&
+           (pipeline_statistics_query                    == in_data.pipeline_statistics_query)                    &&
+           (robust_buffer_access                         == in_data.robust_buffer_access)                         &&
+           (sampler_anisotropy                           == in_data.sampler_anisotropy)                           &&
+           (sample_rate_shading                          == in_data.sample_rate_shading)                          &&
+           (shader_clip_distance                         == in_data.shader_clip_distance)                         &&
+           (shader_cull_distance                         == in_data.shader_cull_distance)                         &&
+           (shader_float64                               == in_data.shader_float64)                               &&
+           (shader_image_gather_extended                 == in_data.shader_image_gather_extended)                 &&
+           (shader_int16                                 == in_data.shader_int16)                                 &&
+           (shader_int64                                 == in_data.shader_int64)                                 &&
+           (shader_resource_residency                    == in_data.shader_resource_residency)                    &&
+           (shader_resource_min_lod                      == in_data.shader_resource_min_lod)                      &&
+           (shader_sampled_image_array_dynamic_indexing  == in_data.shader_sampled_image_array_dynamic_indexing)  &&
+           (shader_storage_buffer_array_dynamic_indexing == in_data.shader_storage_buffer_array_dynamic_indexing) &&
+           (shader_storage_image_array_dynamic_indexing  == in_data.shader_storage_image_array_dynamic_indexing)  &&
+           (shader_storage_image_extended_formats        == in_data.shader_storage_image_extended_formats)        &&
+           (shader_storage_image_multisample             == in_data.shader_storage_image_multisample)             &&
+           (shader_storage_image_read_without_format     == in_data.shader_storage_image_read_without_format)     &&
+           (shader_storage_image_write_without_format    == in_data.shader_storage_image_write_without_format)    &&
+           (shader_tessellation_and_geometry_point_size  == in_data.shader_tessellation_and_geometry_point_size)  &&
+           (shader_uniform_buffer_array_dynamic_indexing == in_data.shader_uniform_buffer_array_dynamic_indexing) &&
+           (sparse_binding                               == in_data.sparse_binding)                               &&
+           (sparse_residency_2_samples                   == in_data.sparse_residency_2_samples)                   &&
+           (sparse_residency_4_samples                   == in_data.sparse_residency_4_samples)                   &&
+           (sparse_residency_8_samples                   == in_data.sparse_residency_8_samples)                   &&
+           (sparse_residency_16_samples                  == in_data.sparse_residency_16_samples)                  &&
+           (sparse_residency_aliased                     == in_data.sparse_residency_aliased)                     &&
+           (sparse_residency_buffer                      == in_data.sparse_residency_buffer)                      &&
+           (sparse_residency_image_2D                    == in_data.sparse_residency_image_2D)                    &&
+           (sparse_residency_image_3D                    == in_data.sparse_residency_image_3D)                    &&
+           (tessellation_shader                          == in_data.tessellation_shader)                          &&
+           (texture_compression_ASTC_LDR                 == in_data.texture_compression_ASTC_LDR)                 &&
+           (texture_compression_BC                       == in_data.texture_compression_BC)                       &&
+           (texture_compression_ETC2                     == in_data.texture_compression_ETC2)                     &&
+           (variable_multisample_rate                    == in_data.variable_multisample_rate)                    &&
+           (vertex_pipeline_stores_and_atomics           == in_data.vertex_pipeline_stores_and_atomics)           &&
+           (wide_lines                                   == in_data.wide_lines);
+}
+
+bool Anvil::PhysicalDeviceProperties::operator==(const PhysicalDeviceProperties& in_props) const
+{
+    const bool core_vk1_0_features_match         = (*core_vk1_0_properties_ptr == *in_props.core_vk1_0_properties_ptr);
+    bool       khr_maintenance3_properties_match = false;
+
+    if (khr_maintenance3_properties_ptr          != nullptr &&
+        in_props.khr_maintenance3_properties_ptr != nullptr)
+    {
+        khr_maintenance3_properties_match = (*khr_maintenance3_properties_ptr == *in_props.khr_maintenance3_properties_ptr);
+    }
+    else
+    {
+        khr_maintenance3_properties_match = (khr_maintenance3_properties_ptr          == nullptr &&
+                                             in_props.khr_maintenance3_properties_ptr == nullptr);
+    }
+
+    return core_vk1_0_features_match         &&
+           khr_maintenance3_properties_match;
+}
+
+
 /** Please see header for specification */
-Anvil::SparseMemoryBindInfoID Anvil::Utils::SparseMemoryBindingUpdateInfo::add_bind_info(uint32_t                            in_n_signal_semaphores,
-                                                                                         std::shared_ptr<Anvil::Semaphore>*  in_opt_signal_semaphores_ptr,
-                                                                                         uint32_t                            in_n_wait_semaphores,
-                                                                                         std::shared_ptr<Anvil::Semaphore>*  in_opt_wait_semaphores_ptr)
+Anvil::SparseMemoryBindInfoID Anvil::Utils::SparseMemoryBindingUpdateInfo::add_bind_info(uint32_t                 in_n_signal_semaphores,
+                                                                                         Anvil::Semaphore* const* in_opt_signal_semaphores_ptr,
+                                                                                         uint32_t                 in_n_wait_semaphores,
+                                                                                         Anvil::Semaphore* const* in_opt_wait_semaphores_ptr)
 {
     Anvil::SparseMemoryBindInfoID result_id = static_cast<Anvil::SparseMemoryBindInfoID>(m_bindings.size() );
     BindingInfo                   new_binding;
@@ -1036,12 +1868,13 @@ Anvil::SparseMemoryBindInfoID Anvil::Utils::SparseMemoryBindingUpdateInfo::add_b
 }
 
 /** Please see header for specification */
-void Anvil::Utils::SparseMemoryBindingUpdateInfo::append_buffer_memory_update(SparseMemoryBindInfoID              in_bind_info_id,
-                                                                              std::shared_ptr<Anvil::Buffer>      in_buffer_ptr,
-                                                                              VkDeviceSize                        in_buffer_memory_start_offset,
-                                                                              std::shared_ptr<Anvil::MemoryBlock> in_memory_block_ptr,
-                                                                              VkDeviceSize                        in_memory_block_start_offset,
-                                                                              VkDeviceSize                        in_size)
+void Anvil::Utils::SparseMemoryBindingUpdateInfo::append_buffer_memory_update(SparseMemoryBindInfoID in_bind_info_id,
+                                                                              Anvil::Buffer*         in_buffer_ptr,
+                                                                              VkDeviceSize           in_buffer_memory_start_offset,
+                                                                              Anvil::MemoryBlock*    in_memory_block_ptr,
+                                                                              VkDeviceSize           in_memory_block_start_offset,
+                                                                              bool                   in_memory_block_owned_by_buffer,
+                                                                              VkDeviceSize           in_size)
 {
     /* Sanity checks */
     anvil_assert(in_buffer_ptr                                 != nullptr);
@@ -1058,32 +1891,34 @@ void Anvil::Utils::SparseMemoryBindingUpdateInfo::append_buffer_memory_update(Sp
     GeneralBindInfo    update;
     VkSparseMemoryBind update_vk;
 
-    update.memory_block_ptr          = in_memory_block_ptr;
-    update.memory_block_start_offset = in_memory_block_start_offset;
-    update.size                      = in_size;
-    update.start_offset              = in_buffer_memory_start_offset;
+    update.memory_block_owned_by_target = in_memory_block_owned_by_buffer;
+    update.memory_block_ptr             = in_memory_block_ptr;
+    update.memory_block_start_offset    = in_memory_block_start_offset;
+    update.size                         = in_size;
+    update.start_offset                 = in_buffer_memory_start_offset;
 
-    update_vk.flags                  = 0;
-    update_vk.memory                 = (in_memory_block_ptr != nullptr) ? in_memory_block_ptr->get_memory()
-                                                                        : VK_NULL_HANDLE;
-    update_vk.memoryOffset           = (in_memory_block_ptr != nullptr) ? (in_memory_block_ptr->get_start_offset() + in_memory_block_start_offset)
-                                                                        : UINT32_MAX;
-    update_vk.resourceOffset         = (in_buffer_ptr->get_start_offset() + in_buffer_memory_start_offset);
-    update_vk.size                   = in_size;
+    update_vk.flags                     = 0;
+    update_vk.memory                    = (in_memory_block_ptr != nullptr) ? in_memory_block_ptr->get_memory()
+                                                                           : VK_NULL_HANDLE;
+    update_vk.memoryOffset              = (in_memory_block_ptr != nullptr) ? (in_memory_block_ptr->get_start_offset() + in_memory_block_start_offset)
+                                                                           : UINT32_MAX;
+    update_vk.resourceOffset            = (in_buffer_ptr->get_start_offset() + in_buffer_memory_start_offset);
+    update_vk.size                      = in_size;
 
     binding.buffer_updates[in_buffer_ptr].first.push_back (update);
     binding.buffer_updates[in_buffer_ptr].second.push_back(update_vk);
 }
 
 /** Please see header for specification */
-void Anvil::Utils::SparseMemoryBindingUpdateInfo::append_image_memory_update(SparseMemoryBindInfoID              in_bind_info_id,
-                                                                             std::shared_ptr<Anvil::Image>       in_image_ptr,
-                                                                             const VkImageSubresource&           in_subresource,
-                                                                             const VkOffset3D&                   in_offset,
-                                                                             const VkExtent3D&                   in_extent,
-                                                                             VkSparseMemoryBindFlags             in_flags,
-                                                                             std::shared_ptr<Anvil::MemoryBlock> in_opt_memory_block_ptr,
-                                                                             VkDeviceSize                        in_opt_memory_block_start_offset)
+void Anvil::Utils::SparseMemoryBindingUpdateInfo::append_image_memory_update(SparseMemoryBindInfoID    in_bind_info_id,
+                                                                             Anvil::Image*             in_image_ptr,
+                                                                             const VkImageSubresource& in_subresource,
+                                                                             const VkOffset3D&         in_offset,
+                                                                             const VkExtent3D&         in_extent,
+                                                                             VkSparseMemoryBindFlags   in_flags,
+                                                                             Anvil::MemoryBlock*       in_opt_memory_block_ptr,
+                                                                             VkDeviceSize              in_opt_memory_block_start_offset,
+                                                                             bool                      in_opt_memory_block_owned_by_image)
 {
     /* Sanity checks .. */
     anvil_assert(in_image_ptr      != nullptr);
@@ -1104,12 +1939,13 @@ void Anvil::Utils::SparseMemoryBindingUpdateInfo::append_image_memory_update(Spa
     ImageBindInfo           update;
     VkSparseImageMemoryBind update_vk;
 
-    update.extent                    = in_extent;
-    update.flags                     = in_flags;
-    update.memory_block_ptr          = in_opt_memory_block_ptr;
-    update.memory_block_start_offset = in_opt_memory_block_start_offset;
-    update.offset                    = in_offset;
-    update.subresource               = in_subresource;
+    update.extent                      = in_extent;
+    update.flags                       = in_flags;
+    update.memory_block_owned_by_image = in_opt_memory_block_owned_by_image;
+    update.memory_block_ptr            = in_opt_memory_block_ptr;
+    update.memory_block_start_offset   = in_opt_memory_block_start_offset;
+    update.offset                      = in_offset;
+    update.subresource                 = in_subresource;
 
     update_vk.extent       = in_extent;
     update_vk.flags        = in_flags;
@@ -1125,13 +1961,14 @@ void Anvil::Utils::SparseMemoryBindingUpdateInfo::append_image_memory_update(Spa
 }
 
 /** Please see header for specification */
-void Anvil::Utils::SparseMemoryBindingUpdateInfo::append_opaque_image_memory_update(SparseMemoryBindInfoID              in_bind_info_id,
-                                                                                    std::shared_ptr<Anvil::Image>       in_image_ptr,
-                                                                                    VkDeviceSize                        in_resource_offset,
-                                                                                    VkDeviceSize                        in_size,
-                                                                                    VkSparseMemoryBindFlags             in_flags,
-                                                                                    std::shared_ptr<Anvil::MemoryBlock> in_opt_memory_block_ptr,
-                                                                                    VkDeviceSize                        in_opt_memory_block_start_offset)
+void Anvil::Utils::SparseMemoryBindingUpdateInfo::append_opaque_image_memory_update(SparseMemoryBindInfoID  in_bind_info_id,
+                                                                                    Anvil::Image*           in_image_ptr,
+                                                                                    VkDeviceSize            in_resource_offset,
+                                                                                    VkDeviceSize            in_size,
+                                                                                    VkSparseMemoryBindFlags in_flags,
+                                                                                    Anvil::MemoryBlock*     in_opt_memory_block_ptr,
+                                                                                    VkDeviceSize            in_opt_memory_block_start_offset,
+                                                                                    bool                    in_opt_memory_block_owned_by_image)
 {
     /* Sanity checks */
     anvil_assert(in_image_ptr                                 != nullptr);
@@ -1148,19 +1985,20 @@ void Anvil::Utils::SparseMemoryBindingUpdateInfo::append_opaque_image_memory_upd
     GeneralBindInfo    update;
     VkSparseMemoryBind update_vk;
 
-    update.flags                     = in_flags;
-    update.memory_block_ptr          = in_opt_memory_block_ptr;
-    update.memory_block_start_offset = in_opt_memory_block_start_offset;
-    update.size                      = in_size;
-    update.start_offset              = in_resource_offset;
+    update.flags                        = in_flags;
+    update.memory_block_owned_by_target = in_opt_memory_block_owned_by_image;
+    update.memory_block_ptr             = in_opt_memory_block_ptr;
+    update.memory_block_start_offset    = in_opt_memory_block_start_offset;
+    update.size                         = in_size;
+    update.start_offset                 = in_resource_offset;
 
-    update_vk.flags                  = in_flags;
-    update_vk.memory                 = (in_opt_memory_block_ptr != nullptr) ? in_opt_memory_block_ptr->get_memory()
-                                                                            : VK_NULL_HANDLE;
-    update_vk.memoryOffset           = (in_opt_memory_block_ptr != nullptr) ? (in_opt_memory_block_ptr->get_start_offset() + in_opt_memory_block_start_offset)
-                                                                            : UINT32_MAX;
-    update_vk.resourceOffset         = in_resource_offset;
-    update_vk.size                   = in_size;
+    update_vk.flags                     = in_flags;
+    update_vk.memory                    = (in_opt_memory_block_ptr != nullptr) ? in_opt_memory_block_ptr->get_memory()
+                                                                               : VK_NULL_HANDLE;
+    update_vk.memoryOffset              = (in_opt_memory_block_ptr != nullptr) ? (in_opt_memory_block_ptr->get_start_offset() + in_opt_memory_block_start_offset)
+                                                                               : UINT32_MAX;
+    update_vk.resourceOffset            = in_resource_offset;
+    update_vk.size                      = in_size;
 
     binding.image_opaque_updates[in_image_ptr].first.push_back (update);
     binding.image_opaque_updates[in_image_ptr].second.push_back(update_vk);
@@ -1275,17 +2113,17 @@ void Anvil::Utils::SparseMemoryBindingUpdateInfo::bake()
 }
 
 /** Please see header for specification */
-bool Anvil::Utils::SparseMemoryBindingUpdateInfo::get_bind_info_properties(SparseMemoryBindInfoID                    in_bind_info_id,
-                                                                           uint32_t* const                           out_opt_n_buffer_memory_updates_ptr,
-                                                                           uint32_t* const                           out_opt_n_image_memory_updates_ptr,
-                                                                           uint32_t* const                           out_opt_n_image_opaque_memory_updates_ptr,
-                                                                           uint32_t* const                           out_opt_n_signal_semaphores_ptr,
-                                                                           const std::shared_ptr<Anvil::Semaphore>** out_opt_signal_semaphores_ptr_ptr,
-                                                                           uint32_t* const                           out_opt_n_wait_semaphores_ptr,
-                                                                           const std::shared_ptr<Anvil::Semaphore>** out_opt_wait_semaphores_ptr_ptr) const
+bool Anvil::Utils::SparseMemoryBindingUpdateInfo::get_bind_info_properties(SparseMemoryBindInfoID in_bind_info_id,
+                                                                           uint32_t* const        out_opt_n_buffer_memory_updates_ptr,
+                                                                           uint32_t* const        out_opt_n_image_memory_updates_ptr,
+                                                                           uint32_t* const        out_opt_n_image_opaque_memory_updates_ptr,
+                                                                           uint32_t* const        out_opt_n_signal_semaphores_ptr,
+                                                                           Anvil::Semaphore***    out_opt_signal_semaphores_ptr_ptr_ptr,
+                                                                           uint32_t* const        out_opt_n_wait_semaphores_ptr,
+                                                                           Anvil::Semaphore***    out_opt_wait_semaphores_ptr_ptr_ptr)
 {
-    decltype(m_bindings)::const_iterator binding_iterator;
-          bool                           result = false;
+    decltype(m_bindings)::iterator binding_iterator;
+    bool                           result = false;
 
     if (m_bindings.size() <= in_bind_info_id)
     {
@@ -1337,10 +2175,10 @@ bool Anvil::Utils::SparseMemoryBindingUpdateInfo::get_bind_info_properties(Spars
         *out_opt_n_signal_semaphores_ptr = static_cast<uint32_t>(binding_iterator->signal_semaphores.size() );
     }
 
-    if (out_opt_signal_semaphores_ptr_ptr          != nullptr &&
+    if (out_opt_signal_semaphores_ptr_ptr_ptr      != nullptr &&
         binding_iterator->signal_semaphores.size() >  0)
     {
-        *out_opt_signal_semaphores_ptr_ptr = &binding_iterator->signal_semaphores[0];
+        *out_opt_signal_semaphores_ptr_ptr_ptr = &binding_iterator->signal_semaphores.at(0);
     }
 
     if (out_opt_n_wait_semaphores_ptr != nullptr)
@@ -1348,10 +2186,10 @@ bool Anvil::Utils::SparseMemoryBindingUpdateInfo::get_bind_info_properties(Spars
         *out_opt_n_wait_semaphores_ptr = static_cast<uint32_t>(binding_iterator->wait_semaphores.size() );
     }
 
-    if (out_opt_wait_semaphores_ptr_ptr          != nullptr &&
+    if (out_opt_wait_semaphores_ptr_ptr_ptr      != nullptr &&
         binding_iterator->wait_semaphores.size() >  0)
     {
-        *out_opt_wait_semaphores_ptr_ptr = &binding_iterator->wait_semaphores[0];
+        *out_opt_wait_semaphores_ptr_ptr_ptr = &binding_iterator->wait_semaphores.at(0);
     }
 
     /* All done */
@@ -1361,9 +2199,9 @@ end:
 }
 
 /** Please see header for specification */
-void Anvil::Utils::SparseMemoryBindingUpdateInfo::get_bind_sparse_call_args(uint32_t*                      out_bind_info_count_ptr,
-                                                                            const VkBindSparseInfo**       out_bind_info_ptr,
-                                                                            std::shared_ptr<Anvil::Fence>* out_fence_to_set_ptr)
+void Anvil::Utils::SparseMemoryBindingUpdateInfo::get_bind_sparse_call_args(uint32_t*                out_bind_info_count_ptr,
+                                                                            const VkBindSparseInfo** out_bind_info_ptr,
+                                                                            Anvil::Fence**           out_fence_to_set_ptr)
 {
     if (m_dirty)
     {
@@ -1373,18 +2211,19 @@ void Anvil::Utils::SparseMemoryBindingUpdateInfo::get_bind_sparse_call_args(uint
     }
 
     *out_bind_info_count_ptr = static_cast<uint32_t>(m_bindings.size() );
-    *out_bind_info_ptr       = (m_bindings_vk.size() > 0) ? &m_bindings_vk[0] : nullptr;
+    *out_bind_info_ptr       = (m_bindings_vk.size() > 0) ? &m_bindings_vk.at(0) : nullptr;
     *out_fence_to_set_ptr    = m_fence_ptr;
 }
 
 /** Please see header for specification */
-bool Anvil::Utils::SparseMemoryBindingUpdateInfo::get_buffer_memory_update_properties(SparseMemoryBindInfoID               in_bind_info_id,
-                                                                                      uint32_t                             in_n_update,
-                                                                                      std::shared_ptr<Anvil::Buffer>*      out_opt_buffer_ptr,
-                                                                                      VkDeviceSize*                        out_opt_buffer_memory_start_offset_ptr,
-                                                                                      std::shared_ptr<Anvil::MemoryBlock>* out_opt_memory_block_ptr,
-                                                                                      VkDeviceSize*                        out_opt_memory_block_start_offset_ptr,
-                                                                                      VkDeviceSize*                        out_opt_size_ptr) const
+bool Anvil::Utils::SparseMemoryBindingUpdateInfo::get_buffer_memory_update_properties(SparseMemoryBindInfoID in_bind_info_id,
+                                                                                      uint32_t               in_n_update,
+                                                                                      Anvil::Buffer**        out_opt_buffer_ptr_ptr,
+                                                                                      VkDeviceSize*          out_opt_buffer_memory_start_offset_ptr,
+                                                                                      Anvil::MemoryBlock**   out_opt_memory_block_ptr_ptr,
+                                                                                      VkDeviceSize*          out_opt_memory_block_start_offset_ptr,
+                                                                                      bool*                  out_opt_memory_block_owned_by_buffer_ptr,
+                                                                                      VkDeviceSize*          out_opt_size_ptr) const
 {
     GeneralBindInfo                      buffer_bind;
     BufferBindUpdateMap::const_iterator  buffer_binding_map_iterator;
@@ -1426,9 +2265,9 @@ bool Anvil::Utils::SparseMemoryBindingUpdateInfo::get_buffer_memory_update_prope
         goto end;
     }
 
-    if (out_opt_buffer_ptr != nullptr)
+    if (out_opt_buffer_ptr_ptr != nullptr)
     {
-        *out_opt_buffer_ptr = buffer_binding_map_iterator->first;
+        *out_opt_buffer_ptr_ptr = buffer_binding_map_iterator->first;
     }
 
     if (out_opt_buffer_memory_start_offset_ptr != nullptr)
@@ -1436,9 +2275,14 @@ bool Anvil::Utils::SparseMemoryBindingUpdateInfo::get_buffer_memory_update_prope
         *out_opt_buffer_memory_start_offset_ptr = buffer_bind.start_offset;
     }
 
-    if (out_opt_memory_block_ptr != nullptr)
+    if (out_opt_memory_block_owned_by_buffer_ptr != nullptr)
     {
-        *out_opt_memory_block_ptr = buffer_bind.memory_block_ptr;
+        *out_opt_memory_block_owned_by_buffer_ptr = buffer_bind.memory_block_owned_by_target;
+    }
+
+    if (out_opt_memory_block_ptr_ptr != nullptr)
+    {
+        *out_opt_memory_block_ptr_ptr = buffer_bind.memory_block_ptr;
     }
 
     if (out_opt_memory_block_start_offset_ptr != nullptr)
@@ -1458,15 +2302,16 @@ end:
 }
 
 /** Please see header for specification */
-bool Anvil::Utils::SparseMemoryBindingUpdateInfo::get_image_memory_update_properties(SparseMemoryBindInfoID               in_bind_info_id,
-                                                                                     uint32_t                             in_n_update,
-                                                                                     std::shared_ptr<Anvil::Image>*       out_opt_image_ptr_ptr,
-                                                                                     VkImageSubresource*                  out_opt_subresource_ptr,
-                                                                                     VkOffset3D*                          out_opt_offset_ptr,
-                                                                                     VkExtent3D*                          out_opt_extent_ptr,
-                                                                                     VkSparseMemoryBindFlags*             out_opt_flags_ptr,
-                                                                                     std::shared_ptr<Anvil::MemoryBlock>* out_opt_memory_block_ptr_ptr,
-                                                                                     VkDeviceSize*                        out_opt_memory_block_start_offset_ptr) const
+bool Anvil::Utils::SparseMemoryBindingUpdateInfo::get_image_memory_update_properties(SparseMemoryBindInfoID   in_bind_info_id,
+                                                                                     uint32_t                 in_n_update,
+                                                                                     Anvil::Image**           out_opt_image_ptr_ptr,
+                                                                                     VkImageSubresource*      out_opt_subresource_ptr,
+                                                                                     VkOffset3D*              out_opt_offset_ptr,
+                                                                                     VkExtent3D*              out_opt_extent_ptr,
+                                                                                     VkSparseMemoryBindFlags* out_opt_flags_ptr,
+                                                                                     Anvil::MemoryBlock**     out_opt_memory_block_ptr_ptr,
+                                                                                     VkDeviceSize*            out_opt_memory_block_start_offset_ptr,
+                                                                                     bool*                    out_opt_memory_block_owned_by_image_ptr) const
 {
     decltype(m_bindings)::const_iterator binding_iterator;
     ImageBindInfo                        image_bind;
@@ -1543,6 +2388,11 @@ bool Anvil::Utils::SparseMemoryBindingUpdateInfo::get_image_memory_update_proper
         *out_opt_memory_block_start_offset_ptr = image_bind.memory_block_start_offset;
     }
 
+    if (out_opt_memory_block_owned_by_image_ptr != nullptr)
+    {
+        *out_opt_memory_block_owned_by_image_ptr = image_bind.memory_block_owned_by_image;
+    }
+
     /* All done */
     result = true;
 end:
@@ -1550,14 +2400,15 @@ end:
 }
 
 /** Please see header for specification */
-bool Anvil::Utils::SparseMemoryBindingUpdateInfo::get_image_opaque_memory_update_properties(SparseMemoryBindInfoID               in_bind_info_id,
-                                                                                            uint32_t                             in_n_update,
-                                                                                            std::shared_ptr<Anvil::Image>*       out_opt_image_ptr_ptr,
-                                                                                            VkDeviceSize*                        out_opt_resource_offset_ptr,
-                                                                                            VkDeviceSize*                        out_opt_size_ptr,
-                                                                                            VkSparseMemoryBindFlags*             out_opt_flags_ptr,
-                                                                                            std::shared_ptr<Anvil::MemoryBlock>* out_opt_memory_block_ptr_ptr,
-                                                                                            VkDeviceSize*                        out_opt_memory_block_start_offset_ptr) const
+bool Anvil::Utils::SparseMemoryBindingUpdateInfo::get_image_opaque_memory_update_properties(SparseMemoryBindInfoID   in_bind_info_id,
+                                                                                            uint32_t                 in_n_update,
+                                                                                            Anvil::Image**           out_opt_image_ptr_ptr,
+                                                                                            VkDeviceSize*            out_opt_resource_offset_ptr,
+                                                                                            VkDeviceSize*            out_opt_size_ptr,
+                                                                                            VkSparseMemoryBindFlags* out_opt_flags_ptr,
+                                                                                            Anvil::MemoryBlock**     out_opt_memory_block_ptr_ptr,
+                                                                                            VkDeviceSize*            out_opt_memory_block_start_offset_ptr,
+                                                                                            bool*                    out_opt_memory_block_owned_by_image_ptr) const
 {
     decltype(m_bindings)::const_iterator     binding_iterator;
     GeneralBindInfo                          image_opaque_bind;
@@ -1629,6 +2480,11 @@ bool Anvil::Utils::SparseMemoryBindingUpdateInfo::get_image_opaque_memory_update
         *out_opt_memory_block_start_offset_ptr = image_opaque_bind.memory_block_start_offset;
     }
 
+    if (out_opt_memory_block_owned_by_image_ptr != nullptr)
+    {
+        *out_opt_memory_block_owned_by_image_ptr = image_opaque_bind.memory_block_owned_by_target;
+    }
+
     /* All done */
     result = true;
 end:
@@ -1641,7 +2497,7 @@ Anvil::MemoryFeatureFlags Anvil::Utils::get_memory_feature_flags_from_vk_propert
 {
     Anvil::MemoryFeatureFlags result = 0;
 
-    ANVIL_REDUNDANT_ARGUMENT_CONST(in_mem_heap_flags);
+    ANVIL_REDUNDANT_ARGUMENT(in_mem_heap_flags);
 
     if ((in_mem_type_flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)
     {
@@ -1677,8 +2533,8 @@ Anvil::MTSafety Anvil::Utils::convert_boolean_to_mt_safety_enum(bool in_mt_safe)
                         : MT_SAFETY_DISABLED;
 }
 
-bool Anvil::Utils::convert_mt_safety_enum_to_boolean(Anvil::MTSafety                  in_mt_safety,
-                                                     std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
+bool Anvil::Utils::convert_mt_safety_enum_to_boolean(Anvil::MTSafety          in_mt_safety,
+                                                     const Anvil::BaseDevice* in_device_ptr)
 {
     bool result = false;
 
@@ -1689,10 +2545,9 @@ bool Anvil::Utils::convert_mt_safety_enum_to_boolean(Anvil::MTSafety            
 
         case MT_SAFETY_INHERIT_FROM_PARENT_DEVICE:
         {
-            anvil_assert(!in_device_ptr.expired() );
-            anvil_assert( in_device_ptr.lock   () != nullptr);
+            anvil_assert(in_device_ptr != nullptr);
 
-            result = in_device_ptr.lock()->is_mt_safe();
+            result = in_device_ptr->is_mt_safe();
             break;
         }
 
@@ -1706,75 +2561,54 @@ bool Anvil::Utils::convert_mt_safety_enum_to_boolean(Anvil::MTSafety            
 }
 
 /** Please see header for specification */
-void Anvil::Utils::convert_queue_family_bits_to_family_indices(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                               Anvil::QueueFamilyBits           in_queue_families,
-                                                               uint32_t*                        out_opt_queue_family_indices_ptr,
-                                                               uint32_t*                        out_opt_n_queue_family_indices_ptr)
+void Anvil::Utils::convert_queue_family_bits_to_family_indices(const Anvil::BaseDevice* in_device_ptr,
+                                                               Anvil::QueueFamilyBits   in_queue_families,
+                                                               uint32_t*                out_opt_queue_family_indices_ptr,
+                                                               uint32_t*                out_opt_n_queue_family_indices_ptr)
 {
-    std::shared_ptr<BaseDevice> device_locked_ptr       (in_device_ptr);
-    uint32_t                    n_queue_family_indices  (0);
-    bool                        universal_queue_included(false);
+    uint32_t n_result_queue_family_indices(0);
 
-    if ((in_queue_families & QUEUE_FAMILY_COMPUTE_BIT) != 0)
+    static const struct
     {
-        if (out_opt_queue_family_indices_ptr != nullptr)
+        Anvil::QueueFamily     queue_family;
+        Anvil::QueueFamilyType queue_family_type;
+    } queue_family_data[] =
+    {
+        {Anvil::QUEUE_FAMILY_COMPUTE_BIT,           Anvil::QueueFamilyType::COMPUTE},
+        {Anvil::QUEUE_FAMILY_DMA_BIT,               Anvil::QueueFamilyType::TRANSFER},
+        {Anvil::QUEUE_FAMILY_GRAPHICS_BIT,          Anvil::QueueFamilyType::UNIVERSAL},
+    };
+
+    for (const auto& current_queue_fam_data : queue_family_data)
+    {
+        if ((in_queue_families & current_queue_fam_data.queue_family) != 0)
         {
-            out_opt_queue_family_indices_ptr[n_queue_family_indices] = device_locked_ptr->get_queue_family_index(Anvil::QUEUE_FAMILY_TYPE_COMPUTE);
+            uint32_t        n_queue_family_indices   = 0;
+            const uint32_t* queue_family_indices_ptr = nullptr;
 
-            /* If the compute queue family is not available, use universal instead */
-            if (out_opt_queue_family_indices_ptr[n_queue_family_indices] == UINT32_MAX)
+            in_device_ptr->get_queue_family_indices_for_queue_family_type(current_queue_fam_data.queue_family_type,
+                                                                         &n_queue_family_indices,
+                                                                         &queue_family_indices_ptr);
+
+            if (out_opt_queue_family_indices_ptr != nullptr)
             {
-                out_opt_queue_family_indices_ptr[n_queue_family_indices] = device_locked_ptr->get_queue_family_index(Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL);
-
-                ++n_queue_family_indices;
-                universal_queue_included = true;
+                for (uint32_t n_queue_family_index = 0;
+                              n_queue_family_index < n_queue_family_indices;
+                            ++n_queue_family_index, ++n_result_queue_family_indices)
+                {
+                    out_opt_queue_family_indices_ptr[n_result_queue_family_indices] = queue_family_indices_ptr[n_queue_family_index];
+                }
             }
             else
             {
-                ++n_queue_family_indices;
+                n_result_queue_family_indices += n_queue_family_indices;
             }
         }
     }
-
-    if ((in_queue_families & QUEUE_FAMILY_DMA_BIT) != 0)
-    {
-        if (out_opt_queue_family_indices_ptr != nullptr)
-        {
-            out_opt_queue_family_indices_ptr[n_queue_family_indices] = device_locked_ptr->get_queue_family_index(Anvil::QUEUE_FAMILY_TYPE_TRANSFER);
-
-            /* If the DMA queue family is unavailable, use universal instead */
-            if (out_opt_queue_family_indices_ptr[n_queue_family_indices] == UINT32_MAX &&
-                !universal_queue_included)
-            {
-                out_opt_queue_family_indices_ptr[n_queue_family_indices] = device_locked_ptr->get_queue_family_index(Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL);
-
-                ++n_queue_family_indices;
-                universal_queue_included = true;
-            }
-            else
-            {
-                ++n_queue_family_indices;
-            }
-        }
-    }
-
-    if (((in_queue_families & QUEUE_FAMILY_GRAPHICS_BIT) != 0) &&
-        !universal_queue_included)
-    {
-        if (out_opt_queue_family_indices_ptr != nullptr)
-        {
-            out_opt_queue_family_indices_ptr[n_queue_family_indices] = device_locked_ptr->get_queue_family_index(Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL);
-        }
-
-        ++n_queue_family_indices;
-        universal_queue_included = true;
-    }
-
-    anvil_assert(n_queue_family_indices > 0);
 
     if (out_opt_n_queue_family_indices_ptr != nullptr)
     {
-        *out_opt_n_queue_family_indices_ptr = n_queue_family_indices;
+        *out_opt_n_queue_family_indices_ptr = n_result_queue_family_indices;
     }
 }
 
@@ -1883,7 +2717,7 @@ VkAccessFlags Anvil::Utils::get_access_mask_from_image_layout(VkImageLayout     
 
     switch (in_queue_family_type)
     {
-        case Anvil::QUEUE_FAMILY_TYPE_COMPUTE:
+        case Anvil::QueueFamilyType::COMPUTE:
         {
             result &= (VK_ACCESS_INDIRECT_COMMAND_READ_BIT |
                        VK_ACCESS_MEMORY_READ_BIT           |
@@ -1897,7 +2731,7 @@ VkAccessFlags Anvil::Utils::get_access_mask_from_image_layout(VkImageLayout     
             break;
         }
 
-        case Anvil::QUEUE_FAMILY_TYPE_TRANSFER:
+        case Anvil::QueueFamilyType::TRANSFER:
         {
             result &= (VK_ACCESS_MEMORY_READ_BIT    |
                        VK_ACCESS_MEMORY_WRITE_BIT   |
@@ -1907,7 +2741,7 @@ VkAccessFlags Anvil::Utils::get_access_mask_from_image_layout(VkImageLayout     
             break;
         }
 
-        case Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL:
+        case Anvil::QueueFamilyType::UNIVERSAL:
         {
             result &= (VK_ACCESS_COLOR_ATTACHMENT_READ_BIT          |
                        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT         |
@@ -1927,7 +2761,7 @@ VkAccessFlags Anvil::Utils::get_access_mask_from_image_layout(VkImageLayout     
             break;
         }
 
-        case Anvil::QUEUE_FAMILY_TYPE_UNDEFINED:
+        case Anvil::QueueFamilyType::UNDEFINED:
         {
             break;
         }
@@ -1948,9 +2782,9 @@ Anvil::QueueFamilyBits Anvil::Utils::get_queue_family_bits_from_queue_family_typ
 
     switch (in_queue_family_type)
     {
-        case Anvil::QUEUE_FAMILY_TYPE_COMPUTE:   result = Anvil::QUEUE_FAMILY_COMPUTE_BIT;                                    break;
-        case Anvil::QUEUE_FAMILY_TYPE_TRANSFER:  result = Anvil::QUEUE_FAMILY_DMA_BIT;                                        break;
-        case Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL: result = Anvil::QUEUE_FAMILY_COMPUTE_BIT | Anvil::QUEUE_FAMILY_GRAPHICS_BIT; break;
+        case Anvil::QueueFamilyType::COMPUTE:   result = Anvil::QUEUE_FAMILY_COMPUTE_BIT;                                    break;
+        case Anvil::QueueFamilyType::TRANSFER:  result = Anvil::QUEUE_FAMILY_DMA_BIT;                                        break;
+        case Anvil::QueueFamilyType::UNIVERSAL: result = Anvil::QUEUE_FAMILY_COMPUTE_BIT | Anvil::QUEUE_FAMILY_GRAPHICS_BIT; break;
 
         default:
         {
@@ -1972,9 +2806,9 @@ const char* Anvil::Utils::get_raw_string(Anvil::QueueFamilyType in_queue_family_
     };
     static const uint32_t n_result_strings = sizeof(result_strings) / sizeof(result_strings[0]);
 
-    static_assert(n_result_strings == QUEUE_FAMILY_TYPE_COUNT, "");
+    static_assert(n_result_strings == static_cast<uint32_t>(Anvil::QueueFamilyType::COUNT), "");
 
-    return result_strings[in_queue_family_type];
+    return result_strings[static_cast<uint32_t>(in_queue_family_type)];
 }
 
 /* Please see header for specification */

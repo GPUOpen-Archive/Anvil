@@ -495,33 +495,35 @@ bool Anvil::Formats::get_format_aspects(VkFormat                         in_form
 
     out_aspects_ptr->clear();
 
-    /* This image can hold color and/or depth and/or stencil aspects only */
-    const Anvil::ComponentLayout format_layout = Anvil::Formats::get_format_component_layout(in_format);
-
-    if (format_layout == Anvil::COMPONENT_LAYOUT_ABGR ||
-        format_layout == Anvil::COMPONENT_LAYOUT_ARGB ||
-        format_layout == Anvil::COMPONENT_LAYOUT_BGR  ||
-        format_layout == Anvil::COMPONENT_LAYOUT_BGRA ||
-        format_layout == Anvil::COMPONENT_LAYOUT_EBGR ||
-        format_layout == Anvil::COMPONENT_LAYOUT_R    ||
-        format_layout == Anvil::COMPONENT_LAYOUT_RG   ||
-        format_layout == Anvil::COMPONENT_LAYOUT_RGB  ||
-        format_layout == Anvil::COMPONENT_LAYOUT_RGBA)
     {
-        out_aspects_ptr->push_back(VK_IMAGE_ASPECT_COLOR_BIT);
-    }
+        /* This image can hold color and/or depth and/or stencil aspects only */
+        const Anvil::ComponentLayout format_layout = Anvil::Formats::get_format_component_layout(in_format);
 
-    if (format_layout == Anvil::COMPONENT_LAYOUT_D  ||
-        format_layout == Anvil::COMPONENT_LAYOUT_DS ||
-        format_layout == Anvil::COMPONENT_LAYOUT_XD)
-    {
-        out_aspects_ptr->push_back(VK_IMAGE_ASPECT_DEPTH_BIT);
-    }
+        if (format_layout == Anvil::COMPONENT_LAYOUT_ABGR ||
+            format_layout == Anvil::COMPONENT_LAYOUT_ARGB ||
+            format_layout == Anvil::COMPONENT_LAYOUT_BGR  ||
+            format_layout == Anvil::COMPONENT_LAYOUT_BGRA ||
+            format_layout == Anvil::COMPONENT_LAYOUT_EBGR ||
+            format_layout == Anvil::COMPONENT_LAYOUT_R    ||
+            format_layout == Anvil::COMPONENT_LAYOUT_RG   ||
+            format_layout == Anvil::COMPONENT_LAYOUT_RGB  ||
+            format_layout == Anvil::COMPONENT_LAYOUT_RGBA)
+        {
+            out_aspects_ptr->push_back(VK_IMAGE_ASPECT_COLOR_BIT);
+        }
 
-    if (format_layout == Anvil::COMPONENT_LAYOUT_DS ||
-        format_layout == Anvil::COMPONENT_LAYOUT_S)
-    {
-        out_aspects_ptr->push_back(VK_IMAGE_ASPECT_STENCIL_BIT);
+        if (format_layout == Anvil::COMPONENT_LAYOUT_D  ||
+            format_layout == Anvil::COMPONENT_LAYOUT_DS ||
+            format_layout == Anvil::COMPONENT_LAYOUT_XD)
+        {
+            out_aspects_ptr->push_back(VK_IMAGE_ASPECT_DEPTH_BIT);
+        }
+
+        if (format_layout == Anvil::COMPONENT_LAYOUT_DS ||
+            format_layout == Anvil::COMPONENT_LAYOUT_S)
+        {
+            out_aspects_ptr->push_back(VK_IMAGE_ASPECT_STENCIL_BIT);
+        }
     }
 
     result = true;
