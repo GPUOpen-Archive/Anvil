@@ -11,7 +11,8 @@ configure_file("include/config.h.in" "include/config.h")
 
 include_directories("$(Anvil_SOURCE_DIR)"
                     "$(Anvil_SOURCE_DIR)/deps"
-                    "$(Anvil_SOURCE_DIR)/include")
+                    "$(Anvil_SOURCE_DIR)/include"
+                    "${Anvil_BINARY_DIR}/include")
 
 if (WIN32)
     if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
