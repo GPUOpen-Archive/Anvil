@@ -25,23 +25,23 @@
 #include "wrappers/command_buffer.h"
 #include "wrappers/command_pool.h"
 
-std::shared_ptr<Anvil::PrimaryCommandBuffer> Anvil::PrimaryCommandBufferPoolWorker::create_item()
+Anvil::PrimaryCommandBufferUniquePtr Anvil::PrimaryCommandBufferPoolWorker::create_item()
 {
     return m_parent_command_pool_ptr->alloc_primary_level_command_buffer();
 }
 
-void Anvil::PrimaryCommandBufferPoolWorker::reset_item(std::shared_ptr<Anvil::PrimaryCommandBuffer> in_item_ptr)
+void Anvil::PrimaryCommandBufferPoolWorker::reset_item(Anvil::PrimaryCommandBufferUniquePtr& in_item_ptr)
 {
     in_item_ptr->reset(false /* should_release_resources */);
 }
 
 
-std::shared_ptr<Anvil::SecondaryCommandBuffer> Anvil::SecondaryCommandBufferPoolWorker::create_item()
+Anvil::SecondaryCommandBufferUniquePtr Anvil::SecondaryCommandBufferPoolWorker::create_item()
 {
     return m_parent_command_pool_ptr->alloc_secondary_level_command_buffer();
 }
 
-void Anvil::SecondaryCommandBufferPoolWorker::reset_item(std::shared_ptr<Anvil::SecondaryCommandBuffer> in_item_ptr)
+void Anvil::SecondaryCommandBufferPoolWorker::reset_item(Anvil::SecondaryCommandBufferUniquePtr& in_item_ptr)
 {
     in_item_ptr->reset(false /* should_release_resources */);
 }

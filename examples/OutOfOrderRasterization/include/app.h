@@ -67,54 +67,50 @@ private:
                                     const char*                message);
 
     /* Private variables */
-    std::weak_ptr<Anvil::BaseDevice>         m_device_ptr;
-    std::shared_ptr<Anvil::Instance>         m_instance_ptr;
-    std::shared_ptr<Anvil::Queue>            m_present_queue_ptr;
-    std::shared_ptr<Anvil::QueryPool>        m_query_pool_ptr;
-    std::shared_ptr<Anvil::RenderingSurface> m_rendering_surface_ptr;
-    std::shared_ptr<Anvil::Swapchain>        m_swapchain_ptr;
-    std::shared_ptr<Anvil::Window>           m_window_ptr;
+    Anvil::SGPUDeviceUniquePtr m_device_ptr;
 
-    std::shared_ptr<Anvil::Image>                              m_depth_image_ptr;
-    std::shared_ptr<Anvil::ImageView>                          m_depth_image_view_ptr;
-    std::vector<std::shared_ptr<Anvil::Framebuffer> >          m_framebuffers;
-    std::shared_ptr<Anvil::ShaderModuleStageEntryPoint>        m_fs_entrypoint_ptr;
+    Anvil::InstanceUniquePtr         m_instance_ptr;
+    Anvil::Queue*                    m_present_queue_ptr;
+    Anvil::QueryPoolUniquePtr        m_query_pool_ptr;
+    Anvil::RenderingSurfaceUniquePtr m_rendering_surface_ptr;
+    Anvil::SwapchainUniquePtr        m_swapchain_ptr;
+    Anvil::WindowUniquePtr           m_window_ptr;
 
-    std::vector<std::shared_ptr<Anvil::PrimaryCommandBuffer> > m_render_cmdbuffers_ooo_off;
-    std::vector<std::shared_ptr<Anvil::PrimaryCommandBuffer> > m_render_cmdbuffers_ooo_on;
+    Anvil::ImageUniquePtr                               m_depth_image_ptr;
+    Anvil::ImageViewUniquePtr                           m_depth_image_view_ptr;
+    std::vector<Anvil::FramebufferUniquePtr>            m_framebuffers;
+    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_fs_entrypoint_ptr;
 
-    std::vector<std::shared_ptr<Anvil::RenderPass> >           m_renderpasses;
-    std::shared_ptr<Anvil::ShaderModuleStageEntryPoint>        m_vs_entrypoint_ptr;
+    std::vector<Anvil::PrimaryCommandBufferUniquePtr> m_render_cmdbuffers_ooo_off;
+    std::vector<Anvil::PrimaryCommandBufferUniquePtr> m_render_cmdbuffers_ooo_on;
+
+    std::vector<Anvil::RenderPassUniquePtr>             m_renderpasses;
+    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_vs_entrypoint_ptr;
 
     uint32_t               m_n_indices;
     uint32_t               m_n_last_semaphore_used;
     const uint32_t         m_n_swapchain_images;
     bool                   m_ooo_enabled;
     bool                   m_should_rotate;
-    std::shared_ptr<float> m_teapot_props_data_ptr;
+    std::unique_ptr<float> m_teapot_props_data_ptr;
     Anvil::Time            m_time;
 
-    typedef struct
-    {
-        /* Holds as many semaphores as there are physical devices bound to a logical device */
-        std::vector<std::shared_ptr<Anvil::Semaphore> > semaphores;
-    } SemaphoreBundle;
-
-    std::vector<SemaphoreBundle> m_frame_signal_semaphore_bundles;
-    std::vector<SemaphoreBundle> m_frame_wait_semaphore_bundles;
+    std::vector<Anvil::SemaphoreUniquePtr> m_frame_acquisition_wait_semaphores;
+    std::vector<Anvil::SemaphoreUniquePtr> m_frame_signal_semaphores;
+    std::vector<Anvil::SemaphoreUniquePtr> m_frame_wait_semaphores;
 
     bool              m_frame_drawn_status[N_SWAPCHAIN_IMAGES];
     Anvil::PipelineID m_general_pipeline_id;
     Anvil::PipelineID m_ooo_disabled_pipeline_id;
     Anvil::PipelineID m_ooo_enabled_pipeline_id;
 
-    std::shared_ptr<Anvil::Buffer> m_index_buffer_ptr;
-    std::shared_ptr<Anvil::Buffer> m_query_results_buffer_ptr;
-    std::shared_ptr<Anvil::Buffer> m_vertex_buffer_ptr;
+    Anvil::BufferUniquePtr m_index_buffer_ptr;
+    Anvil::BufferUniquePtr m_query_results_buffer_ptr;
+    Anvil::BufferUniquePtr m_vertex_buffer_ptr;
 
-    std::vector<std::shared_ptr<Anvil::DescriptorSetGroup> > m_dsg_ptrs;
-    std::vector<std::shared_ptr<Anvil::Buffer> >             m_properties_buffer_ptrs;
-    bool                                                     m_properties_data_set;
+    std::vector<Anvil::DescriptorSetGroupUniquePtr> m_dsg_ptrs;
+    std::vector<Anvil::BufferUniquePtr>             m_properties_buffer_ptrs;
+    bool                                            m_properties_data_set;
 
     uint32_t              m_n_frames_drawn;
     std::vector<uint64_t> m_timestamp_deltas;

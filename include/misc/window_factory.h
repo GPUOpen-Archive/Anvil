@@ -59,12 +59,12 @@ namespace Anvil
          *
          * @return A new Window wrapper instance if successful, null otherwise.
          **/
-        static std::shared_ptr<Window> create_window(WindowPlatform                 in_platform,
-                                                     const std::string&             in_title,
-                                                     unsigned int                   in_width,
-                                                     unsigned int                   in_height,
-                                                     bool                           in_closable,
-                                                     Anvil::PresentCallbackFunction in_present_callback_func);
+        static Anvil::WindowUniquePtr create_window(WindowPlatform                 in_platform,
+                                                    const std::string&             in_title,
+                                                    unsigned int                   in_width,
+                                                    unsigned int                   in_height,
+                                                    bool                           in_closable,
+                                                    Anvil::PresentCallbackFunction in_present_callback_func);
 
         /* Creates a Window wrapper instance using app-managed window handle.
          *
@@ -79,9 +79,9 @@ namespace Anvil
          * @param in_handle         Valid, existing window handle.
          * @param in_xcb_connection Only relevant for XCB window platform; Pointer to xcb_connection_t which owns the window.
          */
-        static std::shared_ptr<Window> create_window(WindowPlatform in_platform,
-                                                     WindowHandle   in_handle,
-                                                     void*          in_xcb_connection_ptr = nullptr);
+        static Anvil::WindowUniquePtr create_window(WindowPlatform in_platform,
+                                                    WindowHandle   in_handle,
+                                                    void*          in_xcb_connection_ptr = nullptr);
 
     };
 }; /* namespace Anvil */

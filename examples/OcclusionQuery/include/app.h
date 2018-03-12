@@ -61,47 +61,47 @@ private:
                                     const char*                message);
 
     /* Private variables */
-    std::weak_ptr<Anvil::SGPUDevice>         m_device_ptr;
-    std::shared_ptr<Anvil::Instance>         m_instance_ptr;
-    std::weak_ptr<Anvil::PhysicalDevice>     m_physical_device_ptr;
-    std::shared_ptr<Anvil::Queue>            m_present_queue_ptr;
-    std::shared_ptr<Anvil::RenderingSurface> m_rendering_surface_ptr;
-    std::shared_ptr<Anvil::Swapchain>        m_swapchain_ptr;
-    Anvil::Time                              m_time;
-    std::shared_ptr<Anvil::Window>           m_window_ptr;
+    Anvil::SGPUDeviceUniquePtr       m_device_ptr;
+    Anvil::InstanceUniquePtr         m_instance_ptr;
+    const Anvil::PhysicalDevice*     m_physical_device_ptr;
+    Anvil::Queue*                    m_present_queue_ptr;
+    Anvil::RenderingSurfaceUniquePtr m_rendering_surface_ptr;
+    Anvil::SwapchainUniquePtr        m_swapchain_ptr;
+    Anvil::Time                      m_time;
+    Anvil::WindowUniquePtr           m_window_ptr;
 
-    std::shared_ptr<Anvil::Image>     m_depth_image_ptr;
-    std::shared_ptr<Anvil::ImageView> m_depth_image_view_ptr;
+    Anvil::ImageUniquePtr     m_depth_image_ptr;
+    Anvil::ImageViewUniquePtr m_depth_image_view_ptr;
 
-    std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_quad_fs_ptr;
-    std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_quad_vs_ptr;
-    std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_tri_fs_ptr;
-    std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_tri_vs_ptr;
+    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_quad_fs_ptr;
+    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_quad_vs_ptr;
+    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_tri_fs_ptr;
+    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_tri_vs_ptr;
 
-    std::shared_ptr<Anvil::DescriptorSetGroup> m_1stpass_dsg_ptr;
-    std::shared_ptr<Anvil::DescriptorSetGroup> m_2ndpass_quad_dsg_ptr;
-    std::shared_ptr<Anvil::DescriptorSetGroup> m_2ndpass_tri_dsg_ptr;
+    Anvil::DescriptorSetGroupUniquePtr m_1stpass_dsg_ptr;
+    Anvil::DescriptorSetGroupUniquePtr m_2ndpass_quad_dsg_ptr;
+    Anvil::DescriptorSetGroupUniquePtr m_2ndpass_tri_dsg_ptr;
 
-    std::shared_ptr<Anvil::QueryPool> m_query_pool_ptr;
+    Anvil::QueryPoolUniquePtr m_query_pool_ptr;
 
-    uint32_t                       m_n_bytes_per_query;
-    std::shared_ptr<Anvil::Buffer> m_query_bo_ptr;
-    std::shared_ptr<Anvil::Event>  m_query_data_copied_event;
-    std::shared_ptr<Anvil::Buffer> m_time_bo_ptr;
-    uint32_t                       m_time_n_bytes_per_swapchain_image;
+    uint32_t               m_n_bytes_per_query;
+    Anvil::BufferUniquePtr m_query_bo_ptr;
+    Anvil::EventUniquePtr  m_query_data_copied_event;
+    Anvil::BufferUniquePtr m_time_bo_ptr;
+    uint32_t               m_time_n_bytes_per_swapchain_image;
 
-    std::shared_ptr<Anvil::PrimaryCommandBuffer> m_render_tri1_and_generate_ot_data_cmd_buffers[N_SWAPCHAIN_IMAGES];
-    std::shared_ptr<Anvil::PrimaryCommandBuffer> m_render_tri2_and_quad_cmd_buffers            [N_SWAPCHAIN_IMAGES];
+    Anvil::PrimaryCommandBufferUniquePtr m_render_tri1_and_generate_ot_data_cmd_buffers[N_SWAPCHAIN_IMAGES];
+    Anvil::PrimaryCommandBufferUniquePtr m_render_tri2_and_quad_cmd_buffers            [N_SWAPCHAIN_IMAGES];
 
     Anvil::PipelineID m_1stpass_depth_test_always_pipeline_id;
     Anvil::PipelineID m_1stpass_depth_test_equal_pipeline_id;
     Anvil::PipelineID m_2ndpass_depth_test_off_quad_pipeline_id;
     Anvil::PipelineID m_2ndpass_depth_test_off_tri_pipeline_id;
 
-    std::shared_ptr<Anvil::Framebuffer> m_fbos[N_SWAPCHAIN_IMAGES];
+    Anvil::FramebufferUniquePtr m_fbos[N_SWAPCHAIN_IMAGES];
 
-    std::shared_ptr<Anvil::RenderPass> m_renderpass_quad_ptr;
-    std::shared_ptr<Anvil::RenderPass> m_renderpass_tris_ptr;
+    Anvil::RenderPassUniquePtr m_renderpass_quad_ptr;
+    Anvil::RenderPassUniquePtr m_renderpass_tris_ptr;
 
     Anvil::SubPassID                   m_renderpass_1stpass_depth_test_always_subpass_id;
     Anvil::SubPassID                   m_renderpass_1stpass_depth_test_equal_ot_subpass_id;
@@ -111,6 +111,6 @@ private:
     uint32_t       m_n_last_semaphore_used;
     const uint32_t m_n_swapchain_images;
 
-    std::vector<std::shared_ptr<Anvil::Semaphore> > m_frame_signal_semaphores;
-    std::vector<std::shared_ptr<Anvil::Semaphore> > m_frame_wait_semaphores;
+    std::vector<Anvil::SemaphoreUniquePtr> m_frame_signal_semaphores;
+    std::vector<Anvil::SemaphoreUniquePtr> m_frame_wait_semaphores;
 };

@@ -27,6 +27,7 @@
 #include "misc/graphics_pipeline_info.h"
 #include "misc/object_tracker.h"
 #include "misc/render_pass_info.h"
+#include "misc/struct_chainer.h"
 #include "wrappers/device.h"
 #include "wrappers/graphics_pipeline_manager.h"
 #include "wrappers/pipeline_cache.h"
@@ -38,7 +39,6 @@
 #if defined(max)
     #undef max
 #endif
-
 
 /** When baking a graphics pipeline descriptor, we currently use STL vectors to maintain storage
  *  for various Vulkan descriptors. These need to be stored on heap because:
@@ -57,10 +57,10 @@
 
 
 /* Please see header for specification */
-Anvil::GraphicsPipelineManager::GraphicsPipelineManager(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
-                                                        bool                                  in_mt_safe,
-                                                        bool                                  in_use_pipeline_cache,
-                                                        std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr)
+Anvil::GraphicsPipelineManager::GraphicsPipelineManager(const Anvil::BaseDevice* in_device_ptr,
+                                                        bool                     in_mt_safe,
+                                                        bool                     in_use_pipeline_cache,
+                                                        Anvil::PipelineCache*    in_pipeline_cache_to_reuse_ptr)
     :BasePipelineManager(in_device_ptr,
                          in_mt_safe,
                          in_use_pipeline_cache,
@@ -104,29 +104,28 @@ bool Anvil::GraphicsPipelineManager::bake()
     } BakeItem;
 
     std::vector<BakeItem>                  bake_items;
-    auto                                   color_blend_attachment_states_vk_cache         = std::vector<VkPipelineColorBlendAttachmentState>   ();
-    auto                                   color_blend_state_create_info_items_vk_cache   = std::vector<VkPipelineColorBlendStateCreateInfo>   ();
-    auto                                   depth_stencil_state_create_info_items_vk_cache = std::vector<VkPipelineDepthStencilStateCreateInfo> ();
-    auto                                   device_locked_ptr                              = std::shared_ptr<Anvil::BaseDevice>                 (m_device_ptr);
-    auto                                   dynamic_state_create_info_items_vk_cache       = std::vector<VkPipelineDynamicStateCreateInfo>      ();
-    auto                                   enabled_dynamic_states_vk_cache                = std::vector<VkDynamicState>                        ();
-    auto                                   graphics_pipeline_create_info_items_vk_cache   = std::vector<VkGraphicsPipelineCreateInfo>          ();
-    auto                                   input_assembly_state_create_info_items_vk_cache= std::vector<VkPipelineInputAssemblyStateCreateInfo>();
-    auto                                   multisample_state_create_info_items_vk_cache   = std::vector<VkPipelineMultisampleStateCreateInfo>  ();
+    auto                                   color_blend_attachment_states_vk_cache             = std::vector<VkPipelineColorBlendAttachmentState>      ();
+    auto                                   color_blend_state_create_info_items_vk_cache       = std::vector<VkPipelineColorBlendStateCreateInfo>      ();
+    auto                                   depth_stencil_state_create_info_items_vk_cache     = std::vector<VkPipelineDepthStencilStateCreateInfo>    ();
+    auto                                   dynamic_state_create_info_items_vk_cache           = std::vector<VkPipelineDynamicStateCreateInfo>         ();
+    auto                                   enabled_dynamic_states_vk_cache                    = std::vector<VkDynamicState>                           ();
+    auto                                   graphics_pipeline_create_info_chains               = Anvil::StructChainVector<VkGraphicsPipelineCreateInfo>();
+    auto                                   input_assembly_state_create_info_items_vk_cache    = std::vector<VkPipelineInputAssemblyStateCreateInfo>   ();
+    auto                                   multisample_state_create_info_items_vk_cache       = std::vector<VkPipelineMultisampleStateCreateInfo>     ();
     std::unique_lock<std::recursive_mutex> mutex_lock;
-    auto                                   mutex_ptr                                      = get_mutex();
-    uint32_t                               n_consumed_graphics_pipelines                  = 0;
-    auto                                   raster_state_create_info_items_vk_cache        = std::vector<VkPipelineRasterizationStateCreateInfo>();
-    bool                                   result                                         = false;
+    auto                                   mutex_ptr                                          = get_mutex();
+    uint32_t                               n_consumed_graphics_pipelines                      = 0;
+    auto                                   raster_state_create_info_chains_vk_cache           = std::vector<std::unique_ptr<Anvil::StructChain<VkPipelineRasterizationStateCreateInfo> > >();
+    bool                                   result                                             = false;
     std::vector<VkPipeline>                result_graphics_pipelines;
     VkResult                               result_vk;
-    auto                                   scissor_boxes_vk_cache                         = std::vector<VkRect2D>                              ();
-    auto                                   shader_stage_create_info_items_vk_cache        = std::vector<VkPipelineShaderStageCreateInfo>       ();
-    auto                                   specialization_info_vk_cache                   = std::vector<VkSpecializationInfo>                  ();
-    auto                                   specialization_map_entry_vk_cache              = std::vector<VkSpecializationMapEntry>              ();
-    auto                                   tessellation_state_create_info_items_vk_cache  = std::vector<VkPipelineTessellationStateCreateInfo> ();
-    auto                                   vertex_input_state_create_info_items_vk_cache  = std::vector<VkPipelineVertexInputStateCreateInfo>  ();
-    auto                                   viewport_state_create_info_items_vk_cache      = std::vector<VkPipelineViewportStateCreateInfo>     ();
+    auto                                   scissor_boxes_vk_cache                             = std::vector<VkRect2D>                              ();
+    auto                                   shader_stage_create_info_items_vk_cache            = std::vector<VkPipelineShaderStageCreateInfo>       ();
+    auto                                   specialization_info_vk_cache                       = std::vector<VkSpecializationInfo>                  ();
+    auto                                   specialization_map_entry_vk_cache                  = std::vector<VkSpecializationMapEntry>              ();
+    auto                                   tessellation_state_create_info_items_vk_cache      = std::vector<VkPipelineTessellationStateCreateInfo> ();
+    auto                                   vertex_input_state_create_info_items_vk_cache      = std::vector<VkPipelineVertexInputStateCreateInfo>  ();
+    auto                                   viewport_state_create_info_items_vk_cache          = std::vector<VkPipelineViewportStateCreateInfo>     ();
     std::vector<VkViewport>                viewports_vk_cache;
 
 
@@ -144,23 +143,22 @@ bool Anvil::GraphicsPipelineManager::bake()
     };
 
 
-    color_blend_attachment_states_vk_cache.reserve         (N_CACHE_ITEMS);
-    color_blend_state_create_info_items_vk_cache.reserve   (N_CACHE_ITEMS);
-    depth_stencil_state_create_info_items_vk_cache.reserve (N_CACHE_ITEMS);
-    dynamic_state_create_info_items_vk_cache.reserve       (N_CACHE_ITEMS);
-    enabled_dynamic_states_vk_cache.reserve                (N_CACHE_ITEMS);
-    graphics_pipeline_create_info_items_vk_cache.reserve   (N_CACHE_ITEMS);
-    input_assembly_state_create_info_items_vk_cache.reserve(N_CACHE_ITEMS);
-    multisample_state_create_info_items_vk_cache.reserve   (N_CACHE_ITEMS);
-    raster_state_create_info_items_vk_cache.reserve        (N_CACHE_ITEMS);
-    scissor_boxes_vk_cache.reserve                         (N_CACHE_ITEMS);
-    shader_stage_create_info_items_vk_cache.reserve        (N_CACHE_ITEMS);
-    specialization_info_vk_cache.reserve                   (N_CACHE_ITEMS);
-    specialization_map_entry_vk_cache.reserve              (N_CACHE_ITEMS);
-    tessellation_state_create_info_items_vk_cache.reserve  (N_CACHE_ITEMS);
-    vertex_input_state_create_info_items_vk_cache.reserve  (N_CACHE_ITEMS);
-    viewport_state_create_info_items_vk_cache.reserve      (N_CACHE_ITEMS);
-    viewports_vk_cache.reserve                             (N_CACHE_ITEMS);
+    color_blend_attachment_states_vk_cache.reserve            (N_CACHE_ITEMS);
+    color_blend_state_create_info_items_vk_cache.reserve      (N_CACHE_ITEMS);
+    depth_stencil_state_create_info_items_vk_cache.reserve    (N_CACHE_ITEMS);
+    dynamic_state_create_info_items_vk_cache.reserve          (N_CACHE_ITEMS);
+    enabled_dynamic_states_vk_cache.reserve                   (N_CACHE_ITEMS);
+    input_assembly_state_create_info_items_vk_cache.reserve   (N_CACHE_ITEMS);
+    multisample_state_create_info_items_vk_cache.reserve      (N_CACHE_ITEMS);
+    raster_state_create_info_chains_vk_cache.reserve          (N_CACHE_ITEMS);
+    scissor_boxes_vk_cache.reserve                            (N_CACHE_ITEMS);
+    shader_stage_create_info_items_vk_cache.reserve           (N_CACHE_ITEMS);
+    specialization_info_vk_cache.reserve                      (N_CACHE_ITEMS);
+    specialization_map_entry_vk_cache.reserve                 (N_CACHE_ITEMS);
+    tessellation_state_create_info_items_vk_cache.reserve     (N_CACHE_ITEMS);
+    vertex_input_state_create_info_items_vk_cache.reserve     (N_CACHE_ITEMS);
+    viewport_state_create_info_items_vk_cache.reserve         (N_CACHE_ITEMS);
+    viewports_vk_cache.reserve                                (N_CACHE_ITEMS);
 
     if (mutex_ptr != nullptr)
     {
@@ -175,7 +173,9 @@ bool Anvil::GraphicsPipelineManager::bake()
     {
         if (pipeline_iterator->second->layout_ptr == nullptr)
         {
-            pipeline_iterator->second->layout_ptr = get_pipeline_layout(pipeline_iterator->first);
+            get_pipeline_layout(pipeline_iterator->first);
+
+            anvil_assert(pipeline_iterator->second->layout_ptr != nullptr);
         }
 
         bake_items.push_back(
@@ -195,22 +195,21 @@ bool Anvil::GraphicsPipelineManager::bake()
               bake_item_iterator != bake_items.end();
             ++bake_item_iterator)
     {
-        bool                                   color_blend_state_used          = false;
-        const PipelineID                       current_pipeline_id             = bake_item_iterator->pipeline_id;
-        const auto                             current_pipeline_info_ptr       = dynamic_cast<GraphicsPipelineInfo*>(bake_item_iterator->pipeline_ptr->pipeline_info_ptr.get() );
-        Pipeline*                              current_pipeline_ptr            = bake_item_iterator->pipeline_ptr;
-        Anvil::RenderPass*                     current_pipeline_renderpass_ptr = nullptr;
-        Anvil::SubPassID                       current_pipeline_subpass_id;
-        bool                                   depth_stencil_state_used        = false;
-        bool                                   dynamic_state_used              = false;
-        VkGraphicsPipelineCreateInfo           graphics_pipeline_create_info   = {};
-        VkPipelineInputAssemblyStateCreateInfo input_assembly_state_create_info;
-        bool                                   multisample_state_used          = false;
-        VkPipelineRasterizationStateCreateInfo raster_state_create_info;
-        uint32_t                               subpass_n_color_attachments     = 0;
-        bool                                   tessellation_state_used         = false;
-        VkPipelineVertexInputStateCreateInfo   vertex_input_state_create_info;
-        bool                                   viewport_state_used             = false;
+        bool                                               color_blend_state_used                = false;
+        const PipelineID                                   current_pipeline_id                   = bake_item_iterator->pipeline_id;
+        auto                                               current_pipeline_info_ptr             = dynamic_cast<GraphicsPipelineInfo*>(bake_item_iterator->pipeline_ptr->pipeline_info_ptr.get() );
+        Pipeline*                                          current_pipeline_ptr                  = bake_item_iterator->pipeline_ptr;
+        const Anvil::RenderPass*                           current_pipeline_renderpass_ptr       = nullptr;
+        Anvil::SubPassID                                   current_pipeline_subpass_id;
+        bool                                               depth_stencil_state_used              = false;
+        bool                                               dynamic_state_used                    = false;
+        Anvil::StructChainer<VkGraphicsPipelineCreateInfo> graphics_pipeline_create_info_chainer;
+        VkPipelineInputAssemblyStateCreateInfo             input_assembly_state_create_info;
+        bool                                               multisample_state_used                = false;
+        uint32_t                                           subpass_n_color_attachments           = 0;
+        bool                                               tessellation_state_used               = false;
+        VkPipelineVertexInputStateCreateInfo               vertex_input_state_create_info;
+        bool                                               viewport_state_used                   = false;
 
         if (current_pipeline_info_ptr == nullptr)
         {
@@ -219,7 +218,7 @@ bool Anvil::GraphicsPipelineManager::bake()
             continue;
         }
 
-        current_pipeline_renderpass_ptr = current_pipeline_info_ptr->get_renderpass().get();
+        current_pipeline_renderpass_ptr = current_pipeline_info_ptr->get_renderpass();
         current_pipeline_subpass_id     = current_pipeline_info_ptr->get_subpass_id();
 
         if (current_pipeline_info_ptr->is_proxy() )
@@ -521,16 +520,17 @@ bool Anvil::GraphicsPipelineManager::bake()
             }
         }
 
-        /* Form the raster state create info descriptor */
+        /* Form the raster state create info chain */
         {
-            VkCullModeFlags cull_mode                  = VK_CULL_MODE_FLAG_BITS_MAX_ENUM;
-            float           depth_bias_clamp           = std::numeric_limits<float>::max();
-            float           depth_bias_constant_factor = std::numeric_limits<float>::max();
-            float           depth_bias_slope_factor    = std::numeric_limits<float>::max();
-            VkFrontFace     front_face                 = VK_FRONT_FACE_MAX_ENUM;
-            bool            is_depth_bias_enabled      = false;
-            float           line_width                 = std::numeric_limits<float>::max();
-            VkPolygonMode   polygon_mode               = VK_POLYGON_MODE_MAX_ENUM;
+            VkCullModeFlags                                              cull_mode                  = VK_CULL_MODE_FLAG_BITS_MAX_ENUM;
+            float                                                        depth_bias_clamp           = std::numeric_limits<float>::max();
+            float                                                        depth_bias_constant_factor = std::numeric_limits<float>::max();
+            float                                                        depth_bias_slope_factor    = std::numeric_limits<float>::max();
+            VkFrontFace                                                  front_face                 = VK_FRONT_FACE_MAX_ENUM;
+            bool                                                         is_depth_bias_enabled      = false;
+            float                                                        line_width                 = std::numeric_limits<float>::max();
+            VkPolygonMode                                                polygon_mode               = VK_POLYGON_MODE_MAX_ENUM;
+            Anvil::StructChainer<VkPipelineRasterizationStateCreateInfo> raster_state_create_info_chainer;
 
             current_pipeline_info_ptr->get_depth_bias_state        (&is_depth_bias_enabled,
                                                                     &depth_bias_constant_factor,
@@ -541,39 +541,41 @@ bool Anvil::GraphicsPipelineManager::bake()
                                                                     &front_face,
                                                                     &line_width);
 
-            raster_state_create_info.cullMode                = cull_mode;
-            raster_state_create_info.depthBiasClamp          = depth_bias_clamp;
-            raster_state_create_info.depthBiasConstantFactor = depth_bias_constant_factor;
-            raster_state_create_info.depthBiasEnable         = is_depth_bias_enabled ? VK_TRUE : VK_FALSE;
-            raster_state_create_info.depthBiasSlopeFactor    = depth_bias_slope_factor;
-            raster_state_create_info.depthClampEnable        = current_pipeline_info_ptr->is_depth_clamp_enabled() ? VK_TRUE : VK_FALSE;
-            raster_state_create_info.flags                   = 0;
-            raster_state_create_info.frontFace               = front_face;
-            raster_state_create_info.lineWidth               = line_width;
-            raster_state_create_info.pNext                   = nullptr;
-            raster_state_create_info.polygonMode             = polygon_mode;
-            raster_state_create_info.rasterizerDiscardEnable = current_pipeline_info_ptr->is_rasterizer_discard_enabled() ? VK_TRUE : VK_FALSE;
-            raster_state_create_info.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+            {
+                VkPipelineRasterizationStateCreateInfo raster_state_create_info;
 
-            if (device_locked_ptr->is_extension_enabled(VK_AMD_RASTERIZATION_ORDER_EXTENSION_NAME) )
+                raster_state_create_info.cullMode                = cull_mode;
+                raster_state_create_info.depthBiasClamp          = depth_bias_clamp;
+                raster_state_create_info.depthBiasConstantFactor = depth_bias_constant_factor;
+                raster_state_create_info.depthBiasEnable         = is_depth_bias_enabled ? VK_TRUE : VK_FALSE;
+                raster_state_create_info.depthBiasSlopeFactor    = depth_bias_slope_factor;
+                raster_state_create_info.depthClampEnable        = current_pipeline_info_ptr->is_depth_clamp_enabled() ? VK_TRUE : VK_FALSE;
+                raster_state_create_info.flags                   = 0;
+                raster_state_create_info.frontFace               = front_face;
+                raster_state_create_info.lineWidth               = line_width;
+                raster_state_create_info.pNext                   = nullptr;
+                raster_state_create_info.polygonMode             = polygon_mode;
+                raster_state_create_info.rasterizerDiscardEnable = current_pipeline_info_ptr->is_rasterizer_discard_enabled() ? VK_TRUE : VK_FALSE;
+                raster_state_create_info.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+
+                raster_state_create_info_chainer.append_struct(raster_state_create_info);
+            }
+
+            if (m_device_ptr->is_extension_enabled(VK_AMD_RASTERIZATION_ORDER_EXTENSION_NAME) )
             {
                 /* Chain a predefined struct which will toggle the relaxed rasterization, as long as the device supports the
                  * VK_AMD_rasterization_order extension.
                  */
-                const VkPipelineRasterizationStateRasterizationOrderAMD* chained_item_ptr = nullptr;
-
                 if (current_pipeline_info_ptr->get_rasterization_order() != VK_RASTERIZATION_ORDER_STRICT_AMD)
                 {
                     anvil_assert(current_pipeline_info_ptr->get_rasterization_order() == relaxed_rasterization_order_item.rasterizationOrder);
 
-                    chained_item_ptr = &relaxed_rasterization_order_item;
+                    raster_state_create_info_chainer.append_struct(relaxed_rasterization_order_item);
                 }
                 else
                 {
-                    chained_item_ptr = &strict_rasterization_order_item;
+                    raster_state_create_info_chainer.append_struct(strict_rasterization_order_item);
                 }
-
-                raster_state_create_info.pNext = chained_item_ptr;
             }
             else
             if (current_pipeline_info_ptr->get_rasterization_order() != VK_RASTERIZATION_ORDER_STRICT_AMD)
@@ -582,7 +584,9 @@ bool Anvil::GraphicsPipelineManager::bake()
                         "[!] Cannot enable out-of-order rasterization - VK_AMD_rasterization_order extension not enabled at device creation time\n");
             }
 
-            raster_state_create_info_items_vk_cache.push_back(raster_state_create_info);
+            raster_state_create_info_chains_vk_cache.push_back(
+                raster_state_create_info_chainer.create_chain()
+            );
         }
 
         /* Form stage descriptors */
@@ -606,10 +610,10 @@ bool Anvil::GraphicsPipelineManager::bake()
 
                 if (shader_stage_entry_point_ptr != nullptr)
                 {
-                    VkPipelineShaderStageCreateInfo      current_shader_stage_create_info;
-                    const unsigned char*                 current_shader_stage_specialization_constants_data_buffer_ptr = nullptr;
-                    const SpecializationConstants*       current_shader_stage_specialization_constants_ptr             = nullptr;
-                    std::shared_ptr<Anvil::ShaderModule> shader_module_ptr;
+                    VkPipelineShaderStageCreateInfo current_shader_stage_create_info;
+                    const unsigned char*            current_shader_stage_specialization_constants_data_buffer_ptr = nullptr;
+                    const SpecializationConstants*  current_shader_stage_specialization_constants_ptr             = nullptr;
+                    Anvil::ShaderModule*            shader_module_ptr                                             = nullptr;
 
                     specialization_info_vk_cache.push_back(VkSpecializationInfo() );
 
@@ -844,91 +848,100 @@ bool Anvil::GraphicsPipelineManager::bake()
             viewport_state_used = false;
         }
 
-        /* Configure base pipeline handle/indices fields of the create info descriptor */
-        const auto current_pipeline_base_pipeline_id = current_pipeline_info_ptr->get_base_pipeline_id();
-
-        if (current_pipeline_base_pipeline_id != UINT32_MAX)
+        /* Bake the GFX pipeline info struct chain */
         {
-            /* There are three cases we need to handle separately here:
-             *
-             * 1. The base pipeline is to be baked in the call we're preparing for. Determine
-             *    its index in the create info descriptor array and use it.
-             * 2. The pipeline has been baked earlier. Pass the baked pipeline's handle.
-             * 3. The pipeline under specified index uses a different layout. This indicates
-             *    a bug in the app or the manager.
-             *
-             * NOTE: A slightly adjusted version of this code is re-used in ComputePipelineManager::bake()
-             */
-            auto base_bake_item_iterator = std::find(bake_items.begin(),
-                                                     bake_items.end(),
-                                                     current_pipeline_base_pipeline_id);
+            VkGraphicsPipelineCreateInfo                       graphics_pipeline_create_info          = {};
 
-            if (base_bake_item_iterator != bake_items.end() )
+            /* Configure base pipeline handle/indices fields of the create info descriptor */
+            const auto current_pipeline_base_pipeline_id = current_pipeline_info_ptr->get_base_pipeline_id();
+
+            if (current_pipeline_base_pipeline_id != UINT32_MAX)
             {
-                /* Case 1 */
-                graphics_pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE;
-                graphics_pipeline_create_info.basePipelineIndex  = static_cast<int32_t>(base_bake_item_iterator - bake_items.begin() );
+                /* There are three cases we need to handle separately here:
+                 *
+                 * 1. The base pipeline is to be baked in the call we're preparing for. Determine
+                 *    its index in the create info descriptor array and use it.
+                 * 2. The pipeline has been baked earlier. Pass the baked pipeline's handle.
+                 * 3. The pipeline under specified index uses a different layout. This indicates
+                 *    a bug in the app or the manager.
+                 *
+                 * NOTE: A slightly adjusted version of this code is re-used in ComputePipelineManager::bake()
+                 */
+                auto base_bake_item_iterator = std::find(bake_items.begin(),
+                                                         bake_items.end(),
+                                                         current_pipeline_base_pipeline_id);
+
+                if (base_bake_item_iterator != bake_items.end() )
+                {
+                    /* Case 1 */
+                    graphics_pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE;
+                    graphics_pipeline_create_info.basePipelineIndex  = static_cast<int32_t>(base_bake_item_iterator - bake_items.begin() );
+                }
+                else
+                if (base_bake_item_iterator->pipeline_ptr                 != nullptr            &&
+                    base_bake_item_iterator->pipeline_ptr->baked_pipeline != VK_NULL_HANDLE)
+                {
+                    /* Case 2 */
+                    graphics_pipeline_create_info.basePipelineHandle = base_bake_item_iterator->pipeline_ptr->baked_pipeline;
+                    graphics_pipeline_create_info.basePipelineIndex  = UINT32_MAX;
+                }
+                else
+                {
+                    /* Case 3 */
+                    anvil_assert_fail();
+                }
             }
             else
-            if (base_bake_item_iterator->pipeline_ptr                 != nullptr            &&
-                base_bake_item_iterator->pipeline_ptr->baked_pipeline != VK_NULL_HANDLE)
             {
-                /* Case 2 */
-                graphics_pipeline_create_info.basePipelineHandle = base_bake_item_iterator->pipeline_ptr->baked_pipeline;
+                /* No base pipeline requested */
+                graphics_pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE;
                 graphics_pipeline_create_info.basePipelineIndex  = UINT32_MAX;
             }
-            else
+
+            /* Form the rest of the create info descriptor */
+            anvil_assert(current_pipeline_ptr->layout_ptr != nullptr);
+
+            graphics_pipeline_create_info.flags               = 0;
+            graphics_pipeline_create_info.layout              = current_pipeline_ptr->layout_ptr->get_pipeline_layout();
+            graphics_pipeline_create_info.pColorBlendState    = (color_blend_state_used)    ? &color_blend_state_create_info_items_vk_cache[color_blend_state_create_info_items_vk_cache.size() - 1]
+                                                                                            : VK_NULL_HANDLE;
+            graphics_pipeline_create_info.pDepthStencilState  = (depth_stencil_state_used)  ? &depth_stencil_state_create_info_items_vk_cache[depth_stencil_state_create_info_items_vk_cache.size() - 1]
+                                                                                            : VK_NULL_HANDLE;
+            graphics_pipeline_create_info.pDynamicState       = (dynamic_state_used)        ? &dynamic_state_create_info_items_vk_cache[dynamic_state_create_info_items_vk_cache.size() - 1]
+                                                                                            : VK_NULL_HANDLE;
+            graphics_pipeline_create_info.pInputAssemblyState = &input_assembly_state_create_info_items_vk_cache[input_assembly_state_create_info_items_vk_cache.size() - 1];
+            graphics_pipeline_create_info.pMultisampleState   = (multisample_state_used)    ? &multisample_state_create_info_items_vk_cache[multisample_state_create_info_items_vk_cache.size() - 1]
+                                                                                            : VK_NULL_HANDLE;
+            graphics_pipeline_create_info.pNext               = nullptr;
+            graphics_pipeline_create_info.pRasterizationState = raster_state_create_info_chains_vk_cache.at(raster_state_create_info_chains_vk_cache.size() - 1)->root_struct_ptr;
+            graphics_pipeline_create_info.pStages             = (shader_stage_start_offset < shader_stage_create_info_items_vk_cache.size() ) ? &shader_stage_create_info_items_vk_cache[shader_stage_start_offset]
+                                                                                                                                              : nullptr;
+            graphics_pipeline_create_info.pTessellationState  = (tessellation_state_used)   ? &tessellation_state_create_info_items_vk_cache[tessellation_state_create_info_items_vk_cache.size() - 1]
+                                                                                            : VK_NULL_HANDLE;
+            graphics_pipeline_create_info.pVertexInputState   = &vertex_input_state_create_info_items_vk_cache[vertex_input_state_create_info_items_vk_cache.size() - 1];
+            graphics_pipeline_create_info.pViewportState      = (viewport_state_used)       ? &viewport_state_create_info_items_vk_cache[viewport_state_create_info_items_vk_cache.size() - 1]
+                                                                                            : VK_NULL_HANDLE;
+            graphics_pipeline_create_info.renderPass          = current_pipeline_info_ptr->get_renderpass()->get_render_pass();
+            graphics_pipeline_create_info.stageCount          = static_cast<uint32_t>(shader_stage_create_info_items_vk_cache.size() - shader_stage_start_offset);
+            graphics_pipeline_create_info.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+            graphics_pipeline_create_info.subpass             = current_pipeline_info_ptr->get_subpass_id();
+
+            if (graphics_pipeline_create_info.basePipelineIndex != static_cast<int32_t>(UINT32_MAX) )
             {
-                /* Case 3 */
-                anvil_assert_fail();
+                graphics_pipeline_create_info.flags |= VK_PIPELINE_CREATE_DERIVATIVE_BIT;
             }
+
+            graphics_pipeline_create_info.flags |= ((current_pipeline_info_ptr->allows_derivatives        () ) ? VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT    : 0) |
+                                                   ((current_pipeline_info_ptr->has_optimizations_disabled() ) ? VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT : 0);
+
+            graphics_pipeline_create_info_chainer.append_struct(graphics_pipeline_create_info);
         }
-        else
-        {
-            /* No base pipeline requested */
-            graphics_pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE;
-            graphics_pipeline_create_info.basePipelineIndex  = UINT32_MAX;
-        }
-
-        /* Form the rest of the create info descriptor */
-        anvil_assert(current_pipeline_ptr->layout_ptr != nullptr);
-
-        graphics_pipeline_create_info.flags               = 0;
-        graphics_pipeline_create_info.layout              = current_pipeline_ptr->layout_ptr->get_pipeline_layout();
-        graphics_pipeline_create_info.pColorBlendState    = (color_blend_state_used)    ? &color_blend_state_create_info_items_vk_cache[color_blend_state_create_info_items_vk_cache.size() - 1]
-                                                                                        : VK_NULL_HANDLE;
-        graphics_pipeline_create_info.pDepthStencilState  = (depth_stencil_state_used)  ? &depth_stencil_state_create_info_items_vk_cache[depth_stencil_state_create_info_items_vk_cache.size() - 1]
-                                                                                        : VK_NULL_HANDLE;
-        graphics_pipeline_create_info.pDynamicState       = (dynamic_state_used)        ? &dynamic_state_create_info_items_vk_cache[dynamic_state_create_info_items_vk_cache.size() - 1]
-                                                                                        : VK_NULL_HANDLE;
-        graphics_pipeline_create_info.pInputAssemblyState = &input_assembly_state_create_info_items_vk_cache[input_assembly_state_create_info_items_vk_cache.size() - 1];
-        graphics_pipeline_create_info.pMultisampleState   = (multisample_state_used)    ? &multisample_state_create_info_items_vk_cache[multisample_state_create_info_items_vk_cache.size() - 1]
-                                                                                        : VK_NULL_HANDLE;
-        graphics_pipeline_create_info.pNext               = nullptr;
-        graphics_pipeline_create_info.pRasterizationState = &raster_state_create_info_items_vk_cache[raster_state_create_info_items_vk_cache.size() - 1];
-        graphics_pipeline_create_info.pStages             = (shader_stage_start_offset < shader_stage_create_info_items_vk_cache.size() ) ? &shader_stage_create_info_items_vk_cache[shader_stage_start_offset]
-                                                                                                                                          : nullptr;
-        graphics_pipeline_create_info.pTessellationState  = (tessellation_state_used)   ? &tessellation_state_create_info_items_vk_cache[tessellation_state_create_info_items_vk_cache.size() - 1]
-                                                                                        : VK_NULL_HANDLE;
-        graphics_pipeline_create_info.pVertexInputState   = &vertex_input_state_create_info_items_vk_cache[vertex_input_state_create_info_items_vk_cache.size() - 1];
-        graphics_pipeline_create_info.pViewportState      = (viewport_state_used)       ? &viewport_state_create_info_items_vk_cache[viewport_state_create_info_items_vk_cache.size() - 1]
-                                                                                        : VK_NULL_HANDLE;
-        graphics_pipeline_create_info.renderPass          = current_pipeline_info_ptr->get_renderpass()->get_render_pass();
-        graphics_pipeline_create_info.stageCount          = static_cast<uint32_t>(shader_stage_create_info_items_vk_cache.size() - shader_stage_start_offset);
-        graphics_pipeline_create_info.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-        graphics_pipeline_create_info.subpass             = current_pipeline_info_ptr->get_subpass_id();
-
-        if (graphics_pipeline_create_info.basePipelineIndex != static_cast<int32_t>(UINT32_MAX) )
-        {
-            graphics_pipeline_create_info.flags |= VK_PIPELINE_CREATE_DERIVATIVE_BIT;
-        }
-
-        graphics_pipeline_create_info.flags |= ((current_pipeline_info_ptr->allows_derivatives        () ) ? VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT    : 0) |
-                                               ((current_pipeline_info_ptr->has_optimizations_disabled() ) ? VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT : 0);
 
         /* Stash the descriptor for now. We will issue one expensive vkCreateGraphicsPipelines() call after all pipeline objects
          * are iterated over. */
-        graphics_pipeline_create_info_items_vk_cache.push_back(graphics_pipeline_create_info);
+        graphics_pipeline_create_info_chains.append_struct_chain(
+            std::move(graphics_pipeline_create_info_chainer.create_chain() )
+        );
     }
 
     #ifdef _DEBUG
@@ -944,10 +957,9 @@ bool Anvil::GraphicsPipelineManager::bake()
         anvil_assert(depth_stencil_state_create_info_items_vk_cache.size()    <= N_CACHE_ITEMS);
         anvil_assert(dynamic_state_create_info_items_vk_cache.size()          <= N_CACHE_ITEMS);
         anvil_assert(enabled_dynamic_states_vk_cache.size()                   <= N_CACHE_ITEMS);
-        anvil_assert(graphics_pipeline_create_info_items_vk_cache.size()      <= N_CACHE_ITEMS);
         anvil_assert(input_assembly_state_create_info_items_vk_cache.size()   <= N_CACHE_ITEMS);
         anvil_assert(multisample_state_create_info_items_vk_cache.size()      <= N_CACHE_ITEMS);
-        anvil_assert(raster_state_create_info_items_vk_cache.size()           <= N_CACHE_ITEMS);
+        anvil_assert(raster_state_create_info_chains_vk_cache.size()          <= N_CACHE_ITEMS);
         anvil_assert(scissor_boxes_vk_cache.size()                            <= N_CACHE_ITEMS);
         anvil_assert(shader_stage_create_info_items_vk_cache.size()           <= N_CACHE_ITEMS);
         anvil_assert(specialization_info_vk_cache.size()                      <= N_CACHE_ITEMS);
@@ -964,10 +976,10 @@ bool Anvil::GraphicsPipelineManager::bake()
 
     m_pipeline_cache_ptr->lock();
     {
-        result_vk = vkCreateGraphicsPipelines(device_locked_ptr->get_device_vk(),
+        result_vk = vkCreateGraphicsPipelines(m_device_ptr->get_device_vk(),
                                               m_pipeline_cache_ptr->get_pipeline_cache(),
-                                              static_cast<uint32_t>(graphics_pipeline_create_info_items_vk_cache.size() ),
-                                             &graphics_pipeline_create_info_items_vk_cache[0],
+                                              graphics_pipeline_create_info_chains.get_n_structs   (),
+                                              graphics_pipeline_create_info_chains.get_root_structs(),
                                               nullptr, /* pAllocator */
                                              &result_graphics_pipelines[0]);
     }
@@ -1000,6 +1012,36 @@ bool Anvil::GraphicsPipelineManager::bake()
     /* All done */
     result = true;
 end:
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::GraphicsPipelineManager::delete_pipeline(PipelineID in_pipeline_id)
+{
+    bool result;
+
+    lock();
+    {
+        result = BasePipelineManager::delete_pipeline(in_pipeline_id);
+
+        if (result)
+        {
+            auto baked_pipelines_iterator                  = m_baked_pipelines.find                 (in_pipeline_id);
+            auto pipeline_id_to_gfx_pipeline_data_iterator = m_pipeline_id_to_gfx_pipeline_data.find(in_pipeline_id);
+
+            if (baked_pipelines_iterator != m_baked_pipelines.end() )
+            {
+                m_baked_pipelines.erase(baked_pipelines_iterator);
+            }
+
+            if (pipeline_id_to_gfx_pipeline_data_iterator != m_pipeline_id_to_gfx_pipeline_data.end() )
+            {
+                m_pipeline_id_to_gfx_pipeline_data.erase(pipeline_id_to_gfx_pipeline_data_iterator);
+            }
+        }
+    }
+    unlock();
+
     return result;
 }
 
@@ -1105,12 +1147,13 @@ void Anvil::GraphicsPipelineManager::GraphicsPipelineData::bake_vk_attributes_an
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::GraphicsPipelineManager> Anvil::GraphicsPipelineManager::create(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
-                                                                                       bool                                  in_mt_safe,
-                                                                                       bool                                  in_use_pipeline_cache,
-                                                                                       std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr)
+Anvil::GraphicsPipelineManagerUniquePtr Anvil::GraphicsPipelineManager::create(const Anvil::BaseDevice* in_device_ptr,
+                                                                               bool                     in_mt_safe,
+                                                                               bool                     in_use_pipeline_cache,
+                                                                               Anvil::PipelineCache*    in_pipeline_cache_to_reuse_ptr)
 {
-    std::shared_ptr<Anvil::GraphicsPipelineManager> result_ptr;
+    GraphicsPipelineManagerUniquePtr result_ptr(nullptr,
+                                                std::default_delete<Anvil::GraphicsPipelineManager>() );
 
     result_ptr.reset(
         new Anvil::GraphicsPipelineManager(in_device_ptr,

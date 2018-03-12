@@ -30,8 +30,7 @@
 
 namespace Anvil
 {
-    class RenderPass : public DebugMarkerSupportProvider<RenderPass>,
-                       public std::enable_shared_from_this<RenderPass>
+    class RenderPass : public DebugMarkerSupportProvider<RenderPass>
     {
     public:
         /* Public functions */
@@ -51,8 +50,8 @@ namespace Anvil
          *                                May be nullptr.
          *
          **/
-        static std::shared_ptr<RenderPass> create(std::unique_ptr<Anvil::RenderPassInfo> in_renderpass_info_ptr,
-                                                  std::shared_ptr<Anvil::Swapchain>      in_opt_swapchain_ptr);
+        static Anvil::RenderPassUniquePtr create(Anvil::RenderPassInfoUniquePtr in_renderpass_info_ptr,
+                                                 Anvil::Swapchain*              in_opt_swapchain_ptr);
 
         /** Destructor.
          *
@@ -68,13 +67,13 @@ namespace Anvil
             return m_render_pass;
         }
 
-        Anvil::RenderPassInfo* get_render_pass_info() const
+        const Anvil::RenderPassInfo* get_render_pass_info() const
         {
             return m_render_pass_info_ptr.get();
         }
 
         /** Returns the Swapchain instance, associated with the RenderPass wrapper instance at creation time. */
-        std::shared_ptr<Anvil::Swapchain> get_swapchain() const
+        Anvil::Swapchain* get_swapchain() const
         {
             return m_swapchain_ptr;
         }
@@ -87,16 +86,16 @@ namespace Anvil
         bool init();
 
         /* Constructor. Please see create() for specification */
-        RenderPass(std::unique_ptr<Anvil::RenderPassInfo> in_renderpass_info_ptr,
-                   std::shared_ptr<Anvil::Swapchain>      in_opt_swapchain_ptr);
+        RenderPass(Anvil::RenderPassInfoUniquePtr in_renderpass_info_ptr,
+                   Anvil::Swapchain*              in_opt_swapchain_ptr);
 
         RenderPass& operator=(const RenderPass&);
         RenderPass           (const RenderPass&);
 
         /* Private members */
-        VkRenderPass                           m_render_pass;
-        std::unique_ptr<Anvil::RenderPassInfo> m_render_pass_info_ptr;
-        std::shared_ptr<Swapchain>             m_swapchain_ptr;
+        VkRenderPass                   m_render_pass;
+        Anvil::RenderPassInfoUniquePtr m_render_pass_info_ptr;
+        Swapchain*                     m_swapchain_ptr;
     };
 };
 

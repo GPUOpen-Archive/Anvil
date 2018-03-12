@@ -22,8 +22,8 @@
 #ifndef MISC_MT_SAFETY_H
 #define MISC_MT_SAFETY_H
 
-#include "misc/types.h"
-
+#include <memory>
+#include <mutex>
 
 namespace Anvil
 {
@@ -37,8 +37,6 @@ namespace Anvil
                 m_mutex_ptr.reset(
                     new std::recursive_mutex()
                 );
-
-                anvil_assert(m_mutex_ptr != nullptr);
             }
         }
 
@@ -52,7 +50,7 @@ namespace Anvil
             return (m_mutex_ptr != nullptr);
         }
 
-        inline void lock()
+        inline void lock() const
         {
             if (m_mutex_ptr != nullptr)
             {
@@ -60,7 +58,7 @@ namespace Anvil
             }
         }
 
-        inline void unlock()
+        inline void unlock() const
         {
             if (m_mutex_ptr != nullptr)
             {
@@ -77,8 +75,8 @@ namespace Anvil
     private:
         std::unique_ptr<std::recursive_mutex> m_mutex_ptr;
 
-        ANVIL_DISABLE_ASSIGNMENT_OPERATOR(MTSafetySupportProvider);
-        ANVIL_DISABLE_COPY_CONSTRUCTOR   (MTSafetySupportProvider);
+        MTSafetySupportProvider           (const MTSafetySupportProvider&);
+        MTSafetySupportProvider& operator=(const MTSafetySupportProvider&) const;
     };
 }; /* namespace Anvil */
 

@@ -58,9 +58,9 @@ namespace Anvil
          *  @param in_create_signalled true if the fence should be created as a signalled entity.
          *                             False to make it unsignalled at creation time.
          */
-        static std::shared_ptr<Fence> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                      bool                                    in_create_signalled,
-                                      MTSafety                                in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::FenceUniquePtr create(const Anvil::BaseDevice* in_device_ptr,
+                                            bool                            in_create_signalled,
+                                            MTSafety                        in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Retrieves a raw handle to the underlying Vulkan fence instance */
         VkFence get_fence() const
@@ -69,7 +69,7 @@ namespace Anvil
         }
 
         /** Retrieves a pointer to the raw handle to the underlying Vulkan fence instance */
-        const VkFence* get_fence_ptr()
+        const VkFence* get_fence_ptr() const
         {
             m_possibly_set = true;
 
@@ -109,9 +109,9 @@ namespace Anvil
          *
          *  Please see documentation of create() for specification
          */
-        Fence(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-              bool                             in_create_signalled,
-              bool                             in_mt_safe);
+        Fence(const Anvil::BaseDevice* in_device_ptr,
+              bool                     in_create_signalled,
+              bool                     in_mt_safe);
 
         Fence           (const Fence&);
         Fence& operator=(const Fence&);
@@ -119,9 +119,9 @@ namespace Anvil
         void release_fence();
 
         /* Private variables */
-        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
-        VkFence                          m_fence;
-        bool                             m_possibly_set;
+        const Anvil::BaseDevice* m_device_ptr;
+        VkFence                  m_fence;
+        mutable bool             m_possibly_set;
     };
 }; /* namespace Anvil */
 

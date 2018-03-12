@@ -37,7 +37,7 @@
 namespace Anvil
 {
     /* Wrapper class for Vulkan physical devices */
-    class PhysicalDevice : public std::enable_shared_from_this<PhysicalDevice>
+    class PhysicalDevice
     {
     public:
         /* Public functions */
@@ -51,29 +51,12 @@ namespace Anvil
          *  @param in_index           Index of the physical device to initialize the wrapper for.
          *  @param in_physical_device Raw Vulkan physical device handle to encapsulate.
          */
-        static std::weak_ptr<Anvil::PhysicalDevice> create(std::shared_ptr<Anvil::Instance> in_instance_ptr,
-                                                           uint32_t                         in_index,
-                                                           VkPhysicalDevice                 in_physical_device);
+        static std::unique_ptr<Anvil::PhysicalDevice> create(Anvil::Instance* in_instance_ptr,
+                                                             uint32_t         in_index,
+                                                             VkPhysicalDevice in_physical_device);
 
         /** Destructor */
         virtual ~PhysicalDevice();
-
-        /** Retrieves 16-bit storage features supported by this physical device.
-         *
-         *  This function will only succeed if both VK_KHR_16bit_storage_features and VK_KHR_get_physical_device_properties2
-         *  are supported.
-         *
-         *  @return true if successful, false otherwise.
-         */
-        bool get_16bit_storage_features(StorageFeatures16Bit* out_result_ptr) const
-        {
-            if (m_16bit_storage_features_available)
-            {
-                *out_result_ptr = m_16bit_storage_features;
-            }
-
-            return m_16bit_storage_features_available;
-        }
 
         /* Returns physical device's LUID.
          *
@@ -158,15 +141,12 @@ namespace Anvil
         }
 
         /** Retrieves features supported by the physical device */
-        const VkPhysicalDeviceFeatures& get_device_features() const
+        const Anvil::PhysicalDeviceFeatures& get_device_features() const
         {
             return m_features;
         }
 
-        /** Retrieves a filled VkPhysicalDeviceProperties structure, holding properties of
-         *  the wrapped physical device.
-         **/
-        const VkPhysicalDeviceProperties& get_device_properties() const
+        const Anvil::PhysicalDeviceProperties& get_device_properties() const
         {
             return m_properties;
         }
@@ -200,7 +180,12 @@ namespace Anvil
         }
 
         /** Returns parent Vulkan instance wrapper. */
-        std::weak_ptr<Anvil::Instance> get_instance() const
+        const Anvil::Instance* get_instance() const
+        {
+            return m_instance_ptr;
+        }
+
+        Anvil::Instance* get_instance()
         {
             return m_instance_ptr;
         }
@@ -285,16 +270,14 @@ namespace Anvil
          *  @param in_index           Index of the physical device to initialize the wrapper for.
          *  @param in_physical_device Raw Vulkan physical device handle to encapsulate.
          */
-        explicit PhysicalDevice(std::weak_ptr<Anvil::Instance> in_instance_ptr,
-                                uint32_t                       in_index,
-                                VkPhysicalDevice               in_physical_device)
-            :m_16bit_storage_features_available(false),
-             m_destroyed                       (false),
-             m_device_LUID_available           (false),
-             m_device_UUID_available           (false),
-             m_index                           (in_index),
-             m_instance_ptr                    (in_instance_ptr),
-             m_physical_device                 (in_physical_device)
+        explicit PhysicalDevice(Anvil::Instance* in_instance_ptr,
+                                uint32_t         in_index,
+                                VkPhysicalDevice in_physical_device)
+            :m_device_LUID_available    (false),
+             m_device_UUID_available    (false),
+             m_index                    (in_index),
+             m_instance_ptr             (in_instance_ptr),
+             m_physical_device          (in_physical_device)
         {
             anvil_assert(in_physical_device != VK_NULL_HANDLE);
         }
@@ -302,27 +285,25 @@ namespace Anvil
         PhysicalDevice           (const PhysicalDevice&);
         PhysicalDevice& operator=(const PhysicalDevice&);
 
-        void destroy          ();
-        void init             ();
-        void register_device  (std::shared_ptr<Anvil::BaseDevice> in_device_ptr);
-        void unregister_device(std::shared_ptr<Anvil::BaseDevice> in_device_ptr);
+        bool init();
 
         /* Private variables */
-        bool m_destroyed;
-
-        StorageFeatures16Bit             m_16bit_storage_features;
-        bool                             m_16bit_storage_features_available;
         FormatProperties                 m_dummy;
         Anvil::Extensions                m_extensions;
         uint32_t                         m_index;
-        std::shared_ptr<Anvil::Instance> m_instance_ptr;
-        VkPhysicalDeviceFeatures         m_features;
+        Anvil::Instance*                 m_instance_ptr;
+        Anvil::PhysicalDeviceFeatures    m_features;
         FormatPropertiesMap              m_format_properties;
         Anvil::Layers                    m_layers;
         MemoryProperties                 m_memory_properties;
         VkPhysicalDevice                 m_physical_device;
         QueueFamilyInfoItems             m_queue_families;
-        VkPhysicalDeviceProperties       m_properties;
+        Anvil::PhysicalDeviceProperties  m_properties;
+
+        std::unique_ptr<Anvil::PhysicalDeviceFeaturesCoreVK10>   m_core_features_vk10_ptr;
+        std::unique_ptr<Anvil::PhysicalDevicePropertiesCoreVK10> m_core_properties_vk10_ptr;
+        std::unique_ptr<Anvil::KHR16BitStorageFeatures>          m_khr_16_bit_storage_features_ptr;
+        std::unique_ptr<Anvil::KHRMaintenance3Properties>        m_khr_maintenance3_properties_ptr;
 
         bool    m_device_LUID_available;
         uint8_t m_device_LUID[VK_LUID_SIZE_KHR];
@@ -331,10 +312,7 @@ namespace Anvil
         uint8_t m_driver_UUID[VK_UUID_SIZE];
         bool    m_driver_UUID_available;
 
-        std::vector<std::shared_ptr<Anvil::BaseDevice> > m_cached_devices;
-
         friend class Anvil::Instance;
-        friend class Anvil::SGPUDevice;
     };
 
     /** Tells whether the specified Anvil PhysicalDevice wrapper encapsulates given Vulkan physical device.
@@ -344,9 +322,8 @@ namespace Anvil
      *
      *  @return true if objects match, false otherwise.
      **/
-    bool operator==(const std::shared_ptr<Anvil::PhysicalDevice>& in_physical_device_ptr,
+    bool operator==(const std::unique_ptr<Anvil::PhysicalDevice>& in_physical_device_ptr,
                     const VkPhysicalDevice&                       in_physical_device_vk);
-
 }; /* namespace Anvil */
 
 #endif /* WRAPPERS_FENCE_H */

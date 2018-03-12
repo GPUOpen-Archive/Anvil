@@ -40,13 +40,14 @@ typedef struct
 
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Window> Anvil::WindowXcb::create(const std::string&             in_title,
-                                                        unsigned int                   in_width,
-                                                        unsigned int                   in_height,
-                                                        bool                           in_closable,
-                                                        Anvil::PresentCallbackFunction in_present_callback_func)
+Anvil::WindowUniquePtr Anvil::WindowXcb::create(const std::string&             in_title,
+                                                unsigned int                   in_width,
+                                                unsigned int                   in_height,
+                                                bool                           in_closable,
+                                                Anvil::PresentCallbackFunction in_present_callback_func)
 {
-    std::shared_ptr<Anvil::WindowXcb> result_ptr;
+    WindowUniquePtr result_ptr(nullptr,
+                               std::default_delete<Window>() );
 
     result_ptr.reset(
         new Anvil::WindowXcb(in_title,
@@ -58,7 +59,7 @@ std::shared_ptr<Anvil::Window> Anvil::WindowXcb::create(const std::string&      
 
     if (result_ptr)
     {
-        if (!result_ptr->init() )
+        if (!dynamic_cast<Anvil::WindowXcb*>(result_ptr.get() )->init() )
         {
             result_ptr.reset();
         }
@@ -67,10 +68,11 @@ std::shared_ptr<Anvil::Window> Anvil::WindowXcb::create(const std::string&      
     return result_ptr;
 }
 
-std::shared_ptr<Anvil::Window> Anvil::WindowXcb::create(xcb_connection_t* in_connection_ptr,
-                                                        WindowHandle      in_window_handle)
+Anvil::WindowUniquePtr Anvil::WindowXcb::create(xcb_connection_t* in_connection_ptr,
+                                                WindowHandle      in_window_handle)
 {
-    std::shared_ptr<Anvil::WindowXcb> result_ptr;
+    WindowUniquePtr result_ptr(nullptr,
+                               std::default_delete<Window>() );
 
     result_ptr.reset(
         new Anvil::WindowXcb(in_connection_ptr,
@@ -79,7 +81,7 @@ std::shared_ptr<Anvil::Window> Anvil::WindowXcb::create(xcb_connection_t* in_con
 
     if (result_ptr)
     {
-        if (!result_ptr->init() )
+        if (!dynamic_cast<WindowXcb*>(result_ptr.get() )->init() )
         {
             result_ptr.reset();
         }
@@ -367,7 +369,7 @@ void Anvil::WindowXcb::run()
             {
                 case XCB_CLIENT_MESSAGE:
                 {
-                    if (reinterpret_cast<xcb_client_message_event_t*>(event_ptr)->data.data32[0] == m_atom_wm_delete_window_ptr->atom &&
+                    if ((reinterpret_cast<xcb_client_message_event_t*>(event_ptr)->data.data32[0] == m_atom_wm_delete_window_ptr->atom) &&
                         m_closable)
                     {
                         running = false;
@@ -430,6 +432,8 @@ void Anvil::WindowXcb::run()
             running = !m_window_should_close;
         }
     }
+
+    close();
 
     m_window_close_finished = true;
 }

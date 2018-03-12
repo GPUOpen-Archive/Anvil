@@ -24,9 +24,17 @@
 #define MISC_DESCRIPTOR_SET_INFO_H
 
 #include "misc/types.h"
+#include "misc/struct_chainer.h"
 
 namespace Anvil
 {
+    struct DescriptorSetLayoutCreateInfoContainer
+    {
+        std::vector<VkDescriptorSetLayoutBinding>                    binding_info_items;
+        std::vector<VkSampler>                                       sampler_items;
+        Anvil::StructChainUniquePtr<VkDescriptorSetLayoutCreateInfo> struct_chain_ptr;
+    };
+
     class DescriptorSetInfo
     {
     public:
@@ -43,26 +51,33 @@ namespace Anvil
          *  It is an error to attempt to define immutable samplers for descriptors of type other than
          *  sampler or combined image+sampler.
          *
-         *  @param in_binding_index              Index of the binding to configure.
-         *  @param in_descriptor_type            Type of the descriptor to use for the binding.
-         *  @param in_descriptor_array_size      Size of the descriptor array to use for the binding.
-         *  @param in_stage_flags                Rendering stages which are going to use the binding.
-         *  @param in_opt_immutable_sampler_ptrs If not nullptr, an array of @param in_descriptor_array_size samplers should
-         *                                       be passed. The binding will then be considered immutable, as per spec language.
-         *                                       May be nullptr.
+         *  @param in_binding_index                 Index of the binding to configure.
+         *  @param in_descriptor_type               Type of the descriptor to use for the binding.
+         *  @param in_descriptor_array_size         Size of the descriptor array to use for the binding.
+         *  @param in_stage_flags                   Rendering stages which are going to use the binding.
+         *  @param in_flags                         Please see documentation of Anvil::DescriptorBindingFlags for more details.
+         *  @param in_opt_immutable_sampler_ptr_ptr If not nullptr, an array of @param in_descriptor_array_size samplers should
+         *                                          be passed. The binding will then be considered immutable, as per spec language.
+         *                                          May be nullptr.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool add_binding(uint32_t                               in_binding_index,
-                         VkDescriptorType                       in_descriptor_type,
-                         uint32_t                               in_descriptor_array_size,
-                         VkShaderStageFlags                     in_stage_flags,
-                         const std::shared_ptr<Anvil::Sampler>* in_opt_immutable_sampler_ptrs = nullptr);
+        bool add_binding(uint32_t                     in_binding_index,
+                         VkDescriptorType             in_descriptor_type,
+                         uint32_t                     in_descriptor_array_size,
+                         VkShaderStageFlags           in_stage_flags,
+                         const Anvil::Sampler* const* in_opt_immutable_sampler_ptr_ptr = nullptr);
 
         /** Creates a new DescriptorSetInfo instance. **/
-        static std::unique_ptr<DescriptorSetInfo> create();
+        static DescriptorSetInfoUniquePtr create();
 
-        /** Retrieves properties of a single defined binding.
+        /* Fills & returns a VkDescriptorSetLayoutCreateInfo structure holding all information necessary to spawn
+         * a new descriptor set layout instance.
+         *
+         **/
+        std::unique_ptr<DescriptorSetLayoutCreateInfoContainer> create_descriptor_set_layout_create_info(const Anvil::BaseDevice* in_device_ptr) const;
+
+        /** Retrieves properties of a binding at a given index number.
          *
          *  @param in_n_binding                           Index number of the binding to retrieve properties of.
          *  @param out_opt_binding_index_ptr              May be nullptr. If not, deref will be set to the index of the
@@ -79,12 +94,37 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_binding_properties(uint32_t            in_n_binding,
-                                    uint32_t*           out_opt_binding_index_ptr,
-                                    VkDescriptorType*   out_opt_descriptor_type_ptr,
-                                    uint32_t*           out_opt_descriptor_array_size_ptr,
-                                    VkShaderStageFlags* out_opt_stage_flags_ptr,
-                                    bool*               out_opt_immutable_samplers_enabled_ptr) const;
+        bool get_binding_properties_by_binding_index(uint32_t            in_binding_index,
+                                                     VkDescriptorType*   out_opt_descriptor_type_ptr            = nullptr,
+                                                     uint32_t*           out_opt_descriptor_array_size_ptr      = nullptr,
+                                                     VkShaderStageFlags* out_opt_stage_flags_ptr                = nullptr,
+                                                     bool*               out_opt_immutable_samplers_enabled_ptr = nullptr) const;
+
+        /** Retrieves properties of a binding at a given index number.
+         *
+         *  @param in_n_binding                           Index number of the binding to retrieve properties of.
+         *  @param out_opt_binding_index_ptr              May be nullptr. If not, deref will be set to the index of the
+         *                                                binding. This does NOT need to be equal to @param in_n_binding.
+         *  @param out_opt_descriptor_type_ptr            May be nullptr. If not, deref will be set to the descriptor type
+         *                                                for the specified binding.
+         *  @param out_opt_descriptor_array_size_ptr      May be nullptr. If not, deref will be set to size of the descriptor
+         *                                                array, associated with the specified binding.
+         *  @param out_opt_stage_flags_ptr                May be nullptr. If not, deref will be set to stage flags,
+         *                                                as configured for the specified binding.
+         *  @param out_opt_immutable_samplers_enabled_ptr May be nullptr. If not, deref will be set to true if immutable samplers
+         *                                                have been defined for the specified binding; otherwise, it will be
+         *                                                set to false.
+         *  @param out_opt_flags_ptr                      May be nullptr. If not, deref will be set to the flags specified at binding
+         *                                                addition time.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_binding_properties_by_index_number(uint32_t                       in_n_binding,
+                                                    uint32_t*                      out_opt_binding_index_ptr              = nullptr,
+                                                    VkDescriptorType*              out_opt_descriptor_type_ptr            = nullptr,
+                                                    uint32_t*                      out_opt_descriptor_array_size_ptr      = nullptr,
+                                                    VkShaderStageFlags*            out_opt_stage_flags_ptr                = nullptr,
+                                                    bool*                          out_opt_immutable_samplers_enabled_ptr = nullptr) const;
 
         /** Returns the number of bindings defined for the layout. */
         uint32_t get_n_bindings() const
@@ -92,15 +132,17 @@ namespace Anvil
             return static_cast<uint32_t>(m_bindings.size() );
         }
 
+        bool operator==(const Anvil::DescriptorSetInfo& in_ds) const;
+
     private:
         /* Private type definitions */
 
         /** Describes a single descriptor set layout binding */
         typedef struct Binding
         {
-            uint32_t                                      descriptor_array_size;
-            VkDescriptorType                              descriptor_type;
-            std::vector<std::shared_ptr<Anvil::Sampler> > immutable_samplers;
+            uint32_t                           descriptor_array_size;
+            VkDescriptorType                   descriptor_type;
+            std::vector<const Anvil::Sampler*> immutable_samplers;
 
             VkShaderStageFlagsVariable(stage_flags);
 
@@ -116,10 +158,10 @@ namespace Anvil
              *
              *  For argument discussion, please see Anvil::DescriptorSetLayout::add_binding() documentation.
              **/
-            Binding(uint32_t                               in_descriptor_array_size,
-                    VkDescriptorType                       in_descriptor_type,
-                    VkShaderStageFlags                     in_stage_flags,
-                    const std::shared_ptr<Anvil::Sampler>* in_immutable_sampler_ptrs)
+            Binding(uint32_t                      in_descriptor_array_size,
+                    VkDescriptorType              in_descriptor_type,
+                    VkShaderStageFlags            in_stage_flags,
+                    const Anvil::Sampler* const*  in_immutable_sampler_ptrs)
             {
                 descriptor_array_size = in_descriptor_array_size;
                 descriptor_type       = in_descriptor_type;
@@ -135,6 +177,14 @@ namespace Anvil
                     }
                 }
             }
+
+            bool operator==(const Binding& in_binding) const
+            {
+                return (descriptor_array_size == in_binding.descriptor_array_size) &&
+                       (descriptor_type       == in_binding.descriptor_type)       &&
+                       (immutable_samplers    == in_binding.immutable_samplers)    &&
+                       (stage_flags           == in_binding.stage_flags);
+            }
         } Binding;
 
         typedef std::map<BindingIndex, Binding> BindingIndexToBindingMap;
@@ -148,9 +198,6 @@ namespace Anvil
         BindingIndexToBindingMap m_bindings;
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(DescriptorSetInfo);
-        ANVIL_DISABLE_COPY_CONSTRUCTOR(DescriptorSetInfo);
-
-        friend class Anvil::DescriptorSetLayout;
     };
 }; /* namespace Anvil */
 

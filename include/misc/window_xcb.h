@@ -35,14 +35,14 @@ namespace Anvil
     {
     public:
         /* Public functions */
-        static std::shared_ptr<Anvil::Window> create(const std::string&             in_title,
-                                                     unsigned int                   in_width,
-                                                     unsigned int                   in_height,
-                                                     bool                           in_closable,
-                                                     Anvil::PresentCallbackFunction in_present_callback_func);
+        static Anvil::WindowUniquePtr create(const std::string&             in_title,
+                                             unsigned int                   in_width,
+                                             unsigned int                   in_height,
+                                             bool                           in_closable,
+                                             Anvil::PresentCallbackFunction in_present_callback_func);
 
-        static std::shared_ptr<Anvil::Window> create(xcb_connection_t* in_connection_ptr,
-                                                     WindowHandle      in_window_handle);
+        static Anvil::WindowUniquePtr create(xcb_connection_t* in_connection_ptr,
+                                             WindowHandle      in_window_handle);
 
         virtual ~WindowXcb();
 

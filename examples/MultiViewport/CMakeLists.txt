@@ -18,6 +18,7 @@ endif()
 
 add_subdirectory   (../.. "${CMAKE_CURRENT_BINARY_DIR}/anvil")
 
+target_include_directories(Anvil PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/anvil/include")
 
 include_directories(${Anvil_SOURCE_DIR}/include
                     ${MultiViewport_SOURCE_DIR}/include)

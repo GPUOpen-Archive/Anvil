@@ -30,11 +30,11 @@
 #include <algorithm>
 
 /* Please see header for specification */
-Anvil::CommandPool::CommandPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                bool                             in_transient_allocations_friendly,
-                                bool                             in_support_per_cmdbuf_reset_ops,
-                                Anvil::QueueFamilyType           in_queue_family,
-                                bool                             in_mt_safe)
+Anvil::CommandPool::CommandPool(Anvil::BaseDevice* in_device_ptr,
+                                bool               in_transient_allocations_friendly,
+                                bool               in_support_per_cmdbuf_reset_ops,
+                                uint32_t           in_queue_family_index,
+                                bool               in_mt_safe)
 
     :DebugMarkerSupportProvider         (in_device_ptr,
                                          VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_POOL_EXT),
@@ -42,27 +42,22 @@ Anvil::CommandPool::CommandPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
      m_command_pool                     (VK_NULL_HANDLE),
      m_device_ptr                       (in_device_ptr),
      m_is_transient_allocations_friendly(in_transient_allocations_friendly),
-     m_queue_family                     (in_queue_family),
+     m_queue_family_index               (in_queue_family_index),
      m_supports_per_cmdbuf_reset_ops    (in_support_per_cmdbuf_reset_ops)
 {
-    VkCommandPoolCreateInfo            command_pool_create_info;
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr       (in_device_ptr);
-    uint32_t                           queue_family_index      (UINT32_MAX);
-    VkResult                           result_vk               (VK_ERROR_INITIALIZATION_FAILED);
+    VkCommandPoolCreateInfo command_pool_create_info;
+    VkResult                result_vk               (VK_ERROR_INITIALIZATION_FAILED);
 
     ANVIL_REDUNDANT_VARIABLE(result_vk);
-
-    queue_family_index = (device_locked_ptr->get_queue_family_index(in_queue_family) );
-    anvil_assert(queue_family_index != UINT32_MAX);
 
     /* Go on and create the command pool */
     command_pool_create_info.flags            = ((in_transient_allocations_friendly) ? VK_COMMAND_POOL_CREATE_TRANSIENT_BIT            : 0u) |
                                                 ((in_support_per_cmdbuf_reset_ops)   ? VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT : 0u);
     command_pool_create_info.pNext            = nullptr;
-    command_pool_create_info.queueFamilyIndex = queue_family_index;
+    command_pool_create_info.queueFamilyIndex = in_queue_family_index;
     command_pool_create_info.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 
-    result_vk = vkCreateCommandPool(device_locked_ptr->get_device_vk(),
+    result_vk = vkCreateCommandPool(in_device_ptr->get_device_vk(),
                                    &command_pool_create_info,
                                     nullptr, /* pAllocator */
                                    &m_command_pool);
@@ -88,11 +83,9 @@ Anvil::CommandPool::~CommandPool()
     /* Release the Vulkan command pool */
     if (m_command_pool != VK_NULL_HANDLE)
     {
-        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-
         lock();
         {
-            vkDestroyCommandPool(device_locked_ptr->get_device_vk(),
+            vkDestroyCommandPool(m_device_ptr->get_device_vk(),
                                  m_command_pool,
                                  nullptr /* pAllocator */);
         }
@@ -103,13 +96,14 @@ Anvil::CommandPool::~CommandPool()
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::PrimaryCommandBuffer> Anvil::CommandPool::alloc_primary_level_command_buffer()
+Anvil::PrimaryCommandBufferUniquePtr Anvil::CommandPool::alloc_primary_level_command_buffer()
 {
-    std::shared_ptr<PrimaryCommandBuffer> new_buffer_ptr;
+    Anvil::PrimaryCommandBufferUniquePtr new_buffer_ptr(nullptr,
+                                                        std::default_delete<PrimaryCommandBuffer>() );
 
     new_buffer_ptr.reset(
         new PrimaryCommandBuffer(m_device_ptr,
-                                 shared_from_this(),
+                                 this,
                                  is_mt_safe() )
     );
 
@@ -117,13 +111,14 @@ std::shared_ptr<Anvil::PrimaryCommandBuffer> Anvil::CommandPool::alloc_primary_l
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::SecondaryCommandBuffer> Anvil::CommandPool::alloc_secondary_level_command_buffer()
+Anvil::SecondaryCommandBufferUniquePtr Anvil::CommandPool::alloc_secondary_level_command_buffer()
 {
-    std::shared_ptr<SecondaryCommandBuffer> new_buffer_ptr;
+    Anvil::SecondaryCommandBufferUniquePtr new_buffer_ptr(nullptr,
+                                                          std::default_delete<Anvil::SecondaryCommandBuffer>() );
 
     new_buffer_ptr.reset(
         new SecondaryCommandBuffer(m_device_ptr,
-                                   shared_from_this(),
+                                   this,
                                    is_mt_safe() )
     );
 
@@ -131,21 +126,22 @@ std::shared_ptr<Anvil::SecondaryCommandBuffer> Anvil::CommandPool::alloc_seconda
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::CommandPool> Anvil::CommandPool::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                               bool                             in_transient_allocations_friendly,
-                                                               bool                             in_support_per_cmdbuf_reset_ops,
-                                                               Anvil::QueueFamilyType           in_queue_family,
-                                                               MTSafety                         in_mt_safety)
+Anvil::CommandPoolUniquePtr Anvil::CommandPool::create(Anvil::BaseDevice* in_device_ptr,
+                                                       bool               in_transient_allocations_friendly,
+                                                       bool               in_support_per_cmdbuf_reset_ops,
+                                                       uint32_t           in_queue_family_index,
+                                                       MTSafety           in_mt_safety)
 {
-    const bool                          is_mt_safe = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
-                                                                                                     in_device_ptr);
-    std::shared_ptr<Anvil::CommandPool> result_ptr;
+    const bool                  is_mt_safe = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                             in_device_ptr);
+    Anvil::CommandPoolUniquePtr result_ptr(nullptr,
+                                           std::default_delete<Anvil::CommandPool>() );
 
     result_ptr.reset(
         new Anvil::CommandPool(in_device_ptr,
                                in_transient_allocations_friendly,
                                in_support_per_cmdbuf_reset_ops,
-                               in_queue_family,
+                               in_queue_family_index,
                                is_mt_safe)
     );
 
@@ -155,13 +151,12 @@ std::shared_ptr<Anvil::CommandPool> Anvil::CommandPool::create(std::weak_ptr<Anv
 /* Please see header for specification */
 bool Anvil::CommandPool::reset(bool in_release_resources)
 {
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-    std::unique_lock<std::mutex>       mutex_lock;
-    VkResult                           result_vk;
+    std::unique_lock<std::mutex> mutex_lock;
+    VkResult                     result_vk;
 
     lock();
     {
-        result_vk = vkResetCommandPool(device_locked_ptr->get_device_vk(),
+        result_vk = vkResetCommandPool(m_device_ptr->get_device_vk(),
                                        m_command_pool,
                                        ((in_release_resources) ? VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT : 0u) );
     }
@@ -175,20 +170,18 @@ bool Anvil::CommandPool::reset(bool in_release_resources)
 /* Please see header for specification */
 void Anvil::CommandPool::trim()
 {
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-
-    if (device_locked_ptr->is_khr_maintenance1_extension_enabled() )
+    if (m_device_ptr->is_khr_maintenance1_extension_enabled() )
     {
         lock();
         {
-            device_locked_ptr->get_extension_khr_maintenance1_entrypoints().vkTrimCommandPoolKHR(device_locked_ptr->get_device_vk(),
-                                                                                                 m_command_pool,
-                                                                                                 0); /* flags */
+            m_device_ptr->get_extension_khr_maintenance1_entrypoints().vkTrimCommandPoolKHR(m_device_ptr->get_device_vk(),
+                                                                                            m_command_pool,
+                                                                                            0); /* flags */
         }
         unlock();
     }
     else
     {
-        anvil_assert(device_locked_ptr->is_khr_maintenance1_extension_enabled() );
+        anvil_assert(m_device_ptr->is_khr_maintenance1_extension_enabled() );
     }
 }

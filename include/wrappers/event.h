@@ -50,8 +50,8 @@ namespace Anvil
          *
          *  @param in_device_ptr Device to use.
          */
-        static std::shared_ptr<Event> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                             MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::EventUniquePtr create(const Anvil::BaseDevice* in_device_ptr,
+                                            MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Destructor.
          *
@@ -92,8 +92,8 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. */
-        Event(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-              bool                             in_mt_safe);
+        Event(const Anvil::BaseDevice* in_device_ptr,
+              bool                     in_mt_safe);
 
         Event           (const Event&);
         Event& operator=(const Event&);
@@ -101,8 +101,8 @@ namespace Anvil
         void release_event();
 
         /* Private variables */
-        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
-        VkEvent                          m_event;
+        const Anvil::BaseDevice* m_device_ptr;
+        VkEvent                  m_event;
     };
 }; /* namespace Anvil */
 

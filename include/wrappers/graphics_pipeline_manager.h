@@ -90,6 +90,8 @@ namespace Anvil
          **/
         bool bake();
 
+        bool delete_pipeline(PipelineID in_pipeline_id);
+
         /** Creates a new GraphicsPipelineManager instance.
          *
          *  @param in_device_ptr                  Device to use.
@@ -102,10 +104,10 @@ namespace Anvil
          *                                        If one is not provided and the other argument is set as described,
          *                                        a new pipeline cache with size 0 will be allocated.
          **/
-        static std::shared_ptr<GraphicsPipelineManager> create(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
-                                                               bool                                  in_mt_safe,
-                                                               bool                                  in_use_pipeline_cache          = false,
-                                                               std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr = std::shared_ptr<Anvil::PipelineCache>() );
+        static GraphicsPipelineManagerUniquePtr create(const Anvil::BaseDevice* in_device_ptr,
+                                                       bool                     in_mt_safe,
+                                                       bool                     in_use_pipeline_cache          = false,
+                                                       Anvil::PipelineCache*    in_pipeline_cache_to_reuse_ptr = nullptr);
 
         /** Destructor. */
         virtual ~GraphicsPipelineManager();
@@ -135,10 +137,10 @@ namespace Anvil
         typedef std::map<PipelineID, std::unique_ptr<GraphicsPipelineData> > GraphicsPipelineDataMap;
 
         /* Private functions */
-        explicit GraphicsPipelineManager(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
-                                         bool                                  in_mt_safe,
-                                         bool                                  in_use_pipeline_cache,
-                                         std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr);
+        explicit GraphicsPipelineManager(const Anvil::BaseDevice* in_device_ptr,
+                                         bool                     in_mt_safe,
+                                         bool                     in_use_pipeline_cache,
+                                         Anvil::PipelineCache*    in_pipeline_cache_to_reuse_ptr);
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(GraphicsPipelineManager);
         ANVIL_DISABLE_COPY_CONSTRUCTOR   (GraphicsPipelineManager);

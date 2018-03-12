@@ -25,16 +25,14 @@
 #include "wrappers/device.h"
 
 /** Please see header for specification */
-Anvil::DebugMarkerSupportProviderWorker::DebugMarkerSupportProviderWorker(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                                          VkDebugReportObjectTypeEXT       in_vk_object_type)
+Anvil::DebugMarkerSupportProviderWorker::DebugMarkerSupportProviderWorker(const Anvil::BaseDevice*   in_device_ptr,
+                                                                          VkDebugReportObjectTypeEXT in_vk_object_type)
     :m_device_ptr      (in_device_ptr),
      m_object_tag_name (0),
      m_vk_object_handle(VK_NULL_HANDLE),
      m_vk_object_type  (in_vk_object_type)
 {
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-
-    m_is_ext_debug_marker_available = device_locked_ptr->is_ext_debug_marker_extension_enabled();
+    m_is_ext_debug_marker_available = m_device_ptr->is_ext_debug_marker_extension_enabled();
     m_object_tag_name               = 0;
 }
 
@@ -51,10 +49,9 @@ void Anvil::DebugMarkerSupportProviderWorker::set_name_internal(const std::strin
         if (m_is_ext_debug_marker_available        &&
             (m_vk_object_handle != VK_NULL_HANDLE) )
         {
-            std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-            const auto&                        entrypoints      (device_locked_ptr->get_extension_ext_debug_marker_entrypoints() );
-            VkDebugMarkerObjectNameInfoEXT     name_info;
-            VkResult                           result_vk;
+            const auto&                    entrypoints(m_device_ptr->get_extension_ext_debug_marker_entrypoints() );
+            VkDebugMarkerObjectNameInfoEXT name_info;
+            VkResult                       result_vk;
 
             name_info.object      = m_vk_object_handle;
             name_info.objectType  = m_vk_object_type;
@@ -64,7 +61,7 @@ void Anvil::DebugMarkerSupportProviderWorker::set_name_internal(const std::strin
 
             /* TODO: Host synchronization */
             {
-                result_vk = entrypoints.vkDebugMarkerSetObjectNameEXT(device_locked_ptr->get_device_vk(),
+                result_vk = entrypoints.vkDebugMarkerSetObjectNameEXT(m_device_ptr->get_device_vk(),
                                                                      &name_info);
             }
 
@@ -112,10 +109,9 @@ void Anvil::DebugMarkerSupportProviderWorker::set_tag_internal(const uint64_t in
         if (m_is_ext_debug_marker_available        &&
             (m_vk_object_handle != VK_NULL_HANDLE) )
         {
-            std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-            const auto&                        entrypoints      (device_locked_ptr->get_extension_ext_debug_marker_entrypoints() );
-            VkResult                           result_vk;
-            VkDebugMarkerObjectTagInfoEXT      tag_info;
+            const auto&                   entrypoints(m_device_ptr->get_extension_ext_debug_marker_entrypoints() );
+            VkResult                      result_vk;
+            VkDebugMarkerObjectTagInfoEXT tag_info;
 
             tag_info.object     = m_vk_object_handle;
             tag_info.objectType = m_vk_object_type;
@@ -126,7 +122,7 @@ void Anvil::DebugMarkerSupportProviderWorker::set_tag_internal(const uint64_t in
 
             /* TODO: Host synchronization */
             {
-                result_vk = entrypoints.vkDebugMarkerSetObjectTagEXT(device_locked_ptr->get_device_vk(),
+                result_vk = entrypoints.vkDebugMarkerSetObjectTagEXT(m_device_ptr->get_device_vk(),
                                                                     &tag_info);
             }
 

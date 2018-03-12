@@ -182,8 +182,10 @@ static const char* g_glsl_producer_comp =
 
 
 App::App()
-    :m_n_last_semaphore_used(0),
-     m_n_swapchain_images   (N_SWAPCHAIN_IMAGES)
+    :m_consumer_pipeline_id (UINT32_MAX),
+     m_n_last_semaphore_used(0),
+     m_n_swapchain_images   (N_SWAPCHAIN_IMAGES),
+     m_producer_pipeline_id (UINT32_MAX)
 {
     // ..
 }
@@ -195,7 +197,24 @@ App::~App()
 
 void App::deinit()
 {
-    vkDeviceWaitIdle(m_device_ptr.lock()->get_device_vk() );
+    auto compute_pipeline_manager_ptr = m_device_ptr->get_compute_pipeline_manager ();
+    auto gfx_pipeline_manager_ptr     = m_device_ptr->get_graphics_pipeline_manager();
+
+    vkDeviceWaitIdle(m_device_ptr->get_device_vk() );
+
+    if (m_consumer_pipeline_id != UINT32_MAX)
+    {
+        gfx_pipeline_manager_ptr->delete_pipeline(m_consumer_pipeline_id);
+
+        m_consumer_pipeline_id = UINT32_MAX;
+    }
+
+    if (m_producer_pipeline_id != UINT32_MAX)
+    {
+        compute_pipeline_manager_ptr->delete_pipeline(m_producer_pipeline_id);
+
+        m_producer_pipeline_id = UINT32_MAX;
+    }
 
     m_frame_signal_semaphores.clear();
     m_frame_wait_semaphores.clear();
@@ -239,33 +258,29 @@ void App::deinit()
     m_sine_offset_data_buffer_ptr.reset();
     m_sine_props_data_buffer_ptr.reset();
 
-    m_present_queue_ptr.reset();
     m_rendering_surface_ptr.reset();
     m_swapchain_ptr.reset();
     m_window_ptr.reset();
 
-    m_device_ptr.lock()->destroy();
     m_device_ptr.reset();
 
-    m_instance_ptr->destroy();
     m_instance_ptr.reset();
 }
 
 void App::draw_frame()
 {
-    std::shared_ptr<Anvil::Semaphore>  curr_frame_signal_semaphore_ptr;
-    std::shared_ptr<Anvil::Semaphore>  curr_frame_wait_semaphore_ptr;
-    std::shared_ptr<Anvil::SGPUDevice> device_locked_ptr               = m_device_ptr.lock();
-    static uint32_t                    n_frames_rendered               = 0;
-    uint32_t                           n_swapchain_image;
-    std::shared_ptr<Anvil::Semaphore>  present_wait_semaphore_ptr;
-    const VkPipelineStageFlags         wait_stage_mask                 = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    Anvil::Semaphore*          curr_frame_signal_semaphore_ptr = nullptr;
+    Anvil::Semaphore*          curr_frame_wait_semaphore_ptr   = nullptr;
+    static uint32_t            n_frames_rendered               = 0;
+    uint32_t                   n_swapchain_image;
+    Anvil::Semaphore*          present_wait_semaphore_ptr      = nullptr;
+    const VkPipelineStageFlags wait_stage_mask                 = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
     /* Determine the signal + wait semaphores to use for drawing this frame */
     m_n_last_semaphore_used = (m_n_last_semaphore_used + 1) % m_n_swapchain_images;
 
-    curr_frame_signal_semaphore_ptr = m_frame_signal_semaphores[m_n_last_semaphore_used];
-    curr_frame_wait_semaphore_ptr   = m_frame_wait_semaphores  [m_n_last_semaphore_used];
+    curr_frame_signal_semaphore_ptr = m_frame_signal_semaphores[m_n_last_semaphore_used].get();
+    curr_frame_wait_semaphore_ptr   = m_frame_wait_semaphores  [m_n_last_semaphore_used].get();
 
     present_wait_semaphore_ptr = curr_frame_signal_semaphore_ptr;
 
@@ -282,16 +297,16 @@ void App::draw_frame()
                                        &t);
 
     /* Submit jobs to relevant queues and make sure they are correctly synchronized */
-    device_locked_ptr->get_universal_queue(0)->submit_command_buffer_with_signal_wait_semaphores(m_command_buffers[n_swapchain_image],
-                                                                                                 1, /* n_semaphores_to_signal */
-                                                                                                &curr_frame_signal_semaphore_ptr,
-                                                                                                 1, /* n_semaphores_to_wait_on */
-                                                                                                &curr_frame_wait_semaphore_ptr,
-                                                                                                &wait_stage_mask,
-                                                                                                 false, /* should_block */
-                                                                                                 nullptr);
+    m_device_ptr->get_universal_queue(0)->submit_command_buffer_with_signal_wait_semaphores(m_command_buffers[n_swapchain_image].get(),
+                                                                                            1, /* n_semaphores_to_signal */
+                                                                                           &curr_frame_signal_semaphore_ptr,
+                                                                                            1, /* n_semaphores_to_wait_on */
+                                                                                           &curr_frame_wait_semaphore_ptr,
+                                                                                           &wait_stage_mask,
+                                                                                            false, /* should_block */
+                                                                                            nullptr);
 
-    m_present_queue_ptr->present(m_swapchain_ptr,
+    m_present_queue_ptr->present(m_swapchain_ptr.get(),
                                  n_swapchain_image,
                                  1, /* n_wait_semaphores */
                                 &present_wait_semaphore_ptr);
@@ -343,7 +358,7 @@ void App::get_buffer_memory_offsets(uint32_t  n_sine_pair,
 
     if (out_opt_offset_data_offset_ptr != nullptr)
     {
-        const uint32_t sb_offset_alignment = static_cast<uint32_t>(m_physical_device_ptr.lock()->get_device_properties().limits.minStorageBufferOffsetAlignment);
+        const uint32_t sb_offset_alignment = static_cast<uint32_t>(m_physical_device_ptr->get_device_properties().core_vk1_0_properties_ptr->limits.min_storage_buffer_offset_alignment);
 
         *out_opt_offset_data_offset_ptr = Anvil::Utils::round_up(static_cast<uint32_t>(sizeof(float) * 2),
                                                                  sb_offset_alignment) * n_sine_pair;
@@ -352,13 +367,12 @@ void App::get_buffer_memory_offsets(uint32_t  n_sine_pair,
 
 void App::init_buffers()
 {
-    std::shared_ptr<Anvil::MemoryAllocator> memory_allocator_ptr;
-    std::shared_ptr<Anvil::PhysicalDevice>  physical_device_locked_ptr(m_physical_device_ptr);
-    const VkDeviceSize                      sb_data_alignment_requirement = physical_device_locked_ptr->get_device_properties().limits.minStorageBufferOffsetAlignment;
-    std::unique_ptr<char>                   sine_offset_data_raw_buffer_ptr;
+    Anvil::MemoryAllocatorUniquePtr memory_allocator_ptr;
+    const VkDeviceSize              sb_data_alignment_requirement = m_physical_device_ptr->get_device_properties().core_vk1_0_properties_ptr->limits.min_storage_buffer_offset_alignment;
+    std::unique_ptr<char[]>         sine_offset_data_raw_buffer_ptr;
 
     /* Set up allocators */
-    memory_allocator_ptr = Anvil::MemoryAllocator::create_oneshot(m_device_ptr);
+    memory_allocator_ptr = Anvil::MemoryAllocator::create_oneshot(m_device_ptr.get() );
 
     /* Prepare sine offset data */
     m_sine_offset_data_buffer_size = 0;
@@ -398,7 +412,7 @@ void App::init_buffers()
     /* Prepare a buffer object to hold the sine offset data. Note that we fill it with data
      * after memory allocator actually assigns it a memory block.
      */
-    m_sine_offset_data_buffer_ptr = Anvil::Buffer::create_nonsparse(m_device_ptr,
+    m_sine_offset_data_buffer_ptr = Anvil::Buffer::create_nonsparse(m_device_ptr.get(),
                                                                     m_sine_offset_data_buffer_size,
                                                                     Anvil::QUEUE_FAMILY_COMPUTE_BIT | Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
                                                                     VK_SHARING_MODE_CONCURRENT,
@@ -406,7 +420,7 @@ void App::init_buffers()
 
     m_sine_offset_data_buffer_ptr->set_name("Sine offset data buffer");
 
-    memory_allocator_ptr->add_buffer(m_sine_offset_data_buffer_ptr,
+    memory_allocator_ptr->add_buffer(m_sine_offset_data_buffer_ptr.get(),
                                      0); /* in_required_memory_features */
 
     /* Now prepare a memory block which is going to hold vertex data generated by
@@ -436,7 +450,7 @@ void App::init_buffers()
 
     m_sine_data_buffer_size *= 2;
 
-    m_sine_data_buffer_ptr = Anvil::Buffer::create_nonsparse(m_device_ptr,
+    m_sine_data_buffer_ptr = Anvil::Buffer::create_nonsparse(m_device_ptr.get(),
                                                              m_sine_data_buffer_size,
                                                              Anvil::QUEUE_FAMILY_COMPUTE_BIT | Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
                                                              VK_SHARING_MODE_CONCURRENT,
@@ -444,18 +458,18 @@ void App::init_buffers()
 
     m_sine_data_buffer_ptr->set_name("Sine data buffer");
 
-    memory_allocator_ptr->add_buffer(m_sine_data_buffer_ptr,
+    memory_allocator_ptr->add_buffer(m_sine_data_buffer_ptr.get(),
                                      0); /* in_required_memory_features */
 
     /* We also need some space for a uniform block which is going to hold time info. */
-    const auto dynamic_ub_alignment_requirement                = m_device_ptr.lock()->get_physical_device_properties().limits.minUniformBufferOffsetAlignment;
+    const auto dynamic_ub_alignment_requirement                = m_device_ptr->get_physical_device_properties().core_vk1_0_properties_ptr->limits.min_uniform_buffer_offset_alignment;
     const auto sine_props_data_buffer_size_per_swapchain_image = Anvil::Utils::round_up(sizeof(float),
                                                                                         dynamic_ub_alignment_requirement);
     const auto sine_props_data_buffer_size_total               = sine_props_data_buffer_size_per_swapchain_image * N_SWAPCHAIN_IMAGES;
 
     m_sine_props_data_buffer_size_per_swapchain_image = sine_props_data_buffer_size_per_swapchain_image;
 
-    m_sine_props_data_buffer_ptr = Anvil::Buffer::create_nonsparse(m_device_ptr,
+    m_sine_props_data_buffer_ptr = Anvil::Buffer::create_nonsparse(m_device_ptr.get(),
                                                                    sine_props_data_buffer_size_total,
                                                                    Anvil::QUEUE_FAMILY_COMPUTE_BIT | Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
                                                                    VK_SHARING_MODE_CONCURRENT,
@@ -463,12 +477,12 @@ void App::init_buffers()
 
     m_sine_props_data_buffer_ptr->set_name("Sine properties data buffer");
 
-    memory_allocator_ptr->add_buffer(m_sine_props_data_buffer_ptr,
+    memory_allocator_ptr->add_buffer(m_sine_props_data_buffer_ptr.get(),
                                      Anvil::MEMORY_FEATURE_FLAG_MAPPABLE);
 
     /* Each sine needs to be assigned a different color. Compute the data and upload it to another buffer object. */
-    std::unique_ptr<unsigned char> color_buffer_data_ptr;
-    unsigned char*                 color_buffer_data_traveller_ptr = nullptr;
+    std::unique_ptr<uint8_t[]> color_buffer_data_ptr;
+    unsigned char*             color_buffer_data_traveller_ptr = nullptr;
 
     m_sine_color_buffer_size = N_SINE_PAIRS * 2 /* sines per pair */ * (2 * sizeof(char) ) /* R8G8 */;
 
@@ -489,7 +503,7 @@ void App::init_buffers()
          color_buffer_data_traveller_ptr ++;
     }
 
-    m_sine_color_buffer_ptr = Anvil::Buffer::create_nonsparse(m_device_ptr,
+    m_sine_color_buffer_ptr = Anvil::Buffer::create_nonsparse(m_device_ptr.get(),
                                                               m_sine_color_buffer_size,
                                                               Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
                                                               VK_SHARING_MODE_EXCLUSIVE,
@@ -497,7 +511,7 @@ void App::init_buffers()
 
     m_sine_color_buffer_ptr->set_name("Sine color data buffer");
 
-    memory_allocator_ptr->add_buffer(m_sine_color_buffer_ptr,
+    memory_allocator_ptr->add_buffer(m_sine_color_buffer_ptr.get(),
                                      0); /* in_required_memory_features */
 
     /* Assign memory blocks to buffers and fill them with data */
@@ -513,14 +527,13 @@ void App::init_buffers()
 
 void App::init_command_buffers()
 {
-    std::shared_ptr<Anvil::SGPUDevice>              device_locked_ptr           (m_device_ptr);
-    std::shared_ptr<Anvil::GraphicsPipelineManager> gfx_pipeline_manager_ptr    (device_locked_ptr->get_graphics_pipeline_manager() );
-    const bool                                      is_debug_marker_ext_present (device_locked_ptr->is_ext_debug_marker_extension_enabled() );
-    std::shared_ptr<Anvil::PipelineLayout>          producer_pipeline_layout_ptr;
-    VkImageSubresourceRange                         subresource_range;
-    std::shared_ptr<Anvil::Queue>                   universal_queue_ptr         (device_locked_ptr->get_universal_queue(0) );
+    auto                    gfx_pipeline_manager_ptr    (m_device_ptr->get_graphics_pipeline_manager() );
+    const bool              is_debug_marker_ext_present (m_device_ptr->is_ext_debug_marker_extension_enabled() );
+    Anvil::PipelineLayout*  producer_pipeline_layout_ptr(nullptr);
+    VkImageSubresourceRange subresource_range;
+    Anvil::Queue*           universal_queue_ptr         (m_device_ptr->get_universal_queue(0) );
 
-    producer_pipeline_layout_ptr = device_locked_ptr->get_compute_pipeline_manager()->get_pipeline_layout(m_producer_pipeline_id);
+    producer_pipeline_layout_ptr = m_device_ptr->get_compute_pipeline_manager()->get_pipeline_layout(m_producer_pipeline_id);
 
     subresource_range.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
     subresource_range.baseArrayLayer = 0;
@@ -533,10 +546,10 @@ void App::init_command_buffers()
                       n_current_swapchain_image < N_SWAPCHAIN_IMAGES;
                     ++n_current_swapchain_image)
     {
-        std::shared_ptr<Anvil::PrimaryCommandBuffer> draw_cmd_buffer_ptr;
+        Anvil::PrimaryCommandBufferUniquePtr draw_cmd_buffer_ptr;
 
-        draw_cmd_buffer_ptr = device_locked_ptr->get_command_pool(Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL)->alloc_primary_level_command_buffer();
-    
+        draw_cmd_buffer_ptr = m_device_ptr->get_command_pool_for_queue_family_index(m_device_ptr->get_universal_queue(0)->get_queue_family_index() )->alloc_primary_level_command_buffer();
+
         /* Start recording commands */
         draw_cmd_buffer_ptr->start_recording(false, /* one_time_submit          */
                                              true   /* simultaneous_use_allowed */);
@@ -573,7 +586,7 @@ void App::init_command_buffers()
                                                                            VK_ACCESS_UNIFORM_READ_BIT,                                                    /* in_destination_access_mask */
                                                                            VK_QUEUE_FAMILY_IGNORED,
                                                                            VK_QUEUE_FAMILY_IGNORED,
-                                                                           m_sine_props_data_buffer_ptr,
+                                                                           m_sine_props_data_buffer_ptr.get(),
                                                                            n_current_swapchain_image * m_sine_props_data_buffer_size_per_swapchain_image, /* in_start_offset */
                                                                            sizeof(float) );                                                               /* in_size         */
 
@@ -608,9 +621,9 @@ void App::init_command_buffers()
                           n_sine_pair < N_SINE_PAIRS;
                         ++n_sine_pair)
         {
-            uint32_t                              dynamic_offsets[3];
-            const uint32_t                        n_dynamic_offsets = sizeof(dynamic_offsets) / sizeof(dynamic_offsets[0]);
-            std::shared_ptr<Anvil::DescriptorSet> producer_dses[]   =
+            uint32_t              dynamic_offsets[3];
+            const uint32_t        n_dynamic_offsets = sizeof(dynamic_offsets) / sizeof(dynamic_offsets[0]);
+            Anvil::DescriptorSet* producer_dses[]   =
             {
                 m_producer_dsg_ptr->get_descriptor_set(0),
                 m_producer_dsg_ptr->get_descriptor_set(1)
@@ -655,7 +668,7 @@ void App::init_command_buffers()
                                                    VK_ACCESS_SHADER_READ_BIT,  /* in_destination_access_mask */
                                                    VK_QUEUE_FAMILY_IGNORED,
                                                    VK_QUEUE_FAMILY_IGNORED,
-                                                   m_sine_data_buffer_ptr,
+                                                   m_sine_data_buffer_ptr.get(),
                                                    0, /* in_offset */
                                                    m_sine_data_buffer_size);
 
@@ -689,21 +702,22 @@ void App::init_command_buffers()
          */
         draw_cmd_buffer_ptr->record_begin_render_pass(2, /* n_clear_values */
                                                       clear_values,
-                                                      m_fbos[n_current_swapchain_image],
+                                                      m_fbos[n_current_swapchain_image].get(),
                                                       render_area,
-                                                      m_consumer_render_pass_ptr,
+                                                      m_consumer_render_pass_ptr.get(),
                                                       VK_SUBPASS_CONTENTS_INLINE);
         {
-            const float                           max_line_width  = m_device_ptr.lock()->get_physical_device_properties().limits.lineWidthRange[1];
-            std::shared_ptr<Anvil::DescriptorSet> renderer_dses[] =
+            const float           max_line_width            = m_device_ptr->get_physical_device_properties().core_vk1_0_properties_ptr->limits.line_width_range[1];
+            Anvil::DescriptorSet* renderer_dses[]           =
             {
                 m_consumer_dsg_ptr->get_descriptor_set(0),
                 m_consumer_dsg_ptr->get_descriptor_set(1)
             };
-            const uint32_t n_renderer_dses = sizeof(renderer_dses) / sizeof(renderer_dses[0]);
+            const uint32_t        n_renderer_dses           = sizeof(renderer_dses) / sizeof(renderer_dses[0]);
+            auto                  sine_color_buffer_raw_ptr = m_sine_color_buffer_ptr.get();
 
-            std::shared_ptr<Anvil::PipelineLayout> renderer_pipeline_layout_ptr;
-            static const VkDeviceSize              sine_color_buffer_start_offset = 0;
+            Anvil::PipelineLayout*    renderer_pipeline_layout_ptr   = nullptr;
+            static const VkDeviceSize sine_color_buffer_start_offset = 0;
 
             renderer_pipeline_layout_ptr = gfx_pipeline_manager_ptr->get_pipeline_layout(m_consumer_pipeline_id);
 
@@ -711,7 +725,7 @@ void App::init_command_buffers()
                                                              m_consumer_pipeline_id);
             draw_cmd_buffer_ptr->record_bind_vertex_buffers (0, /* startBinding */
                                                              1, /* bindingCount */
-                                                            &m_sine_color_buffer_ptr,
+                                                            &sine_color_buffer_raw_ptr,
                                                             &sine_color_buffer_start_offset);
 
             for (unsigned int n_sine_pair = 0;
@@ -765,15 +779,14 @@ void App::init_command_buffers()
         /* Close the recording process */
         draw_cmd_buffer_ptr->stop_recording();
 
-        m_command_buffers[n_current_swapchain_image] = draw_cmd_buffer_ptr;
+        m_command_buffers[n_current_swapchain_image] = std::move(draw_cmd_buffer_ptr);
     }
 }
 
 void App::init_compute_pipelines()
 {
-    std::shared_ptr<Anvil::SGPUDevice>             device_locked_ptr  (m_device_ptr);
-    std::shared_ptr<Anvil::ComputePipelineManager> compute_manager_ptr(device_locked_ptr->get_compute_pipeline_manager()  );
-    bool                                           result;
+    auto compute_manager_ptr(m_device_ptr->get_compute_pipeline_manager() );
+    bool result;
 
     /* Create & configure the compute pipeline */
     auto producer_pipeline_info_ptr = Anvil::ComputePipelineInfo::create_regular_pipeline_info(false, /* in_disable_optimizations */
@@ -783,7 +796,7 @@ void App::init_compute_pipelines()
     producer_pipeline_info_ptr->attach_push_constant_range(0,  /* offset */
                                                            4,  /* size   */
                                                            VK_SHADER_STAGE_COMPUTE_BIT);
-    producer_pipeline_info_ptr->set_dsg                   (m_producer_dsg_ptr);
+    producer_pipeline_info_ptr->set_descriptor_set_info   (m_producer_dsg_ptr->get_descriptor_set_info() );
     
     result = compute_manager_ptr->add_pipeline(std::move(producer_pipeline_info_ptr),
                                               &m_producer_pipeline_id);
@@ -795,8 +808,8 @@ void App::init_compute_pipelines()
 
 void App::init_dsgs()
 {
-    auto consumer_dsg_info_ptrs = std::vector<std::unique_ptr<Anvil::DescriptorSetInfo> >(2);
-    auto producer_dsg_info_ptrs = std::vector<std::unique_ptr<Anvil::DescriptorSetInfo> >(2);
+    auto consumer_dsg_info_ptrs = std::vector<Anvil::DescriptorSetInfoUniquePtr>(2);
+    auto producer_dsg_info_ptrs = std::vector<Anvil::DescriptorSetInfoUniquePtr>(2);
 
     consumer_dsg_info_ptrs[0] = Anvil::DescriptorSetInfo::create();
     consumer_dsg_info_ptrs[1] = Anvil::DescriptorSetInfo::create();
@@ -826,41 +839,41 @@ void App::init_dsgs()
                                            VK_SHADER_STAGE_COMPUTE_BIT);
 
     /* Create the descriptor set layouts for the generator program. */
-    m_producer_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr,
+    m_producer_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr.get(),
                                                            producer_dsg_info_ptrs,
                                                            false); /* releaseable_sets */
 
 
     m_producer_dsg_ptr->set_binding_item(0, /* n_set         */
                                          0, /* binding_index */
-                                         Anvil::DescriptorSet::DynamicStorageBufferBindingElement(m_sine_offset_data_buffer_ptr,
+                                         Anvil::DescriptorSet::DynamicStorageBufferBindingElement(m_sine_offset_data_buffer_ptr.get(),
                                                                                                   0, /* in_start_offset */
                                                                                                   sizeof(float) * 2) );
     m_producer_dsg_ptr->set_binding_item(0, /* n_set         */
                                          1, /* binding_index */
-                                         Anvil::DescriptorSet::DynamicStorageBufferBindingElement(m_sine_data_buffer_ptr,
+                                         Anvil::DescriptorSet::DynamicStorageBufferBindingElement(m_sine_data_buffer_ptr.get(),
                                                                                                   0, /* in_start_offset */
                                                                                                   sizeof(float) * 4 * N_VERTICES_PER_SINE * 2) );
     m_producer_dsg_ptr->set_binding_item(1, /* n_set         */
                                          0, /* binding_index */
-                                         Anvil::DescriptorSet::DynamicUniformBufferBindingElement(m_sine_props_data_buffer_ptr,
+                                         Anvil::DescriptorSet::DynamicUniformBufferBindingElement(m_sine_props_data_buffer_ptr.get(),
                                                                                                   0, /* in_start_offset */
                                                                                                   m_sine_props_data_buffer_size_per_swapchain_image) );
 
     /* Set up the descriptor set layout for the renderer program.  */
-    m_consumer_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr,
+    m_consumer_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr.get(),
                                                            consumer_dsg_info_ptrs,
                                                            false); /* releaseable_sets */
 
 
     m_consumer_dsg_ptr->set_binding_item(0, /* n_set         */
                                          0, /* binding_index */
-                                         Anvil::DescriptorSet::DynamicStorageBufferBindingElement(m_sine_data_buffer_ptr,
+                                         Anvil::DescriptorSet::DynamicStorageBufferBindingElement(m_sine_data_buffer_ptr.get(),
                                                                                                   0, /* in_start_offset */
                                                                                                   sizeof(float) * 4 * N_VERTICES_PER_SINE) );
     m_consumer_dsg_ptr->set_binding_item(1, /* n_set         */
                                          0, /* binding_index */
-                                         Anvil::DescriptorSet::DynamicStorageBufferBindingElement(m_sine_data_buffer_ptr,
+                                         Anvil::DescriptorSet::DynamicStorageBufferBindingElement(m_sine_data_buffer_ptr.get(),
                                                                                                   0, /* in_start_offset */
                                                                                                   sizeof(float) * 4 * N_VERTICES_PER_SINE) );
 }
@@ -878,9 +891,9 @@ void App::init_framebuffers()
                   n_swapchain_image < N_SWAPCHAIN_IMAGES;
                 ++n_swapchain_image)
     {
-        std::shared_ptr<Anvil::Framebuffer> result_fb_ptr;
+        Anvil::FramebufferUniquePtr result_fb_ptr;
 
-        result_fb_ptr = Anvil::Framebuffer::create(m_device_ptr,
+        result_fb_ptr = Anvil::Framebuffer::create(m_device_ptr.get(),
                                                    WINDOW_WIDTH,
                                                    WINDOW_HEIGHT,
                                                    1); /* n_layers */
@@ -892,18 +905,17 @@ void App::init_framebuffers()
                                                nullptr); /* out_opt_attachment_id_ptr */
         anvil_assert(result);
 
-        result = result_fb_ptr->add_attachment(m_depth_image_views[n_swapchain_image],
+        result = result_fb_ptr->add_attachment(m_depth_image_views[n_swapchain_image].get(),
                                                nullptr); /* out_opt_attachment_id_ptr */
 
-        m_fbos[n_swapchain_image] = result_fb_ptr;
+        m_fbos[n_swapchain_image] = std::move(result_fb_ptr);
     }
 }
 
 void App::init_gfx_pipelines()
 {
-    auto device_locked_ptr   = m_device_ptr.lock                               ();
-    auto gfx_manager_ptr     = device_locked_ptr->get_graphics_pipeline_manager();
-    auto renderpass_info_ptr = std::unique_ptr<Anvil::RenderPassInfo>(new Anvil::RenderPassInfo(device_locked_ptr) );
+    auto gfx_manager_ptr     = m_device_ptr->get_graphics_pipeline_manager();
+    auto renderpass_info_ptr = Anvil::RenderPassInfoUniquePtr(new Anvil::RenderPassInfo(m_device_ptr.get() ) );
 
     /* Create a renderpass instance */
     #ifdef ENABLE_OFFSCREEN_RENDERING
@@ -948,28 +960,28 @@ void App::init_gfx_pipelines()
                                                               VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
     m_consumer_render_pass_ptr = Anvil::RenderPass::create(std::move(renderpass_info_ptr),
-                                                           m_swapchain_ptr);
+                                                           m_swapchain_ptr.get() );
 
     m_consumer_render_pass_ptr->set_name("Consumer renderpass");
 
 
     /* Set up the graphics pipeline for the main subpass */
     auto consumer_pipeline_info_ptr = Anvil::GraphicsPipelineInfo::create_regular_pipeline_info(false, /* in_disable_optimizations */
-        false, /* in_allow_derivatives */
-        m_consumer_render_pass_ptr,
-        render_pass_subpass_id,
-       *m_consumer_fs_ptr,
-        Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader        */
-        Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader    */
-        Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader */
-       *m_consumer_vs_ptr);
+                                                                                                false, /* in_allow_derivatives */
+                                                                                                m_consumer_render_pass_ptr.get(),
+                                                                                                render_pass_subpass_id,
+                                                                                               *m_consumer_fs_ptr,
+                                                                                                Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader        */
+                                                                                                Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader    */
+                                                                                                Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader */
+                                                                                               *m_consumer_vs_ptr);
 
     consumer_pipeline_info_ptr->add_vertex_attribute         (0, /* location */
                                                               VK_FORMAT_R8G8_UNORM,
                                                               0,                /* offset_in_bytes */
                                                               sizeof(char) * 2, /* stride_in_bytes */
                                                               VK_VERTEX_INPUT_RATE_INSTANCE);
-    consumer_pipeline_info_ptr->set_dsg                      (m_consumer_dsg_ptr);
+    consumer_pipeline_info_ptr->set_descriptor_set_info      (m_consumer_dsg_ptr->get_descriptor_set_info() );
     consumer_pipeline_info_ptr->set_primitive_topology       (VK_PRIMITIVE_TOPOLOGY_LINE_STRIP);
     consumer_pipeline_info_ptr->set_rasterization_properties (VK_POLYGON_MODE_FILL,
                                                               VK_CULL_MODE_NONE,
@@ -991,7 +1003,7 @@ void App::init_images()
                   n_depth_image < N_SWAPCHAIN_IMAGES;
                 ++n_depth_image)
     {
-        m_depth_images[n_depth_image] = Anvil::Image::create_nonsparse(m_device_ptr,
+        m_depth_images[n_depth_image] = Anvil::Image::create_nonsparse(m_device_ptr.get(),
                                                                        VK_IMAGE_TYPE_2D,
                                                                        VK_FORMAT_D16_UNORM,
                                                                        VK_IMAGE_TILING_OPTIMAL,
@@ -1009,8 +1021,8 @@ void App::init_images()
                                                                        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                                                                        nullptr);             /* in_mipmaps_ptr */
 
-        m_depth_image_views[n_depth_image] = Anvil::ImageView::create_2D(m_device_ptr,
-                                                                         m_depth_images[n_depth_image],
+        m_depth_image_views[n_depth_image] = Anvil::ImageView::create_2D(m_device_ptr.get(),
+                                                                         m_depth_images[n_depth_image].get(),
                                                                          0,                                              /* n_base_layer        */
                                                                          0,                                              /* n_base_mipmap_level */
                                                                          1,                                              /* n_mipmaps           */
@@ -1034,37 +1046,37 @@ void App::init_semaphores()
                   n_semaphore < m_n_swapchain_images;
                 ++n_semaphore)
     {
-        std::shared_ptr<Anvil::Semaphore> new_signal_semaphore_ptr = Anvil::Semaphore::create(m_device_ptr);
-        std::shared_ptr<Anvil::Semaphore> new_wait_semaphore_ptr   = Anvil::Semaphore::create(m_device_ptr);
+        auto new_signal_semaphore_ptr = Anvil::Semaphore::create(m_device_ptr.get() );
+        auto new_wait_semaphore_ptr   = Anvil::Semaphore::create(m_device_ptr.get() );
 
         new_signal_semaphore_ptr->set_name_formatted("Signal semaphore [%d]",
                                                      n_semaphore);
         new_wait_semaphore_ptr->set_name_formatted  ("Wait semaphore [%d]",
                                                      n_semaphore);
 
-        m_frame_signal_semaphores.push_back(new_signal_semaphore_ptr);
-        m_frame_wait_semaphores.push_back  (new_wait_semaphore_ptr);
+        m_frame_signal_semaphores.push_back(std::move(new_signal_semaphore_ptr) );
+        m_frame_wait_semaphores.push_back  (std::move(new_wait_semaphore_ptr) );
     }
 }
 
 void App::init_shaders()
 {
-    std::shared_ptr<Anvil::ShaderModule>               cs_module_ptr;
-    std::shared_ptr<Anvil::GLSLShaderToSPIRVGenerator> cs_ptr;
-    std::shared_ptr<Anvil::ShaderModule>               fs_module_ptr;
-    std::shared_ptr<Anvil::GLSLShaderToSPIRVGenerator> fs_ptr;
-    std::shared_ptr<Anvil::ShaderModule>               vs_module_ptr;
-    std::shared_ptr<Anvil::GLSLShaderToSPIRVGenerator> vs_ptr;
+    Anvil::ShaderModuleUniquePtr               cs_module_ptr;
+    Anvil::GLSLShaderToSPIRVGeneratorUniquePtr cs_ptr;
+    Anvil::ShaderModuleUniquePtr               fs_module_ptr;
+    Anvil::GLSLShaderToSPIRVGeneratorUniquePtr fs_ptr;
+    Anvil::ShaderModuleUniquePtr               vs_module_ptr;
+    Anvil::GLSLShaderToSPIRVGeneratorUniquePtr vs_ptr;
 
-    cs_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(m_device_ptr,
+    cs_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(m_device_ptr.get(),
                                                        Anvil::GLSLShaderToSPIRVGenerator::MODE_USE_SPECIFIED_SOURCE,
                                                        g_glsl_producer_comp,
                                                        Anvil::SHADER_STAGE_COMPUTE);
-    fs_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(m_device_ptr,
+    fs_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(m_device_ptr.get(),
                                                        Anvil::GLSLShaderToSPIRVGenerator::MODE_USE_SPECIFIED_SOURCE,
                                                        g_glsl_consumer_frag,
                                                        Anvil::SHADER_STAGE_FRAGMENT);
-    vs_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(m_device_ptr,
+    vs_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(m_device_ptr.get(),
                                                        Anvil::GLSLShaderToSPIRVGenerator::MODE_USE_SPECIFIED_SOURCE,
                                                        g_glsl_consumer_vert,
                                                        Anvil::SHADER_STAGE_VERTEX);
@@ -1079,12 +1091,12 @@ void App::init_shaders()
                                       N_VERTICES_PER_SINE);
 
     /* Initialize the shader modules */
-    cs_module_ptr = Anvil::ShaderModule::create_from_spirv_generator(m_device_ptr,
-                                                                     cs_ptr);
-    fs_module_ptr = Anvil::ShaderModule::create_from_spirv_generator(m_device_ptr,
-                                                                     fs_ptr);
-    vs_module_ptr = Anvil::ShaderModule::create_from_spirv_generator(m_device_ptr,
-                                                                     vs_ptr);
+    cs_module_ptr = Anvil::ShaderModule::create_from_spirv_generator(m_device_ptr.get(),
+                                                                     cs_ptr.get      () );
+    fs_module_ptr = Anvil::ShaderModule::create_from_spirv_generator(m_device_ptr.get(),
+                                                                     fs_ptr.get      () );
+    vs_module_ptr = Anvil::ShaderModule::create_from_spirv_generator(m_device_ptr.get(),
+                                                                     vs_ptr.get      () );
 
     cs_module_ptr->set_name("Compute shader module");
     fs_module_ptr->set_name("Fragment shader module");
@@ -1093,52 +1105,49 @@ void App::init_shaders()
     /* Prepare entrypoint descriptors. */
     m_producer_cs_ptr.reset(
         new Anvil::ShaderModuleStageEntryPoint("main",
-                                               cs_module_ptr,
+                                               std::move(cs_module_ptr),
                                                Anvil::SHADER_STAGE_COMPUTE)
     );
     m_consumer_fs_ptr.reset(
         new Anvil::ShaderModuleStageEntryPoint("main",
-                                               fs_module_ptr,
+                                               std::move(fs_module_ptr),
                                                Anvil::SHADER_STAGE_FRAGMENT)
     );
     m_consumer_vs_ptr.reset(
         new Anvil::ShaderModuleStageEntryPoint("main",
-                                               vs_module_ptr,
+                                               std::move(vs_module_ptr),
                                                Anvil::SHADER_STAGE_VERTEX)
     );
 }
 
 void App::init_swapchain()
 {
-    std::shared_ptr<Anvil::SGPUDevice> device_locked_ptr(m_device_ptr);
-
-    m_rendering_surface_ptr = Anvil::RenderingSurface::create(m_instance_ptr,
-                                                              m_device_ptr,
-                                                              m_window_ptr);
+    m_rendering_surface_ptr = Anvil::RenderingSurface::create(m_instance_ptr.get(),
+                                                              m_device_ptr.get  (),
+                                                              m_window_ptr.get  () );
 
     m_rendering_surface_ptr->set_name("Main rendering surface");
 
 
-    m_swapchain_ptr = device_locked_ptr->create_swapchain(m_rendering_surface_ptr,
-                                                          m_window_ptr,
-                                                          VK_FORMAT_B8G8R8A8_UNORM,
-                                                          VK_PRESENT_MODE_FIFO_KHR,
-                                                          VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                                                          m_n_swapchain_images);
+    m_swapchain_ptr = m_device_ptr->create_swapchain(m_rendering_surface_ptr.get(),
+                                                     m_window_ptr.get           (),
+                                                     VK_FORMAT_B8G8R8A8_UNORM,
+                                                     VK_PRESENT_MODE_FIFO_KHR,
+                                                     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                                                     m_n_swapchain_images);
 
     m_swapchain_ptr->set_name("Main swapchain");
 
     /* Cache the queue we are going to use for presentation */
     const std::vector<uint32_t>* present_queue_fams_ptr = nullptr;
 
-    if (!m_rendering_surface_ptr->get_queue_families_with_present_support(device_locked_ptr->get_physical_device(),
-                                                                         &present_queue_fams_ptr) )
+    if (!m_rendering_surface_ptr->get_queue_families_with_present_support(&present_queue_fams_ptr) )
     {
         anvil_assert_fail();
     }
 
-    m_present_queue_ptr = device_locked_ptr->get_queue(present_queue_fams_ptr->at(0),
-                                                       0); /* in_n_queue */
+    m_present_queue_ptr = m_device_ptr->get_queue_for_queue_family_index(present_queue_fams_ptr->at(0),
+                                                                         0); /* in_n_queue */
 }
 
 void App::init_window()
@@ -1185,10 +1194,11 @@ void App::init_vulkan()
 
     /* Create a Vulkan device */
     m_device_ptr = Anvil::SGPUDevice::create(m_physical_device_ptr,
+                                             true,                       /* in_enable_shader_module_cache */
                                              Anvil::DeviceExtensionConfiguration(),
-                                             std::vector<std::string>(), /* layers                               */
-                                             false,                      /* transient_command_buffer_allocs_only */
-                                             false);                     /* support_resettable_command_buffers   */
+                                             std::vector<std::string>(), /* in_layers                               */
+                                             false,                      /* in_transient_command_buffer_allocs_only */
+                                             false);                     /* in_support_resettable_command_buffers   */
 }
 
 VkBool32 App::on_validation_callback(VkDebugReportFlagsEXT      message_flags,
@@ -1214,7 +1224,7 @@ void App::run()
 
 int main()
 {
-    std::shared_ptr<App> app_ptr(new App() );
+    std::unique_ptr<App> app_ptr(new App() );
 
     app_ptr->init();
     app_ptr->run();
