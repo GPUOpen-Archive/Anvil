@@ -20,6 +20,8 @@
 // THE SOFTWARE.
 //
 #include "misc/base_pipeline_info.h"
+#include "misc/descriptor_set_info.h"
+#include "wrappers/descriptor_set_group.h"
 #include <algorithm>
 
 
@@ -115,7 +117,15 @@ void Anvil::BasePipelineInfo::copy_state_from(const BasePipelineInfo* in_src_pip
 {
     m_base_pipeline_id = in_src_pipeline_info_ptr->m_base_pipeline_id;
 
-    m_dsg_ptr              = in_src_pipeline_info_ptr->m_dsg_ptr;
+    for (auto& current_ds_info_item_ptr : in_src_pipeline_info_ptr->m_ds_info_items)
+    {
+        m_ds_info_items.push_back(
+            Anvil::DescriptorSetInfoUniquePtr(
+                new DescriptorSetInfo(*current_ds_info_item_ptr.get() )
+            )
+        );
+    }
+    
     m_push_constant_ranges = in_src_pipeline_info_ptr->m_push_constant_ranges;
 
     m_allow_derivatives     = in_src_pipeline_info_ptr->m_allow_derivatives;
@@ -171,21 +181,21 @@ bool Anvil::BasePipelineInfo::get_specialization_constants(Anvil::ShaderStage   
     return result;
 }
 
-void Anvil::BasePipelineInfo::init_derivative_pipeline_info(bool                                       in_disable_optimizations,
-                                                            bool                                       in_allow_derivatives,
-                                                            uint32_t                                   in_n_shader_module_stage_entrypoints,
-                                                            const ShaderModuleStageEntryPoint*         in_shader_module_stage_entrypoint_ptrs,
-                                                            Anvil::PipelineID                          in_base_pipeline_id,
-                                                            std::shared_ptr<Anvil::DescriptorSetGroup> in_opt_dsg_ptr)
+void Anvil::BasePipelineInfo::init_derivative_pipeline_info(bool                                                in_disable_optimizations,
+                                                            bool                                                in_allow_derivatives,
+                                                            uint32_t                                            in_n_shader_module_stage_entrypoints,
+                                                            const ShaderModuleStageEntryPoint*                  in_shader_module_stage_entrypoint_ptrs,
+                                                            Anvil::PipelineID                                   in_base_pipeline_id,
+                                                            const std::vector<const Anvil::DescriptorSetInfo*>* in_opt_ds_info_vec_ptr)
 {
     m_allow_derivatives     = in_allow_derivatives;
     m_base_pipeline_id      = in_base_pipeline_id;
     m_disable_optimizations = in_disable_optimizations;
     m_is_proxy              = false;
 
-    if (in_opt_dsg_ptr != nullptr)
+    if (in_opt_ds_info_vec_ptr != nullptr)
     {
-        m_dsg_ptr = in_opt_dsg_ptr;
+        set_descriptor_set_info(in_opt_ds_info_vec_ptr);
     }
 
     init_shader_modules(in_n_shader_module_stage_entrypoints,
@@ -200,20 +210,20 @@ void Anvil::BasePipelineInfo::init_proxy_pipeline_info()
     m_is_proxy              = true;
 }
 
-void Anvil::BasePipelineInfo::init_regular_pipeline_info(bool                                       in_disable_optimizations,
-                                                         bool                                       in_allow_derivatives,
-                                                         uint32_t                                   in_n_shader_module_stage_entrypoints,
-                                                         const ShaderModuleStageEntryPoint*         in_shader_module_stage_entrypoint_ptrs,
-                                                         std::shared_ptr<Anvil::DescriptorSetGroup> in_opt_dsg_ptr)
+void Anvil::BasePipelineInfo::init_regular_pipeline_info(bool                                                in_disable_optimizations,
+                                                         bool                                                in_allow_derivatives,
+                                                         uint32_t                                            in_n_shader_module_stage_entrypoints,
+                                                         const ShaderModuleStageEntryPoint*                  in_shader_module_stage_entrypoint_ptrs,
+                                                         const std::vector<const Anvil::DescriptorSetInfo*>* in_opt_ds_info_vec_ptr)
 {
     m_allow_derivatives     = in_allow_derivatives;
     m_base_pipeline_id      = UINT32_MAX;
     m_disable_optimizations = in_disable_optimizations;
     m_is_proxy              = false;
 
-    if (in_opt_dsg_ptr != nullptr)
+    if (in_opt_ds_info_vec_ptr != nullptr)
     {
-        m_dsg_ptr = in_opt_dsg_ptr;
+        set_descriptor_set_info(in_opt_ds_info_vec_ptr);
     }
 
     init_shader_modules(in_n_shader_module_stage_entrypoints,
@@ -239,7 +249,29 @@ void Anvil::BasePipelineInfo::init_shader_modules(uint32_t                      
     }
 }
 
-void Anvil::BasePipelineInfo::set_dsg(std::shared_ptr<DescriptorSetGroup> in_dsg_ptr)
+void Anvil::BasePipelineInfo::set_descriptor_set_info(const std::vector<const Anvil::DescriptorSetInfo*>* in_ds_info_vec_ptr)
 {
-    m_dsg_ptr = in_dsg_ptr;
+    const uint32_t n_descriptor_sets = static_cast<uint32_t>(in_ds_info_vec_ptr->size() );
+
+    for (uint32_t n_descriptor_set = 0;
+                  n_descriptor_set < n_descriptor_sets;
+                ++n_descriptor_set)
+    {
+        const auto reference_ds_info_ptr = in_ds_info_vec_ptr->at(n_descriptor_set);
+
+        if (reference_ds_info_ptr == nullptr)
+        {
+            m_ds_info_items.push_back(
+                Anvil::DescriptorSetInfoUniquePtr()
+            );
+
+            continue;
+        }
+
+        m_ds_info_items.push_back(
+            Anvil::DescriptorSetInfoUniquePtr(
+                new Anvil::DescriptorSetInfo(*reference_ds_info_ptr)
+            )
+        );
+    }
 }

@@ -7,11 +7,12 @@ option(ANVIL_LINK_WITH_GLSLANG                     "Links with glslang, instead 
 
 
 # Do not modify anything after this line, unless you know what you're doing.
-configure_file("include/config.h.in" "${Anvil_SOURCE_DIR}/include/config.h")
+configure_file("include/config.h.in" "include/config.h")
 
 include_directories("$(Anvil_SOURCE_DIR)"
                     "$(Anvil_SOURCE_DIR)/deps"
-                    "$(Anvil_SOURCE_DIR)/include")
+                    "$(Anvil_SOURCE_DIR)/include"
+                    "${Anvil_BINARY_DIR}/include")
 
 if (WIN32)
     if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
@@ -54,6 +55,7 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/include/misc/ref_counter.h"
               "${Anvil_SOURCE_DIR}/include/misc/render_pass_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/shader_module_cache.h"
+              "${Anvil_SOURCE_DIR}/include/misc/struct_chainer.h"
               "${Anvil_SOURCE_DIR}/include/misc/time.h"
               "${Anvil_SOURCE_DIR}/include/misc/types.h"
               "${Anvil_SOURCE_DIR}/include/misc/window.h"
@@ -67,6 +69,8 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/include/wrappers/descriptor_set.h"
               "${Anvil_SOURCE_DIR}/include/wrappers/descriptor_set_group.h"
               "${Anvil_SOURCE_DIR}/include/wrappers/descriptor_set_layout.h"
+              "${Anvil_SOURCE_DIR}/include/wrappers/descriptor_set_layout_manager.h"
+              "${Anvil_SOURCE_DIR}/include/wrappers/descriptor_update_template.h"
               "${Anvil_SOURCE_DIR}/include/wrappers/device.h"
               "${Anvil_SOURCE_DIR}/include/wrappers/event.h"
               "${Anvil_SOURCE_DIR}/include/wrappers/fence.h"
@@ -122,6 +126,8 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/src/wrappers/descriptor_set.cpp"
               "${Anvil_SOURCE_DIR}/src/wrappers/descriptor_set_group.cpp"
               "${Anvil_SOURCE_DIR}/src/wrappers/descriptor_set_layout.cpp"
+              "${Anvil_SOURCE_DIR}/src/wrappers/descriptor_set_layout_manager.cpp"
+              "${Anvil_SOURCE_DIR}/src/wrappers/descriptor_update_template.cpp"
               "${Anvil_SOURCE_DIR}/src/wrappers/device.cpp"
               "${Anvil_SOURCE_DIR}/src/wrappers/event.cpp"
               "${Anvil_SOURCE_DIR}/src/wrappers/fence.cpp"
@@ -189,8 +195,10 @@ endif()
 # Add dependendencies
 if (WIN32)
     add_subdirectory("deps\\glslang")
+    add_subdirectory("deps\\glslang\\OGLCompilersDLL")
 else()
     add_subdirectory("deps/glslang")
+    add_subdirectory("deps/glslang/OGLCompilersDLL")
 endif()
 
 # Enable level-4 warnings

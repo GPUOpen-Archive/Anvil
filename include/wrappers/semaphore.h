@@ -45,8 +45,8 @@ namespace Anvil
         /* Public functions */
 
         /** Creates a single Vulkan semaphore instance and registers the object in Object Tracker. */
-        static std::shared_ptr<Anvil::Semaphore> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                        MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::SemaphoreUniquePtr create(const Anvil::BaseDevice* in_device_ptr,
+                                                MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Destructor.
          *
@@ -74,8 +74,8 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. Please see create() for specification */
-        Semaphore(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                  bool                             in_mt_safe);
+        Semaphore(const Anvil::BaseDevice* in_device_ptr,
+                  bool                     in_mt_safe);
 
         Semaphore           (const Semaphore&);
         Semaphore& operator=(const Semaphore&);
@@ -83,8 +83,8 @@ namespace Anvil
         void release_semaphore();
 
         /* Private variables */
-        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
-        VkSemaphore                      m_semaphore;
+        const Anvil::BaseDevice* m_device_ptr;
+        VkSemaphore              m_semaphore;
     };
 }; /* namespace Anvil */
 

@@ -38,7 +38,7 @@ Anvil::ShaderModuleCache::~ShaderModuleCache()
 }
 
 /** TODO */
-void Anvil::ShaderModuleCache::cache(std::shared_ptr<Anvil::ShaderModule> in_shader_module_ptr)
+void Anvil::ShaderModuleCache::cache(Anvil::ShaderModule* in_shader_module_ptr)
 {
     const auto shader_module_cs_entrypoint_name = in_shader_module_ptr->get_cs_entrypoint_name();
     const auto shader_module_device_ptr         = in_shader_module_ptr->get_parent_device     ();
@@ -63,10 +63,10 @@ void Anvil::ShaderModuleCache::cache(std::shared_ptr<Anvil::ShaderModule> in_sha
     {
         std::unique_lock<std::recursive_mutex> mutex_lock(*get_mutex() );
 
-        auto items_map_iterator    = m_items.find(hash);
+        auto items_map_iterator    = m_item_ptrs.find(hash);
         bool should_store_new_item = false;
 
-        if (items_map_iterator == m_items.end() )
+        if (items_map_iterator == m_item_ptrs.end() )
         {
             /* No collision case */
             should_store_new_item = true;
@@ -79,20 +79,20 @@ void Anvil::ShaderModuleCache::cache(std::shared_ptr<Anvil::ShaderModule> in_sha
             bool  item_found = false;
             auto& item_list  = items_map_iterator->second;
 
-            for (const auto& current_item : item_list)
+            for (const auto& current_item_ptr : item_list)
             {
-                if (current_item.matches(shader_module_device_ptr,
-                                         reinterpret_cast<const char*>(&shader_module_spirv_blob.at(0) ),
-                                         static_cast<uint32_t>(shader_module_spirv_blob.size() * sizeof(shader_module_spirv_blob.at(0) )),
-                                         shader_module_cs_entrypoint_name,
-                                         shader_module_fs_entrypoint_name,
-                                         shader_module_gs_entrypoint_name,
-                                         shader_module_tc_entrypoint_name,
-                                         shader_module_te_entrypoint_name,
-                                         shader_module_vs_entrypoint_name) )
+                if (current_item_ptr->matches(shader_module_device_ptr,
+                                              reinterpret_cast<const char*>(&shader_module_spirv_blob.at(0) ),
+                                              static_cast<uint32_t>(shader_module_spirv_blob.size() * sizeof(shader_module_spirv_blob.at(0) )),
+                                              shader_module_cs_entrypoint_name,
+                                              shader_module_fs_entrypoint_name,
+                                              shader_module_gs_entrypoint_name,
+                                              shader_module_tc_entrypoint_name,
+                                              shader_module_te_entrypoint_name,
+                                              shader_module_vs_entrypoint_name) )
                 {
                     /* This assertion check should never explode */
-                    anvil_assert(current_item.shader_module_ptr == in_shader_module_ptr);
+                    anvil_assert(current_item_ptr->shader_module_owned_ptr.get() == in_shader_module_ptr);
 
                     item_found = true;
                     break;
@@ -104,24 +104,29 @@ void Anvil::ShaderModuleCache::cache(std::shared_ptr<Anvil::ShaderModule> in_sha
 
         if (should_store_new_item)
         {
-            auto new_item = HashMapItem(shader_module_device_ptr,
-                                        shader_module_spirv_blob,
-                                        shader_module_cs_entrypoint_name,
-                                        shader_module_fs_entrypoint_name,
-                                        shader_module_gs_entrypoint_name,
-                                        shader_module_tc_entrypoint_name,
-                                        shader_module_te_entrypoint_name,
-                                        shader_module_vs_entrypoint_name,
-                                        in_shader_module_ptr);
+            std::unique_ptr<HashMapItem> new_item_ptr(
+                new HashMapItem(shader_module_device_ptr,
+                                shader_module_spirv_blob,
+                                shader_module_cs_entrypoint_name,
+                                shader_module_fs_entrypoint_name,
+                                shader_module_gs_entrypoint_name,
+                                shader_module_tc_entrypoint_name,
+                                shader_module_te_entrypoint_name,
+                                shader_module_vs_entrypoint_name,
+                                in_shader_module_ptr)
+            );
 
-            m_items[hash].push_front(new_item);
+            m_item_ptrs[hash].push_front(
+                std::move(new_item_ptr)
+            );
         }
     }
 }
 
-std::shared_ptr<Anvil::ShaderModuleCache> Anvil::ShaderModuleCache::create()
+Anvil::ShaderModuleCacheUniquePtr Anvil::ShaderModuleCache::create()
 {
-    std::shared_ptr<Anvil::ShaderModuleCache> result_ptr;
+    ShaderModuleCacheUniquePtr result_ptr(nullptr,
+                                          std::default_delete<ShaderModuleCache>() );
 
     result_ptr.reset(
         new Anvil::ShaderModuleCache()
@@ -131,17 +136,17 @@ std::shared_ptr<Anvil::ShaderModuleCache> Anvil::ShaderModuleCache::create()
 }
 
 /** Please see header for documentation */
-std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModuleCache::get_cached_shader_module(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                                                        const char*                      in_spirv_blob,
-                                                                                        uint32_t                         in_n_spirv_blob_bytes,
-                                                                                        const std::string&               in_cs_entrypoint_name,
-                                                                                        const std::string&               in_fs_entrypoint_name,
-                                                                                        const std::string&               in_gs_entrypoint_name,
-                                                                                        const std::string&               in_tc_entrypoint_name,
-                                                                                        const std::string&               in_te_entrypoint_name,
-                                                                                        const std::string&               in_vs_entrypoint_name)
+Anvil::ShaderModuleUniquePtr Anvil::ShaderModuleCache::get_cached_shader_module(const Anvil::BaseDevice* in_device_ptr,
+                                                                                const char*              in_spirv_blob,
+                                                                                uint32_t                 in_n_spirv_blob_bytes,
+                                                                                const std::string&       in_cs_entrypoint_name,
+                                                                                const std::string&       in_fs_entrypoint_name,
+                                                                                const std::string&       in_gs_entrypoint_name,
+                                                                                const std::string&       in_tc_entrypoint_name,
+                                                                                const std::string&       in_te_entrypoint_name,
+                                                                                const std::string&       in_vs_entrypoint_name)
 {
-    std::shared_ptr<Anvil::ShaderModule> result_ptr;
+    Anvil::ShaderModuleUniquePtr result_ptr;
 
     {
         std::unique_lock<std::recursive_mutex> mutex_lock(*get_mutex() );
@@ -154,25 +159,32 @@ std::shared_ptr<Anvil::ShaderModule> Anvil::ShaderModuleCache::get_cached_shader
                                                in_tc_entrypoint_name,
                                                in_te_entrypoint_name,
                                                in_vs_entrypoint_name) );
-        auto       items_map_iterator(m_items.find(hash) );
+        auto       items_map_iterator(m_item_ptrs.find(hash) );
 
-        if (items_map_iterator != m_items.end() )
+        if (items_map_iterator != m_item_ptrs.end() )
         {
             const auto& items = items_map_iterator->second;
 
-            for (const auto& current_item : items)
+            for (const auto& current_item_ptr : items)
             {
-                if (current_item.matches(in_device_ptr,
-                                         in_spirv_blob,
-                                         in_n_spirv_blob_bytes,
-                                         in_cs_entrypoint_name,
-                                         in_fs_entrypoint_name,
-                                         in_gs_entrypoint_name,
-                                         in_tc_entrypoint_name,
-                                         in_te_entrypoint_name,
-                                         in_vs_entrypoint_name) )
+                if (current_item_ptr->matches(in_device_ptr,
+                                              in_spirv_blob,
+                                              in_n_spirv_blob_bytes,
+                                              in_cs_entrypoint_name,
+                                              in_fs_entrypoint_name,
+                                              in_gs_entrypoint_name,
+                                              in_tc_entrypoint_name,
+                                              in_te_entrypoint_name,
+                                              in_vs_entrypoint_name) )
                 {
-                    result_ptr = current_item.shader_module_ptr;
+                    anvil_assert(current_item_ptr->shader_module_owned_ptr               != nullptr);
+                    anvil_assert(current_item_ptr->shader_module_owned_ptr->get_module() != VK_NULL_HANDLE);
+
+                    result_ptr = Anvil::ShaderModuleUniquePtr(current_item_ptr->shader_module_owned_ptr.get(),
+                                                              [](ShaderModule*)
+                                                              {
+                                                                 /* Stub */
+                                                              });
                     break;
                 }
             }
@@ -239,7 +251,7 @@ void Anvil::ShaderModuleCache::on_shader_module_object_registered(CallbackArgume
 
     auto shader_module_ptr = static_cast<Anvil::ShaderModule*>(callback_arg_ptr->object_raw_ptr);
 
-    cache(shader_module_ptr->shared_from_this() );
+    cache(shader_module_ptr);
 }
 
 void Anvil::ShaderModuleCache::update_subscriptions(bool in_should_init)

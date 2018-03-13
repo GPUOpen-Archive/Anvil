@@ -18,7 +18,6 @@ endif()
 
 add_subdirectory   (../.. "${CMAKE_CURRENT_BINARY_DIR}/anvil")
 
-
 include_directories(${Anvil_SOURCE_DIR}/include
                     ${PushConstants_SOURCE_DIR}/include)
 

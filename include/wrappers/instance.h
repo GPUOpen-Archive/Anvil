@@ -42,8 +42,7 @@ namespace Anvil
                                     const char*                in_layer_prefix,
                                     const char*                in_message)>     DebugCallbackFunction;
 
-    class Instance : public Anvil::MTSafetySupportProvider,
-                     public std::enable_shared_from_this<Instance>
+    class Instance : public Anvil::MTSafetySupportProvider
     {
     public:
         /** Destructor */
@@ -75,17 +74,12 @@ namespace Anvil
          *                                                     is required should be automatically synchronized by Anvil.
          *  @param in_opt_disallowed_instance_level_extensions Optional vector holding instance-level extension names that must NOT be
          *                                                     requested at creation time. 
-         *  @param in_opt_enable_shader_module_cache           True if all spawned shader modules should be cached throughout instance lifetime.
-         *                                                     False if they should be released as soon as all shared pointers go out of scope.
          **/
-        static std::shared_ptr<Anvil::Instance> create(const std::string&              in_app_name,
-                                                       const std::string&              in_engine_name,
-                                                       DebugCallbackFunction           in_opt_validation_callback_proc,
-                                                       bool                            in_mt_safe,
-                                                       const std::vector<std::string>& in_opt_disallowed_instance_level_extensions = std::vector<std::string>(),
-                                                       bool                            in_opt_enable_shader_module_cache           = true);
-
-        void destroy();
+        static Anvil::InstanceUniquePtr create(const std::string&              in_app_name,
+                                               const std::string&              in_engine_name,
+                                               DebugCallbackFunction           in_opt_validation_callback_proc,
+                                               bool                            in_mt_safe,
+                                               const std::vector<std::string>& in_opt_disallowed_instance_level_extensions = std::vector<std::string>() );
 
         /** Returns a container with entry-points to functions introduced by VK_KHR_get_physical_device_properties2.
          *
@@ -131,21 +125,15 @@ namespace Anvil
          *
          ** @return As per description.
          **/
-        std::weak_ptr<Anvil::PhysicalDevice> get_physical_device(uint32_t in_n_device) const
+        const Anvil::PhysicalDevice* get_physical_device(uint32_t in_n_device) const
         {
-            return m_physical_devices.at(in_n_device);
+            return m_physical_devices.at(in_n_device).get();
         }
 
         /** Returns the total number of physical devices supported on the running platform. */
         uint32_t get_n_physical_devices() const
         {
             return static_cast<uint32_t>(m_physical_devices.size() );
-        }
-
-        /** Returns shader module cache instance */
-        std::shared_ptr<Anvil::ShaderModuleCache> get_shader_module_cache() const
-        {
-            return m_shader_module_cache_ptr;
         }
 
         bool is_instance_extension_enabled(const char*        in_extension_name) const;
@@ -184,14 +172,11 @@ namespace Anvil
         Instance& operator=(const Instance&);
         Instance           (const Instance&);
 
-        void register_physical_device  (std::shared_ptr<Anvil::PhysicalDevice> in_physical_device_ptr);
-        void unregister_physical_device(std::shared_ptr<Anvil::PhysicalDevice> in_physical_device_ptr);
-
+        void destroy                   ();
         void enumerate_instance_layers ();
         void enumerate_layer_extensions(Anvil::Layer* layer_ptr);
         void enumerate_physical_devices();
-        void init                      (const std::vector<std::string>& in_disallowed_instance_level_extensions,
-                                        bool                            in_enable_shader_module_cache);
+        void init                      (const std::vector<std::string>& in_disallowed_instance_level_extensions);
         void init_debug_callbacks      ();
         void init_func_pointers        ();
 
@@ -210,9 +195,9 @@ namespace Anvil
         /* DebugReport extension function pointers and data */
         VkDebugReportCallbackEXT m_debug_callback_data;
 
-        ExtensionEXTDebugReportEntrypoints              m_ext_debug_report_entrypoints;
-        ExtensionKHRGetPhysicalDeviceProperties2        m_khr_get_physical_device_properties2_entrypoints;
-        ExtensionKHRSurfaceEntrypoints                  m_khr_surface_entrypoints;
+        ExtensionEXTDebugReportEntrypoints       m_ext_debug_report_entrypoints;
+        ExtensionKHRGetPhysicalDeviceProperties2 m_khr_get_physical_device_properties2_entrypoints;
+        ExtensionKHRSurfaceEntrypoints           m_khr_surface_entrypoints;
 
         #ifdef _WIN32
             #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
@@ -230,11 +215,9 @@ namespace Anvil
 
         std::vector<std::string>                             m_enabled_extensions;
         Anvil::Layer                                         m_global_layer;
-        std::vector<std::shared_ptr<Anvil::PhysicalDevice> > m_physical_devices;
-        std::shared_ptr<ShaderModuleCache>                   m_shader_module_cache_ptr;
+        std::vector<std::unique_ptr<Anvil::PhysicalDevice> > m_physical_devices;
         std::vector<Anvil::Layer>                            m_supported_layers;
 
-        friend class  Anvil::PhysicalDevice;
         friend struct InstanceDeleter;
     };
 }; /* namespace Anvil */

@@ -49,9 +49,9 @@ namespace Anvil
             return m_base_pipeline_id;
         }
 
-        std::shared_ptr<const DescriptorSetGroup> get_dsg() const
+        const std::vector<DescriptorSetInfoUniquePtr>* get_ds_info_items() const
         {
-            return m_dsg_ptr;
+            return &m_ds_info_items;
         }
 
         const PushConstantRanges& get_push_constant_ranges() const
@@ -77,7 +77,7 @@ namespace Anvil
             return m_is_proxy;
         }
 
-        void set_dsg(std::shared_ptr<DescriptorSetGroup> in_dsg_ptr);
+        void set_descriptor_set_info(const std::vector<const Anvil::DescriptorSetInfo*>* in_ds_info_vec_ptr);
 
     protected:
         /* Protected functions */
@@ -100,18 +100,18 @@ namespace Anvil
                                                  uint32_t           in_n_data_bytes,
                                                  const void*        in_data_ptr);
 
-        void init_derivative_pipeline_info(bool                                       in_disable_optimizations,
-                                           bool                                       in_allow_derivatives,
-                                           uint32_t                                   in_n_shader_module_stage_entrypoints,
-                                           const ShaderModuleStageEntryPoint*         in_shader_module_stage_entrypoint_ptrs,
-                                           Anvil::PipelineID                          in_base_pipeline_id,
-                                           std::shared_ptr<Anvil::DescriptorSetGroup> in_opt_dsg_ptr = std::shared_ptr<Anvil::DescriptorSetGroup>() );
+        void init_derivative_pipeline_info(bool                                                in_disable_optimizations,
+                                           bool                                                in_allow_derivatives,
+                                           uint32_t                                            in_n_shader_module_stage_entrypoints,
+                                           const ShaderModuleStageEntryPoint*                  in_shader_module_stage_entrypoint_ptrs,
+                                           Anvil::PipelineID                                   in_base_pipeline_id,
+                                           const std::vector<const Anvil::DescriptorSetInfo*>* in_opt_ds_info_vec_ptr = nullptr);
         void init_proxy_pipeline_info     ();
-        void init_regular_pipeline_info   (bool                                       in_disable_optimizations,
-                                           bool                                       in_allow_derivatives,
-                                           uint32_t                                   in_n_shader_module_stage_entrypoints,
-                                           const ShaderModuleStageEntryPoint*         in_shader_module_stage_entrypoint_ptrs,
-                                           std::shared_ptr<Anvil::DescriptorSetGroup> in_opt_dsg_ptr = std::shared_ptr<Anvil::DescriptorSetGroup>() );
+        void init_regular_pipeline_info   (bool                                                in_disable_optimizations,
+                                           bool                                                in_allow_derivatives,
+                                           uint32_t                                            in_n_shader_module_stage_entrypoints,
+                                           const ShaderModuleStageEntryPoint*                  in_shader_module_stage_entrypoint_ptrs,
+                                           const std::vector<const Anvil::DescriptorSetInfo*>* in_opt_ds_info_vec_ptr = nullptr);
 
         void copy_state_from(const BasePipelineInfo* in_src_pipeline_info_ptr);
 
@@ -122,7 +122,7 @@ namespace Anvil
         /* Protected variables */
         Anvil::PipelineID m_base_pipeline_id;
 
-        std::shared_ptr<DescriptorSetGroup>     m_dsg_ptr;
+        std::vector<DescriptorSetInfoUniquePtr> m_ds_info_items;
         PushConstantRanges                      m_push_constant_ranges;
         std::vector<unsigned char>              m_specialization_constants_data_buffer;
         ShaderStageToSpecializationConstantsMap m_specialization_constants_map;

@@ -61,9 +61,9 @@ namespace Anvil
          *  @param in_device_ptr Device the layout will be created for.
          *
          **/
-        static std::shared_ptr<DescriptorSetLayout> create(std::unique_ptr<Anvil::DescriptorSetInfo> in_ds_info_ptr,
-                                                           std::weak_ptr<Anvil::BaseDevice>          in_device_ptr,
-                                                           MTSafety                                  in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static DescriptorSetLayoutUniquePtr create(DescriptorSetInfoUniquePtr in_ds_info_ptr,
+                                                   const Anvil::BaseDevice*   in_device_ptr,
+                                                   MTSafety                   in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         const Anvil::DescriptorSetInfo* get_info() const
         {
@@ -77,12 +77,25 @@ namespace Anvil
          *
          *  @return As per description.
          **/
-        VkDescriptorSetLayout get_layout()
+        VkDescriptorSetLayout get_layout() const
         {
             anvil_assert(m_layout != VK_NULL_HANDLE);
 
             return m_layout;
         }
+
+        /* Checks if the specified descriptor set layout create info structure can be used to create a descriptor set layout instance.
+         *
+         * The app should call this function if the DS create info structure defines a number of descriptors that exceeds the 
+         * VkPhysicalDeviceMaintenance3PropertiesKHR::maxPerSetDescriptors limit.
+         *
+         * Requires VK_KHR_maintenance3.
+         *
+         * @param in_ds_create_info_ptr Instance obtained by calling DescriptorSetInfo::create_descriptor_set_layout_create_info().
+         *                              Must not be null.
+         */
+        static bool meets_max_per_set_descriptors_limit(const DescriptorSetLayoutCreateInfoContainer* in_ds_create_info_ptr,
+                                                        const Anvil::BaseDevice*                      in_device_ptr);
 
     private:
         /* Private functions */
@@ -97,19 +110,17 @@ namespace Anvil
         bool init();
 
         /* Please see create() documentation for more details */
-        DescriptorSetLayout(std::unique_ptr<Anvil::DescriptorSetInfo> in_ds_info_ptr,
-                            std::weak_ptr<Anvil::BaseDevice>          in_device_ptr,
-                            bool                                      in_mt_safe);
+        DescriptorSetLayout(DescriptorSetInfoUniquePtr in_ds_info_ptr,
+                            const Anvil::BaseDevice*   in_device_ptr,
+                            bool                       in_mt_safe);
 
         DescriptorSetLayout           (const DescriptorSetLayout&);
         DescriptorSetLayout& operator=(const DescriptorSetLayout&);
 
         /* Private variables */
-        std::weak_ptr<Anvil::BaseDevice>                m_device_ptr;
-        std::unique_ptr<const Anvil::DescriptorSetInfo> m_info_ptr;
-        VkDescriptorSetLayout                           m_layout;
-
-        friend class std::shared_ptr<Anvil::DescriptorSetLayout>;
+        const Anvil::BaseDevice*   m_device_ptr;
+        DescriptorSetInfoUniquePtr m_info_ptr;
+        VkDescriptorSetLayout      m_layout;
     };
 }; /* namespace Anvil */
 

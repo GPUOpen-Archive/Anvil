@@ -38,8 +38,8 @@ namespace Anvil
         /* Public functions */
 
         /** Constructor. */
-        DebugMarkerSupportProviderWorker(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                         VkDebugReportObjectTypeEXT       in_vk_object_type);
+        DebugMarkerSupportProviderWorker(const Anvil::BaseDevice*   in_device_ptr,
+                                         VkDebugReportObjectTypeEXT in_vk_object_type);
 
         /** Destructor. */
         ~DebugMarkerSupportProviderWorker()
@@ -109,13 +109,13 @@ namespace Anvil
 
     private:
         /* Private variables */
-        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
-        bool                             m_is_ext_debug_marker_available;
-        std::string                      m_object_name;
-        std::vector<char>                m_object_tag_data;
-        uint64_t                         m_object_tag_name;
-        uint64_t                         m_vk_object_handle;
-        VkDebugReportObjectTypeEXT       m_vk_object_type;
+        const Anvil::BaseDevice*   m_device_ptr;
+        bool                       m_is_ext_debug_marker_available;
+        std::string                m_object_name;
+        std::vector<char>          m_object_tag_data;
+        uint64_t                   m_object_tag_name;
+        uint64_t                   m_vk_object_handle;
+        VkDebugReportObjectTypeEXT m_vk_object_type;
     };
 
     /** This class needs to be inherited from by all wrapper classes that wrap Vulkan objects.
@@ -150,11 +150,13 @@ namespace Anvil
          *                                True to permit more than one handle to be used.
          *
          **/
-        DebugMarkerSupportProvider(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                   VkDebugReportObjectTypeEXT       in_vk_object_type,
-                                   bool                             in_use_delegate_workers = false)
+        DebugMarkerSupportProvider(const Anvil::BaseDevice*   in_device_ptr,
+                                   VkDebugReportObjectTypeEXT in_vk_object_type,
+                                   bool                       in_use_delegate_workers = false)
         {
-            anvil_assert(!in_device_ptr.expired() );
+            anvil_assert(in_device_ptr != nullptr);
+
+            m_device_ptr = in_device_ptr;
 
             if (!in_use_delegate_workers)
             {
@@ -165,7 +167,6 @@ namespace Anvil
             }
             else
             {
-                m_device_ptr     = in_device_ptr;
                 m_vk_object_type = in_vk_object_type;
             }
         }
@@ -187,27 +188,35 @@ namespace Anvil
          */
         void add_delegate(uint64_t in_vk_object_handle)
         {
-            std::shared_ptr<Anvil::DebugMarkerSupportProviderWorker> new_delegate_ptr;
+            Anvil::DebugMarkerSupportProviderWorker* new_delegate_raw_ptr = nullptr;
 
-            anvil_assert(m_worker_ptr == nullptr);
-
-            #ifdef _DEBUG
             {
-                for (auto delegate_ptr : m_delegate_workers)
+                std::unique_ptr<Anvil::DebugMarkerSupportProviderWorker> new_delegate_ptr;
+
+                anvil_assert(m_worker_ptr == nullptr);
+
+                #ifdef _DEBUG
                 {
-                    anvil_assert(delegate_ptr->get_vk_handle_internal() != in_vk_object_handle);
+                    for (auto& delegate_ptr : m_delegate_workers)
+                    {
+                        anvil_assert(delegate_ptr->get_vk_handle_internal() != in_vk_object_handle);
+                    }
                 }
+                #endif
+
+                new_delegate_ptr.reset(
+                    new Anvil::DebugMarkerSupportProviderWorker(m_device_ptr,
+                                                                m_vk_object_type)
+                );
+
+                new_delegate_ptr->set_vk_handle_internal(in_vk_object_handle);
+
+                new_delegate_raw_ptr = new_delegate_ptr.get();
+
+                m_delegate_workers.push_back(
+                    std::move(new_delegate_ptr)
+                );
             }
-            #endif
-
-            new_delegate_ptr.reset(
-                new Anvil::DebugMarkerSupportProviderWorker(m_device_ptr,
-                                                            m_vk_object_type)
-            );
-
-            new_delegate_ptr->set_vk_handle_internal(in_vk_object_handle);
-
-            m_delegate_workers.push_back(new_delegate_ptr);
 
             if (m_delegate_workers.size() > 1)
             {
@@ -220,13 +229,13 @@ namespace Anvil
                 existing_delegate_worker_ptr->get_tag(&existing_delegate_worker_tag_data_ptr,
                                                       &existing_delegate_worker_tag_name);
 
-                new_delegate_ptr->set_name_internal(existing_delegate_worker_name.c_str() );
+                new_delegate_raw_ptr->set_name_internal(existing_delegate_worker_name.c_str() );
 
                 if (existing_delegate_worker_tag_data_ptr->size() > 0)
                 {
-                    new_delegate_ptr->set_tag_internal (existing_delegate_worker_tag_name,
-                                                        existing_delegate_worker_tag_data_ptr->size(),
-                                                       &existing_delegate_worker_tag_data_ptr->at(0) );
+                    new_delegate_raw_ptr->set_tag_internal (existing_delegate_worker_tag_name,
+                                                            existing_delegate_worker_tag_data_ptr->size(),
+                                                           &existing_delegate_worker_tag_data_ptr->at(0) );
                 }
             }
         }
@@ -248,7 +257,7 @@ namespace Anvil
          */
         void remove_delegate(uint64_t in_vk_object_handle)
         {
-            std::vector<std::shared_ptr<DebugMarkerSupportProviderWorker> >::iterator worker_iterator;
+            std::vector<std::unique_ptr<DebugMarkerSupportProviderWorker> >::iterator worker_iterator;
 
             anvil_assert(m_worker_ptr == nullptr);
 
@@ -256,7 +265,7 @@ namespace Anvil
                  worker_iterator != m_delegate_workers.end();
                ++worker_iterator)
             {
-                auto current_worker_ptr = *worker_iterator;
+                auto& current_worker_ptr = *worker_iterator;
 
                 if (current_worker_ptr->get_vk_handle_internal() == in_vk_object_handle)
                 {
@@ -293,7 +302,7 @@ namespace Anvil
             }
             else
             {
-                for (auto worker_ptr : m_delegate_workers)
+                for (auto& worker_ptr : m_delegate_workers)
                 {
                     worker_ptr->set_name_internal(in_object_name);
                 }
@@ -329,7 +338,7 @@ namespace Anvil
             }
             else
             {
-                for (auto worker_ptr : m_delegate_workers)
+                for (auto& worker_ptr : m_delegate_workers)
                 {
                     worker_ptr->set_name_internal(buffer);
                 }
@@ -357,7 +366,7 @@ namespace Anvil
             }
             else
             {
-                for (auto worker_ptr : m_delegate_workers)
+                for (auto& worker_ptr : m_delegate_workers)
                 {
                     worker_ptr->set_tag_internal(in_tag_name,
                                                  in_tag_size,
@@ -393,13 +402,14 @@ namespace Anvil
         /* Private variables */
 
         /* Only used if delegate workers have been requested at creation time: ==> */
-        std::vector<std::shared_ptr<DebugMarkerSupportProviderWorker> > m_delegate_workers;
-        std::weak_ptr<Anvil::BaseDevice>                                m_device_ptr;
+        std::vector<std::unique_ptr<DebugMarkerSupportProviderWorker> > m_delegate_workers;
+        const Anvil::BaseDevice*                                        m_device_ptr;
         VkDebugReportObjectTypeEXT                                      m_vk_object_type;
+
         /* <== */
 
         /* Otherwise: ==> */
-        std::shared_ptr<DebugMarkerSupportProviderWorker> m_worker_ptr;
+        std::unique_ptr<DebugMarkerSupportProviderWorker> m_worker_ptr;
         /* <== */
 
         friend Wrapper;

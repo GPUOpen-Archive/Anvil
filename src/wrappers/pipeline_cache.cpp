@@ -27,19 +27,18 @@
 
 
 /** Please see header for specification */
-Anvil::PipelineCache::PipelineCache(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                    bool                             in_mt_safe,
-                                    size_t                           in_initial_data_size,
-                                    const void*                      in_initial_data)
+Anvil::PipelineCache::PipelineCache(const Anvil::BaseDevice* in_device_ptr,
+                                    bool                     in_mt_safe,
+                                    size_t                   in_initial_data_size,
+                                    const void*              in_initial_data)
     :DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_CACHE_EXT),
      MTSafetySupportProvider   (in_mt_safe),
      m_device_ptr              (in_device_ptr),
      m_pipeline_cache          (VK_NULL_HANDLE)
 {
-    VkPipelineCacheCreateInfo          cache_create_info;
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(in_device_ptr);
-    VkResult                           result_vk        (VK_ERROR_INITIALIZATION_FAILED);
+    VkPipelineCacheCreateInfo cache_create_info;
+    VkResult                  result_vk        (VK_ERROR_INITIALIZATION_FAILED);
 
     ANVIL_REDUNDANT_VARIABLE(result_vk);
 
@@ -49,7 +48,7 @@ Anvil::PipelineCache::PipelineCache(std::weak_ptr<Anvil::BaseDevice> in_device_p
     cache_create_info.pNext           = nullptr;
     cache_create_info.sType           = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
 
-    result_vk = vkCreatePipelineCache(device_locked_ptr->get_device_vk(),
+    result_vk = vkCreatePipelineCache(m_device_ptr->get_device_vk(),
                                      &cache_create_info,
                                       nullptr, /* pAllocator */
                                      &m_pipeline_cache);
@@ -76,11 +75,9 @@ Anvil::PipelineCache::~PipelineCache()
 
     if (m_pipeline_cache != VK_NULL_HANDLE)
     {
-        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-
         lock();
         {
-            vkDestroyPipelineCache(device_locked_ptr->get_device_vk(),
+            vkDestroyPipelineCache(m_device_ptr->get_device_vk(),
                                    m_pipeline_cache,
                                    nullptr /* pAllocator */);
         }
@@ -91,12 +88,13 @@ Anvil::PipelineCache::~PipelineCache()
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::PipelineCache> Anvil::PipelineCache::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                                   bool                             in_mt_safe,
-                                                                   size_t                           in_initial_data_size,
-                                                                   const void*                      in_initial_data)
+Anvil::PipelineCacheUniquePtr Anvil::PipelineCache::create(const Anvil::BaseDevice* in_device_ptr,
+                                                           bool                     in_mt_safe,
+                                                           size_t                   in_initial_data_size,
+                                                           const void*              in_initial_data)
 {
-    std::shared_ptr<Anvil::PipelineCache> result_ptr;
+    PipelineCacheUniquePtr result_ptr(nullptr,
+                                      std::default_delete<PipelineCache>() );
 
     result_ptr.reset(
         new Anvil::PipelineCache(in_device_ptr,
@@ -112,10 +110,9 @@ std::shared_ptr<Anvil::PipelineCache> Anvil::PipelineCache::create(std::weak_ptr
 bool Anvil::PipelineCache::get_data(size_t*      out_n_data_bytes_ptr,
                                     const void** out_data_ptr)
 {
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-    VkResult                           result_vk;
+    VkResult result_vk;
 
-    result_vk = vkGetPipelineCacheData(device_locked_ptr->get_device_vk(),
+    result_vk = vkGetPipelineCacheData(m_device_ptr->get_device_vk(),
                                        m_pipeline_cache,
                                        out_n_data_bytes_ptr,
                                        out_data_ptr);
@@ -126,12 +123,11 @@ bool Anvil::PipelineCache::get_data(size_t*      out_n_data_bytes_ptr,
 }
 
 /** Please see header for specification */
-bool Anvil::PipelineCache::merge(uint32_t                                           in_n_pipeline_caches,
-                                 std::shared_ptr<const Anvil::PipelineCache> const* in_src_cache_ptrs)
+bool Anvil::PipelineCache::merge(uint32_t                           in_n_pipeline_caches,
+                                 const Anvil::PipelineCache* const* in_src_cache_ptrs)
 {
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-    VkResult                           result_vk;
-    VkPipelineCache                    src_pipeline_caches[64];
+    VkResult                     result_vk;
+    std::vector<VkPipelineCache> src_pipeline_caches(in_n_pipeline_caches);
 
     anvil_assert(in_n_pipeline_caches < sizeof(src_pipeline_caches) / sizeof(src_pipeline_caches[0]) );
 
@@ -145,10 +141,10 @@ bool Anvil::PipelineCache::merge(uint32_t                                       
 
     lock();
     {
-        result_vk = vkMergePipelineCaches(device_locked_ptr->get_device_vk(),
+        result_vk = vkMergePipelineCaches(m_device_ptr->get_device_vk(),
                                           m_pipeline_cache,
                                           in_n_pipeline_caches,
-                                          src_pipeline_caches);
+                                         &src_pipeline_caches.at(0) );
     }
     unlock();
 

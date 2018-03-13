@@ -19,7 +19,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
-
+#include "misc/types.h"
+#include "wrappers/memory_block.h"
 #include "misc/debug.h"
 #include "misc/page_tracker.h"
 
@@ -38,11 +39,11 @@ Anvil::PageTracker::PageTracker(VkDeviceSize in_region_size,
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::MemoryBlock> Anvil::PageTracker::get_memory_block(VkDeviceSize  in_start_offset,
-                                                                         VkDeviceSize  in_size,
-                                                                         VkDeviceSize* out_memory_region_start_offset_ptr) const
+Anvil::MemoryBlock* Anvil::PageTracker::get_memory_block(VkDeviceSize  in_start_offset,
+                                                         VkDeviceSize  in_size,
+                                                         VkDeviceSize* out_memory_region_start_offset_ptr) const
 {
-    std::shared_ptr<Anvil::MemoryBlock> result_ptr;
+    Anvil::MemoryBlock* result_ptr = nullptr;
 
     if (in_size > m_page_size)
     {
@@ -69,10 +70,10 @@ end:
 }
 
 /** Please see header for specification */
-bool Anvil::PageTracker::set_binding(std::shared_ptr<MemoryBlock> in_memory_block_ptr,
-                                     VkDeviceSize                 in_memory_block_start_offset,
-                                     VkDeviceSize                 in_start_offset,
-                                     VkDeviceSize                 in_size)
+bool Anvil::PageTracker::set_binding(MemoryBlock* in_memory_block_ptr,
+                                     VkDeviceSize in_memory_block_start_offset,
+                                     VkDeviceSize in_start_offset,
+                                     VkDeviceSize in_size)
 {
     const auto end_offset_page_aligned    = Anvil::Utils::round_up(in_start_offset + in_size,
                                                                    m_page_size);

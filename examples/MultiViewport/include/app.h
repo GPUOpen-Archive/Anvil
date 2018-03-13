@@ -50,16 +50,16 @@ private:
     void init_window         ();
     void init_vulkan         ();
 
-    VkFormat                       get_mesh_color_data_format      ()                       const;
-    uint32_t                       get_mesh_color_data_n_components()                       const;
-    uint32_t                       get_mesh_color_data_start_offset (uint32_t n_stream,
-                                                                     uint32_t n_vertex = 0) const;
-    std::shared_ptr<unsigned char> get_mesh_data                    ()                      const;
-    uint32_t                       get_mesh_data_size               ()                      const;
-    uint32_t                       get_mesh_n_vertices              ()                      const;
-    VkFormat                       get_mesh_vertex_data_format      ()                      const;
-    uint32_t                       get_mesh_vertex_data_n_components()                      const;
-    uint32_t                       get_mesh_vertex_data_start_offset(uint32_t n_vertex = 0) const;
+    VkFormat                   get_mesh_color_data_format      ()                       const;
+    uint32_t                   get_mesh_color_data_n_components()                       const;
+    uint32_t                   get_mesh_color_data_start_offset (uint32_t n_stream,
+                                                                 uint32_t n_vertex = 0) const;
+    std::unique_ptr<uint8_t[]> get_mesh_data                    ()                      const;
+    uint32_t                   get_mesh_data_size               ()                      const;
+    uint32_t                   get_mesh_n_vertices              ()                      const;
+    VkFormat                   get_mesh_vertex_data_format      ()                      const;
+    uint32_t                   get_mesh_vertex_data_n_components()                      const;
+    uint32_t                   get_mesh_vertex_data_start_offset(uint32_t n_vertex = 0) const;
 
     void get_scissor_viewport_info(VkRect2D*   out_scissors,
                                    VkViewport* out_viewports);
@@ -71,27 +71,27 @@ private:
                                     const char*                message);
 
     /* Private variables */
-    std::weak_ptr<Anvil::SGPUDevice>         m_device_ptr;
-    std::shared_ptr<Anvil::Instance>         m_instance_ptr;
-    std::weak_ptr<Anvil::PhysicalDevice>     m_physical_device_ptr;
-    std::shared_ptr<Anvil::Queue>            m_present_queue_ptr;
-    std::shared_ptr<Anvil::RenderingSurface> m_rendering_surface_ptr;
-    std::shared_ptr<Anvil::Swapchain>        m_swapchain_ptr;
-    std::shared_ptr<Anvil::Window>           m_window_ptr;
+    Anvil::SGPUDeviceUniquePtr       m_device_ptr;
+    Anvil::InstanceUniquePtr         m_instance_ptr;
+    const Anvil::PhysicalDevice*     m_physical_device_ptr;
+    Anvil::Queue*                    m_present_queue_ptr;
+    Anvil::RenderingSurfaceUniquePtr m_rendering_surface_ptr;
+    Anvil::SwapchainUniquePtr        m_swapchain_ptr;
+    Anvil::WindowUniquePtr           m_window_ptr;
 
-    std::shared_ptr<Anvil::PrimaryCommandBuffer>        m_command_buffers[N_SWAPCHAIN_IMAGES];
-    std::shared_ptr<Anvil::Framebuffer>                 m_fbos           [N_SWAPCHAIN_IMAGES];
-    std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_fs_ptr;
-    std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_gs_ptr;
+    Anvil::PrimaryCommandBufferUniquePtr                m_command_buffers[N_SWAPCHAIN_IMAGES];
+    Anvil::FramebufferUniquePtr                         m_fbos           [N_SWAPCHAIN_IMAGES];
+    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_fs_ptr;
+    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_gs_ptr;
     Anvil::PipelineID                                   m_pipeline_id;
-    std::shared_ptr<Anvil::RenderPass>                  m_renderpass_ptr;
-    std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_vs_ptr;
-
-    std::shared_ptr<Anvil::Buffer>      m_mesh_data_buffer_ptr;
+    Anvil::RenderPassUniquePtr                          m_renderpass_ptr;
+    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_vs_ptr;
+    
+    Anvil::BufferUniquePtr m_mesh_data_buffer_ptr;
 
     uint32_t       m_n_last_semaphore_used;
     const uint32_t m_n_swapchain_images;
 
-    std::vector<std::shared_ptr<Anvil::Semaphore> > m_frame_signal_semaphores;
-    std::vector<std::shared_ptr<Anvil::Semaphore> > m_frame_wait_semaphores;
+    std::vector<Anvil::SemaphoreUniquePtr> m_frame_signal_semaphores;
+    std::vector<Anvil::SemaphoreUniquePtr> m_frame_wait_semaphores;
 };

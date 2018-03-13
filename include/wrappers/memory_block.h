@@ -39,15 +39,25 @@
 #include "misc/mt_safety.h"
 #include "misc/types.h"
 
-
 namespace Anvil
 {
     /** "About to be deleted" call-back function prototype. */
     typedef std::function<void (Anvil::MemoryBlock* in_memory_block_ptr)> OnMemoryBlockReleaseCallbackFunction;
 
+    typedef class IMemoryBlockBackendSupport
+    {
+    public:
+        virtual ~IMemoryBlockBackendSupport()
+        {
+            /* Stub */
+        }
+
+        virtual void set_parent_memory_allocator_backend_ptr(std::shared_ptr<Anvil::IMemoryAllocatorBackendBase> in_backend_ptr) = 0;
+    } IMemoryBlockBackendSupport;
+
     /** Wrapper class for memory objects. Please see header for more details */
-    class MemoryBlock : public MTSafetySupportProvider,
-                        public std::enable_shared_from_this<MemoryBlock>
+    class MemoryBlock : public IMemoryBlockBackendSupport,
+                        public MTSafetySupportProvider
     {
     public:
         /* Public functions */
@@ -59,11 +69,11 @@ namespace Anvil
          *  @param in_size                     Required allocation size.
          *  @param in_memory_features          Required memory features.
          **/
-         static std::shared_ptr<MemoryBlock> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                    uint32_t                         in_allowed_memory_bits,
-                                                    VkDeviceSize                     in_size,
-                                                    Anvil::MemoryFeatureFlags        in_memory_features,
-                                                    MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+         static MemoryBlockUniquePtr create(const Anvil::BaseDevice*  in_device_ptr,
+                                            uint32_t                  in_allowed_memory_bits,
+                                            VkDeviceSize              in_size,
+                                            Anvil::MemoryFeatureFlags in_memory_features,
+                                            MTSafety                  in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Create a memory block whose storage space is maintained by another MemoryBlock instance.
          *
@@ -76,9 +86,9 @@ namespace Anvil
          *                                    storage size.
          *  @param in_size                    Region size to use for the derived memory block.
          **/
-        static std::shared_ptr<MemoryBlock> create_derived(std::shared_ptr<MemoryBlock> in_parent_memory_block_ptr,
-                                                           VkDeviceSize                 in_start_offset,
-                                                           VkDeviceSize                 in_size);
+        static MemoryBlockUniquePtr create_derived(MemoryBlock* in_parent_memory_block_ptr,
+                                                   VkDeviceSize in_start_offset,
+                                                   VkDeviceSize in_size);
 
         /** Create a memory block whose lifetime is maintained by a separate entity. While the memory block remains reference-counted
          *  as usual, the destruction process is carried out by an external party via the specified call-back.
@@ -88,14 +98,14 @@ namespace Anvil
          *
          *  TODO
          */
-        static std::shared_ptr<MemoryBlock> create_derived_with_custom_delete_proc(std::weak_ptr<Anvil::BaseDevice>     in_device_ptr,
-                                                                                   VkDeviceMemory                       in_memory,
-                                                                                   uint32_t                             in_allowed_memory_bits,
-                                                                                   Anvil::MemoryFeatureFlags            in_memory_features,
-                                                                                   uint32_t                             in_memory_type_index,
-                                                                                   VkDeviceSize                         in_size,
-                                                                                   VkDeviceSize                         in_start_offset,
-                                                                                   OnMemoryBlockReleaseCallbackFunction in_on_release_callback_function);
+        static MemoryBlockUniquePtr create_derived_with_custom_delete_proc(const Anvil::BaseDevice*             in_device_ptr,
+                                                                           VkDeviceMemory                       in_memory,
+                                                                           uint32_t                             in_allowed_memory_bits,
+                                                                           Anvil::MemoryFeatureFlags            in_memory_features,
+                                                                           uint32_t                             in_memory_type_index,
+                                                                           VkDeviceSize                         in_size,
+                                                                           VkDeviceSize                         in_start_offset,
+                                                                           OnMemoryBlockReleaseCallbackFunction in_on_release_callback_function);
 
         /** Releases the Vulkan counterpart and unregisters the wrapper instance from the object tracker */
         virtual ~MemoryBlock();
@@ -140,7 +150,7 @@ namespace Anvil
         }
 
         /* Returns parent memory block, if one has been defined for this instance */
-        std::shared_ptr<Anvil::MemoryBlock> get_parent_memory_block() const
+        const Anvil::MemoryBlock* get_parent_memory_block() const
         {
             return m_parent_memory_block_ptr;
         }
@@ -168,7 +178,7 @@ namespace Anvil
          *  @param in_memory_block_ptr
          *
          *  @return true if intersection has been detected, false otherwise. */
-        bool intersects(std::shared_ptr<const Anvil::MemoryBlock> in_memory_block_ptr) const;
+        bool intersects(const Anvil::MemoryBlock* in_memory_block_ptr) const;
 
         /** Maps the specified region of the underlying memory object to the process space.
          *
@@ -239,19 +249,19 @@ namespace Anvil
         bool init();
 
         /** Please see create() for documentation */
-        MemoryBlock(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                    uint32_t                         in_allowed_memory_bits,
-                    VkDeviceSize                     in_size,
-                    Anvil::MemoryFeatureFlags        in_memory_features,
-                    bool                             in_mt_safe);
+        MemoryBlock(MemoryBlock* in_parent_memory_block_ptr,
+                    VkDeviceSize in_start_offset,
+                    VkDeviceSize in_size);
 
         /** Please see create() for documentation */
-        MemoryBlock(std::shared_ptr<MemoryBlock> in_parent_memory_block_ptr,
-                    VkDeviceSize                 in_start_offset,
-                    VkDeviceSize                 in_size);
+        MemoryBlock(const Anvil::BaseDevice*  in_device_ptr,
+                    uint32_t                  in_allowed_memory_bits,
+                    VkDeviceSize              in_size,
+                    Anvil::MemoryFeatureFlags in_memory_features,
+                    bool                      in_mt_safe);
 
         /** Please see create_derived_with_custom_delete_proc() for documentation */
-        MemoryBlock(std::weak_ptr<Anvil::BaseDevice>     in_device_ptr,
+        MemoryBlock(const Anvil::BaseDevice*             in_device_ptr,
                     VkDeviceMemory                       in_memory,
                     uint32_t                             in_allowed_memory_bits,
                     Anvil::MemoryFeatureFlags            in_memory_features,
@@ -268,20 +278,30 @@ namespace Anvil
                                               Anvil::MemoryFeatureFlags in_memory_features);
         bool     open_gpu_memory_access      ();
 
+        /* IMemoryBlockBackendSupport */
+        void set_parent_memory_allocator_backend_ptr(std::shared_ptr<Anvil::IMemoryAllocatorBackendBase> in_backend_ptr)
+        {
+            anvil_assert(m_parent_memory_allocator_backend_ptr == nullptr);
+
+            m_parent_memory_allocator_backend_ptr = in_backend_ptr;
+        }
+
         /* Private members */
         OnMemoryBlockReleaseCallbackFunction m_on_release_callback_function;
 
         std::atomic<uint32_t> m_gpu_data_map_count; /* Only set for root memory blocks */
         void*                 m_gpu_data_ptr;       /* Only set for root memory blocks */
 
-        uint32_t                            m_allowed_memory_bits;
-        std::weak_ptr<Anvil::BaseDevice>    m_device_ptr;
-        VkDeviceMemory                      m_memory;
-        Anvil::MemoryFeatureFlags           m_memory_features;
-        uint32_t                            m_memory_type_index;
-        std::shared_ptr<Anvil::MemoryBlock> m_parent_memory_block_ptr;
-        VkDeviceSize                        m_size;
-        VkDeviceSize                        m_start_offset;
+        uint32_t                  m_allowed_memory_bits;
+        const Anvil::BaseDevice*  m_device_ptr;
+        VkDeviceMemory            m_memory;
+        Anvil::MemoryFeatureFlags m_memory_features;
+        uint32_t                  m_memory_type_index;
+        Anvil::MemoryBlock*       m_parent_memory_block_ptr;
+        VkDeviceSize              m_size;
+        VkDeviceSize              m_start_offset;
+
+        std::shared_ptr<Anvil::IMemoryAllocatorBackendBase> m_parent_memory_allocator_backend_ptr;
     };
 }; /* Vulkan namespace */
 

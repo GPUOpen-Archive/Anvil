@@ -52,10 +52,10 @@ namespace Anvil
          *                                     for this query pool.
          *
          **/
-        static std::shared_ptr<QueryPool> create_non_ps_query_pool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                                   VkQueryType                      in_query_type,
-                                                                   uint32_t                         in_n_max_concurrent_queries,
-                                                                   MTSafety                         in_mt_safety                = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::QueryPoolUniquePtr create_non_ps_query_pool(const Anvil::BaseDevice* in_device_ptr,
+                                                                  VkQueryType              in_query_type,
+                                                                  uint32_t                 in_n_max_concurrent_queries,
+                                                                  MTSafety                 in_mt_safety                = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a new pipeline statistics query pool.
          *
@@ -67,10 +67,10 @@ namespace Anvil
          *  @param in_n_max_concurrent_queries Number of queries to preallocate in the pool.
          *
          **/
-        static std::shared_ptr<QueryPool> create_ps_query_pool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                               VkQueryPipelineStatisticFlags    in_pipeline_statistics,
-                                                               uint32_t                         in_n_max_concurrent_queries,
-                                                               MTSafety                         in_mt_safety                = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::QueryPoolUniquePtr create_ps_query_pool(const Anvil::BaseDevice*      in_device_ptr,
+                                                              VkQueryPipelineStatisticFlags in_pipeline_statistics,
+                                                              uint32_t                      in_n_max_concurrent_queries,
+                                                              MTSafety                      in_mt_safety                = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Destructor */
         virtual ~QueryPool();
@@ -90,35 +90,33 @@ namespace Anvil
 
     private:
         /* Constructor. Please see corresponding create() for specification */
-        explicit QueryPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                           VkQueryType                      in_query_type,
-                           uint32_t                         in_n_max_concurrent_queries,
-                           bool                             in_mt_safe);
+        explicit QueryPool(const Anvil::BaseDevice* in_device_ptr,
+                           VkQueryType              in_query_type,
+                           uint32_t                 in_n_max_concurrent_queries,
+                           bool                     in_mt_safe);
 
         /* Constructor. Please see corresponding create() for specification */
-        explicit QueryPool(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                           VkQueryType                      in_query_type,
-                           VkFlags                          in_query_flags,
-                           uint32_t                         in_n_max_concurrent_queries,
-                           bool                             in_mt_safe);
+        explicit QueryPool(const Anvil::BaseDevice* in_device_ptr,
+                           VkQueryType              in_query_type,
+                           VkFlags                  in_query_flags,
+                           uint32_t                 in_n_max_concurrent_queries,
+                           bool                     in_mt_safe);
 
         /** Initializes the Vulkan counterpart.
          *
-         *  @param in_device_ptr               Device to create the query pool for. Must not be nullptr.
          *  @param in_query_type               Type of the query to instantiate the pool for.
          *  @param in_flags                    Query flags to instantiate the pool with.
          *  @param in_n_max_concurrent_queries Maximum number of queries which can be used concurrently with
          *                                     the query pool.
          **/
-        void init(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                  VkQueryType                      in_query_type,
-                  VkFlags                          in_flags,
-                  uint32_t                         in_n_max_concurrent_queries);
+        void init(VkQueryType in_query_type,
+                  VkFlags     in_flags,
+                  uint32_t    in_n_max_concurrent_queries);
 
         /* Private variables */
-        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
-        uint32_t                         m_n_max_indices;
-        VkQueryPool                      m_query_pool_vk;
+        const Anvil::BaseDevice* m_device_ptr;
+        uint32_t                 m_n_max_indices;
+        VkQueryPool              m_query_pool_vk;
     };
 }; /* namespace Anvil */
 

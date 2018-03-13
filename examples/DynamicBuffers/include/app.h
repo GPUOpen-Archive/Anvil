@@ -66,45 +66,45 @@ private:
                                    uint32_t* out_opt_offset_data_offset_ptr = nullptr);
 
     /* Private variables */
-    std::weak_ptr<Anvil::SGPUDevice>         m_device_ptr;
-    std::shared_ptr<Anvil::Instance>         m_instance_ptr;
-    std::weak_ptr<Anvil::PhysicalDevice>     m_physical_device_ptr;
-    std::shared_ptr<Anvil::Queue>            m_present_queue_ptr;
-    std::shared_ptr<Anvil::RenderingSurface> m_rendering_surface_ptr;
-    std::shared_ptr<Anvil::Swapchain>        m_swapchain_ptr;
-    Anvil::Time                              m_time;
-    std::shared_ptr<Anvil::Window>           m_window_ptr;
+    Anvil::SGPUDeviceUniquePtr        m_device_ptr;
+    Anvil::InstanceUniquePtr          m_instance_ptr;
+    const Anvil::PhysicalDevice*      m_physical_device_ptr;
+    Anvil::Queue*                     m_present_queue_ptr;
+    Anvil::RenderingSurfaceUniquePtr  m_rendering_surface_ptr;
+    Anvil::SwapchainUniquePtr         m_swapchain_ptr;
+    Anvil::Time                       m_time;
+    Anvil::WindowUniquePtr            m_window_ptr;
 
-    std::shared_ptr<Anvil::DescriptorSetGroup> m_consumer_dsg_ptr;
-    std::shared_ptr<Anvil::DescriptorSetGroup> m_producer_dsg_ptr;
+    Anvil::DescriptorSetGroupUniquePtr m_consumer_dsg_ptr;
+    Anvil::DescriptorSetGroupUniquePtr m_producer_dsg_ptr;
 
-    std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_consumer_fs_ptr;
-    std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_consumer_vs_ptr;
-    std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_producer_cs_ptr;
+    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_consumer_fs_ptr;
+    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_consumer_vs_ptr;
+    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_producer_cs_ptr;
 
-    Anvil::PipelineID                  m_consumer_pipeline_id;
-    std::shared_ptr<Anvil::RenderPass> m_consumer_render_pass_ptr;
-    Anvil::PipelineID                  m_producer_pipeline_id;
+    Anvil::PipelineID          m_consumer_pipeline_id;
+    Anvil::RenderPassUniquePtr m_consumer_render_pass_ptr;
+    Anvil::PipelineID          m_producer_pipeline_id;
 
-    std::shared_ptr<Anvil::PrimaryCommandBuffer> m_command_buffers  [N_SWAPCHAIN_IMAGES];
-    std::shared_ptr<Anvil::Image>                m_depth_images     [N_SWAPCHAIN_IMAGES];
-    std::shared_ptr<Anvil::ImageView>            m_depth_image_views[N_SWAPCHAIN_IMAGES];
-    std::shared_ptr<Anvil::Framebuffer>          m_fbos             [N_SWAPCHAIN_IMAGES];
+    Anvil::PrimaryCommandBufferUniquePtr m_command_buffers  [N_SWAPCHAIN_IMAGES];
+    Anvil::ImageUniquePtr                m_depth_images     [N_SWAPCHAIN_IMAGES];
+    Anvil::ImageViewUniquePtr            m_depth_image_views[N_SWAPCHAIN_IMAGES];
+    Anvil::FramebufferUniquePtr          m_fbos             [N_SWAPCHAIN_IMAGES];
 
-    std::shared_ptr<Anvil::Buffer> m_sine_color_buffer_ptr;        /* N_SINE_PAIRS * 2 * vec2; data stored as R8G8_UNORM */
-    VkDeviceSize                   m_sine_color_buffer_size;
-    std::shared_ptr<Anvil::Buffer> m_sine_data_buffer_ptr;
-    std::vector<VkDeviceSize>      m_sine_data_buffer_offsets;
-    VkDeviceSize                   m_sine_data_buffer_size;
-    std::shared_ptr<Anvil::Buffer> m_sine_offset_data_buffer_ptr;
-    std::vector<VkDeviceSize>      m_sine_offset_data_buffer_offsets;
-    VkDeviceSize                   m_sine_offset_data_buffer_size;
-    std::shared_ptr<Anvil::Buffer> m_sine_props_data_buffer_ptr;
-    VkDeviceSize                   m_sine_props_data_buffer_size_per_swapchain_image;
+    Anvil::BufferUniquePtr    m_sine_color_buffer_ptr;        /* N_SINE_PAIRS * 2 * vec2; data stored as R8G8_UNORM */
+    VkDeviceSize              m_sine_color_buffer_size;
+    Anvil::BufferUniquePtr    m_sine_data_buffer_ptr;
+    std::vector<VkDeviceSize> m_sine_data_buffer_offsets;
+    VkDeviceSize              m_sine_data_buffer_size;
+    Anvil::BufferUniquePtr    m_sine_offset_data_buffer_ptr;
+    std::vector<VkDeviceSize> m_sine_offset_data_buffer_offsets;
+    VkDeviceSize              m_sine_offset_data_buffer_size;
+    Anvil::BufferUniquePtr    m_sine_props_data_buffer_ptr;
+    VkDeviceSize              m_sine_props_data_buffer_size_per_swapchain_image;
 
     uint32_t       m_n_last_semaphore_used;
     const uint32_t m_n_swapchain_images;
 
-    std::vector<std::shared_ptr<Anvil::Semaphore> > m_frame_signal_semaphores;
-    std::vector<std::shared_ptr<Anvil::Semaphore> > m_frame_wait_semaphores;
+    std::vector<Anvil::SemaphoreUniquePtr> m_frame_signal_semaphores;
+    std::vector<Anvil::SemaphoreUniquePtr> m_frame_wait_semaphores;
 };

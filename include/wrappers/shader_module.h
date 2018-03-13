@@ -40,8 +40,7 @@ namespace Anvil
     class GLSLShaderToSPIRVGenerator;
 
     class ShaderModule : public DebugMarkerSupportProvider<ShaderModule>,
-                         public MTSafetySupportProvider,
-                         public std::enable_shared_from_this<ShaderModule>
+                         public MTSafetySupportProvider
     {
     public:
         /* Public functions */
@@ -55,9 +54,9 @@ namespace Anvil
          *  @param in_device_ptr          Device to use to instantiate the shader module. Must not be nullptr.
          *  @param in_spirv_generator_ptr SPIR-V generator, initialized with a GLSL shader body.
          **/
-        static std::shared_ptr<ShaderModule> create_from_spirv_generator(std::weak_ptr<Anvil::BaseDevice>            in_device_ptr,
-                                                                         std::shared_ptr<GLSLShaderToSPIRVGenerator> in_spirv_generator_ptr,
-                                                                         MTSafety                                    in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static ShaderModuleUniquePtr create_from_spirv_generator(const Anvil::BaseDevice*    in_device_ptr,
+                                                                 GLSLShaderToSPIRVGenerator* in_spirv_generator_ptr,
+                                                                 MTSafety                    in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a new shader module instance from a raw SPIR-V blob.
          *
@@ -80,26 +79,26 @@ namespace Anvil
          *  @param in_opt_vs_entrypoint_name Vertex shader stage entry-point, if one is defined in the blob.
          *                                   Otherwise, should be set to nullptr.
          **/
-        static std::shared_ptr<ShaderModule> create_from_spirv_blob(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                                    const char*                      in_spirv_blob,
-                                                                    uint32_t                         in_n_spirv_blob_bytes,
-                                                                    const char*                      in_opt_cs_entrypoint_name,
-                                                                    const char*                      in_opt_fs_entrypoint_name,
-                                                                    const char*                      in_opt_gs_entrypoint_name,
-                                                                    const char*                      in_opt_tc_entrypoint_name,
-                                                                    const char*                      in_opt_te_entrypoint_name,
-                                                                    const char*                      in_opt_vs_entrypoint_name,
-                                                                    MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
-        static std::shared_ptr<ShaderModule> create_from_spirv_blob(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                                    const char*                      in_spirv_blob,
-                                                                    uint32_t                         in_n_spirv_blob_bytes,
-                                                                    const std::string&               in_opt_cs_entrypoint_name,
-                                                                    const std::string&               in_opt_fs_entrypoint_name,
-                                                                    const std::string&               in_opt_gs_entrypoint_name,
-                                                                    const std::string&               in_opt_tc_entrypoint_name,
-                                                                    const std::string&               in_opt_te_entrypoint_name,
-                                                                    const std::string&               in_opt_vs_entrypoint_name,
-                                                                    MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+        static ShaderModuleUniquePtr create_from_spirv_blob(const Anvil::BaseDevice* in_device_ptr,
+                                                            const char*              in_spirv_blob,
+                                                            uint32_t                 in_n_spirv_blob_bytes,
+                                                            const char*              in_opt_cs_entrypoint_name,
+                                                            const char*              in_opt_fs_entrypoint_name,
+                                                            const char*              in_opt_gs_entrypoint_name,
+                                                            const char*              in_opt_tc_entrypoint_name,
+                                                            const char*              in_opt_te_entrypoint_name,
+                                                            const char*              in_opt_vs_entrypoint_name,
+                                                            MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static ShaderModuleUniquePtr create_from_spirv_blob(const Anvil::BaseDevice* in_device_ptr,
+                                                            const char*              in_spirv_blob,
+                                                            uint32_t                 in_n_spirv_blob_bytes,
+                                                            const std::string&       in_opt_cs_entrypoint_name,
+                                                            const std::string&       in_opt_fs_entrypoint_name,
+                                                            const std::string&       in_opt_gs_entrypoint_name,
+                                                            const std::string&       in_opt_tc_entrypoint_name,
+                                                            const std::string&       in_opt_te_entrypoint_name,
+                                                            const std::string&       in_opt_vs_entrypoint_name,
+                                                            MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
         {
             return create_from_spirv_blob(in_device_ptr,
                                           in_spirv_blob,
@@ -112,16 +111,16 @@ namespace Anvil
                                           in_opt_vs_entrypoint_name.c_str(),
                                           in_mt_safety);
         }
-        static std::shared_ptr<ShaderModule> create_from_spirv_blob(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                                    const uint32_t*                  in_spirv_blob,
-                                                                    uint32_t                         in_n_spirv_blob_uint32s,
-                                                                    const std::string&               in_opt_cs_entrypoint_name,
-                                                                    const std::string&               in_opt_fs_entrypoint_name,
-                                                                    const std::string&               in_opt_gs_entrypoint_name,
-                                                                    const std::string&               in_opt_tc_entrypoint_name,
-                                                                    const std::string&               in_opt_te_entrypoint_name,
-                                                                    const std::string&               in_opt_vs_entrypoint_name,
-                                                                    MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+        static ShaderModuleUniquePtr create_from_spirv_blob(const Anvil::BaseDevice* in_device_ptr,
+                                                            const uint32_t*          in_spirv_blob,
+                                                            uint32_t                 in_n_spirv_blob_uint32s,
+                                                            const std::string&       in_opt_cs_entrypoint_name,
+                                                            const std::string&       in_opt_fs_entrypoint_name,
+                                                            const std::string&       in_opt_gs_entrypoint_name,
+                                                            const std::string&       in_opt_tc_entrypoint_name,
+                                                            const std::string&       in_opt_te_entrypoint_name,
+                                                            const std::string&       in_opt_vs_entrypoint_name,
+                                                            MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
         {
             return create_from_spirv_blob(in_device_ptr,
                                           reinterpret_cast<const char*>(in_spirv_blob),
@@ -192,7 +191,7 @@ namespace Anvil
         }
 
         /** Returns the device, for which this shader module has been created. */
-        std::weak_ptr<Anvil::BaseDevice> get_parent_device() const
+        const Anvil::BaseDevice* get_parent_device() const
         {
             return m_device_ptr;
         }
@@ -238,19 +237,19 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. Please see create() for specification */
-        explicit ShaderModule(std::weak_ptr<Anvil::BaseDevice>            in_device_ptr,
-                              std::shared_ptr<GLSLShaderToSPIRVGenerator> in_spirv_generator_ptr,
-                              bool                                        in_mt_safe);
-        explicit ShaderModule(std::weak_ptr<Anvil::BaseDevice>            in_device_ptr,
-                              const char*                                 in_spirv_blob,
-                              uint32_t                                    in_n_spirv_blob_bytes,
-                              const std::string&                          in_opt_cs_entrypoint_name,
-                              const std::string&                          in_opt_fs_entrypoint_name,
-                              const std::string&                          in_opt_gs_entrypoint_name,
-                              const std::string&                          in_opt_tc_entrypoint_name,
-                              const std::string&                          in_opt_te_entrypoint_name,
-                              const std::string&                          in_opt_vs_entrypoint_name,
-                              bool                                        in_mt_safe);
+        explicit ShaderModule(const Anvil::BaseDevice*    in_device_ptr,
+                              GLSLShaderToSPIRVGenerator* in_spirv_generator_ptr,
+                              bool                        in_mt_safe);
+        explicit ShaderModule(const Anvil::BaseDevice*    in_device_ptr,
+                              const char*                 in_spirv_blob,
+                              uint32_t                    in_n_spirv_blob_bytes,
+                              const std::string&          in_opt_cs_entrypoint_name,
+                              const std::string&          in_opt_fs_entrypoint_name,
+                              const std::string&          in_opt_gs_entrypoint_name,
+                              const std::string&          in_opt_tc_entrypoint_name,
+                              const std::string&          in_opt_te_entrypoint_name,
+                              const std::string&          in_opt_vs_entrypoint_name,
+                              bool                        in_mt_safe);
 
         ShaderModule           (const ShaderModule&);
         ShaderModule& operator=(const ShaderModule&);
@@ -269,7 +268,7 @@ namespace Anvil
         bool init_from_spirv_blob(const char* in_spirv_blob,
                                   uint32_t    in_n_spirv_blob_bytes);
 
-        void on_object_about_to_be_released(void* in_callback_arg);
+        void on_device_about_to_be_released(void* in_callback_arg);
 
         /* Private variables */
         std::string m_cs_entrypoint_name;
@@ -279,11 +278,10 @@ namespace Anvil
         std::string m_te_entrypoint_name;
         std::string m_vs_entrypoint_name;
 
-        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
-        const Anvil::BaseDevice*         m_device_raw_ptr;
-        std::string                      m_glsl_source_code;
-        VkShaderModule                   m_module;
-        std::vector<uint32_t>            m_spirv_blob;
+        const Anvil::BaseDevice* m_device_ptr;
+        std::string              m_glsl_source_code;
+        VkShaderModule           m_module;
+        std::vector<uint32_t>    m_spirv_blob;
 
 #ifdef ANVIL_LINK_WITH_GLSLANG
         std::string m_disassembly;

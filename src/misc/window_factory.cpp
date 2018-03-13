@@ -22,14 +22,15 @@
 
 #include "misc/window_factory.h"
 
-std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatform          in_platform,
-                                                                   const std::string&      in_title,
-                                                                   unsigned int            in_width,
-                                                                   unsigned int            in_height,
-                                                                   bool                    in_closable,
-                                                                   PresentCallbackFunction in_present_callback_func)
+Anvil::WindowUniquePtr Anvil::WindowFactory::create_window(WindowPlatform          in_platform,
+                                                           const std::string&      in_title,
+                                                           unsigned int            in_width,
+                                                           unsigned int            in_height,
+                                                           bool                    in_closable,
+                                                           PresentCallbackFunction in_present_callback_func)
 {
-    std::shared_ptr<Anvil::Window> result_ptr;
+    WindowUniquePtr result_ptr(nullptr,
+                               std::default_delete<Window>() );
 
     switch (in_platform)
     {
@@ -97,11 +98,12 @@ std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatfor
     return result_ptr;
 }
 
-std::shared_ptr<Anvil::Window> Anvil::WindowFactory::create_window(WindowPlatform in_platform,
-                                                                   WindowHandle   in_handle,
-                                                                   void*          in_xcb_connection_ptr)
+Anvil::WindowUniquePtr Anvil::WindowFactory::create_window(WindowPlatform in_platform,
+                                                           WindowHandle   in_handle,
+                                                           void*          in_xcb_connection_ptr)
 {
-    std::shared_ptr<Anvil::Window> result_ptr;
+    WindowUniquePtr result_ptr(nullptr,
+                               std::default_delete<Window>() );
 
     /* NOTE: These arguments may not be used at all, depending on ANVIL_INCLUDE_*_WINDOW_SYSTEM_SUPPORT configuration */
     ANVIL_REDUNDANT_ARGUMENT(in_handle);

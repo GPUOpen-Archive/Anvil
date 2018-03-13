@@ -32,14 +32,14 @@ namespace Anvil
     {
     public:
         /* Public functions */
-        static std::unique_ptr<Anvil::ComputePipelineInfo> create_derivative_pipeline_info(bool                               in_disable_optimizations,
-                                                                                           bool                               in_allow_derivatives,
-                                                                                           const ShaderModuleStageEntryPoint& in_compute_shader_stage_entrypoint_info,
-                                                                                           Anvil::PipelineID                  in_base_pipeline_id);
-        static std::unique_ptr<Anvil::ComputePipelineInfo> create_proxy_pipeline_info     ();
-        static std::unique_ptr<Anvil::ComputePipelineInfo> create_regular_pipeline_info   (bool                               in_disable_optimizations,
-                                                                                           bool                               in_allow_derivatives,
-                                                                                           const ShaderModuleStageEntryPoint& in_compute_shader_stage_entrypoint_info);
+        static ComputePipelineInfoUniquePtr create_derivative_pipeline_info(bool                               in_disable_optimizations,
+                                                                            bool                               in_allow_derivatives,
+                                                                            const ShaderModuleStageEntryPoint& in_compute_shader_stage_entrypoint_info,
+                                                                            Anvil::PipelineID                  in_base_pipeline_id);
+        static ComputePipelineInfoUniquePtr create_proxy_pipeline_info     ();
+        static ComputePipelineInfoUniquePtr create_regular_pipeline_info   (bool                               in_disable_optimizations,
+                                                                            bool                               in_allow_derivatives,
+                                                                            const ShaderModuleStageEntryPoint& in_compute_shader_stage_entrypoint_info);
 
         /** Adds a new specialization constant.
          *
