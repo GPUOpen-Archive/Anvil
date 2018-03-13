@@ -284,8 +284,7 @@ bool Anvil::DescriptorSetGroup::bake_descriptor_sets()
 
     for (const auto& ds_data : layout_vk_owner_ptr->m_descriptor_sets)
     {
-        const auto  set_index = ds_data.first;
-        const auto& ds_ptr    = ds_data.second;
+        const auto& ds_ptr = ds_data.second;
 
         if (ds_data.second->layout_ptr == nullptr)
         {
