@@ -3342,6 +3342,8 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass(uint32_t            i
     Anvil::StructChainer<VkRenderPassBeginInfo> render_pass_begin_info_chain;
     bool                                        result = false;
 
+    ANVIL_REDUNDANT_VARIABLE(physical_device_ptr);
+
     if (m_is_renderpass_active)
     {
         anvil_assert(!m_is_renderpass_active);

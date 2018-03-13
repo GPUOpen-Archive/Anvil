@@ -187,7 +187,6 @@ bool Anvil::RenderPass::init()
         uint32_t                              highest_subpass_color_attachment_location = UINT32_MAX;
         uint32_t                              highest_subpass_input_attachment_index    = UINT32_MAX;
         bool                                  need_color_resolve_attachments            = false;
-        const uint32_t                        subpass_index                             = static_cast<uint32_t>(subpass_iterator - m_render_pass_info_ptr->m_subpasses.begin() );
         VkSubpassDescription                  subpass_vk;
         VkAttachmentReference                 unused_reference;
 
