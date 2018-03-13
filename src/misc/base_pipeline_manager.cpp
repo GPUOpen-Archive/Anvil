@@ -31,19 +31,20 @@
 #include <algorithm>
 
 /** Please see header for specification */
-Anvil::BasePipelineManager::BasePipelineManager(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
-                                                bool                                  in_mt_safe,
-                                                bool                                  in_use_pipeline_cache,
-                                                std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr)
+Anvil::BasePipelineManager::BasePipelineManager(const Anvil::BaseDevice* in_device_ptr,
+                                                bool                     in_mt_safe,
+                                                bool                     in_use_pipeline_cache,
+                                                Anvil::PipelineCache*    in_pipeline_cache_to_reuse_ptr)
     :CallbacksSupportProvider(BASE_PIPELINE_MANAGER_CALLBACK_ID_COUNT),
      MTSafetySupportProvider (in_mt_safe),
      m_device_ptr            (in_device_ptr),
+     m_pipeline_cache_ptr    (nullptr),
      m_pipeline_counter      (0)
 {
     anvil_assert(!in_use_pipeline_cache && in_pipeline_cache_to_reuse_ptr == nullptr ||
                   in_use_pipeline_cache);
 
-    m_pipeline_layout_manager_ptr = in_device_ptr.lock()->get_pipeline_layout_manager();
+    m_pipeline_layout_manager_ptr = in_device_ptr->get_pipeline_layout_manager();
     anvil_assert(m_pipeline_layout_manager_ptr != nullptr);
 
     if (in_pipeline_cache_to_reuse_ptr != nullptr)
@@ -55,12 +56,12 @@ Anvil::BasePipelineManager::BasePipelineManager(std::weak_ptr<Anvil::BaseDevice>
     {
         if (in_use_pipeline_cache)
         {
-            m_pipeline_cache_ptr = Anvil::PipelineCache::create(
-                m_device_ptr,
-                in_mt_safe,
-                0,      /* in_initial_data_size */
-                nullptr /* in_initial_data      */
-            );
+            m_pipeline_cache_owned_ptr = Anvil::PipelineCache::create(m_device_ptr,
+                                                                      in_mt_safe,
+                                                                      0,        /* in_initial_data_size */
+                                                                      nullptr); /* in_initial_data      */
+
+            m_pipeline_cache_ptr = m_pipeline_cache_owned_ptr.get();
         }
 
         m_use_pipeline_cache = in_use_pipeline_cache;
@@ -71,8 +72,6 @@ Anvil::BasePipelineManager::BasePipelineManager(std::weak_ptr<Anvil::BaseDevice>
 Anvil::BasePipelineManager::~BasePipelineManager()
 {
     anvil_assert(m_baked_pipelines.size() == 0);
-
-    m_pipeline_layout_manager_ptr.reset();
 }
 
 
@@ -84,17 +83,15 @@ void Anvil::BasePipelineManager::Pipeline::release_pipeline()
 {
     if (baked_pipeline != VK_NULL_HANDLE)
     {
-        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(device_ptr);
-
-        device_locked_ptr->get_pipeline_cache()->lock();
+        device_ptr->get_pipeline_cache()->lock();
         lock();
         {
-            vkDestroyPipeline(device_locked_ptr->get_device_vk(),
+            vkDestroyPipeline(device_ptr->get_device_vk(),
                               baked_pipeline,
                               nullptr /* pAllocator */);
         }
         unlock();
-        device_locked_ptr->get_pipeline_cache()->unlock();
+        device_ptr->get_pipeline_cache()->unlock();
 
         baked_pipeline = VK_NULL_HANDLE;
     }
@@ -102,11 +99,10 @@ void Anvil::BasePipelineManager::Pipeline::release_pipeline()
 
 
 /* Please see header for specification */
-bool Anvil::BasePipelineManager::add_pipeline(std::unique_ptr<Anvil::BasePipelineInfo> in_pipeline_info_ptr,
-                                              PipelineID*                              out_pipeline_id_ptr)
+bool Anvil::BasePipelineManager::add_pipeline(Anvil::BasePipelineInfoUniquePtr in_pipeline_info_ptr,
+                                              PipelineID*                      out_pipeline_id_ptr)
 {
     const Anvil::PipelineID                base_pipeline_id = in_pipeline_info_ptr->get_base_pipeline_id();
-    std::shared_ptr<Pipeline>              base_pipeline_ptr;
     auto                                   callback_arg     = Anvil::OnNewPipelineCreatedCallbackData(UINT32_MAX);
     std::unique_lock<std::recursive_mutex> mutex_lock;
     auto                                   mutex_ptr        = get_mutex();
@@ -142,7 +138,7 @@ bool Anvil::BasePipelineManager::add_pipeline(std::unique_ptr<Anvil::BasePipelin
 
         if (base_pipeline_info_ptr != nullptr)
         {
-            anvil_assert(base_pipeline_ptr->pipeline_info_ptr->allows_derivatives() );
+            anvil_assert(base_pipeline_info_ptr->allows_derivatives() );
         }
         else
         {
@@ -350,13 +346,13 @@ end:
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::PipelineLayout> Anvil::BasePipelineManager::get_pipeline_layout(PipelineID in_pipeline_id)
+Anvil::PipelineLayout* Anvil::BasePipelineManager::get_pipeline_layout(PipelineID in_pipeline_id)
 {
     std::unique_lock<std::recursive_mutex> mutex_lock;
     auto                                   mutex_ptr         = get_mutex();
     Pipelines::iterator                    pipeline_iterator;
     Pipeline*                              pipeline_ptr      = nullptr;
-    std::shared_ptr<Anvil::PipelineLayout> result_ptr;
+    Anvil::PipelineLayout*                 result_ptr        = nullptr;
 
     if (mutex_ptr != nullptr)
     {
@@ -390,7 +386,7 @@ std::shared_ptr<Anvil::PipelineLayout> Anvil::BasePipelineManager::get_pipeline_
 
     if (pipeline_ptr->layout_ptr == nullptr)
     {
-        if (!m_pipeline_layout_manager_ptr->get_layout(pipeline_ptr->pipeline_info_ptr->get_dsg                 (),
+        if (!m_pipeline_layout_manager_ptr->get_layout(pipeline_ptr->pipeline_info_ptr->get_ds_info_items       (),
                                                        pipeline_ptr->pipeline_info_ptr->get_push_constant_ranges(),
                                                       &pipeline_ptr->layout_ptr) )
         {
@@ -407,7 +403,7 @@ std::shared_ptr<Anvil::PipelineLayout> Anvil::BasePipelineManager::get_pipeline_
         }
     }
 
-    result_ptr = pipeline_ptr->layout_ptr;
+    result_ptr = pipeline_ptr->layout_ptr.get();
 
 end:
     return result_ptr;
@@ -419,8 +415,7 @@ bool Anvil::BasePipelineManager::get_shader_info(PipelineID                  in_
                                                  Anvil::ShaderInfoType       in_info_type,
                                                  std::vector<unsigned char>* out_data_ptr)
 {
-    std::shared_ptr<Anvil::BaseDevice>       device_ptr        = m_device_ptr.lock();;
-    Anvil::ExtensionAMDShaderInfoEntrypoints entrypoints       = device_ptr->get_extension_amd_shader_info_entrypoints();
+    Anvil::ExtensionAMDShaderInfoEntrypoints entrypoints       = m_device_ptr->get_extension_amd_shader_info_entrypoints();
     std::unique_lock<std::recursive_mutex>   mutex_lock;
     auto                                     mutex_ptr         = get_mutex();
     Pipelines::const_iterator                pipeline_iterator;
@@ -493,13 +488,12 @@ bool Anvil::BasePipelineManager::get_shader_info(PipelineID                  in_
 
     if (out_data_size == 0)
     {
-        vk_result = entrypoints.vkGetShaderInfoAMD(
-            device_ptr->get_device_vk(),
-            pipeline_ptr->baked_pipeline,
-            shader_stage_vk,
-            vk_info_type,
-           &out_data_size,
-            nullptr);
+        vk_result = entrypoints.vkGetShaderInfoAMD(m_device_ptr->get_device_vk(),
+                                                   pipeline_ptr->baked_pipeline,
+                                                   shader_stage_vk,
+                                                   vk_info_type,
+                                                  &out_data_size,
+                                                   nullptr);
 
         if (vk_result == VK_ERROR_FEATURE_NOT_PRESENT)
         {
@@ -515,13 +509,12 @@ bool Anvil::BasePipelineManager::get_shader_info(PipelineID                  in_
         out_data_ptr->resize(out_data_size);
     }
 
-    vk_result = entrypoints.vkGetShaderInfoAMD(
-        device_ptr->get_device_vk(),
-        pipeline_ptr->baked_pipeline,
-        shader_stage_vk,
-        vk_info_type,
-       &out_data_size,
-       &(*out_data_ptr).at(0));
+    vk_result = entrypoints.vkGetShaderInfoAMD(m_device_ptr->get_device_vk(),
+                                               pipeline_ptr->baked_pipeline,
+                                               shader_stage_vk,
+                                               vk_info_type,
+                                              &out_data_size,
+                                              &(*out_data_ptr).at(0));
 
     if (vk_result == VK_ERROR_FEATURE_NOT_PRESENT)
     {
@@ -544,8 +537,7 @@ bool Anvil::BasePipelineManager::get_shader_statistics(PipelineID               
                                                        Anvil::ShaderStage          in_shader_stage,
                                                        VkShaderStatisticsInfoAMD*  out_shader_statistics_ptr)
 {
-    std::shared_ptr<Anvil::BaseDevice>       device_ptr             = m_device_ptr.lock();
-    Anvil::ExtensionAMDShaderInfoEntrypoints entrypoints            = device_ptr->get_extension_amd_shader_info_entrypoints();
+    Anvil::ExtensionAMDShaderInfoEntrypoints entrypoints            = m_device_ptr->get_extension_amd_shader_info_entrypoints();
     std::unique_lock<std::recursive_mutex>   mutex_lock;
     auto                                     mutex_ptr              = get_mutex();
     Pipelines::const_iterator                pipeline_iterator;
@@ -591,13 +583,12 @@ bool Anvil::BasePipelineManager::get_shader_statistics(PipelineID               
         anvil_assert(!pipeline_ptr->baked_pipeline != VK_NULL_HANDLE);
     }
 
-    vk_result = entrypoints.vkGetShaderInfoAMD(
-        device_ptr->get_device_vk(),
-        pipeline_ptr->baked_pipeline,
-        shader_stage_vk,
-        VK_SHADER_INFO_TYPE_STATISTICS_AMD,
-       &shader_statistics_size,
-        out_shader_statistics_ptr);
+    vk_result = entrypoints.vkGetShaderInfoAMD(m_device_ptr->get_device_vk(),
+                                               pipeline_ptr->baked_pipeline,
+                                               shader_stage_vk,
+                                               VK_SHADER_INFO_TYPE_STATISTICS_AMD,
+                                              &shader_statistics_size,
+                                               out_shader_statistics_ptr);
 
     if (vk_result == VK_ERROR_FEATURE_NOT_PRESENT)
     {

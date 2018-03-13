@@ -58,23 +58,24 @@ Anvil::WindowWin3264::WindowWin3264(HWND                           in_handle,
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Window> Anvil::WindowWin3264::create(const std::string&             in_title,
-                                                            unsigned int                   in_width,
-                                                            unsigned int                   in_height,
-                                                            bool                           in_closable,
-                                                            Anvil::PresentCallbackFunction in_present_callback_func)
+Anvil::WindowUniquePtr Anvil::WindowWin3264::create(const std::string&             in_title,
+                                                    unsigned int                   in_width,
+                                                    unsigned int                   in_height,
+                                                    bool                           in_closable,
+                                                    Anvil::PresentCallbackFunction in_present_callback_func)
 {
-    std::shared_ptr<Anvil::WindowWin3264> result_ptr(
+    WindowUniquePtr result_ptr(
         new Anvil::WindowWin3264(in_title,
                                  in_width,
                                  in_height,
                                  in_closable,
-                                 in_present_callback_func)
+                                 in_present_callback_func),
+        std::default_delete<Anvil::Window>()
     );
 
     if (result_ptr)
     {
-        if (!result_ptr->init() )
+        if (!dynamic_cast<WindowWin3264*>(result_ptr.get() )->init() )
         {
             result_ptr.reset();
         }
@@ -84,13 +85,14 @@ std::shared_ptr<Anvil::Window> Anvil::WindowWin3264::create(const std::string&  
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Window> Anvil::WindowWin3264::create(HWND in_window_handle)
+Anvil::WindowUniquePtr Anvil::WindowWin3264::create(HWND in_window_handle)
 {
-    std::shared_ptr<Anvil::WindowWin3264> result_ptr;
-    RECT                                  window_rect;
-    uint32_t                              window_size[2] = {0};
-    std::vector<char>                     window_title;
-    uint32_t                              window_title_length = 0;
+    WindowUniquePtr   result_ptr(nullptr,
+                                 std::default_delete<Window>() );
+    RECT              window_rect;
+    uint32_t          window_size[2] = {0};
+    std::vector<char> window_title;
+    uint32_t          window_title_length = 0;
 
     /* The window has already been spawned by the user. Gather all the info we need in order to instantiate
      * the wrapper instance.
@@ -135,7 +137,7 @@ std::shared_ptr<Anvil::Window> Anvil::WindowWin3264::create(HWND in_window_handl
 
     if (result_ptr)
     {
-        if (!result_ptr->init() )
+        if (!dynamic_cast<WindowWin3264*>(result_ptr.get() )->init() )
         {
             result_ptr.reset();
         }

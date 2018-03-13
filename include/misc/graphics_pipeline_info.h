@@ -31,27 +31,27 @@ namespace Anvil
     {
     public:
         /* Public functions */
-        static std::unique_ptr<Anvil::GraphicsPipelineInfo> create_derivative_pipeline_info(bool                               in_disable_optimizations,
-                                                                                            bool                               in_allow_derivatives,
-                                                                                            std::shared_ptr<RenderPass>        in_renderpass_ptr,
-                                                                                            SubPassID                          in_subpass_id,
-                                                                                            const ShaderModuleStageEntryPoint& in_fragment_shader_stage_entrypoint_info,
-                                                                                            const ShaderModuleStageEntryPoint& in_geometry_shader_stage_entrypoint_info,
-                                                                                            const ShaderModuleStageEntryPoint& in_tess_control_shader_stage_entrypoint_info,
-                                                                                            const ShaderModuleStageEntryPoint& in_tess_evaluation_shader_stage_entrypoint_info,
-                                                                                            const ShaderModuleStageEntryPoint& in_vertex_shader_shader_stage_entrypoint_info,
-                                                                                            Anvil::PipelineID                  in_base_pipeline_id);
-        static std::unique_ptr<Anvil::GraphicsPipelineInfo> create_proxy_pipeline_info     ();
-        static std::unique_ptr<Anvil::GraphicsPipelineInfo> create_regular_pipeline_info   (bool                               in_disable_optimizations,
-                                                                                            bool                               in_allow_derivatives,
-                                                                                            std::shared_ptr<RenderPass>        in_renderpass_ptr,
-                                                                                            SubPassID                          in_subpass_id,
-                                                                                            const ShaderModuleStageEntryPoint& in_fragment_shader_stage_entrypoint_info,
-                                                                                            const ShaderModuleStageEntryPoint& in_geometry_shader_stage_entrypoint_info,
-                                                                                            const ShaderModuleStageEntryPoint& in_tess_control_shader_stage_entrypoint_info,
-                                                                                            const ShaderModuleStageEntryPoint& in_tess_evaluation_shader_stage_entrypoint_info,
-                                                                                            const ShaderModuleStageEntryPoint& in_vertex_shader_shader_stage_entrypoint_info,
-                                                                                            const Anvil::GraphicsPipelineInfo* in_opt_reference_pipeline_info_ptr = nullptr);
+        static Anvil::GraphicsPipelineInfoUniquePtr create_derivative_pipeline_info(bool                               in_disable_optimizations,
+                                                                                    bool                               in_allow_derivatives,
+                                                                                    const RenderPass*                  in_renderpass_ptr,
+                                                                                    SubPassID                          in_subpass_id,
+                                                                                    const ShaderModuleStageEntryPoint& in_fragment_shader_stage_entrypoint_info,
+                                                                                    const ShaderModuleStageEntryPoint& in_geometry_shader_stage_entrypoint_info,
+                                                                                    const ShaderModuleStageEntryPoint& in_tess_control_shader_stage_entrypoint_info,
+                                                                                    const ShaderModuleStageEntryPoint& in_tess_evaluation_shader_stage_entrypoint_info,
+                                                                                    const ShaderModuleStageEntryPoint& in_vertex_shader_shader_stage_entrypoint_info,
+                                                                                    Anvil::PipelineID                  in_base_pipeline_id);
+        static Anvil::GraphicsPipelineInfoUniquePtr create_proxy_pipeline_info     ();
+        static Anvil::GraphicsPipelineInfoUniquePtr create_regular_pipeline_info   (bool                               in_disable_optimizations,
+                                                                                    bool                               in_allow_derivatives,
+                                                                                    const RenderPass*                  in_renderpass_ptr,
+                                                                                    SubPassID                          in_subpass_id,
+                                                                                    const ShaderModuleStageEntryPoint& in_fragment_shader_stage_entrypoint_info,
+                                                                                    const ShaderModuleStageEntryPoint& in_geometry_shader_stage_entrypoint_info,
+                                                                                    const ShaderModuleStageEntryPoint& in_tess_control_shader_stage_entrypoint_info,
+                                                                                    const ShaderModuleStageEntryPoint& in_tess_evaluation_shader_stage_entrypoint_info,
+                                                                                    const ShaderModuleStageEntryPoint& in_vertex_shader_shader_stage_entrypoint_info,
+                                                                                    const Anvil::GraphicsPipelineInfo* in_opt_reference_pipeline_info_ptr = nullptr);
 
         ~GraphicsPipelineInfo();
 
@@ -215,18 +215,18 @@ namespace Anvil
          *                                             by the pipeline.
          *  @param out_opt_n_vertex_attributes_ptr     If not null, deref will be set to the number of vertex
          *                                             attributes specified by the owner.
-         *  @param out_opt_renderpass_ptr              If not null, deref will be set to the renderpass assigned to
+         *  @param out_opt_renderpass_ptr_ptr          If not null, deref will be set to the renderpass assigned to
          *                                             the pipeline.
          *  @param out_opt_subpass_id_ptr              If not null, deref will be set to the ID of the subpass the pipeline
          *                                             has been created for.
          *
          *  @return true if successful, false otherwise.
          **/
-        void get_graphics_pipeline_properties(uint32_t*                    out_opt_n_scissors_ptr,
-                                              uint32_t*                    out_opt_n_viewports_ptr,
-                                              uint32_t*                    out_opt_n_vertex_attributes_ptr,
-                                              std::shared_ptr<RenderPass>* out_opt_renderpass_ptr,
-                                              SubPassID*                   out_opt_subpass_id_ptr) const;
+        void get_graphics_pipeline_properties(uint32_t*          out_opt_n_scissors_ptr,
+                                              uint32_t*          out_opt_n_viewports_ptr,
+                                              uint32_t*          out_opt_n_vertex_attributes_ptr,
+                                              const RenderPass** out_opt_renderpass_ptr_ptr,
+                                              SubPassID*         out_opt_subpass_id_ptr) const;
 
         /** Retrieves logic op-related state configuration.
          *
@@ -285,7 +285,7 @@ namespace Anvil
                                           VkFrontFace*     out_opt_front_face_ptr,
                                           float*           out_opt_line_width_ptr) const;
 
-        std::shared_ptr<RenderPass> get_renderpass() const
+        const RenderPass* get_renderpass() const
         {
             return m_renderpass_ptr;
         }
@@ -883,8 +883,8 @@ namespace Anvil
         typedef std::map<uint32_t, InternalViewport>   InternalViewports;
 
         /* Private functions */
-        explicit GraphicsPipelineInfo(std::shared_ptr<RenderPass> in_renderpass_ptr,
-                                      SubPassID                   in_subpass_id);
+        explicit GraphicsPipelineInfo(const RenderPass* in_renderpass_ptr,
+                                      SubPassID         in_subpass_id);
 
         bool copy_gfx_state_from(const Anvil::GraphicsPipelineInfo* in_src_pipeline_info_ptr);
 
@@ -938,8 +938,8 @@ namespace Anvil
         VkCullModeFlagsVariable   (m_cull_mode);
         VkSampleCountFlagsVariable(m_sample_count);
 
-        std::shared_ptr<RenderPass> m_renderpass_ptr;
-        SubPassID                   m_subpass_id;
+        const RenderPass* m_renderpass_ptr;
+        SubPassID         m_subpass_id;
     };
 
 };

@@ -21,34 +21,34 @@
 //
 #include "misc/graphics_pipeline_info.h"
 
-Anvil::GraphicsPipelineInfo::GraphicsPipelineInfo(std::shared_ptr<RenderPass> in_renderpass_ptr,
-                                                  SubPassID                   in_subpass_id)
+Anvil::GraphicsPipelineInfo::GraphicsPipelineInfo(const RenderPass* in_renderpass_ptr,
+                                                  SubPassID         in_subpass_id)
 {
-    m_alpha_to_coverage_enabled  = false;
-    m_alpha_to_one_enabled       = false;
-    m_depth_bias_clamp           = 0.0f;
-    m_depth_bias_constant_factor = 0.0f;
-    m_depth_bias_enabled         = false;
-    m_depth_bias_slope_factor    = 1.0f;
-    m_depth_bounds_test_enabled  = false;
-    m_depth_clamp_enabled        = false;
-    m_depth_test_compare_op      = VK_COMPARE_OP_ALWAYS;
-    m_depth_test_enabled         = false;
-    m_depth_writes_enabled       = false;
-    m_enabled_dynamic_states     = 0;
-    m_front_face                 = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    m_logic_op                   = VK_LOGIC_OP_NO_OP;
-    m_logic_op_enabled           = false;
-    m_max_depth_bounds           = 1.0f;
-    m_min_depth_bounds           = 0.0f;
-    m_n_dynamic_scissor_boxes    = 0;
-    m_n_dynamic_viewports        = 0;
-    m_n_patch_control_points     = 1;
-    m_primitive_restart_enabled  = false;
-    m_rasterizer_discard_enabled = false;
-    m_sample_mask_enabled        = false;
-    m_sample_shading_enabled     = false;
-    m_stencil_test_enabled       = false;
+    m_alpha_to_coverage_enabled            = false;
+    m_alpha_to_one_enabled                 = false;
+    m_depth_bias_clamp                     = 0.0f;
+    m_depth_bias_constant_factor           = 0.0f;
+    m_depth_bias_enabled                   = false;
+    m_depth_bias_slope_factor              = 1.0f;
+    m_depth_bounds_test_enabled            = false;
+    m_depth_clamp_enabled                  = false;
+    m_depth_test_compare_op                = VK_COMPARE_OP_ALWAYS;
+    m_depth_test_enabled                   = false;
+    m_depth_writes_enabled                 = false;
+    m_enabled_dynamic_states               = 0;
+    m_front_face                           = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    m_logic_op                             = VK_LOGIC_OP_NO_OP;
+    m_logic_op_enabled                     = false;
+    m_max_depth_bounds                     = 1.0f;
+    m_min_depth_bounds                     = 0.0f;
+    m_n_dynamic_scissor_boxes              = 0;
+    m_n_dynamic_viewports                  = 0;
+    m_n_patch_control_points               = 1;
+    m_primitive_restart_enabled            = false;
+    m_rasterizer_discard_enabled           = false;
+    m_sample_mask_enabled                  = false;
+    m_sample_shading_enabled               = false;
+    m_stencil_test_enabled                 = false;
 
     m_renderpass_ptr = in_renderpass_ptr;
     m_subpass_id     = in_subpass_id;
@@ -169,15 +169,15 @@ bool Anvil::GraphicsPipelineInfo::copy_gfx_state_from(const Anvil::GraphicsPipel
 
     m_enabled_dynamic_states = in_src_pipeline_info_ptr->m_enabled_dynamic_states;
 
-    m_alpha_to_coverage_enabled  = in_src_pipeline_info_ptr->m_alpha_to_coverage_enabled;
-    m_alpha_to_one_enabled       = in_src_pipeline_info_ptr->m_alpha_to_one_enabled;
-    m_depth_clamp_enabled        = in_src_pipeline_info_ptr->m_depth_clamp_enabled;
-    m_depth_writes_enabled       = in_src_pipeline_info_ptr->m_depth_writes_enabled;
-    m_logic_op_enabled           = in_src_pipeline_info_ptr->m_logic_op_enabled;
-    m_primitive_restart_enabled  = in_src_pipeline_info_ptr->m_primitive_restart_enabled;
-    m_rasterizer_discard_enabled = in_src_pipeline_info_ptr->m_rasterizer_discard_enabled;
-    m_sample_mask_enabled        = in_src_pipeline_info_ptr->m_sample_mask_enabled;
-    m_sample_shading_enabled     = in_src_pipeline_info_ptr->m_sample_shading_enabled;
+    m_alpha_to_coverage_enabled            = in_src_pipeline_info_ptr->m_alpha_to_coverage_enabled;
+    m_alpha_to_one_enabled                 = in_src_pipeline_info_ptr->m_alpha_to_one_enabled;
+    m_depth_clamp_enabled                  = in_src_pipeline_info_ptr->m_depth_clamp_enabled;
+    m_depth_writes_enabled                 = in_src_pipeline_info_ptr->m_depth_writes_enabled;
+    m_logic_op_enabled                     = in_src_pipeline_info_ptr->m_logic_op_enabled;
+    m_primitive_restart_enabled            = in_src_pipeline_info_ptr->m_primitive_restart_enabled;
+    m_rasterizer_discard_enabled           = in_src_pipeline_info_ptr->m_rasterizer_discard_enabled;
+    m_sample_mask_enabled                  = in_src_pipeline_info_ptr->m_sample_mask_enabled;
+    m_sample_shading_enabled               = in_src_pipeline_info_ptr->m_sample_shading_enabled;
 
     m_stencil_test_enabled     = in_src_pipeline_info_ptr->m_stencil_test_enabled;
     m_stencil_state_back_face  = in_src_pipeline_info_ptr->m_stencil_state_back_face;
@@ -214,18 +214,19 @@ end:
     return result;
 }
 
-std::unique_ptr<Anvil::GraphicsPipelineInfo> Anvil::GraphicsPipelineInfo::create_derivative_pipeline_info(bool                                       in_disable_optimizations,
-                                                                                                          bool                                       in_allow_derivatives,
-                                                                                                          std::shared_ptr<RenderPass>                in_renderpass_ptr,
-                                                                                                          SubPassID                                  in_subpass_id,
-                                                                                                          const ShaderModuleStageEntryPoint&         in_fragment_shader_stage_entrypoint_info,
-                                                                                                          const ShaderModuleStageEntryPoint&         in_geometry_shader_stage_entrypoint_info,
-                                                                                                          const ShaderModuleStageEntryPoint&         in_tess_control_shader_stage_entrypoint_info,
-                                                                                                          const ShaderModuleStageEntryPoint&         in_tess_evaluation_shader_stage_entrypoint_info,
-                                                                                                          const ShaderModuleStageEntryPoint&         in_vertex_shader_shader_stage_entrypoint_info,
-                                                                                                          Anvil::PipelineID                          in_base_pipeline_id)
+Anvil::GraphicsPipelineInfoUniquePtr Anvil::GraphicsPipelineInfo::create_derivative_pipeline_info(bool                               in_disable_optimizations,
+                                                                                                  bool                               in_allow_derivatives,
+                                                                                                  const RenderPass*                  in_renderpass_ptr,
+                                                                                                  SubPassID                          in_subpass_id,
+                                                                                                  const ShaderModuleStageEntryPoint& in_fragment_shader_stage_entrypoint_info,
+                                                                                                  const ShaderModuleStageEntryPoint& in_geometry_shader_stage_entrypoint_info,
+                                                                                                  const ShaderModuleStageEntryPoint& in_tess_control_shader_stage_entrypoint_info,
+                                                                                                  const ShaderModuleStageEntryPoint& in_tess_evaluation_shader_stage_entrypoint_info,
+                                                                                                  const ShaderModuleStageEntryPoint& in_vertex_shader_shader_stage_entrypoint_info,
+                                                                                                  Anvil::PipelineID                  in_base_pipeline_id)
 {
-    std::unique_ptr<Anvil::GraphicsPipelineInfo> result_ptr;
+    Anvil::GraphicsPipelineInfoUniquePtr result_ptr(nullptr,
+                                                    std::default_delete<Anvil::GraphicsPipelineInfo>() );
 
     result_ptr.reset(
         new GraphicsPipelineInfo(in_renderpass_ptr,
@@ -253,12 +254,13 @@ std::unique_ptr<Anvil::GraphicsPipelineInfo> Anvil::GraphicsPipelineInfo::create
     return result_ptr;
 }
 
-std::unique_ptr<Anvil::GraphicsPipelineInfo> Anvil::GraphicsPipelineInfo::create_proxy_pipeline_info()
+Anvil::GraphicsPipelineInfoUniquePtr Anvil::GraphicsPipelineInfo::create_proxy_pipeline_info()
 {
-    std::unique_ptr<Anvil::GraphicsPipelineInfo> result_ptr;
+    Anvil::GraphicsPipelineInfoUniquePtr result_ptr(nullptr,
+                                                    std::default_delete<Anvil::GraphicsPipelineInfo>() );
 
     result_ptr.reset(
-        new GraphicsPipelineInfo(std::shared_ptr<Anvil::RenderPass>(),
+        new GraphicsPipelineInfo(nullptr, /* in_renderpass_ptr */
                                  UINT32_MAX)
     );
 
@@ -270,18 +272,19 @@ std::unique_ptr<Anvil::GraphicsPipelineInfo> Anvil::GraphicsPipelineInfo::create
     return result_ptr;
 }
 
-std::unique_ptr<Anvil::GraphicsPipelineInfo> Anvil::GraphicsPipelineInfo::create_regular_pipeline_info(bool                               in_disable_optimizations,
-                                                                                                       bool                               in_allow_derivatives,
-                                                                                                       std::shared_ptr<RenderPass>        in_renderpass_ptr,
-                                                                                                       SubPassID                          in_subpass_id,
-                                                                                                       const ShaderModuleStageEntryPoint& in_fragment_shader_stage_entrypoint_info,
-                                                                                                       const ShaderModuleStageEntryPoint& in_geometry_shader_stage_entrypoint_info,
-                                                                                                       const ShaderModuleStageEntryPoint& in_tess_control_shader_stage_entrypoint_info,
-                                                                                                       const ShaderModuleStageEntryPoint& in_tess_evaluation_shader_stage_entrypoint_info,
-                                                                                                       const ShaderModuleStageEntryPoint& in_vertex_shader_shader_stage_entrypoint_info,
-                                                                                                       const Anvil::GraphicsPipelineInfo* in_opt_reference_pipeline_info_ptr)
+Anvil::GraphicsPipelineInfoUniquePtr Anvil::GraphicsPipelineInfo::create_regular_pipeline_info(bool                               in_disable_optimizations,
+                                                                                               bool                               in_allow_derivatives,
+                                                                                               const RenderPass*                  in_renderpass_ptr,
+                                                                                               SubPassID                          in_subpass_id,
+                                                                                               const ShaderModuleStageEntryPoint& in_fragment_shader_stage_entrypoint_info,
+                                                                                               const ShaderModuleStageEntryPoint& in_geometry_shader_stage_entrypoint_info,
+                                                                                               const ShaderModuleStageEntryPoint& in_tess_control_shader_stage_entrypoint_info,
+                                                                                               const ShaderModuleStageEntryPoint& in_tess_evaluation_shader_stage_entrypoint_info,
+                                                                                               const ShaderModuleStageEntryPoint& in_vertex_shader_shader_stage_entrypoint_info,
+                                                                                               const Anvil::GraphicsPipelineInfo* in_opt_reference_pipeline_info_ptr)
 {
-    std::unique_ptr<Anvil::GraphicsPipelineInfo> result_ptr;
+    Anvil::GraphicsPipelineInfoUniquePtr result_ptr(nullptr,
+                                                    std::default_delete<Anvil::GraphicsPipelineInfo>() );
 
     result_ptr.reset(
         new GraphicsPipelineInfo(in_renderpass_ptr,
@@ -463,11 +466,11 @@ Anvil::DynamicStateBitfield Anvil::GraphicsPipelineInfo::get_enabled_dynamic_sta
     return m_enabled_dynamic_states;
 }
 
-void Anvil::GraphicsPipelineInfo::get_graphics_pipeline_properties(uint32_t*                    out_opt_n_scissors_ptr,
-                                                                   uint32_t*                    out_opt_n_viewports_ptr,
-                                                                   uint32_t*                    out_opt_n_vertex_attributes_ptr,
-                                                                   std::shared_ptr<RenderPass>* out_opt_renderpass_ptr,
-                                                                   SubPassID*                   out_opt_subpass_id_ptr) const
+void Anvil::GraphicsPipelineInfo::get_graphics_pipeline_properties(uint32_t*          out_opt_n_scissors_ptr,
+                                                                   uint32_t*          out_opt_n_viewports_ptr,
+                                                                   uint32_t*          out_opt_n_vertex_attributes_ptr,
+                                                                   const RenderPass** out_opt_renderpass_ptr_ptr,
+                                                                   SubPassID*         out_opt_subpass_id_ptr) const
 {
     if (out_opt_n_scissors_ptr != nullptr)
     {
@@ -484,9 +487,9 @@ void Anvil::GraphicsPipelineInfo::get_graphics_pipeline_properties(uint32_t*    
         *out_opt_n_vertex_attributes_ptr = static_cast<uint32_t>(m_attributes.size() );
     }
 
-    if (out_opt_renderpass_ptr != nullptr)
+    if (out_opt_renderpass_ptr_ptr != nullptr)
     {
-        *out_opt_renderpass_ptr = m_renderpass_ptr;
+        *out_opt_renderpass_ptr_ptr = m_renderpass_ptr;
     }
 
     if (out_opt_subpass_id_ptr != nullptr)

@@ -50,11 +50,11 @@ namespace Anvil
          *
          * @return New Anvil::Window instance if successful, or null otherwise.
          */
-        static std::shared_ptr<Anvil::Window> create(const std::string&             in_title,
-                                                     unsigned int                   in_width,
-                                                     unsigned int                   in_height,
-                                                     bool                           in_closable,
-                                                     Anvil::PresentCallbackFunction in_present_callback_func);
+        static Anvil::WindowUniquePtr create(const std::string&             in_title,
+                                             unsigned int                   in_width,
+                                             unsigned int                   in_height,
+                                             bool                           in_closable,
+                                             Anvil::PresentCallbackFunction in_present_callback_func);
 
         /* Creates a window wrapper instance from an existing window handle.
          *
@@ -68,7 +68,7 @@ namespace Anvil
          *
          * @return New Anvil::Window instance if successful, or null otherwise.
          */
-        static std::shared_ptr<Anvil::Window> create(HWND in_window_handle);
+        static Anvil::WindowUniquePtr create(HWND in_window_handle);
 
         virtual ~WindowWin3264(){ /* Stub */ }
 

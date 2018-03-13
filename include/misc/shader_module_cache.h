@@ -25,6 +25,8 @@
 
 #include "misc/mt_safety.h"
 #include "misc/types.h"
+#include "wrappers/shader_module.h"
+
 
 namespace Anvil
 {
@@ -43,26 +45,26 @@ namespace Anvil
         ~ShaderModuleCache();
 
         /** TODO */
-        static std::shared_ptr<Anvil::ShaderModuleCache> create();
+        static Anvil::ShaderModuleCacheUniquePtr create();
 
         /** TODO */
-        std::shared_ptr<Anvil::ShaderModule> get_cached_shader_module(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                                      const char*                      in_spirv_blob,
-                                                                      uint32_t                         in_n_spirv_blob_bytes,
-                                                                      const std::string&               in_cs_entrypoint_name,
-                                                                      const std::string&               in_fs_entrypoint_name,
-                                                                      const std::string&               in_gs_entrypoint_name,
-                                                                      const std::string&               in_tc_entrypoint_name,
-                                                                      const std::string&               in_te_entrypoint_name,
-                                                                      const std::string&               in_vs_entrypoint_name);
+        Anvil::ShaderModuleUniquePtr get_cached_shader_module(const Anvil::BaseDevice* in_device_ptr,
+                                                              const char*              in_spirv_blob,
+                                                              uint32_t                 in_n_spirv_blob_bytes,
+                                                              const std::string&       in_cs_entrypoint_name,
+                                                              const std::string&       in_fs_entrypoint_name,
+                                                              const std::string&       in_gs_entrypoint_name,
+                                                              const std::string&       in_tc_entrypoint_name,
+                                                              const std::string&       in_te_entrypoint_name,
+                                                              const std::string&       in_vs_entrypoint_name);
 
     private:
         /* Private type definitions */
         typedef struct HashMapItem
         {
-            std::weak_ptr<Anvil::BaseDevice>     device_ptr;
-            std::vector<uint32_t>                spirv_blob;
-            std::shared_ptr<Anvil::ShaderModule> shader_module_ptr;
+            const Anvil::BaseDevice*     device_ptr;
+            std::vector<uint32_t>        spirv_blob;
+            Anvil::ShaderModuleUniquePtr shader_module_owned_ptr;
 
             std::string cs_entrypoint_name;
             std::string fs_entrypoint_name;
@@ -71,19 +73,20 @@ namespace Anvil
             std::string te_entrypoint_name;
             std::string vs_entrypoint_name;
 
-            explicit HashMapItem(std::weak_ptr<Anvil::BaseDevice>     in_device_ptr,
-                                 const std::vector<uint32_t>&         in_spirv_blob,
-                                 const std::string&                   in_cs_entrypoint_name,
-                                 const std::string&                   in_fs_entrypoint_name,
-                                 const std::string&                   in_gs_entrypoint_name,
-                                 const std::string&                   in_tc_entrypoint_name,
-                                 const std::string&                   in_te_entrypoint_name,
-                                 const std::string&                   in_vs_entrypoint_name,
-                                 std::shared_ptr<Anvil::ShaderModule> in_shader_module_ptr)
+            explicit HashMapItem(const Anvil::BaseDevice*     in_device_ptr,
+                                 const std::vector<uint32_t>& in_spirv_blob,
+                                 const std::string&           in_cs_entrypoint_name,
+                                 const std::string&           in_fs_entrypoint_name,
+                                 const std::string&           in_gs_entrypoint_name,
+                                 const std::string&           in_tc_entrypoint_name,
+                                 const std::string&           in_te_entrypoint_name,
+                                 const std::string&           in_vs_entrypoint_name,
+                                 Anvil::ShaderModule*         in_shader_module_ptr)
             {
-                device_ptr         = in_device_ptr;
-                spirv_blob         = in_spirv_blob;
-                shader_module_ptr  = in_shader_module_ptr;
+                device_ptr              = in_device_ptr;
+                spirv_blob              = in_spirv_blob;
+                shader_module_owned_ptr = Anvil::ShaderModuleUniquePtr(in_shader_module_ptr,
+                                                                       std::default_delete<ShaderModule>() );
 
                 cs_entrypoint_name = in_cs_entrypoint_name;
                 fs_entrypoint_name = in_fs_entrypoint_name;
@@ -93,15 +96,15 @@ namespace Anvil
                 vs_entrypoint_name = in_vs_entrypoint_name;
             }
 
-            bool matches(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                         const char*                      in_spirv_blob,
-                         uint32_t                         in_n_spirv_blob_bytes,
-                         const std::string&               in_cs_entrypoint_name,
-                         const std::string&               in_fs_entrypoint_name,
-                         const std::string&               in_gs_entrypoint_name,
-                         const std::string&               in_tc_entrypoint_name,
-                         const std::string&               in_te_entrypoint_name,
-                         const std::string&               in_vs_entrypoint_name) const
+            bool matches(const Anvil::BaseDevice* in_device_ptr,
+                         const char*              in_spirv_blob,
+                         uint32_t                 in_n_spirv_blob_bytes,
+                         const std::string&       in_cs_entrypoint_name,
+                         const std::string&       in_fs_entrypoint_name,
+                         const std::string&       in_gs_entrypoint_name,
+                         const std::string&       in_tc_entrypoint_name,
+                         const std::string&       in_te_entrypoint_name,
+                         const std::string&       in_vs_entrypoint_name) const
             {
                 bool result = (spirv_blob.size() * sizeof(spirv_blob.at(0)) == in_n_spirv_blob_bytes);
 
@@ -117,7 +120,7 @@ namespace Anvil
 
                 if (result)
                 {
-                    result = (device_ptr.lock() == in_device_ptr.lock() );
+                    result = (device_ptr == in_device_ptr);
                 }
 
                 if (result)
@@ -131,14 +134,14 @@ namespace Anvil
             }
         } HashMapItem;
 
-        typedef std::forward_list<HashMapItem> HashMapItems;
+        typedef std::forward_list<std::unique_ptr<HashMapItem> > HashMapItems;
 
         /* Private functions */
 
         ShaderModuleCache();
 
-        void cache               (std::shared_ptr<Anvil::ShaderModule> in_shader_module_ptr);
-        void update_subscriptions(bool                                 in_should_init);
+        void cache               (Anvil::ShaderModule* in_shader_module_ptr);
+        void update_subscriptions(bool                 in_should_init);
 
         size_t get_hash(const char*        in_spirv_blob,
                         uint32_t           in_n_spirv_blob_bytes,
@@ -153,7 +156,7 @@ namespace Anvil
         void on_shader_module_object_registered          (CallbackArgument* in_callback_arg_ptr);
 
         /* Private variables */
-        std::map<size_t, HashMapItems> m_items;
+        std::map<size_t, HashMapItems> m_item_ptrs;
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(ShaderModuleCache);
         ANVIL_DISABLE_COPY_CONSTRUCTOR(ShaderModuleCache);

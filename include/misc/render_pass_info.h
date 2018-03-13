@@ -29,7 +29,7 @@ namespace Anvil
     class RenderPassInfo
     {
     public:
-         RenderPassInfo(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
+         RenderPassInfo(const Anvil::BaseDevice* in_device_ptr);
         ~RenderPassInfo();
 
         /** Adds a new render-pass color attachment to the internal data model.
@@ -371,7 +371,7 @@ namespace Anvil
                                                      VkImageLayout*         out_opt_final_layout_ptr     = nullptr,
                                                      bool*                  out_opt_may_alias_ptr        = nullptr) const;
 
-        std::weak_ptr<Anvil::BaseDevice> get_device() const
+        const Anvil::BaseDevice* get_device() const
         {
             return m_device_ptr;
         }
@@ -411,7 +411,7 @@ namespace Anvil
                                                AttachmentType          in_attachment_type,
                                                uint32_t                in_n_subpass_attachment,
                                                RenderPassAttachmentID* out_renderpass_attachment_id_ptr,
-                                               VkImageLayout*          out_layout_ptr);
+                                               VkImageLayout*          out_layout_ptr) const;
 
         /** Returns the number of attachments of user-specified type, defined for the specified subpass.
          *
@@ -427,7 +427,7 @@ namespace Anvil
          **/
         bool get_subpass_n_attachments(SubPassID      in_subpass_id,
                                        AttachmentType in_attachment_type,
-                                       uint32_t*      out_n_attachments_ptr);
+                                       uint32_t*      out_n_attachments_ptr) const;
 
     private:
         /* Private type definitions */
@@ -755,15 +755,15 @@ namespace Anvil
         VkAttachmentReference get_attachment_reference_from_subpass_attachment   (const SubPassAttachment&                           in_subpass_attachment)                   const;
         VkAttachmentReference get_attachment_reference_for_resolve_attachment    (const SubPassesConstIterator&                      in_subpass_iterator,
                                                                                   const LocationToSubPassAttachmentMapConstIterator& in_location_to_subpass_att_map_iterator) const;
-        void                  update_preserved_attachments                       ();
+        void                  update_preserved_attachments                       () const;
 
 
         /* Private variables */
-        RenderPassAttachments            m_attachments;
-        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
-        SubPasses                        m_subpasses;
-        SubPassDependencies              m_subpass_dependencies;
-        bool                             m_update_preserved_attachments;
+        RenderPassAttachments    m_attachments;
+        const Anvil::BaseDevice* m_device_ptr;
+        SubPasses                m_subpasses;
+        SubPassDependencies      m_subpass_dependencies;
+        mutable bool             m_update_preserved_attachments;
 
         friend class Anvil::RenderPass;
     };

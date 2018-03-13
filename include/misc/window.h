@@ -124,6 +124,8 @@ namespace Anvil
                bool                    in_closable,
                PresentCallbackFunction in_present_callback_func);
 
+        virtual ~Window();
+
         /** Closes the window and unblocks the thread executing the message pump. */
         virtual void close() { /* Stub */ }
 
@@ -194,7 +196,6 @@ namespace Anvil
         bool            m_window_owned;
 
         /* protected functions */
-        virtual ~Window();
 
     private:
         /* Private functions */

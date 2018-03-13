@@ -32,8 +32,8 @@
 
 
 /** Contsructor. Initializes the Renderpass instance with default values. */
-Anvil::RenderPass::RenderPass(std::unique_ptr<Anvil::RenderPassInfo> in_renderpass_info_ptr,
-                              std::shared_ptr<Anvil::Swapchain>      in_opt_swapchain_ptr)
+Anvil::RenderPass::RenderPass(Anvil::RenderPassInfoUniquePtr in_renderpass_info_ptr,
+                              Anvil::Swapchain*              in_opt_swapchain_ptr)
     :DebugMarkerSupportProvider(in_renderpass_info_ptr->get_device(),
                                 VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT),
      m_render_pass             (VK_NULL_HANDLE),
@@ -54,9 +54,7 @@ Anvil::RenderPass::~RenderPass()
 
     if (m_render_pass != VK_NULL_HANDLE)
     {
-        std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_render_pass_info_ptr->get_device() );
-
-        vkDestroyRenderPass(device_locked_ptr->get_device_vk(),
+        vkDestroyRenderPass(m_render_pass_info_ptr->get_device()->get_device_vk(),
                             m_render_pass,
                             nullptr /* pAllocator */);
 
@@ -69,10 +67,9 @@ Anvil::RenderPass::~RenderPass()
 /* Please see header for specification */
 bool Anvil::RenderPass::init()
 {
-    std::shared_ptr<Anvil::BaseDevice>   device_locked_ptr         (m_render_pass_info_ptr->get_device() );
     std::vector<VkAttachmentDescription> renderpass_attachments_vk;
     VkRenderPassCreateInfo               render_pass_create_info;
-    bool                                 result                    (false);
+    bool                                 result                       (false);
     VkResult                             result_vk;
     std::vector<VkSubpassDependency>     subpass_dependencies_vk;
     std::vector<VkSubpassDescription>    subpass_descriptions_vk;
@@ -134,7 +131,7 @@ bool Anvil::RenderPass::init()
         uint32_t n_max_preserve_attachments;
     } SubPassAttachmentSet;
 
-    std::vector<std::shared_ptr<SubPassAttachmentSet> > subpass_attachment_sets;
+    std::vector<std::unique_ptr<SubPassAttachmentSet> > subpass_attachment_sets;
 
     anvil_assert(m_render_pass == VK_NULL_HANDLE);
 
@@ -186,7 +183,7 @@ bool Anvil::RenderPass::init()
               subpass_iterator != m_render_pass_info_ptr->m_subpasses.cend();
             ++subpass_iterator)
     {
-        std::shared_ptr<SubPassAttachmentSet> current_subpass_attachment_set_ptr;
+        std::unique_ptr<SubPassAttachmentSet> current_subpass_attachment_set_ptr;
         uint32_t                              highest_subpass_color_attachment_location = UINT32_MAX;
         uint32_t                              highest_subpass_input_attachment_index    = UINT32_MAX;
         bool                                  need_color_resolve_attachments            = false;
@@ -325,7 +322,10 @@ bool Anvil::RenderPass::init()
 
         current_subpass_attachment_set_ptr->do_sanity_checks();
 
-        subpass_attachment_sets.push_back(current_subpass_attachment_set_ptr);
+        subpass_attachment_sets.push_back(
+            std::move(current_subpass_attachment_set_ptr)
+        );
+
         subpass_descriptions_vk.push_back(subpass_vk);
     }
 
@@ -343,7 +343,7 @@ bool Anvil::RenderPass::init()
                                                                                          : nullptr;
     render_pass_create_info.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 
-    result_vk = vkCreateRenderPass(device_locked_ptr->get_device_vk(),
+    result_vk = vkCreateRenderPass(m_device_ptr->get_device_vk(),
                                   &render_pass_create_info,
                                    nullptr, /* pAllocator */
                                   &m_render_pass);
@@ -364,10 +364,11 @@ end:
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::RenderPass> Anvil::RenderPass::create(std::unique_ptr<Anvil::RenderPassInfo> in_renderpass_info_ptr,
-                                                             std::shared_ptr<Anvil::Swapchain>      in_opt_swapchain_ptr)
+Anvil::RenderPassUniquePtr Anvil::RenderPass::create(Anvil::RenderPassInfoUniquePtr in_renderpass_info_ptr,
+                                                     Anvil::Swapchain*              in_opt_swapchain_ptr)
 {
-    std::shared_ptr<RenderPass> result_ptr;
+    std::unique_ptr<RenderPass> result_ptr(nullptr,
+                                           std::default_delete<RenderPass>() );
 
     result_ptr.reset(
         new Anvil::RenderPass(std::move(in_renderpass_info_ptr),
@@ -382,5 +383,5 @@ std::shared_ptr<Anvil::RenderPass> Anvil::RenderPass::create(std::unique_ptr<Anv
         }
     }
 
-    return result_ptr;
+    return std::move(result_ptr);
 }

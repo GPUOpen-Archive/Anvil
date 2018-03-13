@@ -27,12 +27,12 @@
 #include "wrappers/device.h"
 
 /** Please see header for specification */
-Anvil::BufferView::BufferView(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                              std::shared_ptr<Anvil::Buffer>   in_buffer_ptr,
-                              VkFormat                         in_format,
-                              VkDeviceSize                     in_start_offset,
-                              VkDeviceSize                     in_size,
-                              bool                             in_mt_safe)
+Anvil::BufferView::BufferView(const Anvil::BaseDevice* in_device_ptr,
+                              Anvil::Buffer*           in_buffer_ptr,
+                              VkFormat                 in_format,
+                              VkDeviceSize             in_start_offset,
+                              VkDeviceSize             in_size,
+                              bool                     in_mt_safe)
     :DebugMarkerSupportProvider<BufferView>(in_device_ptr,
                                             VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_VIEW_EXT),
      MTSafetySupportProvider               (in_mt_safe),
@@ -42,9 +42,8 @@ Anvil::BufferView::BufferView(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
      m_size        (in_size),
      m_start_offset(in_start_offset)
 {
-    VkBufferViewCreateInfo             buffer_view_create_info;
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(in_device_ptr);
-    VkResult                           result           (VK_ERROR_INITIALIZATION_FAILED);
+    VkBufferViewCreateInfo buffer_view_create_info;
+    VkResult               result                 (VK_ERROR_INITIALIZATION_FAILED);
 
     ANVIL_REDUNDANT_VARIABLE(result);
 
@@ -57,7 +56,7 @@ Anvil::BufferView::BufferView(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
     buffer_view_create_info.range  = in_size;
     buffer_view_create_info.sType  = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
 
-    result = vkCreateBufferView(device_locked_ptr->get_device_vk(),
+    result = vkCreateBufferView(in_device_ptr->get_device_vk(),
                                &buffer_view_create_info,
                                 nullptr, /* pAllocator */
                                &m_buffer_view);
@@ -76,15 +75,12 @@ Anvil::BufferView::BufferView(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
  **/
 Anvil::BufferView::~BufferView()
 {
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-
-
     Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_BUFFER_VIEW,
                                                     this);
 
     lock();
     {
-        vkDestroyBufferView(device_locked_ptr->get_device_vk(),
+        vkDestroyBufferView(m_device_ptr->get_device_vk(),
                             m_buffer_view,
                             nullptr /* pAllocator */);
     }
@@ -94,16 +90,17 @@ Anvil::BufferView::~BufferView()
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::BufferView> Anvil::BufferView::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                             std::shared_ptr<Anvil::Buffer>   in_buffer_ptr,
-                                                             VkFormat                         in_format,
-                                                             VkDeviceSize                     in_start_offset,
-                                                             VkDeviceSize                     in_size,
-                                                             MTSafety                         in_mt_safety)
+Anvil::BufferViewUniquePtr Anvil::BufferView::create(const Anvil::BaseDevice* in_device_ptr,
+                                                     Anvil::Buffer*           in_buffer_ptr,
+                                                     VkFormat                 in_format,
+                                                     VkDeviceSize             in_start_offset,
+                                                     VkDeviceSize             in_size,
+                                                     MTSafety                 in_mt_safety)
 {
-    const bool                         is_mt_safe = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
-                                                                                                    in_device_ptr);
-    std::shared_ptr<Anvil::BufferView> result_ptr;
+    const bool          is_mt_safe = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
+                                                                                     in_device_ptr);
+    BufferViewUniquePtr result_ptr = BufferViewUniquePtr(nullptr,
+                                                         std::default_delete<Anvil::BufferView>() );
 
     /* Instantiate the object */
     result_ptr.reset(

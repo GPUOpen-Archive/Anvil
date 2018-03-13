@@ -54,9 +54,9 @@ namespace Anvil
          *
          *  @return Memory block instance bound to the specified page OR null, if no memory block has been assigned to the memory region.
          */
-        std::shared_ptr<Anvil::MemoryBlock> get_memory_block(VkDeviceSize  in_start_offset_page_aligned,
-                                                             VkDeviceSize  in_size,
-                                                             VkDeviceSize* out_memory_region_start_offset_ptr) const;
+        Anvil::MemoryBlock* get_memory_block(VkDeviceSize  in_start_offset_page_aligned,
+                                             VkDeviceSize  in_size,
+                                             VkDeviceSize* out_memory_region_start_offset_ptr) const;
 
         /** The same memory block is often bound to more than just one page. PageTracker
          *  coalesces such occurences into a single descriptor.
@@ -69,7 +69,7 @@ namespace Anvil
          *
          *  @return The requested memory block.
          */
-        std::shared_ptr<Anvil::MemoryBlock> get_memory_block(uint32_t in_n_memory_block) const
+        Anvil::MemoryBlock* get_memory_block(uint32_t in_n_memory_block) const
         {
             anvil_assert(in_n_memory_block < m_memory_blocks.size() );
 
@@ -114,25 +114,27 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool set_binding(std::shared_ptr<MemoryBlock> in_memory_block_ptr,
-                         VkDeviceSize                 in_memory_block_start_offset,
-                         VkDeviceSize                 in_start_offset,
-                         VkDeviceSize                 in_size);
+        bool set_binding(MemoryBlock* in_memory_block_ptr,
+                         VkDeviceSize in_memory_block_start_offset,
+                         VkDeviceSize in_start_offset,
+                         VkDeviceSize in_size);
 
     private:
         /* Private type definitions */
         typedef struct MemoryBlockBinding
         {
-            std::shared_ptr<MemoryBlock> memory_block_ptr;
-            VkDeviceSize                 memory_block_start_offset;
-            VkDeviceSize                 size;
-            VkDeviceSize                 start_offset;
+            MemoryBlock* memory_block_ptr;
+            VkDeviceSize memory_block_start_offset;
+            VkDeviceSize size;
+            VkDeviceSize start_offset;
 
-            MemoryBlockBinding(std::shared_ptr<MemoryBlock> in_memory_block_ptr,
-                               VkDeviceSize                 in_memory_block_start_offset,
-                               VkDeviceSize                 in_size,
-                               VkDeviceSize                 in_start_offset)
+            MemoryBlockBinding(MemoryBlock* in_memory_block_ptr,
+                               VkDeviceSize in_memory_block_start_offset,
+                               VkDeviceSize in_size,
+                               VkDeviceSize in_start_offset)
             {
+                anvil_assert(in_memory_block_ptr != nullptr);
+
                 memory_block_ptr          = in_memory_block_ptr;
                 memory_block_start_offset = in_memory_block_start_offset;
                 size                      = in_size;

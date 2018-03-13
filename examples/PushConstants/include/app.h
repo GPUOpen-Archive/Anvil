@@ -59,8 +59,8 @@ private:
                                     const char*                in_layer_prefix,
                                     const char*                in_message);
 
-    void get_luminance_data(std::shared_ptr<float>* out_result_ptr,
-                            uint32_t*               out_result_size_ptr) const;
+    void get_luminance_data(std::unique_ptr<float[]>* out_result_ptr,
+                            uint32_t*                 out_result_size_ptr) const;
 
     const unsigned char* get_mesh_data                      () const;
     uint32_t             get_mesh_data_color_start_offset   () const;
@@ -76,30 +76,30 @@ private:
 
 
     /* Private variables */
-    std::weak_ptr<Anvil::SGPUDevice>         m_device_ptr;
-    std::shared_ptr<Anvil::Instance>         m_instance_ptr;
-    std::weak_ptr<Anvil::PhysicalDevice>     m_physical_device_ptr;
-    std::shared_ptr<Anvil::Queue>            m_present_queue_ptr;
-    std::shared_ptr<Anvil::RenderingSurface> m_rendering_surface_ptr;
-    std::shared_ptr<Anvil::Swapchain>        m_swapchain_ptr;
-    Anvil::Time                              m_time;
-    VkDeviceSize                             m_ub_data_size_per_swapchain_image;
-    std::shared_ptr<Anvil::Window>           m_window_ptr;
+    Anvil::SGPUDeviceUniquePtr       m_device_ptr;
+    Anvil::InstanceUniquePtr         m_instance_ptr;
+    const Anvil::PhysicalDevice*     m_physical_device_ptr;
+    Anvil::Queue*                    m_present_queue_ptr;
+    Anvil::RenderingSurfaceUniquePtr m_rendering_surface_ptr;
+    Anvil::SwapchainUniquePtr        m_swapchain_ptr;
+    Anvil::Time                      m_time;
+    VkDeviceSize                     m_ub_data_size_per_swapchain_image;
+    Anvil::WindowUniquePtr           m_window_ptr;
 
-    std::shared_ptr<Anvil::PrimaryCommandBuffer>        m_command_buffers[N_SWAPCHAIN_IMAGES];
-    std::shared_ptr<Anvil::Buffer>                      m_data_buffer_ptr;
-    std::shared_ptr<Anvil::DescriptorSetGroup>          m_dsg_ptr;
-    std::shared_ptr<Anvil::Framebuffer>                 m_fbos[N_SWAPCHAIN_IMAGES];
-    std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_fs_ptr;
-    std::shared_ptr<Anvil::Buffer>                      m_mesh_data_buffer_ptr;
+    Anvil::PrimaryCommandBufferUniquePtr                m_command_buffers[N_SWAPCHAIN_IMAGES];
+    Anvil::BufferUniquePtr                              m_data_buffer_ptr;
+    Anvil::DescriptorSetGroupUniquePtr                  m_dsg_ptr;
+    Anvil::FramebufferUniquePtr                         m_fbos[N_SWAPCHAIN_IMAGES];
+    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_fs_ptr;
+    Anvil::BufferUniquePtr                              m_mesh_data_buffer_ptr;
     Anvil::PipelineID                                   m_pipeline_id;
-    std::shared_ptr<Anvil::RenderPass>                  m_renderpass_ptr;
-    std::shared_ptr<Anvil::ShaderModuleStageEntryPoint> m_vs_ptr;
+    Anvil::RenderPassUniquePtr                          m_renderpass_ptr;
+    std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_vs_ptr;
 
 
     uint32_t       m_n_last_semaphore_used;
     const uint32_t m_n_swapchain_images;
 
-    std::vector<std::shared_ptr<Anvil::Semaphore> > m_frame_signal_semaphores;
-    std::vector<std::shared_ptr<Anvil::Semaphore> > m_frame_wait_semaphores;
+    std::vector<Anvil::SemaphoreUniquePtr> m_frame_signal_semaphores;
+    std::vector<Anvil::SemaphoreUniquePtr> m_frame_wait_semaphores;
 };

@@ -24,7 +24,7 @@
 #ifndef MISC_DEBUG_H
 #define MISC_DEBUG_H
 
-#include "misc/types.h"
+#include <functional>
 
 
 #ifdef _DEBUG

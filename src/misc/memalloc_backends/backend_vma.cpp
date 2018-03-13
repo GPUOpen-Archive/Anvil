@@ -51,7 +51,7 @@
 
 
 /* Please see header for specification */
-Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::VMAAllocator(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
+Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::VMAAllocator(const Anvil::BaseDevice* in_device_ptr)
     :m_allocator (nullptr),
      m_device_ptr(in_device_ptr)
 {
@@ -70,7 +70,7 @@ Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::~VMAAllocator()
 }
 
 /* Please see header for specifications */
-std::shared_ptr<Anvil::MemoryAllocatorBackends::VMA::VMAAllocator> Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
+std::shared_ptr<Anvil::MemoryAllocatorBackends::VMA::VMAAllocator> Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::create(const Anvil::BaseDevice* in_device_ptr)
 {
     std::shared_ptr<Anvil::MemoryAllocatorBackends::VMA::VMAAllocator> result_ptr;
 
@@ -95,17 +95,16 @@ std::shared_ptr<Anvil::MemoryAllocatorBackends::VMA::VMAAllocator> Anvil::Memory
  **/
 bool Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::init()
 {
-    VmaAllocatorCreateInfo             create_info;
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr(m_device_ptr);
-    VkResult                           result           (VK_ERROR_DEVICE_LOST);
+    VmaAllocatorCreateInfo create_info;
+    VkResult               result           (VK_ERROR_DEVICE_LOST);
 
-    switch (device_locked_ptr->get_type() )
+    switch (m_device_ptr->get_type() )
     {
         case Anvil::DEVICE_TYPE_SINGLE_GPU:
         {
-            std::shared_ptr<Anvil::SGPUDevice> sgpu_device_locked_ptr(std::dynamic_pointer_cast<Anvil::SGPUDevice>(device_locked_ptr) );
+            const Anvil::SGPUDevice* sgpu_device_ptr(dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr) );
 
-            create_info.physicalDevice = sgpu_device_locked_ptr->get_physical_device().lock()->get_physical_device();
+            create_info.physicalDevice = sgpu_device_ptr->get_physical_device()->get_physical_device();
             break;
         }
 
@@ -115,7 +114,7 @@ bool Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::init()
         }
     }
 
-    create_info.device                      = device_locked_ptr->get_device_vk();
+    create_info.device                      = m_device_ptr->get_device_vk();
     create_info.pAllocationCallbacks        = nullptr;
     create_info.preferredLargeHeapBlockSize = 0;
     create_info.preferredSmallHeapBlockSize = 0;
@@ -128,7 +127,7 @@ bool Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::init()
 }
 
 /** Please see header for specification */
-Anvil::MemoryAllocatorBackends::VMA::VMA(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
+Anvil::MemoryAllocatorBackends::VMA::VMA(const Anvil::BaseDevice* in_device_ptr)
     :m_device_ptr(in_device_ptr)
 {
     /* Stub */
@@ -162,9 +161,11 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
      */
     for (auto& current_item_ptr : in_items)
     {
+        MemoryBlockUniquePtr new_memory_block_ptr(nullptr,
+                                                  std::default_delete<Anvil::MemoryBlock>() );
+
         VkMemoryRequirements                        memory_requirements_vk;
         VmaMemoryRequirements                       memory_requirements_vma;
-        std::shared_ptr<Anvil::MemoryBlock>         new_memory_block_ptr;
         Anvil::OnMemoryBlockReleaseCallbackFunction release_callback_function;
         VkMemoryHeapFlags                           required_mem_heap_flags     = 0;
         VkMemoryPropertyFlags                       required_mem_property_flags = 0;
@@ -228,7 +229,9 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
             continue;
         }
 
-        current_item_ptr->alloc_memory_block_ptr = new_memory_block_ptr;
+        dynamic_cast<IMemoryBlockBackendSupport*>(new_memory_block_ptr.get() )->set_parent_memory_allocator_backend_ptr(shared_from_this() );
+
+        current_item_ptr->alloc_memory_block_ptr = std::move(new_memory_block_ptr);
         current_item_ptr->alloc_size             = memory_requirements_vk.size;
         current_item_ptr->is_baked               = true;
 
@@ -239,9 +242,9 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::MemoryAllocatorBackends::VMA> Anvil::MemoryAllocatorBackends::VMA::create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
+std::unique_ptr<Anvil::MemoryAllocatorBackends::VMA> Anvil::MemoryAllocatorBackends::VMA::create(const Anvil::BaseDevice* in_device_ptr)
 {
-    std::shared_ptr<Anvil::MemoryAllocatorBackends::VMA> result_ptr;
+    std::unique_ptr<Anvil::MemoryAllocatorBackends::VMA> result_ptr;
 
     result_ptr.reset(
         new VMA(in_device_ptr)

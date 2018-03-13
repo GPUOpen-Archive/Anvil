@@ -75,10 +75,10 @@ namespace Anvil
 
         /** Creates a single Vulkan rendering surface instance and registers the object in
          *  Object Tracker. */
-        static std::shared_ptr<RenderingSurface> create(std::weak_ptr<Anvil::Instance>   in_instance_ptr,
-                                                        std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                        std::shared_ptr<Anvil::Window>   in_window_ptr,
-                                                        MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::RenderingSurfaceUniquePtr create(Anvil::Instance*         in_instance_ptr,
+                                                       const Anvil::BaseDevice* in_device_ptr,
+                                                       const Anvil::Window*     in_window_ptr,
+                                                       MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
         /** Destructor
          *
@@ -88,8 +88,7 @@ namespace Anvil
         virtual ~RenderingSurface();
 
         /** Returns rendering surface capabilities */
-        bool get_capabilities(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
-                              VkSurfaceCapabilitiesKHR*            out_surface_caps_ptr) const;
+        bool get_capabilities(VkSurfaceCapabilitiesKHR* out_surface_caps_ptr) const;
 
         /** Returns rendering surface's height */
         uint32_t get_height() const
@@ -100,26 +99,22 @@ namespace Anvil
         }
 
         /** Returns logical device which was used to create this surface */
-        std::weak_ptr<const Anvil::BaseDevice> get_device() const
+        const Anvil::BaseDevice* get_device() const
         {
             return m_device_ptr;
         }
 
         /** Returns queue family indices which support presentation on a given physical device */
-        bool get_queue_families_with_present_support(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
-                                                     const std::vector<uint32_t>**        out_result_ptr) const;
+        bool get_queue_families_with_present_support(const std::vector<uint32_t>** out_result_ptr) const;
 
         /** Returns composite alpha modes supported by the rendering surface */
-        bool get_supported_composite_alpha_flags(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
-                                                 VkCompositeAlphaFlagsKHR*            out_result_ptr) const;
+        bool get_supported_composite_alpha_flags(VkCompositeAlphaFlagsKHR* out_result_ptr) const;
 
         /** Returns transformations supported by the rendering surface */
-        bool get_supported_transformations(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
-                                           VkSurfaceTransformFlagsKHR*          out_result_ptr) const;
+        bool get_supported_transformations(VkSurfaceTransformFlagsKHR* out_result_ptr) const;
 
         /** Returns flags corresponding to image usage supported by the rendering surface */
-        bool get_supported_usages(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
-                                  VkImageUsageFlags*                   out_result_ptr) const;
+        bool get_supported_usages(VkImageUsageFlags* out_result_ptr) const;
 
         /** Retrieves a raw handle to the underlying Vulkan Rendering Surface */
         VkSurfaceKHR get_surface() const
@@ -133,12 +128,6 @@ namespace Anvil
             return &m_surface;
         }
 
-        /** Returns type of the rendering surface */
-        RenderingSurfaceType get_type() const
-        {
-            return m_type;
-        }
-
         /** Returns rendering surface's width */
         uint32_t get_width() const
         {
@@ -149,19 +138,15 @@ namespace Anvil
 
         /* Tells whether the specified image format can be used for swapchain image initialization, using
          * this rendering surface. */
-        bool is_compatible_with_image_format(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
-                                             VkFormat                             in_image_format,
-                                             bool*                                out_result_ptr) const;
+        bool is_compatible_with_image_format(VkFormat in_image_format,
+                                             bool*    out_result_ptr) const;
 
         /* Tells whether the specified presentation mode is supported by the rendering surface */
-        bool supports_presentation_mode(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
-                                        VkPresentModeKHR                     in_presentation_mode,
-                                        bool*                                out_result_ptr) const;
+        bool supports_presentation_mode(VkPresentModeKHR in_presentation_mode,
+                                        bool*            out_result_ptr) const;
 
     private:
         /* Private type definitions */
-        typedef uint32_t DeviceGroupIndex;
-
         typedef struct PhysicalDeviceCapabilities
         {
             VkSurfaceCapabilitiesKHR            capabilities;
@@ -185,11 +170,11 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. Please see create() for specification */
-        RenderingSurface(std::weak_ptr<Anvil::Instance>   in_instance_ptr,
-                         std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                         std::shared_ptr<Anvil::Window>   in_window_ptr,
-                         bool                             in_mt_safe,
-                         bool*                            out_safe_to_use_ptr);
+        RenderingSurface(Anvil::Instance*         in_instance_ptr,
+                         const Anvil::BaseDevice* in_device_ptr,
+                         const Anvil::Window*     in_window_ptr,
+                         bool                     in_mt_safe,
+                         bool*                    out_safe_to_use_ptr);
 
         RenderingSurface           (const RenderingSurface&);
         RenderingSurface& operator=(const RenderingSurface&);
@@ -198,16 +183,14 @@ namespace Anvil
         bool init                    ();
 
         /* Private variables */
-        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
-        std::shared_ptr<Anvil::Instance> m_instance_ptr;
+        const Anvil::BaseDevice* m_device_ptr;
+        Anvil::Instance*         m_instance_ptr;
 
-        uint32_t                                               m_height;
-        std::map<DeviceGroupIndex, PhysicalDeviceCapabilities> m_physical_device_capabilities;
-        uint32_t                                               m_stream_index;
-        VkSurfaceKHR                                           m_surface;
-        RenderingSurfaceType                                   m_type;
-        uint32_t                                               m_width;
-        std::weak_ptr<Anvil::Window>                           m_window_ptr;
+        uint32_t                   m_height;
+        PhysicalDeviceCapabilities m_physical_device_capabilities;
+        VkSurfaceKHR               m_surface;
+        uint32_t                   m_width;
+        const Anvil::Window*       m_window_ptr;
     };
 }; /* namespace Anvil */
 

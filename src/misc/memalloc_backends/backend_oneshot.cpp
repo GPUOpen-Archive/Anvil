@@ -31,7 +31,7 @@
 #include <algorithm>
 
 /** Please see header for specification */
-Anvil::MemoryAllocatorBackends::OneShot::OneShot(std::weak_ptr<Anvil::BaseDevice> in_device_ptr)
+Anvil::MemoryAllocatorBackends::OneShot::OneShot(const Anvil::BaseDevice* in_device_ptr)
     :m_device_ptr(in_device_ptr),
      m_is_baked  (false)
 {
@@ -59,11 +59,10 @@ Anvil::MemoryAllocatorBackends::OneShot::~OneShot()
  **/
 bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items& in_items)
 {
-    std::shared_ptr<Anvil::BaseDevice>                                        device_locked_ptr          (m_device_ptr);
-    const auto&                                                               memory_props               (device_locked_ptr->get_physical_device_memory_properties() );
-    const uint32_t                                                            n_memory_types             (static_cast<uint32_t>(memory_props.types.size() ));
-    std::vector<std::vector<std::shared_ptr<Anvil::MemoryAllocator::Item> > > per_mem_type_items_vector  (n_memory_types);
-    bool                                                                      result                     (true);
+    const auto&                                              memory_props               (m_device_ptr->get_physical_device_memory_properties() );
+    const uint32_t                                           n_memory_types             (static_cast<uint32_t>(memory_props.types.size() ));
+    std::vector<std::vector<Anvil::MemoryAllocator::Item*> > per_mem_type_items_vector  (n_memory_types);
+    bool                                                     result                     (true);
 
     /* Iterate over all block items and determine what memory types we can use.
      *
@@ -93,15 +92,15 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
                 continue;
             }
 
-            per_mem_type_items_vector.at(n_memory_type).push_back((*item_iterator) );
+            per_mem_type_items_vector.at(n_memory_type).push_back((item_iterator->get() ) );
             break;
         }
     }
 
     /* For each memory type, for each there's at least one item, bake a memory block */
     {
-        std::map<std::shared_ptr<Anvil::MemoryAllocator::Item>, VkDeviceSize> alloc_offset_map;
-        uint32_t                                                              current_memory_type_index(0);
+        std::map<Anvil::MemoryAllocator::Item*, VkDeviceSize> alloc_offset_map;
+        uint32_t                                              current_memory_type_index(0);
 
         for (auto mem_type_to_item_vector_iterator  = per_mem_type_items_vector.begin();
                   mem_type_to_item_vector_iterator != per_mem_type_items_vector.end();
@@ -111,8 +110,9 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
 
             if (current_item_vector.size() > 0)
             {
-                std::shared_ptr<Anvil::MemoryBlock> new_memory_block_ptr;
-                VkDeviceSize                        n_bytes_required      = 0;
+                Anvil::MemoryBlockUniquePtr new_memory_block_ptr(nullptr,
+                                                                 std::default_delete<Anvil::MemoryBlock>() );
+                VkDeviceSize                n_bytes_required    (0);
 
                 /* Go through the items, calculate offsets and the total amount of memory we're going
                  * to need to alloc off the heap */
@@ -130,7 +130,7 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
                                                                   1u << current_memory_type_index,
                                                                   n_bytes_required,
                                                                   (memory_props.types[current_memory_type_index].features),
-                                                                  Anvil::Utils::convert_boolean_to_mt_safety_enum(device_locked_ptr->is_mt_safe()) );
+                                                                  Anvil::Utils::convert_boolean_to_mt_safety_enum(m_device_ptr->is_mt_safe()) );
 
                 if (new_memory_block_ptr == nullptr)
                 {
@@ -143,7 +143,7 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
                 /* Go through the items again and assign the result memory block */
                 for (auto& current_item_ptr : current_item_vector)
                 {
-                    current_item_ptr->alloc_memory_block_ptr = Anvil::MemoryBlock::create_derived(new_memory_block_ptr,
+                    current_item_ptr->alloc_memory_block_ptr = Anvil::MemoryBlock::create_derived(new_memory_block_ptr.get(),
                                                                                                   alloc_offset_map.at(current_item_ptr),
                                                                                                   current_item_ptr->alloc_size);
 
@@ -151,7 +151,13 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
                     {
                         current_item_ptr->is_baked = true;
                     }
+
+                    dynamic_cast<IMemoryBlockBackendSupport*>(current_item_ptr->alloc_memory_block_ptr.get() )->set_parent_memory_allocator_backend_ptr(shared_from_this() );
                 }
+
+                m_memory_blocks.push_back(
+                    std::move(new_memory_block_ptr)
+                );
             }
         }
     }

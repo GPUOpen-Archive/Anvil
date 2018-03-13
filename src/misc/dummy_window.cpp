@@ -32,12 +32,13 @@
 #include "miniz/miniz.c"
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Window> Anvil::DummyWindow::create(const std::string&      in_title,
-                                                          unsigned int            in_width,
-                                                          unsigned int            in_height,
-                                                          PresentCallbackFunction in_present_callback_func)
+Anvil::WindowUniquePtr Anvil::DummyWindow::create(const std::string&      in_title,
+                                                  unsigned int            in_width,
+                                                  unsigned int            in_height,
+                                                  PresentCallbackFunction in_present_callback_func)
 {
-    std::shared_ptr<Anvil::DummyWindow> result_ptr;
+    WindowUniquePtr result_ptr(nullptr,
+                               std::default_delete<Anvil::Window>() );
 
     result_ptr.reset(
         new Anvil::DummyWindow(in_title,
@@ -48,7 +49,7 @@ std::shared_ptr<Anvil::Window> Anvil::DummyWindow::create(const std::string&    
 
     if (result_ptr)
     {
-        if (!result_ptr->init() )
+        if (!dynamic_cast<DummyWindow*>(result_ptr.get() )->init() )
         {
             result_ptr.reset();
         }
@@ -62,11 +63,11 @@ Anvil::DummyWindow::DummyWindow(const std::string&      in_title,
                                 unsigned int            in_width,
                                 unsigned int            in_height,
                                 PresentCallbackFunction in_present_callback_func)
-    : Window(in_title,
-             in_width,
-             in_height,
-             false, /* in_closable */
-             in_present_callback_func)
+    :Window(in_title,
+            in_width,
+            in_height,
+            false, /* in_closable */
+            in_present_callback_func)
 {
     m_window_owned = true;
 }
@@ -114,12 +115,13 @@ void Anvil::DummyWindow::run()
 
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Window> Anvil::DummyWindowWithPNGSnapshots::create(const std::string&      in_title,
-                                                                          unsigned int            in_width,
-                                                                          unsigned int            in_height,
-                                                                          PresentCallbackFunction in_present_callback_func)
+Anvil::WindowUniquePtr Anvil::DummyWindowWithPNGSnapshots::create(const std::string&      in_title,
+                                                                  unsigned int            in_width,
+                                                                  unsigned int            in_height,
+                                                                  PresentCallbackFunction in_present_callback_func)
 {
-    std::shared_ptr<Anvil::DummyWindowWithPNGSnapshots> result_ptr;
+    WindowUniquePtr result_ptr(nullptr,
+                               std::default_delete<Anvil::Window>() );
 
     result_ptr.reset(
         new Anvil::DummyWindowWithPNGSnapshots(in_title,
@@ -130,7 +132,7 @@ std::shared_ptr<Anvil::Window> Anvil::DummyWindowWithPNGSnapshots::create(const 
 
     if (result_ptr)
     {
-        if (!result_ptr->init() )
+        if (!dynamic_cast<DummyWindowWithPNGSnapshots*>(result_ptr.get() )->init() )
         {
             result_ptr.reset();
         }
@@ -151,31 +153,32 @@ Anvil::DummyWindowWithPNGSnapshots::DummyWindowWithPNGSnapshots(const std::strin
 {
     m_height             = in_height;
     m_n_frames_presented = 0;
+    m_swapchain_ptr      = nullptr;
     m_title              = in_title;
     m_width              = in_width;
     m_window_owned       = true;
 }
 
 /** Please see header for specification */
-std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_image_raw_r8g8b8a8_unorm_data(std::shared_ptr<Anvil::Image> in_swapchain_image_ptr)
+std::unique_ptr<uint8_t[]> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_image_raw_r8g8b8a8_unorm_data(Anvil::Image* in_swapchain_image_ptr)
 {
-    std::shared_ptr<Anvil::BaseDevice> device_locked_ptr                (m_swapchain_ptr.lock()->get_device() );
-    std::shared_ptr<unsigned char>     result_ptr;
-    VkFormat                           swapchain_image_format           (in_swapchain_image_ptr->get_image_format     () );
-    const VkImageSubresourceRange      swapchain_image_subresource_range(in_swapchain_image_ptr->get_subresource_range() );
+    const Anvil::BaseDevice*       device_ptr                       (m_swapchain_ptr->get_device() );
+    std::unique_ptr<uint8_t[]>     result_ptr;
+    VkFormat                       swapchain_image_format           (in_swapchain_image_ptr->get_image_format     () );
+    const VkImageSubresourceRange  swapchain_image_subresource_range(in_swapchain_image_ptr->get_subresource_range() );
 
     /* Sanity checks .. */
     ANVIL_REDUNDANT_VARIABLE(swapchain_image_format);
 
     anvil_assert(swapchain_image_subresource_range.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
-    anvil_assert(device_locked_ptr->get_physical_device_format_properties(swapchain_image_format).optimal_tiling_capabilities   & VK_FORMAT_FEATURE_BLIT_SRC_BIT);
-    anvil_assert(device_locked_ptr->get_physical_device_format_properties(VK_FORMAT_R8G8B8A8_UNORM).optimal_tiling_capabilities & VK_FORMAT_FEATURE_BLIT_DST_BIT);
+    anvil_assert(device_ptr->get_physical_device_format_properties(swapchain_image_format).optimal_tiling_capabilities   & VK_FORMAT_FEATURE_BLIT_SRC_BIT);
+    anvil_assert(device_ptr->get_physical_device_format_properties(VK_FORMAT_R8G8B8A8_UNORM).optimal_tiling_capabilities & VK_FORMAT_FEATURE_BLIT_DST_BIT);
 
     /* Initialize storage for the raw R8G8B8A8 image data */
-    std::shared_ptr<Anvil::Buffer> raw_image_buffer_ptr;
-    uint32_t                       raw_image_size         = 0;
-    uint32_t                       swapchain_image_height = 0;
-    uint32_t                       swapchain_image_width  = 0;
+    Anvil::BufferUniquePtr raw_image_buffer_ptr;
+    uint32_t               raw_image_size         = 0;
+    uint32_t               swapchain_image_height = 0;
+    uint32_t               swapchain_image_width  = 0;
 
     in_swapchain_image_ptr->get_image_mipmap_size(0, /* n_mipmap */
                                                  &swapchain_image_width,
@@ -184,12 +187,9 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
 
     raw_image_size = 4 /* RGBA8 */ * swapchain_image_width * swapchain_image_height;
 
-    result_ptr.reset(
-        new unsigned char[raw_image_size],
-        std::default_delete<unsigned char[]>()
-    );
+    result_ptr.reset(new unsigned char[raw_image_size]);
 
-    raw_image_buffer_ptr = Anvil::Buffer::create_nonsparse(device_locked_ptr,
+    raw_image_buffer_ptr = Anvil::Buffer::create_nonsparse(device_ptr,
                                                            raw_image_size,
                                                            Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
                                                            VK_SHARING_MODE_EXCLUSIVE,
@@ -199,10 +199,10 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
                                                            MT_SAFETY_DISABLED);
 
     /* 2. Create the intermediate image */
-    VkImageBlit                   intermediate_image_blit;
-    std::shared_ptr<Anvil::Image> intermediate_image_ptr;
+    VkImageBlit    intermediate_image_blit;
+    ImageUniquePtr intermediate_image_ptr;
 
-    intermediate_image_ptr = Anvil::Image::create_nonsparse(device_locked_ptr,
+    intermediate_image_ptr = Anvil::Image::create_nonsparse(device_ptr,
                                                             VK_IMAGE_TYPE_2D,
                                                             VK_FORMAT_R8G8B8A8_UNORM,
                                                             VK_IMAGE_TILING_OPTIMAL,
@@ -223,12 +223,12 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
                                                             MT_SAFETY_DISABLED);
 
     /* 3. Set up the command buffer */
-    std::shared_ptr<Anvil::PrimaryCommandBuffer> command_buffer_ptr;
-    std::shared_ptr<Anvil::CommandPool>          universal_command_pool_ptr;
-    std::shared_ptr<Anvil::Queue>                universal_queue_ptr          = device_locked_ptr->get_universal_queue     (0);
-    const uint32_t                               universal_queue_family_index = universal_queue_ptr->get_queue_family_index();
+    auto                command_buffer_ptr           = Anvil::PrimaryCommandBufferUniquePtr();
+    Anvil::CommandPool* universal_command_pool_ptr   = nullptr;
+    Anvil::Queue*       universal_queue_ptr          = device_ptr->get_universal_queue            (0);
+    const uint32_t      universal_queue_family_index = universal_queue_ptr->get_queue_family_index();
 
-    universal_command_pool_ptr = device_locked_ptr->get_command_pool(Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL);
+    universal_command_pool_ptr = device_ptr->get_command_pool_for_queue_family_index(universal_queue_ptr->get_queue_family_index() );
     command_buffer_ptr         = universal_command_pool_ptr->alloc_primary_level_command_buffer();
 
     command_buffer_ptr->start_recording(true,   /* one_time_submit          */
@@ -256,7 +256,7 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
             universal_queue_family_index,
             universal_queue_family_index,
-            intermediate_image_ptr,
+            intermediate_image_ptr.get(),
             swapchain_image_subresource_range);
 
         Anvil::ImageBarrier transfer_src_to_general_image_barrier(
@@ -296,7 +296,7 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
 
         command_buffer_ptr->record_blit_image(in_swapchain_image_ptr,
                                               VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                              intermediate_image_ptr,
+                                              intermediate_image_ptr.get(),
                                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                               1, /* regionCount */
                                              &intermediate_image_blit,
@@ -326,9 +326,9 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
         buffer_image_copy_region.imageSubresource.layerCount     = 1;
         buffer_image_copy_region.imageSubresource.mipLevel       = 0;
 
-        command_buffer_ptr->record_copy_image_to_buffer(intermediate_image_ptr,
+        command_buffer_ptr->record_copy_image_to_buffer(intermediate_image_ptr.get(),
                                                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                                        raw_image_buffer_ptr,
+                                                        raw_image_buffer_ptr.get(),
                                                         1, /* regionCount */
                                                        &buffer_image_copy_region);
 
@@ -345,7 +345,7 @@ std::shared_ptr<unsigned char> Anvil::DummyWindowWithPNGSnapshots::get_swapchain
     command_buffer_ptr->stop_recording();
 
     /* Execute the command buffer */
-    universal_queue_ptr->submit_command_buffer(command_buffer_ptr,
+    universal_queue_ptr->submit_command_buffer(command_buffer_ptr.get(),
                                                true); /* should_block */
 
     /* Read back the result data */
@@ -374,9 +374,9 @@ void Anvil::DummyWindowWithPNGSnapshots::run()
 }
 
 /** Please see header for specification */
-void Anvil::DummyWindowWithPNGSnapshots::set_swapchain(std::weak_ptr<Anvil::Swapchain> in_swapchain_ptr)
+void Anvil::DummyWindowWithPNGSnapshots::set_swapchain(Anvil::Swapchain* in_swapchain_ptr)
 {
-    anvil_assert(m_swapchain_ptr.lock() == nullptr);
+    anvil_assert(m_swapchain_ptr == nullptr);
 
     m_swapchain_ptr = in_swapchain_ptr;
 }
@@ -384,15 +384,13 @@ void Anvil::DummyWindowWithPNGSnapshots::set_swapchain(std::weak_ptr<Anvil::Swap
 /** Please see header for specification */
 void Anvil::DummyWindowWithPNGSnapshots::store_swapchain_frame()
 {
-    std::shared_ptr<Anvil::Swapchain> swapchain_locked_ptr(m_swapchain_ptr);
-
-    anvil_assert(swapchain_locked_ptr != nullptr);
+    anvil_assert(m_swapchain_ptr != nullptr);
 
     /* Retrieve image contents */
-    const uint32_t                 swapchain_image_index        = swapchain_locked_ptr->get_last_acquired_image_index();
-    std::shared_ptr<Anvil::Image>  swapchain_image_ptr          = swapchain_locked_ptr->get_image                    (swapchain_image_index);
-    std::shared_ptr<unsigned char> swapchain_image_raw_data_ptr = get_swapchain_image_raw_r8g8b8a8_unorm_data        (swapchain_image_ptr);
-    uint32_t                       swapchain_image_size[2];
+    const uint32_t swapchain_image_index        = m_swapchain_ptr->get_last_acquired_image_index();
+    Anvil::Image*  swapchain_image_ptr          = m_swapchain_ptr->get_image                    (swapchain_image_index);
+    auto           swapchain_image_raw_data_ptr = get_swapchain_image_raw_r8g8b8a8_unorm_data   (swapchain_image_ptr);
+    uint32_t       swapchain_image_size[2];
 
     swapchain_image_ptr->get_image_mipmap_size(0, /* n_mipmap */
                                                swapchain_image_size + 0,

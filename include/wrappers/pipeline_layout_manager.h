@@ -47,38 +47,45 @@ namespace Anvil
         /** Returns a pipeline layout wrapper matching the specified DSG + push constant range configuration.
          *  If such pipeline layout has never been defined before, it will be created at the call time.
          *
-         *  If the function returns a Anvil::PipelineLayout instance, it is caller's responsibility to release it
-         *  in order for the object to be correctly deleted when its reference counter drops to zero.
-         *
-         *  @param in_dsg_ptr              A DescriptorSetGroup instance, holding the set of descriptor sets which the
-         *                                 layout should describe.
-         *  @param in_push_constant_ranges A vector of PushConstantRange descriptor, describing the push constant ranges
-         *                                 the layout should define.
-         *  @param out_pipeline_layout_ptr Deref will be set to a ptr to the pipeline layout wrapper instance, matching the described
-         *                                 requirements. Must not be nullptr.
+         *  @param in_ds_info_items_ptr        TODO.
+         *  @param in_push_constant_ranges     A vector of PushConstantRange descriptor, describing the push constant ranges
+         *                                     the layout should define.
+         *  @param out_pipeline_layout_ptr_ptr Deref will be set to a ptr to the pipeline layout wrapper instance, matching the described
+         *                                     requirements. Must not be nullptr.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_layout(std::shared_ptr<const DescriptorSetGroup> in_dsg_ptr,
-                        const PushConstantRanges&                 in_push_constant_ranges,
-                        std::shared_ptr<Anvil::PipelineLayout>*   out_pipeline_layout_ptr);
+        bool get_layout(const std::vector<DescriptorSetInfoUniquePtr>* in_ds_info_items_ptr,
+                        const PushConstantRanges&                      in_push_constant_ranges,
+                        Anvil::PipelineLayoutUniquePtr*                out_pipeline_layout_ptr_ptr);
 
     protected:
         /* Protected functions */
 
     private:
         /* Private type declarations */
+        typedef struct PipelineLayoutContainer
+        {
+            std::atomic<uint32_t>   n_references;
+            PipelineLayoutUniquePtr pipeline_layout_ptr;
 
-        /* NOTE: We do NOT own pipeline layouts. As soon as all wrapper instances are out of scope,
-         *       we drop the entry. */
-        typedef std::vector<Anvil::PipelineLayout*> PipelineLayouts;
+            PipelineLayoutContainer()
+                :n_references(1)
+            {
+                /* Stub */
+            }
+        } PipelineLayoutContainer;
+
+        typedef std::vector<std::unique_ptr<PipelineLayoutContainer> > PipelineLayouts;
 
         /* Private functions */
-        PipelineLayoutManager(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                              bool                             in_mt_safe);
+        PipelineLayoutManager(const Anvil::BaseDevice* in_device_ptr,
+                              bool                     in_mt_safe);
 
         PipelineLayoutManager           (const PipelineLayoutManager&);
         PipelineLayoutManager& operator=(const PipelineLayoutManager&);
+
+        void on_pipeline_layout_dereferenced(Anvil::PipelineLayout* in_layout_ptr);
 
         /** Instantiates a new PipelineLayoutManager instance.
          *
@@ -89,15 +96,12 @@ namespace Anvil
          *
          *  @return PipelineLayoutManager instance, or nullptr if the function failed.
          **/
-        static std::shared_ptr<PipelineLayoutManager> create(std::weak_ptr<Anvil::BaseDevice> in_device_ptr,
-                                                             bool                             in_mt_safe);
-
-        void on_pipeline_layout_dropped(CallbackArgument* in_callback_arg_raw_ptr);
-        void update_subscriptions      (bool              in_should_init);
+        static Anvil::PipelineLayoutManagerUniquePtr create(const Anvil::BaseDevice* in_device_ptr,
+                                                            bool                     in_mt_safe);
 
         /* Private members */
-        std::weak_ptr<Anvil::BaseDevice> m_device_ptr;
-        PipelineLayouts                  m_pipeline_layouts;
+        const Anvil::BaseDevice* m_device_ptr;
+        PipelineLayouts          m_pipeline_layouts;
 
         friend class BaseDevice;
     };

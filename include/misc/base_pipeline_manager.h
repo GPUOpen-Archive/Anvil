@@ -67,28 +67,12 @@ namespace Anvil
     public:
        /* Public functions */
 
-       /** Constructor. Initializes base layer of a pipeline manager.
-        *
-        *  @param in_device_ptr                  Device to use.
-        *  @param in_mt_safe                     True if more than one thread at a time is going to be issuing calls against the pipeline manager.
-        *  @param in_use_pipeline_cache          true if a pipeline cache should be used to spawn new pipeline objects.
-        *                                        What pipeline cache ends up being used depends on @param in_pipeline_cache_to_reuse_ptr -
-        *                                        if a nullptr object is passed via this argument, a new pipeline cache instance will
-        *                                        be created, and later released by the destructor. If a non-nullptr object is passed,
-        *                                        it will be used instead.
-        *  @param in_pipeline_cache_to_reuse_ptr Please see above.
-        **/
-       explicit BasePipelineManager(std::weak_ptr<Anvil::BaseDevice>      in_device_ptr,
-                                    bool                                  in_mt_safe,
-                                    bool                                  in_use_pipeline_cache,
-                                    std::shared_ptr<Anvil::PipelineCache> in_pipeline_cache_to_reuse_ptr);
-
        /** Destructor. Releases internally managed objects. */
        virtual ~BasePipelineManager();
 
         /** TODO */
-        bool add_pipeline(std::unique_ptr<Anvil::BasePipelineInfo> in_pipeline_info_ptr,
-                          PipelineID*                              out_pipeline_id_ptr);
+        bool add_pipeline(Anvil::BasePipelineInfoUniquePtr in_pipeline_info_ptr,
+                          PipelineID*                      out_pipeline_id_ptr);
 
        /** TODO */
        virtual bool bake() = 0;
@@ -125,7 +109,7 @@ namespace Anvil
         *
         *  @return Ptr to a PipelineLayout instance or nullptr if the function failed.
         **/
-       std::shared_ptr<Anvil::PipelineLayout> get_pipeline_layout(PipelineID in_pipeline_id);
+       Anvil::PipelineLayout* get_pipeline_layout(PipelineID in_pipeline_id);
 
        /** Returns various post-compile information about compute and graphics pipeline shaders like
         *  compiled binary or optionally shader disassembly.
@@ -168,14 +152,14 @@ namespace Anvil
        /** Internal pipeline object descriptor */
        typedef struct Pipeline : public MTSafetySupportProvider
        {
-           VkPipeline                               baked_pipeline;
-           std::weak_ptr<BaseDevice>                device_ptr;
-           std::shared_ptr<PipelineLayout>          layout_ptr;
-           std::unique_ptr<Anvil::BasePipelineInfo> pipeline_info_ptr;
+           VkPipeline                       baked_pipeline;
+           const BaseDevice*                device_ptr;
+           Anvil::PipelineLayoutUniquePtr   layout_ptr;
+           Anvil::BasePipelineInfoUniquePtr pipeline_info_ptr;
 
-           Pipeline(std::weak_ptr<Anvil::BaseDevice>         in_device_ptr,
-                    std::unique_ptr<Anvil::BasePipelineInfo> in_pipeline_info_ptr,
-                    bool                                     in_mt_safe)
+           Pipeline(const Anvil::BaseDevice*         in_device_ptr,
+                    Anvil::BasePipelineInfoUniquePtr in_pipeline_info_ptr,
+                    bool                             in_mt_safe)
                :MTSafetySupportProvider(in_mt_safe)
            {
                baked_pipeline    = VK_NULL_HANDLE;
@@ -200,6 +184,22 @@ namespace Anvil
 
        /* Protected functions */
 
+       /** Constructor. Initializes base layer of a pipeline manager.
+        *
+        *  @param in_device_ptr                  Device to use.
+        *  @param in_mt_safe                     True if more than one thread at a time is going to be issuing calls against the pipeline manager.
+        *  @param in_use_pipeline_cache          true if a pipeline cache should be used to spawn new pipeline objects.
+        *                                        What pipeline cache ends up being used depends on @param in_pipeline_cache_to_reuse_ptr -
+        *                                        if a nullptr object is passed via this argument, a new pipeline cache instance will
+        *                                        be created, and later released by the destructor. If a non-nullptr object is passed,
+        *                                        it will be used instead.
+        *  @param in_pipeline_cache_to_reuse_ptr Please see above.
+        **/
+       explicit BasePipelineManager(const Anvil::BaseDevice* in_device_ptr,
+                                    bool                     in_mt_safe,
+                                    bool                     in_use_pipeline_cache,
+                                    Anvil::PipelineCache*    in_pipeline_cache_to_reuse_ptr);
+
        /** Fills & returns a VkSpecializationInfo descriptor. Any sub-descriptors, to which the baked descriptor
         *  is going to point at, are stored in a vector provided by the caller. It is caller's responsibility to
         *  ensure the vector is not released before pipeline baking occurs.
@@ -216,15 +216,16 @@ namespace Anvil
                                         VkSpecializationInfo*                  out_specialization_info_ptr);
 
        /* Protected members */
-       std::weak_ptr<Anvil::BaseDevice>      m_device_ptr;
-       std::atomic<uint32_t>                 m_pipeline_counter;
+       const Anvil::BaseDevice* m_device_ptr;
+       std::atomic<uint32_t>    m_pipeline_counter;
 
        Pipelines                             m_baked_pipelines;
        Pipelines                             m_outstanding_pipelines;
 
-       std::shared_ptr<Anvil::PipelineCache>  m_pipeline_cache_ptr;
-       std::shared_ptr<PipelineLayoutManager> m_pipeline_layout_manager_ptr;
-       bool                                   m_use_pipeline_cache;
+       Anvil::PipelineCache*  m_pipeline_cache_ptr;
+       PipelineCacheUniquePtr m_pipeline_cache_owned_ptr;
+       PipelineLayoutManager* m_pipeline_layout_manager_ptr;
+       bool                   m_use_pipeline_cache;
 
 private:
        /* Private functions */

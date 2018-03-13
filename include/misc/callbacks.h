@@ -72,10 +72,10 @@ namespace Anvil
 
     typedef struct IsBufferMemoryAllocPendingQueryCallbackArgument : public Anvil::CallbackArgument
     {
-        std::shared_ptr<const Anvil::Buffer> buffer_ptr;
-        bool                                 result;
+        const Anvil::Buffer* buffer_ptr;
+        bool                 result;
 
-        explicit IsBufferMemoryAllocPendingQueryCallbackArgument(std::shared_ptr<Anvil::Buffer> in_buffer_ptr)
+        explicit IsBufferMemoryAllocPendingQueryCallbackArgument(const Anvil::Buffer* in_buffer_ptr)
             :buffer_ptr(in_buffer_ptr),
              result    (false)
         {
@@ -87,7 +87,7 @@ namespace Anvil
 
     typedef struct IsImageMemoryAllocPendingQueryCallbackArgument : Anvil::CallbackArgument
     {
-        explicit IsImageMemoryAllocPendingQueryCallbackArgument(std::shared_ptr<Anvil::Image> in_image_ptr)
+        explicit IsImageMemoryAllocPendingQueryCallbackArgument(const Anvil::Image* in_image_ptr)
             :image_ptr(in_image_ptr),
              result   (false)
         {
@@ -96,13 +96,13 @@ namespace Anvil
 
         IsImageMemoryAllocPendingQueryCallbackArgument& operator=(const IsImageMemoryAllocPendingQueryCallbackArgument&) = delete;
 
-        const std::shared_ptr<const Anvil::Image> image_ptr;
-        bool                                      result;
+        const Anvil::Image* image_ptr;
+        bool                result;
     } IsImageMemoryAllocPendingQueryCallbackArgument;
 
     typedef struct OnDescriptorPoolResetCallbackArgument : public Anvil::CallbackArgument
     {
-        DescriptorPool* descriptor_pool_ptr;
+        const DescriptorPool* descriptor_pool_ptr;
 
         explicit OnDescriptorPoolResetCallbackArgument(DescriptorPool* in_descriptor_pool_ptr)
         {
@@ -112,9 +112,9 @@ namespace Anvil
 
     typedef struct OnGLSLToSPIRVConversionAboutToBeStartedCallbackArgument : public Anvil::CallbackArgument
     {
-        GLSLShaderToSPIRVGenerator* generator_ptr;
+        const GLSLShaderToSPIRVGenerator* generator_ptr;
 
-        explicit OnGLSLToSPIRVConversionAboutToBeStartedCallbackArgument(GLSLShaderToSPIRVGenerator* in_generator_ptr)
+        explicit OnGLSLToSPIRVConversionAboutToBeStartedCallbackArgument(const GLSLShaderToSPIRVGenerator* in_generator_ptr)
         {
             generator_ptr = in_generator_ptr;
         }
@@ -143,7 +143,7 @@ namespace Anvil
 
     typedef struct OnMemoryBlockNeededForBufferCallbackArgument : public Anvil::CallbackArgument
     {
-        explicit OnMemoryBlockNeededForBufferCallbackArgument(std::shared_ptr<Anvil::Buffer> in_buffer_ptr)
+        explicit OnMemoryBlockNeededForBufferCallbackArgument(const Anvil::Buffer* in_buffer_ptr)
             :buffer_ptr(in_buffer_ptr)
         {
             /* Stub */
@@ -151,12 +151,12 @@ namespace Anvil
 
         OnMemoryBlockNeededForBufferCallbackArgument& operator=(const OnMemoryBlockNeededForBufferCallbackArgument&) = delete;
 
-        const std::shared_ptr<const Anvil::Buffer> buffer_ptr;
+        const Anvil::Buffer* buffer_ptr;
     } OnMemoryBlockNeededForBufferCallbackArgument;
 
     typedef struct OnMemoryBlockNeededForImageCallbackArgument : public Anvil::CallbackArgument
     {
-        explicit OnMemoryBlockNeededForImageCallbackArgument(std::shared_ptr<Anvil::Image> in_image_ptr)
+        explicit OnMemoryBlockNeededForImageCallbackArgument(const Anvil::Image* in_image_ptr)
             :image_ptr(in_image_ptr)
         {
             /* Stub */
@@ -164,14 +164,14 @@ namespace Anvil
 
         OnMemoryBlockNeededForImageCallbackArgument& operator=(const OnMemoryBlockNeededForImageCallbackArgument&) = delete;
 
-        const std::shared_ptr<const Anvil::Image> image_ptr;
+        const Anvil::Image* image_ptr;
     } OnMemoryBlockNeededForImageCallbackArgument;
 
     typedef struct OnNewBindingAddedToDescriptorSetLayoutCallbackArgument : public Anvil::CallbackArgument
     {
-        DescriptorSetLayout* descriptor_set_layout_ptr;
+        const DescriptorSetLayout* descriptor_set_layout_ptr;
 
-        explicit OnNewBindingAddedToDescriptorSetLayoutCallbackArgument(DescriptorSetLayout* in_descriptor_set_layout_ptr)
+        explicit OnNewBindingAddedToDescriptorSetLayoutCallbackArgument(const DescriptorSetLayout* in_descriptor_set_layout_ptr)
         {
             descriptor_set_layout_ptr = in_descriptor_set_layout_ptr;
         }
@@ -225,9 +225,9 @@ namespace Anvil
 
     typedef struct OnPresentRequestIssuedCallbackArgument : public Anvil::CallbackArgument
     {
-        Swapchain* swapchain_ptr;
+        const Swapchain* swapchain_ptr;
 
-        explicit OnPresentRequestIssuedCallbackArgument(Swapchain* in_swapchain_ptr)
+        explicit OnPresentRequestIssuedCallbackArgument(const Swapchain* in_swapchain_ptr)
         {
             swapchain_ptr = in_swapchain_ptr;
         }
@@ -235,9 +235,9 @@ namespace Anvil
 
     typedef struct OnRenderPassBakeNeededCallbackArgument : public Anvil::CallbackArgument
     {
-        RenderPass* renderpass_ptr;
+        const RenderPass* renderpass_ptr;
 
-        explicit OnRenderPassBakeNeededCallbackArgument(RenderPass* in_renderpass_ptr)
+        explicit OnRenderPassBakeNeededCallbackArgument(const RenderPass* in_renderpass_ptr)
         {
             renderpass_ptr = in_renderpass_ptr;
         }
@@ -245,9 +245,9 @@ namespace Anvil
 
     typedef struct OnWindowAboutToCloseCallbackArgument : public Anvil::CallbackArgument
     {
-        Window* window_ptr;
+        const Window* window_ptr;
 
-        explicit OnWindowAboutToCloseCallbackArgument(Window* in_window_ptr)
+        explicit OnWindowAboutToCloseCallbackArgument(const Window* in_window_ptr)
         {
             window_ptr = in_window_ptr;
         }
@@ -424,7 +424,7 @@ namespace Anvil
          *  @param in_callback_arg_ptr Call-back argument to use.
          **/
         void callback(CallbackID        in_callback_id,
-                      CallbackArgument* in_callback_arg_ptr)
+                      CallbackArgument* in_callback_arg_ptr) const
         {
             std::unique_lock<std::recursive_mutex> mutex_lock(m_mutex);
 
@@ -557,7 +557,7 @@ namespace Anvil
         /* Private variables */
         CallbackID                   m_callback_id_count;
         Callbacks*                   m_callbacks;
-        volatile bool                m_callbacks_locked;
+        mutable volatile bool        m_callbacks_locked;
         mutable std::recursive_mutex m_mutex;
     };
 } /* namespace Anvil */

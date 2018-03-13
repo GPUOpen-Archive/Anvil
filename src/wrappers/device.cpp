@@ -23,11 +23,14 @@
 #include "misc/base_pipeline_info.h"
 #include "misc/debug.h"
 #include "misc/object_tracker.h"
+#include "misc/shader_module_cache.h"
+#include "misc/struct_chainer.h"
 #include "wrappers/command_pool.h"
 #include "wrappers/compute_pipeline_manager.h"
 #include "wrappers/descriptor_set.h"
 #include "wrappers/descriptor_set_group.h"
 #include "wrappers/descriptor_set_layout.h"
+#include "wrappers/descriptor_set_layout_manager.h"
 #include "wrappers/device.h"
 #include "wrappers/graphics_pipeline_manager.h"
 #include "wrappers/instance.h"
@@ -40,17 +43,13 @@
 
 
 /* Please see header for specification */
-Anvil::BaseDevice::BaseDevice(std::weak_ptr<Anvil::Instance> in_parent_instance_ptr,
-                              bool                           in_mt_safe)
-    :MTSafetySupportProvider   (in_mt_safe),
-     m_destroyed               (false),
-     m_device                  (VK_NULL_HANDLE),
-     m_ext_debug_marker_enabled(false),
-     m_parent_instance_ptr     (in_parent_instance_ptr)
+Anvil::BaseDevice::BaseDevice(const Anvil::Instance* in_parent_instance_ptr,
+                              bool                   in_mt_safe)
+    :MTSafetySupportProvider(in_mt_safe),
+     m_device               (VK_NULL_HANDLE),
+     m_parent_instance_ptr  (in_parent_instance_ptr)
 {
-    std::shared_ptr<Anvil::Instance> instance_locked_ptr(in_parent_instance_ptr);
-
-    m_khr_surface_extension_entrypoints = instance_locked_ptr->get_extension_khr_surface_entrypoints();
+    m_khr_surface_extension_entrypoints = m_parent_instance_ptr->get_extension_khr_surface_entrypoints();
 
     /* Register the instance */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_DEVICE,
@@ -59,18 +58,28 @@ Anvil::BaseDevice::BaseDevice(std::weak_ptr<Anvil::Instance> in_parent_instance_
 
 Anvil::BaseDevice::~BaseDevice()
 {
-    anvil_assert(m_destroyed);
-
     /* Unregister the instance. Tihs needs to happen before actual Vulkan object destruction, as there might
      * be observers who postpone their destruction until the device is about to go down.
      */
     Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_DEVICE,
                                                     this);
 
-    if (m_device != nullptr)
+    if (m_device != VK_NULL_HANDLE)
     {
         wait_idle();
+    }
 
+    m_command_pool_ptr_per_vk_queue_fam.clear();
+    m_compute_pipeline_manager_ptr.reset     ();
+    m_descriptor_set_layout_manager_ptr.reset();
+    m_dummy_dsg_ptr.reset                    ();
+    m_graphics_pipeline_manager_ptr.reset    ();
+    m_pipeline_cache_ptr.reset               ();
+    m_pipeline_layout_manager_ptr.reset      ();
+    m_owned_queues.clear                     ();
+
+    if (m_device != VK_NULL_HANDLE)
+    {
         lock();
         {
             vkDestroyDevice(m_device,
@@ -83,49 +92,13 @@ Anvil::BaseDevice::~BaseDevice()
 }
 
 /** Please see header for specification */
-void Anvil::BaseDevice::destroy()
-{
-    anvil_assert(!m_destroyed);
-
-    m_destroyed = true;
-
-    for (uint32_t n_command_pool = 0;
-                  n_command_pool < sizeof(m_command_pool_ptrs) / sizeof(m_command_pool_ptrs[0]);
-                ++n_command_pool)
-    {
-        m_command_pool_ptrs[n_command_pool] = nullptr;
-    }
-
-    m_compute_pipeline_manager_ptr  = nullptr;
-    m_dummy_dsg_ptr                 = nullptr;
-    m_graphics_pipeline_manager_ptr = nullptr;
-    m_pipeline_cache_ptr            = nullptr;
-    m_pipeline_layout_manager_ptr   = nullptr;
-
-    /* Proceed with device-specific instances */
-    m_queue_fams.clear           ();
-    m_sparse_binding_queues.clear();
-
-    for (Anvil::QueueFamilyType queue_family_type = Anvil::QUEUE_FAMILY_TYPE_FIRST;
-                                queue_family_type < Anvil::QUEUE_FAMILY_TYPE_COUNT;
-                                queue_family_type = static_cast<Anvil::QueueFamilyType>(queue_family_type + 1))
-    {
-        std::vector<std::shared_ptr<Anvil::Queue> >& queues = (queue_family_type == Anvil::QUEUE_FAMILY_TYPE_COMPUTE)   ? m_compute_queues
-                                                            : (queue_family_type == Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL) ? m_universal_queues
-                                                                                                                        : m_transfer_queues;
-
-        queues.clear();
-    }
-}
-
-/** Please see header for specification */
-std::shared_ptr<Anvil::DescriptorSet> Anvil::BaseDevice::get_dummy_descriptor_set() const
+const Anvil::DescriptorSet* Anvil::BaseDevice::get_dummy_descriptor_set() const
 {
     return m_dummy_dsg_ptr->get_descriptor_set(0);
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::DescriptorSetLayout> Anvil::BaseDevice::get_dummy_descriptor_set_layout() const
+Anvil::DescriptorSetLayout* Anvil::BaseDevice::get_dummy_descriptor_set_layout() const
 {
     return m_dummy_dsg_ptr->get_descriptor_set_layout(0);
 }
@@ -133,10 +106,10 @@ std::shared_ptr<Anvil::DescriptorSetLayout> Anvil::BaseDevice::get_dummy_descrip
 /** Please see header for specification */
 uint32_t Anvil::BaseDevice::get_n_queues(uint32_t in_n_queue_family) const
 {
-    auto     map_iterator = m_queue_fams.find(in_n_queue_family);
+    auto     map_iterator = m_queue_ptrs_per_vk_queue_fam.find(in_n_queue_family);
     uint32_t result       = 0;
 
-    if (map_iterator != m_queue_fams.end())
+    if (map_iterator != m_queue_ptrs_per_vk_queue_fam.end())
     {
         result = static_cast<uint32_t>(map_iterator->second.size() );
     }
@@ -144,14 +117,167 @@ uint32_t Anvil::BaseDevice::get_n_queues(uint32_t in_n_queue_family) const
     return result;
 }
 
-/** Please see header for specification */
-std::shared_ptr<Anvil::Queue> Anvil::BaseDevice::get_queue(uint32_t in_n_queue_family,
-                                                           uint32_t in_n_queue) const
+/* Please see header for specification */
+Anvil::Queue* Anvil::BaseDevice::get_queue(const Anvil::QueueFamilyType& in_queue_family_type,
+                                           uint32_t                      in_n_queue) const
 {
-    auto                          map_iterator = m_queue_fams.find(in_n_queue_family);
-    std::shared_ptr<Anvil::Queue> result_ptr;
+    Anvil::Queue* result_ptr = nullptr;
 
-    if (map_iterator != m_queue_fams.end())
+    switch (in_queue_family_type)
+    {
+        case Anvil::QueueFamilyType::COMPUTE:   result_ptr = get_compute_queue  (in_n_queue); break;
+        case Anvil::QueueFamilyType::TRANSFER:  result_ptr = get_transfer_queue (in_n_queue); break;
+        case Anvil::QueueFamilyType::UNIVERSAL: result_ptr = get_universal_queue(in_n_queue); break;
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
+
+    return result_ptr;
+}
+
+/* Please see header for specification */
+void Anvil::BaseDevice::get_queue_family_indices_for_physical_device(const Anvil::PhysicalDevice* in_physical_device_ptr,
+                                                                     DeviceQueueFamilyInfo*       out_device_queue_family_info_ptr) const
+{
+    const auto                               n_queue_families                = static_cast<uint32_t>(in_physical_device_ptr->get_queue_families().size() );
+    std::vector<DeviceQueueFamilyMemberInfo> result_compute_queue_families;
+    std::vector<DeviceQueueFamilyMemberInfo> result_transfer_queue_families;
+    std::vector<DeviceQueueFamilyMemberInfo> result_universal_queue_families;
+    
+    for (uint32_t n_iteration = 0;
+                  n_iteration < 3;
+                ++n_iteration)
+    {
+        for (uint32_t n_queue_family_index = 0;
+                      n_queue_family_index < n_queue_families;
+                    ++n_queue_family_index)
+        {
+            const Anvil::QueueFamilyInfo& current_queue_family = in_physical_device_ptr->get_queue_families()[n_queue_family_index];
+
+            if (n_iteration == 0)
+            {
+                if ( (current_queue_family.flags & VK_QUEUE_COMPUTE_BIT)  &&
+                    !(current_queue_family.flags & VK_QUEUE_GRAPHICS_BIT) )
+                {
+                    result_compute_queue_families.push_back(
+                        DeviceQueueFamilyMemberInfo(n_queue_family_index,
+                                                    current_queue_family.n_queues)
+                    );
+                }
+            }
+            else
+            if (n_iteration == 1)
+            {
+                if (current_queue_family.flags & VK_QUEUE_GRAPHICS_BIT)
+                {
+                    if (std::find(result_compute_queue_families.begin(),
+                                  result_compute_queue_families.end  (),
+                                  n_queue_family_index) == result_compute_queue_families.end() )
+                    {
+                        result_universal_queue_families.push_back(
+                            DeviceQueueFamilyMemberInfo(n_queue_family_index,
+                                                        current_queue_family.n_queues)
+                        );
+                    }
+                }
+            }
+            else
+            if (n_iteration == 2)
+            {
+                if (current_queue_family.flags & VK_QUEUE_TRANSFER_BIT)
+                {
+                    if (std::find(result_compute_queue_families.begin(),
+                                  result_compute_queue_families.end  (),
+                                  n_queue_family_index) == result_compute_queue_families.end()   &&
+                        std::find(result_universal_queue_families.begin(),
+                                  result_universal_queue_families.end  (),
+                                  n_queue_family_index) == result_universal_queue_families.end() )
+                    {
+                        result_transfer_queue_families.push_back(
+                            DeviceQueueFamilyMemberInfo(n_queue_family_index,
+                                                        current_queue_family.n_queues)
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /* NOTE: Vulkan API only guarantees universal queue family's availability */
+    anvil_assert(result_universal_queue_families.size() > 0);
+
+    out_device_queue_family_info_ptr->queue_families[Anvil::QueueFamilyType::COMPUTE]   = result_compute_queue_families;
+    out_device_queue_family_info_ptr->queue_families[Anvil::QueueFamilyType::TRANSFER]  = result_transfer_queue_families;
+    out_device_queue_family_info_ptr->queue_families[Anvil::QueueFamilyType::UNIVERSAL] = result_universal_queue_families;
+
+    for (Anvil::QueueFamilyType current_queue_family_type  = Anvil::QueueFamilyType::FIRST;
+                                current_queue_family_type != Anvil::QueueFamilyType::COUNT;
+                                current_queue_family_type  = static_cast<Anvil::QueueFamilyType>(static_cast<uint32_t>(current_queue_family_type) + 1) )
+    {
+        uint32_t n_total_queues = 0;
+
+        for (const auto& current_queue_fam : out_device_queue_family_info_ptr->queue_families[current_queue_family_type])
+        {
+            n_total_queues += current_queue_fam.n_queues;
+        }
+
+        out_device_queue_family_info_ptr->n_total_queues_per_family[static_cast<uint32_t>(current_queue_family_type)] = n_total_queues;
+    }
+}
+
+/** Please see header for specification */
+bool Anvil::BaseDevice::get_queue_family_indices_for_queue_family_type(const Anvil::QueueFamilyType& in_queue_family_type,
+                                                                       uint32_t*                     out_opt_n_queue_family_indices_ptr,
+                                                                       const uint32_t**              out_opt_queue_family_indices_ptr_ptr) const
+{
+    bool            result                          = false;
+    uint32_t        result_n_queue_family_indices   = 0;
+    const uint32_t* result_queue_family_indices_ptr = nullptr;
+
+    auto map_iterator = m_queue_family_type_to_queue_family_indices.find(in_queue_family_type);
+
+    if (map_iterator != m_queue_family_type_to_queue_family_indices.end() )
+    {
+        result                          = true;
+        result_n_queue_family_indices   = static_cast<uint32_t>(map_iterator->second.size() );
+        result_queue_family_indices_ptr = (map_iterator->second.size() > 0) ? &map_iterator->second.at(0)
+                                                                            : nullptr;
+    }
+    else
+    {
+        result = true;
+    }
+
+    if (out_opt_n_queue_family_indices_ptr != nullptr)
+    {
+        *out_opt_n_queue_family_indices_ptr = result_n_queue_family_indices;
+    }
+
+    if (out_opt_queue_family_indices_ptr_ptr != nullptr)
+    {
+        *out_opt_queue_family_indices_ptr_ptr = result_queue_family_indices_ptr;
+    }
+
+    return result;
+}
+
+/** Please see header for specification */
+Anvil::QueueFamilyType Anvil::BaseDevice::get_queue_family_type(uint32_t in_queue_family_index) const
+{
+    return m_queue_family_index_to_type.at(in_queue_family_index);
+}
+
+/** Please see header for specification */
+Anvil::Queue* Anvil::BaseDevice::get_queue_for_queue_family_index(uint32_t in_n_queue_family,
+                                                                  uint32_t in_n_queue) const
+{
+    auto          map_iterator = m_queue_ptrs_per_vk_queue_fam.find(in_n_queue_family);
+    Anvil::Queue* result_ptr   = nullptr;
+
+    if (map_iterator != m_queue_ptrs_per_vk_queue_fam.end())
     {
         if (map_iterator->second.size() > in_n_queue)
         {
@@ -160,104 +286,6 @@ std::shared_ptr<Anvil::Queue> Anvil::BaseDevice::get_queue(uint32_t in_n_queue_f
     }
 
     return result_ptr;
-}
-
-/* Please see header for specification */
-void Anvil::BaseDevice::get_queue_family_indices_for_physical_device(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
-                                                                     DeviceQueueFamilyInfo*               out_device_queue_family_info_ptr) const
-{
-    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(in_physical_device_ptr);
-
-    /* Retrieve a compute-only queue, and then look for another queue which can handle graphics tasks. */
-    const size_t   n_queue_families                    = physical_device_locked_ptr->get_queue_families().size();
-    uint32_t       result_compute_queue_family_index   = UINT32_MAX;
-    uint32_t       result_dma_queue_family_index       = UINT32_MAX;
-    uint32_t       result_n_compute_queues             = 0;
-    uint32_t       result_n_dma_queues                 = 0;
-    uint32_t       result_n_universal_queues           = 0;
-    uint32_t       result_universal_queue_family_index = UINT32_MAX;
-
-    for (uint32_t n_iteration = 0;
-                  n_iteration < 3;
-                ++n_iteration)
-    {
-        for (size_t n_queue_family_index = 0;
-                    n_queue_family_index < n_queue_families;
-                  ++n_queue_family_index)
-        {
-            const Anvil::QueueFamilyInfo& current_queue_family = physical_device_locked_ptr->get_queue_families()[n_queue_family_index];
-
-            if (n_iteration == 0)
-            {
-                if ( (current_queue_family.flags & VK_QUEUE_COMPUTE_BIT)  &&
-                    !(current_queue_family.flags & VK_QUEUE_GRAPHICS_BIT) )
-                {
-                    result_compute_queue_family_index = (uint32_t) n_queue_family_index;
-                    result_n_compute_queues           = current_queue_family.n_queues;
-
-                    break;
-                }
-            }
-            else
-            if (n_iteration == 1)
-            {
-                if (current_queue_family.flags & VK_QUEUE_GRAPHICS_BIT        &&
-                    n_queue_family_index != result_compute_queue_family_index)
-                {
-                    result_universal_queue_family_index = (uint32_t) n_queue_family_index;
-                    result_n_universal_queues           = current_queue_family.n_queues;
-
-                    break;
-                }
-            }
-            else
-            if (n_iteration == 2)
-            {
-                if (current_queue_family.flags & VK_QUEUE_TRANSFER_BIT         &&
-                    n_queue_family_index != result_compute_queue_family_index  &&
-                    n_queue_family_index != result_universal_queue_family_index)
-                {
-                    result_dma_queue_family_index = (uint32_t) n_queue_family_index;
-                    result_n_dma_queues           = current_queue_family.n_queues;
-
-                    break;
-                }
-            }
-        }
-    }
-
-    /* NOTE: Vulkan API only guarantees universal queue family's availability */
-    anvil_assert(result_universal_queue_family_index != UINT32_MAX);
-
-    out_device_queue_family_info_ptr->family_index[Anvil::QUEUE_FAMILY_TYPE_COMPUTE]   = result_compute_queue_family_index;
-    out_device_queue_family_info_ptr->family_index[Anvil::QUEUE_FAMILY_TYPE_TRANSFER]  = result_dma_queue_family_index;
-    out_device_queue_family_info_ptr->family_index[Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL] = result_universal_queue_family_index;
-
-    for (uint32_t n_queue_family_type = 0;
-                  n_queue_family_type < static_cast<uint32_t>(Anvil::QUEUE_FAMILY_TYPE_COUNT);
-                ++n_queue_family_type)
-    {
-        out_device_queue_family_info_ptr->family_type[n_queue_family_type] = Anvil::QUEUE_FAMILY_TYPE_UNDEFINED;
-    }
-
-    if (result_compute_queue_family_index != UINT32_MAX)
-    {
-        out_device_queue_family_info_ptr->family_type[result_compute_queue_family_index] = Anvil::QUEUE_FAMILY_TYPE_COMPUTE;
-    }
-
-    if (result_dma_queue_family_index != UINT32_MAX)
-    {
-        out_device_queue_family_info_ptr->family_type[result_dma_queue_family_index] = Anvil::QUEUE_FAMILY_TYPE_TRANSFER;
-    }
-
-    if (result_universal_queue_family_index != UINT32_MAX)
-    {
-        out_device_queue_family_info_ptr->family_type[result_universal_queue_family_index] = Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL;
-    }
-
-    out_device_queue_family_info_ptr->n_queues[Anvil::QUEUE_FAMILY_TYPE_COMPUTE]   = result_n_compute_queues;
-    out_device_queue_family_info_ptr->n_queues[Anvil::QUEUE_FAMILY_TYPE_TRANSFER]  = result_n_dma_queues;
-    out_device_queue_family_info_ptr->n_queues[Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL] = result_n_universal_queues;
 }
 
 /* Please see header for specification */
@@ -275,7 +303,7 @@ bool Anvil::BaseDevice::get_sample_locations(VkSampleCountFlagBits        in_sam
             const Anvil::SGPUDevice* sgpu_device_ptr = reinterpret_cast<const Anvil::SGPUDevice*>(this);
             anvil_assert(sgpu_device_ptr != nullptr);
 
-            standard_sample_locations_support = (sgpu_device_ptr->get_physical_device_properties().limits.standardSampleLocations == VK_TRUE);
+            standard_sample_locations_support = (sgpu_device_ptr->get_physical_device_properties().core_vk1_0_properties_ptr->limits.standard_sample_locations);
             break;
         }
 
@@ -379,11 +407,11 @@ end:
 }
 
 /* Please see header for specification */
-std::shared_ptr<Anvil::Queue> Anvil::BaseDevice::get_sparse_binding_queue(uint32_t     in_n_queue,
-                                                                          VkQueueFlags in_opt_required_queue_flags) const
+Anvil::Queue* Anvil::BaseDevice::get_sparse_binding_queue(uint32_t     in_n_queue,
+                                                          VkQueueFlags in_opt_required_queue_flags) const
 {
-    uint32_t                      n_queues_found = 0;
-    std::shared_ptr<Anvil::Queue> result_ptr;
+    uint32_t      n_queues_found = 0;
+    Anvil::Queue* result_ptr     = nullptr;
 
     for (auto queue_ptr : m_sparse_binding_queues)
     {
@@ -407,53 +435,19 @@ std::shared_ptr<Anvil::Queue> Anvil::BaseDevice::get_sparse_binding_queue(uint32
     return result_ptr;
 }
 
-/* Please see header for specification */
-bool Anvil::BaseDevice::wait_idle()
-{
-    const bool mt_safe = is_mt_safe();
-
-    VkResult result_vk;
-
-    if (mt_safe)
-    {
-        for (const auto& queue_fam : m_queue_fams)
-        {
-            for (const auto& queue_ptr : queue_fam.second)
-            {
-                queue_ptr->lock();
-            }
-        }
-    }
-
-    result_vk = vkDeviceWaitIdle(m_device);
-
-    if (mt_safe)
-    {
-        for (const auto& queue_fam : m_queue_fams)
-        {
-            for (const auto& queue_ptr : queue_fam.second)
-            {
-                queue_ptr->unlock();
-            }
-        }
-    }
-
-    return is_vk_call_successful(result_vk);
-}
-
 /* Initializes a new Device instance */
 void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
                              const std::vector<std::string>&     in_layers,
                              bool                                in_transient_command_buffer_allocs_only,
-                             bool                                in_support_resettable_command_buffer_allocs)
+                             bool                                in_support_resettable_command_buffer_allocs,
+                             bool                                in_enable_shader_module_cache)
 {
 
-    std::vector<const char*>         extensions_final;
-    VkPhysicalDeviceFeatures         features_to_enable;
-    std::shared_ptr<Anvil::Instance> instance_locked_ptr  (m_parent_instance_ptr);
-    const bool                       is_validation_enabled(instance_locked_ptr->is_validation_enabled() );
-    std::vector<const char*>         layers_final;
-    const auto                       mt_safety            (Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe()) );
+    std::vector<const char*> extensions_final;
+    VkPhysicalDeviceFeatures features_to_enable;
+    const bool               is_validation_enabled(m_parent_instance_ptr->is_validation_enabled() );
+    std::vector<const char*> layers_final;
+    const auto               mt_safety            (Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe()) );
 
     /* If validation is enabled, retrieve names of all suported validation layers and
      * append them to the list of layers the user has alreaedy specified. **/
@@ -504,6 +498,8 @@ void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
         ExtensionItem(VK_AMD_RASTERIZATION_ORDER_EXTENSION_NAME,              in_extensions.amd_rasterization_order,              &m_amd_rasterization_order_enabled),
         ExtensionItem(VK_AMD_SHADER_BALLOT_EXTENSION_NAME,                    in_extensions.amd_shader_ballot,                    &m_amd_shader_ballot_enabled),
         ExtensionItem(VK_AMD_SHADER_EXPLICIT_VERTEX_PARAMETER_EXTENSION_NAME, in_extensions.amd_shader_explicit_vertex_parameter, &m_amd_shader_explicit_vertex_parameter_enabled),
+        ExtensionItem(VK_AMD_SHADER_FRAGMENT_MASK_EXTENSION_NAME,             in_extensions.amd_shader_fragment_mask,             &m_amd_shader_fragment_mask_enabled),
+        ExtensionItem(VK_AMD_SHADER_IMAGE_LOAD_STORE_LOD_EXTENSION_NAME,      in_extensions.amd_shader_image_load_store_lod,      &m_amd_shader_image_load_store_lod_enabled),
         ExtensionItem(VK_AMD_SHADER_INFO_EXTENSION_NAME,                      in_extensions.amd_shader_info,                      &m_amd_shader_info_enabled),
         ExtensionItem(VK_AMD_SHADER_TRINARY_MINMAX_EXTENSION_NAME,            in_extensions.amd_shader_trinary_minmax,            &m_amd_shader_trinary_minmax_enabled),
         ExtensionItem(VK_AMD_TEXTURE_GATHER_BIAS_LOD_EXTENSION_NAME,          in_extensions.amd_texture_gather_bias_lod,          &m_amd_texture_gather_bias_lod_enabled),
@@ -512,7 +508,10 @@ void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
         ExtensionItem(VK_EXT_SHADER_SUBGROUP_BALLOT_EXTENSION_NAME,           in_extensions.ext_shader_subgroup_ballot,           &m_ext_shader_subgroup_ballot_enabled),
         ExtensionItem(VK_EXT_SHADER_SUBGROUP_VOTE_EXTENSION_NAME,             in_extensions.ext_shader_subgroup_vote,             &m_ext_shader_subgroup_vote_enabled),
         ExtensionItem(VK_KHR_16BIT_STORAGE_EXTENSION_NAME,                    in_extensions.khr_16bit_storage,                    &m_khr_16bit_storage_enabled),
+        ExtensionItem(VK_KHR_DESCRIPTOR_UPDATE_TEMPLATE_EXTENSION_NAME,       in_extensions.khr_descriptor_update_template,       &m_khr_descriptor_update_template_enabled),
         ExtensionItem(VK_KHR_MAINTENANCE1_EXTENSION_NAME,                     in_extensions.khr_maintenance1,                     &m_khr_maintenance1_enabled),
+        ExtensionItem(VK_KHR_MAINTENANCE3_EXTENSION_NAME,                     in_extensions.khr_maintenance3,                     &m_khr_maintenance3_enabled),
+        ExtensionItem(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,                    in_extensions.khr_bind_memory2,                     &m_khr_bind_memory2_enabled),
         ExtensionItem("VK_KHR_storage_buffer_storage_class",                  in_extensions.khr_storage_buffer_storage_class,     &m_khr_storage_buffer_storage_class_enabled),
         ExtensionItem(VK_KHR_SURFACE_EXTENSION_NAME,                          in_extensions.khr_surface,                          &m_khr_surface_enabled),
         ExtensionItem(VK_KHR_SWAPCHAIN_EXTENSION_NAME,                        in_extensions.khr_swapchain,                        &m_khr_swapchain_enabled),
@@ -606,7 +605,7 @@ void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
     }
 
     /* Instantiate the device. Actual behavior behind this is implemented by the overriding class. */
-    features_to_enable = get_physical_device_features();
+    features_to_enable = get_physical_device_features().core_vk1_0_features_ptr->get_vk_physical_device_features();
 
     anvil_assert(m_device == VK_NULL_HANDLE);
     {
@@ -649,11 +648,39 @@ void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
         anvil_assert(m_ext_debug_marker_extension_entrypoints.vkDebugMarkerSetObjectTagEXT  != nullptr);
     }
 
+    if (m_khr_descriptor_update_template_enabled)
+    {
+        m_khr_descriptor_update_template_extension_entrypoints.vkCreateDescriptorUpdateTemplateKHR  = reinterpret_cast<PFN_vkCreateDescriptorUpdateTemplateKHR> (get_proc_address("vkCreateDescriptorUpdateTemplateKHR") );
+        m_khr_descriptor_update_template_extension_entrypoints.vkDestroyDescriptorUpdateTemplateKHR = reinterpret_cast<PFN_vkDestroyDescriptorUpdateTemplateKHR>(get_proc_address("vkDestroyDescriptorUpdateTemplateKHR") );
+        m_khr_descriptor_update_template_extension_entrypoints.vkUpdateDescriptorSetWithTemplateKHR = reinterpret_cast<PFN_vkUpdateDescriptorSetWithTemplateKHR>(get_proc_address("vkUpdateDescriptorSetWithTemplateKHR") );
+
+        anvil_assert(m_khr_descriptor_update_template_extension_entrypoints.vkCreateDescriptorUpdateTemplateKHR  != nullptr);
+        anvil_assert(m_khr_descriptor_update_template_extension_entrypoints.vkDestroyDescriptorUpdateTemplateKHR != nullptr);
+        anvil_assert(m_khr_descriptor_update_template_extension_entrypoints.vkUpdateDescriptorSetWithTemplateKHR != nullptr);
+    }
+
+    if (m_khr_bind_memory2_enabled)
+    {
+        m_khr_bind_memory2_extension_entrypoints.vkBindBufferMemory2KHR = reinterpret_cast<PFN_vkBindBufferMemory2KHR>                (get_proc_address("vkBindBufferMemory2KHR"));
+        m_khr_bind_memory2_extension_entrypoints.vkBindImageMemory2KHR  = reinterpret_cast<PFN_vkBindImageMemory2KHR>                 (get_proc_address("vkBindImageMemory2KHR"));
+
+        anvil_assert(m_khr_bind_memory2_extension_entrypoints.vkBindBufferMemory2KHR != nullptr);
+        anvil_assert(m_khr_bind_memory2_extension_entrypoints.vkBindImageMemory2KHR  != nullptr);
+    }
+
+
     if (m_khr_maintenance1_enabled)
     {
         m_khr_maintenance1_extension_entrypoints.vkTrimCommandPoolKHR = reinterpret_cast<PFN_vkTrimCommandPoolKHR>(get_proc_address("vkTrimCommandPoolKHR") );
 
         anvil_assert(m_khr_maintenance1_extension_entrypoints.vkTrimCommandPoolKHR != nullptr);
+    }
+
+    if (m_khr_maintenance3_enabled)
+    {
+        m_khr_maintenance3_extension_entrypoints.vkGetDescriptorSetLayoutSupportKHR = reinterpret_cast<PFN_vkGetDescriptorSetLayoutSupportKHR>(get_proc_address("vkGetDescriptorSetLayoutSupportKHR") );
+
+        anvil_assert(m_khr_maintenance3_extension_entrypoints.vkGetDescriptorSetLayoutSupportKHR != nullptr);
     }
 
     if (m_khr_swapchain_enabled)
@@ -672,113 +699,212 @@ void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
     }
 
     /* Spawn queue wrappers */
-    for (Anvil::QueueFamilyType queue_family_type = Anvil::QUEUE_FAMILY_TYPE_FIRST;
-                                queue_family_type < Anvil::QUEUE_FAMILY_TYPE_COUNT;
-                                queue_family_type = static_cast<Anvil::QueueFamilyType>(queue_family_type + 1))
+    for (Anvil::QueueFamilyType queue_family_type = Anvil::QueueFamilyType::FIRST;
+                                queue_family_type < Anvil::QueueFamilyType::COUNT;
+                                queue_family_type = static_cast<Anvil::QueueFamilyType>(static_cast<uint32_t>(queue_family_type) + 1))
     {
-        decltype(m_queue_fams)::iterator             current_queue_fam_queues_vec_iterator;
-        const uint32_t                               n_queues                              = m_device_queue_families.n_queues[queue_family_type];
-        std::vector<std::shared_ptr<Anvil::Queue> >& queues                                = (queue_family_type == Anvil::QUEUE_FAMILY_TYPE_COMPUTE)   ? m_compute_queues
-                                                                                           : (queue_family_type == Anvil::QUEUE_FAMILY_TYPE_UNIVERSAL) ? m_universal_queues
-                                                                                                                                                       : m_transfer_queues;
+        const uint32_t              n_queues       = m_device_queue_families.n_total_queues_per_family[static_cast<uint32_t>(queue_family_type)];
+        std::vector<Anvil::Queue*>* out_queues_ptr = nullptr;
 
         if (n_queues == 0)
         {
             continue;
         }
 
-        /* Create a dummy queue vector and instantiate an iterator we're going to fill up with queue instances */
-        anvil_assert(m_queue_fams.find(m_device_queue_families.family_index[queue_family_type]) == m_queue_fams.end() );
-        m_queue_fams[m_device_queue_families.family_index[queue_family_type] ];
-
-        current_queue_fam_queues_vec_iterator = m_queue_fams.find(m_device_queue_families.family_index[queue_family_type]);
-
-        for (uint32_t n_queue = 0;
-                      n_queue < n_queues;
-                    ++n_queue)
+        switch (queue_family_type)
         {
-            std::shared_ptr<Anvil::Queue> new_queue_ptr = Anvil::Queue::create(shared_from_this(),
-                                                                               m_device_queue_families.family_index[queue_family_type],
-                                                                               n_queue,
-                                                                               is_mt_safe() );
+            case Anvil::QueueFamilyType::COMPUTE:   out_queues_ptr = &m_compute_queues;   break;
+            case Anvil::QueueFamilyType::TRANSFER:  out_queues_ptr = &m_transfer_queues;  break;
+            case Anvil::QueueFamilyType::UNIVERSAL: out_queues_ptr = &m_universal_queues; break;
 
-            queues.push_back(new_queue_ptr);
-
-            anvil_assert(std::find(current_queue_fam_queues_vec_iterator->second.begin(),
-                                   current_queue_fam_queues_vec_iterator->second.end(),
-                                   new_queue_ptr) == current_queue_fam_queues_vec_iterator->second.end() );
-
-            current_queue_fam_queues_vec_iterator->second.push_back(new_queue_ptr);
-
-            /* If this queue supports sparse binding ops, cache it in a separate vector as well */
-            if (new_queue_ptr->supports_sparse_bindings() )
+            default:
             {
-                m_sparse_binding_queues.push_back(new_queue_ptr);
+                anvil_assert_fail();
+            }
+        }
+
+        for (const auto& current_queue_fam : m_device_queue_families.queue_families[queue_family_type])
+        {
+            auto queue_ptr_storage_ptr = &m_queue_ptrs_per_vk_queue_fam[current_queue_fam.family_index];
+
+            anvil_assert(m_queue_family_index_to_type.find(current_queue_fam.family_index)                 == m_queue_family_index_to_type.end() );
+            anvil_assert(std::find(m_queue_family_type_to_queue_family_indices[queue_family_type].begin(),
+                                   m_queue_family_type_to_queue_family_indices[queue_family_type].end(),
+                                   current_queue_fam.family_index)                                         == m_queue_family_type_to_queue_family_indices[queue_family_type].end() );
+
+            m_queue_family_index_to_type               [current_queue_fam.family_index] = queue_family_type;
+            m_queue_family_type_to_queue_family_indices[queue_family_type].push_back(current_queue_fam.family_index);
+
+            for (uint32_t n_queue = 0;
+                          n_queue < current_queue_fam.n_queues;
+                        ++n_queue)
+            {
+                std::unique_ptr<Anvil::Queue> new_queue_ptr = Anvil::Queue::create(this,
+                                                                                   current_queue_fam.family_index,
+                                                                                   n_queue,
+                                                                                   is_mt_safe() );
+
+                {
+                    anvil_assert(out_queues_ptr != nullptr);
+
+                    out_queues_ptr->push_back(new_queue_ptr.get() );
+                }
+
+                /* If this queue supports sparse binding ops, cache it in a separate vector as well */
+                if (new_queue_ptr->supports_sparse_bindings() )
+                {
+                    m_sparse_binding_queues.push_back(new_queue_ptr.get() );
+                }
+
+                /* Cache the queue in general-purpose storage as well */
+                if (std::find(queue_ptr_storage_ptr->cbegin(),
+                              queue_ptr_storage_ptr->cend  (),
+                              new_queue_ptr.get() ) == queue_ptr_storage_ptr->cend() )
+                {
+                    queue_ptr_storage_ptr->push_back(new_queue_ptr.get() );
+                }
+
+                m_owned_queues.push_back(
+                    std::move(new_queue_ptr)
+                );
             }
         }
     }
 
     /* Instantiate per-queue family command pools */
-    for (Anvil::QueueFamilyType queue_family_type = Anvil::QUEUE_FAMILY_TYPE_FIRST;
-                                queue_family_type < Anvil::QUEUE_FAMILY_TYPE_COUNT;
-                                queue_family_type = static_cast<Anvil::QueueFamilyType>(queue_family_type + 1))
+    m_command_pool_ptr_per_vk_queue_fam.resize(m_device_queue_families.queue_families.size() );
+
+    for (const auto& current_queue_fam : m_device_queue_families.queue_families)
     {
-        if (get_queue_family_index(queue_family_type) != UINT32_MAX)
+        for (const auto& current_queue_fam_queue : current_queue_fam.second)
         {
-            m_command_pool_ptrs[queue_family_type] = Anvil::CommandPool::create(shared_from_this(),
-                                                                                in_transient_command_buffer_allocs_only,
-                                                                                in_support_resettable_command_buffer_allocs,
-                                                                                queue_family_type,
-                                                                                mt_safety);
+            if (m_command_pool_ptr_per_vk_queue_fam.size() <= current_queue_fam_queue.family_index)
+            {
+                m_command_pool_ptr_per_vk_queue_fam.resize(current_queue_fam_queue.family_index + 1);
+            }
+
+            if (m_command_pool_ptr_per_vk_queue_fam[current_queue_fam_queue.family_index] == nullptr)
+            {
+                m_command_pool_ptr_per_vk_queue_fam[current_queue_fam_queue.family_index] =
+                    Anvil::CommandPool::create(this,
+                                               in_transient_command_buffer_allocs_only,
+                                               in_support_resettable_command_buffer_allocs,
+                                               current_queue_fam_queue.family_index,
+                                               mt_safety);
+            }
         }
     }
 
     /* Initialize a dummy descriptor set group */
     {
-        std::vector<std::unique_ptr<Anvil::DescriptorSetInfo> > dummy_ds_info_ptrs(1);
+        std::vector<Anvil::DescriptorSetInfoUniquePtr> dummy_ds_info_ptrs(1);
 
         dummy_ds_info_ptrs[0] = Anvil::DescriptorSetInfo::create();
         dummy_ds_info_ptrs[0]->add_binding(0, /* n_binding */
-                                           VK_DESCRIPTOR_TYPE_SAMPLER,
-                                           0, /* n_elements */
-                                           VK_SHADER_STAGE_ALL);
+                                           VK_DESCRIPTOR_TYPE_MAX_ENUM,
+                                           0,  /* n_elements  */
+                                           0); /* stage_flags */
 
-        m_dummy_dsg_ptr = Anvil::DescriptorSetGroup::create(shared_from_this(),
+        m_dummy_dsg_ptr = Anvil::DescriptorSetGroup::create(this,
                                                             dummy_ds_info_ptrs,
                                                             false, /* releaseable_sets */
                                                             MT_SAFETY_DISABLED);
 
-        m_dummy_dsg_ptr->get_descriptor_set(0)->bake();
+        m_dummy_dsg_ptr->get_descriptor_set(0)->update();
+    }
+
+    /* Set up shader module cache, if one was requested. */
+    if (in_enable_shader_module_cache)
+    {
+        m_shader_module_cache_ptr = Anvil::ShaderModuleCache::create();
     }
 
     /* Set up the pipeline cache */
-    m_pipeline_cache_ptr = Anvil::PipelineCache::create(shared_from_this(),
-                                                        is_mt_safe      () );
+    m_pipeline_cache_ptr = Anvil::PipelineCache::create(this,
+                                                        is_mt_safe() );
 
-    /* Cache a pipeline layout manager. This is needed to ensure the manager nevers goes out of scope while
-     * the device is alive */
-    m_pipeline_layout_manager_ptr = Anvil::PipelineLayoutManager::create(shared_from_this(),
+    /* Cache a pipeline layout manager instance. */
+    m_pipeline_layout_manager_ptr = Anvil::PipelineLayoutManager::create(this,
                                                                          is_mt_safe() );
 
+    /* Cache a descriptor set layout manager. */
+    m_descriptor_set_layout_manager_ptr = Anvil::DescriptorSetLayoutManager::create(this,
+                                                                                    is_mt_safe() );
+
     /* Initialize compute & graphics pipeline managers */
-    m_compute_pipeline_manager_ptr  = Anvil::ComputePipelineManager::create (shared_from_this(),
+    m_compute_pipeline_manager_ptr  = Anvil::ComputePipelineManager::create (this,
                                                                              is_mt_safe() ,
                                                                              true /* use_pipeline_cache */,
-                                                                             m_pipeline_cache_ptr);
-    m_graphics_pipeline_manager_ptr = Anvil::GraphicsPipelineManager::create(shared_from_this(),
+                                                                             m_pipeline_cache_ptr.get() );
+    m_graphics_pipeline_manager_ptr = Anvil::GraphicsPipelineManager::create(this,
                                                                              is_mt_safe() ,
                                                                              true /* use_pipeline_cache */,
-                                                                             m_pipeline_cache_ptr);
+                                                                             m_pipeline_cache_ptr.get() );
 
     /* Continue with specialized initialization */
     init_device();
 }
 
+/** Please see header for specification */
+bool Anvil::BaseDevice::is_compute_queue_family_index(const uint32_t& in_queue_family_index) const
+{
+    return (m_queue_family_index_to_type.find(in_queue_family_index) != m_queue_family_index_to_type.end()) &&
+           (m_queue_family_index_to_type.at  (in_queue_family_index) == Anvil::QueueFamilyType::COMPUTE);
+}
+
+/** Please see header for specification */
+bool Anvil::BaseDevice::is_transfer_queue_family_index(const uint32_t& in_queue_family_index) const
+{
+    return (m_queue_family_index_to_type.find(in_queue_family_index) != m_queue_family_index_to_type.end()) &&
+           (m_queue_family_index_to_type.at  (in_queue_family_index) == Anvil::QueueFamilyType::TRANSFER);
+}
+
+/** Please see header for specification */
+bool Anvil::BaseDevice::is_universal_queue_family_index(const uint32_t& in_queue_family_index) const
+{
+    return (m_queue_family_index_to_type.find(in_queue_family_index) != m_queue_family_index_to_type.end() ) &&
+           (m_queue_family_index_to_type.at  (in_queue_family_index) == Anvil::QueueFamilyType::UNIVERSAL);
+}
 
 /* Please see header for specification */
-Anvil::SGPUDevice::SGPUDevice(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
-                              bool                                 in_mt_safe)
-    :BaseDevice                  (in_physical_device_ptr.lock()->get_instance(),
+bool Anvil::BaseDevice::wait_idle() const
+{
+    const bool mt_safe = is_mt_safe();
+
+    VkResult result_vk;
+
+    if (mt_safe)
+    {
+        for (const auto& queue_fam : m_queue_ptrs_per_vk_queue_fam)
+        {
+            for (const auto& queue_ptr : queue_fam.second)
+            {
+                queue_ptr->lock();
+            }
+        }
+    }
+
+    result_vk = vkDeviceWaitIdle(m_device);
+
+    if (mt_safe)
+    {
+        for (const auto& queue_fam : m_queue_ptrs_per_vk_queue_fam)
+        {
+            for (const auto& queue_ptr : queue_fam.second)
+            {
+                queue_ptr->unlock();
+            }
+        }
+    }
+
+    return is_vk_call_successful(result_vk);
+}
+
+
+/* Please see header for specification */
+Anvil::SGPUDevice::SGPUDevice(const Anvil::PhysicalDevice* in_physical_device_ptr,
+                              bool                         in_mt_safe)
+    :BaseDevice                  (in_physical_device_ptr->get_instance(),
                                   in_mt_safe),
      m_parent_physical_device_ptr(in_physical_device_ptr)
 {
@@ -793,23 +919,27 @@ Anvil::SGPUDevice::~SGPUDevice()
 
 
 /* Please see header for specification */
-std::weak_ptr<Anvil::SGPUDevice> Anvil::SGPUDevice::create(std::weak_ptr<Anvil::PhysicalDevice> in_physical_device_ptr,
-                                                           const DeviceExtensionConfiguration&  in_extensions,
-                                                           const std::vector<std::string>&      in_layers,
-                                                           bool                                 in_transient_command_buffer_allocs_only,
-                                                           bool                                 in_support_resettable_command_buffer_allocs,
-                                                           bool                                 in_mt_safe)
+Anvil::SGPUDeviceUniquePtr Anvil::SGPUDevice::create(const Anvil::PhysicalDevice*         in_physical_device_ptr,
+                                                     bool                                 in_enable_shader_module_cache,
+                                                     const DeviceExtensionConfiguration&  in_extensions,
+                                                     const std::vector<std::string>&      in_layers,
+                                                     bool                                 in_transient_command_buffer_allocs_only,
+                                                     bool                                 in_support_resettable_command_buffer_allocs,
+                                                     bool                                 in_mt_safe)
 {
-    std::shared_ptr<Anvil::SGPUDevice> result_ptr;
+    SGPUDeviceUniquePtr result_ptr(nullptr,
+                                   std::default_delete<Anvil::SGPUDevice>() );
 
-    result_ptr = std::shared_ptr<Anvil::SGPUDevice>(new Anvil::SGPUDevice(in_physical_device_ptr,
-                                                                          in_mt_safe),
-                                                    Anvil::SGPUDevice::SGPUDeviceDeleter());
+    result_ptr = std::unique_ptr<Anvil::SGPUDevice>(
+        new Anvil::SGPUDevice(in_physical_device_ptr,
+                               in_mt_safe)
+    );
 
     result_ptr->init(in_extensions,
                      in_layers,
                      in_transient_command_buffer_allocs_only,
-                     in_support_resettable_command_buffer_allocs);
+                     in_support_resettable_command_buffer_allocs,
+                     in_enable_shader_module_cache);
 
     return result_ptr;
 }
@@ -820,12 +950,11 @@ void Anvil::SGPUDevice::create_device(const std::vector<const char*>& in_extensi
                                       const VkPhysicalDeviceFeatures& in_features,
                                       DeviceQueueFamilyInfo*          out_queue_families_ptr)
 {
-    VkDeviceCreateInfo                     create_info;
-    std::vector<VkDeviceQueueCreateInfo>   device_queue_create_info_items;
-    std::vector<float>                     device_queue_priorities;
-    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_parent_physical_device_ptr);
-    const auto&                            physical_device_queue_fams(physical_device_locked_ptr->get_queue_families() );
-    VkResult                               result                    (VK_ERROR_INITIALIZATION_FAILED);
+    VkDeviceCreateInfo                   create_info;
+    std::vector<VkDeviceQueueCreateInfo> device_queue_create_info_items;
+    std::vector<float>                   device_queue_priorities;
+    const auto&                          physical_device_queue_fams(m_parent_physical_device_ptr->get_queue_families() );
+    VkResult                             result                    (VK_ERROR_INITIALIZATION_FAILED);
 
     ANVIL_REDUNDANT_VARIABLE(result);
 
@@ -879,7 +1008,7 @@ void Anvil::SGPUDevice::create_device(const std::vector<const char*>& in_extensi
     create_info.queueCreateInfoCount    = static_cast<uint32_t>(device_queue_create_info_items.size() );
     create_info.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
-    result = vkCreateDevice(m_parent_physical_device_ptr.lock()->get_physical_device(),
+    result = vkCreateDevice(m_parent_physical_device_ptr->get_physical_device(),
                            &create_info,
                             nullptr, /* pAllocator */
                            &m_device);
@@ -890,16 +1019,17 @@ void Anvil::SGPUDevice::create_device(const std::vector<const char*>& in_extensi
 }
 
 /** Please see header for specification */
-std::shared_ptr<Anvil::Swapchain> Anvil::SGPUDevice::create_swapchain(std::shared_ptr<Anvil::RenderingSurface> in_parent_surface_ptr,
-                                                                      std::shared_ptr<Anvil::Window>           in_window_ptr,
-                                                                      VkFormat                                 in_image_format,
-                                                                      VkPresentModeKHR                         in_present_mode,
-                                                                      VkImageUsageFlags                        in_usage,
-                                                                      uint32_t                                 in_n_swapchain_images)
+Anvil::SwapchainUniquePtr Anvil::SGPUDevice::create_swapchain(Anvil::RenderingSurface* in_parent_surface_ptr,
+                                                              Anvil::Window*           in_window_ptr,
+                                                              VkFormat                 in_image_format,
+                                                              VkPresentModeKHR         in_present_mode,
+                                                              VkImageUsageFlags        in_usage,
+                                                              uint32_t                 in_n_swapchain_images)
 {
-    std::shared_ptr<Anvil::Swapchain> result_ptr;
+    SwapchainUniquePtr result_ptr(nullptr,
+                                  std::default_delete<Anvil::Swapchain>() );
 
-    result_ptr = Anvil::Swapchain::create(shared_from_this(),
+    result_ptr = Anvil::Swapchain::create(this,
                                           in_parent_surface_ptr,
                                           in_window_ptr,
                                           in_image_format,
@@ -913,33 +1043,15 @@ std::shared_ptr<Anvil::Swapchain> Anvil::SGPUDevice::create_swapchain(std::share
 }
 
 /** Please see header for specification */
-void Anvil::SGPUDevice::destroy()
+const Anvil::PhysicalDeviceFeatures& Anvil::SGPUDevice::get_physical_device_features() const
 {
-    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_parent_physical_device_ptr);
-
-    /* Release common stuff first */
-    Anvil::BaseDevice::destroy();
-
-    /* Unregister the instance from physical device, so that Device instance gets released as soon
-     * as all external shared pointers go out of scope.
-     */
-    physical_device_locked_ptr->unregister_device(shared_from_this() );
-}
-
-/** Please see header for specification */
-const VkPhysicalDeviceFeatures& Anvil::SGPUDevice::get_physical_device_features() const
-{
-    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_parent_physical_device_ptr);
-
-    return physical_device_locked_ptr->get_device_features();
+    return m_parent_physical_device_ptr->get_device_features();
 }
 
 /** Please see header for specification */
 const Anvil::FormatProperties& Anvil::SGPUDevice::get_physical_device_format_properties(VkFormat in_format) const
 {
-    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_parent_physical_device_ptr);
-
-    return physical_device_locked_ptr->get_format_properties(in_format);
+    return m_parent_physical_device_ptr->get_format_properties(in_format);
 }
 
 /** Please see header for specification */
@@ -952,7 +1064,7 @@ bool Anvil::SGPUDevice::get_physical_device_image_format_properties(VkFormat    
 {
     bool result;
 
-    result = is_vk_call_successful(vkGetPhysicalDeviceImageFormatProperties(m_parent_physical_device_ptr.lock()->get_physical_device(),
+    result = is_vk_call_successful(vkGetPhysicalDeviceImageFormatProperties(m_parent_physical_device_ptr->get_physical_device(),
                                                                             in_format,
                                                                             in_type,
                                                                             in_tiling,
@@ -966,25 +1078,19 @@ bool Anvil::SGPUDevice::get_physical_device_image_format_properties(VkFormat    
 /** Please see header for specification */
 const Anvil::MemoryProperties& Anvil::SGPUDevice::get_physical_device_memory_properties() const
 {
-    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_parent_physical_device_ptr);
-
-    return physical_device_locked_ptr->get_memory_properties();
+    return m_parent_physical_device_ptr->get_memory_properties();
 }
 
 /** Please see header for specification */
-const VkPhysicalDeviceProperties& Anvil::SGPUDevice::get_physical_device_properties() const
+const Anvil::PhysicalDeviceProperties& Anvil::SGPUDevice::get_physical_device_properties() const
 {
-    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_parent_physical_device_ptr);
-
-    return physical_device_locked_ptr->get_device_properties();
+    return m_parent_physical_device_ptr->get_device_properties();
 }
 
 /** Please see header for specification */
 const Anvil::QueueFamilyInfoItems& Anvil::SGPUDevice::get_physical_device_queue_families() const
 {
-    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_parent_physical_device_ptr);
-
-    return physical_device_locked_ptr->get_queue_families();
+    return m_parent_physical_device_ptr->get_queue_families();
 }
 
 /** Please see header for specification */
@@ -997,7 +1103,7 @@ bool Anvil::SGPUDevice::get_physical_device_sparse_image_format_properties(VkFor
 {
     uint32_t n_props = 0;
 
-    vkGetPhysicalDeviceSparseImageFormatProperties(m_parent_physical_device_ptr.lock()->get_physical_device(),
+    vkGetPhysicalDeviceSparseImageFormatProperties(m_parent_physical_device_ptr->get_physical_device(),
                                                    in_format,
                                                    in_type,
                                                    in_sample_count,
@@ -1010,7 +1116,7 @@ bool Anvil::SGPUDevice::get_physical_device_sparse_image_format_properties(VkFor
     {
         out_result.resize(n_props);
 
-        vkGetPhysicalDeviceSparseImageFormatProperties(m_parent_physical_device_ptr.lock()->get_physical_device(),
+        vkGetPhysicalDeviceSparseImageFormatProperties(m_parent_physical_device_ptr->get_physical_device(),
                                                        in_format,
                                                        in_type,
                                                        in_sample_count,
@@ -1024,10 +1130,10 @@ bool Anvil::SGPUDevice::get_physical_device_sparse_image_format_properties(VkFor
 }
 
 /* Please see header for specification */
-bool Anvil::SGPUDevice::get_physical_device_surface_capabilities(std::shared_ptr<Anvil::RenderingSurface> in_surface_ptr,
-                                                                 VkSurfaceCapabilitiesKHR*                out_result_ptr) const
+bool Anvil::SGPUDevice::get_physical_device_surface_capabilities(Anvil::RenderingSurface*  in_surface_ptr,
+                                                                 VkSurfaceCapabilitiesKHR* out_result_ptr) const
 {
-    return (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_parent_physical_device_ptr.lock()->get_physical_device(),
+    return (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_parent_physical_device_ptr->get_physical_device(),
                                                       in_surface_ptr->get_surface(),
                                                       out_result_ptr) == VK_SUCCESS);
 }
@@ -1042,9 +1148,8 @@ void Anvil::SGPUDevice::get_queue_family_indices(DeviceQueueFamilyInfo* out_devi
 /** Please see header for specification */
 const Anvil::QueueFamilyInfo* Anvil::SGPUDevice::get_queue_family_info(uint32_t in_queue_family_index) const
 {
-    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_parent_physical_device_ptr);
-    const auto&                            queue_fams                (physical_device_locked_ptr->get_queue_families() );
-    const Anvil::QueueFamilyInfo*          result_ptr                (nullptr);
+    const auto&                   queue_fams(m_parent_physical_device_ptr->get_queue_families() );
+    const Anvil::QueueFamilyInfo* result_ptr(nullptr);
 
     if (queue_fams.size() > in_queue_family_index)
     {
@@ -1054,31 +1159,19 @@ const Anvil::QueueFamilyInfo* Anvil::SGPUDevice::get_queue_family_info(uint32_t 
     return result_ptr;
 }
 
-/** Register this SGPUDevice with the owning physical device. This is necessary to ensure this device instance
- *  is not released prematurely.
- **/
 void Anvil::SGPUDevice::init_device()
 {
-    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_parent_physical_device_ptr);
-
-    /* Cache a shared pointer owning this instance in PhysicalDevice. We will release it at destroy() time,
-     * having destroyed all children objects we also own and which take a weak pointer to this Device.
-     */
-    physical_device_locked_ptr->register_device(shared_from_this() );
+    /* Stub */
 }
 
 /** Please see header for specification */
 bool Anvil::SGPUDevice::is_layer_supported(const std::string& in_layer_name) const
 {
-    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_parent_physical_device_ptr);
-
-    return physical_device_locked_ptr->is_layer_supported(in_layer_name);
+    return m_parent_physical_device_ptr->is_layer_supported(in_layer_name);
 }
 
 /** Please see header for specification */
 bool Anvil::SGPUDevice::is_physical_device_extension_supported(const std::string& in_extension_name) const
 {
-    std::shared_ptr<Anvil::PhysicalDevice> physical_device_locked_ptr(m_parent_physical_device_ptr);
-
-    return physical_device_locked_ptr->is_device_extension_supported(in_extension_name);
+    return m_parent_physical_device_ptr->is_device_extension_supported(in_extension_name);
 }

@@ -41,7 +41,8 @@ namespace Anvil
          *
          * Should only be used by Anvil::MemoryAllocator
          */
-        class OneShot : public Anvil::MemoryAllocator::IMemoryAllocatorBackend
+        class OneShot : public Anvil::MemoryAllocator::IMemoryAllocatorBackend,
+                        public std::enable_shared_from_this<OneShot>
         {
         public:
             /* Public functions */
@@ -52,7 +53,7 @@ namespace Anvil
              *
              *  @param in_device_ptr Vulkan device the memory allocations are going to be made for.
              **/
-            OneShot(std::weak_ptr<Anvil::BaseDevice> in_device_ptr);
+            OneShot(const Anvil::BaseDevice* in_device_ptr);
 
             /** Destructor. */
             virtual ~OneShot();
@@ -66,10 +67,9 @@ namespace Anvil
             /* Private functions */
 
             /* Private variables */
-            std::weak_ptr<Anvil::BaseDevice>                  m_device_ptr;
-            bool                                              m_is_baked;
-            std::vector<std::shared_ptr<Anvil::MemoryBlock> > m_memory_blocks;
-
+            const Anvil::BaseDevice*          m_device_ptr;
+            bool                              m_is_baked;
+            std::vector<MemoryBlockUniquePtr> m_memory_blocks;
         };
     };
 };
