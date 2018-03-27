@@ -689,9 +689,12 @@ namespace Anvil
                                      current_element_index < last_element_index;
                                    ++current_element_index)
             {
-                m_dirty |= !(binding_items[current_element_index] == in_elements_ptr[current_element_index - in_element_range.first]);
+                if (!(binding_items[current_element_index] == in_elements_ptr[current_element_index - in_element_range.first]) )
+                {
+                    m_dirty = true;
 
-                binding_items[current_element_index] = in_elements_ptr[current_element_index - in_element_range.first];
+                    binding_items[current_element_index] = in_elements_ptr[current_element_index - in_element_range.first];
+                }
             }
 
             return true;
@@ -882,13 +885,13 @@ namespace Anvil
         bool update_using_template_method  () const;
 
         /* Private variables */
-        BindingIndexToBindingItemsMap     m_bindings;
-        VkDescriptorSet                   m_descriptor_set;
-        const Anvil::BaseDevice*          m_device_ptr;
-        mutable bool                      m_dirty;
-        const Anvil::DescriptorSetLayout* m_layout_ptr;
-        Anvil::DescriptorPool*            m_parent_pool_ptr;
-        bool                              m_unusable;
+        mutable BindingIndexToBindingItemsMap m_bindings;
+        VkDescriptorSet                       m_descriptor_set;
+        const Anvil::BaseDevice*              m_device_ptr;
+        mutable bool                          m_dirty;
+        const Anvil::DescriptorSetLayout*     m_layout_ptr;
+        Anvil::DescriptorPool*                m_parent_pool_ptr;
+        bool                                  m_unusable;
 
         mutable std::vector<VkDescriptorBufferInfo> m_cached_ds_info_buffer_info_items_vk;
         mutable std::vector<VkDescriptorImageInfo>  m_cached_ds_info_image_info_items_vk;

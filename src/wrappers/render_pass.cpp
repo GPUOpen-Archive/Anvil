@@ -198,7 +198,7 @@ bool Anvil::RenderPass::init()
                   subpass_color_attachment_iterator != (*subpass_iterator)->color_attachments_map.cend();
                 ++subpass_color_attachment_iterator)
         {
-            if (subpass_color_attachment_iterator->second.resolve_attachment_ptr != nullptr)
+            if (subpass_color_attachment_iterator->second.resolve_attachment_index != UINT32_MAX)
             {
                 need_color_resolve_attachments = true;
 
@@ -265,7 +265,7 @@ bool Anvil::RenderPass::init()
 
             if (need_color_resolve_attachments)
             {
-                if (subpass_color_attachment_iterator->second.resolve_attachment_ptr != nullptr)
+                if (subpass_color_attachment_iterator->second.resolve_attachment_index != UINT32_MAX)
                 {
                     current_subpass_attachment_set_ptr->resolve_color_attachments_vk[subpass_color_attachment_iterator->first] = m_render_pass_info_ptr->get_attachment_reference_for_resolve_attachment(subpass_iterator,
                                                                                                                                                                                                          subpass_color_attachment_iterator);
@@ -273,7 +273,7 @@ bool Anvil::RenderPass::init()
             }
         }
 
-        if ((*subpass_iterator)->depth_stencil_attachment.attachment_ptr != nullptr)
+        if ((*subpass_iterator)->depth_stencil_attachment.attachment_index != UINT32_MAX)
         {
             current_subpass_attachment_set_ptr->depth_attachment_vk = m_render_pass_info_ptr->get_attachment_reference_from_subpass_attachment((*subpass_iterator)->depth_stencil_attachment);
         }
@@ -294,7 +294,9 @@ bool Anvil::RenderPass::init()
                   subpass_preserve_attachment_iterator != (*subpass_iterator)->preserved_attachments.cend();
                 ++subpass_preserve_attachment_iterator)
         {
-            current_subpass_attachment_set_ptr->preserve_attachments_vk.push_back(subpass_preserve_attachment_iterator->attachment_ptr->index);
+            current_subpass_attachment_set_ptr->preserve_attachments_vk.push_back(
+                m_render_pass_info_ptr->m_attachments.at(subpass_preserve_attachment_iterator->attachment_index).index
+            );
         }
 
         /* Prepare the VK subpass descriptor */
@@ -307,12 +309,12 @@ bool Anvil::RenderPass::init()
         subpass_vk.colorAttachmentCount              = n_color_attachments;
         subpass_vk.flags                             = 0;
         subpass_vk.inputAttachmentCount              = n_input_attachments;
-        subpass_vk.pColorAttachments                 = (n_color_attachments > 0)                                                 ? &current_subpass_attachment_set_ptr->color_attachments_vk.at(0)
-                                                                                                                                 : nullptr;
-        subpass_vk.pDepthStencilAttachment           = ((*subpass_iterator)->depth_stencil_attachment.attachment_ptr != nullptr) ? &current_subpass_attachment_set_ptr->depth_attachment_vk
-                                                                                                                                 : nullptr;
-        subpass_vk.pInputAttachments                 = (n_input_attachments > 0)                                                 ? &current_subpass_attachment_set_ptr->input_attachments_vk.at(0)
-                                                                                                                                 : nullptr;
+        subpass_vk.pColorAttachments                 = (n_color_attachments > 0)                                                      ? &current_subpass_attachment_set_ptr->color_attachments_vk.at(0)
+                                                                                                                                      : nullptr;
+        subpass_vk.pDepthStencilAttachment           = ((*subpass_iterator)->depth_stencil_attachment.attachment_index != UINT32_MAX) ? &current_subpass_attachment_set_ptr->depth_attachment_vk
+                                                                                                                                      : nullptr;
+        subpass_vk.pInputAttachments                 = (n_input_attachments > 0)                                                      ? &current_subpass_attachment_set_ptr->input_attachments_vk.at(0)
+                                                                                                                                      : nullptr;
         subpass_vk.pipelineBindPoint                 = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass_vk.pPreserveAttachments              = (n_preserved_attachments > 0) ? &current_subpass_attachment_set_ptr->preserve_attachments_vk.at(0)
                                                                                      : nullptr;

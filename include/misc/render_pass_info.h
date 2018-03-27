@@ -544,42 +544,42 @@ namespace Anvil
         /* Holds properties of a sub-pass attachment */
         typedef struct SubPassAttachment
         {
-            RenderPassAttachment* attachment_ptr;
-            uint32_t              highest_subpass_index;
-            VkImageLayout         layout;
-            uint32_t              lowest_subpass_index;
-            RenderPassAttachment* resolve_attachment_ptr;
+            uint32_t      attachment_index;
+            uint32_t      highest_subpass_index;
+            VkImageLayout layout;
+            uint32_t      lowest_subpass_index;
+            uint32_t      resolve_attachment_index;
 
             /* Dummy constructor. Should only be used by STL containers */
             SubPassAttachment()
             {
-                attachment_ptr         = nullptr;
-                highest_subpass_index  = UINT32_MAX;
-                layout                 = VK_IMAGE_LAYOUT_MAX_ENUM;
-                lowest_subpass_index   = UINT32_MAX;
-                resolve_attachment_ptr = nullptr;
+                attachment_index         = UINT32_MAX;
+                highest_subpass_index    = UINT32_MAX;
+                layout                   = VK_IMAGE_LAYOUT_MAX_ENUM;
+                lowest_subpass_index     = UINT32_MAX;
+                resolve_attachment_index = UINT32_MAX;
             }
 
             /** Constructor.
              *
-             *  @param in_attachment_ptr         Render-pass attachment that this sub-pass attachment should reference.
-             *                                   Must not be nullptr.
-             *  @param in_layout                 Layout to use for the attachment when executing the subpass.
-             *                                   Driver takes care of transforming the attachment to the requested layout
-             *                                   before subpass commands starts executing.
-             *  @param in_resolve_attachment_ptr If not nullptr, this should point to the render-pass attachment, to which
-             *                                   MS data of @param in_attachment_ptr should be resolved. If nullptr, it is
-             *                                   assumed the sub-pass should not resolve the MS data.
+             *  @param in_attachment_index             Index of render-pass attachment that this sub-pass attachment should reference.
+             *                                         Must not be UINT32_MAX.
+             *  @param in_layout                       Layout to use for the attachment when executing the subpass.
+             *                                         Driver takes care of transforming the attachment to the requested layout
+             *                                         before subpass commands starts executing.
+             *  @param in_opt_resolve_attachment_index If not UINT32_MAX, this should point to the render-pass attachment, to which
+             *                                         MS data of @param in_attachment_ptr should be resolved. If UINT32_MAX, it is
+             *                                         assumed the sub-pass should not resolve the MS data.
              **/
-            SubPassAttachment(RenderPassAttachment* in_attachment_ptr,
-                              VkImageLayout         in_layout,
-                              RenderPassAttachment* in_opt_resolve_attachment_ptr)
+            SubPassAttachment(const uint32_t& in_attachment_index,
+                              VkImageLayout   in_layout,
+                              const uint32_t& in_opt_resolve_attachment_index)
             {
-                attachment_ptr         = in_attachment_ptr;
-                highest_subpass_index  = UINT32_MAX;
-                layout                 = in_layout;
-                lowest_subpass_index   = UINT32_MAX;
-                resolve_attachment_ptr = in_opt_resolve_attachment_ptr;
+                attachment_index         = in_attachment_index;
+                highest_subpass_index    = UINT32_MAX;
+                layout                   = in_layout;
+                lowest_subpass_index     = UINT32_MAX;
+                resolve_attachment_index = in_opt_resolve_attachment_index;
             }
         } SubPassAttachment;
 
