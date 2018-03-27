@@ -1323,6 +1323,8 @@ namespace Anvil
 
         KHR16BitStorageFeatures(const VkPhysicalDevice16BitStorageFeaturesKHR& in_features);
 
+        VkPhysicalDevice16BitStorageFeaturesKHR get_vk_physical_device_16_bit_storage_features() const;
+
         bool operator==(const KHR16BitStorageFeatures& in_features) const;
     } KHR16BitStorageFeatures;
 

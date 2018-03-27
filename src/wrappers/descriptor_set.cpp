@@ -33,6 +33,10 @@
 #include "wrappers/image_view.h"
 #include "wrappers/sampler.h"
 
+#ifdef max
+    #undef max
+#endif
+
 /** Please see header for specification */
 Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(const BufferBindingElement& in_element)
 {
@@ -301,8 +305,8 @@ void Anvil::DescriptorSet::alloc_bindings()
                   n_binding < n_bindings;
                 ++n_binding)
     {
-        uint32_t array_size = 0;
-        uint32_t binding_index;
+        uint32_t array_size    = 0;
+        uint32_t binding_index = UINT32_MAX;
 
         layout_info_ptr->get_binding_properties_by_index_number(n_binding,
                                                                &binding_index,
@@ -365,8 +369,8 @@ void Anvil::DescriptorSet::fill_image_info_vk_descriptor(const Anvil::Descriptor
                                                          VkDescriptorImageInfo*                   out_descriptor_ptr) const
 {
     out_descriptor_ptr->imageLayout = in_binding_item.image_layout;
-    out_descriptor_ptr->imageView   = in_binding_item.image_view_ptr->get_image_view();
-    
+    out_descriptor_ptr->imageView   = (in_binding_item.image_view_ptr != nullptr) ? in_binding_item.image_view_ptr->get_image_view() : VK_NULL_HANDLE;
+
     if (false   == in_immutable_samplers_enabled       &&
         nullptr != in_binding_item.sampler_ptr)
     {
@@ -654,35 +658,38 @@ bool Anvil::DescriptorSet::update_using_core_method() const
         uint32_t       cached_ds_image_info_items_array_offset        = 0;
         uint32_t       cached_ds_texel_buffer_info_items_array_offset = 0;
         const uint32_t n_bindings                                     = static_cast<uint32_t>(m_bindings.size() );
-        uint32_t       n_max_ds_info_items_to_cache                   = 0;
 
-        m_cached_ds_info_buffer_info_items_vk.clear();
-        m_cached_ds_info_image_info_items_vk.clear();
+        m_cached_ds_info_buffer_info_items_vk.clear      ();
+        m_cached_ds_info_image_info_items_vk.clear       ();
         m_cached_ds_info_texel_buffer_info_items_vk.clear();
-        m_cached_ds_write_items_vk.clear();
+        m_cached_ds_write_items_vk.clear                 ();
 
-        for (auto& binding : m_bindings)
         {
-            const uint32_t n_current_binding_items = static_cast<uint32_t>(binding.second.size() );
+            uint32_t n_max_ds_info_items_to_cache = 0;
 
-            n_max_ds_info_items_to_cache += n_current_binding_items;
+            for (auto& binding : m_bindings)
+            {
+                const uint32_t n_current_binding_items = static_cast<uint32_t>(binding.second.size() );
+
+                n_max_ds_info_items_to_cache += n_current_binding_items;
+            }
+
+            m_cached_ds_info_buffer_info_items_vk.reserve      (n_max_ds_info_items_to_cache);
+            m_cached_ds_info_image_info_items_vk.reserve       (n_max_ds_info_items_to_cache);
+            m_cached_ds_info_texel_buffer_info_items_vk.reserve(n_max_ds_info_items_to_cache);
         }
-
-        m_cached_ds_info_buffer_info_items_vk.reserve      (n_max_ds_info_items_to_cache);
-        m_cached_ds_info_image_info_items_vk.reserve       (n_max_ds_info_items_to_cache);
-        m_cached_ds_info_texel_buffer_info_items_vk.reserve(n_max_ds_info_items_to_cache);
 
         for (uint32_t n_binding = 0;
                       n_binding < n_bindings;
                     ++n_binding)
         {
-            uint32_t              current_binding_index;
-            VkDescriptorType      descriptor_type;
-            bool                  immutable_samplers_enabled                    = false;
-            const uint32_t        start_ds_buffer_info_items_array_offset       = cached_ds_buffer_info_items_array_offset;
-            const uint32_t        start_ds_image_info_items_array_offset        = cached_ds_image_info_items_array_offset;
-            const uint32_t        start_ds_texel_buffer_info_items_array_offset = cached_ds_texel_buffer_info_items_array_offset;
-            VkWriteDescriptorSet  write_ds_vk;
+            uint32_t                      current_binding_index;
+            VkDescriptorType              descriptor_type;
+            bool                          immutable_samplers_enabled                    = false;
+            uint32_t                      start_ds_buffer_info_items_array_offset       = cached_ds_buffer_info_items_array_offset;
+            uint32_t                      start_ds_image_info_items_array_offset        = cached_ds_image_info_items_array_offset;
+            uint32_t                      start_ds_texel_buffer_info_items_array_offset = cached_ds_texel_buffer_info_items_array_offset;
+            VkWriteDescriptorSet          write_ds_vk;
 
             if (!layout_info_ptr->get_binding_properties_by_index_number(n_binding,
                                                                         &current_binding_index,
@@ -695,16 +702,21 @@ bool Anvil::DescriptorSet::update_using_core_method() const
             }
 
             /* For each array item, initialize a descriptor info item.. */
-            const BindingItems& current_binding_items   = m_bindings.at(current_binding_index);
-            const uint32_t      n_current_binding_items = static_cast<uint32_t>(current_binding_items.size() );
+            BindingItems&  current_binding_items   = m_bindings.at(current_binding_index);
+            const uint32_t n_current_binding_items = static_cast<uint32_t>(current_binding_items.size() );
+            int32_t        n_last_binding_item     = -1;
 
             for (uint32_t n_current_binding_item = 0;
                           n_current_binding_item < n_current_binding_items;
                         ++n_current_binding_item)
             {
-                const BindingItem& current_binding_item = current_binding_items.at(n_current_binding_item);
+                BindingItem& current_binding_item = current_binding_items.at(n_current_binding_item);
+                bool         needs_write_item     = ((n_current_binding_item + 1) == n_current_binding_items);
 
-                if (!current_binding_item.dirty)
+                /* TODO: For arrayed binding items, avoid updating all binding items every time baking is triggered. */
+                if (!current_binding_item.dirty     &&
+                     n_current_binding_item    == 0 &&
+                     n_current_binding_items   == 1)
                 {
                     continue;
                 }
@@ -728,7 +740,8 @@ bool Anvil::DescriptorSet::update_using_core_method() const
                     ++cached_ds_texel_buffer_info_items_array_offset;
                 }
                 else
-                if (current_binding_item.image_view_ptr != nullptr)
+                if (current_binding_item.image_view_ptr != nullptr ||
+                    current_binding_item.sampler_ptr    != nullptr)
                 {
                     VkDescriptorImageInfo image_info;
 
@@ -742,30 +755,44 @@ bool Anvil::DescriptorSet::update_using_core_method() const
                 }
                 else
                 {
-                    anvil_assert_fail();
-
-                    goto end;
+                    /* Need to cache a write item at this point since current binding has not been assigned a descriptor */
+                    needs_write_item = true;
                 }
-            }
 
-            /* We can finally fill the write descriptor */
-            if (current_binding_items.size() > 0)
-            {
-                write_ds_vk.descriptorCount  = static_cast<uint32_t>(current_binding_items.size() );
-                write_ds_vk.descriptorType   = descriptor_type;
-                write_ds_vk.dstArrayElement  = 0;
-                write_ds_vk.dstBinding       = current_binding_index;
-                write_ds_vk.dstSet           = m_descriptor_set;
-                write_ds_vk.pBufferInfo      = (start_ds_buffer_info_items_array_offset != cached_ds_buffer_info_items_array_offset)             ? &m_cached_ds_info_buffer_info_items_vk[start_ds_buffer_info_items_array_offset]
-                                                                                                                                                 : nullptr;
-                write_ds_vk.pImageInfo       = (start_ds_image_info_items_array_offset  != cached_ds_image_info_items_array_offset)              ? &m_cached_ds_info_image_info_items_vk[start_ds_image_info_items_array_offset]
-                                                                                                                                                 : nullptr;
-                write_ds_vk.pNext            = nullptr;
-                write_ds_vk.pTexelBufferView = (start_ds_texel_buffer_info_items_array_offset != cached_ds_texel_buffer_info_items_array_offset) ? &m_cached_ds_info_texel_buffer_info_items_vk[start_ds_texel_buffer_info_items_array_offset]
-                                                                                                                                                 : nullptr;
-                write_ds_vk.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                if (needs_write_item)
+                {
+                    const uint32_t n_descriptors = (cached_ds_buffer_info_items_array_offset       - start_ds_buffer_info_items_array_offset)       +
+                                                   (cached_ds_image_info_items_array_offset        - start_ds_image_info_items_array_offset)        +
+                                                   (cached_ds_texel_buffer_info_items_array_offset - start_ds_texel_buffer_info_items_array_offset);
 
-                m_cached_ds_write_items_vk.push_back(write_ds_vk);
+                    if (n_descriptors > 0)
+                    {
+                        write_ds_vk.descriptorCount  = n_descriptors;
+                        write_ds_vk.descriptorType   = descriptor_type;
+                        write_ds_vk.dstArrayElement  = n_last_binding_item + 1;
+                        write_ds_vk.dstBinding       = current_binding_index;
+                        write_ds_vk.dstSet           = m_descriptor_set;
+                        write_ds_vk.pBufferInfo      = (start_ds_buffer_info_items_array_offset != cached_ds_buffer_info_items_array_offset)             ? &m_cached_ds_info_buffer_info_items_vk[start_ds_buffer_info_items_array_offset]
+                                                                                                                                                         : nullptr;
+                        write_ds_vk.pImageInfo       = (start_ds_image_info_items_array_offset  != cached_ds_image_info_items_array_offset)              ? &m_cached_ds_info_image_info_items_vk[start_ds_image_info_items_array_offset]
+                                                                                                                                                         : nullptr;
+                        write_ds_vk.pNext            = nullptr;
+                        write_ds_vk.pTexelBufferView = (start_ds_texel_buffer_info_items_array_offset != cached_ds_texel_buffer_info_items_array_offset) ? &m_cached_ds_info_texel_buffer_info_items_vk[start_ds_texel_buffer_info_items_array_offset]
+                                                                                                                                                         : nullptr;
+                        write_ds_vk.sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+
+                        anvil_assert(write_ds_vk.descriptorCount != 0);
+
+                        m_cached_ds_write_items_vk.push_back(write_ds_vk);
+                    }
+
+                    n_last_binding_item                           = n_current_binding_item;
+                    start_ds_buffer_info_items_array_offset       = cached_ds_buffer_info_items_array_offset;
+                    start_ds_image_info_items_array_offset        = cached_ds_image_info_items_array_offset;
+                    start_ds_texel_buffer_info_items_array_offset = cached_ds_texel_buffer_info_items_array_offset;
+                }
+
+                current_binding_item.dirty = false;
             }
         }
 
@@ -783,9 +810,6 @@ bool Anvil::DescriptorSet::update_using_core_method() const
     }
 
     result = true;
-
-end:
-
     return result;
 }
 

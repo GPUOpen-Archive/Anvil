@@ -245,20 +245,20 @@ void Anvil::Swapchain::destroy_swapchain()
     /* If this assertion failure explodes, your application attempted to release a swapchain without presenting all acquired swapchain images.
      * That's illegal per Vulkan spec.
      */
-    if (m_swapchain != VK_NULL_HANDLE)
+    lock();
     {
-        anvil_assert(m_n_acquire_counter == m_n_present_counter);
-
-        lock();
+        if (m_swapchain != VK_NULL_HANDLE)
         {
+            anvil_assert(m_n_acquire_counter == m_n_present_counter);
+
             m_khr_swapchain_entrypoints.vkDestroySwapchainKHR(m_device_ptr->get_device_vk(),
                                                               m_swapchain,
                                                               nullptr /* pAllocator */);
         }
-        unlock();
 
         m_swapchain = VK_NULL_HANDLE;
     }
+    unlock();
 }
 
 /** Please see header for specification */
