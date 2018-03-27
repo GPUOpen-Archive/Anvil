@@ -77,7 +77,7 @@ bool Anvil::PhysicalDevice::init()
     uint32_t                                               n_physical_device_queues        = 0;
     bool                                                   result                          = true;
     VkResult                                               result_vk                       = VK_ERROR_INITIALIZATION_FAILED;
-    const bool                                             texture_gather_bias_lod_support = is_device_extension_supported(VK_AMD_TEXTURE_GATHER_BIAS_LOD_EXTENSION_NAME);
+    bool                                                   texture_gather_bias_lod_support = false;
 
     anvil_assert(m_physical_device != VK_NULL_HANDLE);
 
@@ -187,6 +187,8 @@ bool Anvil::PhysicalDevice::init()
     }
 
     /* Retrieve device format properties */
+    texture_gather_bias_lod_support = is_device_extension_supported(VK_AMD_TEXTURE_GATHER_BIAS_LOD_EXTENSION_NAME);;
+
     for (VkFormat current_format = static_cast<VkFormat>(1); /* skip the _UNDEFINED format */
                   current_format < VK_FORMAT_RANGE_SIZE;
                   current_format = static_cast<VkFormat>(current_format + 1))
