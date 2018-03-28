@@ -33,6 +33,7 @@
 
 #include "misc/debug.h"
 #include "misc/mt_safety.h"
+#include "misc/struct_chainer.h"
 #include "misc/types.h"
 #include <algorithm>
 
@@ -664,6 +665,9 @@ namespace Anvil
         } DeviceQueueFamilyInfo;
 
         /* Protected functions */
+
+        std::unique_ptr<Anvil::StructChain<VkPhysicalDeviceFeatures2KHR > > get_physical_device_features_chain() const;
+
         std::vector<float> get_queue_priorities(const QueueFamilyInfo*              in_queue_family_info_ptr) const;
         void               init                (const DeviceExtensionConfiguration& in_extensions,
                                                 const std::vector<std::string>&     in_layers,
