@@ -384,6 +384,21 @@ bool Anvil::KHR16BitStorageFeatures::operator==(const KHR16BitStorageFeatures& i
             in_features.is_uniform_and_storage_buffer_16_bit_access_supported == is_uniform_and_storage_buffer_16_bit_access_supported);
 }
 
+VkPhysicalDevice16BitStorageFeaturesKHR Anvil::KHR16BitStorageFeatures::get_vk_physical_device_16_bit_storage_features() const
+{
+    VkPhysicalDevice16BitStorageFeaturesKHR result;
+
+    result.pNext                              = nullptr;
+    result.storageBuffer16BitAccess           = BOOL_TO_VK_BOOL32(is_storage_buffer_16_bit_access_supported);
+    result.storageInputOutput16               = BOOL_TO_VK_BOOL32(is_input_output_storage_supported);
+    result.storagePushConstant16              = BOOL_TO_VK_BOOL32(is_push_constant_16_bit_storage_supported);
+    result.sType                              = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES_KHR;
+    result.uniformAndStorageBuffer16BitAccess = BOOL_TO_VK_BOOL32(is_uniform_and_storage_buffer_16_bit_access_supported);
+
+    return result;
+
+}
+
 Anvil::KHRMaintenance3Properties::KHRMaintenance3Properties()
     :max_memory_allocation_size(std::numeric_limits<VkDeviceSize>::max() ),
      max_per_set_descriptors   (UINT32_MAX)

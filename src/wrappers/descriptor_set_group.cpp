@@ -111,7 +111,6 @@ Anvil::DescriptorSetGroup::DescriptorSetGroup(const DescriptorSetGroup* in_paren
 {
     auto descriptor_set_layout_manager_ptr = m_device_ptr->get_descriptor_set_layout_manager();
 
-    anvil_assert(  in_parent_dsg_ptr                                                                                                        != nullptr);
     anvil_assert(  in_parent_dsg_ptr->m_parent_dsg_ptr                                                                                      == nullptr);
     anvil_assert(((in_parent_dsg_ptr->m_descriptor_pool_ptr->get_flags() & Anvil::DESCRIPTOR_POOL_FLAG_CREATE_FREE_DESCRIPTOR_SET_BIT) > 0) == in_releaseable_sets);
 
@@ -125,7 +124,7 @@ Anvil::DescriptorSetGroup::DescriptorSetGroup(const DescriptorSetGroup* in_paren
     /* Initialize descriptor pool */
     m_descriptor_pool_ptr = Anvil::DescriptorPool::create(in_parent_dsg_ptr->m_device_ptr,
                                                           in_parent_dsg_ptr->m_descriptor_pool_ptr->get_n_maximum_sets(),
-                                                          in_releaseable_sets,
+                                                          in_parent_dsg_ptr->m_descriptor_pool_ptr->get_flags         (),
                                                           m_pool_size_per_descriptor_type,
                                                           Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe() ));
 
@@ -216,11 +215,11 @@ bool Anvil::DescriptorSetGroup::bake_descriptor_pool()
             VkDescriptorType ds_binding_type;
 
             current_ds_layout_info_ptr->get_binding_properties_by_index_number(n_ds_binding,
-                                                                               nullptr, /* out_opt_binding_index_ptr               */
+                                                                               nullptr, /* out_opt_binding_index_Ptr */
                                                                               &ds_binding_type,
                                                                               &ds_binding_array_size,
                                                                                nullptr,  /* out_opt_stage_flags_ptr                */
-                                                                               nullptr);/* out_opt_immutable_samplers_enabled_ptr */
+                                                                               nullptr); /* out_opt_immutable_samplers_enabled_ptr */
 
             if (ds_binding_type > VK_DESCRIPTOR_TYPE_END_RANGE)
             {
