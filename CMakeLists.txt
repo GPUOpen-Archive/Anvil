@@ -9,9 +9,10 @@ option(ANVIL_LINK_WITH_GLSLANG                     "Links with glslang, instead 
 # Do not modify anything after this line, unless you know what you're doing.
 configure_file("include/config.h.in" "include/config.h")
 
-include_directories("$(Anvil_SOURCE_DIR)"
-                    "$(Anvil_SOURCE_DIR)/deps"
-                    "$(Anvil_SOURCE_DIR)/include")
+include_directories("${Anvil_BINARY_DIR}/include"
+                    "${Anvil_SOURCE_DIR}"
+                    "${Anvil_SOURCE_DIR}/deps"
+                    "${Anvil_SOURCE_DIR}/include")
 
 if (WIN32)
     if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
