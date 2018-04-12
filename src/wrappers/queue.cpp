@@ -413,7 +413,6 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
                                uint32_t                 in_n_wait_semaphores,
                                Anvil::Semaphore* const* in_wait_semaphore_ptrs)
 {
-    const Anvil::DeviceType                 device_type            (m_device_ptr->get_type() );
     VkResult                                presentation_results   [MAX_SWAPCHAINS];
     VkResult                                result;
     Anvil::StructChainer<VkPresentInfoKHR>  struct_chainer;
