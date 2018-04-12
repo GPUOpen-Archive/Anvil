@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,7 @@ Anvil::DebugMarkerSupportProviderWorker::DebugMarkerSupportProviderWorker(const 
      m_vk_object_handle(VK_NULL_HANDLE),
      m_vk_object_type  (in_vk_object_type)
 {
-    m_is_ext_debug_marker_available = m_device_ptr->is_ext_debug_marker_extension_enabled();
+    m_is_ext_debug_marker_available = m_device_ptr->get_extension_info()->ext_debug_marker();
     m_object_tag_name               = 0;
 }
 

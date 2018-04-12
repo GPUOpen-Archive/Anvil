@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -37,7 +37,7 @@
 #ifndef MISC_BASE_PIPELINE_MANAGER_H
 #define MISC_BASE_PIPELINE_MANAGER_H
 
-#include "misc/base_pipeline_info.h"
+#include "misc/base_pipeline_create_info.h"
 #include "misc/callbacks.h"
 #include "misc/debug.h"
 #include "misc/mt_safety.h"
@@ -71,8 +71,8 @@ namespace Anvil
        virtual ~BasePipelineManager();
 
         /** TODO */
-        bool add_pipeline(Anvil::BasePipelineInfoUniquePtr in_pipeline_info_ptr,
-                          PipelineID*                      out_pipeline_id_ptr);
+        bool add_pipeline(Anvil::BasePipelineCreateInfoUniquePtr in_pipeline_create_info_ptr,
+                          PipelineID*                            out_pipeline_id_ptr);
 
        /** TODO */
        virtual bool bake() = 0;
@@ -97,7 +97,7 @@ namespace Anvil
         **/
        VkPipeline get_pipeline(PipelineID in_pipeline_id);
 
-       const Anvil::BasePipelineInfo* get_pipeline_info(PipelineID in_pipeline_id) const;
+       const Anvil::BasePipelineCreateInfo* get_pipeline_create_info(PipelineID in_pipeline_id) const;
 
        /** Retrieves a PipelineLayout instance associated with the specified pipeline ID.
         *
@@ -152,19 +152,19 @@ namespace Anvil
        /** Internal pipeline object descriptor */
        typedef struct Pipeline : public MTSafetySupportProvider
        {
-           VkPipeline                       baked_pipeline;
-           const BaseDevice*                device_ptr;
-           Anvil::PipelineLayoutUniquePtr   layout_ptr;
-           Anvil::BasePipelineInfoUniquePtr pipeline_info_ptr;
+           VkPipeline                             baked_pipeline;
+           const BaseDevice*                      device_ptr;
+           Anvil::PipelineLayoutUniquePtr         layout_ptr;
+           Anvil::BasePipelineCreateInfoUniquePtr pipeline_create_info_ptr;
 
-           Pipeline(const Anvil::BaseDevice*         in_device_ptr,
-                    Anvil::BasePipelineInfoUniquePtr in_pipeline_info_ptr,
-                    bool                             in_mt_safe)
+           Pipeline(const Anvil::BaseDevice*               in_device_ptr,
+                    Anvil::BasePipelineCreateInfoUniquePtr in_pipeline_create_info_ptr,
+                    bool                                   in_mt_safe)
                :MTSafetySupportProvider(in_mt_safe)
            {
-               baked_pipeline    = VK_NULL_HANDLE;
-               device_ptr        = in_device_ptr;
-               pipeline_info_ptr = std::move(in_pipeline_info_ptr);
+               baked_pipeline           = VK_NULL_HANDLE;
+               device_ptr               = in_device_ptr;
+               pipeline_create_info_ptr = std::move(in_pipeline_create_info_ptr);
            }
 
            /** Destrutor. Releases the internally managed Vulkan objects. */

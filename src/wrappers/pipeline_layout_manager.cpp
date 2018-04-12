@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -67,13 +67,13 @@ Anvil::PipelineLayoutManagerUniquePtr Anvil::PipelineLayoutManager::create(const
 }
 
 /* Please see header for specification */
-bool Anvil::PipelineLayoutManager::get_layout(const std::vector<DescriptorSetInfoUniquePtr>* in_ds_info_items_ptr,
-                                              const PushConstantRanges&                      in_push_constant_ranges,
-                                              Anvil::PipelineLayoutUniquePtr*                out_pipeline_layout_ptr_ptr)
+bool Anvil::PipelineLayoutManager::get_layout(const std::vector<DescriptorSetCreateInfoUniquePtr>* in_ds_create_info_items_ptr,
+                                              const PushConstantRanges&                            in_push_constant_ranges,
+                                              Anvil::PipelineLayoutUniquePtr*                      out_pipeline_layout_ptr_ptr)
 {
     std::unique_lock<std::recursive_mutex> mutex_lock;
     auto                                   mutex_ptr                   = get_mutex();
-    const uint32_t                         n_descriptor_sets_in_in_dsg = static_cast<uint32_t>(in_ds_info_items_ptr->size() );
+    const uint32_t                         n_descriptor_sets_in_in_dsg = static_cast<uint32_t>(in_ds_create_info_items_ptr->size() );
     bool                                   result                      = false;
     Anvil::PipelineLayout*                 result_pipeline_layout_ptr  = nullptr;
 
@@ -90,9 +90,9 @@ bool Anvil::PipelineLayoutManager::get_layout(const std::vector<DescriptorSetInf
     {
         auto&      current_pipeline_layout_container_ptr     = *layout_iterator;
         auto&      current_pipeline_layout_ptr               = current_pipeline_layout_container_ptr->pipeline_layout_ptr;
-        auto       current_pipeline_ds_info_ptrs             = current_pipeline_layout_ptr->get_ds_info_ptrs();
+        auto       current_pipeline_ds_create_info_ptrs      = current_pipeline_layout_ptr->get_ds_create_info_ptrs();
         bool       dss_match                                 = true;
-        const auto n_descriptor_sets_in_current_pipeline_dsg = static_cast<uint32_t>(current_pipeline_ds_info_ptrs->size() );
+        const auto n_descriptor_sets_in_current_pipeline_dsg = static_cast<uint32_t>(current_pipeline_ds_create_info_ptrs->size() );
 
         if (n_descriptor_sets_in_current_pipeline_dsg != n_descriptor_sets_in_in_dsg)
         {
@@ -108,21 +108,21 @@ bool Anvil::PipelineLayoutManager::get_layout(const std::vector<DescriptorSetInf
                       n_ds < n_descriptor_sets_in_in_dsg && dss_match;
                     ++n_ds)
         {
-            auto&       in_dsg_ds_info_ptr               = in_ds_info_items_ptr->at         (n_ds);
-            const auto& current_pipeline_dsg_ds_info_ptr = current_pipeline_ds_info_ptrs->at(n_ds);
+            auto&       in_dsg_ds_create_info_ptr               = in_ds_create_info_items_ptr->at         (n_ds);
+            const auto& current_pipeline_dsg_ds_create_info_ptr = current_pipeline_ds_create_info_ptrs->at(n_ds);
 
-            if ((in_dsg_ds_info_ptr != nullptr && current_pipeline_dsg_ds_info_ptr == nullptr) ||
-                (in_dsg_ds_info_ptr == nullptr && current_pipeline_dsg_ds_info_ptr != nullptr) )
+            if ((in_dsg_ds_create_info_ptr != nullptr && current_pipeline_dsg_ds_create_info_ptr == nullptr) ||
+                (in_dsg_ds_create_info_ptr == nullptr && current_pipeline_dsg_ds_create_info_ptr != nullptr) )
             {
                 dss_match = false;
 
                 break;
             }
 
-            if (in_dsg_ds_info_ptr               != nullptr &&
-                current_pipeline_dsg_ds_info_ptr != nullptr)
+            if (in_dsg_ds_create_info_ptr               != nullptr &&
+                current_pipeline_dsg_ds_create_info_ptr != nullptr)
             {
-                if (!(*in_dsg_ds_info_ptr == *current_pipeline_dsg_ds_info_ptr) )
+                if (!(*in_dsg_ds_create_info_ptr == *current_pipeline_dsg_ds_create_info_ptr) )
                 {
                     dss_match = false;
 
@@ -147,7 +147,7 @@ bool Anvil::PipelineLayoutManager::get_layout(const std::vector<DescriptorSetInf
     if (!result)
     {
         auto new_layout_ptr           = Anvil::PipelineLayout::create(m_device_ptr,
-                                                                      in_ds_info_items_ptr,
+                                                                      in_ds_create_info_items_ptr,
                                                                       in_push_constant_ranges,
                                                                       is_mt_safe() );
         auto new_layout_container_ptr = std::unique_ptr<PipelineLayoutContainer>(

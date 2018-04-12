@@ -38,75 +38,22 @@
 
 #include <unordered_map>
 #include <functional>
+
+#include "../glslang/MachineIndependent/attribute.h"
+#include "../glslang/MachineIndependent/SymbolTable.h"
 #include "hlslScanContext.h"
-#include "../glslang/Include/Common.h"
 
 namespace glslang {
-    enum TAttributeType {
-        EatNone,
-        EatAllow_uav_condition,
-        EatBranch,
-        EatCall,
-        EatDomain,
-        EatEarlyDepthStencil,
-        EatFastOpt,
-        EatFlatten,
-        EatForceCase,
-        EatInstance,
-        EatMaxTessFactor,
-        EatNumThreads,
-        EatMaxVertexCount,
-        EatOutputControlPoints,
-        EatOutputTopology,
-        EatPartitioning,
-        EatPatchConstantFunc,
-        EatPatchSize,
-        EatUnroll,
-        EatLoop,
-    };
-}
-
-namespace std {
-    // Allow use of TAttributeType enum in hash_map without calling code having to cast.
-    template <> struct hash<glslang::TAttributeType> {
-        std::size_t operator()(glslang::TAttributeType attr) const {
-            return std::hash<int>()(int(attr));
-        }
-    };
-} // end namespace std
-
-namespace glslang {
-    class TIntermAggregate;
-
-    class TAttributeMap {
-    public:
-        // Search for and potentially add the attribute into the map.  Return the
-        // attribute type enum for it, if found, else EatNone.
-        TAttributeType setAttribute(const TString* name, TIntermAggregate* value);
-
-        // Const lookup: search for (but do not modify) the attribute in the map.
-        const TIntermAggregate* operator[](TAttributeType) const;
-
-        // True if entry exists in map (even if value is nullptr)
-        bool contains(TAttributeType) const;
-
-    protected:
-        // Find an attribute enum given its name.
-        static TAttributeType attributeFromName(const TString&);
-
-        std::unordered_map<TAttributeType, TIntermAggregate*> attributes;
-    };
 
     class TFunctionDeclarator {
     public:
         TFunctionDeclarator() : function(nullptr), body(nullptr) { }
         TSourceLoc loc;
         TFunction* function;
-        TAttributeMap attributes;
+        TAttributes attributes;
         TVector<HlslToken>* body;
     };
 
 } // end namespace glslang
-
 
 #endif // HLSLATTRIBUTES_H_

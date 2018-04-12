@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -96,8 +96,10 @@ namespace Anvil
                  *
                  *  @param in_memory_block_ptr Raw pointer to the memory block which is about to be destroyed.
                  *                             Must NOT be null. Must be valid at call time.
+                 *  @param in_vma_allocation   TODO.
                  */
-                void on_vma_alloced_mem_block_gone_out_of_scope(Anvil::MemoryBlock* in_memory_block_ptr);
+                void on_vma_alloced_mem_block_gone_out_of_scope(Anvil::MemoryBlock* in_memory_block_ptr,
+                                                                VmaAllocation       in_vma_allocation);
 
             private:
                 /* Private functions */
@@ -121,8 +123,14 @@ namespace Anvil
 
             /* IMemoryAllocatorBackend functions */
 
-            bool bake           (Anvil::MemoryAllocator::Items& in_items);
-            bool supports_baking()                                         const;
+            bool     bake                            (Anvil::MemoryAllocator::Items&              in_items) final;
+            VkResult map                             (void*                                       in_memory_object,
+                                                      VkDeviceSize                                in_start_offset,
+                                                      VkDeviceSize                                in_size,
+                                                      void**                                      out_result_ptr);
+            bool     supports_baking                 () const final;
+            bool     supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeFlags& in_external_memory_handle_types) const final;
+            void     unmap                           (void*                                       in_memory_object);
 
             /* Private variables */
             const Anvil::BaseDevice*      m_device_ptr;

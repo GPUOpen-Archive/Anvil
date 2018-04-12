@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,7 +20,7 @@
 // THE SOFTWARE.
 //
 
-#include "misc/base_pipeline_info.h"
+#include "misc/base_pipeline_create_info.h"
 #include "misc/base_pipeline_manager.h"
 #include "misc/debug.h"
 #include "wrappers/descriptor_set_group.h"
@@ -99,10 +99,10 @@ void Anvil::BasePipelineManager::Pipeline::release_pipeline()
 
 
 /* Please see header for specification */
-bool Anvil::BasePipelineManager::add_pipeline(Anvil::BasePipelineInfoUniquePtr in_pipeline_info_ptr,
-                                              PipelineID*                      out_pipeline_id_ptr)
+bool Anvil::BasePipelineManager::add_pipeline(Anvil::BasePipelineCreateInfoUniquePtr in_pipeline_create_info_ptr,
+                                              PipelineID*                            out_pipeline_id_ptr)
 {
-    const Anvil::PipelineID                base_pipeline_id = in_pipeline_info_ptr->get_base_pipeline_id();
+    const Anvil::PipelineID                base_pipeline_id = in_pipeline_create_info_ptr->get_base_pipeline_id();
     auto                                   callback_arg     = Anvil::OnNewPipelineCreatedCallbackData(UINT32_MAX);
     std::unique_lock<std::recursive_mutex> mutex_lock;
     auto                                   mutex_ptr        = get_mutex();
@@ -119,8 +119,8 @@ bool Anvil::BasePipelineManager::add_pipeline(Anvil::BasePipelineInfoUniquePtr i
 
     if (base_pipeline_id != UINT32_MAX)
     {
-        auto                     base_pipeline_iterator = m_baked_pipelines.find(base_pipeline_id);
-        Anvil::BasePipelineInfo* base_pipeline_info_ptr = nullptr;
+        Anvil::BasePipelineCreateInfo* base_pipeline_create_info_ptr = nullptr;
+        auto                           base_pipeline_iterator        = m_baked_pipelines.find(base_pipeline_id);
 
         if (base_pipeline_iterator == m_baked_pipelines.end() )
         {
@@ -128,22 +128,22 @@ bool Anvil::BasePipelineManager::add_pipeline(Anvil::BasePipelineInfoUniquePtr i
 
             if (base_pipeline_iterator != m_outstanding_pipelines.end() )
             {
-                base_pipeline_info_ptr = base_pipeline_iterator->second->pipeline_info_ptr.get();
+                base_pipeline_create_info_ptr = base_pipeline_iterator->second->pipeline_create_info_ptr.get();
             }
         }
         else
         {
-            base_pipeline_info_ptr = base_pipeline_iterator->second->pipeline_info_ptr.get();
+            base_pipeline_create_info_ptr = base_pipeline_iterator->second->pipeline_create_info_ptr.get();
         }
 
-        if (base_pipeline_info_ptr != nullptr)
+        if (base_pipeline_create_info_ptr != nullptr)
         {
-            anvil_assert(base_pipeline_info_ptr->allows_derivatives() );
+            anvil_assert(base_pipeline_create_info_ptr->allows_derivatives() );
         }
         else
         {
             /* Base pipeline ID is invalid */
-            anvil_assert(base_pipeline_info_ptr != nullptr);
+            anvil_assert(base_pipeline_create_info_ptr != nullptr);
 
             goto end;
         }
@@ -152,15 +152,15 @@ bool Anvil::BasePipelineManager::add_pipeline(Anvil::BasePipelineInfoUniquePtr i
     /* Create & store the new descriptor */
     new_pipeline_id = (m_pipeline_counter.fetch_add(1) );
 
-    /* NOTE: in_pipeline_info_ptr becomes NULL after the call below */
+    /* NOTE: in_pipeline_create_info_ptr becomes NULL after the call below */
     new_pipeline_ptr.reset(
         new Pipeline(
             m_device_ptr,
-            std::move(in_pipeline_info_ptr),
+            std::move(in_pipeline_create_info_ptr),
             is_mt_safe() )
     );
 
-    if (new_pipeline_ptr->pipeline_info_ptr->is_proxy() )
+    if (new_pipeline_ptr->pipeline_create_info_ptr->is_proxy() )
     {
         m_baked_pipelines[new_pipeline_id] = std::move(new_pipeline_ptr);
     }
@@ -296,9 +296,9 @@ VkPipeline Anvil::BasePipelineManager::get_pipeline(PipelineID in_pipeline_id)
 
     pipeline_ptr = pipeline_iterator->second.get();
 
-    if (pipeline_ptr->pipeline_info_ptr->is_proxy() )
+    if (pipeline_ptr->pipeline_create_info_ptr->is_proxy() )
     {
-        anvil_assert(!pipeline_ptr->pipeline_info_ptr->is_proxy() );
+        anvil_assert(!pipeline_ptr->pipeline_create_info_ptr->is_proxy() );
 
         goto end;
     }
@@ -309,13 +309,13 @@ end:
     return result;
 }
 
-const Anvil::BasePipelineInfo* Anvil::BasePipelineManager::get_pipeline_info(PipelineID in_pipeline_id) const
+const Anvil::BasePipelineCreateInfo* Anvil::BasePipelineManager::get_pipeline_create_info(PipelineID in_pipeline_id) const
 {
     std::unique_lock<std::recursive_mutex> mutex_lock;
     auto                                   mutex_ptr         = get_mutex();
     Pipelines::const_iterator              pipeline_iterator;
     Pipeline*                              pipeline_ptr      = nullptr;
-    const Anvil::BasePipelineInfo*         result_ptr        = nullptr;
+    const Anvil::BasePipelineCreateInfo*   result_ptr        = nullptr;
 
     if (mutex_ptr != nullptr)
     {
@@ -339,7 +339,7 @@ const Anvil::BasePipelineInfo* Anvil::BasePipelineManager::get_pipeline_info(Pip
     }
 
     pipeline_ptr = pipeline_iterator->second.get();
-    result_ptr   = pipeline_ptr->pipeline_info_ptr.get();
+    result_ptr   = pipeline_ptr->pipeline_create_info_ptr.get();
 
 end:
     return result_ptr;
@@ -377,17 +377,17 @@ Anvil::PipelineLayout* Anvil::BasePipelineManager::get_pipeline_layout(PipelineI
 
     pipeline_ptr = pipeline_iterator->second.get();
 
-    if (pipeline_ptr->pipeline_info_ptr->is_proxy() )
+    if (pipeline_ptr->pipeline_create_info_ptr->is_proxy() )
     {
-        anvil_assert(!pipeline_ptr->pipeline_info_ptr->is_proxy() );
+        anvil_assert(!pipeline_ptr->pipeline_create_info_ptr->is_proxy() );
 
         goto end;
     }
 
     if (pipeline_ptr->layout_ptr == nullptr)
     {
-        if (!m_pipeline_layout_manager_ptr->get_layout(pipeline_ptr->pipeline_info_ptr->get_ds_info_items       (),
-                                                       pipeline_ptr->pipeline_info_ptr->get_push_constant_ranges(),
+        if (!m_pipeline_layout_manager_ptr->get_layout(pipeline_ptr->pipeline_create_info_ptr->get_ds_create_info_items(),
+                                                       pipeline_ptr->pipeline_create_info_ptr->get_push_constant_ranges(),
                                                       &pipeline_ptr->layout_ptr) )
         {
             anvil_assert_fail();

@@ -28,11 +28,18 @@
 
 #include "config.h"
 #include <string>
+#include "misc/buffer_create_info.h"
+#include "misc/event_create_info.h"
+#include "misc/framebuffer_create_info.h"
 #include "misc/glsl_to_spirv.h"
-#include "misc/graphics_pipeline_info.h"
+#include "misc/graphics_pipeline_create_info.h"
+#include "misc/image_create_info.h"
+#include "misc/image_view_create_info.h"
 #include "misc/io.h"
 #include "misc/object_tracker.h"
-#include "misc/render_pass_info.h"
+#include "misc/render_pass_create_info.h"
+#include "misc/semaphore_create_info.h"
+#include "misc/swapchain_create_info.h"
 #include "misc/time.h"
 #include "misc/window_factory.h"
 #include "wrappers/buffer.h"
@@ -342,28 +349,34 @@ void App::init_buffers()
     m_time_n_bytes_per_swapchain_image = static_cast<uint32_t>(Anvil::Utils::round_up(sizeof(float),
                                                                                       uniform_alignment_req) );
 
-    m_query_bo_ptr = Anvil::Buffer::create_nonsparse(m_device_ptr.get(),
-                                                     m_n_bytes_per_query * N_SWAPCHAIN_IMAGES,
-                                                     Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
-                                                     VK_SHARING_MODE_EXCLUSIVE,
-                                                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                     0,        /* in_memory_features */
-                                                     nullptr); /* opt_client_data    */
+    {
+        auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_alloc(m_device_ptr.get(),
+                                                                               m_n_bytes_per_query * N_SWAPCHAIN_IMAGES,
+                                                                               Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
+                                                                               VK_SHARING_MODE_EXCLUSIVE,
+                                                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                                               0); /* in_memory_features */
 
-    m_time_bo_ptr = Anvil::Buffer::create_nonsparse(m_device_ptr.get(),
-                                                    m_time_n_bytes_per_swapchain_image * N_SWAPCHAIN_IMAGES,
-                                                    Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
-                                                    VK_SHARING_MODE_EXCLUSIVE,
-                                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                    Anvil::MEMORY_FEATURE_FLAG_MAPPABLE,
-                                                    nullptr); /* opt_client_data */
+        m_query_bo_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
+    }
+
+    {
+        auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_alloc(m_device_ptr.get(),
+                                                                               m_time_n_bytes_per_swapchain_image * N_SWAPCHAIN_IMAGES,
+                                                                               Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
+                                                                               VK_SHARING_MODE_EXCLUSIVE,
+                                                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                                               Anvil::MEMORY_FEATURE_FLAG_MAPPABLE);
+
+        m_time_bo_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
+    }
 }
 
 void App::init_command_buffers()
 {
     VkClearValue   clear_values[2];
     auto           gfx_pipeline_manager_ptr     (m_device_ptr->get_graphics_pipeline_manager() );
-    const bool     is_ext_debug_marker_supported(m_device_ptr->is_ext_debug_marker_extension_enabled() );
+    const bool     is_ext_debug_marker_supported(m_device_ptr->get_extension_info()->ext_debug_marker() );
     VkRect2D       render_area;
     auto           tri_1stpass_ds0_ptr          (m_1stpass_dsg_ptr->get_descriptor_set     (0) );
     auto           quad_2ndpass_ds0_ptr         (m_2ndpass_quad_dsg_ptr->get_descriptor_set(0) );
@@ -571,36 +584,36 @@ void App::init_command_buffers()
 
 void App::init_dsgs()
 {
-    std::vector<Anvil::DescriptorSetInfoUniquePtr> dsg_1stpass_info_ptrs     (1);
-    std::vector<Anvil::DescriptorSetInfoUniquePtr> quad_dsg_2ndpass_info_ptrs(1);
-    std::vector<Anvil::DescriptorSetInfoUniquePtr> tri_dsg_2ndpass_info_ptrs (1);
+    std::vector<Anvil::DescriptorSetCreateInfoUniquePtr> dsg_1stpass_create_info_ptrs     (1);
+    std::vector<Anvil::DescriptorSetCreateInfoUniquePtr> quad_dsg_2ndpass_create_info_ptrs(1);
+    std::vector<Anvil::DescriptorSetCreateInfoUniquePtr> tri_dsg_2ndpass_create_info_ptrs (1);
 
-    dsg_1stpass_info_ptrs     [0] = Anvil::DescriptorSetInfo::create();
-    quad_dsg_2ndpass_info_ptrs[0] = Anvil::DescriptorSetInfo::create();
-    tri_dsg_2ndpass_info_ptrs [0] = Anvil::DescriptorSetInfo::create();
+    dsg_1stpass_create_info_ptrs     [0] = Anvil::DescriptorSetCreateInfo::create();
+    quad_dsg_2ndpass_create_info_ptrs[0] = Anvil::DescriptorSetCreateInfo::create();
+    tri_dsg_2ndpass_create_info_ptrs [0] = Anvil::DescriptorSetCreateInfo::create();
 
 
-    dsg_1stpass_info_ptrs[0]->add_binding     (0, /* binding */
-                                               VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
-                                               1, /* n_elements */
-                                               VK_SHADER_STAGE_VERTEX_BIT);
-    tri_dsg_2ndpass_info_ptrs[0]->add_binding (0, /* binding */
-                                               VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
-                                               1, /* n_elements */
-                                               VK_SHADER_STAGE_VERTEX_BIT);
-    quad_dsg_2ndpass_info_ptrs[0]->add_binding(0, /* binding */
-                                               VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
-                                               1, /* n_elements */
-                                               VK_SHADER_STAGE_VERTEX_BIT);
+    dsg_1stpass_create_info_ptrs[0]->add_binding     (0, /* binding */
+                                                      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+                                                      1, /* n_elements */
+                                                      VK_SHADER_STAGE_VERTEX_BIT);
+    tri_dsg_2ndpass_create_info_ptrs[0]->add_binding (0, /* binding */
+                                                      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+                                                      1, /* n_elements */
+                                                      VK_SHADER_STAGE_VERTEX_BIT);
+    quad_dsg_2ndpass_create_info_ptrs[0]->add_binding(0, /* binding */
+                                                      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+                                                      1, /* n_elements */
+                                                      VK_SHADER_STAGE_VERTEX_BIT);
 
     m_1stpass_dsg_ptr      = Anvil::DescriptorSetGroup::create(m_device_ptr.get(),
-                                                               dsg_1stpass_info_ptrs,
+                                                               dsg_1stpass_create_info_ptrs,
                                                                false); /* in_releaseable_sets */
     m_2ndpass_tri_dsg_ptr  = Anvil::DescriptorSetGroup::create(m_device_ptr.get(),
-                                                               tri_dsg_2ndpass_info_ptrs,
+                                                               tri_dsg_2ndpass_create_info_ptrs,
                                                                false); /* in_releaseable_sets */
     m_2ndpass_quad_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr.get(),
-                                                               quad_dsg_2ndpass_info_ptrs,
+                                                               quad_dsg_2ndpass_create_info_ptrs,
                                                                false); /* in_releaseable_sets */
 
     m_1stpass_dsg_ptr->set_binding_item     (0, /* n_set         */
@@ -622,8 +635,9 @@ void App::init_dsgs()
 
 void App::init_events()
 {
-    m_query_data_copied_event = Anvil::Event::create(m_device_ptr.get() );
+    auto create_info_ptr = Anvil::EventCreateInfo::create(m_device_ptr.get() );
 
+    m_query_data_copied_event = Anvil::Event::create(std::move(create_info_ptr) );
     m_query_data_copied_event->set_name("Query data copied event");
 }
 
@@ -633,52 +647,65 @@ void App::init_framebuffers()
                   n_swapchain_image < N_SWAPCHAIN_IMAGES;
                 ++n_swapchain_image)
     {
-        m_fbos[n_swapchain_image] = Anvil::Framebuffer::create(m_device_ptr.get(),
-                                                               WINDOW_WIDTH,
-                                                               WINDOW_HEIGHT,
-                                                               1); /* n_layers */
+        {
+            auto create_info_ptr = Anvil::FramebufferCreateInfo::create(m_device_ptr.get(),
+                                                                        WINDOW_WIDTH,
+                                                                        WINDOW_HEIGHT,
+                                                                        1); /* n_layers */
+
+            create_info_ptr->add_attachment(m_swapchain_ptr->get_image_view(n_swapchain_image),
+                                            nullptr); /* out_opt_attachment_id_ptr */
+            create_info_ptr->add_attachment(m_depth_image_view_ptr.get(),
+                                            nullptr); /* out_opt_attachment_id_ptr */
+
+            m_fbos[n_swapchain_image] = Anvil::Framebuffer::create(std::move(create_info_ptr) );
+        }
 
         m_fbos[n_swapchain_image]->set_name_formatted("Framebuffer for swapchain image [%d]",
                                                       n_swapchain_image);
 
-        m_fbos[n_swapchain_image]->add_attachment(m_swapchain_ptr->get_image_view(n_swapchain_image),
-                                                  nullptr); /* out_opt_attachment_id_ptr */
-        m_fbos[n_swapchain_image]->add_attachment(m_depth_image_view_ptr.get(),
-                                                  nullptr); /* out_opt_attachment_id_ptr */
     }
 }
 
 void App::init_images()
 {
-    m_depth_image_ptr = Anvil::Image::create_nonsparse(m_device_ptr.get(),
-                                                       VK_IMAGE_TYPE_2D,
-                                                       VK_FORMAT_D16_UNORM,
-                                                       VK_IMAGE_TILING_OPTIMAL,
-                                                       VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                                                       WINDOW_WIDTH,
-                                                       WINDOW_HEIGHT,
-                                                       1, /* base_mipmap_depth */
-                                                       1, /* n_layers          */
-                                                       VK_SAMPLE_COUNT_1_BIT,
-                                                       Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
-                                                       VK_SHARING_MODE_EXCLUSIVE,
-                                                       false, /* use_full_mipmap_chain */
-                                                       0,     /* in_memory_features    */
-                                                       false, /* is_mutable            */
-                                                       VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                                       nullptr);
+    {
+        auto create_info_ptr = Anvil::ImageCreateInfo::create_nonsparse_alloc(m_device_ptr.get(),
+                                                                              VK_IMAGE_TYPE_2D,
+                                                                              VK_FORMAT_D16_UNORM,
+                                                                              VK_IMAGE_TILING_OPTIMAL,
+                                                                              VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                                                              WINDOW_WIDTH,
+                                                                              WINDOW_HEIGHT,
+                                                                              1, /* base_mipmap_depth */
+                                                                              1, /* n_layers          */
+                                                                              VK_SAMPLE_COUNT_1_BIT,
+                                                                              Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
+                                                                              VK_SHARING_MODE_EXCLUSIVE,
+                                                                              false, /* use_full_mipmap_chain */
+                                                                              0,     /* in_memory_features    */
+                                                                              false, /* is_mutable            */
+                                                                              VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                                              nullptr);
 
-    m_depth_image_view_ptr = Anvil::ImageView::create_2D(m_device_ptr.get(),
-                                                         m_depth_image_ptr.get(),
-                                                         0, /* n_base_layer        */
-                                                         0, /* n_base_mipmap_level */
-                                                         1, /* n_mipmaps           */
-                                                         VK_IMAGE_ASPECT_DEPTH_BIT,
-                                                         m_depth_image_ptr->get_image_format(),
-                                                         VK_COMPONENT_SWIZZLE_IDENTITY,
-                                                         VK_COMPONENT_SWIZZLE_IDENTITY,
-                                                         VK_COMPONENT_SWIZZLE_IDENTITY,
-                                                         VK_COMPONENT_SWIZZLE_IDENTITY);
+        m_depth_image_ptr = Anvil::Image::create(std::move(create_info_ptr) );
+    }
+
+    {
+        auto create_info_ptr = Anvil::ImageViewCreateInfo::create_2D(m_device_ptr.get(),
+                                                                     m_depth_image_ptr.get(),
+                                                                     0, /* n_base_layer        */
+                                                                     0, /* n_base_mipmap_level */
+                                                                     1, /* n_mipmaps           */
+                                                                     VK_IMAGE_ASPECT_DEPTH_BIT,
+                                                                     m_depth_image_ptr->get_create_info_ptr()->get_format(),
+                                                                     VK_COMPONENT_SWIZZLE_IDENTITY,
+                                                                     VK_COMPONENT_SWIZZLE_IDENTITY,
+                                                                     VK_COMPONENT_SWIZZLE_IDENTITY,
+                                                                     VK_COMPONENT_SWIZZLE_IDENTITY);
+
+        m_depth_image_view_ptr = Anvil::ImageView::create(std::move(create_info_ptr) );
+    }
 }
 
 void App::init_query_pool()
@@ -703,11 +730,11 @@ void App::init_renderpasses()
         Anvil::RenderPassUniquePtr    renderpass_ptr;
 
         {
-            Anvil::RenderPassInfoUniquePtr renderpass_info_ptr(
-                new Anvil::RenderPassInfo(m_device_ptr.get() )
+            Anvil::RenderPassCreateInfoUniquePtr renderpass_info_ptr(
+                new Anvil::RenderPassCreateInfo(m_device_ptr.get() )
             );
 
-            renderpass_info_ptr->add_color_attachment(m_swapchain_ptr->get_image_format(),
+            renderpass_info_ptr->add_color_attachment(m_swapchain_ptr->get_create_info_ptr()->get_format(),
                                                       VK_SAMPLE_COUNT_1_BIT,
                                                       (!is_2nd_renderpass) ? VK_ATTACHMENT_LOAD_OP_CLEAR
                                                                            : VK_ATTACHMENT_LOAD_OP_LOAD,
@@ -721,7 +748,7 @@ void App::init_renderpasses()
                                                       false, /* may_alias */
                                                      &color_attachment_id);
 
-            renderpass_info_ptr->add_depth_stencil_attachment(m_depth_image_ptr->get_image_format(),
+            renderpass_info_ptr->add_depth_stencil_attachment(m_depth_image_ptr->get_create_info_ptr()->get_format(),
                                                               VK_SAMPLE_COUNT_1_BIT,
                                                               (!is_2nd_renderpass) ? VK_ATTACHMENT_LOAD_OP_CLEAR
                                                                                    : VK_ATTACHMENT_LOAD_OP_LOAD,
@@ -777,11 +804,11 @@ void App::init_renderpasses()
                                                                   nullptr); /* opt_attachment_resolve_ptr */
 
                 renderpass_info_ptr->add_subpass_depth_stencil_attachment(m_renderpass_1stpass_depth_test_always_subpass_id,
-                                                                          ds_attachment_id,
-                                                                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+                                                                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                                          ds_attachment_id);
                 renderpass_info_ptr->add_subpass_depth_stencil_attachment(m_renderpass_1stpass_depth_test_equal_ot_subpass_id,
-                                                                          ds_attachment_id,
-                                                                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+                                                                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                                          ds_attachment_id);
 
 
                 /* depth_test_equal_ot subpass must not start before depth_test_always subpass finishes rasterizing */
@@ -803,75 +830,75 @@ void App::init_renderpasses()
 
         if (is_2nd_renderpass)
         {
-            auto depth_test_off_tri_subpass_gfx_pipeline_info_ptr  = Anvil::GraphicsPipelineInfo::create_regular_pipeline_info(false, /* in_disable_optimizations */
-                                                                                                                               false, /* in_allow_derivatives     */
-                                                                                                                               renderpass_ptr.get(),
-                                                                                                                               m_renderpass_2ndpass_depth_test_off_tri_subpass_id,
-                                                                                                                               *m_tri_fs_ptr,
-                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* in_geometry_shader_entrypoint        */
-                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* in_tess_control_shader_entrypoint    */
-                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* in_tess_evaluation_shader_entrypoint */
-                                                                                                                               *m_tri_vs_ptr);
-            auto depth_test_off_quad_subpass_gfx_pipeline_info_ptr = Anvil::GraphicsPipelineInfo::create_regular_pipeline_info(false, /* in_disable_optimizations */
-                                                                                                                               false, /* in_allow_derivatives     */
-                                                                                                                               renderpass_ptr.get(),
-                                                                                                                               m_renderpass_2ndpass_depth_test_off_quad_subpass_id,
-                                                                                                                              *m_quad_fs_ptr,
-                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader_entrypoint        */
-                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader_entrypoint    */
-                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader_entrypoint */
-                                                                                                                              *m_quad_vs_ptr);
+            auto depth_test_off_tri_subpass_gfx_pipeline_create_info_ptr  = Anvil::GraphicsPipelineCreateInfo::create_regular(false, /* in_disable_optimizations */
+                                                                                                                              false, /* in_allow_derivatives     */
+                                                                                                                              renderpass_ptr.get(),
+                                                                                                                              m_renderpass_2ndpass_depth_test_off_tri_subpass_id,
+                                                                                                                              *m_tri_fs_ptr,
+                                                                                                                              Anvil::ShaderModuleStageEntryPoint(), /* in_geometry_shader_entrypoint        */
+                                                                                                                              Anvil::ShaderModuleStageEntryPoint(), /* in_tess_control_shader_entrypoint    */
+                                                                                                                              Anvil::ShaderModuleStageEntryPoint(), /* in_tess_evaluation_shader_entrypoint */
+                                                                                                                              *m_tri_vs_ptr);
+            auto depth_test_off_quad_subpass_gfx_pipeline_create_info_ptr = Anvil::GraphicsPipelineCreateInfo::create_regular(false, /* in_disable_optimizations */
+                                                                                                                              false, /* in_allow_derivatives     */
+                                                                                                                              renderpass_ptr.get(),
+                                                                                                                              m_renderpass_2ndpass_depth_test_off_quad_subpass_id,
+                                                                                                                             *m_quad_fs_ptr,
+                                                                                                                              Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader_entrypoint        */
+                                                                                                                              Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader_entrypoint    */
+                                                                                                                              Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader_entrypoint */
+                                                                                                                             *m_quad_vs_ptr);
 
 
 
-            depth_test_off_tri_subpass_gfx_pipeline_info_ptr->set_descriptor_set_info (m_2ndpass_tri_dsg_ptr->get_descriptor_set_info() );
-            depth_test_off_quad_subpass_gfx_pipeline_info_ptr->set_descriptor_set_info(m_2ndpass_quad_dsg_ptr->get_descriptor_set_info() );
+            depth_test_off_tri_subpass_gfx_pipeline_create_info_ptr->set_descriptor_set_create_info (m_2ndpass_tri_dsg_ptr->get_descriptor_set_create_info () );
+            depth_test_off_quad_subpass_gfx_pipeline_create_info_ptr->set_descriptor_set_create_info(m_2ndpass_quad_dsg_ptr->get_descriptor_set_create_info() );
 
-            depth_test_off_quad_subpass_gfx_pipeline_info_ptr->set_primitive_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
+            depth_test_off_quad_subpass_gfx_pipeline_create_info_ptr->set_primitive_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
 
 
-            gfx_pipeline_manager_ptr->add_pipeline(std::move(depth_test_off_quad_subpass_gfx_pipeline_info_ptr),
+            gfx_pipeline_manager_ptr->add_pipeline(std::move(depth_test_off_quad_subpass_gfx_pipeline_create_info_ptr),
                                                   &m_2ndpass_depth_test_off_quad_pipeline_id);
-            gfx_pipeline_manager_ptr->add_pipeline(std::move(depth_test_off_tri_subpass_gfx_pipeline_info_ptr),
+            gfx_pipeline_manager_ptr->add_pipeline(std::move(depth_test_off_tri_subpass_gfx_pipeline_create_info_ptr),
                                                   &m_2ndpass_depth_test_off_tri_pipeline_id);
 
             m_renderpass_quad_ptr = std::move(renderpass_ptr);
         }
         else
         {
-            auto depth_test_always_subpass_gfx_pipeline_info_ptr   = Anvil::GraphicsPipelineInfo::create_regular_pipeline_info(false, /* in_disable_optimizations */
-                                                                                                                               false, /* in_allow_derivatives     */
-                                                                                                                               renderpass_ptr.get(),
-                                                                                                                               m_renderpass_1stpass_depth_test_always_subpass_id,
-                                                                                                                              *m_tri_fs_ptr,
-                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader_entrypoint        */
-                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader_entrypoint    */
-                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader_entrypoint */
-                                                                                                                              *m_tri_vs_ptr);
-            auto depth_test_equal_ot_subpass_gfx_pipeline_info_ptr = Anvil::GraphicsPipelineInfo::create_regular_pipeline_info(false, /* in_disable_optimizations */
-                                                                                                                               false, /* in_allow_derivatives     */
-                                                                                                                               renderpass_ptr.get(),
-                                                                                                                               m_renderpass_1stpass_depth_test_equal_ot_subpass_id,
-                                                                                                                              *m_tri_fs_ptr,
-                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader_entrypoint        */
-                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader_entrypoint    */
-                                                                                                                               Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader_entrypoint */
-                                                                                                                              *m_tri_vs_ptr);
+            auto depth_test_always_subpass_gfx_pipeline_create_info_ptr   = Anvil::GraphicsPipelineCreateInfo::create_regular(false, /* in_disable_optimizations */
+                                                                                                                              false, /* in_allow_derivatives     */
+                                                                                                                              renderpass_ptr.get(),
+                                                                                                                              m_renderpass_1stpass_depth_test_always_subpass_id,
+                                                                                                                             *m_tri_fs_ptr,
+                                                                                                                              Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader_entrypoint        */
+                                                                                                                              Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader_entrypoint    */
+                                                                                                                              Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader_entrypoint */
+                                                                                                                             *m_tri_vs_ptr);
+            auto depth_test_equal_ot_subpass_gfx_pipeline_create_info_ptr = Anvil::GraphicsPipelineCreateInfo::create_regular(false, /* in_disable_optimizations */
+                                                                                                                              false, /* in_allow_derivatives     */
+                                                                                                                              renderpass_ptr.get(),
+                                                                                                                              m_renderpass_1stpass_depth_test_equal_ot_subpass_id,
+                                                                                                                             *m_tri_fs_ptr,
+                                                                                                                              Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader_entrypoint        */
+                                                                                                                              Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader_entrypoint    */
+                                                                                                                              Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader_entrypoint */
+                                                                                                                             *m_tri_vs_ptr);
 
-            depth_test_always_subpass_gfx_pipeline_info_ptr->set_descriptor_set_info(m_1stpass_dsg_ptr->get_descriptor_set_info() );
-            depth_test_always_subpass_gfx_pipeline_info_ptr->toggle_depth_test      (true, /* in_should_enable */
-                                                                                     VK_COMPARE_OP_ALWAYS);
-            depth_test_always_subpass_gfx_pipeline_info_ptr->toggle_depth_writes    (true); /* in_should_enable */
+            depth_test_always_subpass_gfx_pipeline_create_info_ptr->set_descriptor_set_create_info(m_1stpass_dsg_ptr->get_descriptor_set_create_info() );
+            depth_test_always_subpass_gfx_pipeline_create_info_ptr->toggle_depth_test             (true, /* in_should_enable */
+                                                                                                   VK_COMPARE_OP_ALWAYS);
+            depth_test_always_subpass_gfx_pipeline_create_info_ptr->toggle_depth_writes           (true); /* in_should_enable */
 
-            depth_test_equal_ot_subpass_gfx_pipeline_info_ptr->set_descriptor_set_info(m_1stpass_dsg_ptr->get_descriptor_set_info() );
-            depth_test_equal_ot_subpass_gfx_pipeline_info_ptr->toggle_depth_test      (true, /* in_should_enable */
-                                                                                       VK_COMPARE_OP_EQUAL);
-            depth_test_equal_ot_subpass_gfx_pipeline_info_ptr->toggle_depth_writes    (true); /* in_should_enable */
+            depth_test_equal_ot_subpass_gfx_pipeline_create_info_ptr->set_descriptor_set_create_info(m_1stpass_dsg_ptr->get_descriptor_set_create_info() );
+            depth_test_equal_ot_subpass_gfx_pipeline_create_info_ptr->toggle_depth_test             (true, /* in_should_enable */
+                                                                                                     VK_COMPARE_OP_EQUAL);
+            depth_test_equal_ot_subpass_gfx_pipeline_create_info_ptr->toggle_depth_writes           (true); /* in_should_enable */
 
 
-            gfx_pipeline_manager_ptr->add_pipeline(std::move(depth_test_always_subpass_gfx_pipeline_info_ptr),
+            gfx_pipeline_manager_ptr->add_pipeline(std::move(depth_test_always_subpass_gfx_pipeline_create_info_ptr),
                                                   &m_1stpass_depth_test_always_pipeline_id);
-            gfx_pipeline_manager_ptr->add_pipeline(std::move(depth_test_equal_ot_subpass_gfx_pipeline_info_ptr),
+            gfx_pipeline_manager_ptr->add_pipeline(std::move(depth_test_equal_ot_subpass_gfx_pipeline_create_info_ptr),
                                                   &m_1stpass_depth_test_equal_pipeline_id);
 
             m_renderpass_tris_ptr = std::move(renderpass_ptr);
@@ -885,13 +912,25 @@ void App::init_semaphores()
                   n_semaphore < m_n_swapchain_images;
                 ++n_semaphore)
     {
-        auto new_signal_semaphore_ptr = Anvil::Semaphore::create(m_device_ptr.get() );
-        auto new_wait_semaphore_ptr   = Anvil::Semaphore::create(m_device_ptr.get() );
+        Anvil::SemaphoreUniquePtr new_signal_semaphore_ptr;
+        Anvil::SemaphoreUniquePtr new_wait_semaphore_ptr;
+
+        {
+            auto create_info_ptr = Anvil::SemaphoreCreateInfo::create(m_device_ptr.get() );
+
+            new_signal_semaphore_ptr = Anvil::Semaphore::create(std::move(create_info_ptr) );
+        }
+
+        {
+            auto create_info_ptr = Anvil::SemaphoreCreateInfo::create(m_device_ptr.get() );
+
+            new_wait_semaphore_ptr = Anvil::Semaphore::create(std::move(create_info_ptr) );
+        }
 
         new_signal_semaphore_ptr->set_name_formatted("Frame signal semaphore [%d]",
                                                      n_semaphore);
-        new_wait_semaphore_ptr->set_name_formatted   ("Frame wait semaphore [%d]",
-                                                     n_semaphore);
+        new_wait_semaphore_ptr->set_name_formatted("Frame wait semaphore [%d]",
+                                                  n_semaphore);
 
         m_frame_signal_semaphores.push_back(std::move(new_signal_semaphore_ptr) );
         m_frame_wait_semaphores.push_back  (std::move(new_wait_semaphore_ptr) );

@@ -1,0 +1,2356 @@
+//
+// Copyright (c) 2018 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+#include "misc/types.h"
+#include "misc/descriptor_set_create_info.h"
+#include "wrappers/buffer.h"
+#include "wrappers/descriptor_set_layout.h"
+#include "wrappers/image.h"
+#include <cfloat>
+#include <cmath>
+
+#define BOOL_TO_VK_BOOL32(x) ((x)             ? VK_TRUE : VK_FALSE);
+#define VK_BOOL32_TO_BOOL(x) ((x == VK_FALSE) ? false   : true)
+
+#ifdef max
+    #undef max
+#endif
+
+Anvil::AMDShaderCoreProperties::AMDShaderCoreProperties()
+{
+    memset(this,
+           0,
+           sizeof(*this));
+}
+
+Anvil::AMDShaderCoreProperties::AMDShaderCoreProperties(const VkPhysicalDeviceShaderCorePropertiesAMD& in_props)
+{
+    compute_units_per_shader_array = in_props.computeUnitsPerShaderArray;
+    max_sgpr_allocation            = in_props.maxSgprAllocation;
+    max_vgpr_allocation            = in_props.maxVgprAllocation;
+    min_sgpr_allocation            = in_props.minSgprAllocation;
+    min_vgpr_allocation            = in_props.minVgprAllocation;
+    shader_arrays_per_engine_count = in_props.shaderArraysPerEngineCount;
+    shader_engine_count            = in_props.shaderEngineCount;
+    sgpr_allocation_granularity    = in_props.sgprAllocationGranularity;
+    sgprs_per_simd                 = in_props.sgprsPerSimd;
+    simd_per_compute_unit          = in_props.simdPerComputeUnit;
+    vgpr_allocation_granularity    = in_props.vgprAllocationGranularity;
+    vgprs_per_simd                 = in_props.vgprsPerSimd;
+    wavefronts_per_simd            = in_props.wavefrontsPerSimd;
+    wavefront_size                 = in_props.wavefrontSize;
+}
+
+bool Anvil::AMDShaderCoreProperties::operator==(const Anvil::AMDShaderCoreProperties& in_props) const
+{
+    return (compute_units_per_shader_array == in_props.compute_units_per_shader_array &&
+            max_sgpr_allocation            == in_props.max_sgpr_allocation            &&
+            max_vgpr_allocation            == in_props.max_vgpr_allocation            &&
+            min_sgpr_allocation            == in_props.min_sgpr_allocation            &&
+            min_vgpr_allocation            == in_props.min_vgpr_allocation            &&
+            sgprs_per_simd                 == in_props.sgprs_per_simd                 &&
+            sgpr_allocation_granularity    == in_props.sgpr_allocation_granularity    &&
+            shader_arrays_per_engine_count == in_props.shader_arrays_per_engine_count &&
+            shader_engine_count            == in_props.shader_engine_count            &&
+            simd_per_compute_unit          == in_props.simd_per_compute_unit          &&
+            wavefronts_per_simd            == in_props.wavefronts_per_simd            &&
+            wavefront_size                 == in_props.wavefront_size                 &&
+            vgpr_allocation_granularity    == in_props.vgpr_allocation_granularity    &&
+            vgprs_per_simd                 == in_props.vgprs_per_simd);
+}
+
+/** Please see header for specification */
+Anvil::BufferBarrier::BufferBarrier(const BufferBarrier& in)
+{
+    buffer                 = in.buffer;
+    buffer_barrier_vk      = in.buffer_barrier_vk;
+    buffer_ptr             = in.buffer_ptr;
+    dst_access_mask        = in.dst_access_mask;
+    dst_queue_family_index = in.dst_queue_family_index;
+    offset                 = in.offset;
+    size                   = in.size;
+    src_access_mask        = in.src_access_mask;
+    src_queue_family_index = in.src_queue_family_index;
+}
+
+/** Please see header for specification */
+Anvil::BufferBarrier::BufferBarrier(VkAccessFlags  in_source_access_mask,
+                                    VkAccessFlags  in_destination_access_mask,
+                                    uint32_t       in_src_queue_family_index,
+                                    uint32_t       in_dst_queue_family_index,
+                                    Anvil::Buffer* in_buffer_ptr,
+                                    VkDeviceSize   in_offset,
+                                    VkDeviceSize   in_size)
+{
+    buffer                 = in_buffer_ptr->get_buffer();
+    buffer_ptr             = in_buffer_ptr;
+    dst_access_mask        = static_cast<VkAccessFlagBits>(in_destination_access_mask);
+    dst_queue_family_index = in_dst_queue_family_index;
+    offset                 = in_offset;
+    size                   = in_size;
+    src_access_mask        = static_cast<VkAccessFlagBits>(in_source_access_mask);
+    src_queue_family_index = in_src_queue_family_index;
+
+    buffer_barrier_vk.buffer              = in_buffer_ptr->get_buffer();
+    buffer_barrier_vk.dstAccessMask       = in_destination_access_mask;
+    buffer_barrier_vk.dstQueueFamilyIndex = in_dst_queue_family_index;
+    buffer_barrier_vk.offset              = in_offset;
+    buffer_barrier_vk.pNext               = nullptr;
+    buffer_barrier_vk.size                = in_size;
+    buffer_barrier_vk.srcAccessMask       = in_source_access_mask,
+    buffer_barrier_vk.srcQueueFamilyIndex = in_src_queue_family_index;
+    buffer_barrier_vk.sType               = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+
+    /* NOTE: For an image barrier to work correctly, the underlying subresource range must be assigned memory.
+     *       Query for a memory block in order to force any listening memory allocators to bake */
+    auto memory_block_ptr = buffer_ptr->get_memory_block(0 /* in_n_memory_block */);
+
+    ANVIL_REDUNDANT_VARIABLE(memory_block_ptr);
+}
+
+/** Please see header for specification */
+Anvil::BufferBarrier::~BufferBarrier()
+{
+    /* Stub */
+}
+
+Anvil::BufferMemoryBindingUpdate::BufferMemoryBindingUpdate()
+{
+    buffer_ptr                   = nullptr;
+    memory_block_owned_by_buffer = false;
+    memory_block_ptr             = nullptr;
+}
+
+Anvil::DescriptorSetAllocation::DescriptorSetAllocation(const Anvil::DescriptorSetLayout* in_ds_layout_ptr)
+{
+    anvil_assert( in_ds_layout_ptr                                                                  != nullptr);
+    anvil_assert(!in_ds_layout_ptr->get_create_info()->contains_variable_descriptor_count_binding() );
+
+    ds_layout_ptr                  = in_ds_layout_ptr;
+    n_variable_descriptor_bindings = UINT32_MAX;
+}
+
+/* Constructor.
+ *
+ * Use if you need to allocate a descriptor set using a descriptor set layout which
+ * CONTAINS a variable count descriptor binding.
+ */
+Anvil::DescriptorSetAllocation::DescriptorSetAllocation(const Anvil::DescriptorSetLayout* in_ds_layout_ptr,
+                                                        const uint32_t&                   in_n_variable_descriptor_bindings)
+{
+    anvil_assert(in_ds_layout_ptr != nullptr);
+
+    uint32_t   binding_array_size = 0;
+    uint32_t   binding_index      = UINT32_MAX;
+    const auto ds_create_info_ptr = in_ds_layout_ptr->get_create_info();
+
+    ds_create_info_ptr->contains_variable_descriptor_count_binding(&binding_index);
+    anvil_assert(binding_index != UINT32_MAX);
+
+    ds_create_info_ptr->get_binding_properties_by_binding_index(binding_index,
+                                                                nullptr, /* out_opt_descriptor_type_ptr */
+                                                               &binding_array_size);
+    anvil_assert(in_n_variable_descriptor_bindings <= binding_array_size);
+
+    ds_layout_ptr                  = in_ds_layout_ptr;
+    n_variable_descriptor_bindings = in_n_variable_descriptor_bindings;
+}
+
+Anvil::DescriptorUpdateTemplateEntry::DescriptorUpdateTemplateEntry()
+    :descriptor_type            (VK_DESCRIPTOR_TYPE_MAX_ENUM),
+     n_descriptors              (UINT32_MAX),
+     n_destination_array_element(UINT32_MAX),
+     n_destination_binding      (UINT32_MAX),
+     offset                     (SIZE_MAX),
+     stride                     (SIZE_MAX)
+{
+    /* Stub */
+}
+
+Anvil::DescriptorUpdateTemplateEntry::DescriptorUpdateTemplateEntry(const VkDescriptorType& in_descriptor_type,
+                                                                    const uint32_t&         in_n_destination_array_element,
+                                                                    const uint32_t&         in_n_destination_binding,
+                                                                    const uint32_t&         in_n_descriptors,
+                                                                    const size_t&           in_offset,
+                                                                    const size_t&           in_stride)
+    :descriptor_type            (in_descriptor_type),
+     n_descriptors              (in_n_descriptors),
+     n_destination_array_element(in_n_destination_array_element),
+     n_destination_binding      (in_n_destination_binding),
+     offset                     (in_offset),
+     stride                     (in_stride)
+{
+    /* Stub */
+}
+
+bool Anvil::DescriptorUpdateTemplateEntry::operator==(const Anvil::DescriptorUpdateTemplateEntry& in_entry) const
+{
+    return (in_entry.descriptor_type             == descriptor_type)             &&
+           (in_entry.n_descriptors               == n_descriptors)               &&
+           (in_entry.n_destination_array_element == n_destination_array_element) &&
+           (in_entry.n_destination_binding       == n_destination_binding)       &&
+           (in_entry.offset                      == offset)                      &&
+           (in_entry.stride                      == stride);
+}
+
+bool Anvil::DescriptorUpdateTemplateEntry::operator<(const Anvil::DescriptorUpdateTemplateEntry& in_entry) const
+{
+    if (in_entry.descriptor_type < descriptor_type)
+    {
+        return true;
+    }
+    else
+    if (in_entry.descriptor_type > descriptor_type)
+    {
+        return false;
+    }
+
+    if (in_entry.n_descriptors < n_descriptors)
+    {
+        return true;
+    }
+    else
+    if (in_entry.n_descriptors > n_descriptors)
+    {
+        return false;
+    }
+
+    if (in_entry.n_destination_array_element < n_destination_array_element)
+    {
+        return true;
+    }
+    else
+    if (in_entry.n_destination_array_element > n_destination_array_element)
+    {
+        return false;
+    }
+
+    if (in_entry.n_destination_binding < n_destination_binding)
+    {
+        return true;
+    }
+    else
+    if (in_entry.n_destination_binding > n_destination_binding)
+    {
+        return false;
+    }
+
+    if (in_entry.offset < offset)
+    {
+        return true;
+    }
+    else
+    if (in_entry.offset > offset)
+    {
+        return false;
+    }
+
+    if (in_entry.stride < stride)
+    {
+        return true;
+    }
+
+    return false;
+}
+
+/** Please see header for specification */
+VkDescriptorUpdateTemplateEntryKHR Anvil::DescriptorUpdateTemplateEntry::get_vk_descriptor_update_template_entry_khr() const
+{
+    VkDescriptorUpdateTemplateEntryKHR result;
+
+    result.descriptorCount = n_descriptors;
+    result.descriptorType  = descriptor_type;
+    result.dstArrayElement = n_destination_array_element;
+    result.dstBinding      = n_destination_binding;
+    result.offset          = offset;
+    result.stride          = stride;
+
+    return result;
+}
+
+Anvil::ExtensionAMDDrawIndirectCountEntrypoints::ExtensionAMDDrawIndirectCountEntrypoints()
+{
+    vkCmdDrawIndexedIndirectCountAMD = nullptr;
+    vkCmdDrawIndirectCountAMD        = nullptr;
+}
+
+Anvil::ExtensionAMDShaderInfoEntrypoints::ExtensionAMDShaderInfoEntrypoints()
+{
+    vkGetShaderInfoAMD = nullptr;
+}
+
+Anvil::ExtensionEXTDebugMarkerEntrypoints::ExtensionEXTDebugMarkerEntrypoints()
+{
+    vkCmdDebugMarkerBeginEXT      = nullptr;
+    vkCmdDebugMarkerEndEXT        = nullptr;
+    vkCmdDebugMarkerInsertEXT     = nullptr;
+    vkDebugMarkerSetObjectNameEXT = nullptr;
+    vkDebugMarkerSetObjectTagEXT  = nullptr;
+}
+
+Anvil::ExtensionEXTDebugReportEntrypoints::ExtensionEXTDebugReportEntrypoints()
+{
+    vkCreateDebugReportCallbackEXT  = nullptr;
+    vkDestroyDebugReportCallbackEXT = nullptr;
+}
+
+Anvil::ExtensionKHRBindMemory2Entrypoints::ExtensionKHRBindMemory2Entrypoints()
+{
+    vkBindBufferMemory2KHR = nullptr;
+    vkBindImageMemory2KHR  = nullptr;
+}
+
+Anvil::ExtensionKHRDescriptorUpdateTemplateEntrypoints::ExtensionKHRDescriptorUpdateTemplateEntrypoints()
+{
+    vkCreateDescriptorUpdateTemplateKHR  = nullptr;
+    vkDestroyDescriptorUpdateTemplateKHR = nullptr;
+    vkUpdateDescriptorSetWithTemplateKHR = nullptr;
+}
+
+Anvil::ExtensionKHRDeviceGroupCreationEntrypoints::ExtensionKHRDeviceGroupCreationEntrypoints()
+{
+    vkEnumeratePhysicalDeviceGroupsKHR = nullptr;
+}
+
+Anvil::ExtensionKHRMaintenance1Entrypoints::ExtensionKHRMaintenance1Entrypoints()
+{
+    vkTrimCommandPoolKHR = nullptr;
+}
+
+Anvil::ExtensionKHRMaintenance3Entrypoints::ExtensionKHRMaintenance3Entrypoints()
+{
+    vkGetDescriptorSetLayoutSupportKHR = nullptr;
+}
+
+Anvil::ExtensionKHRSurfaceEntrypoints::ExtensionKHRSurfaceEntrypoints()
+{
+    vkDestroySurfaceKHR                       = nullptr;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR = nullptr;
+    vkGetPhysicalDeviceSurfaceFormatsKHR      = nullptr;
+    vkGetPhysicalDeviceSurfacePresentModesKHR = nullptr;
+    vkGetPhysicalDeviceSurfaceSupportKHR      = nullptr;
+}
+
+Anvil::ExtensionKHRSwapchainEntrypoints::ExtensionKHRSwapchainEntrypoints()
+{
+    vkAcquireNextImageKHR   = nullptr;
+    vkCreateSwapchainKHR    = nullptr;
+    vkDestroySwapchainKHR   = nullptr;
+    vkGetSwapchainImagesKHR = nullptr;
+    vkQueuePresentKHR       = nullptr;
+}
+
+#ifdef _WIN32
+    #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+        Anvil::ExtensionKHRWin32SurfaceEntrypoints::ExtensionKHRWin32SurfaceEntrypoints()
+        {
+            vkCreateWin32SurfaceKHR                        = nullptr;
+            vkGetPhysicalDeviceWin32PresentationSupportKHR = nullptr;
+        }
+    #endif
+#else
+    #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+        Anvil::ExtensionKHRXcbSurfaceEntrypoints::ExtensionKHRXcbSurfaceEntrypoints()
+        {
+            vkCreateXcbSurfaceKHR = nullptr;
+        }
+    #endif
+#endif
+
+Anvil::ExtensionKHRGetPhysicalDeviceProperties2::ExtensionKHRGetPhysicalDeviceProperties2()
+{
+    vkGetPhysicalDeviceFeatures2KHR                    = nullptr;
+    vkGetPhysicalDeviceFormatProperties2KHR            = nullptr;
+    vkGetPhysicalDeviceImageFormatProperties2KHR       = nullptr;
+    vkGetPhysicalDeviceMemoryProperties2KHR            = nullptr;
+    vkGetPhysicalDeviceProperties2KHR                  = nullptr;
+    vkGetPhysicalDeviceQueueFamilyProperties2KHR       = nullptr;
+    vkGetPhysicalDeviceSparseImageFormatProperties2KHR = nullptr;
+}
+
+Anvil::EXTDescriptorIndexingFeatures::EXTDescriptorIndexingFeatures()
+    :descriptor_binding_partially_bound                       (false),
+     descriptor_binding_sampled_image_update_after_bind       (false),
+     descriptor_binding_storage_buffer_update_after_bind      (false),
+     descriptor_binding_storage_image_update_after_bind       (false),
+     descriptor_binding_storage_texel_buffer_update_after_bind(false),
+     descriptor_binding_uniform_buffer_update_after_bind      (false),
+     descriptor_binding_uniform_texel_buffer_update_after_bind(false),
+     descriptor_binding_update_unused_while_pending           (false),
+     descriptor_binding_variable_descriptor_count             (false),
+     runtime_descriptor_array                                 (false),
+     shader_input_attachment_array_dynamic_indexing           (false),
+     shader_input_attachment_array_non_uniform_indexing       (false),
+     shader_sampled_image_array_non_uniform_indexing          (false),
+     shader_storage_buffer_array_non_uniform_indexing         (false),
+     shader_storage_image_array_non_uniform_indexing          (false),
+     shader_storage_texel_buffer_array_dynamic_indexing       (false),
+     shader_storage_texel_buffer_array_non_uniform_indexing   (false),
+     shader_uniform_buffer_array_non_uniform_indexing         (false),
+     shader_uniform_texel_buffer_array_dynamic_indexing       (false),
+     shader_uniform_texel_buffer_array_non_uniform_indexing   (false)
+{
+    /* Stub */
+}
+
+Anvil::EXTDescriptorIndexingFeatures::EXTDescriptorIndexingFeatures(const VkPhysicalDeviceDescriptorIndexingFeaturesEXT& in_features)
+    :descriptor_binding_partially_bound                       (VK_BOOL32_TO_BOOL(in_features.descriptorBindingPartiallyBound) ),
+     descriptor_binding_sampled_image_update_after_bind       (VK_BOOL32_TO_BOOL(in_features.descriptorBindingSampledImageUpdateAfterBind) ),
+     descriptor_binding_storage_buffer_update_after_bind      (VK_BOOL32_TO_BOOL(in_features.descriptorBindingStorageBufferUpdateAfterBind) ),
+     descriptor_binding_storage_image_update_after_bind       (VK_BOOL32_TO_BOOL(in_features.descriptorBindingStorageImageUpdateAfterBind) ),
+     descriptor_binding_storage_texel_buffer_update_after_bind(VK_BOOL32_TO_BOOL(in_features.descriptorBindingStorageTexelBufferUpdateAfterBind) ),
+     descriptor_binding_uniform_buffer_update_after_bind      (VK_BOOL32_TO_BOOL(in_features.descriptorBindingUniformBufferUpdateAfterBind) ),
+     descriptor_binding_uniform_texel_buffer_update_after_bind(VK_BOOL32_TO_BOOL(in_features.descriptorBindingUniformTexelBufferUpdateAfterBind) ),
+     descriptor_binding_update_unused_while_pending           (VK_BOOL32_TO_BOOL(in_features.descriptorBindingUpdateUnusedWhilePending) ),
+     descriptor_binding_variable_descriptor_count             (VK_BOOL32_TO_BOOL(in_features.descriptorBindingVariableDescriptorCount) ),
+     runtime_descriptor_array                                 (VK_BOOL32_TO_BOOL(in_features.runtimeDescriptorArray) ),
+     shader_input_attachment_array_dynamic_indexing           (VK_BOOL32_TO_BOOL(in_features.shaderInputAttachmentArrayDynamicIndexing) ),
+     shader_input_attachment_array_non_uniform_indexing       (VK_BOOL32_TO_BOOL(in_features.shaderInputAttachmentArrayNonUniformIndexing) ),
+     shader_sampled_image_array_non_uniform_indexing          (VK_BOOL32_TO_BOOL(in_features.shaderSampledImageArrayNonUniformIndexing) ),
+     shader_storage_buffer_array_non_uniform_indexing         (VK_BOOL32_TO_BOOL(in_features.shaderStorageBufferArrayNonUniformIndexing) ),
+     shader_storage_image_array_non_uniform_indexing          (VK_BOOL32_TO_BOOL(in_features.shaderStorageImageArrayNonUniformIndexing) ),
+     shader_storage_texel_buffer_array_dynamic_indexing       (VK_BOOL32_TO_BOOL(in_features.shaderStorageTexelBufferArrayDynamicIndexing) ),
+     shader_storage_texel_buffer_array_non_uniform_indexing   (VK_BOOL32_TO_BOOL(in_features.shaderStorageTexelBufferArrayNonUniformIndexing) ),
+     shader_uniform_buffer_array_non_uniform_indexing         (VK_BOOL32_TO_BOOL(in_features.shaderUniformBufferArrayNonUniformIndexing) ),
+     shader_uniform_texel_buffer_array_dynamic_indexing       (VK_BOOL32_TO_BOOL(in_features.shaderUniformTexelBufferArrayDynamicIndexing) ),
+     shader_uniform_texel_buffer_array_non_uniform_indexing   (VK_BOOL32_TO_BOOL(in_features.shaderUniformTexelBufferArrayNonUniformIndexing) )
+{
+    /* Stub */
+}
+
+bool Anvil::EXTDescriptorIndexingFeatures::operator==(const EXTDescriptorIndexingFeatures& in_features) const
+{
+    return (descriptor_binding_partially_bound                        == in_features.descriptor_binding_partially_bound                        &&
+            descriptor_binding_sampled_image_update_after_bind        == in_features.descriptor_binding_sampled_image_update_after_bind        &&
+            descriptor_binding_storage_buffer_update_after_bind       == in_features.descriptor_binding_storage_buffer_update_after_bind       &&
+            descriptor_binding_storage_image_update_after_bind        == in_features.descriptor_binding_storage_image_update_after_bind        &&
+            descriptor_binding_storage_texel_buffer_update_after_bind == in_features.descriptor_binding_storage_texel_buffer_update_after_bind &&
+            descriptor_binding_uniform_buffer_update_after_bind       == in_features.descriptor_binding_uniform_buffer_update_after_bind       &&
+            descriptor_binding_uniform_texel_buffer_update_after_bind == in_features.descriptor_binding_uniform_texel_buffer_update_after_bind &&
+            descriptor_binding_update_unused_while_pending            == in_features.descriptor_binding_update_unused_while_pending            &&
+            descriptor_binding_variable_descriptor_count              == in_features.descriptor_binding_variable_descriptor_count              &&
+            runtime_descriptor_array                                  == in_features.runtime_descriptor_array                                  &&
+            shader_input_attachment_array_dynamic_indexing            == in_features.shader_input_attachment_array_dynamic_indexing            &&
+            shader_input_attachment_array_non_uniform_indexing        == in_features.shader_input_attachment_array_non_uniform_indexing        &&
+            shader_sampled_image_array_non_uniform_indexing           == in_features.shader_sampled_image_array_non_uniform_indexing           &&
+            shader_storage_buffer_array_non_uniform_indexing          == in_features.shader_storage_buffer_array_non_uniform_indexing          &&
+            shader_storage_image_array_non_uniform_indexing           == in_features.shader_storage_image_array_non_uniform_indexing           &&
+            shader_storage_texel_buffer_array_dynamic_indexing        == in_features.shader_storage_texel_buffer_array_dynamic_indexing        &&
+            shader_storage_texel_buffer_array_non_uniform_indexing    == in_features.shader_storage_texel_buffer_array_non_uniform_indexing    &&
+            shader_uniform_buffer_array_non_uniform_indexing          == in_features.shader_uniform_buffer_array_non_uniform_indexing          &&
+            shader_uniform_texel_buffer_array_dynamic_indexing        == in_features.shader_uniform_texel_buffer_array_dynamic_indexing        &&
+            shader_uniform_texel_buffer_array_non_uniform_indexing    == in_features.shader_uniform_texel_buffer_array_non_uniform_indexing);
+}
+
+VkPhysicalDeviceDescriptorIndexingFeaturesEXT Anvil::EXTDescriptorIndexingFeatures::get_vk_physical_device_descriptor_indexing_features() const
+{
+    VkPhysicalDeviceDescriptorIndexingFeaturesEXT result;
+
+    result.descriptorBindingPartiallyBound                    = BOOL_TO_VK_BOOL32(descriptor_binding_partially_bound);
+    result.descriptorBindingSampledImageUpdateAfterBind       = BOOL_TO_VK_BOOL32(descriptor_binding_sampled_image_update_after_bind);
+    result.descriptorBindingStorageBufferUpdateAfterBind      = BOOL_TO_VK_BOOL32(descriptor_binding_storage_buffer_update_after_bind);
+    result.descriptorBindingStorageImageUpdateAfterBind       = BOOL_TO_VK_BOOL32(descriptor_binding_storage_image_update_after_bind);
+    result.descriptorBindingStorageTexelBufferUpdateAfterBind = BOOL_TO_VK_BOOL32(descriptor_binding_storage_texel_buffer_update_after_bind);
+    result.descriptorBindingUniformBufferUpdateAfterBind      = BOOL_TO_VK_BOOL32(descriptor_binding_uniform_buffer_update_after_bind);
+    result.descriptorBindingUniformTexelBufferUpdateAfterBind = BOOL_TO_VK_BOOL32(descriptor_binding_uniform_texel_buffer_update_after_bind);
+    result.descriptorBindingUpdateUnusedWhilePending          = BOOL_TO_VK_BOOL32(descriptor_binding_update_unused_while_pending);
+    result.descriptorBindingVariableDescriptorCount           = BOOL_TO_VK_BOOL32(descriptor_binding_variable_descriptor_count);
+    result.pNext                                              = nullptr;
+    result.runtimeDescriptorArray                             = BOOL_TO_VK_BOOL32(runtime_descriptor_array);
+    result.shaderInputAttachmentArrayDynamicIndexing          = BOOL_TO_VK_BOOL32(shader_input_attachment_array_dynamic_indexing);
+    result.shaderInputAttachmentArrayNonUniformIndexing       = BOOL_TO_VK_BOOL32(shader_input_attachment_array_non_uniform_indexing);
+    result.shaderSampledImageArrayNonUniformIndexing          = BOOL_TO_VK_BOOL32(shader_sampled_image_array_non_uniform_indexing);
+    result.shaderStorageBufferArrayNonUniformIndexing         = BOOL_TO_VK_BOOL32(shader_storage_buffer_array_non_uniform_indexing);
+    result.shaderStorageImageArrayNonUniformIndexing          = BOOL_TO_VK_BOOL32(shader_storage_image_array_non_uniform_indexing);
+    result.shaderStorageTexelBufferArrayDynamicIndexing       = BOOL_TO_VK_BOOL32(shader_storage_texel_buffer_array_dynamic_indexing);
+    result.shaderStorageTexelBufferArrayNonUniformIndexing    = BOOL_TO_VK_BOOL32(shader_storage_texel_buffer_array_non_uniform_indexing);
+    result.shaderUniformBufferArrayNonUniformIndexing         = BOOL_TO_VK_BOOL32(shader_uniform_buffer_array_non_uniform_indexing);
+    result.shaderUniformTexelBufferArrayDynamicIndexing       = BOOL_TO_VK_BOOL32(shader_uniform_texel_buffer_array_dynamic_indexing);
+    result.shaderUniformTexelBufferArrayNonUniformIndexing    = BOOL_TO_VK_BOOL32(shader_uniform_texel_buffer_array_non_uniform_indexing);
+    result.sType                                              = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT);
+
+    return result;
+}
+
+Anvil::EXTDescriptorIndexingProperties::EXTDescriptorIndexingProperties()
+    :max_descriptor_set_update_after_bind_input_attachments      (UINT32_MAX),
+     max_descriptor_set_update_after_bind_sampled_images         (UINT32_MAX),
+     max_descriptor_set_update_after_bind_samplers               (UINT32_MAX),
+     max_descriptor_set_update_after_bind_storage_buffers        (UINT32_MAX),
+     max_descriptor_set_update_after_bind_storage_buffers_dynamic(UINT32_MAX),
+     max_descriptor_set_update_after_bind_storage_images         (UINT32_MAX),
+     max_descriptor_set_update_after_bind_uniform_buffers        (UINT32_MAX),
+     max_descriptor_set_update_after_bind_uniform_buffers_dynamic(UINT32_MAX),
+     max_per_stage_descriptor_update_after_bind_input_attachments(UINT32_MAX),
+     max_per_stage_descriptor_update_after_bind_sampled_images   (UINT32_MAX),
+     max_per_stage_descriptor_update_after_bind_samplers         (UINT32_MAX),
+     max_per_stage_descriptor_update_after_bind_storage_buffers  (UINT32_MAX),
+     max_per_stage_descriptor_update_after_bind_storage_images   (UINT32_MAX),
+     max_per_stage_descriptor_update_after_bind_uniform_buffers  (UINT32_MAX),
+     max_per_stage_update_after_bind_resources                   (UINT32_MAX),
+     max_update_after_bind_descriptors_in_all_pools              (UINT32_MAX),
+     shader_input_attachment_array_non_uniform_indexing_native   (false),
+     shader_sampled_image_array_non_uniform_indexing_native      (false),
+     shader_storage_buffer_array_non_uniform_indexing_native     (false),
+     shader_storage_image_array_non_uniform_indexing_native      (false),
+     shader_uniform_buffer_array_non_uniform_indexing_native     (false)
+{
+    /* Stub */
+}
+
+Anvil::EXTDescriptorIndexingProperties::EXTDescriptorIndexingProperties(const VkPhysicalDeviceDescriptorIndexingPropertiesEXT& in_props)
+    :max_descriptor_set_update_after_bind_input_attachments      (in_props.maxDescriptorSetUpdateAfterBindInputAttachments),
+     max_descriptor_set_update_after_bind_sampled_images         (in_props.maxDescriptorSetUpdateAfterBindSampledImages),
+     max_descriptor_set_update_after_bind_samplers               (in_props.maxDescriptorSetUpdateAfterBindSamplers),
+     max_descriptor_set_update_after_bind_storage_buffers        (in_props.maxDescriptorSetUpdateAfterBindStorageBuffers),
+     max_descriptor_set_update_after_bind_storage_buffers_dynamic(in_props.maxDescriptorSetUpdateAfterBindStorageBuffersDynamic),
+     max_descriptor_set_update_after_bind_storage_images         (in_props.maxDescriptorSetUpdateAfterBindStorageImages),
+     max_descriptor_set_update_after_bind_uniform_buffers        (in_props.maxDescriptorSetUpdateAfterBindUniformBuffers),
+     max_descriptor_set_update_after_bind_uniform_buffers_dynamic(in_props.maxDescriptorSetUpdateAfterBindUniformBuffersDynamic),
+     max_per_stage_descriptor_update_after_bind_input_attachments(in_props.maxPerStageDescriptorUpdateAfterBindInputAttachments),
+     max_per_stage_descriptor_update_after_bind_sampled_images   (in_props.maxPerStageDescriptorUpdateAfterBindSampledImages),
+     max_per_stage_descriptor_update_after_bind_samplers         (in_props.maxPerStageDescriptorUpdateAfterBindSamplers),
+     max_per_stage_descriptor_update_after_bind_storage_buffers  (in_props.maxPerStageDescriptorUpdateAfterBindStorageBuffers),
+     max_per_stage_descriptor_update_after_bind_storage_images   (in_props.maxPerStageDescriptorUpdateAfterBindStorageImages),
+     max_per_stage_descriptor_update_after_bind_uniform_buffers  (in_props.maxPerStageDescriptorUpdateAfterBindUniformBuffers),
+     max_per_stage_update_after_bind_resources                   (in_props.maxPerStageUpdateAfterBindResources),
+     max_update_after_bind_descriptors_in_all_pools              (in_props.maxUpdateAfterBindDescriptorsInAllPools),
+     shader_input_attachment_array_non_uniform_indexing_native   (VK_BOOL32_TO_BOOL(in_props.shaderInputAttachmentArrayNonUniformIndexingNative) ),
+     shader_sampled_image_array_non_uniform_indexing_native      (VK_BOOL32_TO_BOOL(in_props.shaderSampledImageArrayNonUniformIndexingNative) ),
+     shader_storage_buffer_array_non_uniform_indexing_native     (VK_BOOL32_TO_BOOL(in_props.shaderStorageBufferArrayNonUniformIndexingNative) ),
+     shader_storage_image_array_non_uniform_indexing_native      (VK_BOOL32_TO_BOOL(in_props.shaderStorageImageArrayNonUniformIndexingNative) ),
+     shader_uniform_buffer_array_non_uniform_indexing_native     (VK_BOOL32_TO_BOOL(in_props.shaderUniformBufferArrayNonUniformIndexingNative) )
+{
+    /* Stub */
+}
+
+bool Anvil::EXTDescriptorIndexingProperties::operator==(const EXTDescriptorIndexingProperties& in_props) const
+{
+    return (max_descriptor_set_update_after_bind_input_attachments       == in_props.max_descriptor_set_update_after_bind_input_attachments       &&
+            max_descriptor_set_update_after_bind_sampled_images          == in_props.max_descriptor_set_update_after_bind_sampled_images          &&
+            max_descriptor_set_update_after_bind_samplers                == in_props.max_descriptor_set_update_after_bind_samplers                &&
+            max_descriptor_set_update_after_bind_storage_buffers         == in_props.max_descriptor_set_update_after_bind_storage_buffers         &&
+            max_descriptor_set_update_after_bind_storage_buffers_dynamic == in_props.max_descriptor_set_update_after_bind_storage_buffers_dynamic &&
+            max_descriptor_set_update_after_bind_storage_images          == in_props.max_descriptor_set_update_after_bind_storage_images          &&
+            max_descriptor_set_update_after_bind_uniform_buffers         == in_props.max_descriptor_set_update_after_bind_uniform_buffers         &&
+            max_descriptor_set_update_after_bind_uniform_buffers_dynamic == in_props.max_descriptor_set_update_after_bind_uniform_buffers_dynamic &&
+            max_per_stage_descriptor_update_after_bind_input_attachments == in_props.max_per_stage_descriptor_update_after_bind_input_attachments &&
+            max_per_stage_descriptor_update_after_bind_sampled_images    == in_props.max_per_stage_descriptor_update_after_bind_sampled_images    &&
+            max_per_stage_descriptor_update_after_bind_samplers          == in_props.max_per_stage_descriptor_update_after_bind_samplers          &&
+            max_per_stage_descriptor_update_after_bind_storage_buffers   == in_props.max_per_stage_descriptor_update_after_bind_storage_buffers   &&
+            max_per_stage_descriptor_update_after_bind_storage_images    == in_props.max_per_stage_descriptor_update_after_bind_storage_images    &&
+            max_per_stage_descriptor_update_after_bind_uniform_buffers   == in_props.max_per_stage_descriptor_update_after_bind_uniform_buffers   &&
+            max_per_stage_update_after_bind_resources                    == in_props.max_per_stage_update_after_bind_resources                    &&
+            max_update_after_bind_descriptors_in_all_pools               == in_props.max_update_after_bind_descriptors_in_all_pools               &&
+            shader_input_attachment_array_non_uniform_indexing_native    == in_props.shader_input_attachment_array_non_uniform_indexing_native    &&
+            shader_sampled_image_array_non_uniform_indexing_native       == in_props.shader_sampled_image_array_non_uniform_indexing_native       &&
+            shader_storage_buffer_array_non_uniform_indexing_native      == in_props.shader_storage_buffer_array_non_uniform_indexing_native      &&
+            shader_storage_image_array_non_uniform_indexing_native       == in_props.shader_storage_image_array_non_uniform_indexing_native       &&
+            shader_uniform_buffer_array_non_uniform_indexing_native      == in_props.shader_uniform_buffer_array_non_uniform_indexing_native);
+}
+
+Anvil::FormatProperties::FormatProperties()
+{
+    memset(this,
+           0,
+           sizeof(*this) );
+}
+
+Anvil::FormatProperties::FormatProperties(const VkFormatProperties& in_format_props)
+{
+    buffer_capabilities                  = in_format_props.bufferFeatures;
+    linear_tiling_capabilities           = in_format_props.linearTilingFeatures;
+    optimal_tiling_capabilities          = in_format_props.optimalTilingFeatures;
+    supports_amd_texture_gather_bias_lod = false;
+}
+
+/** Please see header for specification */
+bool Anvil::operator==(const Anvil::FormatProperties& in1,
+                       const Anvil::FormatProperties& in2)
+{
+    return memcmp(&in1,
+                  &in2,
+                  sizeof(Anvil::FormatProperties) ) == 0;
+}
+
+/** Please see header for specification */
+Anvil::ImageBarrier::ImageBarrier(const ImageBarrier& in)
+{
+    dst_access_mask        = in.dst_access_mask;
+    dst_queue_family_index = in.dst_queue_family_index;
+    image                  = in.image;
+    image_barrier_vk       = in.image_barrier_vk;
+    image_ptr              = in.image_ptr;
+    new_layout             = in.new_layout;
+    old_layout             = in.old_layout;
+    src_access_mask        = in.src_access_mask;
+    src_queue_family_index = in.src_queue_family_index;
+    subresource_range      = in.subresource_range;
+}
+
+/** Please see header for specification */
+Anvil::ImageBarrier::ImageBarrier(VkAccessFlags           in_source_access_mask,
+                                  VkAccessFlags           in_destination_access_mask,
+                                  bool                    in_by_region_barrier,
+                                  VkImageLayout           in_old_layout,
+                                  VkImageLayout           in_new_layout,
+                                  uint32_t                in_src_queue_family_index,
+                                  uint32_t                in_dst_queue_family_index,
+                                  Anvil::Image*           in_image_ptr,
+                                  VkImageSubresourceRange in_image_subresource_range)
+{
+    by_region              = in_by_region_barrier;
+    dst_access_mask        = static_cast<VkAccessFlagBits>(in_destination_access_mask);
+    dst_queue_family_index = in_dst_queue_family_index;
+    image                  = (in_image_ptr != VK_NULL_HANDLE) ? in_image_ptr->get_image()
+                                                              : VK_NULL_HANDLE;
+    image_ptr              = in_image_ptr;
+    new_layout             = in_new_layout;
+    old_layout             = in_old_layout;
+    src_access_mask        = static_cast<VkAccessFlagBits>(in_source_access_mask);
+    src_queue_family_index = in_src_queue_family_index;
+    subresource_range      = in_image_subresource_range;
+
+    image_barrier_vk.dstAccessMask       = in_destination_access_mask;
+    image_barrier_vk.dstQueueFamilyIndex = in_dst_queue_family_index;
+    image_barrier_vk.image               = (in_image_ptr != nullptr) ? in_image_ptr->get_image()
+                                                                     : VK_NULL_HANDLE;
+    image_barrier_vk.newLayout           = in_new_layout;
+    image_barrier_vk.oldLayout           = in_old_layout;
+    image_barrier_vk.pNext               = nullptr;
+    image_barrier_vk.srcAccessMask       = in_source_access_mask;
+    image_barrier_vk.srcQueueFamilyIndex = in_src_queue_family_index;
+    image_barrier_vk.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    image_barrier_vk.subresourceRange    = in_image_subresource_range;
+
+    /* NOTE: For an image barrier to work correctly, the underlying subresource range must be assigned memory.
+     *       Query for a memory block in order to force any listening memory allocators to bake */
+    auto memory_block_ptr = image_ptr->get_memory_block();
+
+    ANVIL_REDUNDANT_VARIABLE(memory_block_ptr);
+}
+
+/** Please see header for specification */
+Anvil::ImageBarrier::~ImageBarrier()
+{
+    /* Stub */
+}
+
+Anvil::KHR16BitStorageFeatures::KHR16BitStorageFeatures()
+{
+    is_input_output_storage_supported                     = false;
+    is_push_constant_16_bit_storage_supported             = false;
+    is_storage_buffer_16_bit_access_supported             = false;
+    is_uniform_and_storage_buffer_16_bit_access_supported = false;
+}
+
+Anvil::KHR16BitStorageFeatures::KHR16BitStorageFeatures(const VkPhysicalDevice16BitStorageFeaturesKHR& in_features)
+{
+    is_input_output_storage_supported                     = VK_BOOL32_TO_BOOL(in_features.storageInputOutput16);
+    is_push_constant_16_bit_storage_supported             = VK_BOOL32_TO_BOOL(in_features.storagePushConstant16);
+    is_storage_buffer_16_bit_access_supported             = VK_BOOL32_TO_BOOL(in_features.storageBuffer16BitAccess);
+    is_uniform_and_storage_buffer_16_bit_access_supported = VK_BOOL32_TO_BOOL(in_features.uniformAndStorageBuffer16BitAccess);
+}
+
+bool Anvil::KHR16BitStorageFeatures::operator==(const KHR16BitStorageFeatures& in_features) const
+{
+    return (in_features.is_input_output_storage_supported                     == is_input_output_storage_supported                      &&
+            in_features.is_push_constant_16_bit_storage_supported             == is_push_constant_16_bit_storage_supported              &&
+            in_features.is_storage_buffer_16_bit_access_supported             == is_storage_buffer_16_bit_access_supported              &&
+            in_features.is_uniform_and_storage_buffer_16_bit_access_supported == is_uniform_and_storage_buffer_16_bit_access_supported);
+}
+
+VkPhysicalDevice16BitStorageFeaturesKHR Anvil::KHR16BitStorageFeatures::get_vk_physical_device_16_bit_storage_features() const
+{
+    VkPhysicalDevice16BitStorageFeaturesKHR result;
+
+    result.pNext                              = nullptr;
+    result.storageBuffer16BitAccess           = BOOL_TO_VK_BOOL32(is_storage_buffer_16_bit_access_supported);
+    result.storageInputOutput16               = BOOL_TO_VK_BOOL32(is_input_output_storage_supported);
+    result.storagePushConstant16              = BOOL_TO_VK_BOOL32(is_push_constant_16_bit_storage_supported);
+    result.sType                              = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES_KHR;
+    result.uniformAndStorageBuffer16BitAccess = BOOL_TO_VK_BOOL32(is_uniform_and_storage_buffer_16_bit_access_supported);
+
+    return result;
+
+}
+
+Anvil::KHRMaintenance3Properties::KHRMaintenance3Properties()
+    :max_memory_allocation_size(std::numeric_limits<VkDeviceSize>::max() ),
+     max_per_set_descriptors   (UINT32_MAX)
+{
+    /* Stub */
+}
+
+Anvil::KHRMaintenance3Properties::KHRMaintenance3Properties(const VkPhysicalDeviceMaintenance3PropertiesKHR& in_props)
+    :max_memory_allocation_size(in_props.maxMemoryAllocationSize),
+     max_per_set_descriptors   (in_props.maxPerSetDescriptors)
+{
+    /* Stub */
+}
+
+bool Anvil::KHRMaintenance3Properties::operator==(const Anvil::KHRMaintenance3Properties& in_props) const
+{
+    return (max_memory_allocation_size == in_props.max_memory_allocation_size &&
+            max_per_set_descriptors    == in_props.max_per_set_descriptors);
+}
+
+Anvil::Layer::Layer(const std::string& in_layer_name)
+{
+    implementation_version = 0;
+    name                   = in_layer_name;
+    spec_version           = 0;
+}
+
+Anvil::Layer::Layer(const VkLayerProperties& in_layer_props)
+{
+    description            = in_layer_props.description;
+    implementation_version = in_layer_props.implementationVersion;
+    name                   = in_layer_props.layerName;
+    spec_version           = in_layer_props.specVersion;
+}
+
+bool Anvil::Layer::operator==(const std::string& in_layer_name) const
+{
+    return name == in_layer_name;
+}
+
+Anvil::MemoryBarrier::MemoryBarrier(VkAccessFlags in_destination_access_mask,
+                                    VkAccessFlags in_source_access_mask)
+{
+    destination_access_mask = static_cast<VkAccessFlagBits>(in_destination_access_mask);
+    source_access_mask      = static_cast<VkAccessFlagBits>(in_source_access_mask);
+
+    memory_barrier_vk.dstAccessMask = destination_access_mask;
+    memory_barrier_vk.pNext         = nullptr;
+    memory_barrier_vk.srcAccessMask = source_access_mask;
+    memory_barrier_vk.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+}
+
+Anvil::MemoryHeap::MemoryHeap()
+{
+    flags = 0;
+    size  = 0;
+}
+
+/* Please see header for specification */
+bool Anvil::operator==(const MemoryProperties& in1,
+                       const MemoryProperties& in2)
+{
+    bool result = (in1.types.size() == in2.types.size() );
+
+    if (result)
+    {
+        for (uint32_t n_type = 0;
+                      n_type < static_cast<uint32_t>(in1.types.size() ) && result;
+                    ++n_type)
+        {
+            const auto& current_type_in1 = in1.types.at(n_type);
+            const auto& current_type_in2 = in2.types.at(n_type);
+
+            result &= (current_type_in1 == current_type_in2);
+        }
+    }
+
+    return result;
+}
+
+Anvil::MemoryProperties::MemoryProperties()
+{
+    heaps   = nullptr;
+    n_heaps = 0;
+}
+
+/** Destructor */
+Anvil::MemoryProperties::~MemoryProperties()
+{
+    if (heaps != nullptr)
+    {
+        delete [] heaps;
+
+        heaps = nullptr;
+    }
+}
+
+/* Please see header for specification */
+void Anvil::MemoryProperties::init(const VkPhysicalDeviceMemoryProperties& in_mem_properties)
+{
+    n_heaps = in_mem_properties.memoryHeapCount;
+
+    heaps   = new Anvil::MemoryHeap[n_heaps];
+    anvil_assert(heaps != nullptr);
+
+    for (unsigned int n_heap = 0;
+                      n_heap < in_mem_properties.memoryHeapCount;
+                    ++n_heap)
+    {
+        heaps[n_heap].flags = static_cast<VkMemoryHeapFlagBits>(in_mem_properties.memoryHeaps[n_heap].flags);
+        heaps[n_heap].size  = in_mem_properties.memoryHeaps[n_heap].size;
+    }
+
+    types.reserve(in_mem_properties.memoryTypeCount);
+
+    for (unsigned int n_type = 0;
+                      n_type < in_mem_properties.memoryTypeCount;
+                    ++n_type)
+    {
+        types.push_back(MemoryType(in_mem_properties.memoryTypes[n_type],
+                                   this) );
+    }
+}
+
+/** Please see header for specification */
+bool Anvil::operator==(const MemoryHeap& in1,
+                       const MemoryHeap& in2)
+{
+    return (in1.flags == in2.flags &&
+            in1.size  == in2.size);
+}
+
+/* Please see header for specification */
+Anvil::MemoryType::MemoryType(const VkMemoryType&      in_type,
+                              struct MemoryProperties* in_memory_props_ptr)
+{
+    flags    = static_cast<VkMemoryPropertyFlagBits>(in_type.propertyFlags);
+    heap_ptr = &in_memory_props_ptr->heaps[in_type.heapIndex];
+
+    features = Anvil::Utils::get_memory_feature_flags_from_vk_property_flags(flags,
+                                                                             heap_ptr->flags);
+}
+
+/* Please see header for specification */
+bool Anvil::operator==(const Anvil::MemoryType& in1,
+                       const Anvil::MemoryType& in2)
+{
+    return  ( in1.flags    ==  in2.flags     &&
+             *in1.heap_ptr == *in2.heap_ptr);
+}
+
+/** Returns a filled MipmapRawData structure for a 1D mip.
+ *
+ *  NOTE: It is caller's responsibility to configure one of the data storage pointer members.
+ */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_1D(VkImageAspectFlagBits in_aspect,
+                                                     uint32_t              in_n_mipmap,
+                                                     uint32_t              in_row_size)
+{
+    MipmapRawData result;
+
+    memset(&result,
+            0,
+            sizeof(result) );
+
+    result.aspect    = in_aspect;
+    result.data_size = in_row_size;
+    result.row_size  = in_row_size;
+    result.n_layers  = 1;
+    result.n_slices  = 1;
+    result.n_mipmap  = in_n_mipmap;
+
+    return result;
+}
+
+/** Returns a filled MipmapRawData structure for a 1D Array mip.
+ *
+ *  NOTE: It is caller's responsibility to configure one of the data storage pointer members.
+ */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array(VkImageAspectFlagBits in_aspect,
+                                                           uint32_t              in_n_layer,
+                                                           uint32_t              in_n_layers,
+                                                           uint32_t              in_n_mipmap,
+                                                           uint32_t              in_row_size,
+                                                           uint32_t              in_data_size)
+{
+    MipmapRawData result;
+
+    memset(&result,
+            0,
+            sizeof(result) );
+
+    result.aspect    = in_aspect;
+    result.data_size = in_data_size;
+    result.n_layer   = in_n_layer;
+    result.n_layers  = in_n_layers;
+    result.n_mipmap  = in_n_mipmap;
+    result.n_slices  = 1;
+    result.row_size  = in_row_size;
+
+    return result;
+}
+
+/** Returns a filled MipmapRawData structure for a 2D mip.
+ *
+ *  NOTE: It is caller's responsibility to configure one of the data storage pointer members.
+ */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_2D(VkImageAspectFlagBits in_aspect,
+                                                     uint32_t              in_n_mipmap,
+                                                     uint32_t              in_data_size,
+                                                     uint32_t              in_row_size)
+{
+    MipmapRawData result;
+
+    memset(&result,
+            0,
+            sizeof(result) );
+
+    result.aspect    = in_aspect;
+    result.data_size = in_data_size;
+    result.n_layers  = 1;
+    result.n_mipmap  = in_n_mipmap;
+    result.n_slices  = 1;
+    result.row_size  = in_row_size;
+
+    return result;
+}
+
+/** Returns a filled MipmapRawData structure for a 2D array mip.
+ *
+ *  NOTE: It is caller's responsibility to configure one of the data storage pointer members.
+ */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array(VkImageAspectFlagBits in_aspect,
+                                                           uint32_t              in_n_layer,
+                                                           uint32_t              in_n_layers,
+                                                           uint32_t              in_n_mipmap,
+                                                           uint32_t              in_data_size,
+                                                           uint32_t              in_row_size)
+{
+    MipmapRawData result;
+
+    memset(&result,
+            0,
+            sizeof(result) );
+
+    result.aspect    = in_aspect;
+    result.data_size = in_data_size;
+    result.n_layer   = in_n_layer;
+    result.n_layers  = in_n_layers;
+    result.n_mipmap  = in_n_mipmap;
+    result.n_slices  = 1;
+    result.row_size  = in_row_size;
+
+    return result;
+}
+
+/** Returns a filled MipmapRawData structure for a 3D mip.
+ *
+ *  NOTE: It is caller's responsibility to configure one of the data storage pointer members.
+ */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_3D(VkImageAspectFlagBits in_aspect,
+                                                     uint32_t              in_n_layer,
+                                                     uint32_t              in_n_slices,
+                                                     uint32_t              in_n_mipmap,
+                                                     uint32_t              in_data_size,
+                                                     uint32_t              in_row_size)
+{
+    MipmapRawData result;
+
+    memset(&result,
+            0,
+            sizeof(result) );
+
+    result.aspect    = in_aspect;
+    result.data_size = in_data_size;
+    result.n_layers  = 1;
+    result.n_layer   = in_n_layer;
+    result.n_slices  = in_n_slices;
+    result.n_mipmap  = in_n_mipmap;
+    result.row_size  = in_row_size;
+
+    return result;
+}
+
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_from_uchar_ptr(VkImageAspectFlagBits          in_aspect,
+                                                                    uint32_t                       in_n_mipmap,
+                                                                    std::shared_ptr<unsigned char> in_linear_tightly_packed_data_ptr,
+                                                                    uint32_t                       in_row_size)
+{
+    MipmapRawData result = create_1D(in_aspect,
+                                     in_n_mipmap,
+                                     in_row_size);
+
+    result.linear_tightly_packed_data_uchar_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_from_uchar_ptr(VkImageAspectFlagBits in_aspect,
+                                                                    uint32_t              in_n_mipmap,
+                                                                    const unsigned char*  in_linear_tightly_packed_data_ptr,
+                                                                    uint32_t              in_row_size)
+{
+    MipmapRawData result = create_1D(in_aspect,
+                                     in_n_mipmap,
+                                     in_row_size);
+
+    result.linear_tightly_packed_data_uchar_raw_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+                                                                           uint32_t                                     in_n_mipmap,
+                                                                           std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
+                                                                           uint32_t                                     in_row_size)
+{
+    MipmapRawData result = create_1D(in_aspect,
+                                     in_n_mipmap,
+                                     in_row_size);
+
+    result.linear_tightly_packed_data_uchar_vec_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array_from_uchar_ptr(VkImageAspectFlagBits          in_aspect,
+                                                                          uint32_t                       in_n_layer,
+                                                                          uint32_t                       in_n_layers,
+                                                                          uint32_t                       in_n_mipmap,
+                                                                          std::shared_ptr<unsigned char> in_linear_tightly_packed_data_ptr,
+                                                                          uint32_t                       in_row_size,
+                                                                          uint32_t                       in_data_size)
+{
+    MipmapRawData result = create_1D_array(in_aspect,
+                                           in_n_layer,
+                                           in_n_layers,
+                                           in_n_mipmap,
+                                           in_row_size,
+                                           in_data_size);
+
+    result.linear_tightly_packed_data_uchar_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array_from_uchar_ptr(VkImageAspectFlagBits in_aspect,
+                                                                          uint32_t              in_n_layer,
+                                                                          uint32_t              in_n_layers,
+                                                                          uint32_t              in_n_mipmap,
+                                                                          const unsigned char*  in_linear_tightly_packed_data_ptr,
+                                                                          uint32_t              in_row_size,
+                                                                          uint32_t              in_data_size)
+{
+    MipmapRawData result = create_1D_array(in_aspect,
+                                           in_n_layer,
+                                           in_n_layers,
+                                           in_n_mipmap,
+                                           in_row_size,
+                                           in_data_size);
+
+    result.linear_tightly_packed_data_uchar_raw_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+                                                                                 uint32_t                                     in_n_layer,
+                                                                                 uint32_t                                     in_n_layers,
+                                                                                 uint32_t                                     in_n_mipmap,
+                                                                                 std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
+                                                                                 uint32_t                                     in_row_size,
+                                                                                 uint32_t                                     in_data_size)
+{
+    MipmapRawData result = create_1D_array(in_aspect,
+                                           in_n_layer,
+                                           in_n_layers,
+                                           in_n_mipmap,
+                                           in_row_size,
+                                           in_data_size);
+
+    result.linear_tightly_packed_data_uchar_vec_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_from_uchar_ptr(VkImageAspectFlagBits          in_aspect,
+                                                                    uint32_t                       in_n_mipmap,
+                                                                    std::shared_ptr<unsigned char> in_linear_tightly_packed_data_ptr,
+                                                                    uint32_t                       in_data_size,
+                                                                    uint32_t                       in_row_size)
+{
+    MipmapRawData result = create_2D(in_aspect,
+                                     in_n_mipmap,
+                                     in_data_size,
+                                     in_row_size);
+
+    result.linear_tightly_packed_data_uchar_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_from_uchar_ptr(VkImageAspectFlagBits in_aspect,
+                                                                    uint32_t              in_n_mipmap,
+                                                                    const unsigned char*  in_linear_tightly_packed_data_ptr,
+                                                                    uint32_t              in_data_size,
+                                                                    uint32_t              in_row_size)
+{
+    MipmapRawData result = create_2D(in_aspect,
+                                     in_n_mipmap,
+                                     in_data_size,
+                                     in_row_size);
+
+    result.linear_tightly_packed_data_uchar_raw_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+                                                                           uint32_t                                     in_n_mipmap,
+                                                                           std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
+                                                                           uint32_t                                     in_data_size,
+                                                                           uint32_t                                     in_row_size)
+{
+    MipmapRawData result = create_2D(in_aspect,
+                                     in_n_mipmap,
+                                     in_data_size,
+                                     in_row_size);
+
+    result.linear_tightly_packed_data_uchar_vec_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array_from_uchar_ptr(VkImageAspectFlagBits          in_aspect,
+                                                                          uint32_t                       in_n_layer,
+                                                                          uint32_t                       in_n_layers,
+                                                                          uint32_t                       in_n_mipmap,
+                                                                          std::shared_ptr<unsigned char> in_linear_tightly_packed_data_ptr,
+                                                                          uint32_t                       in_data_size,
+                                                                          uint32_t                       in_row_size)
+{
+    MipmapRawData result = create_2D_array(in_aspect,
+                                           in_n_layer,
+                                           in_n_layers,
+                                           in_n_mipmap,
+                                           in_data_size,
+                                           in_row_size);
+
+    result.linear_tightly_packed_data_uchar_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array_from_uchar_ptr(VkImageAspectFlagBits in_aspect,
+                                                                          uint32_t              in_n_layer,
+                                                                          uint32_t              in_n_layers,
+                                                                          uint32_t              in_n_mipmap,
+                                                                          const unsigned char*  in_linear_tightly_packed_data_ptr,
+                                                                          uint32_t              in_data_size,
+                                                                          uint32_t              in_row_size)
+{
+    MipmapRawData result = create_2D_array(in_aspect,
+                                           in_n_layer,
+                                           in_n_layers,
+                                           in_n_mipmap,
+                                           in_data_size,
+                                           in_row_size);
+
+    result.linear_tightly_packed_data_uchar_raw_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+                                                                                 uint32_t                                     in_n_layer,
+                                                                                 uint32_t                                     in_n_layers,
+                                                                                 uint32_t                                     in_n_mipmap,
+                                                                                 std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
+                                                                                 uint32_t                                     in_data_size,
+                                                                                 uint32_t                                     in_row_size)
+{
+    MipmapRawData result = create_2D_array(in_aspect,
+                                           in_n_layer,
+                                           in_n_layers,
+                                           in_n_mipmap,
+                                           in_data_size,
+                                           in_row_size);
+
+    result.linear_tightly_packed_data_uchar_vec_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_3D_from_uchar_ptr(VkImageAspectFlagBits          in_aspect,
+                                                                    uint32_t                       in_n_layer,
+                                                                    uint32_t                       in_n_layer_slices,
+                                                                    uint32_t                       in_n_mipmap,
+                                                                    std::shared_ptr<unsigned char> in_linear_tightly_packed_data_ptr,
+                                                                    uint32_t                       in_slice_data_size,
+                                                                    uint32_t                       in_row_size)
+{
+    MipmapRawData result = create_3D(in_aspect,
+                                     in_n_layer,
+                                     in_n_layer_slices,
+                                     in_n_mipmap,
+                                     in_slice_data_size,
+                                     in_row_size);
+
+    result.linear_tightly_packed_data_uchar_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_3D_from_uchar_ptr(VkImageAspectFlagBits in_aspect,
+                                                                    uint32_t              in_n_layer,
+                                                                    uint32_t              in_n_layer_slices,
+                                                                    uint32_t              in_n_mipmap,
+                                                                    const unsigned char*  in_linear_tightly_packed_data_ptr,
+                                                                    uint32_t              in_slice_data_size,
+                                                                    uint32_t              in_row_size)
+{
+    MipmapRawData result = create_3D(in_aspect,
+                                     in_n_layer,
+                                     in_n_layer_slices,
+                                     in_n_mipmap,
+                                     in_slice_data_size,
+                                     in_row_size);
+
+    result.linear_tightly_packed_data_uchar_raw_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_3D_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+                                                                           uint32_t                                     in_n_layer,
+                                                                           uint32_t                                     in_n_layer_slices,
+                                                                           uint32_t                                     in_n_mipmap,
+                                                                           std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
+                                                                           uint32_t                                     in_slice_data_size,
+                                                                           uint32_t                                     in_row_size)
+{
+    MipmapRawData result = create_3D(in_aspect,
+                                     in_n_layer,
+                                     in_n_layer_slices,
+                                     in_n_mipmap,
+                                     in_slice_data_size,
+                                     in_row_size);
+
+    result.linear_tightly_packed_data_uchar_vec_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_from_uchar_ptr(VkImageAspectFlagBits          in_aspect,
+                                                                          uint32_t                       in_n_layer,
+                                                                          uint32_t                       in_n_mipmap,
+                                                                          std::shared_ptr<unsigned char> in_linear_tightly_packed_data_ptr,
+                                                                          uint32_t                       in_data_size,
+                                                                          uint32_t                       in_row_size)
+{
+    anvil_assert(in_n_layer < 6);
+
+    MipmapRawData result = create_2D_array(in_aspect,
+                                           in_n_layer,
+                                           1, /* n_layer_slices */
+                                           in_n_mipmap,
+                                           in_data_size,
+                                           in_row_size);
+
+    result.linear_tightly_packed_data_uchar_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_from_uchar_ptr(VkImageAspectFlagBits in_aspect,
+                                                                          uint32_t              in_n_layer,
+                                                                          uint32_t              in_n_mipmap,
+                                                                          const unsigned char*  in_linear_tightly_packed_data_ptr,
+                                                                          uint32_t              in_data_size,
+                                                                          uint32_t              in_row_size)
+{
+    anvil_assert(in_n_layer < 6);
+
+    MipmapRawData result = create_2D_array(in_aspect,
+                                           in_n_layer,
+                                           1, /* n_layer_slices */
+                                           in_n_mipmap,
+                                           in_data_size,
+                                           in_row_size);
+
+    result.linear_tightly_packed_data_uchar_raw_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+                                                                                 uint32_t                                     in_n_layer,
+                                                                                 uint32_t                                     in_n_mipmap,
+                                                                                 std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
+                                                                                 uint32_t                                     in_data_size,
+                                                                                 uint32_t                                     in_row_size)
+{
+    anvil_assert(in_n_layer < 6);
+
+    MipmapRawData result = create_2D_array(in_aspect,
+                                           in_n_layer,
+                                           1, /* n_layer_slices */
+                                           in_n_mipmap,
+                                           in_data_size,
+                                           in_row_size);
+
+    result.linear_tightly_packed_data_uchar_vec_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_array_from_uchar_ptr(VkImageAspectFlagBits          in_aspect,
+                                                                                uint32_t                       in_n_layer,
+                                                                                uint32_t                       in_n_layers,
+                                                                                uint32_t                       in_n_mipmap,
+                                                                                std::shared_ptr<unsigned char> in_linear_tightly_packed_data_ptr,
+                                                                                uint32_t                       in_data_size,
+                                                                                uint32_t                       in_row_size)
+{
+    MipmapRawData result = create_2D_array(in_aspect,
+                                           in_n_layer,
+                                           in_n_layers,
+                                           in_n_mipmap,
+                                           in_data_size,
+                                           in_row_size);
+
+    result.linear_tightly_packed_data_uchar_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_array_from_uchar_ptr(VkImageAspectFlagBits in_aspect,
+                                                                                uint32_t              in_n_layer,
+                                                                                uint32_t              in_n_layers,
+                                                                                uint32_t              in_n_mipmap,
+                                                                                const unsigned char*  in_linear_tightly_packed_data_ptr,
+                                                                                uint32_t              in_data_size,
+                                                                                uint32_t              in_row_size)
+{
+    MipmapRawData result = create_2D_array(in_aspect,
+                                           in_n_layer,
+                                           in_n_layers,
+                                           in_n_mipmap,
+                                           in_data_size,
+                                           in_row_size);
+
+    result.linear_tightly_packed_data_uchar_raw_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_array_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+                                                                                       uint32_t                                     in_n_layer,
+                                                                                       uint32_t                                     in_n_layers,
+                                                                                       uint32_t                                     in_n_mipmap,
+                                                                                       std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
+                                                                                       uint32_t                                     in_data_size,
+                                                                                       uint32_t                                     in_row_size)
+{
+    MipmapRawData result = create_2D_array(in_aspect,
+                                           in_n_layer,
+                                           in_n_layers,
+                                           in_n_mipmap,
+                                           in_data_size,
+                                           in_row_size);
+
+    result.linear_tightly_packed_data_uchar_vec_ptr = in_linear_tightly_packed_data_ptr;
+
+    return result;
+}
+
+Anvil::PhysicalDeviceProperties::PhysicalDeviceProperties()
+{
+    amd_shader_core_properties_ptr         = nullptr;
+    core_vk1_0_properties_ptr              = nullptr;
+    ext_descriptor_indexing_properties_ptr = nullptr;
+    khr_maintenance3_properties_ptr        = nullptr;
+}
+
+Anvil::PhysicalDeviceProperties::PhysicalDeviceProperties(const AMDShaderCoreProperties*          in_amd_shader_core_properties_ptr,
+                                                          const PhysicalDevicePropertiesCoreVK10* in_core_vk1_0_properties_ptr,
+                                                          const EXTDescriptorIndexingProperties*  in_ext_descriptor_indexing_properties_ptr,
+                                                          const KHRMaintenance3Properties*        in_khr_maintenance3_properties_ptr)
+    :amd_shader_core_properties_ptr        (in_amd_shader_core_properties_ptr),
+     core_vk1_0_properties_ptr             (in_core_vk1_0_properties_ptr),
+     ext_descriptor_indexing_properties_ptr(in_ext_descriptor_indexing_properties_ptr),
+     khr_maintenance3_properties_ptr       (in_khr_maintenance3_properties_ptr)
+{
+    /* Stub */
+}
+
+Anvil::PhysicalDevicePropertiesCoreVK10::PhysicalDevicePropertiesCoreVK10()
+    :api_version   (UINT32_MAX),
+     device_id     (UINT32_MAX),
+     device_type   (VK_PHYSICAL_DEVICE_TYPE_MAX_ENUM),
+     driver_version(UINT32_MAX),
+     vendor_id     (UINT32_MAX)
+{
+    memset(device_name,
+           0xFF,
+           sizeof(device_name) );
+    memset(pipeline_cache_uuid,
+           0xFF,
+           sizeof(pipeline_cache_uuid) );
+}
+
+Anvil::PhysicalDeviceFeatures::PhysicalDeviceFeatures()
+{
+    core_vk1_0_features_ptr              = nullptr;
+    ext_descriptor_indexing_features_ptr = nullptr;
+    khr_16bit_storage_features_ptr       = nullptr;
+}
+
+Anvil::PhysicalDeviceFeatures::PhysicalDeviceFeatures(const PhysicalDeviceFeaturesCoreVK10* in_core_vk1_0_features_ptr,
+                                                      const EXTDescriptorIndexingFeatures*  in_ext_descriptor_indexing_features_ptr,
+                                                      const KHR16BitStorageFeatures*        in_khr_16_bit_storage_features_ptr)
+{
+    core_vk1_0_features_ptr              = in_core_vk1_0_features_ptr;
+    ext_descriptor_indexing_features_ptr = in_ext_descriptor_indexing_features_ptr;
+    khr_16bit_storage_features_ptr       = in_khr_16_bit_storage_features_ptr;
+}
+
+Anvil::PhysicalDeviceGroup::PhysicalDeviceGroup()
+{
+    supports_subset_allocations = false;
+}
+
+Anvil::PhysicalDeviceLimits::PhysicalDeviceLimits()
+    :buffer_image_granularity                             (std::numeric_limits<VkDeviceSize>::max() ),
+     discrete_queue_priorities                            (UINT32_MAX),
+     framebuffer_color_sample_counts                      (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     framebuffer_depth_sample_counts                      (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     framebuffer_no_attachments_sample_counts             (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     framebuffer_stencil_sample_counts                    (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     line_width_granularity                               (FLT_MAX),
+     max_bound_descriptor_sets                            (UINT32_MAX),
+     max_clip_distances                                   (UINT32_MAX),
+     max_color_attachments                                (UINT32_MAX),
+     max_combined_clip_and_cull_distances                 (UINT32_MAX),
+     max_compute_shared_memory_size                       (UINT32_MAX),
+     max_compute_work_group_invocations                   (UINT32_MAX),
+     max_cull_distances                                   (UINT32_MAX),
+     max_descriptor_set_input_attachments                 (UINT32_MAX),
+     max_descriptor_set_sampled_images                    (UINT32_MAX),
+     max_descriptor_set_samplers                          (UINT32_MAX),
+     max_descriptor_set_storage_buffers                   (UINT32_MAX),
+     max_descriptor_set_storage_buffers_dynamic           (UINT32_MAX),
+     max_descriptor_set_storage_images                    (UINT32_MAX),
+     max_descriptor_set_uniform_buffers                   (UINT32_MAX),
+     max_descriptor_set_uniform_buffers_dynamic           (UINT32_MAX),
+     max_draw_indexed_index_value                         (UINT32_MAX),
+     max_draw_indirect_count                              (UINT32_MAX),
+     max_fragment_combined_output_resources               (UINT32_MAX),
+     max_fragment_dual_src_attachments                    (UINT32_MAX),
+     max_fragment_input_components                        (UINT32_MAX),
+     max_fragment_output_attachments                      (UINT32_MAX),
+     max_framebuffer_height                               (UINT32_MAX),
+     max_framebuffer_layers                               (UINT32_MAX),
+     max_framebuffer_width                                (UINT32_MAX),
+     max_geometry_input_components                        (UINT32_MAX),
+     max_geometry_output_components                       (UINT32_MAX),
+     max_geometry_output_vertices                         (UINT32_MAX),
+     max_geometry_shader_invocations                      (UINT32_MAX),
+     max_geometry_total_output_components                 (UINT32_MAX),
+     max_image_array_layers                               (UINT32_MAX),
+     max_image_dimension_1D                               (UINT32_MAX),
+     max_image_dimension_2D                               (UINT32_MAX),
+     max_image_dimension_3D                               (UINT32_MAX),
+     max_image_dimension_cube                             (UINT32_MAX),
+     max_interpolation_offset                             (FLT_MAX),
+     max_memory_allocation_count                          (UINT32_MAX),
+     max_per_stage_descriptor_input_attachments           (UINT32_MAX),
+     max_per_stage_descriptor_sampled_images              (UINT32_MAX),
+     max_per_stage_descriptor_samplers                    (UINT32_MAX),
+     max_per_stage_descriptor_storage_buffers             (UINT32_MAX),
+     max_per_stage_descriptor_storage_images              (UINT32_MAX),
+     max_per_stage_descriptor_uniform_buffers             (UINT32_MAX),
+     max_per_stage_resources                              (UINT32_MAX),
+     max_push_constants_size                              (UINT32_MAX),
+     max_sample_mask_words                                (UINT32_MAX),
+     max_sampler_allocation_count                         (UINT32_MAX),
+     max_sampler_anisotropy                               (FLT_MAX),
+     max_sampler_lod_bias                                 (FLT_MAX),
+     max_storage_buffer_range                             (UINT32_MAX),
+     max_viewports                                        (UINT32_MAX),
+     max_tessellation_control_per_patch_output_components (UINT32_MAX),
+     max_tessellation_control_per_vertex_input_components (UINT32_MAX),
+     max_tessellation_control_per_vertex_output_components(UINT32_MAX),
+     max_tessellation_control_total_output_components     (UINT32_MAX),
+     max_tessellation_evaluation_input_components         (UINT32_MAX),
+     max_tessellation_evaluation_output_components        (UINT32_MAX),
+     max_tessellation_generation_level                    (UINT32_MAX),
+     max_tessellation_patch_size                          (UINT32_MAX),
+     max_texel_buffer_elements                            (UINT32_MAX),
+     max_texel_gather_offset                              (UINT32_MAX),
+     max_texel_offset                                     (UINT32_MAX),
+     max_uniform_buffer_range                             (UINT32_MAX),
+     max_vertex_input_attributes                          (UINT32_MAX),
+     max_vertex_input_attribute_offset                    (UINT32_MAX),
+     max_vertex_input_bindings                            (UINT32_MAX),
+     max_vertex_input_binding_stride                      (UINT32_MAX),
+     max_vertex_output_components                         (UINT32_MAX),
+     min_interpolation_offset                             (FLT_MAX),
+     min_memory_map_alignment                             (std::numeric_limits<size_t>::max      () ),
+     min_storage_buffer_offset_alignment                  (std::numeric_limits<VkDeviceSize>::max() ),
+     min_texel_buffer_offset_alignment                    (std::numeric_limits<VkDeviceSize>::max() ),
+     min_texel_gather_offset                              (INT32_MAX),
+     min_texel_offset                                     (INT32_MAX),
+     min_uniform_buffer_offset_alignment                  (std::numeric_limits<VkDeviceSize>::max() ),
+     mipmap_precision_bits                                (UINT32_MAX),
+     non_coherent_atom_size                               (std::numeric_limits<VkDeviceSize>::max() ),
+     optimal_buffer_copy_offset_alignment                 (std::numeric_limits<VkDeviceSize>::max() ),
+     optimal_buffer_copy_row_pitch_alignment              (std::numeric_limits<VkDeviceSize>::max() ),
+     point_size_granularity                               (FLT_MAX),
+     sampled_image_color_sample_counts                    (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM), 
+     sampled_image_depth_sample_counts                    (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     sampled_image_integer_sample_counts                  (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     sampled_image_stencil_sample_counts                  (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     sparse_address_space_size                            (std::numeric_limits<VkDeviceSize>::max() ),
+     standard_sample_locations                            (false),
+     storage_image_sample_counts                          (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     strict_lines                                         (false),
+     sub_pixel_interpolation_offset_bits                  (UINT32_MAX),
+     sub_pixel_precision_bits                             (UINT32_MAX),
+     sub_texel_precision_bits                             (UINT32_MAX),
+     timestamp_compute_and_graphics                       (false),
+     timestamp_period                                     (FLT_MAX),
+     viewport_sub_pixel_bits                              (UINT32_MAX)
+{
+    line_width_range[0] = FLT_MAX;
+    line_width_range[1] = FLT_MAX;
+
+    max_compute_work_group_count[0] = UINT32_MAX;
+    max_compute_work_group_count[1] = UINT32_MAX;
+    max_compute_work_group_count[2] = UINT32_MAX;
+
+    max_compute_work_group_size[0] = UINT32_MAX;
+    max_compute_work_group_size[1] = UINT32_MAX;
+    max_compute_work_group_size[2] = UINT32_MAX;
+
+    max_viewport_dimensions[0] = UINT32_MAX;
+    max_viewport_dimensions[1] = UINT32_MAX;
+
+    point_size_range[0] = FLT_MAX;
+    point_size_range[1] = FLT_MAX;
+
+    viewport_bounds_range[0] = FLT_MAX;
+    viewport_bounds_range[1] = FLT_MAX;
+}
+
+Anvil::PhysicalDeviceLimits::PhysicalDeviceLimits(const VkPhysicalDeviceLimits& in_device_limits)
+    :buffer_image_granularity                             (in_device_limits.bufferImageGranularity),
+     discrete_queue_priorities                            (in_device_limits.discreteQueuePriorities),
+     framebuffer_color_sample_counts                      (in_device_limits.framebufferColorSampleCounts),
+     framebuffer_depth_sample_counts                      (in_device_limits.framebufferDepthSampleCounts),
+     framebuffer_no_attachments_sample_counts             (in_device_limits.framebufferNoAttachmentsSampleCounts),
+     framebuffer_stencil_sample_counts                    (in_device_limits.framebufferStencilSampleCounts),
+     line_width_granularity                               (in_device_limits.lineWidthGranularity),
+     max_bound_descriptor_sets                            (in_device_limits.maxBoundDescriptorSets),
+     max_clip_distances                                   (in_device_limits.maxClipDistances),
+     max_color_attachments                                (in_device_limits.maxColorAttachments),
+     max_combined_clip_and_cull_distances                 (in_device_limits.maxCombinedClipAndCullDistances),
+     max_compute_shared_memory_size                       (in_device_limits.maxComputeSharedMemorySize),
+     max_compute_work_group_invocations                   (in_device_limits.maxComputeWorkGroupInvocations),
+     max_cull_distances                                   (in_device_limits.maxCullDistances),
+     max_descriptor_set_input_attachments                 (in_device_limits.maxDescriptorSetInputAttachments),
+     max_descriptor_set_sampled_images                    (in_device_limits.maxDescriptorSetSampledImages),
+     max_descriptor_set_samplers                          (in_device_limits.maxDescriptorSetSamplers),
+     max_descriptor_set_storage_buffers                   (in_device_limits.maxDescriptorSetStorageBuffers),
+     max_descriptor_set_storage_buffers_dynamic           (in_device_limits.maxDescriptorSetStorageBuffersDynamic),
+     max_descriptor_set_storage_images                    (in_device_limits.maxDescriptorSetStorageImages),
+     max_descriptor_set_uniform_buffers                   (in_device_limits.maxDescriptorSetUniformBuffers),
+     max_descriptor_set_uniform_buffers_dynamic           (in_device_limits.maxDescriptorSetUniformBuffersDynamic),
+     max_draw_indexed_index_value                         (in_device_limits.maxDrawIndexedIndexValue),
+     max_draw_indirect_count                              (in_device_limits.maxDrawIndirectCount),
+     max_fragment_combined_output_resources               (in_device_limits.maxFragmentCombinedOutputResources),
+     max_fragment_dual_src_attachments                    (in_device_limits.maxFragmentDualSrcAttachments),
+     max_fragment_input_components                        (in_device_limits.maxFragmentInputComponents),
+     max_fragment_output_attachments                      (in_device_limits.maxFragmentOutputAttachments),
+     max_framebuffer_height                               (in_device_limits.maxFramebufferHeight),
+     max_framebuffer_layers                               (in_device_limits.maxFramebufferLayers),
+     max_framebuffer_width                                (in_device_limits.maxFramebufferWidth),
+     max_geometry_input_components                        (in_device_limits.maxGeometryInputComponents),
+     max_geometry_output_components                       (in_device_limits.maxGeometryOutputComponents),
+     max_geometry_output_vertices                         (in_device_limits.maxGeometryOutputVertices),
+     max_geometry_shader_invocations                      (in_device_limits.maxGeometryShaderInvocations),
+     max_geometry_total_output_components                 (in_device_limits.maxGeometryTotalOutputComponents),
+     max_image_array_layers                               (in_device_limits.maxImageArrayLayers),
+     max_image_dimension_1D                               (in_device_limits.maxImageDimension1D),
+     max_image_dimension_2D                               (in_device_limits.maxImageDimension2D),
+     max_image_dimension_3D                               (in_device_limits.maxImageDimension3D),
+     max_image_dimension_cube                             (in_device_limits.maxImageDimensionCube),
+     max_interpolation_offset                             (in_device_limits.maxInterpolationOffset),
+     max_memory_allocation_count                          (in_device_limits.maxMemoryAllocationCount),
+     max_per_stage_descriptor_input_attachments           (in_device_limits.maxPerStageDescriptorInputAttachments),
+     max_per_stage_descriptor_sampled_images              (in_device_limits.maxPerStageDescriptorSampledImages),
+     max_per_stage_descriptor_samplers                    (in_device_limits.maxPerStageDescriptorSamplers),
+     max_per_stage_descriptor_storage_buffers             (in_device_limits.maxPerStageDescriptorStorageBuffers),
+     max_per_stage_descriptor_storage_images              (in_device_limits.maxPerStageDescriptorStorageImages),
+     max_per_stage_descriptor_uniform_buffers             (in_device_limits.maxPerStageDescriptorUniformBuffers),
+     max_per_stage_resources                              (in_device_limits.maxPerStageResources),
+     max_push_constants_size                              (in_device_limits.maxPushConstantsSize),
+     max_sample_mask_words                                (in_device_limits.maxSampleMaskWords),
+     max_sampler_allocation_count                         (in_device_limits.maxSamplerAllocationCount),
+     max_sampler_anisotropy                               (in_device_limits.maxSamplerAnisotropy),
+     max_sampler_lod_bias                                 (in_device_limits.maxSamplerLodBias),
+     max_storage_buffer_range                             (in_device_limits.maxStorageBufferRange),
+     max_viewports                                        (in_device_limits.maxViewports),
+     max_tessellation_control_per_patch_output_components (in_device_limits.maxTessellationControlPerPatchOutputComponents),
+     max_tessellation_control_per_vertex_input_components (in_device_limits.maxTessellationControlPerVertexInputComponents),
+     max_tessellation_control_per_vertex_output_components(in_device_limits.maxTessellationControlPerVertexOutputComponents),
+     max_tessellation_control_total_output_components     (in_device_limits.maxTessellationControlTotalOutputComponents),
+     max_tessellation_evaluation_input_components         (in_device_limits.maxTessellationEvaluationInputComponents),
+     max_tessellation_evaluation_output_components        (in_device_limits.maxTessellationEvaluationOutputComponents),
+     max_tessellation_generation_level                    (in_device_limits.maxTessellationGenerationLevel),
+     max_tessellation_patch_size                          (in_device_limits.maxTessellationPatchSize),
+     max_texel_buffer_elements                            (in_device_limits.maxTexelBufferElements),
+     max_texel_gather_offset                              (in_device_limits.maxTexelGatherOffset),
+     max_texel_offset                                     (in_device_limits.maxTexelOffset),
+     max_uniform_buffer_range                             (in_device_limits.maxUniformBufferRange),
+     max_vertex_input_attributes                          (in_device_limits.maxVertexInputAttributes),
+     max_vertex_input_attribute_offset                    (in_device_limits.maxVertexInputAttributeOffset),
+     max_vertex_input_bindings                            (in_device_limits.maxVertexInputBindings),
+     max_vertex_input_binding_stride                      (in_device_limits.maxVertexInputBindingStride),
+     max_vertex_output_components                         (in_device_limits.maxVertexOutputComponents),
+     min_interpolation_offset                             (in_device_limits.minInterpolationOffset),
+     min_memory_map_alignment                             (in_device_limits.minMemoryMapAlignment),
+     min_storage_buffer_offset_alignment                  (in_device_limits.minStorageBufferOffsetAlignment),
+     min_texel_buffer_offset_alignment                    (in_device_limits.minTexelBufferOffsetAlignment),
+     min_texel_gather_offset                              (in_device_limits.minTexelGatherOffset),
+     min_texel_offset                                     (in_device_limits.minTexelOffset),
+     min_uniform_buffer_offset_alignment                  (in_device_limits.minUniformBufferOffsetAlignment),
+     mipmap_precision_bits                                (in_device_limits.mipmapPrecisionBits),
+     non_coherent_atom_size                               (in_device_limits.nonCoherentAtomSize),
+     optimal_buffer_copy_offset_alignment                 (in_device_limits.optimalBufferCopyOffsetAlignment),
+     optimal_buffer_copy_row_pitch_alignment              (in_device_limits.optimalBufferCopyRowPitchAlignment),
+     point_size_granularity                               (in_device_limits.pointSizeGranularity),
+     sampled_image_color_sample_counts                    (in_device_limits.sampledImageColorSampleCounts),
+     sampled_image_depth_sample_counts                    (in_device_limits.sampledImageDepthSampleCounts),
+     sampled_image_integer_sample_counts                  (in_device_limits.sampledImageIntegerSampleCounts),
+     sampled_image_stencil_sample_counts                  (in_device_limits.sampledImageStencilSampleCounts),
+     sparse_address_space_size                            (in_device_limits.sparseAddressSpaceSize),
+     standard_sample_locations                            (VK_BOOL32_TO_BOOL(in_device_limits.standardSampleLocations) ),
+     storage_image_sample_counts                          (in_device_limits.storageImageSampleCounts),
+     strict_lines                                         (VK_BOOL32_TO_BOOL(in_device_limits.strictLines) ),
+     sub_pixel_interpolation_offset_bits                  (in_device_limits.subPixelInterpolationOffsetBits),
+     sub_pixel_precision_bits                             (in_device_limits.subPixelPrecisionBits),
+     sub_texel_precision_bits                             (in_device_limits.subTexelPrecisionBits),
+     timestamp_compute_and_graphics                       (VK_BOOL32_TO_BOOL(in_device_limits.timestampComputeAndGraphics) ),
+     timestamp_period                                     (in_device_limits.timestampPeriod),
+     viewport_sub_pixel_bits                              (in_device_limits.viewportSubPixelBits)
+{
+    memcpy(line_width_range,
+           in_device_limits.lineWidthRange,
+           sizeof(line_width_range) );
+
+    memcpy(max_compute_work_group_count,
+           in_device_limits.maxComputeWorkGroupCount,
+           sizeof(max_compute_work_group_count) );
+
+    memcpy(max_compute_work_group_size,
+           in_device_limits.maxComputeWorkGroupSize,
+           sizeof(max_compute_work_group_size) );
+
+    memcpy(max_viewport_dimensions,
+           in_device_limits.maxViewportDimensions,
+           sizeof(max_viewport_dimensions) );
+
+    memcpy(point_size_range,
+           in_device_limits.pointSizeRange,
+           sizeof(point_size_range) );
+
+    memcpy(viewport_bounds_range,
+           in_device_limits.viewportBoundsRange,
+           sizeof(viewport_bounds_range) );
+}
+
+bool Anvil::PhysicalDeviceLimits::operator==(const Anvil::PhysicalDeviceLimits& in_device_limits) const
+{
+    bool result = false;
+
+     if (buffer_image_granularity                              == in_device_limits.buffer_image_granularity                              &&
+         discrete_queue_priorities                             == in_device_limits.discrete_queue_priorities                             &&
+         framebuffer_color_sample_counts                       == in_device_limits.framebuffer_color_sample_counts                       &&
+         framebuffer_depth_sample_counts                       == in_device_limits.framebuffer_depth_sample_counts                       &&
+         framebuffer_no_attachments_sample_counts              == in_device_limits.framebuffer_no_attachments_sample_counts              &&
+         framebuffer_stencil_sample_counts                     == in_device_limits.framebuffer_stencil_sample_counts                     &&
+         max_bound_descriptor_sets                             == in_device_limits.max_bound_descriptor_sets                             &&
+         max_clip_distances                                    == in_device_limits.max_clip_distances                                    &&
+         max_color_attachments                                 == in_device_limits.max_color_attachments                                 &&
+         max_combined_clip_and_cull_distances                  == in_device_limits.max_combined_clip_and_cull_distances                  &&
+         max_compute_shared_memory_size                        == in_device_limits.max_compute_shared_memory_size                        &&
+         max_compute_work_group_count[0]                       == in_device_limits.max_compute_work_group_count[0]                       &&
+         max_compute_work_group_count[1]                       == in_device_limits.max_compute_work_group_count[1]                       &&
+         max_compute_work_group_count[2]                       == in_device_limits.max_compute_work_group_count[2]                       &&
+         max_compute_work_group_invocations                    == in_device_limits.max_compute_work_group_invocations                    &&
+         max_compute_work_group_size[0]                        == in_device_limits.max_compute_work_group_size[0]                        &&
+         max_compute_work_group_size[1]                        == in_device_limits.max_compute_work_group_size[1]                        &&
+         max_compute_work_group_size[2]                        == in_device_limits.max_compute_work_group_size[2]                        &&
+         max_cull_distances                                    == in_device_limits.max_cull_distances                                    &&
+         max_descriptor_set_input_attachments                  == in_device_limits.max_descriptor_set_input_attachments                  &&
+         max_descriptor_set_sampled_images                     == in_device_limits.max_descriptor_set_sampled_images                     &&
+         max_descriptor_set_samplers                           == in_device_limits.max_descriptor_set_samplers                           &&
+         max_descriptor_set_storage_buffers                    == in_device_limits.max_descriptor_set_storage_buffers                    &&
+         max_descriptor_set_storage_buffers_dynamic            == in_device_limits.max_descriptor_set_storage_buffers_dynamic            &&
+         max_descriptor_set_storage_images                     == in_device_limits.max_descriptor_set_storage_images                     &&
+         max_descriptor_set_uniform_buffers                    == in_device_limits.max_descriptor_set_uniform_buffers                    &&
+         max_descriptor_set_uniform_buffers_dynamic            == in_device_limits.max_descriptor_set_uniform_buffers_dynamic            &&
+         max_draw_indexed_index_value                          == in_device_limits.max_draw_indexed_index_value                          &&
+         max_draw_indirect_count                               == in_device_limits.max_draw_indirect_count                               &&
+         max_fragment_combined_output_resources                == in_device_limits.max_fragment_combined_output_resources                &&
+         max_fragment_dual_src_attachments                     == in_device_limits.max_fragment_dual_src_attachments                     &&
+         max_fragment_input_components                         == in_device_limits.max_fragment_input_components                         &&
+         max_fragment_output_attachments                       == in_device_limits.max_fragment_output_attachments                       &&
+         max_framebuffer_height                                == in_device_limits.max_framebuffer_height                                &&
+         max_framebuffer_layers                                == in_device_limits.max_framebuffer_layers                                &&
+         max_framebuffer_width                                 == in_device_limits.max_framebuffer_width                                 &&
+         max_geometry_input_components                         == in_device_limits.max_geometry_input_components                         &&
+         max_geometry_output_components                        == in_device_limits.max_geometry_output_components                        &&
+         max_geometry_output_vertices                          == in_device_limits.max_geometry_output_vertices                          &&
+         max_geometry_shader_invocations                       == in_device_limits.max_geometry_shader_invocations                       &&
+         max_geometry_total_output_components                  == in_device_limits.max_geometry_total_output_components                  &&
+         max_image_array_layers                                == in_device_limits.max_image_array_layers                                &&
+         max_image_dimension_1D                                == in_device_limits.max_image_dimension_1D                                &&
+         max_image_dimension_2D                                == in_device_limits.max_image_dimension_2D                                &&
+         max_image_dimension_3D                                == in_device_limits.max_image_dimension_3D                                &&
+         max_image_dimension_cube                              == in_device_limits.max_image_dimension_cube                              &&
+         max_memory_allocation_count                           == in_device_limits.max_memory_allocation_count                           &&
+         max_per_stage_descriptor_input_attachments            == in_device_limits.max_per_stage_descriptor_input_attachments            &&
+         max_per_stage_descriptor_sampled_images               == in_device_limits.max_per_stage_descriptor_sampled_images               &&
+         max_per_stage_descriptor_samplers                     == in_device_limits.max_per_stage_descriptor_samplers                     &&
+         max_per_stage_descriptor_storage_buffers              == in_device_limits.max_per_stage_descriptor_storage_buffers              &&
+         max_per_stage_descriptor_storage_images               == in_device_limits.max_per_stage_descriptor_storage_images               &&
+         max_per_stage_descriptor_uniform_buffers              == in_device_limits.max_per_stage_descriptor_uniform_buffers              &&
+         max_per_stage_resources                               == in_device_limits.max_per_stage_resources                               &&
+         max_push_constants_size                               == in_device_limits.max_push_constants_size                               &&
+         max_sample_mask_words                                 == in_device_limits.max_sample_mask_words                                 &&
+         max_sampler_allocation_count                          == in_device_limits.max_sampler_allocation_count                          &&
+         max_storage_buffer_range                              == in_device_limits.max_storage_buffer_range                              &&
+         max_viewport_dimensions[0]                            == in_device_limits.max_viewport_dimensions[0]                            &&
+         max_viewport_dimensions[1]                            == in_device_limits.max_viewport_dimensions[1]                            &&
+         max_viewports                                         == in_device_limits.max_viewports                                         &&
+         max_tessellation_control_per_patch_output_components  == in_device_limits.max_tessellation_control_per_patch_output_components  &&
+         max_tessellation_control_per_vertex_input_components  == in_device_limits.max_tessellation_control_per_vertex_input_components  &&
+         max_tessellation_control_per_vertex_output_components == in_device_limits.max_tessellation_control_per_vertex_output_components &&
+         max_tessellation_control_total_output_components      == in_device_limits.max_tessellation_control_total_output_components      &&
+         max_tessellation_evaluation_input_components          == in_device_limits.max_tessellation_evaluation_input_components          &&
+         max_tessellation_evaluation_output_components         == in_device_limits.max_tessellation_evaluation_output_components         &&
+         max_tessellation_generation_level                     == in_device_limits.max_tessellation_generation_level                     &&
+         max_tessellation_patch_size                           == in_device_limits.max_tessellation_patch_size                           &&
+         max_texel_buffer_elements                             == in_device_limits.max_texel_buffer_elements                             &&
+         max_texel_gather_offset                               == in_device_limits.max_texel_gather_offset                               &&
+         max_texel_offset                                      == in_device_limits.max_texel_offset                                      &&
+         max_uniform_buffer_range                              == in_device_limits.max_uniform_buffer_range                              &&
+         max_vertex_input_attributes                           == in_device_limits.max_vertex_input_attributes                           &&
+         max_vertex_input_attribute_offset                     == in_device_limits.max_vertex_input_attribute_offset                     &&
+         max_vertex_input_bindings                             == in_device_limits.max_vertex_input_bindings                             &&
+         max_vertex_input_binding_stride                       == in_device_limits.max_vertex_input_binding_stride                       &&
+         max_vertex_output_components                          == in_device_limits.max_vertex_output_components                          &&
+         min_memory_map_alignment                              == in_device_limits.min_memory_map_alignment                              &&
+         min_storage_buffer_offset_alignment                   == in_device_limits.min_storage_buffer_offset_alignment                   &&
+         min_texel_buffer_offset_alignment                     == in_device_limits.min_texel_buffer_offset_alignment                     &&
+         min_texel_gather_offset                               == in_device_limits.min_texel_gather_offset                               &&
+         min_texel_offset                                      == in_device_limits.min_texel_offset                                      &&
+         min_uniform_buffer_offset_alignment                   == in_device_limits.min_uniform_buffer_offset_alignment                   &&
+         mipmap_precision_bits                                 == in_device_limits.mipmap_precision_bits                                 &&
+         non_coherent_atom_size                                == in_device_limits.non_coherent_atom_size                                &&
+         optimal_buffer_copy_offset_alignment                  == in_device_limits.optimal_buffer_copy_offset_alignment                  &&
+         optimal_buffer_copy_row_pitch_alignment               == in_device_limits.optimal_buffer_copy_row_pitch_alignment               &&
+         sampled_image_color_sample_counts                     == in_device_limits.sampled_image_color_sample_counts                     &&
+         sampled_image_depth_sample_counts                     == in_device_limits.sampled_image_depth_sample_counts                     &&
+         sampled_image_integer_sample_counts                   == in_device_limits.sampled_image_integer_sample_counts                   &&
+         sampled_image_stencil_sample_counts                   == in_device_limits.sampled_image_stencil_sample_counts                   &&
+         sparse_address_space_size                             == in_device_limits.sparse_address_space_size                             &&
+         standard_sample_locations                             == in_device_limits.standard_sample_locations                             &&
+         storage_image_sample_counts                           == in_device_limits.storage_image_sample_counts                           &&
+         strict_lines                                          == in_device_limits.strict_lines                                          &&
+         sub_pixel_interpolation_offset_bits                   == in_device_limits.sub_pixel_interpolation_offset_bits                   &&
+         sub_pixel_precision_bits                              == in_device_limits.sub_pixel_precision_bits                              &&
+         sub_texel_precision_bits                              == in_device_limits.sub_texel_precision_bits                              &&
+         timestamp_compute_and_graphics                        == in_device_limits.timestamp_compute_and_graphics                        &&
+         viewport_sub_pixel_bits                               == in_device_limits.viewport_sub_pixel_bits)
+     {
+         /* Floats */
+         if (fabs(line_width_range[0]      - in_device_limits.line_width_range[0])      < 1e-5f &&
+             fabs(line_width_range[1]      - in_device_limits.line_width_range[1])      < 1e-5f &&
+             fabs(line_width_granularity   - in_device_limits.line_width_granularity)   < 1e-5f &&
+             fabs(max_interpolation_offset - in_device_limits.max_interpolation_offset) < 1e-5f &&
+             fabs(max_sampler_anisotropy   - in_device_limits.max_sampler_anisotropy)   < 1e-5f &&
+             fabs(max_sampler_lod_bias     - in_device_limits.max_sampler_lod_bias)     < 1e-5f &&
+             fabs(min_interpolation_offset - in_device_limits.min_interpolation_offset) < 1e-5f &&
+             fabs(point_size_granularity   - in_device_limits.point_size_granularity)   < 1e-5f &&
+             fabs(point_size_range[0]      - in_device_limits.point_size_range[0])      < 1e-5f &&
+             fabs(point_size_range[1]      - in_device_limits.point_size_range[1])      < 1e-5f &&
+             fabs(timestamp_period         - in_device_limits.timestamp_period)         < 1e-5f &&
+             fabs(viewport_bounds_range[0] - in_device_limits.viewport_bounds_range[0]) < 1e-5f &&
+             fabs(viewport_bounds_range[1] - in_device_limits.viewport_bounds_range[1]) < 1e-5f)
+         {
+             result = true;
+         }
+     }
+
+    return result;
+}
+
+Anvil::PhysicalDevicePropertiesCoreVK10::PhysicalDevicePropertiesCoreVK10(const VkPhysicalDeviceProperties& in_physical_device_properties)
+     :api_version      (in_physical_device_properties.apiVersion),
+      device_id        (in_physical_device_properties.deviceID),
+      device_type      (in_physical_device_properties.deviceType),
+      driver_version   (in_physical_device_properties.driverVersion),
+      limits           (PhysicalDeviceLimits          (in_physical_device_properties.limits)           ),
+      sparse_properties(PhysicalDeviceSparseProperties(in_physical_device_properties.sparseProperties) ),
+      vendor_id        (in_physical_device_properties.vendorID)
+{
+    memcpy(device_name,
+           in_physical_device_properties.deviceName,
+           sizeof(device_name) );
+    memcpy(pipeline_cache_uuid,
+           in_physical_device_properties.pipelineCacheUUID,
+           sizeof(pipeline_cache_uuid) );
+}
+
+bool Anvil::PhysicalDevicePropertiesCoreVK10::operator==(const PhysicalDevicePropertiesCoreVK10& in_props) const
+{
+    bool result = false;
+
+    if (in_props.api_version       == api_version       &&
+        in_props.device_id         == device_id         &&
+        in_props.device_type       == device_type       &&
+        in_props.driver_version    == driver_version    &&
+        in_props.limits            == limits            &&
+        in_props.sparse_properties == sparse_properties &&
+        in_props.vendor_id         == vendor_id)
+    {
+        if (memcmp(device_name,
+                   in_props.device_name,
+                   sizeof(device_name) )         == 0 &&
+            memcmp(pipeline_cache_uuid,
+                   in_props.pipeline_cache_uuid,
+                   sizeof(pipeline_cache_uuid) ) == 0)
+        {
+            result = true;
+        }
+    }
+
+    return result;
+}
+
+Anvil::PhysicalDeviceSparseProperties::PhysicalDeviceSparseProperties()
+    :residency_standard_2D_block_shape            (false),
+     residency_standard_2D_multisample_block_shape(false),
+     residency_standard_3D_block_shape            (false),
+     residency_aligned_mip_size                   (false),
+     residency_non_resident_strict                (false)
+{
+    /* Stub */
+}
+
+Anvil::PhysicalDeviceSparseProperties::PhysicalDeviceSparseProperties(const VkPhysicalDeviceSparseProperties& in_sparse_props)
+    :residency_standard_2D_block_shape            (VK_BOOL32_TO_BOOL(in_sparse_props.residencyStandard2DBlockShape)            ),
+     residency_standard_2D_multisample_block_shape(VK_BOOL32_TO_BOOL(in_sparse_props.residencyStandard2DMultisampleBlockShape) ),
+     residency_standard_3D_block_shape            (VK_BOOL32_TO_BOOL(in_sparse_props.residencyStandard3DBlockShape)            ),
+     residency_aligned_mip_size                   (VK_BOOL32_TO_BOOL(in_sparse_props.residencyAlignedMipSize)                  ),
+     residency_non_resident_strict                (VK_BOOL32_TO_BOOL(in_sparse_props.residencyNonResidentStrict)               )
+{
+    /* Stub */
+}
+
+bool Anvil::PhysicalDeviceSparseProperties::operator==(const Anvil::PhysicalDeviceSparseProperties& in_props) const
+{
+    return (residency_standard_2D_block_shape             == in_props.residency_standard_2D_block_shape             &&
+            residency_standard_2D_multisample_block_shape == in_props.residency_standard_2D_multisample_block_shape &&
+            residency_standard_3D_block_shape             == in_props.residency_standard_3D_block_shape             &&
+            residency_aligned_mip_size                    == in_props.residency_aligned_mip_size                    &&
+            residency_non_resident_strict                 == in_props.residency_non_resident_strict);
+}
+
+Anvil::PushConstantRange::PushConstantRange(uint32_t           in_offset,
+                                            uint32_t           in_size,
+                                            VkShaderStageFlags in_stages)
+{
+    offset = in_offset;
+    size   = in_size;
+    stages = static_cast<VkShaderStageFlagBits>(in_stages);
+}
+
+bool Anvil::PushConstantRange::operator==(const PushConstantRange& in) const
+{
+    return (offset == in.offset &&
+            size   == in.size   &&
+            stages == in.stages);
+}
+
+Anvil::QueueFamilyInfo::QueueFamilyInfo(const VkQueueFamilyProperties& in_props)
+{
+    flags                          = in_props.queueFlags;
+    min_image_transfer_granularity = in_props.minImageTransferGranularity;
+    n_queues                       = in_props.queueCount;
+    n_timestamp_bits               = in_props.timestampValidBits;
+}
+
+/** Please see header for specification */
+bool Anvil::operator==(const Anvil::QueueFamilyInfo& in1,
+                       const Anvil::QueueFamilyInfo& in2)
+{
+    return (in1.flags                                 == in2.flags                                 &&
+            in1.min_image_transfer_granularity.depth  == in2.min_image_transfer_granularity.depth  &&
+            in1.min_image_transfer_granularity.height == in2.min_image_transfer_granularity.height &&
+            in1.min_image_transfer_granularity.width  == in2.min_image_transfer_granularity.width  &&
+            in1.n_queues                              == in2.n_queues                              &&
+            in1.n_timestamp_bits                      == in2.n_timestamp_bits);
+}
+
+/** Please see header for specification */
+Anvil::ShaderModuleStageEntryPoint::ShaderModuleStageEntryPoint()
+{
+    shader_module_ptr = nullptr;
+    stage             = SHADER_STAGE_UNKNOWN;
+}
+
+/** Please see header for specification */
+Anvil::ShaderModuleStageEntryPoint::ShaderModuleStageEntryPoint(const std::string& in_name,
+                                                                ShaderModule*      in_shader_module_ptr,
+                                                                ShaderStage        in_stage)
+{
+    anvil_assert(in_shader_module_ptr != nullptr);
+
+    name              = in_name;
+    shader_module_ptr = in_shader_module_ptr;
+    stage             = in_stage;
+}
+
+Anvil::ShaderModuleStageEntryPoint::ShaderModuleStageEntryPoint(const std::string&    in_name,
+                                                                ShaderModuleUniquePtr in_shader_module_ptr,
+                                                                ShaderStage           in_stage)
+{
+    anvil_assert(in_shader_module_ptr != nullptr);
+
+    name              = in_name;
+    shader_module_ptr = in_shader_module_ptr.get();
+    stage             = in_stage;
+
+    shader_module_owned_ptr = std::move(in_shader_module_ptr);
+}
+
+/** Please see header for specification */
+Anvil::ShaderModuleStageEntryPoint::ShaderModuleStageEntryPoint(const ShaderModuleStageEntryPoint& in)
+{
+    name              = in.name;
+    shader_module_ptr = in.shader_module_ptr;
+    stage             = in.stage;
+}
+
+/** Please see header for specification */
+Anvil::ShaderModuleStageEntryPoint::~ShaderModuleStageEntryPoint()
+{
+    /* Stub */
+}
+
+/** Please see header for specification */
+Anvil::ShaderModuleStageEntryPoint& Anvil::ShaderModuleStageEntryPoint::operator=(const Anvil::ShaderModuleStageEntryPoint& in)
+{
+    name              = in.name;
+    shader_module_ptr = in.shader_module_ptr;
+    stage             = in.stage;
+
+    return *this;
+}
+
+Anvil::SparseImageAspectProperties::SparseImageAspectProperties()
+{
+    memset(this,
+           0,
+           sizeof(*this) );
+}
+
+Anvil::SparseImageAspectProperties::SparseImageAspectProperties(const VkSparseImageMemoryRequirements& in_req)
+{
+    aspect_mask        = in_req.formatProperties.aspectMask;
+    flags              = in_req.formatProperties.flags;
+    granularity        = in_req.formatProperties.imageGranularity;
+    mip_tail_first_lod = in_req.imageMipTailFirstLod;
+    mip_tail_offset    = in_req.imageMipTailOffset;
+    mip_tail_size      = in_req.imageMipTailSize;
+    mip_tail_stride    = in_req.imageMipTailStride;
+}
+
+Anvil::SparseMemoryBindingUpdateInfo::SparseMemoryBindingUpdateInfo()
+{
+    m_dirty     = true;
+    m_fence_ptr = nullptr;
+}
+
+Anvil::SpecializationConstant::SpecializationConstant()
+{
+    constant_id  = UINT32_MAX;
+    n_bytes      = UINT32_MAX;
+    start_offset = UINT32_MAX;
+}
+
+Anvil::SpecializationConstant::SpecializationConstant(uint32_t in_constant_id,
+                                                      uint32_t in_n_bytes,
+                                                      uint32_t in_start_offset)
+{
+    constant_id  = in_constant_id;
+    n_bytes      = in_n_bytes;
+    start_offset = in_start_offset;
+}
+
+bool Anvil::PhysicalDeviceFeatures::operator==(const PhysicalDeviceFeatures& in_physical_device_features) const
+{
+    const bool core_vk1_0_features_match              = (*core_vk1_0_features_ptr == *in_physical_device_features.core_vk1_0_features_ptr);
+    bool       ext_descriptor_indexing_features_match = false;
+    bool       khr_16bit_storage_features_match       = false;
+
+    if (khr_16bit_storage_features_ptr                             != nullptr &&
+        in_physical_device_features.khr_16bit_storage_features_ptr != nullptr)
+    {
+        khr_16bit_storage_features_match = (*khr_16bit_storage_features_ptr == *in_physical_device_features.khr_16bit_storage_features_ptr);
+    }
+    else
+    {
+        khr_16bit_storage_features_match = (khr_16bit_storage_features_ptr                             == nullptr &&
+                                            in_physical_device_features.khr_16bit_storage_features_ptr == nullptr);
+    }
+
+    if (ext_descriptor_indexing_features_ptr                             != nullptr &&
+        in_physical_device_features.ext_descriptor_indexing_features_ptr != nullptr)
+    {
+        ext_descriptor_indexing_features_match = (*ext_descriptor_indexing_features_ptr == *in_physical_device_features.ext_descriptor_indexing_features_ptr);
+    }
+    else
+    {
+        ext_descriptor_indexing_features_match = (ext_descriptor_indexing_features_ptr                             == nullptr &&
+                                                  in_physical_device_features.ext_descriptor_indexing_features_ptr == nullptr);
+    }
+
+    return core_vk1_0_features_match              &&
+           ext_descriptor_indexing_features_match &&
+           khr_16bit_storage_features_match;
+}
+
+Anvil::PhysicalDeviceFeaturesCoreVK10::PhysicalDeviceFeaturesCoreVK10()
+    :alpha_to_one                                (false),
+     depth_bias_clamp                            (false),
+     depth_bounds                                (false),
+     depth_clamp                                 (false),
+     draw_indirect_first_instance                (false),
+     dual_src_blend                              (false),
+     fill_mode_non_solid                         (false),
+     fragment_stores_and_atomics                 (false),
+     full_draw_index_uint32                      (false),
+     geometry_shader                             (false),
+     image_cube_array                            (false),
+     independent_blend                           (false),
+     inherited_queries                           (false),
+     large_points                                (false),
+     logic_ip                                    (false),
+     multi_draw_indirect                         (false),
+     multi_viewport                              (false),
+     occlusion_query_precise                     (false),
+     pipeline_statistics_query                   (false),
+     robust_buffer_access                        (false),
+     sampler_anisotropy                          (false),
+     sample_rate_shading                         (false),
+     shader_clip_distance                        (false),
+     shader_cull_distance                        (false),
+     shader_float64                              (false),
+     shader_image_gather_extended                (false),
+     shader_int16                                (false),
+     shader_int64                                (false),
+     shader_resource_residency                   (false),
+     shader_resource_min_lod                     (false),
+     shader_sampled_image_array_dynamic_indexing (false),
+     shader_storage_buffer_array_dynamic_indexing(false),
+     shader_storage_image_array_dynamic_indexing (false),
+     shader_storage_image_extended_formats       (false),
+     shader_storage_image_multisample            (false),
+     shader_storage_image_read_without_format    (false),
+     shader_storage_image_write_without_format   (false),
+     shader_tessellation_and_geometry_point_size (false),
+     shader_uniform_buffer_array_dynamic_indexing(false),
+     sparse_binding                              (false),
+     sparse_residency_2_samples                  (false),
+     sparse_residency_4_samples                  (false),
+     sparse_residency_8_samples                  (false),
+     sparse_residency_16_samples                 (false),
+     sparse_residency_aliased                    (false),
+     sparse_residency_buffer                     (false),
+     sparse_residency_image_2D                   (false),
+     sparse_residency_image_3D                   (false),
+     tessellation_shader                         (false),
+     texture_compression_ASTC_LDR                (false),
+     texture_compression_BC                      (false),
+     texture_compression_ETC2                    (false),
+     variable_multisample_rate                   (false),
+     vertex_pipeline_stores_and_atomics          (false),
+     wide_lines                                  (false)
+{
+    /* Stub */
+}
+
+Anvil::PhysicalDeviceFeaturesCoreVK10::PhysicalDeviceFeaturesCoreVK10(const VkPhysicalDeviceFeatures& in_physical_device_features)
+    :alpha_to_one                                (VK_BOOL32_TO_BOOL(in_physical_device_features.alphaToOne) ),
+     depth_bias_clamp                            (VK_BOOL32_TO_BOOL(in_physical_device_features.depthBiasClamp) ),
+     depth_bounds                                (VK_BOOL32_TO_BOOL(in_physical_device_features.depthBounds) ),
+     depth_clamp                                 (VK_BOOL32_TO_BOOL(in_physical_device_features.depthClamp) ),
+     draw_indirect_first_instance                (VK_BOOL32_TO_BOOL(in_physical_device_features.drawIndirectFirstInstance) ),
+     dual_src_blend                              (VK_BOOL32_TO_BOOL(in_physical_device_features.dualSrcBlend) ),
+     fill_mode_non_solid                         (VK_BOOL32_TO_BOOL(in_physical_device_features.fillModeNonSolid) ),
+     fragment_stores_and_atomics                 (VK_BOOL32_TO_BOOL(in_physical_device_features.fragmentStoresAndAtomics) ),
+     full_draw_index_uint32                      (VK_BOOL32_TO_BOOL(in_physical_device_features.fullDrawIndexUint32) ),
+     geometry_shader                             (VK_BOOL32_TO_BOOL(in_physical_device_features.geometryShader) ),
+     image_cube_array                            (VK_BOOL32_TO_BOOL(in_physical_device_features.imageCubeArray) ),
+     independent_blend                           (VK_BOOL32_TO_BOOL(in_physical_device_features.independentBlend) ),
+     inherited_queries                           (VK_BOOL32_TO_BOOL(in_physical_device_features.inheritedQueries) ),
+     large_points                                (VK_BOOL32_TO_BOOL(in_physical_device_features.largePoints) ),
+     logic_ip                                    (VK_BOOL32_TO_BOOL(in_physical_device_features.logicOp) ),
+     multi_draw_indirect                         (VK_BOOL32_TO_BOOL(in_physical_device_features.multiDrawIndirect) ),
+     multi_viewport                              (VK_BOOL32_TO_BOOL(in_physical_device_features.multiViewport) ),
+     occlusion_query_precise                     (VK_BOOL32_TO_BOOL(in_physical_device_features.occlusionQueryPrecise) ),
+     pipeline_statistics_query                   (VK_BOOL32_TO_BOOL(in_physical_device_features.pipelineStatisticsQuery) ),
+     robust_buffer_access                        (VK_BOOL32_TO_BOOL(in_physical_device_features.robustBufferAccess) ),
+     sampler_anisotropy                          (VK_BOOL32_TO_BOOL(in_physical_device_features.samplerAnisotropy) ),
+     sample_rate_shading                         (VK_BOOL32_TO_BOOL(in_physical_device_features.sampleRateShading) ),
+     shader_clip_distance                        (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderClipDistance) ),
+     shader_cull_distance                        (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderCullDistance) ),
+     shader_float64                              (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderFloat64) ),
+     shader_image_gather_extended                (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderImageGatherExtended) ),
+     shader_int16                                (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderInt16) ),
+     shader_int64                                (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderInt64) ),
+     shader_resource_residency                   (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderResourceResidency) ),
+     shader_resource_min_lod                     (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderResourceMinLod) ),
+     shader_sampled_image_array_dynamic_indexing (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderSampledImageArrayDynamicIndexing) ),
+     shader_storage_buffer_array_dynamic_indexing(VK_BOOL32_TO_BOOL(in_physical_device_features.shaderStorageBufferArrayDynamicIndexing) ),
+     shader_storage_image_array_dynamic_indexing (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderStorageImageArrayDynamicIndexing) ),
+     shader_storage_image_extended_formats       (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderStorageImageExtendedFormats) ),
+     shader_storage_image_multisample            (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderStorageImageMultisample) ),
+     shader_storage_image_read_without_format    (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderStorageImageReadWithoutFormat) ),
+     shader_storage_image_write_without_format   (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderStorageImageWriteWithoutFormat) ),
+     shader_tessellation_and_geometry_point_size (VK_BOOL32_TO_BOOL(in_physical_device_features.shaderTessellationAndGeometryPointSize) ),
+     shader_uniform_buffer_array_dynamic_indexing(VK_BOOL32_TO_BOOL(in_physical_device_features.shaderUniformBufferArrayDynamicIndexing) ),
+     sparse_binding                              (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseBinding) ),
+     sparse_residency_2_samples                  (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseResidency2Samples) ),
+     sparse_residency_4_samples                  (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseResidency4Samples) ),
+     sparse_residency_8_samples                  (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseResidency8Samples) ),
+     sparse_residency_16_samples                 (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseResidency16Samples) ),
+     sparse_residency_aliased                    (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseResidencyAliased) ),
+     sparse_residency_buffer                     (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseResidencyBuffer) ),
+     sparse_residency_image_2D                   (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseResidencyImage2D) ),
+     sparse_residency_image_3D                   (VK_BOOL32_TO_BOOL(in_physical_device_features.sparseResidencyImage3D) ),
+     tessellation_shader                         (VK_BOOL32_TO_BOOL(in_physical_device_features.tessellationShader) ),
+     texture_compression_ASTC_LDR                (VK_BOOL32_TO_BOOL(in_physical_device_features.textureCompressionASTC_LDR) ),
+     texture_compression_BC                      (VK_BOOL32_TO_BOOL(in_physical_device_features.textureCompressionBC) ),
+     texture_compression_ETC2                    (VK_BOOL32_TO_BOOL(in_physical_device_features.textureCompressionETC2) ),
+     variable_multisample_rate                   (VK_BOOL32_TO_BOOL(in_physical_device_features.variableMultisampleRate) ),
+     vertex_pipeline_stores_and_atomics          (VK_BOOL32_TO_BOOL(in_physical_device_features.vertexPipelineStoresAndAtomics) ),
+     wide_lines                                  (VK_BOOL32_TO_BOOL(in_physical_device_features.wideLines) )
+{
+    /* Stub */
+}
+
+VkPhysicalDeviceFeatures Anvil::PhysicalDeviceFeaturesCoreVK10::get_vk_physical_device_features() const
+{
+    VkPhysicalDeviceFeatures result;
+
+    result.alphaToOne                              = BOOL_TO_VK_BOOL32(alpha_to_one);
+    result.depthBiasClamp                          = BOOL_TO_VK_BOOL32(depth_bias_clamp);
+    result.depthBounds                             = BOOL_TO_VK_BOOL32(depth_bounds);
+    result.depthClamp                              = BOOL_TO_VK_BOOL32(depth_clamp);
+    result.drawIndirectFirstInstance               = BOOL_TO_VK_BOOL32(draw_indirect_first_instance);
+    result.dualSrcBlend                            = BOOL_TO_VK_BOOL32(dual_src_blend);
+    result.fillModeNonSolid                        = BOOL_TO_VK_BOOL32(fill_mode_non_solid);
+    result.fragmentStoresAndAtomics                = BOOL_TO_VK_BOOL32(fragment_stores_and_atomics);
+    result.fullDrawIndexUint32                     = BOOL_TO_VK_BOOL32(full_draw_index_uint32);
+    result.geometryShader                          = BOOL_TO_VK_BOOL32(geometry_shader);
+    result.imageCubeArray                          = BOOL_TO_VK_BOOL32(image_cube_array);
+    result.independentBlend                        = BOOL_TO_VK_BOOL32(independent_blend);
+    result.inheritedQueries                        = BOOL_TO_VK_BOOL32(inherited_queries);
+    result.largePoints                             = BOOL_TO_VK_BOOL32(large_points);
+    result.logicOp                                 = BOOL_TO_VK_BOOL32(logic_ip);
+    result.multiDrawIndirect                       = BOOL_TO_VK_BOOL32(multi_draw_indirect);
+    result.multiViewport                           = BOOL_TO_VK_BOOL32(multi_viewport);
+    result.occlusionQueryPrecise                   = BOOL_TO_VK_BOOL32(occlusion_query_precise);
+    result.pipelineStatisticsQuery                 = BOOL_TO_VK_BOOL32(pipeline_statistics_query);
+    result.robustBufferAccess                      = BOOL_TO_VK_BOOL32(robust_buffer_access);
+    result.samplerAnisotropy                       = BOOL_TO_VK_BOOL32(sampler_anisotropy);
+    result.sampleRateShading                       = BOOL_TO_VK_BOOL32(sample_rate_shading);
+    result.shaderClipDistance                      = BOOL_TO_VK_BOOL32(shader_clip_distance);
+    result.shaderCullDistance                      = BOOL_TO_VK_BOOL32(shader_cull_distance);
+    result.shaderFloat64                           = BOOL_TO_VK_BOOL32(shader_float64);
+    result.shaderImageGatherExtended               = BOOL_TO_VK_BOOL32(shader_image_gather_extended);
+    result.shaderInt16                             = BOOL_TO_VK_BOOL32(shader_int16);
+    result.shaderInt64                             = BOOL_TO_VK_BOOL32(shader_int64);
+    result.shaderResourceResidency                 = BOOL_TO_VK_BOOL32(shader_resource_residency);
+    result.shaderResourceMinLod                    = BOOL_TO_VK_BOOL32(shader_resource_min_lod);
+    result.shaderSampledImageArrayDynamicIndexing  = BOOL_TO_VK_BOOL32(shader_sampled_image_array_dynamic_indexing);
+    result.shaderStorageBufferArrayDynamicIndexing = BOOL_TO_VK_BOOL32(shader_storage_buffer_array_dynamic_indexing);
+    result.shaderStorageImageArrayDynamicIndexing  = BOOL_TO_VK_BOOL32(shader_storage_image_array_dynamic_indexing);
+    result.shaderStorageImageExtendedFormats       = BOOL_TO_VK_BOOL32(shader_storage_image_extended_formats);
+    result.shaderStorageImageMultisample           = BOOL_TO_VK_BOOL32(shader_storage_image_multisample);
+    result.shaderStorageImageReadWithoutFormat     = BOOL_TO_VK_BOOL32(shader_storage_image_read_without_format);
+    result.shaderStorageImageWriteWithoutFormat    = BOOL_TO_VK_BOOL32(shader_storage_image_write_without_format);
+    result.shaderTessellationAndGeometryPointSize  = BOOL_TO_VK_BOOL32(shader_tessellation_and_geometry_point_size);
+    result.shaderUniformBufferArrayDynamicIndexing = BOOL_TO_VK_BOOL32(shader_uniform_buffer_array_dynamic_indexing);
+    result.sparseBinding                           = BOOL_TO_VK_BOOL32(sparse_binding);
+    result.sparseResidency2Samples                 = BOOL_TO_VK_BOOL32(sparse_residency_2_samples);
+    result.sparseResidency4Samples                 = BOOL_TO_VK_BOOL32(sparse_residency_4_samples);
+    result.sparseResidency8Samples                 = BOOL_TO_VK_BOOL32(sparse_residency_8_samples);
+    result.sparseResidency16Samples                = BOOL_TO_VK_BOOL32(sparse_residency_16_samples);
+    result.sparseResidencyAliased                  = BOOL_TO_VK_BOOL32(sparse_residency_aliased);
+    result.sparseResidencyBuffer                   = BOOL_TO_VK_BOOL32(sparse_residency_buffer);
+    result.sparseResidencyImage2D                  = BOOL_TO_VK_BOOL32(sparse_residency_image_2D);
+    result.sparseResidencyImage3D                  = BOOL_TO_VK_BOOL32(sparse_residency_image_3D);
+    result.tessellationShader                      = BOOL_TO_VK_BOOL32(tessellation_shader);
+    result.textureCompressionASTC_LDR              = BOOL_TO_VK_BOOL32(texture_compression_ASTC_LDR);
+    result.textureCompressionBC                    = BOOL_TO_VK_BOOL32(texture_compression_BC);
+    result.textureCompressionETC2                  = BOOL_TO_VK_BOOL32(texture_compression_ETC2);
+    result.variableMultisampleRate                 = BOOL_TO_VK_BOOL32(variable_multisample_rate);
+    result.vertexPipelineStoresAndAtomics          = BOOL_TO_VK_BOOL32(vertex_pipeline_stores_and_atomics);
+    result.wideLines                               = BOOL_TO_VK_BOOL32(wide_lines);
+
+    return result;
+}
+
+bool Anvil::PhysicalDeviceFeaturesCoreVK10::operator==(const Anvil::PhysicalDeviceFeaturesCoreVK10& in_data) const
+{
+    return (alpha_to_one                                 == in_data.alpha_to_one)                                 &&
+           (depth_bias_clamp                             == in_data.depth_bias_clamp)                             &&
+           (depth_bounds                                 == in_data.depth_bounds)                                 &&
+           (depth_clamp                                  == in_data.depth_clamp)                                  &&
+           (draw_indirect_first_instance                 == in_data.draw_indirect_first_instance)                 &&
+           (dual_src_blend                               == in_data.dual_src_blend)                               &&
+           (fill_mode_non_solid                          == in_data.fill_mode_non_solid)                          &&
+           (fragment_stores_and_atomics                  == in_data.fragment_stores_and_atomics)                  &&
+           (full_draw_index_uint32                       == in_data.full_draw_index_uint32)                       &&
+           (geometry_shader                              == in_data.geometry_shader)                              &&
+           (image_cube_array                             == in_data.image_cube_array)                             &&
+           (independent_blend                            == in_data.independent_blend)                            &&
+           (inherited_queries                            == in_data.inherited_queries)                            &&
+           (large_points                                 == in_data.large_points)                                 &&
+           (logic_ip                                     == in_data.logic_ip)                                     &&
+           (multi_draw_indirect                          == in_data.multi_draw_indirect)                          &&
+           (multi_viewport                               == in_data.multi_viewport)                               &&
+           (occlusion_query_precise                      == in_data.occlusion_query_precise)                      &&
+           (pipeline_statistics_query                    == in_data.pipeline_statistics_query)                    &&
+           (robust_buffer_access                         == in_data.robust_buffer_access)                         &&
+           (sampler_anisotropy                           == in_data.sampler_anisotropy)                           &&
+           (sample_rate_shading                          == in_data.sample_rate_shading)                          &&
+           (shader_clip_distance                         == in_data.shader_clip_distance)                         &&
+           (shader_cull_distance                         == in_data.shader_cull_distance)                         &&
+           (shader_float64                               == in_data.shader_float64)                               &&
+           (shader_image_gather_extended                 == in_data.shader_image_gather_extended)                 &&
+           (shader_int16                                 == in_data.shader_int16)                                 &&
+           (shader_int64                                 == in_data.shader_int64)                                 &&
+           (shader_resource_residency                    == in_data.shader_resource_residency)                    &&
+           (shader_resource_min_lod                      == in_data.shader_resource_min_lod)                      &&
+           (shader_sampled_image_array_dynamic_indexing  == in_data.shader_sampled_image_array_dynamic_indexing)  &&
+           (shader_storage_buffer_array_dynamic_indexing == in_data.shader_storage_buffer_array_dynamic_indexing) &&
+           (shader_storage_image_array_dynamic_indexing  == in_data.shader_storage_image_array_dynamic_indexing)  &&
+           (shader_storage_image_extended_formats        == in_data.shader_storage_image_extended_formats)        &&
+           (shader_storage_image_multisample             == in_data.shader_storage_image_multisample)             &&
+           (shader_storage_image_read_without_format     == in_data.shader_storage_image_read_without_format)     &&
+           (shader_storage_image_write_without_format    == in_data.shader_storage_image_write_without_format)    &&
+           (shader_tessellation_and_geometry_point_size  == in_data.shader_tessellation_and_geometry_point_size)  &&
+           (shader_uniform_buffer_array_dynamic_indexing == in_data.shader_uniform_buffer_array_dynamic_indexing) &&
+           (sparse_binding                               == in_data.sparse_binding)                               &&
+           (sparse_residency_2_samples                   == in_data.sparse_residency_2_samples)                   &&
+           (sparse_residency_4_samples                   == in_data.sparse_residency_4_samples)                   &&
+           (sparse_residency_8_samples                   == in_data.sparse_residency_8_samples)                   &&
+           (sparse_residency_16_samples                  == in_data.sparse_residency_16_samples)                  &&
+           (sparse_residency_aliased                     == in_data.sparse_residency_aliased)                     &&
+           (sparse_residency_buffer                      == in_data.sparse_residency_buffer)                      &&
+           (sparse_residency_image_2D                    == in_data.sparse_residency_image_2D)                    &&
+           (sparse_residency_image_3D                    == in_data.sparse_residency_image_3D)                    &&
+           (tessellation_shader                          == in_data.tessellation_shader)                          &&
+           (texture_compression_ASTC_LDR                 == in_data.texture_compression_ASTC_LDR)                 &&
+           (texture_compression_BC                       == in_data.texture_compression_BC)                       &&
+           (texture_compression_ETC2                     == in_data.texture_compression_ETC2)                     &&
+           (variable_multisample_rate                    == in_data.variable_multisample_rate)                    &&
+           (vertex_pipeline_stores_and_atomics           == in_data.vertex_pipeline_stores_and_atomics)           &&
+           (wide_lines                                   == in_data.wide_lines);
+}
+
+bool Anvil::PhysicalDeviceProperties::operator==(const PhysicalDeviceProperties& in_props) const
+{
+    bool       amd_shader_core_properties_match         = false;
+    const bool core_vk1_0_features_match                = (*core_vk1_0_properties_ptr == *in_props.core_vk1_0_properties_ptr);
+    bool       ext_descriptor_indexing_properties_match = false;
+    bool       khr_maintenance3_properties_match        = false;
+
+    if (amd_shader_core_properties_ptr          != nullptr &&
+        in_props.amd_shader_core_properties_ptr != nullptr)
+    {
+        amd_shader_core_properties_match = (*amd_shader_core_properties_ptr == *in_props.amd_shader_core_properties_ptr);
+    }
+    else
+    {
+        amd_shader_core_properties_match = (amd_shader_core_properties_ptr          == nullptr &&
+                                            in_props.amd_shader_core_properties_ptr == nullptr);
+    }
+
+    if (ext_descriptor_indexing_properties_ptr          != nullptr &&
+        in_props.ext_descriptor_indexing_properties_ptr != nullptr)
+    {
+        ext_descriptor_indexing_properties_match = (*ext_descriptor_indexing_properties_ptr == *in_props.ext_descriptor_indexing_properties_ptr);
+    }
+    else
+    {
+        ext_descriptor_indexing_properties_match = (ext_descriptor_indexing_properties_ptr          == nullptr &&
+                                                    in_props.ext_descriptor_indexing_properties_ptr == nullptr);
+    }
+
+    if (khr_maintenance3_properties_ptr          != nullptr &&
+        in_props.khr_maintenance3_properties_ptr != nullptr)
+    {
+        khr_maintenance3_properties_match = (*khr_maintenance3_properties_ptr == *in_props.khr_maintenance3_properties_ptr);
+    }
+    else
+    {
+        khr_maintenance3_properties_match = (khr_maintenance3_properties_ptr          == nullptr &&
+                                             in_props.khr_maintenance3_properties_ptr == nullptr);
+    }
+
+    return amd_shader_core_properties_match         &&
+           core_vk1_0_features_match                &&
+           ext_descriptor_indexing_properties_match &&
+           khr_maintenance3_properties_match;
+}
