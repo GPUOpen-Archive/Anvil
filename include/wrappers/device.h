@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,7 @@
 #define WRAPPERS_DEVICE_H
 
 #include "misc/debug.h"
+#include "misc/extensions.h"
 #include "misc/mt_safety.h"
 #include "misc/struct_chainer.h"
 #include "misc/types.h"
@@ -121,7 +122,7 @@ namespace Anvil
          **/
         const ExtensionAMDDrawIndirectCountEntrypoints& get_extension_amd_draw_indirect_count_entrypoints() const
         {
-            anvil_assert(m_amd_draw_indirect_count_enabled);
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->amd_draw_indirect_count() );
 
             return m_amd_draw_indirect_count_extension_entrypoints;
         }
@@ -132,7 +133,7 @@ namespace Anvil
         **/
         const ExtensionAMDShaderInfoEntrypoints& get_extension_amd_shader_info_entrypoints() const
         {
-            anvil_assert(m_amd_shader_info_enabled);
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->amd_shader_info() );
 
             return m_amd_shader_info_extension_entrypoints;
         }
@@ -143,7 +144,7 @@ namespace Anvil
          **/
         const ExtensionEXTDebugMarkerEntrypoints& get_extension_ext_debug_marker_entrypoints() const
         {
-            anvil_assert(m_ext_debug_marker_enabled);
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->ext_debug_marker() );
 
             return m_ext_debug_marker_extension_entrypoints;
         }
@@ -151,7 +152,7 @@ namespace Anvil
         /** Returns a container with entry-points to functions introduced by VK_KHR_bind_memory2 extension. **/
         const ExtensionKHRBindMemory2Entrypoints& get_extension_khr_bind_memory2_entrypoints() const
         {
-            anvil_assert(m_khr_bind_memory2_enabled);
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_bind_memory2() );
 
             return m_khr_bind_memory2_extension_entrypoints;
         }
@@ -159,7 +160,7 @@ namespace Anvil
         /** Returns a container with entry-points to functions introduced by VK_KHR_descriptor_update_template extension. **/
         const ExtensionKHRDescriptorUpdateTemplateEntrypoints& get_extension_khr_descriptor_update_template_entrypoints() const
         {
-            anvil_assert(m_khr_descriptor_update_template_enabled);
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_descriptor_update_template() );
 
             return m_khr_descriptor_update_template_extension_entrypoints;
         }
@@ -167,7 +168,7 @@ namespace Anvil
         /** Returns a container with entry-points to functions introduced by VK_KHR_maintenance1 extension. **/
         const ExtensionKHRMaintenance1Entrypoints& get_extension_khr_maintenance1_entrypoints() const
         {
-            anvil_assert(m_khr_maintenance1_enabled);
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_maintenance1() );
 
             return m_khr_maintenance1_extension_entrypoints;
         }
@@ -175,7 +176,7 @@ namespace Anvil
         /** Returns a container with entry-points to functions introduced by VK_KHR_maintenance3 extension. **/
         const ExtensionKHRMaintenance3Entrypoints& get_extension_khr_maintenance3_entrypoints() const
         {
-            anvil_assert(m_khr_maintenance3_enabled);
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_maintenance3() );
 
             return m_khr_maintenance3_extension_entrypoints;
         }
@@ -186,7 +187,7 @@ namespace Anvil
          **/
         const ExtensionKHRSwapchainEntrypoints& get_extension_khr_swapchain_entrypoints() const
         {
-            anvil_assert(m_khr_swapchain_enabled);
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_swapchain() );
 
             return m_khr_swapchain_extension_entrypoints;
         }
@@ -224,9 +225,9 @@ namespace Anvil
 
             switch (in_family_type)
             {
-                case Anvil::QueueFamilyType::COMPUTE:   result = static_cast<uint32_t>(m_compute_queues.size() );   break;
-                case Anvil::QueueFamilyType::TRANSFER:  result = static_cast<uint32_t>(m_transfer_queues.size() );  break;
-                case Anvil::QueueFamilyType::UNIVERSAL: result = static_cast<uint32_t>(m_universal_queues.size() ); break;
+                case Anvil::QueueFamilyType::COMPUTE:   result = static_cast<uint32_t>(m_compute_queues.size() );      break;
+                case Anvil::QueueFamilyType::TRANSFER:  result = static_cast<uint32_t>(m_transfer_queues.size() );     break;
+                case Anvil::QueueFamilyType::UNIVERSAL: result = static_cast<uint32_t>(m_universal_queues.size() );    break;
 
                 default:
                 {
@@ -483,76 +484,11 @@ namespace Anvil
         /* Tells what type this device instance is */
         virtual DeviceType get_type() const = 0;
 
-        bool is_amd_draw_indirect_count_extension_enabled() const
-        {
-            return m_amd_draw_indirect_count_enabled;
-        }
-
-        bool is_amd_gcn_shader_extension_enabled() const
-        {
-            return m_amd_gcn_shader_enabled;
-        }
-
-        bool is_amd_gpu_shader_half_float_extension_enabled() const
-        {
-            return m_amd_gpu_shader_half_float_enabled;
-        }
-
-        bool is_amd_gpu_shader_int16_extension_enabled() const
-        {
-            return m_amd_gpu_shader_int16_enabled;
-        }
-
-        bool is_amd_negative_viewport_height_extension_enabled() const
-        {
-            return m_amd_negative_viewport_height_enabled;
-        }
-
-        bool is_amd_rasterization_order_extension_enabled() const
-        {
-            return m_amd_rasterization_order_enabled;
-        }
-
-        bool is_amd_shader_ballot_extension_enabled() const
-        {
-            return m_amd_shader_ballot_enabled;
-        }
-
-        bool is_amd_shader_explicit_vertex_parameter_extension_enabled() const
-        {
-            return m_amd_shader_explicit_vertex_parameter_enabled;
-        }
-
-        bool is_amd_shader_fragment_mask_extension_enabled() const
-        {
-            return m_amd_shader_fragment_mask_enabled;
-        }
-
-        bool is_amd_shader_image_load_store_lod_enabled() const
-        {
-            return m_amd_shader_image_load_store_lod_enabled;
-        }
-
-        bool is_amd_shader_info_extension_enabled() const
-        {
-            return m_amd_shader_info_enabled;
-        }
-
-        bool is_amd_shader_trinary_minmax_extension_enabled() const
-        {
-            return m_amd_shader_trinary_minmax_enabled;
-        }
-
-        bool is_amd_texture_gather_bias_lod_extension_enabled() const
-        {
-            return m_amd_texture_gather_bias_lod_enabled;
-        }
-
         bool is_compute_queue_family_index(const uint32_t& in_queue_family_index) const;
 
-        bool is_ext_shader_stencil_export_extension_enabled() const
+        const Anvil::IExtensionInfoDevice<bool>* get_extension_info() const
         {
-            return m_ext_shader_stencil_export_enabled;
+            return m_extension_enabled_info_ptr->get_device_extension_info();
         }
 
         /* Tells whether the device has been created with the specified extension enabled.
@@ -563,69 +499,16 @@ namespace Anvil
          **/
         bool is_extension_enabled(const std::string& in_extension_name) const
         {
-            return std::find(m_enabled_extensions.begin(),
-                             m_enabled_extensions.end(),
-                             in_extension_name) != m_enabled_extensions.end();
-        }
+            anvil_assert(m_extension_enabled_info_ptr != nullptr);
 
-        bool is_ext_debug_marker_extension_enabled() const
-        {
-            return m_ext_debug_marker_enabled;
-        }
-
-        bool is_ext_shader_subgroup_ballot_extension_enabled() const
-        {
-            return m_ext_shader_subgroup_ballot_enabled;
-        }
-
-        bool is_ext_shader_subgroup_vote_extension_enabled() const
-        {
-            return m_ext_shader_subgroup_vote_enabled;
-        }
-
-        bool is_khr_16bit_storage_extension_enabled() const
-        {
-            return m_khr_16bit_storage_enabled;
-        }
-
-        bool is_khr_descriptor_update_template_extension_enabled() const
-        {
-            return m_khr_descriptor_update_template_enabled;
-        }
-
-        bool is_khr_bind_memory2_extension_enabled() const
-        {
-            return m_khr_bind_memory2_enabled;
-        }
-
-        bool is_khr_maintenance1_extension_enabled() const
-        {
-            return m_khr_maintenance1_enabled;
-        }
-
-        bool is_khr_maintenance3_extension_enabled() const
-        {
-            return m_khr_maintenance3_enabled;
-        }
-
-        bool is_khr_storage_buffer_storage_class_enabled() const
-        {
-            return m_khr_storage_buffer_storage_class_enabled;
-        }
-
-        bool is_khr_surface_extension_enabled() const
-        {
-            return m_khr_surface_enabled;
-        }
-
-        bool is_khr_swapchain_extension_enabled() const
-        {
-            return m_khr_swapchain_enabled;
+            return m_extension_enabled_info_ptr->get_device_extension_info()->by_name(in_extension_name);
         }
 
         bool is_transfer_queue_family_index(const uint32_t& in_queue_family_index) const;
 
         bool is_universal_queue_family_index(const uint32_t& in_queue_family_index) const;
+
+        bool supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeFlags& in_types) const;
 
         bool wait_idle() const;
 
@@ -666,7 +549,7 @@ namespace Anvil
 
         /* Protected functions */
 
-        std::unique_ptr<Anvil::StructChain<VkPhysicalDeviceFeatures2KHR > > get_physical_device_features_chain() const;
+        std::unique_ptr<Anvil::StructChain<VkPhysicalDeviceFeatures2KHR > > get_physical_device_features_chain(const VkPhysicalDeviceFeatures* in_opt_features_ptr) const;
 
         std::vector<float> get_queue_priorities(const QueueFamilyInfo*              in_queue_family_info_ptr) const;
         void               init                (const DeviceExtensionConfiguration& in_extensions,
@@ -678,7 +561,7 @@ namespace Anvil
         BaseDevice& operator=(const BaseDevice&);
         BaseDevice           (const BaseDevice&);
 
-        /** Retrieves family indices of compute, DMA, graphics, transfer queue families for the specified physical device.
+        /** Retrieves family indices of compute, DMA, graphics, and transfer queue families for the specified physical device.
          *
          *  @param in_physical_device_ptr           Physical device to use for the query.
          *  @param out_device_queue_family_info_ptr Deref will be used to store the result info. Must not be null.
@@ -723,37 +606,12 @@ namespace Anvil
 
     private:
         /* Private variables */
-        bool m_amd_draw_indirect_count_enabled;
-        bool m_amd_gcn_shader_enabled;
-        bool m_amd_gpu_shader_half_float_enabled;
-        bool m_amd_gpu_shader_int16_enabled;
-        bool m_amd_negative_viewport_height_enabled;
-        bool m_amd_rasterization_order_enabled;
-        bool m_amd_shader_ballot_enabled;
-        bool m_amd_shader_explicit_vertex_parameter_enabled;
-        bool m_amd_shader_fragment_mask_enabled;
-        bool m_amd_shader_image_load_store_lod_enabled;
-        bool m_amd_shader_info_enabled;
-        bool m_amd_shader_trinary_minmax_enabled;
-        bool m_amd_texture_gather_bias_lod_enabled;
-        bool m_ext_debug_marker_enabled;
-        bool m_ext_shader_stencil_export_enabled;
-        bool m_ext_shader_subgroup_ballot_enabled;
-        bool m_ext_shader_subgroup_vote_enabled;
-        bool m_khr_16bit_storage_enabled;
-        bool m_khr_bind_memory2_enabled;
-        bool m_khr_descriptor_update_template_enabled;
-        bool m_khr_maintenance1_enabled;
-        bool m_khr_maintenance3_enabled;
-        bool m_khr_storage_buffer_storage_class_enabled;
-        bool m_khr_surface_enabled;
-        bool m_khr_swapchain_enabled;
 
 
         std::unique_ptr<Anvil::ComputePipelineManager> m_compute_pipeline_manager_ptr;
         DescriptorSetLayoutManagerUniquePtr            m_descriptor_set_layout_manager_ptr;
         Anvil::DescriptorSetGroupUniquePtr             m_dummy_dsg_ptr;
-        std::vector<std::string>                       m_enabled_extensions;
+        std::unique_ptr<Anvil::ExtensionInfo<bool> >   m_extension_enabled_info_ptr;
         GraphicsPipelineManagerUniquePtr               m_graphics_pipeline_manager_ptr;
         const Anvil::Instance*                         m_parent_instance_ptr;
         PipelineCacheUniquePtr                         m_pipeline_cache_ptr;

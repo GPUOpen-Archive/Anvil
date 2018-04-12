@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,6 +20,7 @@
 // THE SOFTWARE.
 //
 
+#include "misc/buffer_create_info.h"
 #include "misc/debug.h"
 #include "misc/object_tracker.h"
 #include "misc/struct_chainer.h"
@@ -32,35 +33,96 @@
 #include "wrappers/physical_device.h"
 #include "wrappers/queue.h"
 
-/* Please see header for specification */
-Anvil::Buffer::Buffer(const Anvil::BaseDevice*         in_device_ptr,
-                      VkDeviceSize                     in_size,
-                      QueueFamilyBits                  in_queue_families,
-                      VkSharingMode                    in_queue_sharing_mode,
-                      VkBufferUsageFlags               in_usage_flags,
-                      Anvil::SparseResidencyScope      in_residency_scope,
-                      bool                             in_mt_safe)
+Anvil::Buffer::Buffer(Anvil::BufferCreateInfoUniquePtr in_create_info_ptr)
     :CallbacksSupportProvider          (BUFFER_CALLBACK_ID_COUNT),
-     DebugMarkerSupportProvider<Buffer>(in_device_ptr,
+     DebugMarkerSupportProvider<Buffer>(in_create_info_ptr->get_device(),
                                         VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT),
-     MTSafetySupportProvider           (in_mt_safe),
-     m_buffer                          (VK_NULL_HANDLE),
-     m_buffer_size                     (in_size),
-     m_create_flags                    (0),
-     m_device_ptr                      (in_device_ptr),
-     m_is_sparse                       (true),
-     m_memory_block_ptr                (nullptr),
-     m_parent_buffer_ptr               (nullptr),
-     m_queue_families                  (in_queue_families),
-     m_residency_scope                 (in_residency_scope),
-     m_sharing_mode                    (in_queue_sharing_mode),
-     m_start_offset                    (0)
+     MTSafetySupportProvider           (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety(),
+                                                                                        in_create_info_ptr->get_device   () )),
+     m_buffer          (VK_NULL_HANDLE),
+     m_create_flags    (0),
+     m_memory_block_ptr(nullptr)
 {
-    switch (in_residency_scope)
+    switch (in_create_info_ptr->get_type() )
     {
-        case Anvil::SPARSE_RESIDENCY_SCOPE_ALIASED:    m_create_flags = VK_BUFFER_CREATE_SPARSE_ALIASED_BIT | VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT | VK_BUFFER_CREATE_SPARSE_BINDING_BIT; break;
-        case Anvil::SPARSE_RESIDENCY_SCOPE_NONALIASED: m_create_flags =                                       VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT | VK_BUFFER_CREATE_SPARSE_BINDING_BIT; break;
-        case Anvil::SPARSE_RESIDENCY_SCOPE_NONE:       m_create_flags =                                                                               VK_BUFFER_CREATE_SPARSE_BINDING_BIT; break;
+        case BufferType::NONSPARSE_ALLOC:
+        {
+            /* Nothing to do */
+            break;
+        }
+
+        case BufferType::NONSPARSE_NO_ALLOC:
+        {
+            if ((in_create_info_ptr->get_memory_features() & MEMORY_FEATURE_FLAG_MAPPABLE) == 0)
+            {
+                /* For host->gpu writes to work in this case, we will need the buffer to work as a target
+                 * for buffer->buffer copy operations. Same goes for the other way around.
+                 */
+                auto usage_flags = in_create_info_ptr->get_usage_flags();
+
+                usage_flags |= static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                                                                  VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+
+                in_create_info_ptr->set_usage_flags(usage_flags);
+            }
+
+            break;
+        }
+
+        case BufferType::NONSPARSE_NO_ALLOC_CHILD:
+        {
+            m_create_flags = in_create_info_ptr->get_parent_buffer_ptr()->m_create_flags;
+
+            in_create_info_ptr->set_usage_flags(in_create_info_ptr->get_usage_flags() );
+
+            break;
+        }
+
+        case BufferType::SPARSE_NO_ALLOC:
+        {
+            switch (in_create_info_ptr->get_residency_scope() )
+            {
+                case Anvil::SPARSE_RESIDENCY_SCOPE_ALIASED:
+                {
+                    m_create_flags = VK_BUFFER_CREATE_SPARSE_ALIASED_BIT | VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT | VK_BUFFER_CREATE_SPARSE_BINDING_BIT;
+
+                    break;
+                }
+
+                case Anvil::SPARSE_RESIDENCY_SCOPE_NONALIASED:
+                {
+                    m_create_flags = VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT | VK_BUFFER_CREATE_SPARSE_BINDING_BIT;
+
+                    break;
+                }
+
+                case Anvil::SPARSE_RESIDENCY_SCOPE_NONE:
+                {
+                    m_create_flags = VK_BUFFER_CREATE_SPARSE_BINDING_BIT;
+
+                    break;
+                }
+
+                default:
+                {
+                    anvil_assert_fail();
+                }
+            }
+
+            /* Assume the user may try to bind memory from non-mappable memory heap, in which case
+             * we're going to need to copy data from a staging buffer to this buffer if the user
+             * ever uses write(), and vice versa. */
+            {
+                auto usage_flags = in_create_info_ptr->get_usage_flags();
+
+                usage_flags |= static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT  |
+                                                                  VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+
+                in_create_info_ptr->set_usage_flags(usage_flags);
+            }
+
+            break;
+        }
 
         default:
         {
@@ -68,79 +130,7 @@ Anvil::Buffer::Buffer(const Anvil::BaseDevice*         in_device_ptr,
         }
     }
 
-    /* Assume the user may try to bind memory from non-mappable memory heap, in which case
-     * we're going to need to copy data from a staging buffer to this buffer if the user
-     * ever uses write(), and vice versa. */
-    m_usage_flags = static_cast<VkBufferUsageFlagBits>(in_usage_flags                    |
-                                                       VK_BUFFER_USAGE_TRANSFER_DST_BIT  |
-                                                       VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-}
-
-/* Please see header for specification */
-Anvil::Buffer::Buffer(const Anvil::BaseDevice*  in_device_ptr,
-                      VkDeviceSize              in_size,
-                      Anvil::QueueFamilyBits    in_queue_families,
-                      VkSharingMode             in_queue_sharing_mode,
-                      VkBufferUsageFlags        in_usage_flags,
-                      Anvil::MemoryFeatureFlags in_memory_features,
-                      bool                      in_mt_safe)
-    :CallbacksSupportProvider          (BUFFER_CALLBACK_ID_COUNT),
-     DebugMarkerSupportProvider<Buffer>(in_device_ptr,
-                                        VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT),
-     MTSafetySupportProvider           (in_mt_safe),
-     m_buffer                          (VK_NULL_HANDLE),
-     m_buffer_size                     (in_size),
-     m_create_flags                    (0),
-     m_device_ptr                      (in_device_ptr),
-     m_is_sparse                       (false),
-     m_memory_block_ptr                (nullptr),
-     m_parent_buffer_ptr               (nullptr),
-     m_queue_families                  (in_queue_families),
-     m_residency_scope                 (Anvil::SPARSE_RESIDENCY_SCOPE_UNDEFINED),
-     m_sharing_mode                    (in_queue_sharing_mode),
-     m_start_offset                    (0),
-     m_usage_flags                     (static_cast<VkBufferUsageFlagBits>(in_usage_flags) )
-{
-    /* Sanity checks */
-    if ((in_memory_features & MEMORY_FEATURE_FLAG_MAPPABLE) == 0)
-    {
-        anvil_assert((in_memory_features & MEMORY_FEATURE_FLAG_HOST_COHERENT) == 0)
-
-        /* For host->gpu writes to work in this case, we will need the buffer to work as a target
-         * for buffer->buffer copy operations. Same goes for the other way around.
-         */
-        m_usage_flags |= static_cast<VkBufferUsageFlagBits>(m_usage_flags | VK_BUFFER_USAGE_TRANSFER_DST_BIT 
-                                                                          | VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-    }
-}
-
-/* Please see header for specification */
-Anvil::Buffer::Buffer(Anvil::Buffer* in_parent_buffer_ptr,
-                      VkDeviceSize   in_start_offset,
-                      VkDeviceSize   in_size)
-    :CallbacksSupportProvider          (BUFFER_CALLBACK_ID_COUNT),
-     DebugMarkerSupportProvider<Buffer>(in_parent_buffer_ptr->m_device_ptr,
-                                        VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT),
-     MTSafetySupportProvider           (false),
-     m_buffer                          (VK_NULL_HANDLE),
-     m_buffer_size                     (in_size),
-     m_create_flags                    (0),
-     m_device_ptr                      (nullptr),
-     m_is_sparse                       (false),
-     m_memory_block_ptr                (nullptr),
-     m_parent_buffer_ptr               (in_parent_buffer_ptr),
-     m_residency_scope                 (Anvil::SPARSE_RESIDENCY_SCOPE_UNDEFINED),
-     m_sharing_mode                    (VK_SHARING_MODE_MAX_ENUM),
-     m_start_offset                    (in_start_offset)
-{
-    /* Sanity checks */
-    anvil_assert(in_parent_buffer_ptr != nullptr);
-    anvil_assert(in_size              >  0);
-
-    anvil_assert(!in_parent_buffer_ptr->is_sparse() );
-
-    m_create_flags = in_parent_buffer_ptr->m_create_flags;
-    m_usage_flags  = in_parent_buffer_ptr->m_usage_flags;
+    m_create_info_ptr = std::move(in_create_info_ptr);
 }
 
 
@@ -151,8 +141,8 @@ Anvil::Buffer::~Buffer()
     Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_BUFFER,
                                                    this);
 
-    if (m_buffer            != VK_NULL_HANDLE &&
-        m_parent_buffer_ptr == nullptr)
+    if (m_buffer                                   != VK_NULL_HANDLE &&
+        m_create_info_ptr->get_parent_buffer_ptr() == nullptr)
     {
         lock();
         {
@@ -164,92 +154,22 @@ Anvil::Buffer::~Buffer()
 
         m_buffer = VK_NULL_HANDLE;
     }
-
-    m_parent_buffer_ptr = nullptr;
 }
 
-/** Please see header for specification */
-Anvil::BufferUniquePtr Anvil::Buffer::create_nonsparse(const Anvil::BaseDevice* in_device_ptr,
-                                                       VkDeviceSize             in_size,
-                                                       QueueFamilyBits          in_queue_families,
-                                                       VkSharingMode            in_queue_sharing_mode,
-                                                       VkBufferUsageFlags       in_usage_flags,
-                                                       MTSafety                 in_mt_safety)
+Anvil::BufferUniquePtr Anvil::Buffer::create(Anvil::BufferCreateInfoUniquePtr in_create_info_ptr)
 {
-    const auto             is_mt_safe    (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
-                                                                                          in_device_ptr) );
     Anvil::BufferUniquePtr new_buffer_ptr(nullptr,
                                           std::default_delete<Anvil::Buffer>() );
 
     new_buffer_ptr.reset(
-        new Anvil::Buffer(in_device_ptr,
-                          in_size,
-                          in_queue_families,
-                          in_queue_sharing_mode,
-                          in_usage_flags,
-                          0, /* in_memory_features */
-                          is_mt_safe)
+        new Anvil::Buffer(std::move(in_create_info_ptr) )
     );
 
-    /* Initialize */
-    new_buffer_ptr->create_buffer(in_queue_families,
-                                  in_queue_sharing_mode,
-                                  in_size);
-
-    /* Register the object */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_BUFFER,
-                                                 new_buffer_ptr.get() );
-
-    return new_buffer_ptr;
-}
-
-/** Please see header for specification */
-Anvil::BufferUniquePtr Anvil::Buffer::create_nonsparse(const Anvil::BaseDevice*  in_device_ptr,
-                                                       VkDeviceSize              in_size,
-                                                       QueueFamilyBits           in_queue_families,
-                                                       VkSharingMode             in_queue_sharing_mode,
-                                                       VkBufferUsageFlags        in_usage_flags,
-                                                       Anvil::MemoryFeatureFlags in_memory_features,
-                                                       const void*               in_opt_client_data,
-                                                       MTSafety                  in_mt_safety)
-{
-    const auto             is_mt_safe     = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
-                                                                                            in_device_ptr);
-    Anvil::BufferUniquePtr new_buffer_ptr = Anvil::BufferUniquePtr(nullptr,
-                                                                   std::default_delete<Anvil::Buffer>() );
-
-    new_buffer_ptr.reset(
-        new Anvil::Buffer(in_device_ptr,
-                          in_size,
-                          in_queue_families,
-                          in_queue_sharing_mode,
-                          in_usage_flags,
-                          in_memory_features,
-                          is_mt_safe)
-    );
-
-    /* Initialize */
-    new_buffer_ptr->create_buffer(in_queue_families,
-                                  in_queue_sharing_mode,
-                                  in_size);
-
-    /* Create a memory object and preallocate as much space as we need */
+    if (new_buffer_ptr != nullptr)
     {
-        auto memory_block_ptr = Anvil::MemoryBlock::create(in_device_ptr,
-                                                           new_buffer_ptr->m_buffer_memory_reqs.memoryTypeBits,
-                                                           new_buffer_ptr->m_buffer_memory_reqs.size,
-                                                           in_memory_features,
-                                                           in_mt_safety);
-
-        new_buffer_ptr->set_nonsparse_memory(
-            std::move(memory_block_ptr)
-        );
-
-        if (in_opt_client_data != nullptr)
+        if (!new_buffer_ptr->init() )
         {
-            new_buffer_ptr->write(0,
-                                  in_size,
-                                  in_opt_client_data);
+            new_buffer_ptr.reset();
         }
     }
 
@@ -260,179 +180,22 @@ Anvil::BufferUniquePtr Anvil::Buffer::create_nonsparse(const Anvil::BaseDevice* 
     return new_buffer_ptr;
 }
 
-/** Please see header for specification */
-Anvil::BufferUniquePtr Anvil::Buffer::create_nonsparse(Anvil::Buffer* in_parent_nonsparse_buffer_ptr,
-                                                       VkDeviceSize   in_start_offset,
-                                                       VkDeviceSize   in_size)
+bool Anvil::Buffer::do_external_memory_handle_type_sanity_checks() const
 {
-    Anvil::BufferUniquePtr new_buffer_ptr(nullptr,
-                                          std::default_delete<Anvil::Buffer>() );
-    
-    if (in_parent_nonsparse_buffer_ptr->is_sparse() )
-    {
-        anvil_assert(!in_parent_nonsparse_buffer_ptr->is_sparse() );
+    const auto& external_memory_handle_types = m_create_info_ptr->get_external_memory_handle_types();
+    bool        result                       = true;
 
-        goto end;
+    if (external_memory_handle_types != 0)
+    {
+        if (!m_device_ptr->supports_external_memory_handles(external_memory_handle_types) )
+        {
+            anvil_assert(!m_device_ptr->supports_external_memory_handles(external_memory_handle_types) );
+
+            result = false;
+        }
     }
 
-    new_buffer_ptr.reset(
-        new Anvil::Buffer(in_parent_nonsparse_buffer_ptr,
-                          in_start_offset,
-                          in_size)
-    );
-
-    /* Initialize */
-
-    anvil_assert(in_parent_nonsparse_buffer_ptr->get_memory_block(0 /* in_n_memory_block */) != nullptr);
-
-    new_buffer_ptr->m_owned_memory_blocks.push_back(
-        Anvil::MemoryBlock::create_derived(in_parent_nonsparse_buffer_ptr->get_memory_block(0 /* in_n_memory_block */),
-                                           in_start_offset,
-                                           in_size)
-    );
-
-    new_buffer_ptr->m_buffer                 = in_parent_nonsparse_buffer_ptr->m_buffer;
-    new_buffer_ptr->m_memory_block_ptr       = new_buffer_ptr->m_owned_memory_blocks.back().get();
-    new_buffer_ptr->m_queue_families         = in_parent_nonsparse_buffer_ptr->get_queue_families();
-    new_buffer_ptr->m_sharing_mode           = in_parent_nonsparse_buffer_ptr->get_sharing_mode  ();
-    new_buffer_ptr->m_usage_flags            = in_parent_nonsparse_buffer_ptr->get_usage         ();
-
-    anvil_assert(new_buffer_ptr->m_memory_block_ptr != nullptr);
-
-    /* Register the object */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_BUFFER,
-                                                 new_buffer_ptr.get() );
-
-end:
-    return new_buffer_ptr;
-}
-
-/** Please see header for specification */
-Anvil::BufferUniquePtr Anvil::Buffer::create_sparse(const Anvil::BaseDevice*    in_device_ptr,
-                                                    VkDeviceSize                in_size,
-                                                    QueueFamilyBits             in_queue_families,
-                                                    VkSharingMode               in_queue_sharing_mode,
-                                                    VkBufferUsageFlags          in_usage_flags,
-                                                    Anvil::SparseResidencyScope in_residency_scope,
-                                                    MTSafety                    in_mt_safety)
-{
-    const auto             is_mt_safe              (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
-                                                                                                    in_device_ptr) );
-    const auto&            physical_device_features(in_device_ptr->get_physical_device_features    () );
-    Anvil::BufferUniquePtr result_ptr              (nullptr,
-                                                    std::default_delete<Anvil::Buffer>() );
-
-    /* Sanity checks */
-    if (!physical_device_features.core_vk1_0_features_ptr->sparse_binding)
-    {
-        anvil_assert(physical_device_features.core_vk1_0_features_ptr->sparse_binding);
-
-        goto end;
-    }
-
-    if ((in_residency_scope == Anvil::SPARSE_RESIDENCY_SCOPE_ALIASED               ||
-         in_residency_scope == Anvil::SPARSE_RESIDENCY_SCOPE_NONALIASED)           &&
-        !physical_device_features.core_vk1_0_features_ptr->sparse_residency_buffer)
-    {
-        anvil_assert((in_residency_scope == Anvil::SPARSE_RESIDENCY_SCOPE_ALIASED              ||
-                      in_residency_scope == Anvil::SPARSE_RESIDENCY_SCOPE_NONALIASED)          &&
-                     physical_device_features.core_vk1_0_features_ptr->sparse_residency_buffer);
-
-        goto end;
-    }
-
-    if ( in_residency_scope == Anvil::SPARSE_RESIDENCY_SCOPE_ALIASED                 &&
-        !physical_device_features.core_vk1_0_features_ptr->sparse_residency_aliased)
-    {
-        anvil_assert(in_residency_scope == Anvil::SPARSE_RESIDENCY_SCOPE_ALIASED                 &&
-                     physical_device_features.core_vk1_0_features_ptr->sparse_residency_aliased);
-
-        goto end;
-    }
-
-    result_ptr.reset(
-        new Anvil::Buffer(in_device_ptr,
-                          in_size,
-                          in_queue_families,
-                          in_queue_sharing_mode,
-                          in_usage_flags,
-                          in_residency_scope,
-                          is_mt_safe)
-    );
-
-    /* Initialize */
-    result_ptr->create_buffer(in_queue_families,
-                              in_queue_sharing_mode,
-                              in_size);
-
-    result_ptr->m_page_tracker_ptr.reset(
-        new Anvil::PageTracker(Anvil::Utils::round_up(in_size,
-                                                      result_ptr->m_buffer_memory_reqs.alignment),
-                               result_ptr->m_buffer_memory_reqs.alignment)
-    );
-
-    /* Register the object */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_BUFFER,
-                                                 result_ptr.get() );
-
-end:
-    return result_ptr;
-}
-
-
-
-/* Creates a new Vulkan buffer object and caches memory requirements for the created buffer.
- *
- * @param in_queue_families Queue families the buffer needs to support.
- * @param in_sharing_mode   Sharing mode the buffer needs to support.
- * @param in_size           Size of the buffer.
- **/
-void Anvil::Buffer::create_buffer(Anvil::QueueFamilyBits in_queue_families,
-                                  VkSharingMode          in_sharing_mode,
-                                  VkDeviceSize           in_size)
-{
-    VkBufferCreateInfo buffer_create_info;
-    uint32_t           n_queue_family_indices;
-    uint32_t           queue_family_indices[8];
-    VkResult           result(VK_ERROR_INITIALIZATION_FAILED);
-
-    ANVIL_REDUNDANT_VARIABLE(result);
-
-    /* Determine which queues the buffer should be available to. */
-    Anvil::Utils::convert_queue_family_bits_to_family_indices(m_device_ptr,
-                                                              in_queue_families,
-                                                              queue_family_indices,
-                                                             &n_queue_family_indices);
-
-    anvil_assert(n_queue_family_indices > 0);
-    anvil_assert(n_queue_family_indices < sizeof(queue_family_indices) / sizeof(queue_family_indices[0]) );
-
-    /* Prepare the create info structure */
-    buffer_create_info.flags                 = m_create_flags;
-    buffer_create_info.pNext                 = nullptr;
-    buffer_create_info.pQueueFamilyIndices   = queue_family_indices;
-    buffer_create_info.queueFamilyIndexCount = n_queue_family_indices;
-    buffer_create_info.sharingMode           = (n_queue_family_indices == 1) ? VK_SHARING_MODE_EXCLUSIVE : in_sharing_mode;
-    buffer_create_info.size                  = in_size;
-    buffer_create_info.sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    buffer_create_info.usage                 = m_usage_flags;
-
-    /* Create the buffer object */
-    result = vkCreateBuffer(m_device_ptr->get_device_vk(),
-                           &buffer_create_info,
-                            nullptr, /* pAllocator */
-                           &m_buffer);
-    anvil_assert_vk_call_succeeded(result);
-
-    if (is_vk_call_successful(result) )
-    {
-        set_vk_handle(m_buffer);
-
-        /* Cache buffer data memory requirements */
-        vkGetBufferMemoryRequirements(m_device_ptr->get_device_vk(),
-                                      m_buffer,
-                                     &m_buffer_memory_reqs);
-    }
+    return result;
 }
 
 /* Please see header for specification */
@@ -441,7 +204,7 @@ const Anvil::Buffer* Anvil::Buffer::get_base_buffer()
     const Anvil::Buffer* result_ptr = this;
     Anvil::Buffer*       parent_ptr = nullptr;
 
-    if ( (parent_ptr = result_ptr->get_parent_buffer_ptr()) != nullptr)
+    if ( (parent_ptr = result_ptr->get_create_info_ptr()->get_parent_buffer_ptr()) != nullptr)
     {
         result_ptr = parent_ptr;
     }
@@ -452,7 +215,7 @@ const Anvil::Buffer* Anvil::Buffer::get_base_buffer()
 /* Please see header for specification */
 VkBuffer Anvil::Buffer::get_buffer()
 {
-    if (!m_is_sparse)
+    if (get_create_info_ptr()->get_type() != Anvil::BufferType::SPARSE_NO_ALLOC)
     {
         if (m_memory_block_ptr == nullptr)
         {
@@ -466,9 +229,10 @@ VkBuffer Anvil::Buffer::get_buffer()
 /* Please see header for specification */
 Anvil::MemoryBlock* Anvil::Buffer::get_memory_block(uint32_t in_n_memory_block)
 {
-    bool is_callback_needed = false;
+    bool       is_callback_needed = false;
+    const auto is_sparse          = (get_create_info_ptr()->get_type() == Anvil::BufferType::SPARSE_NO_ALLOC);
 
-    if (m_is_sparse)
+    if (is_sparse)
     {
         IsBufferMemoryAllocPendingQueryCallbackArgument callback_arg(this);
 
@@ -486,13 +250,13 @@ Anvil::MemoryBlock* Anvil::Buffer::get_memory_block(uint32_t in_n_memory_block)
     {
         OnMemoryBlockNeededForBufferCallbackArgument callback_argument(this);
 
-        anvil_assert(m_parent_buffer_ptr == nullptr);
+        anvil_assert(m_create_info_ptr->get_parent_buffer_ptr() == nullptr);
 
         callback_safe(BUFFER_CALLBACK_ID_MEMORY_BLOCK_NEEDED,
                      &callback_argument);
     }
 
-    if (m_is_sparse)
+    if (is_sparse)
     {
         return m_page_tracker_ptr->get_memory_block(in_n_memory_block);
     }
@@ -500,21 +264,203 @@ Anvil::MemoryBlock* Anvil::Buffer::get_memory_block(uint32_t in_n_memory_block)
     {
         return m_memory_block_ptr;
     }
-
 }
 
-/* Please see header for specification */
-VkDeviceSize Anvil::Buffer::get_size() const
+VkMemoryRequirements Anvil::Buffer::get_memory_requirements() const
 {
-    anvil_assert(m_buffer_size != 0);
+    auto parent_buffer_ptr = m_create_info_ptr->get_parent_buffer_ptr();
 
-    return m_buffer_size;
+    if (parent_buffer_ptr != nullptr)
+    {
+        return parent_buffer_ptr->get_memory_requirements();
+    }
+    else
+    {
+        return m_buffer_memory_reqs;
+    }
 }
 
-/* Please see header for specification */
-VkDeviceSize Anvil::Buffer::get_start_offset() const
+uint32_t Anvil::Buffer::get_n_memory_blocks() const
 {
-    return m_start_offset;
+    if (m_create_info_ptr->get_type() == Anvil::BufferType::SPARSE_NO_ALLOC)
+    {
+        return m_page_tracker_ptr->get_n_memory_blocks();
+    }
+    else
+    {
+        return 1;
+    }
+}
+
+bool Anvil::Buffer::init()
+{
+    uint32_t                                 n_queue_family_indices;
+    uint32_t                                 queue_family_indices   [8];
+    VkResult                                 result                    (VK_ERROR_INITIALIZATION_FAILED);
+    Anvil::StructChainer<VkBufferCreateInfo> struct_chainer;
+
+    if ( m_create_info_ptr->get_client_data    ()                                        != nullptr &&
+        (m_create_info_ptr->get_memory_features() & Anvil::MEMORY_FEATURE_FLAG_MAPPABLE) == 0)
+    {
+        m_create_info_ptr->set_usage_flags(m_create_info_ptr->get_usage_flags() | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+    }
+
+    if (m_create_info_ptr->get_type() != BufferType::NONSPARSE_NO_ALLOC_CHILD)
+    {
+        if (!do_external_memory_handle_type_sanity_checks() )
+        {
+            goto end;
+        }
+
+        /* Determine which queues the buffer should be available to. */
+        Anvil::Utils::convert_queue_family_bits_to_family_indices(m_device_ptr,
+                                                                  m_create_info_ptr->get_queue_families(),
+                                                                  queue_family_indices,
+                                                                 &n_queue_family_indices);
+
+        anvil_assert(n_queue_family_indices > 0);
+        anvil_assert(n_queue_family_indices < sizeof(queue_family_indices) / sizeof(queue_family_indices[0]) );
+
+        /* Prepare the create info structure */
+        {
+            VkBufferCreateInfo buffer_create_info;
+
+            buffer_create_info.flags                 = m_create_flags;
+            buffer_create_info.pNext                 = nullptr;
+            buffer_create_info.pQueueFamilyIndices   = queue_family_indices;
+            buffer_create_info.queueFamilyIndexCount = n_queue_family_indices;
+            buffer_create_info.sharingMode           = (n_queue_family_indices == 1) ? VK_SHARING_MODE_EXCLUSIVE : m_create_info_ptr->get_sharing_mode();
+            buffer_create_info.size                  = m_create_info_ptr->get_size();
+            buffer_create_info.sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+            buffer_create_info.usage                 = m_create_info_ptr->get_usage_flags();
+
+            struct_chainer.append_struct(buffer_create_info);
+        }
+
+        {
+            const auto& external_memory_handle_types = m_create_info_ptr->get_external_memory_handle_types();
+
+            if (external_memory_handle_types != 0)
+            {
+                VkExternalMemoryBufferCreateInfoKHR external_memory_buffer_create_info;
+
+                external_memory_buffer_create_info.handleTypes = Anvil::Utils::convert_external_memory_handle_types_to_vk_external_memory_handle_type_flags(external_memory_handle_types);
+                external_memory_buffer_create_info.pNext       = nullptr;
+                external_memory_buffer_create_info.sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO_KHR;
+
+                struct_chainer.append_struct(external_memory_buffer_create_info);
+            }
+        }
+
+        /* Create the buffer object */
+        {
+            auto struct_chain_ptr = struct_chainer.create_chain();
+
+            result = vkCreateBuffer(m_device_ptr->get_device_vk(),
+                                    struct_chain_ptr->get_root_struct(),
+                                    nullptr, /* pAllocator */
+                                   &m_buffer);
+        }
+
+        anvil_assert_vk_call_succeeded(result);
+        if (is_vk_call_successful(result) )
+        {
+            set_vk_handle(m_buffer);
+
+            /* Cache buffer data memory requirements */
+            vkGetBufferMemoryRequirements(m_device_ptr->get_device_vk(),
+                                          m_buffer,
+                                         &m_buffer_memory_reqs);
+        }
+    }
+    else
+    {
+        m_buffer = m_create_info_ptr->get_parent_buffer_ptr()->m_buffer;
+
+        anvil_assert(m_buffer != VK_NULL_HANDLE);
+        if (m_buffer != VK_NULL_HANDLE)
+        {
+            result = VK_SUCCESS;
+        }
+    }
+
+    switch (m_create_info_ptr->get_type() )
+    {
+        case Anvil::BufferType::NONSPARSE_ALLOC:
+        {
+            /* Create a memory object and preallocate as much space as we need */
+            auto client_data_ptr  = m_create_info_ptr->get_client_data();
+            auto memory_block_ptr = Anvil::MemoryBlock::create(m_create_info_ptr->get_device(),
+                                                               m_buffer_memory_reqs.memoryTypeBits,
+                                                               m_buffer_memory_reqs.size,
+                                                               m_create_info_ptr->get_memory_features(),
+                                                               m_create_info_ptr->get_mt_safety      () );
+
+            if (!set_nonsparse_memory( std::move(memory_block_ptr) ))
+            {
+                anvil_assert_fail();
+
+                result = VK_ERROR_INITIALIZATION_FAILED;
+
+                goto end;
+            }
+
+            if (client_data_ptr != nullptr)
+            {
+                if (!write(0, /* in_start_offset */
+                           m_create_info_ptr->get_size(),
+                           client_data_ptr) )
+                {
+                    anvil_assert_fail();
+
+                    result = VK_ERROR_INITIALIZATION_FAILED;
+
+                    goto end;
+                }
+            }
+
+            break;
+        }
+
+        case Anvil::BufferType::NONSPARSE_NO_ALLOC_CHILD:
+        {
+            m_owned_memory_blocks.push_back(
+                Anvil::MemoryBlock::create_derived(m_create_info_ptr->get_parent_buffer_ptr()->get_memory_block(0 /* in_n_memory_block */),
+                                                   m_create_info_ptr->get_start_offset(),
+                                                   m_create_info_ptr->get_size() )
+            );
+
+            m_memory_block_ptr = m_owned_memory_blocks.back().get();
+            anvil_assert(m_memory_block_ptr != nullptr);
+
+            break;
+        }
+
+        case BufferType::NONSPARSE_NO_ALLOC:
+        {
+            /* No special action needed */
+            break;
+        }
+
+        case BufferType::SPARSE_NO_ALLOC:
+        {
+            m_page_tracker_ptr.reset(
+                new Anvil::PageTracker(Anvil::Utils::round_up(m_create_info_ptr->get_size(),
+                                                              m_buffer_memory_reqs.alignment),
+                                       m_buffer_memory_reqs.alignment)
+            );
+
+            break;
+        }
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
+
+end:
+    return is_vk_call_successful(result);
 }
 
 /* Please see header for specification */
@@ -538,10 +484,10 @@ bool Anvil::Buffer::read(VkDeviceSize                 in_start_offset,
     auto                    memory_block_ptr (get_memory_block(0 /* in_n_memory_block */) );
     bool                    result           (false);
 
-    ANVIL_REDUNDANT_ARGUMENT_CONST(in_physical_device_ptr);
+    ANVIL_REDUNDANT_ARGUMENT(in_physical_device_ptr);
 
     /* TODO: Support for sparse buffers */
-    anvil_assert(!is_sparse());
+    anvil_assert(m_create_info_ptr->get_type() != Anvil::BufferType::SPARSE_NO_ALLOC);
 
     if ((memory_block_ptr->get_memory_features() & MEMORY_FEATURE_FLAG_MAPPABLE) != 0)
     {
@@ -568,15 +514,18 @@ bool Anvil::Buffer::read(VkDeviceSize                 in_start_offset,
             goto end;
         }
 
-        staging_buffer_ptr = Anvil::Buffer::create_nonsparse(
-            m_device_ptr,
-            in_size,
-            staging_buffer_queue_fam_bits,
-            VK_SHARING_MODE_CONCURRENT,
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-            MEMORY_FEATURE_FLAG_MAPPABLE,
-            nullptr,
-            MT_SAFETY_DISABLED); /* in_mt_safe */
+        {
+            auto buffer_create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_alloc(m_device_ptr,
+                                                                                          in_size,
+                                                                                          staging_buffer_queue_fam_bits,
+                                                                                          VK_SHARING_MODE_CONCURRENT,
+                                                                                          VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                                                          MEMORY_FEATURE_FLAG_MAPPABLE);
+
+            buffer_create_info_ptr->set_mt_safety(MT_SAFETY_DISABLED);
+
+            staging_buffer_ptr = Anvil::Buffer::create(std::move(buffer_create_info_ptr) );
+        }
 
         if (staging_buffer_ptr == nullptr)
         {
@@ -590,7 +539,6 @@ bool Anvil::Buffer::read(VkDeviceSize                 in_start_offset,
             copy_cmdbuf_ptr->start_recording(true,   /* one_time_submit          */
                                              false); /* simultaneous_use_allowed */
         }
-
         {
             Anvil::BufferBarrier buffer_barrier(VK_ACCESS_TRANSFER_WRITE_BIT,
                                                 VK_ACCESS_HOST_READ_BIT,
@@ -598,7 +546,7 @@ bool Anvil::Buffer::read(VkDeviceSize                 in_start_offset,
                                                 VK_QUEUE_FAMILY_IGNORED,
                                                 staging_buffer_ptr.get(),
                                                 0, /* in_offset */
-                                                staging_buffer_ptr->get_size() );
+                                                staging_buffer_ptr->get_create_info_ptr()->get_size() );
             VkBufferCopy         copy_region;
 
             copy_region.dstOffset = 0;
@@ -636,10 +584,16 @@ end:
     return result;
 }
 
-bool Anvil::Buffer::set_memory_nonsparse_internal(MemoryBlockUniquePtr in_memory_block_ptr)
+bool Anvil::Buffer::set_memory_nonsparse_internal(MemoryBlockUniquePtr         in_memory_block_ptr,
+                                                  uint32_t                     in_n_physical_devices,
+                                                  const Anvil::PhysicalDevice* in_physical_devices_ptr)
 {
-    bool     result   (false);
-    VkResult result_vk;
+    const Anvil::DeviceType      device_type             (m_device_ptr->get_type() );
+    bool                         result                  (false);
+    VkResult                     result_vk;
+
+    ANVIL_REDUNDANT_ARGUMENT(in_physical_devices_ptr);
+
 
     if (in_memory_block_ptr == nullptr)
     {
@@ -655,11 +609,17 @@ bool Anvil::Buffer::set_memory_nonsparse_internal(MemoryBlockUniquePtr in_memory
         goto end;
     }
 
-    if (m_is_sparse)
+    if (m_create_info_ptr->get_type() == Anvil::BufferType::SPARSE_NO_ALLOC)
     {
-        anvil_assert(!m_is_sparse);
+        anvil_assert(m_create_info_ptr->get_type() != Anvil::BufferType::SPARSE_NO_ALLOC);
 
         goto end;
+    }
+
+    if (device_type           == Anvil::DEVICE_TYPE_SINGLE_GPU &&
+        in_n_physical_devices == 0)
+    {
+        in_n_physical_devices = 1;
     }
 
     /* Bind the memory object to the buffer object */
@@ -698,7 +658,7 @@ bool Anvil::Buffer::set_memory_sparse(MemoryBlock* in_memory_block_ptr,
                                       VkDeviceSize in_start_offset,
                                       VkDeviceSize in_size)
 {
-    anvil_assert(m_is_sparse);
+    anvil_assert(m_create_info_ptr->get_type() == Anvil::BufferType::SPARSE_NO_ALLOC);
 
     if (m_page_tracker_ptr->set_binding(in_memory_block_ptr,
                                         in_memory_block_start_offset,
@@ -751,7 +711,49 @@ bool Anvil::Buffer::set_nonsparse_memory(MemoryBlock* in_memory_block_ptr,
                                                 });
     }
 
-    return set_memory_nonsparse_internal(std::move(memory_block_ptr) );
+    return set_memory_nonsparse_internal(std::move(memory_block_ptr),
+                                         0,        /* n_physical_devices   */
+                                         nullptr); /* physical_devices_ptr */
+}
+
+/* Please see header for specification */
+bool Anvil::Buffer::set_nonsparse_memory(MemoryBlockUniquePtr         in_memory_block_ptr,
+                                         uint32_t                     in_n_physical_devices,
+                                         const Anvil::PhysicalDevice* in_physical_devices_ptr)
+{
+    MemoryBlockUniquePtr memory_block_ptr = MemoryBlockUniquePtr(in_memory_block_ptr.release(),
+                                                                 std::default_delete<Anvil::MemoryBlock>() );
+
+    return set_memory_nonsparse_internal(std::move(memory_block_ptr),
+                                         in_n_physical_devices,
+                                         in_physical_devices_ptr);
+}
+
+/* Please see header for specification */
+bool Anvil::Buffer::set_nonsparse_memory(MemoryBlock*                 in_memory_block_ptr,
+                                         bool                         in_memory_block_owned_by_buffer,
+                                         uint32_t                     in_n_physical_devices,
+                                         const Anvil::PhysicalDevice* in_physical_devices_ptr)
+{
+    MemoryBlockUniquePtr memory_block_ptr;
+
+    if (in_memory_block_owned_by_buffer)
+    {
+        memory_block_ptr = MemoryBlockUniquePtr(in_memory_block_ptr,
+                                                std::default_delete<Anvil::MemoryBlock>() );
+    }
+    else
+    {
+        memory_block_ptr = MemoryBlockUniquePtr(in_memory_block_ptr,
+                                                [](MemoryBlock*)
+                                                {
+                                                    /* Stub */
+                                                });
+    }
+
+    return set_memory_nonsparse_internal(std::move(memory_block_ptr),
+                                         in_n_physical_devices,
+                                         in_physical_devices_ptr);
 }
 
 /* Please see header for specification */
@@ -779,10 +781,11 @@ bool Anvil::Buffer::write(VkDeviceSize                 in_start_offset,
 
     ANVIL_REDUNDANT_ARGUMENT(in_physical_device_ptr);
 
+
     /** TODO: Support for sparse-resident buffers whose n_memory_blocks > 1 */
     Anvil::MemoryBlock* memory_block_ptr(get_memory_block(0) );
 
-    if (m_is_sparse)
+    if (m_create_info_ptr->get_type() == Anvil::BufferType::SPARSE_NO_ALLOC)
     {
         anvil_assert(m_page_tracker_ptr->get_n_memory_blocks() == 1);
     }
@@ -801,19 +804,20 @@ bool Anvil::Buffer::write(VkDeviceSize                 in_start_offset,
         /* The buffer memory is not mappable. We need to create a staging memory,
          * upload user's data there, and then issue a copy op. */
         Anvil::PrimaryCommandBufferUniquePtr copy_cmdbuf_ptr;
+        const auto                           queue_fams                    = m_create_info_ptr->get_queue_families();
         Anvil::Queue*                        queue_ptr                     = nullptr;
         Anvil::BufferUniquePtr               staging_buffer_ptr;
         Anvil::QueueFamilyBits               staging_buffer_queue_fam_bits = 0;
 
-        if (m_sharing_mode == VK_SHARING_MODE_EXCLUSIVE)
+        if (m_create_info_ptr->get_sharing_mode() == VK_SHARING_MODE_EXCLUSIVE)
         {
             /* We need to use a user-specified queue, since we can't tell which queue fam the buffer is currently configured to be compatible with.
              *
              * This can be worked around if the buffer can only be used with a specific queue family type.
              */
-            if (Anvil::Utils::is_pow2(m_queue_families) )
+            if (Anvil::Utils::is_pow2(queue_fams) )
             {
-                switch (m_queue_families)
+                switch (queue_fams)
                 {
                     case Anvil::QUEUE_FAMILY_COMPUTE_BIT:  queue_ptr = m_device_ptr->get_compute_queue  (0); break;
                     case Anvil::QUEUE_FAMILY_DMA_BIT:      queue_ptr = m_device_ptr->get_transfer_queue (0); break;
@@ -849,20 +853,20 @@ bool Anvil::Buffer::write(VkDeviceSize                 in_start_offset,
         else
         {
             /* We can use any queue from the list of queue fams this buffer is compatible, in order to perform the copy op. */
-            if ((m_queue_families & Anvil::QUEUE_FAMILY_GRAPHICS_BIT) != 0)
+            if ((queue_fams & Anvil::QUEUE_FAMILY_GRAPHICS_BIT) != 0)
             {
                 queue_ptr                     = m_device_ptr->get_universal_queue(0);
                 staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_GRAPHICS_BIT;
             }
             else
-            if ((m_queue_families & Anvil::QUEUE_FAMILY_DMA_BIT) != 0)
+            if ((queue_fams & Anvil::QUEUE_FAMILY_DMA_BIT) != 0)
             {
                 queue_ptr                     = m_device_ptr->get_transfer_queue(0);
                 staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_DMA_BIT;
             }
             else
             {
-                anvil_assert((m_queue_families & Anvil::QUEUE_FAMILY_COMPUTE_BIT) != 0)
+                anvil_assert((queue_fams & Anvil::QUEUE_FAMILY_COMPUTE_BIT) != 0)
 
                 queue_ptr                     = m_device_ptr->get_compute_queue(0);
                 staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_COMPUTE_BIT;
@@ -878,15 +882,19 @@ bool Anvil::Buffer::write(VkDeviceSize                 in_start_offset,
             goto end;
         }
 
-        staging_buffer_ptr = Anvil::Buffer::create_nonsparse(
-            m_device_ptr,
-            in_size,
-            staging_buffer_queue_fam_bits,
-            VK_SHARING_MODE_CONCURRENT,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            Anvil::MEMORY_FEATURE_FLAG_MAPPABLE,
-            in_data,
-            MT_SAFETY_DISABLED);
+        {
+            auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_alloc(m_device_ptr,
+                                                                                   in_size,
+                                                                                   staging_buffer_queue_fam_bits,
+                                                                                   VK_SHARING_MODE_CONCURRENT,
+                                                                                   VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                                                   Anvil::MEMORY_FEATURE_FLAG_MAPPABLE);
+
+            create_info_ptr->set_client_data(in_data);
+            create_info_ptr->set_mt_safety  (MT_SAFETY_DISABLED);
+
+            staging_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
+        }
 
         if (staging_buffer_ptr == nullptr)
         {
@@ -900,7 +908,6 @@ bool Anvil::Buffer::write(VkDeviceSize                 in_start_offset,
             copy_cmdbuf_ptr->start_recording(true,   /* one_time_submit          */
                                              false); /* simultaneous_use_allowed */
         }
-
         {
             BufferBarrier buffer_barrier(VK_ACCESS_HOST_WRITE_BIT,
                                          VK_ACCESS_TRANSFER_READ_BIT,
@@ -908,7 +915,7 @@ bool Anvil::Buffer::write(VkDeviceSize                 in_start_offset,
                                          VK_QUEUE_FAMILY_IGNORED,
                                          staging_buffer_ptr.get(),
                                          0, /* in_offset */
-                                         staging_buffer_ptr->get_size() );
+                                         staging_buffer_ptr->get_create_info_ptr()->get_size() );
             VkBufferCopy  copy_region;
 
             copy_region.dstOffset = in_start_offset;

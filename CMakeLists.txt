@@ -11,8 +11,7 @@ configure_file("include/config.h.in" "include/config.h")
 
 include_directories("$(Anvil_SOURCE_DIR)"
                     "$(Anvil_SOURCE_DIR)/deps"
-                    "$(Anvil_SOURCE_DIR)/include"
-                    "${Anvil_BINARY_DIR}/include")
+                    "$(Anvil_SOURCE_DIR)/include")
 
 if (WIN32)
     if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
@@ -34,18 +33,26 @@ endif()
 
 SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_oneshot.h"
               "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_vma.h"
-              "${Anvil_SOURCE_DIR}/include/misc/base_pipeline_info.h"
+              "${Anvil_SOURCE_DIR}/include/misc/base_pipeline_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/base_pipeline_manager.h"
+              "${Anvil_SOURCE_DIR}/include/misc/buffer_create_info.h"
+              "${Anvil_SOURCE_DIR}/include/misc/buffer_view_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/callbacks.h"
-              "${Anvil_SOURCE_DIR}/include/misc/compute_pipeline_info.h"
+              "${Anvil_SOURCE_DIR}/include/misc/compute_pipeline_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/debug.h"
               "${Anvil_SOURCE_DIR}/include/misc/debug_marker.h"
-              "${Anvil_SOURCE_DIR}/include/misc/descriptor_set_info.h"
+              "${Anvil_SOURCE_DIR}/include/misc/descriptor_set_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/dummy_window.h"
+              "${Anvil_SOURCE_DIR}/include/misc/event_create_info.h"
+              "${Anvil_SOURCE_DIR}/include/misc/extensions.h"
+              "${Anvil_SOURCE_DIR}/include/misc/fence_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/formats.h"
               "${Anvil_SOURCE_DIR}/include/misc/fp16.h"
+              "${Anvil_SOURCE_DIR}/include/misc/framebuffer_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/glsl_to_spirv.h"
-              "${Anvil_SOURCE_DIR}/include/misc/graphics_pipeline_info.h"
+              "${Anvil_SOURCE_DIR}/include/misc/graphics_pipeline_create_info.h"
+              "${Anvil_SOURCE_DIR}/include/misc/image_create_info.h"
+              "${Anvil_SOURCE_DIR}/include/misc/image_view_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/io.h"
               "${Anvil_SOURCE_DIR}/include/misc/memory_allocator.h"
               "${Anvil_SOURCE_DIR}/include/misc/mt_safety.h"
@@ -53,11 +60,19 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/include/misc/page_tracker.h"
               "${Anvil_SOURCE_DIR}/include/misc/pools.h"
               "${Anvil_SOURCE_DIR}/include/misc/ref_counter.h"
-              "${Anvil_SOURCE_DIR}/include/misc/render_pass_info.h"
+              "${Anvil_SOURCE_DIR}/include/misc/render_pass_create_info.h"
+              "${Anvil_SOURCE_DIR}/include/misc/sampler_create_info.h"
+              "${Anvil_SOURCE_DIR}/include/misc/semaphore_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/shader_module_cache.h"
               "${Anvil_SOURCE_DIR}/include/misc/struct_chainer.h"
+              "${Anvil_SOURCE_DIR}/include/misc/swapchain_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/time.h"
               "${Anvil_SOURCE_DIR}/include/misc/types.h"
+              "${Anvil_SOURCE_DIR}/include/misc/types_classes.h"
+              "${Anvil_SOURCE_DIR}/include/misc/types_enums.h"
+              "${Anvil_SOURCE_DIR}/include/misc/types_macro.h"
+              "${Anvil_SOURCE_DIR}/include/misc/types_struct.h"
+              "${Anvil_SOURCE_DIR}/include/misc/types_utils.h"
               "${Anvil_SOURCE_DIR}/include/misc/window.h"
               "${Anvil_SOURCE_DIR}/include/misc/window_factory.h"
               "${Anvil_SOURCE_DIR}/include/wrappers/buffer.h"
@@ -95,26 +110,39 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
 
               "${Anvil_SOURCE_DIR}/src/misc/memalloc_backends/backend_oneshot.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/memalloc_backends/backend_vma.cpp"
-              "${Anvil_SOURCE_DIR}/src/misc/base_pipeline_info.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/base_pipeline_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/base_pipeline_manager.cpp"
-              "${Anvil_SOURCE_DIR}/src/misc/compute_pipeline_info.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/buffer_create_info.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/buffer_view_create_info.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/compute_pipeline_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/debug.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/debug_marker.cpp"
-              "${Anvil_SOURCE_DIR}/src/misc/descriptor_set_info.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/descriptor_set_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/dummy_window.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/event_create_info.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/fence_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/formats.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/fp16.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/framebuffer_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/glsl_to_spirv.cpp"
-              "${Anvil_SOURCE_DIR}/src/misc/graphics_pipeline_info.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/graphics_pipeline_create_info.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/image_create_info.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/image_view_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/io.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/memory_allocator.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/object_tracker.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/page_tracker.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/pools.cpp"
-              "${Anvil_SOURCE_DIR}/src/misc/render_pass_info.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/render_pass_create_info.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/sampler_create_info.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/semaphore_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/shader_module_cache.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/swapchain_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/time.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/types.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/types_classes.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/types_struct.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/types_utils.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/window.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/window_factory.cpp"
               "${Anvil_SOURCE_DIR}/src/wrappers/buffer.cpp"
@@ -195,10 +223,8 @@ endif()
 # Add dependendencies
 if (WIN32)
     add_subdirectory("deps\\glslang")
-    add_subdirectory("deps\\glslang\\OGLCompilersDLL")
 else()
     add_subdirectory("deps/glslang")
-    add_subdirectory("deps/glslang/OGLCompilersDLL")
 endif()
 
 # Enable level-4 warnings

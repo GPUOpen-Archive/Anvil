@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -63,7 +63,7 @@ Anvil::PipelineLayout::~PipelineLayout()
 }
 
 /** Please see header for specification */
-bool Anvil::PipelineLayout::bake(const std::vector<DescriptorSetInfoUniquePtr>* in_ds_info_items_ptr)
+bool Anvil::PipelineLayout::bake(const std::vector<DescriptorSetCreateInfoUniquePtr>* in_ds_create_info_items_ptr)
 {
     auto                               ds_layout_manager_ptr        = m_device_ptr->get_descriptor_set_layout_manager();
     std::vector<VkDescriptorSetLayout> ds_layouts_vk;
@@ -74,24 +74,24 @@ bool Anvil::PipelineLayout::bake(const std::vector<DescriptorSetInfoUniquePtr>* 
     /* Convert descriptor set layouts to Vulkan equivalents */
     const VkDescriptorSetLayout dummy_ds_layout = m_device_ptr->get_dummy_descriptor_set_layout()->get_layout();
 
-    ds_layouts_vk.resize(in_ds_info_items_ptr->size() + 1,
+    ds_layouts_vk.resize(in_ds_create_info_items_ptr->size() + 1,
                          dummy_ds_layout);
 
-    if (in_ds_info_items_ptr         != nullptr &&
-        in_ds_info_items_ptr->size() >  0)
+    if (in_ds_create_info_items_ptr         != nullptr &&
+        in_ds_create_info_items_ptr->size() >  0)
     {
-        const uint32_t n_current_descriptor_sets = static_cast<uint32_t>(in_ds_info_items_ptr->size() );
+        const uint32_t n_current_descriptor_sets = static_cast<uint32_t>(in_ds_create_info_items_ptr->size() );
 
         for (uint32_t n_current_descriptor_set = 0;
                       n_current_descriptor_set < n_current_descriptor_sets;
                     ++n_current_descriptor_set)
         {
-            auto& current_ds_info_ptr = in_ds_info_items_ptr->at(n_current_descriptor_set);
+            auto& current_ds_create_info_ptr = in_ds_create_info_items_ptr->at(n_current_descriptor_set);
 
-            if (current_ds_info_ptr == nullptr)
+            if (current_ds_create_info_ptr == nullptr)
             {
-                m_ds_info_ptrs.push_back(
-                    Anvil::DescriptorSetInfoUniquePtr()
+                m_ds_create_info_ptrs.push_back(
+                    Anvil::DescriptorSetCreateInfoUniquePtr()
                 );
 
                 continue;
@@ -100,13 +100,13 @@ bool Anvil::PipelineLayout::bake(const std::vector<DescriptorSetInfoUniquePtr>* 
             {
                 Anvil::DescriptorSetLayoutUniquePtr new_ds_layout_ptr;
 
-                m_ds_info_ptrs.push_back(
-                    Anvil::DescriptorSetInfoUniquePtr(
-                        new Anvil::DescriptorSetInfo(*current_ds_info_ptr)
+                m_ds_create_info_ptrs.push_back(
+                    Anvil::DescriptorSetCreateInfoUniquePtr(
+                        new Anvil::DescriptorSetCreateInfo(*current_ds_create_info_ptr)
                     )
                 );
 
-                if (!ds_layout_manager_ptr->get_layout(current_ds_info_ptr.get(),
+                if (!ds_layout_manager_ptr->get_layout(current_ds_create_info_ptr.get(),
                                                       &new_ds_layout_ptr) )
                 {
                     anvil_assert_fail();
@@ -167,10 +167,10 @@ end:
 }
 
 /* Please see header for specification */
-Anvil::PipelineLayoutUniquePtr Anvil::PipelineLayout::create(const Anvil::BaseDevice*                       in_device_ptr,
-                                                             const std::vector<DescriptorSetInfoUniquePtr>* in_ds_info_items_ptr,
-                                                             const PushConstantRanges&                      in_push_constant_ranges,
-                                                             bool                                           in_mt_safe)
+Anvil::PipelineLayoutUniquePtr Anvil::PipelineLayout::create(const Anvil::BaseDevice*                             in_device_ptr,
+                                                             const std::vector<DescriptorSetCreateInfoUniquePtr>* in_ds_create_info_items_ptr,
+                                                             const PushConstantRanges&                            in_push_constant_ranges,
+                                                             bool                                                 in_mt_safe)
 {
     PipelineLayoutUniquePtr result_ptr(nullptr,
                                        std::default_delete<PipelineLayout>() );
@@ -183,7 +183,7 @@ Anvil::PipelineLayoutUniquePtr Anvil::PipelineLayout::create(const Anvil::BaseDe
 
     if (result_ptr != nullptr)
     {
-        if (!result_ptr->bake(in_ds_info_items_ptr) )
+        if (!result_ptr->bake(in_ds_create_info_items_ptr) )
         {
             result_ptr.reset();
         }

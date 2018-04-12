@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -107,7 +107,7 @@ void Anvil::RenderingSurface::cache_surface_properties()
 
     switch (device_type)
     {
-        case Anvil::DEVICE_TYPE_SINGLE_GPU: n_physical_devices = 1;break;
+        case Anvil::DEVICE_TYPE_SINGLE_GPU: n_physical_devices = 1; break;
 
         default:
         {
@@ -138,7 +138,7 @@ void Anvil::RenderingSurface::cache_surface_properties()
             }
         }
 
-        auto& result_caps = m_physical_device_capabilities;
+        auto& result_caps = m_physical_device_capabilities[0];
 
         if (m_surface == VK_NULL_HANDLE)
         {
@@ -252,45 +252,81 @@ Anvil::RenderingSurfaceUniquePtr Anvil::RenderingSurface::create(Anvil::Instance
 /* Please see header for specification */
 bool Anvil::RenderingSurface::get_capabilities(VkSurfaceCapabilitiesKHR* out_surface_caps_ptr) const
 {
-    *out_surface_caps_ptr = m_physical_device_capabilities.capabilities;
+    auto caps_iterator = m_physical_device_capabilities.find(0);
+    bool result        = false;
 
-    return true;
+    if (caps_iterator != m_physical_device_capabilities.end() )
+    {
+        *out_surface_caps_ptr = caps_iterator->second.capabilities;
+        result                = true;
+    }
+
+    /* All done */
+    return result;
 }
 
 /* Please see header for specification */
 bool Anvil::RenderingSurface::get_queue_families_with_present_support(const std::vector<uint32_t>** out_result_ptr) const
 {
-    *out_result_ptr = &m_physical_device_capabilities.present_capable_queue_fams;
+    auto caps_iterator = m_physical_device_capabilities.find(0);
+    bool result        = false;
+
+    if (caps_iterator != m_physical_device_capabilities.end() )
+    {
+        *out_result_ptr = &caps_iterator->second.present_capable_queue_fams;
+        result          = true;
+    }
 
     /* All done */
-    return true;
+    return result;
 }
 
 /* Please see header for specification */
 bool Anvil::RenderingSurface::get_supported_composite_alpha_flags(VkCompositeAlphaFlagsKHR* out_result_ptr) const
 {
-    *out_result_ptr = m_physical_device_capabilities.supported_composite_alpha_flags;
+    auto caps_iterator = m_physical_device_capabilities.find(0);
+    bool result        = false;
+
+    if (caps_iterator != m_physical_device_capabilities.end() )
+    {
+        *out_result_ptr = caps_iterator->second.supported_composite_alpha_flags;
+        result          = true;
+    }
 
     /* All done */
-    return true;
+    return result;
 }
 
 /* Please see header for specification */
 bool Anvil::RenderingSurface::get_supported_transformations(VkSurfaceTransformFlagsKHR* out_result_ptr) const
 {
-    *out_result_ptr = m_physical_device_capabilities.supported_transformations;
+    auto caps_iterator = m_physical_device_capabilities.find(0);
+    bool result        = false;
+
+    if (caps_iterator != m_physical_device_capabilities.end() )
+    {
+        *out_result_ptr = caps_iterator->second.supported_transformations;
+        result          = true;
+    }
 
     /* All done */
-    return true;
+    return result;
 }
 
 /* Please see header for specification */
 bool Anvil::RenderingSurface::get_supported_usages(VkImageUsageFlags* out_result_ptr) const
 {
-    *out_result_ptr = m_physical_device_capabilities.supported_usages;
+    auto caps_iterator = m_physical_device_capabilities.find(0);
+    bool result        = false;
+
+    if (caps_iterator != m_physical_device_capabilities.end() )
+    {
+        *out_result_ptr = caps_iterator->second.supported_usages;
+        result          = true;
+    }
 
     /* All done */
-    return true;
+    return result;
 }
 
 /* Please see header for specification */
@@ -358,6 +394,7 @@ bool Anvil::RenderingSurface::init()
                                                                                                       &m_surface);
             }
         #endif
+
         anvil_assert_vk_call_succeeded(result);
         if (is_vk_call_successful(result) )
         {
@@ -389,7 +426,7 @@ bool Anvil::RenderingSurface::init()
                     const Anvil::SGPUDevice* sgpu_device_ptr(dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr) );
 
                     physical_device_ptr      = sgpu_device_ptr->get_physical_device();
-                    physical_device_caps_ptr = &m_physical_device_capabilities;
+                    physical_device_caps_ptr = &m_physical_device_capabilities[0];
 
                     break;
                 }
@@ -438,7 +475,7 @@ bool Anvil::RenderingSurface::init()
 
                     if (sgpu_device_ptr->get_n_universal_queues() > 0)
                     {
-                        auto& result_caps = m_physical_device_capabilities;
+                        auto& result_caps = m_physical_device_capabilities[0];
 
                         result_caps.present_capable_queue_fams.push_back(sgpu_device_ptr->get_universal_queue(0)->get_queue_family_index() );
                     }
@@ -480,20 +517,34 @@ end:
 bool Anvil::RenderingSurface::is_compatible_with_image_format(VkFormat in_image_format,
                                                               bool*    out_result_ptr) const
 {
-    *out_result_ptr = std::find(m_physical_device_capabilities.supported_formats.begin(),
-                                m_physical_device_capabilities.supported_formats.end(),
-                                in_image_format) != m_physical_device_capabilities.supported_formats.end();
+    auto caps_iterator = m_physical_device_capabilities.find(0);
+    bool result        = false;
 
-    return true;
+    if (caps_iterator != m_physical_device_capabilities.end() )
+    {
+        *out_result_ptr = std::find(caps_iterator->second.supported_formats.begin(),
+                                    caps_iterator->second.supported_formats.end(),
+                                    in_image_format) != caps_iterator->second.supported_formats.end();
+        result          = true;
+    }
+
+    return result;
 }
 
 /* Please see header for specification */
 bool Anvil::RenderingSurface::supports_presentation_mode(VkPresentModeKHR in_presentation_mode,
                                                          bool*            out_result_ptr) const
 {
-    *out_result_ptr = std::find(m_physical_device_capabilities.supported_presentation_modes.begin(),
-                                m_physical_device_capabilities.supported_presentation_modes.end(),
-                                in_presentation_mode) != m_physical_device_capabilities.supported_presentation_modes.end();
+    auto caps_iterator = m_physical_device_capabilities.find(0);
+    bool result        = false;
 
-    return true;
+    if (caps_iterator != m_physical_device_capabilities.end() )
+    {
+        *out_result_ptr = std::find(caps_iterator->second.supported_presentation_modes.begin(),
+                                    caps_iterator->second.supported_presentation_modes.end(),
+                                    in_presentation_mode) != caps_iterator->second.supported_presentation_modes.end();
+        result          = true;
+    }
+
+    return result;
 }

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -30,21 +30,25 @@
 #include "wrappers/physical_device.h"
 
 /* Please see header for specification */
-Anvil::MemoryBlock::MemoryBlock(const Anvil::BaseDevice*  in_device_ptr,
-                                uint32_t                  in_allowed_memory_bits,
-                                VkDeviceSize              in_size,
-                                Anvil::MemoryFeatureFlags in_memory_features,
-                                bool                      in_mt_safe)
-    :MTSafetySupportProvider  (in_mt_safe),
-     m_allowed_memory_bits    (in_allowed_memory_bits),
-     m_device_ptr             (in_device_ptr),
-     m_gpu_data_map_count     (0),
-     m_gpu_data_ptr           (nullptr),
-     m_memory                 (VK_NULL_HANDLE),
-     m_memory_features        (in_memory_features),
-     m_parent_memory_block_ptr(nullptr),
-     m_size                   (in_size),
-     m_start_offset           (0)
+Anvil::MemoryBlock::MemoryBlock(const Anvil::BaseDevice*             in_device_ptr,
+                                uint32_t                             in_allowed_memory_bits,
+                                VkDeviceSize                         in_size,
+                                Anvil::MemoryFeatureFlags            in_memory_features,
+                                bool                                 in_mt_safe,
+                                Anvil::ExternalMemoryHandleTypeFlags in_external_memory_handle_types)
+    :MTSafetySupportProvider              (in_mt_safe),
+     m_allowed_memory_bits                (in_allowed_memory_bits),
+     m_backend_object                     (nullptr),
+     m_device_ptr                         (in_device_ptr),
+     m_external_memory_handle_types       (in_external_memory_handle_types),
+     m_gpu_data_map_count                 (0),
+     m_gpu_data_ptr                       (nullptr),
+     m_memory                             (VK_NULL_HANDLE),
+     m_memory_features                    (in_memory_features),
+     m_parent_memory_allocator_backend_ptr(nullptr),
+     m_parent_memory_block_ptr            (nullptr),
+     m_size                               (in_size),
+     m_start_offset                       (0)
 {
     /* Register the object */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_MEMORY_BLOCK,
@@ -60,17 +64,20 @@ Anvil::MemoryBlock::MemoryBlock(MemoryBlock* in_parent_memory_block_ptr,
     anvil_assert(in_parent_memory_block_ptr                 != nullptr);
     anvil_assert(in_parent_memory_block_ptr->m_gpu_data_ptr == nullptr);
 
-    m_allowed_memory_bits          = in_parent_memory_block_ptr->m_allowed_memory_bits;
-    m_device_ptr                   = in_parent_memory_block_ptr->m_device_ptr;
-    m_gpu_data_map_count           = UINT32_MAX;
-    m_gpu_data_ptr                 = nullptr;
-    m_memory_features              = in_parent_memory_block_ptr->m_memory_features;
-    m_memory                       = VK_NULL_HANDLE;
-    m_memory_type_index            = UINT32_MAX;
-    m_on_release_callback_function = in_parent_memory_block_ptr->m_on_release_callback_function;
-    m_parent_memory_block_ptr      = in_parent_memory_block_ptr;
-    m_size                         = in_size;
-    m_start_offset                 = in_start_offset + m_parent_memory_block_ptr->m_start_offset;
+    m_allowed_memory_bits                 = in_parent_memory_block_ptr->m_allowed_memory_bits;
+    m_backend_object                      = in_parent_memory_block_ptr->m_backend_object;
+    m_device_ptr                          = in_parent_memory_block_ptr->m_device_ptr;
+    m_external_memory_handle_types        = in_parent_memory_block_ptr->m_external_memory_handle_types;
+    m_gpu_data_map_count                  = UINT32_MAX;
+    m_gpu_data_ptr                        = nullptr;
+    m_memory_features                     = in_parent_memory_block_ptr->m_memory_features;
+    m_memory                              = VK_NULL_HANDLE;
+    m_memory_type_index                   = UINT32_MAX;
+    m_on_release_callback_function        = in_parent_memory_block_ptr->m_on_release_callback_function;
+    m_parent_memory_allocator_backend_ptr = in_parent_memory_block_ptr->m_parent_memory_allocator_backend_ptr;
+    m_parent_memory_block_ptr             = in_parent_memory_block_ptr;
+    m_size                                = in_size;
+    m_start_offset                        = in_start_offset + m_parent_memory_block_ptr->m_start_offset;
 
     anvil_assert(m_start_offset          >= m_parent_memory_block_ptr->m_start_offset);
     anvil_assert(m_start_offset + m_size <= m_parent_memory_block_ptr->m_start_offset + m_parent_memory_block_ptr->m_size);
@@ -88,22 +95,26 @@ Anvil::MemoryBlock::MemoryBlock(const Anvil::BaseDevice*             in_device_p
                                 uint32_t                             in_memory_type_index,
                                 VkDeviceSize                         in_size,
                                 VkDeviceSize                         in_start_offset,
-                                OnMemoryBlockReleaseCallbackFunction in_on_release_callback_function)
+                                OnMemoryBlockReleaseCallbackFunction in_on_release_callback_function,
+                                Anvil::ExternalMemoryHandleTypeFlags in_external_memory_handle_types)
     :MTSafetySupportProvider(false)
 {
     anvil_assert(in_on_release_callback_function != nullptr);
 
-    m_allowed_memory_bits          = in_allowed_memory_bits;
-    m_device_ptr                   = in_device_ptr;
-    m_gpu_data_map_count           = 0;
-    m_gpu_data_ptr                 = nullptr;
-    m_memory_features              = in_memory_features;
-    m_memory                       = in_memory;
-    m_memory_type_index            = in_memory_type_index;
-    m_parent_memory_block_ptr      = nullptr;
-    m_on_release_callback_function = in_on_release_callback_function;
-    m_size                         = in_size;
-    m_start_offset                 = in_start_offset;
+    m_allowed_memory_bits                 = in_allowed_memory_bits;
+    m_backend_object                      = nullptr;
+    m_device_ptr                          = in_device_ptr;
+    m_external_memory_handle_types        = in_external_memory_handle_types;
+    m_gpu_data_map_count                  = 0;
+    m_gpu_data_ptr                        = nullptr;
+    m_memory_features                     = in_memory_features;
+    m_memory                              = in_memory;
+    m_memory_type_index                   = in_memory_type_index;
+    m_parent_memory_allocator_backend_ptr = nullptr;
+    m_parent_memory_block_ptr             = nullptr;
+    m_on_release_callback_function        = in_on_release_callback_function;
+    m_size                                = in_size;
+    m_start_offset                        = in_start_offset;
 
     /* Register the object */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_MEMORY_BLOCK,
@@ -159,8 +170,16 @@ void Anvil::MemoryBlock::close_gpu_memory_access()
         {
             lock();
             {
-                vkUnmapMemory(m_device_ptr->get_device_vk(),
-                              m_memory);
+                if (m_parent_memory_allocator_backend_ptr != nullptr)
+                {
+                    m_parent_memory_allocator_backend_ptr->unmap(m_backend_object);
+                }
+                else
+                {
+                    /* This block will be entered for memory blocks instantiated without a memory allocator */
+                    vkUnmapMemory(m_device_ptr->get_device_vk(),
+                                  m_memory);
+                }
             }
             unlock();
 
@@ -170,11 +189,12 @@ void Anvil::MemoryBlock::close_gpu_memory_access()
 }
 
 /* Please see header for specification */
-Anvil::MemoryBlockUniquePtr Anvil::MemoryBlock::create(const Anvil::BaseDevice*  in_device_ptr,
-                                                       uint32_t                  in_allowed_memory_bits,
-                                                       VkDeviceSize              in_size,
-                                                       Anvil::MemoryFeatureFlags in_memory_features,
-                                                       MTSafety                  in_mt_safety)
+Anvil::MemoryBlockUniquePtr Anvil::MemoryBlock::create(const Anvil::BaseDevice*             in_device_ptr,
+                                                       uint32_t                             in_allowed_memory_bits,
+                                                       VkDeviceSize                         in_size,
+                                                       Anvil::MemoryFeatureFlags            in_memory_features,
+                                                       MTSafety                             in_mt_safety,
+                                                       Anvil::ExternalMemoryHandleTypeFlags in_external_memory_handle_types)
 {
     const bool           mt_safe    = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
                                                                                       in_device_ptr);
@@ -186,7 +206,8 @@ Anvil::MemoryBlockUniquePtr Anvil::MemoryBlock::create(const Anvil::BaseDevice* 
                                in_allowed_memory_bits,
                                in_size,
                                in_memory_features,
-                               mt_safe)
+                               mt_safe,
+                               in_external_memory_handle_types)
     );
 
     if (!result_ptr->init() )
@@ -205,20 +226,12 @@ Anvil::MemoryBlockUniquePtr Anvil::MemoryBlock::create_derived(MemoryBlock* in_p
     MemoryBlockUniquePtr result_ptr(nullptr,
                                     std::default_delete<MemoryBlock>() );
 
-    if (in_parent_memory_block_ptr == nullptr)
-    {
-        anvil_assert(in_parent_memory_block_ptr != nullptr);
-
-        goto end;
-    }
-
     result_ptr.reset(
         new Anvil::MemoryBlock(in_parent_memory_block_ptr,
                                in_start_offset,
                                in_size)
     );
 
-end:
     return result_ptr;
 }
 
@@ -230,7 +243,8 @@ Anvil::MemoryBlockUniquePtr Anvil::MemoryBlock::create_derived_with_custom_delet
                                                                                        uint32_t                             in_memory_type_index,
                                                                                        VkDeviceSize                         in_size,
                                                                                        VkDeviceSize                         in_start_offset,
-                                                                                       OnMemoryBlockReleaseCallbackFunction in_on_release_callback_function)
+                                                                                       OnMemoryBlockReleaseCallbackFunction in_on_release_callback_function,
+                                                                                       Anvil::ExternalMemoryHandleTypeFlags in_external_memory_handle_types)
 {
     MemoryBlockUniquePtr result_ptr(nullptr,
                                     std::default_delete<MemoryBlock>() );
@@ -243,7 +257,8 @@ Anvil::MemoryBlockUniquePtr Anvil::MemoryBlock::create_derived_with_custom_delet
                                in_memory_type_index,
                                in_size,
                                in_start_offset,
-                               in_on_release_callback_function)
+                               in_on_release_callback_function,
+                               in_external_memory_handle_types)
     );
 
     return result_ptr;
@@ -286,15 +301,15 @@ uint32_t Anvil::MemoryBlock::get_device_memory_type_index(uint32_t              
     {
         const Anvil::MemoryType& current_memory_type = memory_types[n_memory_type];
 
-        if (((is_coherent_memory_required          && (current_memory_type.flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))    ||
-             !is_coherent_memory_required)                                                                                   &&
-            ((is_device_local_memory_required      && (current_memory_type.flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))     ||
-             !is_device_local_memory_required)                                                                               &&
-            ((is_host_cached_memory_required       && (current_memory_type.flags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT))      ||
-             !is_host_cached_memory_required)                                                                                &&
-            ((is_lazily_allocated_memory_required  && (current_memory_type.flags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT)) ||
-             !is_lazily_allocated_memory_required)                                                                           &&
-            ((is_mappable_memory_required          && (current_memory_type.flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT))     ||
+        if (((is_coherent_memory_required          && (current_memory_type.flags           & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))    ||
+             !is_coherent_memory_required)                                                                                             &&
+            ((is_device_local_memory_required      && (current_memory_type.flags           & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT))     ||
+             !is_device_local_memory_required)                                                                                         &&
+            ((is_host_cached_memory_required       && (current_memory_type.flags           & VK_MEMORY_PROPERTY_HOST_CACHED_BIT))      ||
+             !is_host_cached_memory_required)                                                                                          &&
+            ((is_lazily_allocated_memory_required  && (current_memory_type.flags           & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT)) ||
+             !is_lazily_allocated_memory_required)                                                                                     &&
+            ((is_mappable_memory_required          && (current_memory_type.flags           & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT))     ||
              !is_mappable_memory_required) )
         {
             if ( (in_memory_type_bits & (1 << n_memory_type)) != 0)
@@ -329,6 +344,17 @@ bool Anvil::MemoryBlock::init()
         m_memory_type_index = buffer_data_alloc_info.memoryTypeIndex;
 
         struct_chainer.append_struct(buffer_data_alloc_info);
+    }
+
+    if (m_external_memory_handle_types != 0)
+    {
+        VkExportMemoryAllocateInfoKHR export_memory_alloc_info;
+
+        export_memory_alloc_info.handleTypes = Anvil::Utils::convert_external_memory_handle_types_to_vk_external_memory_handle_type_flags(m_external_memory_handle_types);
+        export_memory_alloc_info.pNext       = nullptr;
+        export_memory_alloc_info.sType       = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR;
+
+        struct_chainer.append_struct(export_memory_alloc_info);
     }
 
     {
@@ -457,12 +483,23 @@ bool Anvil::MemoryBlock::open_gpu_memory_access()
         /* Map the memory region into process space */
         lock();
         {
-            result_vk = vkMapMemory(m_device_ptr->get_device_vk(),
-                                    m_memory,
-                                    0, /* offset */
-                                    m_size,
-                                    0, /* flags */
-                                    (void**) &m_gpu_data_ptr);
+            if (m_parent_memory_allocator_backend_ptr != nullptr)
+            {
+                result_vk = m_parent_memory_allocator_backend_ptr->map(m_backend_object,
+                                                                       0, /* in_start_offset */
+                                                                       m_size,
+                                                                       static_cast<void**>(&m_gpu_data_ptr) );
+            }
+            else
+            {
+                /* This block will be entered for memory blocks instantiated without a memory allocator */
+                result_vk = vkMapMemory(m_device_ptr->get_device_vk(),
+                                        m_memory,
+                                        0, /* offset */
+                                        m_size,
+                                        0, /* flags */
+                                        static_cast<void**>(&m_gpu_data_ptr) );
+            }
         }
         unlock();
 

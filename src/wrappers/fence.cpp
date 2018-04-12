@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,43 +21,22 @@
 //
 
 #include "misc/debug.h"
+#include "misc/fence_create_info.h"
 #include "misc/object_tracker.h"
 #include "wrappers/device.h"
 #include "wrappers/fence.h"
 #include <algorithm>
 
 /* Please see header for specification */
-Anvil::Fence::Fence(const Anvil::BaseDevice* in_device_ptr,
-                    bool                     in_create_signalled,
-                    bool                     in_mt_safe)
-    :DebugMarkerSupportProvider(in_device_ptr,
+Anvil::Fence::Fence(Anvil::FenceCreateInfoUniquePtr in_create_info_ptr)
+    :DebugMarkerSupportProvider(in_create_info_ptr->get_device(),
                                 VK_DEBUG_REPORT_OBJECT_TYPE_FENCE_EXT),
-     MTSafetySupportProvider   (in_mt_safe),
-     m_device_ptr              (in_device_ptr),
+     MTSafetySupportProvider   (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety(),
+                                                                                in_create_info_ptr->get_device   () )),
      m_fence                   (VK_NULL_HANDLE),
      m_possibly_set            (false)
 {
-    VkFenceCreateInfo fence_create_info;
-    VkResult          result           (VK_ERROR_INITIALIZATION_FAILED);
-
-    ANVIL_REDUNDANT_VARIABLE(result);
-
-    /* Spawn a new fence */
-    fence_create_info.flags = (in_create_signalled) ? VK_FENCE_CREATE_SIGNALED_BIT
-                                                    : 0u;
-    fence_create_info.pNext = nullptr;
-    fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-
-    result = vkCreateFence(m_device_ptr->get_device_vk(),
-                          &fence_create_info,
-                           nullptr, /* pAllocator */
-                          &m_fence);
-
-    anvil_assert_vk_call_succeeded(result);
-    if (is_vk_call_successful(result) )
-    {
-        set_vk_handle(m_fence);
-    }
+    m_create_info_ptr = std::move(in_create_info_ptr);
 
     /* Register the event instance */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_FENCE,
@@ -74,22 +53,51 @@ Anvil::Fence::~Fence()
 }
 
 /* Please see header for specification */
-Anvil::FenceUniquePtr Anvil::Fence::create(const Anvil::BaseDevice* in_device_ptr,
-                                           bool                     in_create_signalled,
-                                           MTSafety                 in_mt_safety)
+Anvil::FenceUniquePtr Anvil::Fence::create(Anvil::FenceCreateInfoUniquePtr in_create_info_ptr)
 {
-    const bool            mt_safe    = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
-                                                                                       in_device_ptr);
     Anvil::FenceUniquePtr result_ptr(nullptr,
                                      std::default_delete<Anvil::Fence>() );
 
     result_ptr.reset(
-        new Anvil::Fence(in_device_ptr,
-                         in_create_signalled,
-                         mt_safe)
+        new Anvil::Fence(std::move(in_create_info_ptr) )
     );
 
+    if (result_ptr != nullptr)
+    {
+        if (!result_ptr->init() )
+        {
+            result_ptr.reset();
+        }
+    }
+
     return result_ptr;
+}
+
+bool Anvil::Fence::init()
+{
+    VkFenceCreateInfo fence_create_info;
+    VkResult          result           (VK_ERROR_INITIALIZATION_FAILED);
+
+    ANVIL_REDUNDANT_VARIABLE(result);
+
+    /* Spawn a new fence */
+    fence_create_info.flags = (m_create_info_ptr->should_create_signalled() ) ? VK_FENCE_CREATE_SIGNALED_BIT
+                                                                              : 0u;
+    fence_create_info.pNext = nullptr;
+    fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+
+    result = vkCreateFence(m_device_ptr->get_device_vk(),
+                          &fence_create_info,
+                           nullptr, /* pAllocator */
+                          &m_fence);
+
+    anvil_assert_vk_call_succeeded(result);
+    if (is_vk_call_successful(result) )
+    {
+        set_vk_handle(m_fence);
+    }
+
+    return is_vk_call_successful(result);
 }
 
 /* Please see header for specification */

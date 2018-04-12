@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,7 +21,7 @@
 //
 
 #include "misc/debug.h"
-#include "misc/descriptor_set_info.h"
+#include "misc/descriptor_set_create_info.h"
 #include "misc/object_tracker.h"
 #include "misc/struct_chainer.h"
 #include "wrappers/descriptor_pool.h"
@@ -132,9 +132,11 @@ bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                      
                                                   VkDescriptorSet*               out_descriptor_sets_vk_ptr,
                                                   VkResult*                      out_opt_result_ptr)
 {
-    bool                                              result         (false);
+    bool                                              result                                       (false);
     VkResult                                          result_vk;
+    bool                                              should_chain_variable_descriptor_count_struct(false);
     Anvil::StructChainer<VkDescriptorSetAllocateInfo> struct_chainer;
+    std::vector<uint32_t>                             variable_descriptor_counts;
 
     lock();
     {
@@ -146,6 +148,27 @@ bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                      
         {
             if (in_ds_allocations_ptr[n_set].ds_layout_ptr != nullptr)
             {
+                auto ds_create_info_ptr = in_ds_allocations_ptr[n_set].ds_layout_ptr->get_create_info();
+
+                if (ds_create_info_ptr->contains_variable_descriptor_count_binding() )
+                {
+                    if ((m_flags & Anvil::DESCRIPTOR_POOL_FLAG_CREATE_UPDATE_AFTER_BIND_BIT) != 0)
+                    {
+                        anvil_assert_fail();
+
+                        result = false;
+                        goto end;
+                    }
+
+                    should_chain_variable_descriptor_count_struct = true;
+
+                    variable_descriptor_counts.push_back(in_ds_allocations_ptr[n_set].n_variable_descriptor_bindings);
+                }
+                else
+                {
+                    variable_descriptor_counts.push_back(0);
+                }
+
                 m_ds_layout_cache[n_set] = in_ds_allocations_ptr[n_set].ds_layout_ptr->get_layout();
             }
             else
@@ -167,6 +190,20 @@ bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                      
             struct_chainer.append_struct(ds_alloc_info);
         }
 
+        if (should_chain_variable_descriptor_count_struct)
+        {
+            VkDescriptorSetVariableDescriptorCountAllocateInfoEXT variable_descriptor_count_struct;
+
+            anvil_assert(variable_descriptor_counts.size() == in_n_sets);
+
+            variable_descriptor_count_struct.descriptorSetCount = in_n_sets;
+            variable_descriptor_count_struct.pDescriptorCounts  = &variable_descriptor_counts.at(0);
+            variable_descriptor_count_struct.pNext              = nullptr;
+            variable_descriptor_count_struct.sType              = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT);
+
+            struct_chainer.append_struct(variable_descriptor_count_struct);
+        }
+
         {
             auto chain_ptr = struct_chainer.create_chain();
 
@@ -184,6 +221,7 @@ bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                      
 
     result = is_vk_call_successful(result_vk);
 
+end:
     return result;
 }
 
@@ -227,6 +265,16 @@ bool Anvil::DescriptorPool::init()
     bool                       result                                              (false);
     VkResult                   result_vk                                           (VK_ERROR_INITIALIZATION_FAILED);
 
+    if ((m_flags & Anvil::DESCRIPTOR_POOL_FLAG_CREATE_UPDATE_AFTER_BIND_BIT) != 0)
+    {
+        if (!m_device_ptr->get_extension_info()->ext_descriptor_indexing() )
+        {
+            anvil_assert_fail();
+
+            goto end;
+        }
+    }
+
     /* Convert the counters to an arrayed, linear representation */
     for (uint32_t n_descriptor_type = 0;
                   n_descriptor_type < VK_DESCRIPTOR_TYPE_RANGE_SIZE;
@@ -244,7 +292,8 @@ bool Anvil::DescriptorPool::init()
     }
 
     /* Set up the descriptor pool instance */
-    descriptor_pool_create_info.flags         = ((m_flags & Anvil::DESCRIPTOR_POOL_FLAG_CREATE_FREE_DESCRIPTOR_SET_BIT) ? VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT : 0u);
+    descriptor_pool_create_info.flags         = ((m_flags & Anvil::DESCRIPTOR_POOL_FLAG_CREATE_FREE_DESCRIPTOR_SET_BIT) ? VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT   : 0u) |
+                                                ((m_flags & Anvil::DESCRIPTOR_POOL_FLAG_CREATE_UPDATE_AFTER_BIND_BIT)   ? VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT : 0u);
     descriptor_pool_create_info.maxSets       = m_n_max_sets;
     descriptor_pool_create_info.pNext         = nullptr;
     descriptor_pool_create_info.poolSizeCount = n_descriptor_types_used;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -19,20 +19,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
-#ifndef ANVIL_BASE_PIPELINE_INFO_H
-#define ANVIL_BASE_PIPELINE_INFO_H
+#ifndef ANVIL_BASE_PIPELINE_CREATE_INFO_H
+#define ANVIL_BASE_PIPELINE_CREATE_INFO_H
 
 #include "misc/mt_safety.h"
 #include "misc/types.h"
 
 namespace Anvil
 {
-    class BasePipelineInfo
+    class BasePipelineCreateInfo
     {
     public:
         /* Public functions */
 
-        virtual ~BasePipelineInfo();
+        virtual ~BasePipelineCreateInfo();
 
         bool allows_derivatives() const
         {
@@ -49,9 +49,9 @@ namespace Anvil
             return m_base_pipeline_id;
         }
 
-        const std::vector<DescriptorSetInfoUniquePtr>* get_ds_info_items() const
+        const std::vector<DescriptorSetCreateInfoUniquePtr>* get_ds_create_info_items() const
         {
-            return &m_ds_info_items;
+            return &m_ds_create_info_items;
         }
 
         const PushConstantRanges& get_push_constant_ranges() const
@@ -77,12 +77,12 @@ namespace Anvil
             return m_is_proxy;
         }
 
-        void set_descriptor_set_info(const std::vector<const Anvil::DescriptorSetInfo*>* in_ds_info_vec_ptr);
+        void set_descriptor_set_create_info(const std::vector<const Anvil::DescriptorSetCreateInfo*>* in_ds_create_info_vec_ptr);
 
     protected:
         /* Protected functions */
 
-        BasePipelineInfo();
+        BasePipelineCreateInfo();
 
         /** Adds a new specialization constant.
          *
@@ -100,20 +100,20 @@ namespace Anvil
                                                  uint32_t           in_n_data_bytes,
                                                  const void*        in_data_ptr);
 
-        void init_derivative_pipeline_info(bool                                                in_disable_optimizations,
-                                           bool                                                in_allow_derivatives,
-                                           uint32_t                                            in_n_shader_module_stage_entrypoints,
-                                           const ShaderModuleStageEntryPoint*                  in_shader_module_stage_entrypoint_ptrs,
-                                           Anvil::PipelineID                                   in_base_pipeline_id,
-                                           const std::vector<const Anvil::DescriptorSetInfo*>* in_opt_ds_info_vec_ptr = nullptr);
-        void init_proxy_pipeline_info     ();
-        void init_regular_pipeline_info   (bool                                                in_disable_optimizations,
-                                           bool                                                in_allow_derivatives,
-                                           uint32_t                                            in_n_shader_module_stage_entrypoints,
-                                           const ShaderModuleStageEntryPoint*                  in_shader_module_stage_entrypoint_ptrs,
-                                           const std::vector<const Anvil::DescriptorSetInfo*>* in_opt_ds_info_vec_ptr = nullptr);
+        void init_derivative(bool                                                      in_disable_optimizations,
+                             bool                                                      in_allow_derivatives,
+                             uint32_t                                                  in_n_shader_module_stage_entrypoints,
+                             const ShaderModuleStageEntryPoint*                        in_shader_module_stage_entrypoint_ptrs,
+                             Anvil::PipelineID                                         in_base_pipeline_id,
+                             const std::vector<const Anvil::DescriptorSetCreateInfo*>* in_opt_ds_create_info_vec_ptr = nullptr);
+        void init_proxy     ();
+        void init_regular   (bool                                                      in_disable_optimizations,
+                             bool                                                      in_allow_derivatives,
+                             uint32_t                                                  in_n_shader_module_stage_entrypoints,
+                             const ShaderModuleStageEntryPoint*                        in_shader_module_stage_entrypoint_ptrs,
+                             const std::vector<const Anvil::DescriptorSetCreateInfo*>* in_opt_ds_create_info_vec_ptr = nullptr);
 
-        void copy_state_from(const BasePipelineInfo* in_src_pipeline_info_ptr);
+        void copy_state_from(const BasePipelineCreateInfo* in_src_pipeline_create_info_ptr);
 
 
         /* Protected type definitions */
@@ -122,10 +122,10 @@ namespace Anvil
         /* Protected variables */
         Anvil::PipelineID m_base_pipeline_id;
 
-        std::vector<DescriptorSetInfoUniquePtr> m_ds_info_items;
-        PushConstantRanges                      m_push_constant_ranges;
-        std::vector<unsigned char>              m_specialization_constants_data_buffer;
-        ShaderStageToSpecializationConstantsMap m_specialization_constants_map;
+        std::vector<DescriptorSetCreateInfoUniquePtr> m_ds_create_info_items;
+        PushConstantRanges                            m_push_constant_ranges;
+        std::vector<unsigned char>                    m_specialization_constants_data_buffer;
+        ShaderStageToSpecializationConstantsMap       m_specialization_constants_map;
 
         bool                                               m_allow_derivatives;
         bool                                               m_disable_optimizations;
@@ -144,5 +144,5 @@ namespace Anvil
 
 };
 
-#endif /* ANVIL_BASE_PIPELINE_INFO_H */
+#endif /* ANVIL_BASE_PIPELINE_CREATE_INFO_H */
 

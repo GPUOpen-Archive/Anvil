@@ -36,7 +36,7 @@ namespace Anvil
         /** Destructor */
         ~DescriptorSetLayoutManager();
 
-        bool get_layout(const DescriptorSetInfo*             in_ds_info_ptr,
+        bool get_layout(const DescriptorSetCreateInfo*       in_ds_create_info_ptr,
                         Anvil::DescriptorSetLayoutUniquePtr* out_ds_layout_ptr_ptr);
 
     protected:

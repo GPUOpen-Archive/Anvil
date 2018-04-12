@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -45,14 +45,18 @@ namespace Anvil
         /* Public functions */
 
         /** Creates a single Vulkan semaphore instance and registers the object in Object Tracker. */
-        static Anvil::SemaphoreUniquePtr create(const Anvil::BaseDevice* in_device_ptr,
-                                                MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::SemaphoreUniquePtr create(Anvil::SemaphoreCreateInfoUniquePtr in_create_info_ptr);
 
         /** Destructor.
          *
          *  Destroys the Vulkan counterpart and unregisters the wrapper instance from the Object Tracker.
          **/
         virtual ~Semaphore();
+
+        const Anvil::SemaphoreCreateInfo* get_create_info_ptr() const
+        {
+            return m_create_info_ptr.get();
+        }
 
         /** Retrieves a raw handle to the underlying Vulkan semaphore instance  */
         VkSemaphore get_semaphore() const
@@ -67,24 +71,23 @@ namespace Anvil
         }
 
         /** Releases the underlying Vulkan Semaphore instance and creates a new Vulkan object. */
-        void reset();
+        bool reset();
 
 
     private:
         /* Private functions */
 
         /* Constructor. Please see create() for specification */
-        Semaphore(const Anvil::BaseDevice* in_device_ptr,
-                  bool                     in_mt_safe);
-
-        Semaphore           (const Semaphore&);
-        Semaphore& operator=(const Semaphore&);
+        Semaphore(Anvil::SemaphoreCreateInfoUniquePtr in_create_info_ptr);
 
         void release_semaphore();
 
         /* Private variables */
-        const Anvil::BaseDevice* m_device_ptr;
-        VkSemaphore              m_semaphore;
+        Anvil::SemaphoreCreateInfoUniquePtr m_create_info_ptr;
+        VkSemaphore                         m_semaphore;
+
+        ANVIL_DISABLE_ASSIGNMENT_OPERATOR(Semaphore);
+        ANVIL_DISABLE_COPY_CONSTRUCTOR(Semaphore);
     };
 }; /* namespace Anvil */
 

@@ -21,7 +21,7 @@
 //
 
 #include "misc/debug.h"
-#include "misc/descriptor_set_info.h"
+#include "misc/descriptor_set_create_info.h"
 #include "misc/object_tracker.h"
 #include "wrappers/descriptor_set_layout.h"
 #include "wrappers/descriptor_set_layout_manager.h"
@@ -66,7 +66,7 @@ Anvil::DescriptorSetLayoutManagerUniquePtr Anvil::DescriptorSetLayoutManager::cr
 }
 
 /* Please see header for specification */
-bool Anvil::DescriptorSetLayoutManager::get_layout(const DescriptorSetInfo*             in_ds_info_ptr,
+bool Anvil::DescriptorSetLayoutManager::get_layout(const DescriptorSetCreateInfo*       in_ds_create_info_ptr,
                                                    Anvil::DescriptorSetLayoutUniquePtr* out_ds_layout_ptr_ptr)
 {
     std::unique_lock<std::recursive_mutex> mutex_lock;
@@ -74,7 +74,7 @@ bool Anvil::DescriptorSetLayoutManager::get_layout(const DescriptorSetInfo*     
     bool                                   result               = false;
     Anvil::DescriptorSetLayout*            result_ds_layout_ptr = nullptr;
 
-    anvil_assert(in_ds_info_ptr != nullptr);
+    anvil_assert(in_ds_create_info_ptr != nullptr);
 
     if (mutex_ptr != nullptr)
     {
@@ -89,9 +89,9 @@ bool Anvil::DescriptorSetLayoutManager::get_layout(const DescriptorSetInfo*     
     {
         auto&  current_ds_layout_container_ptr  = *layout_iterator;
         auto&  current_ds_layout_ptr            = current_ds_layout_container_ptr->ds_layout_ptr;
-        auto   current_ds_info_ptr              = current_ds_layout_ptr->get_info();
+        auto   current_ds_create_info_ptr       = current_ds_layout_ptr->get_create_info();
 
-        if (*in_ds_info_ptr == *current_ds_info_ptr)
+        if (*in_ds_create_info_ptr == *current_ds_create_info_ptr)
         {
             result               = true;
             result_ds_layout_ptr = current_ds_layout_ptr.get();
@@ -104,9 +104,9 @@ bool Anvil::DescriptorSetLayoutManager::get_layout(const DescriptorSetInfo*     
 
     if (!result)
     {
-        auto ds_info_clone_ptr           = DescriptorSetInfoUniquePtr                   (new DescriptorSetInfo(*in_ds_info_ptr),
-                                                                                         std::default_delete<Anvil::DescriptorSetInfo>() );
-        auto new_ds_layout_ptr           = Anvil::DescriptorSetLayout::create           (std::move(ds_info_clone_ptr),
+        auto ds_create_info_clone_ptr    = DescriptorSetCreateInfoUniquePtr             (new DescriptorSetCreateInfo(*in_ds_create_info_ptr),
+                                                                                         std::default_delete<Anvil::DescriptorSetCreateInfo>() );
+        auto new_ds_layout_ptr           = Anvil::DescriptorSetLayout::create           (std::move(ds_create_info_clone_ptr),
                                                                                          m_device_ptr,
                                                                                          Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe() ));
         auto new_ds_layout_container_ptr = std::unique_ptr<DescriptorSetLayoutContainer>(new DescriptorSetLayoutContainer() );

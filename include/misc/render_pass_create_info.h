@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -19,18 +19,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
-#ifndef MISC_RENDERPASS_INFO_H
-#define MISC_RENDERPASS_INFO_H
+#ifndef MISC_RENDERPASS_CREATE_INFO_H
+#define MISC_RENDERPASS_CREATE_INFO_H
 
 #include "misc/types.h"
 
 namespace Anvil
 {
-    class RenderPassInfo
+    class RenderPassCreateInfo
     {
     public:
-         RenderPassInfo(const Anvil::BaseDevice* in_device_ptr);
-        ~RenderPassInfo();
+         RenderPassCreateInfo(const Anvil::BaseDevice* in_device_ptr);
+        ~RenderPassCreateInfo();
 
         /** Adds a new render-pass color attachment to the internal data model.
          *
@@ -142,19 +142,20 @@ namespace Anvil
          *  it marks the RenderPass as dirty, which will cause the object to be re-created
          *  at next bake() or get_render_pass() request.
          *
-         *  @param in_subpass_id                ID of the subpass to update the depth+stencil attachment for.
-         *                                      The subpass must have been earlier created with an add_subpass() call.
-         *  @param in_attachment_id             ID of the render-pass attachment the depth-stencil attachment should refer to.
-         *  @param in_layout                    Layout to use for the attachment when executing the subpass.
-         *                                      Driver takes care of transforming the attachment to the requested layout
-         *                                      before subpass commands starts executing.
+         *  @param in_subpass_id    ID of the subpass to update the depth+stencil attachment for.
+         *                          The subpass must have been earlier created with an add_subpass() call.
+         *  @param in_layout        Layout to use for the attachment when executing the subpass.
+         *                          Driver takes care of transforming the attachment to the requested layout
+         *                          before subpass commands starts executing.
+         *  @param in_attachment_id ID of the render-pass attachment the depth-stencil attachment should refer to.
+
          *
          *  @return true if the function executed successfully, false otherwise.
          *
          */
         bool add_subpass_depth_stencil_attachment(SubPassID              in_subpass_id,
-                                                  RenderPassAttachmentID in_attachment_id,
-                                                  VkImageLayout          in_layout);
+                                                  VkImageLayout          in_layout,
+                                                  RenderPassAttachmentID in_attachment_id);
 
         /** Adds a new input attachment to the RenderPass instance's specified subpass.
          *
@@ -428,6 +429,11 @@ namespace Anvil
         bool get_subpass_n_attachments(SubPassID      in_subpass_id,
                                        AttachmentType in_attachment_type,
                                        uint32_t*      out_n_attachments_ptr) const;
+
+        void set_device_ptr(const Anvil::BaseDevice* in_device_ptr)
+        {
+            m_device_ptr = in_device_ptr;
+        }
 
     private:
         /* Private type definitions */
@@ -769,4 +775,4 @@ namespace Anvil
     };
 };
 
-#endif /* MISC_RENDERPASS_INFO_H */
+#endif /* MISC_RENDERPASS_CREATE_INFO_H */

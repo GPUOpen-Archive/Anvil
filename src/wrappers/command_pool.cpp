@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -170,7 +170,7 @@ bool Anvil::CommandPool::reset(bool in_release_resources)
 /* Please see header for specification */
 void Anvil::CommandPool::trim()
 {
-    if (m_device_ptr->is_khr_maintenance1_extension_enabled() )
+    if (m_device_ptr->get_extension_info()->khr_maintenance1() )
     {
         lock();
         {
@@ -182,6 +182,6 @@ void Anvil::CommandPool::trim()
     }
     else
     {
-        anvil_assert(m_device_ptr->is_khr_maintenance1_extension_enabled() );
+        anvil_assert(m_device_ptr->get_extension_info()->khr_maintenance1() );
     }
 }

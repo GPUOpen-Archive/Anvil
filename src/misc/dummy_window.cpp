@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -19,8 +19,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
+#include "misc/buffer_create_info.h"
 #include "misc/dummy_window.h"
+#include "misc/image_create_info.h"
 #include "misc/io.h"
+#include "misc/swapchain_create_info.h"
 #include "wrappers/buffer.h"
 #include "wrappers/command_buffer.h"
 #include "wrappers/command_pool.h"
@@ -162,10 +165,10 @@ Anvil::DummyWindowWithPNGSnapshots::DummyWindowWithPNGSnapshots(const std::strin
 /** Please see header for specification */
 std::unique_ptr<uint8_t[]> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_image_raw_r8g8b8a8_unorm_data(Anvil::Image* in_swapchain_image_ptr)
 {
-    const Anvil::BaseDevice*       device_ptr                       (m_swapchain_ptr->get_device() );
+    const Anvil::BaseDevice*       device_ptr                       (m_swapchain_ptr->get_create_info_ptr()->get_device() );
     std::unique_ptr<uint8_t[]>     result_ptr;
-    VkFormat                       swapchain_image_format           (in_swapchain_image_ptr->get_image_format     () );
-    const VkImageSubresourceRange  swapchain_image_subresource_range(in_swapchain_image_ptr->get_subresource_range() );
+    VkFormat                       swapchain_image_format           (in_swapchain_image_ptr->get_create_info_ptr()->get_format() );
+    const VkImageSubresourceRange  swapchain_image_subresource_range(in_swapchain_image_ptr->get_subresource_range            () );
 
     /* Sanity checks .. */
     ANVIL_REDUNDANT_VARIABLE(swapchain_image_format);
@@ -189,38 +192,46 @@ std::unique_ptr<uint8_t[]> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_ima
 
     result_ptr.reset(new unsigned char[raw_image_size]);
 
-    raw_image_buffer_ptr = Anvil::Buffer::create_nonsparse(device_ptr,
-                                                           raw_image_size,
-                                                           Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
-                                                           VK_SHARING_MODE_EXCLUSIVE,
-                                                           VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                           Anvil::MEMORY_FEATURE_FLAG_MAPPABLE,
-                                                           nullptr, /* opt_client_data */
-                                                           MT_SAFETY_DISABLED);
+    {
+        auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_alloc(device_ptr,
+                                                                               raw_image_size,
+                                                                               Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
+                                                                               VK_SHARING_MODE_EXCLUSIVE,
+                                                                               VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                                               Anvil::MEMORY_FEATURE_FLAG_MAPPABLE);
+
+        create_info_ptr->set_mt_safety(MT_SAFETY_DISABLED);
+
+        raw_image_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
+    }
 
     /* 2. Create the intermediate image */
     VkImageBlit    intermediate_image_blit;
     ImageUniquePtr intermediate_image_ptr;
 
-    intermediate_image_ptr = Anvil::Image::create_nonsparse(device_ptr,
-                                                            VK_IMAGE_TYPE_2D,
-                                                            VK_FORMAT_R8G8B8A8_UNORM,
-                                                            VK_IMAGE_TILING_OPTIMAL,
-                                                            VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-                                                            VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-                                                            swapchain_image_width,
-                                                            swapchain_image_height,
-                                                            1,      /* in_base_mipmap_depth */
-                                                            1,      /* in_n_layers          */
-                                                            VK_SAMPLE_COUNT_1_BIT,
-                                                            Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
-                                                            VK_SHARING_MODE_EXCLUSIVE,
-                                                            false,  /* in_use_full_mipmap_chain */
-                                                            0,      /* in_memory_features       */
-                                                            0,      /* in_create_flags          */
-                                                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                                            nullptr, /* in_ mipmaps_ptr */
-                                                            MT_SAFETY_DISABLED);
+    {
+        auto create_info_ptr = Anvil::ImageCreateInfo::create_nonsparse_alloc(device_ptr,
+                                                                              VK_IMAGE_TYPE_2D,
+                                                                              VK_FORMAT_R8G8B8A8_UNORM,
+                                                                              VK_IMAGE_TILING_OPTIMAL,
+                                                                              VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                                                                              VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                                                                              swapchain_image_width,
+                                                                              swapchain_image_height,
+                                                                              1,      /* in_base_mipmap_depth */
+                                                                              1,      /* in_n_layers          */
+                                                                              VK_SAMPLE_COUNT_1_BIT,
+                                                                              Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
+                                                                              VK_SHARING_MODE_EXCLUSIVE,
+                                                                              false,  /* in_use_full_mipmap_chain */
+                                                                              0,      /* in_memory_features       */
+                                                                              0,      /* in_create_flags          */
+                                                                              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+        create_info_ptr->set_mt_safety(MT_SAFETY_DISABLED);
+
+        intermediate_image_ptr = Anvil::Image::create(std::move(create_info_ptr) );
+    }
 
     /* 3. Set up the command buffer */
     auto                command_buffer_ptr           = Anvil::PrimaryCommandBufferUniquePtr();

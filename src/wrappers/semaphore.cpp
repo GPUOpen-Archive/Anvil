@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -22,19 +22,19 @@
 
 #include "misc/debug.h"
 #include "misc/object_tracker.h"
+#include "misc/semaphore_create_info.h"
 #include "wrappers/device.h"
 #include "wrappers/semaphore.h"
 
 /* Please see header for specification */
-Anvil::Semaphore::Semaphore(const Anvil::BaseDevice* in_device_ptr,
-                            bool                     in_mt_safe)
-    :DebugMarkerSupportProvider(in_device_ptr,
+Anvil::Semaphore::Semaphore(Anvil::SemaphoreCreateInfoUniquePtr in_create_info_ptr)
+    :DebugMarkerSupportProvider(in_create_info_ptr->get_device(),
                                 VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT),
-     MTSafetySupportProvider   (in_mt_safe),
-     m_device_ptr              (in_device_ptr),
+     MTSafetySupportProvider   (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety(),
+                                                                                in_create_info_ptr->get_device   () )),
      m_semaphore               (VK_NULL_HANDLE)
 {
-    reset();
+    m_create_info_ptr = std::move(in_create_info_ptr);
 
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SEMAPHORE,
                                                   this);
@@ -50,18 +50,22 @@ Anvil::Semaphore::~Semaphore()
 }
 
 /** Please see header for specification */
-Anvil::SemaphoreUniquePtr Anvil::Semaphore::create(const Anvil::BaseDevice* in_device_ptr,
-                                                   MTSafety                 in_mt_safety)
+Anvil::SemaphoreUniquePtr Anvil::Semaphore::create(Anvil::SemaphoreCreateInfoUniquePtr in_create_info_ptr)
 {
-    const bool         mt_safe    = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
-                                                                                    in_device_ptr);
     SemaphoreUniquePtr result_ptr(nullptr,
                                   std::default_delete<Semaphore>() );
 
     result_ptr.reset(
-        new Anvil::Semaphore(in_device_ptr,
-                             mt_safe)
+        new Anvil::Semaphore(std::move(in_create_info_ptr) )
     );
+
+    if (result_ptr != nullptr)
+    {
+        if (!result_ptr->reset() )
+        {
+            result_ptr.reset();
+        }
+    }
 
     return result_ptr;
 }
@@ -85,10 +89,10 @@ void Anvil::Semaphore::release_semaphore()
 }
 
 /* Please see header for specification */
-void Anvil::Semaphore::reset()
+bool Anvil::Semaphore::reset()
 {
-    VkResult                           result               (VK_ERROR_INITIALIZATION_FAILED);
-    VkSemaphoreCreateInfo              semaphore_create_info;
+    VkResult              result               (VK_ERROR_INITIALIZATION_FAILED);
+    VkSemaphoreCreateInfo semaphore_create_info;
 
     ANVIL_REDUNDANT_VARIABLE(result);
 
@@ -109,4 +113,6 @@ void Anvil::Semaphore::reset()
     {
         set_vk_handle(m_semaphore);
     }
+
+    return is_vk_call_successful(result);
 }

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -41,95 +41,26 @@ namespace Anvil
     public:
         /* Public functions */
 
-        /** Constructor.
-         *
-         *  Verifies input arguments and initializes the internal ref counter to 1.
-         *
-         *  @param in_device_ptr Device to use.
-         *  @param in_width      Framebuffer width. Must be at least 1.
-         *  @param in_height     Framebuffer height. Must be at least 1.
-         *  @param in_n_layers   Number of layers the framebuffer should use. Must be at least 1.
-         **/
-        static Anvil::FramebufferUniquePtr create(const Anvil::BaseDevice* in_device_ptr,
-                                                  uint32_t                 in_width,
-                                                  uint32_t                 in_height,
-                                                  uint32_t                 in_n_layers,
-                                                  MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::FramebufferUniquePtr create(Anvil::FramebufferCreateInfoUniquePtr in_create_info_ptr);
 
         /** Destructor.
          *
          *  Destroys baked Vulkan counterparts and unregisters the wrapper instance from the object tracker.
          **/
-        virtual ~Framebuffer();
+        ~Framebuffer();
 
-        /** Adds a new attachment to the framebuffer.
-         *
-         *  If this function succeeds, the maintained framebuffer objects will NOT be automatically
-         *  re-created. Instead, the user should either call bake() at a suitable moment, or expect
-         *  it to be called at the next get_framebuffer() call.
-         *
-         *  @param in_image_view_ptr         Image view instance to use as a framebuffer attachment.
-         *                                   Must not be nullptr. This object will be retained.
-         *  @param out_opt_attachment_id_ptr If not nullptr, deref will be set to a unique ID, under which
-         *                                   the attachment can be accessed.
-         *
-         *  @return true if the function was successful, false otherwise.
-         **/
-        bool add_attachment(ImageView*               in_image_view_ptr,
-                            FramebufferAttachmentID*  out_opt_attachment_id_ptr);
-
-        /** Re-creates a Vulkan framebuffer object for the specified render pass instance. If a FB
-         *  has already been created in the past, the instance will be released.
-         *
-         *  At least one attachment must be defined for this function to succeed.
-         *
-         *  @param in_render_pass_ptr Render pass instance to create the new Vulkan framebuffer object
-         *                            for. Must not be nullptr.
-         *
-         *  @return true if the function was successful, false otherwise.
-         * */
-        bool bake(Anvil::RenderPass* in_render_pass_ptr);
-
-        /* Returns an attachment at user-specified index */
-        bool get_attachment_at_index(uint32_t    in_attachment_index,
-                                     ImageView** out_image_view_ptr_ptr) const;
-
-        /** Checks if an attachment has already been created for the specified image view and, if so,
-         *  returns the attachment's ID.
-         *
-         *  @param in_image_view_ptr     Image view to use for the query. Must not be nullptr.
-         *  @param out_attachment_id_ptr If the function executes successfully, deref will be set to
-         *                               the found attachment's ID, in which case the pointer must not
-         *                               be nullptr. Otherwise, ignored.
-         *
-         *  @return true if successful (eg. the attachment corresponding to the specified image view was
-         *          found), false otherwise.
-         **/
-        bool get_attachment_id_for_image_view(ImageView*               in_image_view_ptr,
-                                              FramebufferAttachmentID* out_attachment_id_ptr);
-
-        /** Returns the number of attachments defined for the framebuffer. */
-        uint32_t get_n_attachments() const
+        const Anvil::FramebufferCreateInfo* get_create_info_ptr() const
         {
-            return static_cast<uint32_t>(m_attachments.size() );
+            return m_create_info_ptr.get();
         }
 
         /** Returns a Vulkan framebuffer object instance for the specified render pass instance.
-         *
-         *  If the object needs to be baked (because an attachment has been added since the last
-         *  baking time, or if the object is being requested for the first time), a bake() call
-         *  will be made automatically.
          *
          *  @param in_render_pass_ptr Render pass to return the framebuffer for.
          *
          *  @return Raw Vulkan framebuffer handle or VK_NULL_HANDLE, if the function failed.
          **/
         const VkFramebuffer get_framebuffer(Anvil::RenderPass* in_render_pass_ptr);
-
-        /** Returns framebuffer size, specified at creation time */
-        void get_size(uint32_t* out_framebuffer_width_ptr,
-                      uint32_t* out_framebuffer_height_ptr,
-                      uint32_t* out_framebuffer_depth_ptr) const;
 
     private:
         /* Private type declarations */
@@ -145,35 +76,6 @@ namespace Anvil
             }
         } BakedFramebufferData;
         
-        typedef struct FramebufferAttachment
-        {
-            ImageView* image_view_ptr;
-
-            /** Constructor. Retains the input image view instance.
-             *
-             *  @param in_image_view_ptr Image view instance to use for the FB attachment. Must not
-             *                           be nullptr.
-             **/
-             FramebufferAttachment(ImageView* in_image_view_ptr);
-
-             /** Destructor. Releases the encapsulated image view instance. */
-             ~FramebufferAttachment();
-
-             /** Copy constructor */
-             FramebufferAttachment(const FramebufferAttachment& in);
-
-             /** Assignment operator */
-             FramebufferAttachment& operator=(const FramebufferAttachment& in);
-
-             /** Returns true if the encapsulated image view instance is the same as the one
-              *  specified uner @param in_image_view_ptr argument.
-              **/
-             bool operator==(const ImageView* in_image_view_ptr) const
-             {
-                 return (image_view_ptr == in_image_view_ptr);
-             }
-        } FramebufferAttachment;
-
         struct RenderPassComparator
         {
             bool operator()(Anvil::RenderPass* in_a_ptr,
@@ -181,25 +83,31 @@ namespace Anvil
         };
 
         typedef std::map<Anvil::RenderPass*, BakedFramebufferData, RenderPassComparator> BakedFramebufferMap;
-        typedef std::vector<FramebufferAttachment>                                       FramebufferAttachments;
 
         /* Private functions */
 
         /* Constructor. Please see specification of create() for more details */
-        Framebuffer(const Anvil::BaseDevice* in_device_ptr,
-                    uint32_t                 in_width,
-                    uint32_t                 in_height,
-                    uint32_t                 in_n_layers,
-                    bool                     in_mt_safe);
+        Framebuffer(Anvil::FramebufferCreateInfoUniquePtr in_create_info_ptr);
 
         Framebuffer& operator=(const Framebuffer&);
         Framebuffer           (const Framebuffer&);
 
+        /** Re-creates a Vulkan framebuffer object for the specified render pass instance. If a FB
+         *  has already been created in the past, the instance will be released.
+         *
+         *  At least one attachment must be defined for this function to succeed.
+         *
+         *  @param in_render_pass_ptr Render pass instance to create the new Vulkan framebuffer object
+         *                            for. Must not be nullptr.
+         *
+         *  @return true if the function was successful, false otherwise.
+         * */
+        bool bake(Anvil::RenderPass* in_render_pass_ptr);
+
         /* Private members */
-        FramebufferAttachments   m_attachments;
-        BakedFramebufferMap      m_baked_framebuffers;
-        const Anvil::BaseDevice* m_device_ptr;
-        uint32_t                 m_framebuffer_size[3];
+        BakedFramebufferMap                   m_baked_framebuffers;
+        Anvil::FramebufferCreateInfoUniquePtr m_create_info_ptr;
+        const Anvil::BaseDevice*              m_device_ptr;
     };
 };
 

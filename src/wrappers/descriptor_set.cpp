@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,8 +20,9 @@
 // THE SOFTWARE.
 //
 
+#include "misc/buffer_create_info.h"
 #include "misc/debug.h"
-#include "misc/descriptor_set_info.h"
+#include "misc/descriptor_set_create_info.h"
 #include "misc/object_tracker.h"
 #include "wrappers/buffer.h"
 #include "wrappers/buffer_view.h"
@@ -142,7 +143,7 @@ Anvil::DescriptorSet::BufferBindingElement::BufferBindingElement(Anvil::Buffer* 
 
     if (in_size != VK_WHOLE_SIZE)
     {
-        anvil_assert(in_start_offset + in_size <= in_buffer_ptr->get_size() );
+        anvil_assert(in_start_offset + in_size <= in_buffer_ptr->get_create_info_ptr()->get_size() );
     }
 
     buffer_ptr   = in_buffer_ptr;
@@ -159,7 +160,9 @@ Anvil::DescriptorSet::BufferBindingElement::~BufferBindingElement()
 /** Please see header for specification */
 Anvil::DescriptorSet::BufferBindingElement::BufferBindingElement(const BufferBindingElement& in)
 {
-    buffer_ptr = in.buffer_ptr;
+    buffer_ptr   = in.buffer_ptr;
+    size         = in.size;
+    start_offset = in.start_offset;
 }
 
 /** Please see header for specification */
@@ -296,10 +299,16 @@ Anvil::DescriptorSet::~DescriptorSet()
  **/
 void Anvil::DescriptorSet::alloc_bindings()
 {
-    const auto     layout_info_ptr = m_layout_ptr->get_info         ();
-    const uint32_t n_bindings      = layout_info_ptr->get_n_bindings();
+    const auto     layout_info_ptr                         = m_layout_ptr->get_create_info();
+    bool           has_variable_descriptor_count_binding   = false;
+    const uint32_t n_bindings                              = layout_info_ptr->get_n_bindings();
+    uint32_t       variable_descriptor_count_binding_index = UINT32_MAX;
+    uint32_t       variable_descriptor_count_binding_size  = 0;
 
     m_cached_ds_write_items_vk.resize(n_bindings);
+
+    has_variable_descriptor_count_binding = layout_info_ptr->contains_variable_descriptor_count_binding(&variable_descriptor_count_binding_index,
+                                                                                                        &variable_descriptor_count_binding_size);
 
     for (uint32_t n_binding = 0;
                   n_binding < n_bindings;
@@ -313,7 +322,14 @@ void Anvil::DescriptorSet::alloc_bindings()
                                                                 nullptr, /* out_opt_descriptor_type_ptr */
                                                                &array_size,
                                                                 nullptr,  /* out_opt_stage_flags_ptr                */
-                                                                nullptr); /* out_opt_immutable_samplers_enabled_ptr */
+                                                                nullptr,  /* out_opt_immutable_samplers_enabled_ptr */
+                                                                nullptr); /* out_opt_flags_ptr                      */
+
+        if (has_variable_descriptor_count_binding                                            &&
+            binding_index                         == variable_descriptor_count_binding_index)
+        {
+            array_size = variable_descriptor_count_binding_size;
+        }
 
         if (m_bindings[binding_index].size() != array_size)
         {
@@ -359,8 +375,8 @@ void Anvil::DescriptorSet::fill_buffer_info_vk_descriptor(const Anvil::Descripto
     }
     else
     {
-        out_descriptor_ptr->offset = in_binding_item.buffer_ptr->get_start_offset();
-        out_descriptor_ptr->range  = in_binding_item.buffer_ptr->get_size        ();
+        out_descriptor_ptr->offset = in_binding_item.buffer_ptr->get_create_info_ptr()->get_start_offset();
+        out_descriptor_ptr->range  = in_binding_item.buffer_ptr->get_create_info_ptr()->get_size        ();
     }
 }
 
@@ -647,7 +663,7 @@ bool Anvil::DescriptorSet::update(const DescriptorSetUpdateMethod& in_update_met
 /* Please see header for specification */
 bool Anvil::DescriptorSet::update_using_core_method() const
 {
-    const auto layout_info_ptr = m_layout_ptr->get_info();
+    const auto layout_info_ptr = m_layout_ptr->get_create_info();
     bool       result          = false;
 
     anvil_assert(!m_unusable);
@@ -683,6 +699,7 @@ bool Anvil::DescriptorSet::update_using_core_method() const
                       n_binding < n_bindings;
                     ++n_binding)
         {
+            Anvil::DescriptorBindingFlags current_binding_flags                         = 0;
             uint32_t                      current_binding_index;
             VkDescriptorType              descriptor_type;
             bool                          immutable_samplers_enabled                    = false;
@@ -696,7 +713,8 @@ bool Anvil::DescriptorSet::update_using_core_method() const
                                                                         &descriptor_type,
                                                                          nullptr, /* out_opt_descriptor_array_size_ptr */
                                                                          nullptr, /* out_opt_stage_flags_ptr           */
-                                                                        &immutable_samplers_enabled) )
+                                                                        &immutable_samplers_enabled,
+                                                                        &current_binding_flags) )
             {
                 anvil_assert_fail();
             }
@@ -755,6 +773,14 @@ bool Anvil::DescriptorSet::update_using_core_method() const
                 }
                 else
                 {
+                    /* Arrayed bindings are only permitted if the binding has been created with the PARTIALLY_BOUND flag */
+                    if ((current_binding_flags & Anvil::DESCRIPTOR_BINDING_FLAG_PARTIALLY_BOUND_BIT) == 0)
+                    {
+                        anvil_assert_fail();
+
+                        goto end;
+                    }
+
                     /* Need to cache a write item at this point since current binding has not been assigned a descriptor */
                     needs_write_item = true;
                 }
@@ -810,18 +836,21 @@ bool Anvil::DescriptorSet::update_using_core_method() const
     }
 
     result = true;
+
+end:
+
     return result;
 }
 
 bool Anvil::DescriptorSet::update_using_template_method() const
 {
     std::vector<uint8_t> data_vector;
-    const auto           layout_info_ptr = m_layout_ptr->get_info();
+    const auto           layout_info_ptr = m_layout_ptr->get_create_info();
     bool                 result          = false;
 
-    if (!m_device_ptr->is_khr_descriptor_update_template_extension_enabled() )
+    if (!m_device_ptr->get_extension_info()->khr_descriptor_update_template() )
     {
-        anvil_assert(m_device_ptr->is_khr_descriptor_update_template_extension_enabled() );
+        anvil_assert(m_device_ptr->get_extension_info()->khr_descriptor_update_template() );
 
         goto end;
     }
@@ -854,7 +883,8 @@ bool Anvil::DescriptorSet::update_using_template_method() const
                                                                         &descriptor_type,
                                                                          nullptr,                     /* out_opt_descriptor_array_size_ptr */
                                                                          nullptr,                     /* out_opt_stage_flags_ptr           */
-                                                                        &immutable_samplers_enabled) )
+                                                                        &immutable_samplers_enabled,
+                                                                         nullptr) )                   /* out_opt_flags_ptr                 */
             {
                 anvil_assert_fail();
 
