@@ -103,15 +103,13 @@ Anvil::Swapchain::~Swapchain()
 uint32_t Anvil::Swapchain::acquire_image(Anvil::Semaphore* in_opt_semaphore_ptr,
                                          bool              in_should_block)
 {
-    const Anvil::PhysicalDevice* physical_device_ptr           (nullptr);
-    uint32_t                     result                        (UINT32_MAX);
-    VkResult                     result_vk                     (VK_ERROR_INITIALIZATION_FAILED);
-    const Anvil::SGPUDevice*     sgpu_device_ptr               (dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr) );
-    const WindowPlatform         window_platform               (m_create_info_ptr->get_window()->get_platform() );
-    const bool                   is_offscreen_rendering_enabled( (window_platform   == WINDOW_PLATFORM_DUMMY                     ||
-                                                                  window_platform   == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS) );
+    uint32_t             result                        (UINT32_MAX);
+    VkResult             result_vk                     (VK_ERROR_INITIALIZATION_FAILED);
+    const WindowPlatform window_platform               (m_create_info_ptr->get_window()->get_platform() );
+    const bool           is_offscreen_rendering_enabled( (window_platform   == WINDOW_PLATFORM_DUMMY                     ||
+                                                          window_platform   == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS) );
 
-    physical_device_ptr = sgpu_device_ptr->get_physical_device();
+    ANVIL_REDUNDANT_VARIABLE(result_vk);
 
     if (!is_offscreen_rendering_enabled)
     {
