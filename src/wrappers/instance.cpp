@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -224,7 +224,7 @@ void Anvil::Instance::enumerate_layer_extensions(Anvil::Layer* in_layer_ptr)
                       n_extension < n_extensions;
                     ++n_extension)
         {
-            in_layer_ptr->extensions.push_back(Anvil::Extension(extension_props[n_extension]) );
+            in_layer_ptr->extensions.push_back(extension_props[n_extension].extensionName);
         }
     }
 }
@@ -279,9 +279,7 @@ void Anvil::Instance::enumerate_physical_devices()
 /** Please see header for specification */
 const Anvil::ExtensionKHRGetPhysicalDeviceProperties2& Anvil::Instance::get_extension_khr_get_physical_device_properties2_entrypoints() const
 {
-    anvil_assert(std::find(m_enabled_extensions.begin(),
-                           m_enabled_extensions.end(),
-                           VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) != m_enabled_extensions.end() );
+    anvil_assert(m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_get_physical_device_properties2() );
 
     return m_khr_get_physical_device_properties2_entrypoints;
 }
@@ -289,9 +287,7 @@ const Anvil::ExtensionKHRGetPhysicalDeviceProperties2& Anvil::Instance::get_exte
 /** Please see header for specification */
 const Anvil::ExtensionKHRSurfaceEntrypoints& Anvil::Instance::get_extension_khr_surface_entrypoints() const
 {
-    anvil_assert(std::find(m_enabled_extensions.begin(),
-                           m_enabled_extensions.end(),
-                           VK_KHR_SURFACE_EXTENSION_NAME) != m_enabled_extensions.end() );
+    anvil_assert(m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_surface() );
 
     return m_khr_surface_entrypoints;
 }
@@ -301,9 +297,7 @@ const Anvil::ExtensionKHRSurfaceEntrypoints& Anvil::Instance::get_extension_khr_
         /** Please see header for specification */
         const Anvil::ExtensionKHRWin32SurfaceEntrypoints& Anvil::Instance::get_extension_khr_win32_surface_entrypoints() const
         {
-            anvil_assert(std::find(m_enabled_extensions.begin(),
-                                   m_enabled_extensions.end(),
-                                   VK_KHR_WIN32_SURFACE_EXTENSION_NAME) != m_enabled_extensions.end() );
+            anvil_assert(m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_win32_surface() );
 
             return m_khr_win32_surface_entrypoints;
         }
@@ -313,9 +307,7 @@ const Anvil::ExtensionKHRSurfaceEntrypoints& Anvil::Instance::get_extension_khr_
         /** Please see header for specification */
         const Anvil::ExtensionKHRXcbSurfaceEntrypoints& Anvil::Instance::get_extension_khr_xcb_surface_entrypoints() const
         {
-            anvil_assert(std::find(m_enabled_extensions.begin(),
-                                   m_enabled_extensions.end(),
-                                   VK_KHR_XCB_SURFACE_EXTENSION_NAME) != m_enabled_extensions.end() );
+            anvil_assert(m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_xcb_surface() );
 
             return m_khr_xcb_surface_entrypoints;
         }
@@ -325,11 +317,12 @@ const Anvil::ExtensionKHRSurfaceEntrypoints& Anvil::Instance::get_extension_khr_
 /** Initializes the wrapper. */
 void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instance_level_extensions)
 {
-    VkApplicationInfo        app_info;
-    VkInstanceCreateInfo     create_info;
-    std::vector<const char*> enabled_layers;
-    size_t                   n_instance_layers = 0;
-    VkResult                 result            = VK_ERROR_INITIALIZATION_FAILED;
+    VkApplicationInfo           app_info;
+    VkInstanceCreateInfo        create_info;
+    std::vector<const char*>    enabled_layers;
+    std::map<std::string, bool> extension_enabled_status;
+    size_t                      n_instance_layers        = 0;
+    VkResult                    result                   = VK_ERROR_INITIALIZATION_FAILED;
 
     ANVIL_REDUNDANT_VARIABLE(result);
 
@@ -368,31 +361,6 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
         #endif
     };
 
-    if (m_validation_callback_function != nullptr)
-    {
-        for (uint32_t n_extension = 0;
-                      n_extension < sizeof(desired_extensions_with_validation) / sizeof(desired_extensions_with_validation[0]);
-                    ++n_extension)
-        {
-            if (is_instance_extension_supported(desired_extensions_with_validation[n_extension]))
-            {
-                m_enabled_extensions.push_back(desired_extensions_with_validation[n_extension]);
-            }
-        }
-    }
-    else
-    {
-        for (uint32_t n_extension = 0;
-                      n_extension < sizeof(desired_extensions_without_validation) / sizeof(desired_extensions_without_validation[0]);
-                    ++n_extension)
-        {
-            if (is_instance_extension_supported(desired_extensions_without_validation[n_extension]))
-            {
-                m_enabled_extensions.push_back(desired_extensions_without_validation[n_extension]);
-            }
-        }
-    }
-
     /* Set up the app info descriptor **/
     app_info.apiVersion         = VK_MAKE_VERSION(1, 0, 0);
     app_info.applicationVersion = 0;
@@ -413,8 +381,8 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
                  n_instance_layer < n_instance_layers;
                ++n_instance_layer)
     {
-        const std::vector<Anvil::Extension>& layer_extensions = m_supported_layers[n_instance_layer].extensions;
-        const std::string&                   layer_name       = m_supported_layers[n_instance_layer].name;
+        const auto&        layer_extensions = m_supported_layers[n_instance_layer].extensions;
+        const std::string& layer_name       = m_supported_layers[n_instance_layer].name;
 
         /* If validation is enabled and this is a layer which issues debug call-backs, cache it, so that
          * we can request for it at vkCreateInstance() call time */
@@ -427,39 +395,67 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
         }
     }
 
-    /* Enable known instance-level extensions by default */
-    if (is_instance_extension_supported(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) )
     {
-        m_enabled_extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-    }
-
-    if (is_instance_extension_supported(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME) )
-    {
-        m_enabled_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
-    }
-
-    /* Filter out undesired extensions */
-    for (const auto& current_extension_name : in_disallowed_instance_level_extensions)
-    {
-        auto iterator = std::find(m_enabled_extensions.begin(),
-                                  m_enabled_extensions.end  (),
-                                  current_extension_name);
-
-        if (iterator != m_enabled_extensions.end() )
+        if (m_validation_callback_function != nullptr)
         {
-            m_enabled_extensions.erase(iterator);
+            for (uint32_t n_extension = 0;
+                          n_extension < sizeof(desired_extensions_with_validation) / sizeof(desired_extensions_with_validation[0]);
+                        ++n_extension)
+            {
+                if (is_instance_extension_supported(desired_extensions_with_validation[n_extension]))
+                {
+                    extension_enabled_status[desired_extensions_with_validation[n_extension] ] = true;
+                }
+            }
         }
+        else
+        {
+            for (uint32_t n_extension = 0;
+                          n_extension < sizeof(desired_extensions_without_validation) / sizeof(desired_extensions_without_validation[0]);
+                        ++n_extension)
+            {
+                if (is_instance_extension_supported(desired_extensions_without_validation[n_extension]))
+                {
+                    extension_enabled_status[desired_extensions_without_validation[n_extension] ] = true;
+                }
+            }
+        }
+
+        /* Enable known instance-level extensions by default */
+        if (is_instance_extension_supported(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) )
+        {
+            extension_enabled_status[VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME] = true;
+        }
+
+        if (is_instance_extension_supported(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME) )
+        {
+            extension_enabled_status[VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME] = true;
+        }
+
+        /* Filter out undesired extensions */
+        for (const auto& current_extension_name : in_disallowed_instance_level_extensions)
+        {
+            auto ext_iterator = extension_enabled_status.find(current_extension_name);
+
+            if (ext_iterator != extension_enabled_status.end() )
+            {
+                extension_enabled_status.erase(ext_iterator);
+            }
+        }
+
+        m_enabled_extensions_info_ptr = Anvil::ExtensionInfo<bool>::create_instance_extension_info(extension_enabled_status,
+                                                                                                   false); /* in_unspecified_extension_name_value */
     }
 
     /* We're ready to create a new Vulkan instance */
     std::vector<const char*> enabled_extensions_raw;
 
-    for (auto& ext_name : m_enabled_extensions)
+    for (auto& ext_name : extension_enabled_status)
     {
-        enabled_extensions_raw.push_back(ext_name.c_str() );
+        enabled_extensions_raw.push_back(ext_name.first.c_str() );
     }
 
-    create_info.enabledExtensionCount   = static_cast<uint32_t>(m_enabled_extensions.size() );
+    create_info.enabledExtensionCount   = static_cast<uint32_t>(enabled_extensions_raw.size() );
     create_info.enabledLayerCount       = static_cast<uint32_t>(enabled_layers.size() );
     create_info.flags                   = 0;
     create_info.pApplicationInfo        = &app_info;
@@ -560,9 +556,7 @@ void Anvil::Instance::init_func_pointers()
     }
     #endif
 
-    if (std::find(m_enabled_extensions.begin(),
-                  m_enabled_extensions.end(),
-                  VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) != m_enabled_extensions.end() )
+    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_get_physical_device_properties2() )
     {
         m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceFeatures2KHR                    = reinterpret_cast<PFN_vkGetPhysicalDeviceFeatures2KHR>                   (vkGetInstanceProcAddr(m_instance,
                                                                                                                                                                                                               "vkGetPhysicalDeviceFeatures2KHR") );
@@ -592,9 +586,7 @@ void Anvil::Instance::init_func_pointers()
 /** Please see header for specification */
 bool Anvil::Instance::is_instance_extension_enabled(const char* in_extension_name) const
 {
-    return std::find(m_enabled_extensions.begin(),
-                     m_enabled_extensions.end(),
-                     in_extension_name) != m_enabled_extensions.end();
+    return m_enabled_extensions_info_ptr->get_instance_extension_info()->by_name(in_extension_name);
 }
 
 /** Please see header for specification */

@@ -88,9 +88,9 @@ namespace Anvil
         ANVIL_DISABLE_COPY_CONSTRUCTOR   (DescriptorUpdateTemplate);
 
         /* Private variables */
-        const Anvil::BaseDevice*          m_device_ptr;
-        Anvil::DescriptorSetInfoUniquePtr m_ds_info_ptr;
-        VkDescriptorUpdateTemplateKHR     m_vk_object;
+        const Anvil::BaseDevice*                m_device_ptr;
+        Anvil::DescriptorSetCreateInfoUniquePtr m_ds_create_info_ptr;
+        VkDescriptorUpdateTemplateKHR           m_vk_object;
     };
 }; /* namespace Anvil */
 

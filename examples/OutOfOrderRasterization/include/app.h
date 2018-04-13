@@ -95,7 +95,6 @@ private:
     std::unique_ptr<float> m_teapot_props_data_ptr;
     Anvil::Time            m_time;
 
-    std::vector<Anvil::SemaphoreUniquePtr> m_frame_acquisition_wait_semaphores;
     std::vector<Anvil::SemaphoreUniquePtr> m_frame_signal_semaphores;
     std::vector<Anvil::SemaphoreUniquePtr> m_frame_wait_semaphores;
 

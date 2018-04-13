@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -50,22 +50,7 @@ namespace Anvil
          *
          *  For argument discussion, please consult Vulkan API specification.
          */
-        static Anvil::SamplerUniquePtr create(const Anvil::BaseDevice* in_device_ptr,
-                                              VkFilter                 in_mag_filter,
-                                              VkFilter                 in_min_filter,
-                                              VkSamplerMipmapMode      in_mipmap_mode,
-                                              VkSamplerAddressMode     in_address_mode_u,
-                                              VkSamplerAddressMode     in_address_mode_v,
-                                              VkSamplerAddressMode     in_address_mode_w,
-                                              float                    in_lod_bias,
-                                              float                    in_max_anisotropy,
-                                              bool                     in_compare_enable,
-                                              VkCompareOp              in_compare_op,
-                                              float                    in_min_lod,
-                                              float                    in_max_lod,
-                                              VkBorderColor            in_border_color,
-                                              bool                     in_use_unnormalized_coordinates,
-                                              MTSafety                 in_mt_safety           = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::SamplerUniquePtr create(Anvil::SamplerCreateInfoUniquePtr in_create_info_ptr);
 
         /** Destructor.
          *
@@ -74,29 +59,9 @@ namespace Anvil
          **/
         virtual ~Sampler();
 
-        VkSamplerAddressMode get_address_mode_u() const
+        const SamplerCreateInfo* get_create_info_ptr() const
         {
-            return m_address_mode_u;
-        }
-
-        VkSamplerAddressMode get_address_mode_v() const
-        {
-            return m_address_mode_v;
-        }
-
-        VkSamplerAddressMode get_address_mode_w() const
-        {
-            return m_address_mode_w;
-        }
-
-        VkBorderColor get_border_color() const
-        {
-            return m_border_color;
-        }
-
-        VkCompareOp get_compare_op() const
-        {
-            return m_compare_op;
+            return m_create_info_ptr.get();
         }
 
         /** Retrieves a raw Vulkan handle for the underlying VkSampler instance. */
@@ -105,99 +70,26 @@ namespace Anvil
             return m_sampler;
         }
 
-        float get_lod_bias() const
-        {
-            return m_lod_bias;
-        }
-
-        VkFilter get_mag_filter() const
-        {
-            return m_mag_filter;
-        }
-
-        float get_max_anisotropy() const
-        {
-            return m_max_anisotropy;
-        }
-
-        float get_max_lod() const
-        {
-            return m_max_lod;
-        }
-
-        VkFilter get_min_filter() const
-        {
-            return m_min_filter;
-        }
-
-        float get_min_lod() const
-        {
-            return m_min_lod;
-        }
-
-        VkSamplerMipmapMode get_mipmap_mode() const
-        {
-            return m_mipmap_mode;
-        }
-
         /** Retrieves a pointer to the raw Vulkan handle for the underlying VkSampler instance. */
         const VkSampler* get_sampler_ptr() const
         {
             return &m_sampler;
         }
 
-        bool is_compare_enabled() const
-        {
-            return m_compare_enable;
-        }
-
-        bool uses_unnormalized_coordinates() const
-        {
-            return m_use_unnormalized_coordinates;
-        }
-
     private:
         /* Private functions */
 
+        bool init();
+
         /* Please see create() for specification */
-        Sampler(const Anvil::BaseDevice* in_device_ptr,
-                VkFilter                 in_mag_filter,
-                VkFilter                 in_min_filter,
-                VkSamplerMipmapMode      in_mipmap_mode,
-                VkSamplerAddressMode     in_address_mode_u,
-                VkSamplerAddressMode     in_address_mode_v,
-                VkSamplerAddressMode     in_address_mode_w,
-                float                    in_lod_bias,
-                float                    in_max_anisotropy,
-                bool                     in_compare_enable,
-                VkCompareOp              in_compare_op,
-                float                    in_min_lod,
-                float                    in_max_lod,
-                VkBorderColor            in_border_color,
-                bool                     in_use_unnormalized_coordinates,
-                bool                     in_mt_safe);
+        Sampler(Anvil::SamplerCreateInfoUniquePtr in_create_info_ptr);
 
         Sampler           (const Sampler&);
         Sampler& operator=(const Sampler&);
 
         /* Private variables */
-        VkSamplerAddressMode m_address_mode_u;
-        VkSamplerAddressMode m_address_mode_v;
-        VkSamplerAddressMode m_address_mode_w;
-        VkBorderColor        m_border_color;
-        bool                 m_compare_enable;
-        VkCompareOp          m_compare_op;
-        float                m_lod_bias;
-        VkFilter             m_mag_filter;
-        float                m_max_anisotropy;
-        float                m_max_lod;
-        VkFilter             m_min_filter;
-        float                m_min_lod;
-        VkSamplerMipmapMode  m_mipmap_mode;
-        bool                 m_use_unnormalized_coordinates;
-
-        const Anvil::BaseDevice* m_device_ptr;
-        VkSampler                m_sampler;
+        SamplerCreateInfoUniquePtr m_create_info_ptr;
+        VkSampler                  m_sampler;
     };
 }; /* namespace Anvil */
 

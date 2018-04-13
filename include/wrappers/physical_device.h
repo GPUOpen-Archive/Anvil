@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,7 @@
 #define WRAPPERS_PHYSICAL_DEVICE_H
 
 #include "misc/debug.h"
+#include "misc/extensions.h"
 #include "misc/types.h"
 
 namespace Anvil
@@ -273,11 +274,11 @@ namespace Anvil
         explicit PhysicalDevice(Anvil::Instance* in_instance_ptr,
                                 uint32_t         in_index,
                                 VkPhysicalDevice in_physical_device)
-            :m_device_LUID_available    (false),
-             m_device_UUID_available    (false),
-             m_index                    (in_index),
-             m_instance_ptr             (in_instance_ptr),
-             m_physical_device          (in_physical_device)
+            :m_device_LUID_available(false),
+             m_device_UUID_available(false),
+             m_index                (in_index),
+             m_instance_ptr         (in_instance_ptr),
+             m_physical_device      (in_physical_device)
         {
             anvil_assert(in_physical_device != VK_NULL_HANDLE);
         }
@@ -288,20 +289,23 @@ namespace Anvil
         bool init();
 
         /* Private variables */
-        FormatProperties                 m_dummy;
-        Anvil::Extensions                m_extensions;
-        uint32_t                         m_index;
-        Anvil::Instance*                 m_instance_ptr;
-        Anvil::PhysicalDeviceFeatures    m_features;
-        FormatPropertiesMap              m_format_properties;
-        Anvil::Layers                    m_layers;
-        MemoryProperties                 m_memory_properties;
-        VkPhysicalDevice                 m_physical_device;
-        QueueFamilyInfoItems             m_queue_families;
-        Anvil::PhysicalDeviceProperties  m_properties;
+        FormatProperties                             m_dummy;
+        std::unique_ptr<Anvil::ExtensionInfo<bool> > m_extension_info_ptr;
+        uint32_t                                     m_index;
+        Anvil::Instance*                             m_instance_ptr;
+        Anvil::PhysicalDeviceFeatures                m_features;
+        FormatPropertiesMap                          m_format_properties;
+        Anvil::Layers                                m_layers;
+        MemoryProperties                             m_memory_properties;
+        VkPhysicalDevice                             m_physical_device;
+        QueueFamilyInfoItems                         m_queue_families;
+        Anvil::PhysicalDeviceProperties              m_properties;
 
+        std::unique_ptr<Anvil::AMDShaderCoreProperties>          m_amd_shader_core_properties_ptr;
         std::unique_ptr<Anvil::PhysicalDeviceFeaturesCoreVK10>   m_core_features_vk10_ptr;
         std::unique_ptr<Anvil::PhysicalDevicePropertiesCoreVK10> m_core_properties_vk10_ptr;
+        std::unique_ptr<Anvil::EXTDescriptorIndexingFeatures>    m_ext_descriptor_indexing_features_ptr;
+        std::unique_ptr<Anvil::EXTDescriptorIndexingProperties>  m_ext_descriptor_indexing_properties_ptr;
         std::unique_ptr<Anvil::KHR16BitStorageFeatures>          m_khr_16_bit_storage_features_ptr;
         std::unique_ptr<Anvil::KHRMaintenance3Properties>        m_khr_maintenance3_properties_ptr;
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,9 +21,8 @@
 //
 
 #include "misc/debug.h"
-#include "misc/graphics_pipeline_info.h"
 #include "misc/object_tracker.h"
-#include "misc/render_pass_info.h"
+#include "misc/render_pass_create_info.h"
 #include "wrappers/device.h"
 #include "wrappers/graphics_pipeline_manager.h"
 #include "wrappers/pipeline_layout.h"
@@ -32,13 +31,13 @@
 
 
 /** Contsructor. Initializes the Renderpass instance with default values. */
-Anvil::RenderPass::RenderPass(Anvil::RenderPassInfoUniquePtr in_renderpass_info_ptr,
-                              Anvil::Swapchain*              in_opt_swapchain_ptr)
-    :DebugMarkerSupportProvider(in_renderpass_info_ptr->get_device(),
-                                VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT),
-     m_render_pass             (VK_NULL_HANDLE),
-     m_render_pass_info_ptr    (std::move(in_renderpass_info_ptr) ),
-     m_swapchain_ptr           (in_opt_swapchain_ptr)
+Anvil::RenderPass::RenderPass(Anvil::RenderPassCreateInfoUniquePtr in_renderpass_create_info_ptr,
+                              Anvil::Swapchain*                    in_opt_swapchain_ptr)
+    :DebugMarkerSupportProvider   (in_renderpass_create_info_ptr->get_device(),
+                                   VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT),
+     m_render_pass                (VK_NULL_HANDLE),
+     m_render_pass_create_info_ptr(std::move(in_renderpass_create_info_ptr) ),
+     m_swapchain_ptr              (in_opt_swapchain_ptr)
 {
     /* Register the object */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_RENDER_PASS,
@@ -54,7 +53,7 @@ Anvil::RenderPass::~RenderPass()
 
     if (m_render_pass != VK_NULL_HANDLE)
     {
-        vkDestroyRenderPass(m_render_pass_info_ptr->get_device()->get_device_vk(),
+        vkDestroyRenderPass(m_render_pass_create_info_ptr->get_device()->get_device_vk(),
                             m_render_pass,
                             nullptr /* pAllocator */);
 
@@ -69,7 +68,7 @@ bool Anvil::RenderPass::init()
 {
     std::vector<VkAttachmentDescription> renderpass_attachments_vk;
     VkRenderPassCreateInfo               render_pass_create_info;
-    bool                                 result                       (false);
+    bool                                 result                           (false);
     VkResult                             result_vk;
     std::vector<VkSubpassDependency>     subpass_dependencies_vk;
     std::vector<VkSubpassDescription>    subpass_descriptions_vk;
@@ -136,11 +135,11 @@ bool Anvil::RenderPass::init()
     anvil_assert(m_render_pass == VK_NULL_HANDLE);
 
     /* Set up helper descriptor storage space */
-    subpass_dependencies_vk.reserve(m_render_pass_info_ptr->m_subpass_dependencies.size() );
-    subpass_descriptions_vk.reserve(m_render_pass_info_ptr->m_subpasses.size() );
+    subpass_dependencies_vk.reserve(m_render_pass_create_info_ptr->m_subpass_dependencies.size() );
+    subpass_descriptions_vk.reserve(m_render_pass_create_info_ptr->m_subpasses.size() );
 
-    for (auto renderpass_attachment_iterator  = m_render_pass_info_ptr->m_attachments.cbegin();
-              renderpass_attachment_iterator != m_render_pass_info_ptr->m_attachments.cend();
+    for (auto renderpass_attachment_iterator  = m_render_pass_create_info_ptr->m_attachments.cbegin();
+              renderpass_attachment_iterator != m_render_pass_create_info_ptr->m_attachments.cend();
             ++renderpass_attachment_iterator)
     {
         VkAttachmentDescription attachment_vk;
@@ -159,8 +158,8 @@ bool Anvil::RenderPass::init()
         renderpass_attachments_vk.push_back(attachment_vk);
     }
 
-    for (auto subpass_dependency_iterator  = m_render_pass_info_ptr->m_subpass_dependencies.cbegin();
-              subpass_dependency_iterator != m_render_pass_info_ptr->m_subpass_dependencies.cend();
+    for (auto subpass_dependency_iterator  = m_render_pass_create_info_ptr->m_subpass_dependencies.cbegin();
+              subpass_dependency_iterator != m_render_pass_create_info_ptr->m_subpass_dependencies.cend();
             ++subpass_dependency_iterator)
     {
         VkSubpassDependency dependency_vk;
@@ -179,8 +178,8 @@ bool Anvil::RenderPass::init()
     }
 
     /* We now have all the data needed to create Vulkan subpass instances. */
-    for (auto subpass_iterator  = m_render_pass_info_ptr->m_subpasses.cbegin();
-              subpass_iterator != m_render_pass_info_ptr->m_subpasses.cend();
+    for (auto subpass_iterator  = m_render_pass_create_info_ptr->m_subpasses.cbegin();
+              subpass_iterator != m_render_pass_create_info_ptr->m_subpasses.cend();
             ++subpass_iterator)
     {
         std::unique_ptr<SubPassAttachmentSet> current_subpass_attachment_set_ptr;
@@ -261,21 +260,21 @@ bool Anvil::RenderPass::init()
                   subpass_color_attachment_iterator != (*subpass_iterator)->color_attachments_map.cend();
                 ++subpass_color_attachment_iterator)
         {
-            current_subpass_attachment_set_ptr->color_attachments_vk[subpass_color_attachment_iterator->first] = m_render_pass_info_ptr->get_attachment_reference_from_subpass_attachment(subpass_color_attachment_iterator->second);
+            current_subpass_attachment_set_ptr->color_attachments_vk[subpass_color_attachment_iterator->first] = m_render_pass_create_info_ptr->get_attachment_reference_from_subpass_attachment(subpass_color_attachment_iterator->second);
 
             if (need_color_resolve_attachments)
             {
                 if (subpass_color_attachment_iterator->second.resolve_attachment_index != UINT32_MAX)
                 {
-                    current_subpass_attachment_set_ptr->resolve_color_attachments_vk[subpass_color_attachment_iterator->first] = m_render_pass_info_ptr->get_attachment_reference_for_resolve_attachment(subpass_iterator,
-                                                                                                                                                                                                         subpass_color_attachment_iterator);
+                    current_subpass_attachment_set_ptr->resolve_color_attachments_vk[subpass_color_attachment_iterator->first] = m_render_pass_create_info_ptr->get_attachment_reference_for_resolve_attachment(subpass_iterator,
+                                                                                                                                                                                                                subpass_color_attachment_iterator);
                 }
             }
         }
 
         if ((*subpass_iterator)->depth_stencil_attachment.attachment_index != UINT32_MAX)
         {
-            current_subpass_attachment_set_ptr->depth_attachment_vk = m_render_pass_info_ptr->get_attachment_reference_from_subpass_attachment((*subpass_iterator)->depth_stencil_attachment);
+            current_subpass_attachment_set_ptr->depth_attachment_vk = m_render_pass_create_info_ptr->get_attachment_reference_from_subpass_attachment((*subpass_iterator)->depth_stencil_attachment);
         }
         else
         {
@@ -286,7 +285,7 @@ bool Anvil::RenderPass::init()
                   subpass_input_attachment_iterator != (*subpass_iterator)->input_attachments_map.cend();
                 ++subpass_input_attachment_iterator)
         {
-            current_subpass_attachment_set_ptr->input_attachments_vk[subpass_input_attachment_iterator->first] = m_render_pass_info_ptr->get_attachment_reference_from_subpass_attachment(subpass_input_attachment_iterator->second);
+            current_subpass_attachment_set_ptr->input_attachments_vk[subpass_input_attachment_iterator->first] = m_render_pass_create_info_ptr->get_attachment_reference_from_subpass_attachment(subpass_input_attachment_iterator->second);
         }
 
         /* Fill the preserved attachments vector. These do not use indices or locations, so the process is much simpler */
@@ -295,7 +294,7 @@ bool Anvil::RenderPass::init()
                 ++subpass_preserve_attachment_iterator)
         {
             current_subpass_attachment_set_ptr->preserve_attachments_vk.push_back(
-                m_render_pass_info_ptr->m_attachments.at(subpass_preserve_attachment_iterator->attachment_index).index
+                m_render_pass_create_info_ptr->m_attachments.at(subpass_preserve_attachment_iterator->attachment_index).index
             );
         }
 
@@ -332,9 +331,9 @@ bool Anvil::RenderPass::init()
     }
 
     /* Set up a create info descriptor and spawn a new Vulkan RenderPass object. */
-    render_pass_create_info.attachmentCount = static_cast<uint32_t>(m_render_pass_info_ptr->m_attachments.size         () );
-    render_pass_create_info.dependencyCount = static_cast<uint32_t>(m_render_pass_info_ptr->m_subpass_dependencies.size() );
-    render_pass_create_info.subpassCount    = static_cast<uint32_t>(m_render_pass_info_ptr->m_subpasses.size           () );
+    render_pass_create_info.attachmentCount = static_cast<uint32_t>(m_render_pass_create_info_ptr->m_attachments.size         () );
+    render_pass_create_info.dependencyCount = static_cast<uint32_t>(m_render_pass_create_info_ptr->m_subpass_dependencies.size() );
+    render_pass_create_info.subpassCount    = static_cast<uint32_t>(m_render_pass_create_info_ptr->m_subpasses.size           () );
     render_pass_create_info.flags           = 0;
     render_pass_create_info.pAttachments    = (render_pass_create_info.attachmentCount > 0) ? &renderpass_attachments_vk.at(0)
                                                                                             : nullptr;
@@ -366,14 +365,14 @@ end:
 }
 
 /* Please see header for specification */
-Anvil::RenderPassUniquePtr Anvil::RenderPass::create(Anvil::RenderPassInfoUniquePtr in_renderpass_info_ptr,
-                                                     Anvil::Swapchain*              in_opt_swapchain_ptr)
+Anvil::RenderPassUniquePtr Anvil::RenderPass::create(Anvil::RenderPassCreateInfoUniquePtr in_renderpass_create_info_ptr,
+                                                     Anvil::Swapchain*                    in_opt_swapchain_ptr)
 {
     std::unique_ptr<RenderPass> result_ptr(nullptr,
                                            std::default_delete<RenderPass>() );
 
     result_ptr.reset(
-        new Anvil::RenderPass(std::move(in_renderpass_info_ptr),
+        new Anvil::RenderPass(std::move(in_renderpass_create_info_ptr),
                               in_opt_swapchain_ptr)
     );
 

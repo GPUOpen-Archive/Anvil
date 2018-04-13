@@ -9,6 +9,7 @@ endif(WIN32)
 set(SOURCES
     MachineIndependent/glslang.y
     MachineIndependent/glslang_tab.cpp
+    MachineIndependent/attribute.cpp
     MachineIndependent/Constant.cpp
     MachineIndependent/iomapper.cpp
     MachineIndependent/InfoSink.cpp
@@ -51,6 +52,7 @@ set(HEADERS
     Include/revision.h
     Include/ShHandle.h
     Include/Types.h
+    MachineIndependent/attribute.h
     MachineIndependent/glslang_tab.cpp.h
     MachineIndependent/gl_types.h
     MachineIndependent/Initialize.h
@@ -79,7 +81,8 @@ set(HEADERS
 # set(BISON_GLSLParser_OUTPUT_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/MachineIndependent/glslang_tab.cpp)
 
 add_library(glslang STATIC ${BISON_GLSLParser_OUTPUT_SOURCE} ${SOURCES} ${HEADERS})
-set_property(TARGET glslang PROPERTY FOLDER glslang POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET glslang PROPERTY FOLDER glslang)
+set_property(TARGET glslang PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(glslang OGLCompiler OSDependent)
 if(ENABLE_HLSL)
     target_link_libraries(glslang HLSL)
@@ -93,12 +96,14 @@ if(WIN32)
     source_group("MachineIndependent\\Preprocessor" REGULAR_EXPRESSION "MachineIndependent/preprocessor/*")
 endif(WIN32)
 
-#>> Disabled for Anvil
-#install(TARGETS glslang
-#        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-#
-#foreach(file ${HEADERS})
-#    get_filename_component(dir ${file} DIRECTORY)
-#    install(FILES ${file} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/glslang/${dir})
-#endforeach()
-#<<
+if(ENABLE_GLSLANG_INSTALL)
+    install(TARGETS glslang
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+endif(ENABLE_GLSLANG_INSTALL)
+
+if(ENABLE_GLSLANG_INSTALL)
+    foreach(file ${HEADERS})
+        get_filename_component(dir ${file} DIRECTORY)
+        install(FILES ${file} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/glslang/${dir})
+    endforeach()
+endif(ENABLE_GLSLANG_INSTALL)

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -81,7 +81,7 @@ namespace Anvil
          *
          *  @param in_update Detailed information about the update to be carried out.
          **/
-        bool bind_sparse_memory(Anvil::Utils::SparseMemoryBindingUpdateInfo& in_update);
+        bool bind_sparse_memory(Anvil::SparseMemoryBindingUpdateInfo& in_update);
 
         /** Retrieves parent device instance */
         const Anvil::BaseDevice* get_parent_device() const
@@ -277,27 +277,22 @@ namespace Anvil
 
     private:
         /* Private functions */
-        VkResult present_internal   (uint32_t                       in_n_swapchains,
-                                     Anvil::Swapchain* const*       in_swapchains,
-                                     const uint32_t*                in_swapchain_image_indices,
-                                     uint32_t                       in_n_wait_semaphores,
-                                     Anvil::Semaphore* const*       in_wait_semaphore_ptrs);
-        void     present_lock_unlock(uint32_t                       in_n_swapchains,
-                                     const Anvil::Swapchain* const* in_swapchains,
-                                     uint32_t                       in_n_wait_semaphores,
-                                     Anvil::Semaphore* const*       in_wait_semaphore_ptrs,
-                                     bool                           in_should_lock);
+        void present_lock_unlock(uint32_t                            in_n_swapchains,
+                                 const Anvil::Swapchain* const*      in_swapchains,
+                                 uint32_t                            in_n_wait_semaphores,
+                                 Anvil::Semaphore* const*            in_wait_semaphore_ptrs,
+                                 bool                                in_should_lock);
 
-        void bind_sparse_memory_lock_unlock    (Anvil::Utils::SparseMemoryBindingUpdateInfo& in_update,
-                                                bool                                         in_should_lock);
-        void submit_command_buffers_lock_unlock(uint32_t                                     in_n_command_buffers,
-                                                Anvil::CommandBufferBase* const*             in_opt_cmd_buffer_ptrs_ptr,
-                                                uint32_t                                     in_n_semaphores_to_signal,
-                                                Anvil::Semaphore* const*                     in_opt_semaphore_to_signal_ptrs_ptr,
-                                                uint32_t                                     in_n_semaphores_to_wait_on,
-                                                Anvil::Semaphore* const*                     in_opt_semaphore_to_wait_on_ptrs_ptr,
-                                                Anvil::Fence*                                in_opt_fence_ptr,
-                                                bool                                         in_should_lock);
+        void bind_sparse_memory_lock_unlock    (Anvil::SparseMemoryBindingUpdateInfo& in_update,
+                                                bool                                  in_should_lock);
+        void submit_command_buffers_lock_unlock(uint32_t                              in_n_command_buffers,
+                                                Anvil::CommandBufferBase* const*      in_opt_cmd_buffer_ptrs_ptr,
+                                                uint32_t                              in_n_semaphores_to_signal,
+                                                Anvil::Semaphore* const*              in_opt_semaphore_to_signal_ptrs_ptr,
+                                                uint32_t                              in_n_semaphores_to_wait_on,
+                                                Anvil::Semaphore* const*              in_opt_semaphore_to_wait_on_ptrs_ptr,
+                                                Anvil::Fence*                         in_opt_fence_ptr,
+                                                bool                                  in_should_lock);
 
         /* Constructor. Please see create() for specification */
         Queue(const Anvil::BaseDevice* in_device_ptr,

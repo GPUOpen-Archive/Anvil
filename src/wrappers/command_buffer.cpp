@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,10 +20,9 @@
 // THE SOFTWARE.
 //
 
-#include "misc/base_pipeline_info.h"
 #include "misc/callbacks.h"
 #include "misc/debug.h"
-#include "misc/descriptor_set_info.h"
+#include "misc/descriptor_set_create_info.h"
 #include "misc/struct_chainer.h"
 #include "wrappers/buffer.h"
 #include "wrappers/buffer_view.h"
@@ -61,13 +60,12 @@ Anvil::CommandBufferBase::BeginQueryCommand::BeginQueryCommand(Anvil::QueryPool*
 }
 
 /** Please see header for specification */
-Anvil::BeginRenderPassCommand::BeginRenderPassCommand(uint32_t                     in_n_clear_values,
-                                                      const VkClearValue*          in_clear_value_ptrs,
-                                                      Anvil::Framebuffer*          in_fbo_ptr,
-                                                      const Anvil::PhysicalDevice* in_physical_device_ptr,
-                                                      const VkRect2D&              in_render_area,
-                                                      Anvil::RenderPass*           in_render_pass_ptr,
-                                                      VkSubpassContents            in_contents)
+Anvil::BeginRenderPassCommand::BeginRenderPassCommand(uint32_t            in_n_clear_values,
+                                                      const VkClearValue* in_clear_value_ptrs,
+                                                      Anvil::Framebuffer* in_fbo_ptr,
+                                                      const VkRect2D&     in_render_area,
+                                                      Anvil::RenderPass*  in_render_pass_ptr,
+                                                      VkSubpassContents   in_contents)
     :Command(COMMAND_TYPE_BEGIN_RENDER_PASS)
 {
     contents        = in_contents;
@@ -81,8 +79,6 @@ Anvil::BeginRenderPassCommand::BeginRenderPassCommand(uint32_t                  
     {
         clear_values.push_back(in_clear_value_ptrs[n_clear_value]);
     }
-
-    physical_device_ptr = in_physical_device_ptr;
 }
 
 /** Please see header for specification */
@@ -788,10 +784,10 @@ Anvil::CommandBufferBase::SetViewportCommand::SetViewportCommand(uint32_t       
 }
 
 /** Please see header for specification */
-Anvil::CommandBufferBase::UpdateBufferCommand::UpdateBufferCommand(Anvil::Buffer*  in_dst_buffer_ptr,
-                                                                   VkDeviceSize    in_dst_offset,
-                                                                   VkDeviceSize    in_data_size,
-                                                                   const uint32_t* in_data_ptr)
+Anvil::CommandBufferBase::UpdateBufferCommand::UpdateBufferCommand(Anvil::Buffer* in_dst_buffer_ptr,
+                                                                   VkDeviceSize   in_dst_offset,
+                                                                   VkDeviceSize   in_data_size,
+                                                                   const void*    in_data_ptr)
     :Command(COMMAND_TYPE_UPDATE_BUFFER)
 {
     data_ptr       = in_data_ptr;
@@ -980,8 +976,6 @@ bool Anvil::CommandBufferBase::record_bind_descriptor_sets(VkPipelineBindPoint  
     /* Note: Command supported inside and outside the renderpass. */
     auto dss_vk = std::vector<VkDescriptorSet>(in_set_count);
     bool result = false;
-
-    anvil_assert(in_set_count < sizeof(dss_vk) / sizeof(dss_vk[0]) );
 
     for (uint32_t n_set = 0;
                   n_set < in_set_count;
@@ -1741,7 +1735,7 @@ bool Anvil::CommandBufferBase::record_debug_marker_begin_EXT(const std::string& 
     }
     #endif
 
-    anvil_assert(m_device_ptr->is_ext_debug_marker_extension_enabled() );
+    anvil_assert(m_device_ptr->get_extension_info()->ext_debug_marker() );
 
     if (in_opt_color != nullptr)
     {
@@ -1786,7 +1780,7 @@ bool Anvil::CommandBufferBase::record_debug_marker_end_EXT()
         goto end;
     }
 
-    anvil_assert(m_device_ptr->is_ext_debug_marker_extension_enabled() );
+    anvil_assert(m_device_ptr->get_extension_info()->ext_debug_marker() );
 
 
     #ifdef STORE_COMMAND_BUFFER_COMMANDS
@@ -1824,7 +1818,7 @@ bool Anvil::CommandBufferBase::record_debug_marker_insert_EXT(const std::string&
         goto end;
     }
 
-    anvil_assert(m_device_ptr->is_ext_debug_marker_extension_enabled() );
+    anvil_assert(m_device_ptr->get_extension_info()->ext_debug_marker() );
 
 
     #ifdef STORE_COMMAND_BUFFER_COMMANDS
@@ -2093,7 +2087,7 @@ bool Anvil::CommandBufferBase::record_draw_indexed_indirect_count_AMD(Anvil::Buf
         goto end;
     }
 
-    anvil_assert(m_device_ptr->is_amd_draw_indirect_count_extension_enabled() );
+    anvil_assert(m_device_ptr->get_extension_info()->amd_draw_indirect_count() );
 
 
     #ifdef STORE_COMMAND_BUFFER_COMMANDS
@@ -2207,7 +2201,7 @@ bool Anvil::CommandBufferBase::record_draw_indirect_count_AMD(Anvil::Buffer* in_
         goto end;
     }
 
-    anvil_assert(m_device_ptr->is_amd_draw_indirect_count_extension_enabled() );
+    anvil_assert(m_device_ptr->get_extension_info()->amd_draw_indirect_count() );
 
 
     #ifdef STORE_COMMAND_BUFFER_COMMANDS
@@ -2635,6 +2629,7 @@ end:
     return result;
 }
 
+
 /* Please see header for specification */
 bool Anvil::CommandBufferBase::record_set_blend_constants(const float in_blend_constants[4])
 {
@@ -3035,10 +3030,10 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::CommandBufferBase::record_update_buffer(Anvil::Buffer*  in_dst_buffer_ptr,
-                                                    VkDeviceSize    in_dst_offset,
-                                                    VkDeviceSize    in_data_size,
-                                                    const uint32_t* in_data_ptr)
+bool Anvil::CommandBufferBase::record_update_buffer(Anvil::Buffer* in_dst_buffer_ptr,
+                                                    VkDeviceSize   in_dst_offset,
+                                                    VkDeviceSize   in_data_size,
+                                                    const void*    in_data_ptr)
 {
     bool result = false;
 
@@ -3240,12 +3235,14 @@ bool Anvil::CommandBufferBase::reset(bool in_should_release_resources)
         goto end;
     }
 
+    m_parent_command_pool_ptr->lock();
     lock();
     {
         result_vk = vkResetCommandBuffer(m_command_buffer,
                                          (in_should_release_resources) ? VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT : 0u);
     }
     unlock();
+    m_parent_command_pool_ptr->unlock();
 
     if (!is_vk_call_successful(result_vk) )
     {
@@ -3338,11 +3335,8 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass(uint32_t            i
                                                            Anvil::RenderPass*  in_render_pass_ptr,
                                                            VkSubpassContents   in_contents)
 {
-    const Anvil::PhysicalDevice*                physical_device_ptr          = nullptr;
     Anvil::StructChainer<VkRenderPassBeginInfo> render_pass_begin_info_chain;
     bool                                        result = false;
-
-    ANVIL_REDUNDANT_VARIABLE(physical_device_ptr);
 
     if (m_is_renderpass_active)
     {
@@ -3358,14 +3352,6 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass(uint32_t            i
         goto end;
     }
 
-    {
-        const Anvil::SGPUDevice* sgpu_device_ptr(dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr) );
-
-        anvil_assert(sgpu_device_ptr != nullptr); /* User attempted to call this function prototype with in_n_physical_devices set to 0 */
-
-        physical_device_ptr = sgpu_device_ptr->get_physical_device();
-    }
-
     #ifdef STORE_COMMAND_BUFFER_COMMANDS
     {
         if (!m_command_stashing_disabled)
@@ -3373,7 +3359,6 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass(uint32_t            i
             m_commands.push_back(BeginRenderPassCommand(in_n_clear_values,
                                                         in_clear_value_ptrs,
                                                         in_fbo_ptr,
-                                                        physical_device_ptr,
                                                         in_render_area,
                                                         in_render_pass_ptr,
                                                         in_contents) );

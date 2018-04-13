@@ -68,14 +68,21 @@ const char* BaseTypeName(const char argOrder, const char* scalarName, const char
     }
 }
 
-bool IsSamplerType(const char argType) { return argType == 'S' || argType == 's'; }
-bool IsArrayed(const char argOrder)    { return argOrder == '@' || argOrder == '&' || argOrder == '#'; }
-bool IsTextureMS(const char argOrder)  { return argOrder == '$' || argOrder == '&'; }
-bool IsBuffer(const char argOrder)     { return argOrder == '*' || argOrder == '~'; }
-bool IsImage(const char argOrder)      { return argOrder == '!' || argOrder == '#' || argOrder == '~'; }
+// arg order queries
+bool IsSamplerType(const char argType)     { return argType == 'S' || argType == 's'; }
+bool IsArrayed(const char argOrder)        { return argOrder == '@' || argOrder == '&' || argOrder == '#'; }
+bool IsTextureNonMS(const char argOrder)   { return argOrder == '%'; }
+bool IsSubpassInput(const char argOrder)   { return argOrder == '[' || argOrder == ']'; }
+bool IsArrayedTexture(const char argOrder) { return argOrder == '@'; }
+bool IsTextureMS(const char argOrder)      { return argOrder == '$' || argOrder == '&'; }
+bool IsMS(const char argOrder)             { return IsTextureMS(argOrder) || argOrder == ']'; }
+bool IsBuffer(const char argOrder)         { return argOrder == '*' || argOrder == '~'; }
+bool IsImage(const char argOrder)          { return argOrder == '!' || argOrder == '#' || argOrder == '~'; }
+
 bool IsTextureType(const char argOrder)
 {
-    return argOrder == '%' || argOrder == '@' || IsTextureMS(argOrder) || IsBuffer(argOrder) | IsImage(argOrder);
+    return IsTextureNonMS(argOrder) || IsArrayedTexture(argOrder) ||
+           IsTextureMS(argOrder) || IsBuffer(argOrder) || IsImage(argOrder);
 }
 
 // Reject certain combinations that are illegal sample methods.  For example,
@@ -222,15 +229,16 @@ glslang::TString& AppendTypeName(glslang::TString& s, const char* argOrder, cons
     const bool isTexture   = IsTextureType(argOrder[0]);
     const bool isArrayed   = IsArrayed(argOrder[0]);
     const bool isSampler   = IsSamplerType(argType[0]);
-    const bool isMS        = IsTextureMS(argOrder[0]);
+    const bool isMS        = IsMS(argOrder[0]);
     const bool isBuffer    = IsBuffer(argOrder[0]);
     const bool isImage     = IsImage(argOrder[0]);
+    const bool isSubpass   = IsSubpassInput(argOrder[0]);
 
     char type  = *argType;
 
     if (isTranspose) {  // Take transpose of matrix dimensions
         std::swap(dim0, dim1);
-    } else if (isTexture) {
+    } else if (isTexture || isSubpass) {
         if (type == 'F')       // map base type to texture of that type.
             type = 'T';        // e.g, int -> itexture, uint -> utexture, etc.
         else if (type == 'I')
@@ -251,20 +259,29 @@ glslang::TString& AppendTypeName(glslang::TString& s, const char* argOrder, cons
         case 'D': s += "double";                              break;
         case 'I': s += "int";                                 break;
         case 'U': s += "uint";                                break;
+        case 'L': s += "int64_t";                             break;
+        case 'M': s += "uint64_t";                            break;
         case 'B': s += "bool";                                break;
         case 'S': s += "sampler";                             break;
         case 's': s += "SamplerComparisonState";              break;
         case 'T': s += ((isBuffer && isImage) ? "RWBuffer" :
+                        isSubpass ? "SubpassInput" :
                         isBuffer ? "Buffer" :
                         isImage  ? "RWTexture" : "Texture");  break;
         case 'i': s += ((isBuffer && isImage) ? "RWBuffer" :
+                        isSubpass ? "SubpassInput" :
                         isBuffer ? "Buffer" :
                         isImage ? "RWTexture" : "Texture");   break;
         case 'u': s += ((isBuffer && isImage) ? "RWBuffer" :
+                        isSubpass ? "SubpassInput" :
                         isBuffer ? "Buffer" :
                         isImage ? "RWTexture" : "Texture");   break;
         default:  s += "UNKNOWN_TYPE";                        break;
         }
+
+        if (isSubpass && isMS)
+            s += "MS";
+
     } else {
         switch (type) {
         case '-': s += "void"; break;
@@ -282,6 +299,7 @@ glslang::TString& AppendTypeName(glslang::TString& s, const char* argOrder, cons
                 s += type;
 
             s += ((isImage && isBuffer) ? "imageBuffer"   :
+                  isSubpass             ? "subpassInput" :
                   isImage               ? "image"         :
                   isBuffer              ? "samplerBuffer" :
                   "texture");
@@ -295,6 +313,9 @@ glslang::TString& AppendTypeName(glslang::TString& s, const char* argOrder, cons
     const int fixedVecSize = FixedVecSize(argOrder);
     if (fixedVecSize != 0)
         dim0 = dim1 = fixedVecSize;
+
+    const char dim0Char = ('0' + char(dim0));
+    const char dim1Char = ('0' + char(dim1));
 
     // Add sampler dimensions
     if (isSampler || isTexture) {
@@ -320,12 +341,12 @@ glslang::TString& AppendTypeName(glslang::TString& s, const char* argOrder, cons
         case '-': break;  // no dimensions for voids
         case 'S': break;  // no dimensions on scalars
         case 'V':
-            s += ('0' + char(dim0));
+            s += dim0Char;
             break;
         case 'M':
-            s += ('0' + char(dim0));
+            s += dim0Char;
             s += 'x';
-            s += ('0' + char(dim1));
+            s += dim1Char;
             break;
         default:
             break;
@@ -339,9 +360,9 @@ glslang::TString& AppendTypeName(glslang::TString& s, const char* argOrder, cons
     // For HLSL, append return type for texture types
     if (UseHlslTypes) {
         switch (type) {
-        case 'i': s += "<int4>";   break;
-        case 'u': s += "<uint4>";  break;
-        case 'T': s += "<float4>"; break;
+        case 'i': s += "<int";   s += dim0Char; s += ">"; break;
+        case 'u': s += "<uint";  s += dim0Char; s += ">"; break;
+        case 'T': s += "<float"; s += dim0Char; s += ">"; break;
         default: break;
         }
     }
@@ -414,7 +435,7 @@ inline void FindVectorMatrixBounds(const char* argOrder, int fixedVecSize, int& 
         const char* nthArgOrder(NthArg(argOrder, arg));
         if (nthArgOrder == nullptr)
             break;
-        else if (*nthArgOrder == 'V')
+        else if (*nthArgOrder == 'V' || IsSubpassInput(*nthArgOrder))
             dim0Max = 4;
         else if (*nthArgOrder == 'M')
             dim0Max = dim1Max = 4;
@@ -525,7 +546,7 @@ void TBuiltInParseablesHlsl::initialize(int /*version*/, EProfile /*profile*/, c
     // orderKey can be:
     //   S = scalar, V = vector, M = matrix, - = void
     // typekey can be:
-    //   D = double, F = float, U = uint, I = int, B = bool, S = sampler, s = shadowSampler
+    //   D = double, F = float, U = uint, I = int, B = bool, S = sampler, s = shadowSampler, M = uint64_t, L = int64_t
     // An empty order or type key repeats the first one.  E.g: SVM,, means 3 args each of SVM.
     // '>' as first letter of order creates an output parameter
     // '<' as first letter of order creates an input parameter
@@ -537,6 +558,7 @@ void TBuiltInParseablesHlsl::initialize(int /*version*/, EProfile /*profile*/, c
     // '!' as first letter of order creates image object
     // '#' as first letter of order creates arrayed image object
     // '~' as first letter of order creates an image buffer object
+    // '[' / ']' as first letter of order creates a SubpassInput/SubpassInputMS object
 
     static const struct {
         const char*   name;      // intrinsic name
@@ -547,8 +569,8 @@ void TBuiltInParseablesHlsl::initialize(int /*version*/, EProfile /*profile*/, c
         unsigned int  stage;     // stage mask
         bool          method;    // true if it's a method.
     } hlslIntrinsics[] = {
-        // name                               retOrd   retType    argOrder          argType   stage mask
-        // -----------------------------------------------------------------------------------------------
+        // name                               retOrd   retType    argOrder          argType          stage mask     method
+        // ----------------------------------------------------------------------------------------------------------------
         { "abort",                            nullptr, nullptr,   "-",              "-",             EShLangAll,    false },
         { "abs",                              nullptr, nullptr,   "SVM",            "DFUI",          EShLangAll,    false },
         { "acos",                             nullptr, nullptr,   "SVM",            "F",             EShLangAll,    false },
@@ -560,14 +582,14 @@ void TBuiltInParseablesHlsl::initialize(int /*version*/, EProfile /*profile*/, c
         { "asdouble",                         "V2",    "D",       "V2,",            "UI,",           EShLangAll,    false },
         { "asfloat",                          nullptr, "F",       "SVM",            "BFIU",          EShLangAll,    false },
         { "asin",                             nullptr, nullptr,   "SVM",            "F",             EShLangAll,    false },
-        { "asint",                            nullptr, "I",       "SVM",            "FU",            EShLangAll,    false },
-        { "asuint",                           nullptr, "U",       "SVM",            "FU",            EShLangAll,    false },
+        { "asint",                            nullptr, "I",       "SVM",            "FIU",           EShLangAll,    false },
+        { "asuint",                           nullptr, "U",       "SVM",            "FIU",           EShLangAll,    false },
         { "atan",                             nullptr, nullptr,   "SVM",            "F",             EShLangAll,    false },
         { "atan2",                            nullptr, nullptr,   "SVM,",           "F,",            EShLangAll,    false },
         { "ceil",                             nullptr, nullptr,   "SVM",            "F",             EShLangAll,    false },
         { "CheckAccessFullyMapped",           "S",     "B" ,      "S",              "U",             EShLangPSCS,   false },
         { "clamp",                            nullptr, nullptr,   "SVM,,",          "FUI,,",         EShLangAll,    false },
-        { "clip",                             "-",     "-",       "SVM",            "F",             EShLangPS,     false },
+        { "clip",                             "-",     "-",       "SVM",            "FUI",           EShLangPS,     false },
         { "cos",                              nullptr, nullptr,   "SVM",            "F",             EShLangAll,    false },
         { "cosh",                             nullptr, nullptr,   "SVM",            "F",             EShLangAll,    false },
         { "countbits",                        nullptr, nullptr,   "SV",             "UI",            EShLangAll,    false },
@@ -882,6 +904,39 @@ void TBuiltInParseablesHlsl::initialize(int /*version*/, EProfile /*profile*/, c
         { "DecrementCounter",                 nullptr, nullptr,   "-",              "-",              EShLangAll,   true },
         { "Consume",                          nullptr, nullptr,   "-",              "-",              EShLangAll,   true },
 
+        // SM 6.0
+
+        { "WaveIsFirstLane",                  "S",     "B",       "-",              "-",              EShLangPSCS,  false},
+        { "WaveGetLaneCount",                 "S",     "U",       "-",              "-",              EShLangPSCS,  false},
+        { "WaveGetLaneIndex",                 "S",     "U",       "-",              "-",              EShLangPSCS,  false},
+        { "WaveActiveAnyTrue",                "S",     "B",       "S",              "B",              EShLangPSCS,  false},
+        { "WaveActiveAllTrue",                "S",     "B",       "S",              "B",              EShLangPSCS,  false},
+        { "WaveActiveBallot",                 "V4",    "U",       "S",              "B",              EShLangPSCS,  false},
+        { "WaveReadLaneAt",                   nullptr, nullptr,   "SV,S",           "DFUI,U",         EShLangPSCS,  false},
+        { "WaveReadLaneFirst",                nullptr, nullptr,   "SV",             "DFUI",           EShLangPSCS,  false},
+        { "WaveActiveAllEqual",               "S",     "B",       "SV",             "DFUI",           EShLangPSCS,  false},
+        { "WaveActiveAllEqualBool",           "S",     "B",       "S",              "B",              EShLangPSCS,  false},
+        { "WaveActiveCountBits",              "S",     "U",       "S",              "B",              EShLangPSCS,  false},
+        
+        { "WaveActiveSum",                    nullptr, nullptr,   "SV",             "DFUI",           EShLangPSCS,  false},
+        { "WaveActiveProduct",                nullptr, nullptr,   "SV",             "DFUI",           EShLangPSCS,  false},
+        { "WaveActiveBitAnd",                 nullptr, nullptr,   "SV",             "DFUI",           EShLangPSCS,  false},
+        { "WaveActiveBitOr",                  nullptr, nullptr,   "SV",             "DFUI",           EShLangPSCS,  false},
+        { "WaveActiveBitXor",                 nullptr, nullptr,   "SV",             "DFUI",           EShLangPSCS,  false},
+        { "WaveActiveMin",                    nullptr, nullptr,   "SV",             "DFUI",           EShLangPSCS,  false},
+        { "WaveActiveMax",                    nullptr, nullptr,   "SV",             "DFUI",           EShLangPSCS,  false},
+        { "WavePrefixSum",                    nullptr, nullptr,   "SV",             "DFUI",           EShLangPSCS,  false},
+        { "WavePrefixProduct",                nullptr, nullptr,   "SV",             "DFUI",           EShLangPSCS,  false},
+        { "WavePrefixCountBits",              "S",     "U",       "S",              "B",              EShLangPSCS,  false},
+        { "QuadReadAcrossX",                  nullptr, nullptr,   "SV",             "DFUI",           EShLangPSCS,  false},
+        { "QuadReadAcrossY",                  nullptr, nullptr,   "SV",             "DFUI",           EShLangPSCS,  false},
+        { "QuadReadAcrossDiagonal",           nullptr, nullptr,   "SV",             "DFUI",           EShLangPSCS,  false},
+        { "QuadReadLaneAt",                   nullptr, nullptr,   "SV,S",           "DFUI,U",         EShLangPSCS,  false},
+
+        // Methods for subpass input objects
+        { "SubpassLoad",                      "V4",    nullptr,   "[",              "FIU",            EShLangPS,    true },
+        { "SubpassLoad",                      "V4",    nullptr,   "],S",            "FIU,I",          EShLangPS,    true },
+
         // Mark end of list, since we want to avoid a range-based for, as some compilers don't handle it yet.
         { nullptr,                            nullptr, nullptr,   nullptr,      nullptr,  0, false },
     };
@@ -1063,8 +1118,8 @@ void TBuiltInParseablesHlsl::identifyBuiltIns(int /*version*/, EProfile /*profil
     symbolTable.relateToOperator("ddy_fine",                    EOpDPdyFine);
     symbolTable.relateToOperator("degrees",                     EOpDegrees);
     symbolTable.relateToOperator("determinant",                 EOpDeterminant);
-    symbolTable.relateToOperator("DeviceMemoryBarrier",         EOpGroupMemoryBarrier);
-    symbolTable.relateToOperator("DeviceMemoryBarrierWithGroupSync", EOpGroupMemoryBarrierWithGroupSync); // ...
+    symbolTable.relateToOperator("DeviceMemoryBarrier",         EOpDeviceMemoryBarrier);
+    symbolTable.relateToOperator("DeviceMemoryBarrierWithGroupSync", EOpDeviceMemoryBarrierWithGroupSync);
     symbolTable.relateToOperator("distance",                    EOpDistance);
     symbolTable.relateToOperator("dot",                         EOpDot);
     symbolTable.relateToOperator("dst",                         EOpDst);
@@ -1219,6 +1274,37 @@ void TBuiltInParseablesHlsl::identifyBuiltIns(int /*version*/, EProfile /*profil
     // GS methods
     symbolTable.relateToOperator(BUILTIN_PREFIX "Append",                      EOpMethodAppend);
     symbolTable.relateToOperator(BUILTIN_PREFIX "RestartStrip",                EOpMethodRestartStrip);
+
+    // Wave ops
+    symbolTable.relateToOperator("WaveIsFirstLane",                            EOpSubgroupElect);
+    symbolTable.relateToOperator("WaveGetLaneCount",                           EOpWaveGetLaneCount);
+    symbolTable.relateToOperator("WaveGetLaneIndex",                           EOpWaveGetLaneIndex);
+    symbolTable.relateToOperator("WaveActiveAnyTrue",                          EOpSubgroupAny);
+    symbolTable.relateToOperator("WaveActiveAllTrue",                          EOpSubgroupAll);
+    symbolTable.relateToOperator("WaveActiveBallot",                           EOpSubgroupBallot);
+    symbolTable.relateToOperator("WaveReadLaneFirst",                          EOpSubgroupBroadcastFirst);
+    symbolTable.relateToOperator("WaveReadLaneAt",                             EOpSubgroupShuffle);
+    symbolTable.relateToOperator("WaveActiveAllEqual",                         EOpSubgroupAllEqual);
+    symbolTable.relateToOperator("WaveActiveAllEqualBool",                     EOpSubgroupAllEqual);
+    symbolTable.relateToOperator("WaveActiveCountBits",                        EOpWaveActiveCountBits);
+    symbolTable.relateToOperator("WaveActiveSum",                              EOpSubgroupAdd);
+    symbolTable.relateToOperator("WaveActiveProduct",                          EOpSubgroupMul);
+    symbolTable.relateToOperator("WaveActiveBitAnd",                           EOpSubgroupAnd);
+    symbolTable.relateToOperator("WaveActiveBitOr",                            EOpSubgroupOr);
+    symbolTable.relateToOperator("WaveActiveBitXor",                           EOpSubgroupXor);
+    symbolTable.relateToOperator("WaveActiveMin",                              EOpSubgroupMin);
+    symbolTable.relateToOperator("WaveActiveMax",                              EOpSubgroupMax);
+    symbolTable.relateToOperator("WavePrefixSum",                              EOpSubgroupInclusiveAdd);
+    symbolTable.relateToOperator("WavePrefixProduct",                          EOpSubgroupInclusiveMul);
+    symbolTable.relateToOperator("WavePrefixCountBits",                        EOpWavePrefixCountBits);
+    symbolTable.relateToOperator("QuadReadAcrossX",                            EOpSubgroupQuadSwapHorizontal);
+    symbolTable.relateToOperator("QuadReadAcrossY",                            EOpSubgroupQuadSwapVertical);
+    symbolTable.relateToOperator("QuadReadAcrossDiagonal",                     EOpSubgroupQuadSwapDiagonal);
+    symbolTable.relateToOperator("QuadReadLaneAt",                             EOpSubgroupQuadBroadcast);
+
+    // Subpass input methods
+    symbolTable.relateToOperator(BUILTIN_PREFIX "SubpassLoad",                 EOpSubpassLoad);
+    symbolTable.relateToOperator(BUILTIN_PREFIX "SubpassLoadMS",               EOpSubpassLoadMS);
 }
 
 //

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -47,17 +47,19 @@ namespace Anvil
         /** Creates a new Event instance.
          *
          *  Creates a single Vulkan event instance and registers the object in Object Tracker.
-         *
-         *  @param in_device_ptr Device to use.
          */
-        static Anvil::EventUniquePtr create(const Anvil::BaseDevice* in_device_ptr,
-                                            MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::EventUniquePtr create(Anvil::EventCreateInfoUniquePtr in_create_info_ptr);
 
         /** Destructor.
          *
          *  Releases the Vulkan counterpart and unregisters the wrapper instance from the object tracker.
          **/
         virtual ~Event();
+
+        const Anvil::EventCreateInfo* get_create_info_ptr() const
+        {
+            return m_create_info_ptr.get();
+        }
 
         /** Retrieves a raw Vulkan handle for the underlying VkEvent instance. */
         VkEvent get_event() const
@@ -92,17 +94,17 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. */
-        Event(const Anvil::BaseDevice* in_device_ptr,
-              bool                     in_mt_safe);
+        Event(Anvil::EventCreateInfoUniquePtr in_create_info_ptr);
 
         Event           (const Event&);
         Event& operator=(const Event&);
 
+        bool init         ();
         void release_event();
 
         /* Private variables */
-        const Anvil::BaseDevice* m_device_ptr;
-        VkEvent                  m_event;
+        Anvil::EventCreateInfoUniquePtr m_create_info_ptr;
+        VkEvent                         m_event;
     };
 }; /* namespace Anvil */
 

@@ -29,10 +29,14 @@
 #include <string>
 #include <cmath>
 #include "config.h"
+#include "misc/buffer_create_info.h"
+#include "misc/framebuffer_create_info.h"
 #include "misc/glsl_to_spirv.h"
-#include "misc/graphics_pipeline_info.h"
+#include "misc/graphics_pipeline_create_info.h"
 #include "misc/object_tracker.h"
-#include "misc/render_pass_info.h"
+#include "misc/render_pass_create_info.h"
+#include "misc/semaphore_create_info.h"
+#include "misc/swapchain_create_info.h"
 #include "misc/time.h"
 #include "misc/window_factory.h"
 #include "wrappers/buffer.h"
@@ -469,14 +473,16 @@ void App::init_buffers()
     auto mesh_data_ptr = get_mesh_data();
 
     /* Initialize the buffer object */
-    m_mesh_data_buffer_ptr = Anvil::Buffer::create_nonsparse(
-        m_device_ptr.get(),
-        get_mesh_data_size(),
-        Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
-        VK_SHARING_MODE_EXCLUSIVE,
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        0, /* in_memory_features */
-        mesh_data_ptr.get() );
+    auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_alloc(m_device_ptr.get(),
+                                                                           get_mesh_data_size(),
+                                                                           Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
+                                                                           VK_SHARING_MODE_EXCLUSIVE,
+                                                                           VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                                           0); /* in_memory_features */
+
+    create_info_ptr->set_client_data(mesh_data_ptr.get() );
+
+    m_mesh_data_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
 }
 
 void App::init_command_buffers()
@@ -635,17 +641,21 @@ void App::init_framebuffers()
                   n_swapchain_image < N_SWAPCHAIN_IMAGES;
                 ++n_swapchain_image)
     {
-        m_fbos[n_swapchain_image] = Anvil::Framebuffer::create(m_device_ptr.get(),
-                                                               WINDOW_WIDTH,
-                                                               WINDOW_HEIGHT,
-                                                               1 /* n_layers */);
+        {
+            auto fb_create_info_ptr = Anvil::FramebufferCreateInfo::create(m_device_ptr.get(),
+                                                                           WINDOW_WIDTH,
+                                                                           WINDOW_HEIGHT,
+                                                                           1 /* n_layers */);
+
+            result = fb_create_info_ptr->add_attachment(m_swapchain_ptr->get_image_view(n_swapchain_image),
+                                                        nullptr /* out_opt_attachment_id_ptrs */);
+            anvil_assert(result);
+
+            m_fbos[n_swapchain_image] = Anvil::Framebuffer::create(std::move(fb_create_info_ptr) );
+        }
 
         m_fbos[n_swapchain_image]->set_name_formatted("Framebuffer used to render to swapchain image [%d]",
                                                       n_swapchain_image);
-
-        result = m_fbos[n_swapchain_image]->add_attachment(m_swapchain_ptr->get_image_view(n_swapchain_image),
-                                                           nullptr /* out_opt_attachment_id_ptrs */);
-        anvil_assert(result);
     }
 }
 
@@ -658,103 +668,103 @@ void App::init_gfx_pipelines()
     const uint32_t n_mesh_vertex_components(get_mesh_vertex_data_n_components          ());
 
     /* Create a render pass for the pipeline */
-    Anvil::GraphicsPipelineInfoUniquePtr gfx_pipeline_info_ptr;
-    Anvil::RenderPassAttachmentID        render_pass_color_attachment_id;
-    Anvil::SubPassID                     render_pass_subpass_id;
-    VkRect2D                             scissors[4];
+    Anvil::GraphicsPipelineCreateInfoUniquePtr gfx_pipeline_create_info_ptr;
+    Anvil::RenderPassAttachmentID              render_pass_color_attachment_id;
+    Anvil::SubPassID                           render_pass_subpass_id;
+    VkRect2D                                   scissors[4];
 
     get_scissor_viewport_info(scissors,
                               nullptr); /* viewports */
 
     {
-        Anvil::RenderPassInfoUniquePtr render_pass_info_ptr(new Anvil::RenderPassInfo(m_device_ptr.get() ) );
+        Anvil::RenderPassCreateInfoUniquePtr render_pass_create_info_ptr(new Anvil::RenderPassCreateInfo(m_device_ptr.get() ) );
 
-        render_pass_info_ptr->add_color_attachment        (m_swapchain_ptr->get_image_format(),
-                                                            VK_SAMPLE_COUNT_1_BIT,
-                                                            VK_ATTACHMENT_LOAD_OP_CLEAR,
-                                                            VK_ATTACHMENT_STORE_OP_STORE,
-                                                            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                                            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                                            false, /* may_alias */
-                                                           &render_pass_color_attachment_id);
-        render_pass_info_ptr->add_subpass                 (&render_pass_subpass_id);
-        render_pass_info_ptr->add_subpass_color_attachment(render_pass_subpass_id,
-                                                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                                           render_pass_color_attachment_id,
-                                                           0,        /* in_location                      */
-                                                           nullptr); /* in_opt_attachment_resolve_id_ptr */
+        render_pass_create_info_ptr->add_color_attachment        (m_swapchain_ptr->get_create_info_ptr()->get_format(),
+                                                                  VK_SAMPLE_COUNT_1_BIT,
+                                                                  VK_ATTACHMENT_LOAD_OP_CLEAR,
+                                                                  VK_ATTACHMENT_STORE_OP_STORE,
+                                                                  VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                                  VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                                  false, /* may_alias */
+                                                                 &render_pass_color_attachment_id);
+        render_pass_create_info_ptr->add_subpass                 (&render_pass_subpass_id);
+        render_pass_create_info_ptr->add_subpass_color_attachment(render_pass_subpass_id,
+                                                                  VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                                  render_pass_color_attachment_id,
+                                                                  0,        /* in_location                      */
+                                                                  nullptr); /* in_opt_attachment_resolve_id_ptr */
 
-        m_renderpass_ptr = Anvil::RenderPass::create(std::move(render_pass_info_ptr),
+        m_renderpass_ptr = Anvil::RenderPass::create(std::move(render_pass_create_info_ptr),
                                                      m_swapchain_ptr.get() );
     }
 
     m_renderpass_ptr->set_name("Main renderpass");
 
     /* Configure the graphics pipeline */
-    gfx_pipeline_info_ptr = Anvil::GraphicsPipelineInfo::create_regular_pipeline_info(false, /* in_disable_optimizations */
-                                                                                      false, /* in_allow_derivatives     */
-                                                                                      m_renderpass_ptr.get(),
-                                                                                      render_pass_subpass_id,
-                                                                                     *m_fs_ptr,
-                                                                                     *m_gs_ptr,
-                                                                                      Anvil::ShaderModuleStageEntryPoint(),
-                                                                                      Anvil::ShaderModuleStageEntryPoint(),
-                                                                                     *m_vs_ptr);
+    gfx_pipeline_create_info_ptr = Anvil::GraphicsPipelineCreateInfo::create_regular(false, /* in_disable_optimizations */
+                                                                                     false, /* in_allow_derivatives     */
+                                                                                     m_renderpass_ptr.get(),
+                                                                                     render_pass_subpass_id,
+                                                                                    *m_fs_ptr,
+                                                                                    *m_gs_ptr,
+                                                                                     Anvil::ShaderModuleStageEntryPoint(),
+                                                                                     Anvil::ShaderModuleStageEntryPoint(),
+                                                                                    *m_vs_ptr);
 
-    gfx_pipeline_info_ptr->set_n_dynamic_viewports     (sizeof(scissors) / sizeof(scissors[0]) );
-    gfx_pipeline_info_ptr->set_primitive_topology      (VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN);
-    gfx_pipeline_info_ptr->set_rasterization_properties(VK_POLYGON_MODE_FILL,
-                                                        VK_CULL_MODE_NONE,
-                                                        VK_FRONT_FACE_COUNTER_CLOCKWISE,
-                                                        1.0f /* line_width */);
-    gfx_pipeline_info_ptr->toggle_dynamic_states       (true, /* should_enable */
-                                                        Anvil::DYNAMIC_STATE_VIEWPORT_BIT);
-    gfx_pipeline_info_ptr->toggle_primitive_restart    (true /* should_enable */);
+    gfx_pipeline_create_info_ptr->set_n_dynamic_viewports     (sizeof(scissors) / sizeof(scissors[0]) );
+    gfx_pipeline_create_info_ptr->set_primitive_topology      (VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN);
+    gfx_pipeline_create_info_ptr->set_rasterization_properties(VK_POLYGON_MODE_FILL,
+                                                               VK_CULL_MODE_NONE,
+                                                               VK_FRONT_FACE_COUNTER_CLOCKWISE,
+                                                               1.0f /* line_width */);
+    gfx_pipeline_create_info_ptr->toggle_dynamic_states       (true, /* should_enable */
+                                                               Anvil::DYNAMIC_STATE_VIEWPORT_BIT);
+    gfx_pipeline_create_info_ptr->toggle_primitive_restart    (true /* should_enable */);
 
-    gfx_pipeline_info_ptr->add_vertex_attribute(g_vertex_attribute_location,
-                                                mesh_vertex_data_format,
-                                                0,                                        /* offset_in_bytes */
-                                                sizeof(float) * n_mesh_vertex_components, /* stride_in_bytes */
-                                                VK_VERTEX_INPUT_RATE_VERTEX,
-                                                g_vertex_attribute_binding);
-    gfx_pipeline_info_ptr->add_vertex_attribute(g_color1_attribute_location,
-                                                mesh_color_data_format,
-                                                0,                                       /* offset_in_bytes */
-                                                sizeof(float) * n_mesh_color_components, /* stride_in_bytes */
-                                                VK_VERTEX_INPUT_RATE_VERTEX,
-                                                g_color1_attribute_binding);
-    gfx_pipeline_info_ptr->add_vertex_attribute(g_color2_attribute_location,
-                                                mesh_color_data_format,
-                                                0,                                       /* offset_in_bytes */
-                                                sizeof(float) * n_mesh_color_components, /* stride_in_bytes */
-                                                VK_VERTEX_INPUT_RATE_VERTEX,
-                                                g_color2_attribute_binding);
-    gfx_pipeline_info_ptr->add_vertex_attribute(g_color3_attribute_location,
-                                                mesh_color_data_format,
-                                                0,                                       /* offset_in_bytes */
-                                                sizeof(float) * n_mesh_color_components, /* stride_in_bytes */
-                                                VK_VERTEX_INPUT_RATE_VERTEX,
-                                                g_color3_attribute_binding);
-    gfx_pipeline_info_ptr->add_vertex_attribute(g_color4_attribute_location,
-                                                mesh_color_data_format,
-                                                0,                                       /* offset_in_bytes */
-                                                sizeof(float) * n_mesh_color_components, /* stride_in_bytes */
-                                                VK_VERTEX_INPUT_RATE_VERTEX,
-                                                g_color4_attribute_binding);
+    gfx_pipeline_create_info_ptr->add_vertex_attribute(g_vertex_attribute_location,
+                                                       mesh_vertex_data_format,
+                                                       0,                                        /* offset_in_bytes */
+                                                       sizeof(float) * n_mesh_vertex_components, /* stride_in_bytes */
+                                                       VK_VERTEX_INPUT_RATE_VERTEX,
+                                                       g_vertex_attribute_binding);
+    gfx_pipeline_create_info_ptr->add_vertex_attribute(g_color1_attribute_location,
+                                                       mesh_color_data_format,
+                                                       0,                                       /* offset_in_bytes */
+                                                       sizeof(float) * n_mesh_color_components, /* stride_in_bytes */
+                                                       VK_VERTEX_INPUT_RATE_VERTEX,
+                                                       g_color1_attribute_binding);
+    gfx_pipeline_create_info_ptr->add_vertex_attribute(g_color2_attribute_location,
+                                                       mesh_color_data_format,
+                                                       0,                                       /* offset_in_bytes */
+                                                       sizeof(float) * n_mesh_color_components, /* stride_in_bytes */
+                                                       VK_VERTEX_INPUT_RATE_VERTEX,
+                                                       g_color2_attribute_binding);
+    gfx_pipeline_create_info_ptr->add_vertex_attribute(g_color3_attribute_location,
+                                                       mesh_color_data_format,
+                                                       0,                                       /* offset_in_bytes */
+                                                       sizeof(float) * n_mesh_color_components, /* stride_in_bytes */
+                                                       VK_VERTEX_INPUT_RATE_VERTEX,
+                                                       g_color3_attribute_binding);
+    gfx_pipeline_create_info_ptr->add_vertex_attribute(g_color4_attribute_location,
+                                                       mesh_color_data_format,
+                                                       0,                                       /* offset_in_bytes */
+                                                       sizeof(float) * n_mesh_color_components, /* stride_in_bytes */
+                                                       VK_VERTEX_INPUT_RATE_VERTEX,
+                                                       g_color4_attribute_binding);
 
     for (uint32_t n_scissor_box = 0;
                   n_scissor_box < sizeof(scissors) / sizeof(scissors[0]);
                 ++n_scissor_box)
     {
-        gfx_pipeline_info_ptr->set_scissor_box_properties(n_scissor_box,
-                                                          scissors[n_scissor_box].offset.x,
-                                                          scissors[n_scissor_box].offset.y,
-                                                          scissors[n_scissor_box].extent.width,
-                                                          scissors[n_scissor_box].extent.height);
+        gfx_pipeline_create_info_ptr->set_scissor_box_properties(n_scissor_box,
+                                                                 scissors[n_scissor_box].offset.x,
+                                                                 scissors[n_scissor_box].offset.y,
+                                                                 scissors[n_scissor_box].extent.width,
+                                                                 scissors[n_scissor_box].extent.height);
     }
 
 
-    gfx_pipeline_manager_ptr->add_pipeline(std::move(gfx_pipeline_info_ptr),
+    gfx_pipeline_manager_ptr->add_pipeline(std::move(gfx_pipeline_create_info_ptr),
                                           &m_pipeline_id);
 }
 
@@ -764,8 +774,19 @@ void App::init_semaphores()
                   n_semaphore < m_n_swapchain_images;
                 ++n_semaphore)
     {
-        auto new_signal_semaphore_ptr = Anvil::Semaphore::create(m_device_ptr.get() );
-        auto new_wait_semaphore_ptr   = Anvil::Semaphore::create(m_device_ptr.get() );
+        Anvil::SemaphoreUniquePtr new_signal_semaphore_ptr;
+        Anvil::SemaphoreUniquePtr new_wait_semaphore_ptr;
+
+        {
+            auto create_info_ptr = Anvil::SemaphoreCreateInfo::create(m_device_ptr.get() );
+
+            new_signal_semaphore_ptr = Anvil::Semaphore::create(std::move(create_info_ptr) );
+        }
+        {
+            auto create_info_ptr = Anvil::SemaphoreCreateInfo::create(m_device_ptr.get() );
+
+            new_wait_semaphore_ptr = Anvil::Semaphore::create(std::move(create_info_ptr) );
+        }
 
         new_signal_semaphore_ptr->set_name_formatted("Signal semaphore [%d]",
                                                      n_semaphore);

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,6 +20,7 @@
 // THE SOFTWARE.
 //
 
+#include "misc/buffer_view_create_info.h"
 #include "misc/debug.h"
 #include "misc/object_tracker.h"
 #include "wrappers/buffer.h"
@@ -27,45 +28,17 @@
 #include "wrappers/device.h"
 
 /** Please see header for specification */
-Anvil::BufferView::BufferView(const Anvil::BaseDevice* in_device_ptr,
-                              Anvil::Buffer*           in_buffer_ptr,
-                              VkFormat                 in_format,
-                              VkDeviceSize             in_start_offset,
-                              VkDeviceSize             in_size,
-                              bool                     in_mt_safe)
-    :DebugMarkerSupportProvider<BufferView>(in_device_ptr,
+Anvil::BufferView::BufferView(Anvil::BufferViewCreateInfoUniquePtr in_create_info_ptr)
+    :DebugMarkerSupportProvider<BufferView>(in_create_info_ptr->get_device(),
                                             VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_VIEW_EXT),
-     MTSafetySupportProvider               (in_mt_safe),
-     m_buffer_ptr  (in_buffer_ptr),
-     m_device_ptr  (in_device_ptr),
-     m_format      (in_format),
-     m_size        (in_size),
-     m_start_offset(in_start_offset)
+     MTSafetySupportProvider               (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety(),
+                                                                                            in_create_info_ptr->get_device   () ))
 {
-    VkBufferViewCreateInfo buffer_view_create_info;
-    VkResult               result                 (VK_ERROR_INITIALIZATION_FAILED);
+    m_create_info_ptr = std::move(in_create_info_ptr);
 
-    ANVIL_REDUNDANT_VARIABLE(result);
-
-    /* Spawn a new Vulkan buffer view */
-    buffer_view_create_info.buffer = in_buffer_ptr->get_buffer();
-    buffer_view_create_info.flags  = 0;
-    buffer_view_create_info.format = in_format;
-    buffer_view_create_info.offset = in_start_offset;
-    buffer_view_create_info.pNext  = nullptr;
-    buffer_view_create_info.range  = in_size;
-    buffer_view_create_info.sType  = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
-
-    result = vkCreateBufferView(in_device_ptr->get_device_vk(),
-                               &buffer_view_create_info,
-                                nullptr, /* pAllocator */
-                               &m_buffer_view);
-
-    anvil_assert_vk_call_succeeded(result);
-    if (is_vk_call_successful(result) )
-    {
-        set_vk_handle(m_buffer_view);
-    }
+    /* Register the buffer view instance */
+    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_BUFFER_VIEW,
+                                                 this);
 }
 
 /** Destructor.
@@ -89,33 +62,55 @@ Anvil::BufferView::~BufferView()
     m_buffer_view = VK_NULL_HANDLE;
 }
 
-/** Please see header for specification */
-Anvil::BufferViewUniquePtr Anvil::BufferView::create(const Anvil::BaseDevice* in_device_ptr,
-                                                     Anvil::Buffer*           in_buffer_ptr,
-                                                     VkFormat                 in_format,
-                                                     VkDeviceSize             in_start_offset,
-                                                     VkDeviceSize             in_size,
-                                                     MTSafety                 in_mt_safety)
+Anvil::BufferViewUniquePtr Anvil::BufferView::create(Anvil::BufferViewCreateInfoUniquePtr in_create_info_ptr)
 {
-    const bool          is_mt_safe = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
-                                                                                     in_device_ptr);
-    BufferViewUniquePtr result_ptr = BufferViewUniquePtr(nullptr,
-                                                         std::default_delete<Anvil::BufferView>() );
+    Anvil::BufferViewUniquePtr result_ptr(nullptr,
+                                          std::default_delete<Anvil::BufferView>() );
 
-    /* Instantiate the object */
     result_ptr.reset(
-        new BufferView(
-            in_device_ptr,
-            in_buffer_ptr,
-            in_format,
-            in_start_offset,
-            in_size,
-            is_mt_safe)
+        new Anvil::BufferView(std::move(in_create_info_ptr) )
     );
 
-    /* Register the buffer view instance */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_BUFFER_VIEW,
-                                                 result_ptr.get() );
+    if (result_ptr != nullptr)
+    {
+        if (!result_ptr->init() )
+        {
+            result_ptr.reset();
+        }
+    }
 
     return result_ptr;
+}
+
+bool Anvil::BufferView::init()
+{
+    VkBufferViewCreateInfo buffer_view_create_info;
+    VkResult               result                 (VK_ERROR_INITIALIZATION_FAILED);
+
+    ANVIL_REDUNDANT_VARIABLE(result);
+
+    /* Spawn a new Vulkan buffer view */
+    buffer_view_create_info.buffer = m_create_info_ptr->get_parent_buffer()->get_buffer();
+    buffer_view_create_info.flags  = 0;
+    buffer_view_create_info.format = m_create_info_ptr->get_format      ();
+    buffer_view_create_info.offset = m_create_info_ptr->get_start_offset();
+    buffer_view_create_info.pNext  = nullptr;
+    buffer_view_create_info.range  = m_create_info_ptr->get_size();
+    buffer_view_create_info.sType  = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
+
+    result = vkCreateBufferView(m_create_info_ptr->get_device()->get_device_vk(),
+                               &buffer_view_create_info,
+                                nullptr, /* pAllocator */
+                               &m_buffer_view);
+
+    if (is_vk_call_successful(result) )
+    {
+        anvil_assert_vk_call_succeeded(result);
+        if (is_vk_call_successful(result) )
+        {
+            set_vk_handle(m_buffer_view);
+        }
+    }
+
+    return is_vk_call_successful(result);
 }

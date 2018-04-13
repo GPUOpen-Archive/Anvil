@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -162,12 +162,11 @@ namespace Anvil
      */
     typedef struct BeginRenderPassCommand : public Command
     {
-        std::vector<VkClearValue>    clear_values;
-        VkSubpassContents            contents;
-        Anvil::Framebuffer*          fbo_ptr;
-        const Anvil::PhysicalDevice* physical_device_ptr;
-        VkRect2D                     render_area;
-        Anvil::RenderPass*           render_pass_ptr;
+        std::vector<VkClearValue> clear_values;
+        VkSubpassContents         contents;
+        Anvil::Framebuffer*       fbo_ptr;
+        VkRect2D                  render_area;
+        Anvil::RenderPass*        render_pass_ptr;
 
         /** Constructor.
          *
@@ -175,13 +174,12 @@ namespace Anvil
          *
          *  Arguments as per Vulkan API.
          **/
-        explicit BeginRenderPassCommand(uint32_t                     in_n_clear_values,
-                                        const VkClearValue*          in_clear_value_ptrs,
-                                        Anvil::Framebuffer*          in_fbo_ptr,
-                                        const Anvil::PhysicalDevice* in_physical_device_ptr,
-                                        const VkRect2D&              in_render_area,
-                                        Anvil::RenderPass*           in_render_pass_ptr,
-                                        VkSubpassContents            in_contents);
+        explicit BeginRenderPassCommand(uint32_t            in_n_clear_values,
+                                        const VkClearValue* in_clear_value_ptrs,
+                                        Anvil::Framebuffer* in_fbo_ptr,
+                                        const VkRect2D&     in_render_area,
+                                        Anvil::RenderPass*  in_render_pass_ptr,
+                                        VkSubpassContents   in_contents);
 
         /** Destructor.
          *
@@ -1156,10 +1154,10 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool record_update_buffer(Anvil::Buffer*  in_dst_buffer_ptr,
-                                  VkDeviceSize    in_dst_offset,
-                                  VkDeviceSize    in_data_size,
-                                  const uint32_t* in_data_ptr);
+        bool record_update_buffer(Anvil::Buffer* in_dst_buffer_ptr,
+                                  VkDeviceSize   in_dst_offset,
+                                  VkDeviceSize   in_data_size,
+                                  const void*    in_data_ptr);
 
         /** Issues a vkCmdWaitEvents() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -1547,7 +1545,6 @@ namespace Anvil
             ClearDepthStencilImageCommand& operator=(const ClearDepthStencilImageCommand& in);
         } ClearDepthStencilImageCommand;
 
-
         /** Holds all arguments passed to a vkCmdCopyBuffer() command. */
         typedef struct CopyBufferCommand : public Command
         {
@@ -1758,7 +1755,6 @@ namespace Anvil
                 /* Stub */
             }
         } DispatchCommand;
-
 
         /** Holds all arguments passed to a vkCmdDispatchIndirect() command. */
         typedef struct DispatchIndirectCommand : public Command
@@ -2308,17 +2304,17 @@ namespace Anvil
         /** Holds all arguments passed to a vkCmdUpdateBuffer() command. **/
         typedef struct UpdateBufferCommand : public Command
         {
-            const uint32_t* data_ptr;
+            const void*     data_ptr;
             VkDeviceSize    data_size;
             VkBuffer        dst_buffer;
             Anvil::Buffer*  dst_buffer_ptr;
             VkDeviceSize    dst_offset;
 
             /** Constructor **/
-            explicit UpdateBufferCommand(Anvil::Buffer*  in_dst_buffer_ptr,
-                                         VkDeviceSize    in_dst_offset,
-                                         VkDeviceSize    in_data_size,
-                                         const uint32_t* in_data_ptr);
+            explicit UpdateBufferCommand(Anvil::Buffer* in_dst_buffer_ptr,
+                                         VkDeviceSize   in_dst_offset,
+                                         VkDeviceSize   in_data_size,
+                                         const void*    in_data_ptr);
 
             /** Destructor. */
             virtual ~UpdateBufferCommand()

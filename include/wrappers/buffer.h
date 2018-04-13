@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -77,95 +77,10 @@ namespace Anvil
     public:
         /* Public functions */
 
-        /** Initializes a new NON-SPARSE buffer object using user-specified parameters.
-         *
-         *  Does NOT allocate and bind any memory blocks to the object. It is user's responsibility
-         *  to call Buffer::set_memory() to configure the binding.
-         *
-         *  @param in_device_ptr         Device to use.
-         *  @param in_size               Size of the buffer object to be initialized.
-         *  @param in_queue_families     Queue families which the buffer object is going to be used with.
-         *                               One or more user queue family bits can be enabled.
-         *  @param in_queue_sharing_mode VkSharingMode value, which is going to be passed to the vkCreateBuffer()
-         *                               call.
-         *  @param in_usage_flags        Usage flags to set in the VkBufferCreateInfo descriptor, passed to
-         *                               to the vkCreateBuffer() call.
-         **/
-        static Anvil::BufferUniquePtr create_nonsparse(const Anvil::BaseDevice* in_device_ptr,
-                                                       VkDeviceSize             in_size,
-                                                       QueueFamilyBits          in_queue_families,
-                                                       VkSharingMode            in_queue_sharing_mode,
-                                                       VkBufferUsageFlags       in_usage_flags,
-                                                       MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
-
-        /** Initializes a new NON-SPARSE buffer object using user-specified parameters.
-         *
-         *  This version of create() ALLOCATES and BINDS a unique memory block to the object. Do NOT
-         *  call Buffer::set_memory() to configure the binding.
-         *
-         *  The constructor can optionally upload data to the initialized memory.
-         *
-         *  @param in_device_ptr               Device to use.
-         *  @param in_size                     Size of the buffer object to be initialized.
-         *  @param in_queue_families           Queue families which the buffer object is going to be used with.
-         *                                     One or more user queue family bits can be enabled.
-         *  @param in_queue_sharing_mode       VkSharingMode value, which is going to be passed to the vkCreateBuffer()
-         *                                     call.
-         *  @param in_usage_flags              Usage flags to set in the VkBufferCreateInfo descriptor, passed to
-         *                                     to the vkCreateBuffer() call.
-         *  @param in_memory_freatures         Required memory features.
-         *  @param in_opt_client_data          if not nullptr, exactly @param in_size bytes will be copied to the allocated
-         *                                     buffer memory.
-         **/
-        static Anvil::BufferUniquePtr create_nonsparse(const Anvil::BaseDevice*  in_device_ptr,
-                                                       VkDeviceSize              in_size,
-                                                       QueueFamilyBits           in_queue_families,
-                                                       VkSharingMode             in_queue_sharing_mode,
-                                                       VkBufferUsageFlags        in_usage_flags,
-                                                       Anvil::MemoryFeatureFlags in_memory_features,
-                                                       const void*               in_opt_client_data,
-                                                       MTSafety                  in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
-
-        /** Creates a new Buffer wrapper instance. The new NON-SPARSE buffer will reuse a region of the specified
-         *  buffer's storage, instead of creating one's own.
-         *
-         *  It is user's responsibility to ensure memory aliasing or synchronization is used, according
-         *  to the spec rules.
-         *
-         *  @param in_parent_buffer_ptr Specifies the buffer, whose memory block should be used. Must not be
-         *                              nullptr. MUST BE NON-SPARSE.
-         *  @param in_start_offset      Memory region's start offset.
-         *  @param in_size              Size of the memory region to "claim".
-         **/
-        static Anvil::BufferUniquePtr create_nonsparse(Anvil::Buffer* in_parent_nonsparse_buffer_ptr,
-                                                       VkDeviceSize   in_start_offset,
-                                                       VkDeviceSize   in_size);
-
-        /** Initializes a new SPARSE buffer object using user-specified parameters.
-         *
-         *  Does NOT bind any memory regions to the object. It is user's responsibility to call
-         *  Queue::bind_sparse_memory() afterward to update page configuration.
-         *
-         *  @param in_device_ptr         Device to use.
-         *  @param in_size               Size of the buffer object to be initialized.
-         *  @param in_queue_families     Queue families which the buffer object is going to be used with.
-         *                               One or more user queue family bits can be enabled.
-         *  @param in_queue_sharing_mode VkSharingMode value, which is going to be passed to the vkCreateBuffer()
-         *                               call.
-         *  @param in_usage_flags        Usage flags to set in the VkBufferCreateInfo descriptor, passed to
-         *                               to the vkCreateBuffer() call.
-         *  @param in_residency_scope    Scope of residency to support for the buffer.
-         **/
-        static Anvil::BufferUniquePtr create_sparse(const Anvil::BaseDevice*    in_device_ptr,
-                                                    VkDeviceSize                in_size,
-                                                    QueueFamilyBits             in_queue_families,
-                                                    VkSharingMode               in_queue_sharing_mode,
-                                                    VkBufferUsageFlags          in_usage_flags,
-                                                    Anvil::SparseResidencyScope in_residency_scope,
-                                                    MTSafety                    in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
-
         /** Destroys the Vulkan objects and unregister the Buffer instance from Object Tracker. */
         virtual ~Buffer();
+
+        static Anvil::BufferUniquePtr create(Anvil::BufferCreateInfoUniquePtr in_create_info_ptr);
 
         /** Returns the lowest-level Buffer instance which stores the data exposed by this Buffer instance. */
         const Anvil::Buffer* get_base_buffer();
@@ -186,6 +101,11 @@ namespace Anvil
             return &m_buffer;
         }
 
+        const Anvil::BufferCreateInfo* get_create_info_ptr() const
+        {
+            return m_create_info_ptr.get();
+        }
+
         /** Returns a pointer to the underlying memory block wrapper instance.
          *
          *  For non-sparse buffers, in case no memory block has been assigned to the buffer,
@@ -200,85 +120,14 @@ namespace Anvil
         Anvil::MemoryBlock* get_memory_block(uint32_t in_n_memory_block);
 
         /** Returns memory requirements for the buffer */
-        VkMemoryRequirements get_memory_requirements() const
-        {
-            if (m_parent_buffer_ptr != nullptr)
-            {
-                return m_parent_buffer_ptr->get_memory_requirements();
-            }
-            else
-            {
-                return m_buffer_memory_reqs;
-            }
-        }
+        VkMemoryRequirements get_memory_requirements() const;
 
         /** Returns the number of memory blocks assigned to the buffer. */
-        uint32_t get_n_memory_blocks() const
-        {
-            if (m_is_sparse)
-            {
-                return m_page_tracker_ptr->get_n_memory_blocks();
-            }
-            else
-            {
-                return 1;
-            }
-        }
+        uint32_t get_n_memory_blocks() const;
 
         const Anvil::PageTracker* get_page_tracker() const
         {
             return m_page_tracker_ptr.get();
-        }
-
-        /** Returns a pointer to the parent buffer, if one was specified at creation time */
-        Anvil::Buffer* get_parent_buffer_ptr() const
-        {
-            return m_parent_buffer_ptr;
-        }
-
-        /** Returns info about queue families this buffer has been created for */
-        QueueFamilyBits get_queue_families() const
-        {
-            return m_queue_families;
-        }
-
-        /** Returns the residency scope.
-         *
-         *  Triggers an assertion failure if called for non-sparse images
-         */
-        Anvil::SparseResidencyScope get_residency_scope() const
-        {
-            anvil_assert(m_is_sparse);
-
-            return m_residency_scope;
-        }
-
-        /** Returns sharing mode of the buffer */
-        VkSharingMode get_sharing_mode() const
-        {
-            return m_sharing_mode;
-        }
-
-        /** Returns size of the encapsulated Vulkan buffer memory region.
-         *
-         *  @return >= 0 if successful, UINT64_MAX otherwise */
-        VkDeviceSize get_size() const;
-
-        /** Returns start offset of the encapsulated Vulkan buffer memory region.
-         *
-         *  @return >= 0 if successful, UINT64_MAX otherwise */
-        VkDeviceSize get_start_offset() const;
-
-        /** Tells whether or not the buffer is sparse */
-        bool is_sparse() const
-        {
-            return m_is_sparse;
-        }
-
-        /** Returns usage defined for the buffer */
-        VkBufferUsageFlags get_usage() const
-        {
-            return m_usage_flags;
         }
 
         /** Reads @param in_size bytes, starting from @param in_start_offset, from the wrapped memory object.
@@ -291,8 +140,6 @@ namespace Anvil
          *  instead. User-specified region of the source buffer will then be copied into it by submitting a copy operation,
          *  executed either on the transfer queue (if available), or on the universal queue. Afterward, the staging buffer 
          *  will be released.
-         *
-         *  This function must not be used to read data from buffers, whose memory backing comes from a multi-instance heap.
          *
          *  This function blocks until the transfer completes.
          *
@@ -321,12 +168,22 @@ namespace Anvil
          *
          *  @param in_memory_block_ptr             Memory block to attach to the buffer object. Must not be NULL.
          *  @param in_memory_block_owned_by_buffer TODO
+         *  @param in_n_physical_devices           Describes the number of physical devices available under @param in_opt_physical_devices_ptr.
+         *  @param in_physical_devices_ptr         Physical devices to use to form the device mask.
          *
          *  @return true if successful, false otherwise.
          **/
         bool set_nonsparse_memory(MemoryBlockUniquePtr in_memory_block_ptr);
         bool set_nonsparse_memory(MemoryBlock*         in_memory_block_ptr,
                                   bool                 in_memory_block_owned_by_buffer);
+
+        bool set_nonsparse_memory(MemoryBlockUniquePtr         in_memory_block_ptr,
+                                  uint32_t                     in_n_physical_devices,
+                                  const Anvil::PhysicalDevice* in_physical_devices_ptr);
+        bool set_nonsparse_memory(MemoryBlock*                 in_memory_block_ptr,
+                                  bool                         in_memory_block_owned_by_buffer,
+                                  uint32_t                     in_n_physical_devices,
+                                  const Anvil::PhysicalDevice* in_physical_devices_ptr);
 
         /** Writes @param in_size bytes, starting from @param in_start_offset, into the wrapped memory object.
          *
@@ -338,10 +195,6 @@ namespace Anvil
          *  instead. It will then be filled with user-specified data and used as a source for a copy operation which will
          *  transfer the new contents to the target buffer. The operation will be submitted via a transfer queue, if one
          *  is available, or a universal queue otherwise.
-         *
-         *  This function must not be used to read data from buffers, whose memory backing comes from a multi-instance heap.
-         *
-         *  The function prototype without @param in_physical_device_ptr argument should be used for single-GPU devices only.
          *
          *  If the buffer instance uses an exclusive sharing mode and supports more than just one queue family type AND memory
          *  backing the buffer is not mappable, you MUST specify a queue instance that should be used to perform a buffer->buffer
@@ -368,58 +221,38 @@ namespace Anvil
 
     private:
         /* Private functions */
-        explicit Buffer(const Anvil::BaseDevice*         in_device_ptr,
-                        VkDeviceSize                     in_size,
-                        QueueFamilyBits                  in_queue_families,
-                        VkSharingMode                    in_queue_sharing_mode,
-                        VkBufferUsageFlags               in_usage_flags,
-                        Anvil::SparseResidencyScope      in_residency_scope,
-                        bool                             in_mt_safe);
-        explicit Buffer(const Anvil::BaseDevice*         in_device_ptr,
-                        VkDeviceSize                     in_size,
-                        QueueFamilyBits                  in_queue_families,
-                        VkSharingMode                    in_queue_sharing_mode,
-                        VkBufferUsageFlags               in_usage_flags,
-                        MemoryFeatureFlags               in_memory_features,
-                        bool                             in_mt_safe);
-        explicit Buffer(Anvil::Buffer*                   in_parent_buffer_ptr,
-                        VkDeviceSize                     in_start_offset,
-                        VkDeviceSize                     in_size);
 
-        Buffer           (const Buffer&);
-        Buffer& operator=(const Buffer&);
+        Buffer(Anvil::BufferCreateInfoUniquePtr in_create_info_ptr);
 
-        void create_buffer    (Anvil::QueueFamilyBits       in_queue_families,
-                               VkSharingMode                in_sharing_mode,
-                               VkDeviceSize                 in_size);
-        bool set_memory_sparse(MemoryBlock*                 in_memory_block_ptr,
-                               bool                         in_memory_block_owned_by_buffer,
-                               VkDeviceSize                 in_memory_start_offset,
-                               VkDeviceSize                 in_start_offset,
-                               VkDeviceSize                 in_size);
+        bool init             ();
+        bool set_memory_sparse(MemoryBlock*           in_memory_block_ptr,
+                               bool                   in_memory_block_owned_by_buffer,
+                               VkDeviceSize           in_memory_start_offset,
+                               VkDeviceSize           in_start_offset,
+                               VkDeviceSize           in_size);
 
-        bool set_memory_nonsparse_internal(MemoryBlockUniquePtr in_memory_block_ptr);
+        bool set_memory_nonsparse_internal(MemoryBlockUniquePtr         in_memory_block_ptr,
+                                           uint32_t                     in_n_physical_devices,
+                                           const Anvil::PhysicalDevice* in_physical_devices_ptr);
+
+        bool do_external_memory_handle_type_sanity_checks() const;
 
         /* Private members */
-        VkBuffer                            m_buffer;
-        VkMemoryRequirements                m_buffer_memory_reqs;
-        VkDeviceSize                        m_buffer_size;
-        const Anvil::BaseDevice*            m_device_ptr;
-        bool                                m_is_sparse;
-        Anvil::MemoryBlock*                 m_memory_block_ptr; // only used by non-sparse buffers
-        std::unique_ptr<Anvil::PageTracker> m_page_tracker_ptr; // only used by sparse buffers
-        Anvil::Buffer*                      m_parent_buffer_ptr;
-        Anvil::QueueFamilyBits              m_queue_families;
-        Anvil::SparseResidencyScope         m_residency_scope;
-        VkSharingMode                       m_sharing_mode;
-        VkDeviceSize                        m_start_offset;
+        VkBuffer                                 m_buffer;
+        VkMemoryRequirements                     m_buffer_memory_reqs;
+        std::unique_ptr<Anvil::BufferCreateInfo> m_create_info_ptr;
+
+        Anvil::MemoryBlock*                  m_memory_block_ptr; // only used by non-sparse buffers
+        std::unique_ptr<Anvil::PageTracker>  m_page_tracker_ptr; // only used by sparse buffers
+
+        VkBufferCreateFlagsVariable(m_create_flags);
 
         std::vector<MemoryBlockUniquePtr> m_owned_memory_blocks;
 
-        VkBufferCreateFlagsVariable(m_create_flags);
-        VkBufferUsageFlagsVariable (m_usage_flags);
-
         friend class Anvil::Queue; /* set_memory_sparse() */
+
+        ANVIL_DISABLE_ASSIGNMENT_OPERATOR(Buffer);
+        ANVIL_DISABLE_COPY_CONSTRUCTOR(Buffer);
     };
 }; /* namespace Anvil */
 

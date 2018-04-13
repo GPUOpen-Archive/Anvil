@@ -14,6 +14,7 @@ set(HEADERS
     bitutils.h
     spirv.hpp
     GLSL.std.450.h
+    GLSL.ext.EXT.h
     GLSL.ext.KHR.h
     GlslangToSpv.h
     hex_float.h
@@ -40,21 +41,31 @@ if(ENABLE_NV_EXTENSIONS)
 endif(ENABLE_NV_EXTENSIONS)
 
 add_library(SPIRV STATIC ${SOURCES} ${HEADERS})
-set_property(TARGET SPIRV PROPERTY FOLDER glslang POSITION_INDEPENDENT_CODE ON)
-target_link_libraries(SPIRV glslang)
+set_property(TARGET SPIRV PROPERTY FOLDER glslang)
+set_property(TARGET SPIRV PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 add_library(SPVRemapper STATIC ${SPVREMAP_SOURCES} ${SPVREMAP_HEADERS})
-set_property(TARGET SPVRemapper PROPERTY FOLDER glslang POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET SPVRemapper PROPERTY FOLDER glslang)
+set_property(TARGET SPVRemapper PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+if(ENABLE_OPT)
+    target_include_directories(SPIRV
+        PRIVATE ${spirv-tools_SOURCE_DIR}/include
+        PRIVATE ${spirv-tools_SOURCE_DIR}/source
+    )
+    target_link_libraries(SPIRV glslang SPIRV-Tools-opt SPVRemapper)
+else()
+    target_link_libraries(SPIRV glslang)
+endif(ENABLE_OPT)
 
 if(WIN32)
     source_group("Source" FILES ${SOURCES} ${HEADERS})
     source_group("Source" FILES ${SPVREMAP_SOURCES} ${SPVREMAP_HEADERS})
 endif(WIN32)
 
-# Disabled for Anvil:
-#>>
-#install(TARGETS SPIRV SPVRemapper
-#        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-#
-#install(FILES ${HEADERS} ${SPVREMAP_HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/SPIRV/)
-#<<
+if(ENABLE_GLSLANG_INSTALL)
+    install(TARGETS SPIRV SPVRemapper
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+    install(FILES ${HEADERS} ${SPVREMAP_HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/SPIRV/)
+endif(ENABLE_GLSLANG_INSTALL)

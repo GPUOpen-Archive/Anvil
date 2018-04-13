@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -609,6 +609,7 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob() const
                                            false, /* forwardCompatible */
                                            (EShMessages) (EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules) );
 
+            m_debug_info_log  = new_shader_ptr->getInfoDebugLog();
             m_shader_info_log = new_shader_ptr->getInfoLog();
 
             if (!result)
@@ -662,6 +663,7 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob() const
             memcpy(&m_spirv_blob.at(0),
                    &spirv_blob[0],
                    m_spirv_blob.size() );
+
         }
 
         callback(GLSL_SHADER_TO_SPIRV_GENERATOR_CALLBACK_ID_CONVERSION_FINISHED,

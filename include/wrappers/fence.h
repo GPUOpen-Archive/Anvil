@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -53,14 +53,13 @@ namespace Anvil
         /** Creates a new Fence instance.
          *
          *  Creates a single Vulkan fence instance and registers the object in Object Tracker.
-         *
-         *  @param in_device_ptr       Device to use.
-         *  @param in_create_signalled true if the fence should be created as a signalled entity.
-         *                             False to make it unsignalled at creation time.
          */
-        static Anvil::FenceUniquePtr create(const Anvil::BaseDevice* in_device_ptr,
-                                            bool                            in_create_signalled,
-                                            MTSafety                        in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::FenceUniquePtr create(Anvil::FenceCreateInfoUniquePtr in_create_info_ptr);
+
+        const Anvil::FenceCreateInfo* get_create_info_ptr() const
+        {
+            return m_create_info_ptr.get();
+        }
 
         /** Retrieves a raw handle to the underlying Vulkan fence instance */
         VkFence get_fence() const
@@ -109,19 +108,18 @@ namespace Anvil
          *
          *  Please see documentation of create() for specification
          */
-        Fence(const Anvil::BaseDevice* in_device_ptr,
-              bool                     in_create_signalled,
-              bool                     in_mt_safe);
+        Fence(Anvil::FenceCreateInfoUniquePtr in_create_info_ptr);
 
         Fence           (const Fence&);
         Fence& operator=(const Fence&);
 
+        bool init         ();
         void release_fence();
 
         /* Private variables */
-        const Anvil::BaseDevice* m_device_ptr;
-        VkFence                  m_fence;
-        mutable bool             m_possibly_set;
+        Anvil::FenceCreateInfoUniquePtr m_create_info_ptr;
+        VkFence                         m_fence;
+        mutable bool                    m_possibly_set;
     };
 }; /* namespace Anvil */
 

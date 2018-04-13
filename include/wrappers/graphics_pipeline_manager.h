@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -119,13 +119,13 @@ namespace Anvil
         typedef struct GraphicsPipelineData
         {
             AttributeLocationToBindingIndexMap             attribute_location_to_binding_index_map;
-            const Anvil::GraphicsPipelineInfo*             pipeline_info_ptr;
+            const Anvil::GraphicsPipelineCreateInfo*       pipeline_create_info_ptr;
             std::vector<VkVertexInputAttributeDescription> vk_input_attributes;
             std::vector<VkVertexInputBindingDescription>   vk_input_bindings;
 
-            explicit GraphicsPipelineData(const Anvil::GraphicsPipelineInfo* in_pipeline_info_ptr)
+            explicit GraphicsPipelineData(const Anvil::GraphicsPipelineCreateInfo* in_pipeline_create_info_ptr)
             {
-                pipeline_info_ptr = in_pipeline_info_ptr;
+                pipeline_create_info_ptr = in_pipeline_create_info_ptr;
 
                 bake_vk_attributes_and_bindings();
             }

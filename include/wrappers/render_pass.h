@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -45,13 +45,13 @@ namespace Anvil
          *        throw a NPE if it ever needs to deduce the window size.
          *
          *
-         *  @param in_renderpass_info_ptr TODO
-         *  @param in_opt_swapchain_ptr   Swapchain, that the render-pass will render to. See brief for more information.
-         *                                May be nullptr.
+         *  @param in_renderpass_create_info_ptr TODO
+         *  @param in_opt_swapchain_ptr          Swapchain, that the render-pass will render to. See brief for more information.
+         *                                       May be nullptr.
          *
          **/
-        static Anvil::RenderPassUniquePtr create(Anvil::RenderPassInfoUniquePtr in_renderpass_info_ptr,
-                                                 Anvil::Swapchain*              in_opt_swapchain_ptr);
+        static Anvil::RenderPassUniquePtr create(Anvil::RenderPassCreateInfoUniquePtr in_renderpass_create_info_ptr,
+                                                 Anvil::Swapchain*                    in_opt_swapchain_ptr);
 
         /** Destructor.
          *
@@ -67,9 +67,9 @@ namespace Anvil
             return m_render_pass;
         }
 
-        const Anvil::RenderPassInfo* get_render_pass_info() const
+        const Anvil::RenderPassCreateInfo* get_render_pass_create_info() const
         {
-            return m_render_pass_info_ptr.get();
+            return m_render_pass_create_info_ptr.get();
         }
 
         /** Returns the Swapchain instance, associated with the RenderPass wrapper instance at creation time. */
@@ -86,16 +86,16 @@ namespace Anvil
         bool init();
 
         /* Constructor. Please see create() for specification */
-        RenderPass(Anvil::RenderPassInfoUniquePtr in_renderpass_info_ptr,
-                   Anvil::Swapchain*              in_opt_swapchain_ptr);
+        RenderPass(Anvil::RenderPassCreateInfoUniquePtr in_renderpass_create_info_ptr,
+                   Anvil::Swapchain*                    in_opt_swapchain_ptr);
 
         RenderPass& operator=(const RenderPass&);
         RenderPass           (const RenderPass&);
 
         /* Private members */
-        VkRenderPass                   m_render_pass;
-        Anvil::RenderPassInfoUniquePtr m_render_pass_info_ptr;
-        Swapchain*                     m_swapchain_ptr;
+        VkRenderPass                         m_render_pass;
+        Anvil::RenderPassCreateInfoUniquePtr m_render_pass_create_info_ptr;
+        Swapchain*                           m_swapchain_ptr;
     };
 };
 

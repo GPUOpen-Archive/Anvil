@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -227,6 +227,11 @@ namespace Anvil
          std::string get_extension_behavior_glsl_code(const ExtensionBehavior& in_value) const;
 
          #ifdef ANVIL_LINK_WITH_GLSLANG
+            const std::string& get_debug_info_log() const
+            {
+                return m_debug_info_log;
+            }
+
             /** Returns info log which contains detailed information regarding the program linking process.
               *
               *  Call if get_spirv_blob() returns nullptr to find out more about shader issues which
@@ -288,15 +293,10 @@ namespace Anvil
          {
              if (m_spirv_blob.size() == 0)
              {
-                 bool result = bake_spirv_blob();
-
-                 ANVIL_REDUNDANT_VARIABLE(result);
-
-                 anvil_assert(result);
-                 anvil_assert(m_spirv_blob.size() != 0);
+                 bake_spirv_blob();
              }
 
-             return &m_spirv_blob.at(0);
+             return (m_spirv_blob.size() != 0) ? &m_spirv_blob.at(0) : nullptr;
          }
 
          /** Returns the number of bytes the SPIR-V blob, accessible via get_spirv_blob(), takes. */
@@ -304,15 +304,8 @@ namespace Anvil
          {
              if (m_spirv_blob.size() == 0)
              {
-                 bool result = bake_spirv_blob();
-
-                 ANVIL_REDUNDANT_VARIABLE(result);
-
-                 anvil_assert(result);
-                 anvil_assert(m_spirv_blob.size() != 0);
+                 bake_spirv_blob();
              }
-
-             anvil_assert(m_spirv_blob.size() > 0);
 
              return static_cast<uint32_t>(m_spirv_blob.size() );
          }
@@ -344,6 +337,7 @@ namespace Anvil
 
         /* Private members */
         #ifdef ANVIL_LINK_WITH_GLSLANG
+            mutable std::string            m_debug_info_log;
             std::unique_ptr<GLSLangLimits> m_limits_ptr;
             mutable std::string            m_program_info_log;
             mutable std::string            m_shader_info_log;

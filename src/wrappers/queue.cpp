@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,8 +21,10 @@
 //
 
 #include "misc/debug.h"
+#include "misc/fence_create_info.h"
 #include "misc/object_tracker.h"
 #include "misc/struct_chainer.h"
+#include "misc/swapchain_create_info.h"
 #include "misc/window.h"
 #include "wrappers/buffer.h"
 #include "wrappers/command_buffer.h"
@@ -64,9 +66,14 @@ Anvil::Queue::Queue(const Anvil::BaseDevice* in_device_ptr,
     m_supports_sparse_bindings = !!(m_device_ptr->get_queue_family_info(in_queue_family_index)->flags & VK_QUEUE_SPARSE_BINDING_BIT);
 
     /* Cache a fence that may be optionally used for submissions */
-    m_submit_fence_ptr = Anvil::Fence::create(m_device_ptr,
-                                              false /* create_signalled */,
-                                              Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe()) );
+    {
+        auto create_info_ptr = Anvil::FenceCreateInfo::create(m_device_ptr,
+                                                              false); /* create_signalled */
+
+        create_info_ptr->set_mt_safety(Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe()) );
+
+        m_submit_fence_ptr = Anvil::Fence::create(std::move(create_info_ptr) );
+    }
 
     /* OK, register the wrapper instance and leave */
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_QUEUE,
@@ -81,7 +88,7 @@ Anvil::Queue::~Queue()
 }
 
 /** Please see header for specification */
-bool Anvil::Queue::bind_sparse_memory(Anvil::Utils::SparseMemoryBindingUpdateInfo& in_update)
+bool Anvil::Queue::bind_sparse_memory(Anvil::SparseMemoryBindingUpdateInfo& in_update)
 {
     const VkBindSparseInfo* bind_info_items   = nullptr;
     Anvil::Fence*           fence_ptr         = nullptr;
@@ -221,8 +228,8 @@ bool Anvil::Queue::bind_sparse_memory(Anvil::Utils::SparseMemoryBindingUpdateInf
     return (result == VK_SUCCESS);
 }
 
-void Anvil::Queue::bind_sparse_memory_lock_unlock(Anvil::Utils::SparseMemoryBindingUpdateInfo& in_update,
-                                                  bool                                         in_should_lock)
+void Anvil::Queue::bind_sparse_memory_lock_unlock(Anvil::SparseMemoryBindingUpdateInfo& in_update,
+                                                  bool                                  in_should_lock)
 {
     const VkBindSparseInfo* bind_info_items   = nullptr;
     Anvil::Fence*           fence_ptr         = nullptr;
@@ -406,23 +413,21 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
                                uint32_t                 in_n_wait_semaphores,
                                Anvil::Semaphore* const* in_wait_semaphore_ptrs)
 {
-    const Anvil::DeviceType                 device_type            (m_device_ptr->get_type() );
-    VkResult                                presentation_result;
+    VkResult                                presentation_results   [MAX_SWAPCHAINS];
     VkResult                                result;
     Anvil::StructChainer<VkPresentInfoKHR>  struct_chainer;
     const ExtensionKHRSwapchainEntrypoints* swapchain_entrypoints_ptr(nullptr);
-    VkSwapchainKHR                          swapchain_vk;
+    VkSwapchainKHR                          swapchains_vk          [MAX_SWAPCHAINS];
     std::vector<VkSemaphore>                wait_semaphores_vk     (in_n_wait_semaphores);
 
     /* If the application is only interested in off-screen rendering, do *not* post the present request,
      * since the fake swapchain image is not presentable. We still have to wait on the user-specified
      * semaphores though. */
-    if (device_type      == Anvil::DEVICE_TYPE_SINGLE_GPU &&
-        in_swapchain_ptr != nullptr)
+    if (in_swapchain_ptr != nullptr)
     {
         Anvil::Window* window_ptr = nullptr;
 
-        window_ptr = in_swapchain_ptr->get_window();
+        window_ptr = in_swapchain_ptr->get_create_info_ptr()->get_window();
 
         if (window_ptr != nullptr)
         {
@@ -439,10 +444,15 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
                                                                                                 &dst_stage_mask,
                                                                                                  true); /* should_block */
 
-                OnPresentRequestIssuedCallbackArgument callback_argument(in_swapchain_ptr);
+                for (uint32_t n_presentation = 0;
+                              n_presentation < 1;
+                            ++n_presentation)
+                {
+                    OnPresentRequestIssuedCallbackArgument callback_argument(in_swapchain_ptr);
 
-                CallbacksSupportProvider::callback(QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
-                                                  &callback_argument);
+                    CallbacksSupportProvider::callback(QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
+                                                      &callback_argument);
+                }
 
                 result = VK_SUCCESS;
                 goto end;
@@ -451,7 +461,12 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
     }
 
     /* Convert arrays of Anvil objects to raw Vulkan handle arrays */
-    swapchain_vk = in_swapchain_ptr->get_swapchain_vk();
+    for (uint32_t n_swapchain = 0;
+                  n_swapchain < 1;
+                ++n_swapchain)
+    {
+        swapchains_vk[n_swapchain] = in_swapchain_ptr->get_swapchain_vk();
+    }
 
     for (uint32_t n_wait_semaphore = 0;
                   n_wait_semaphore < in_n_wait_semaphores;
@@ -465,8 +480,8 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
 
         image_presentation_info.pImageIndices      = &in_swapchain_image_index;
         image_presentation_info.pNext              = nullptr;
-        image_presentation_info.pResults           = &presentation_result;
-        image_presentation_info.pSwapchains        = &swapchain_vk;
+        image_presentation_info.pResults           = presentation_results;
+        image_presentation_info.pSwapchains        = swapchains_vk;
         image_presentation_info.pWaitSemaphores    = (in_n_wait_semaphores != 0) ? &wait_semaphores_vk.at(0) : nullptr;
         image_presentation_info.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
         image_presentation_info.swapchainCount     = 1;
@@ -477,7 +492,7 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
 
     swapchain_entrypoints_ptr = &m_device_ptr->get_extension_khr_swapchain_entrypoints();
 
-    present_lock_unlock(1,                /* in_n_swapchains */
+    present_lock_unlock(1,
                        &in_swapchain_ptr,
                         in_n_wait_semaphores,
                         in_wait_semaphore_ptrs,
@@ -488,7 +503,7 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
         result = swapchain_entrypoints_ptr->vkQueuePresentKHR(m_queue,
                                                               chain_ptr->get_root_struct() );
     }
-    present_lock_unlock(1,                 /* in_n_swapchains */
+    present_lock_unlock(1,
                        &in_swapchain_ptr,
                         in_n_wait_semaphores,
                         in_wait_semaphore_ptrs,
@@ -498,56 +513,61 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
 
     if (is_vk_call_successful(result) )
     {
-        anvil_assert(is_vk_call_successful(presentation_result));
-
-        /* Return the most important error code reported */
-        if (result != VK_ERROR_DEVICE_LOST)
+        for (uint32_t n_presentation = 0;
+                      n_presentation < 1;
+                    ++n_presentation)
         {
-            switch (presentation_result)
+            anvil_assert(is_vk_call_successful(presentation_results[n_presentation]));
+
+            /* Return the most important error code reported */
+            if (result != VK_ERROR_DEVICE_LOST)
             {
-                case VK_ERROR_DEVICE_LOST:
+                switch (presentation_results[n_presentation])
                 {
-                    result = VK_ERROR_DEVICE_LOST;
-
-                    break;
-                }
-
-                case VK_ERROR_SURFACE_LOST_KHR:
-                {
-                    if (result != VK_ERROR_DEVICE_LOST)
+                    case VK_ERROR_DEVICE_LOST:
                     {
-                        result = VK_ERROR_SURFACE_LOST_KHR;
+                        result = VK_ERROR_DEVICE_LOST;
+
+                        break;
                     }
 
-                    break;
-                }
-
-                case VK_ERROR_OUT_OF_DATE_KHR:
-                {
-                    if (result != VK_ERROR_DEVICE_LOST      &&
-                        result != VK_ERROR_SURFACE_LOST_KHR)
+                    case VK_ERROR_SURFACE_LOST_KHR:
                     {
-                        result = VK_ERROR_OUT_OF_DATE_KHR;
+                        if (result != VK_ERROR_DEVICE_LOST)
+                        {
+                            result = VK_ERROR_SURFACE_LOST_KHR;
+                        }
+
+                        break;
                     }
 
-                    break;
-                }
-
-                case VK_SUBOPTIMAL_KHR:
-                {
-                    if (result != VK_ERROR_DEVICE_LOST      &&
-                        result != VK_ERROR_SURFACE_LOST_KHR &&
-                        result != VK_ERROR_OUT_OF_DATE_KHR)
+                    case VK_ERROR_OUT_OF_DATE_KHR:
                     {
-                        result = VK_SUBOPTIMAL_KHR;
+                        if (result != VK_ERROR_DEVICE_LOST      &&
+                            result != VK_ERROR_SURFACE_LOST_KHR)
+                        {
+                            result = VK_ERROR_OUT_OF_DATE_KHR;
+                        }
+
+                        break;
                     }
 
-                    break;
-                }
+                    case VK_SUBOPTIMAL_KHR:
+                    {
+                        if (result != VK_ERROR_DEVICE_LOST      &&
+                            result != VK_ERROR_SURFACE_LOST_KHR &&
+                            result != VK_ERROR_OUT_OF_DATE_KHR)
+                        {
+                            result = VK_SUBOPTIMAL_KHR;
+                        }
 
-                default:
-                {
-                    anvil_assert(presentation_result == VK_SUCCESS);
+                        break;
+                    }
+
+                    default:
+                    {
+                        anvil_assert(presentation_results[n_presentation] == VK_SUCCESS);
+                    }
                 }
             }
 

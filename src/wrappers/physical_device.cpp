@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -81,7 +81,7 @@ bool Anvil::PhysicalDevice::init()
 
     anvil_assert(m_physical_device != VK_NULL_HANDLE);
 
-    if (m_instance_ptr->is_instance_extension_supported(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) )
+    if (m_instance_ptr->get_enabled_extensions_info()->khr_get_physical_device_properties2() )
     {
         gpdp2_entrypoints_ptr = &m_instance_ptr->get_extension_khr_get_physical_device_properties2_entrypoints();
     }
@@ -102,6 +102,7 @@ bool Anvil::PhysicalDevice::init()
 
     if (n_extensions > 0)
     {
+        std::map<std::string, bool>        extension_availability;
         std::vector<VkExtensionProperties> extension_props;
 
         extension_props.resize(n_extensions);
@@ -116,18 +117,64 @@ bool Anvil::PhysicalDevice::init()
                       n_extension < n_extensions;
                     ++n_extension)
         {
-            m_extensions.push_back(Anvil::Extension(extension_props[n_extension]) );
+            extension_availability[extension_props[n_extension].extensionName] = true;
         }
+
+        m_extension_info_ptr = Anvil::ExtensionInfo<bool>::create_device_extension_info(extension_availability,
+                                                                                        false); /* in_unspecified_extension_name_value */
     }
 
     /* Retrieve and cache device features */
     {
+        Anvil::StructID          descriptor_indexing_features_struct_id = UINT32_MAX;
         VkPhysicalDeviceFeatures features_vk;
 
         vkGetPhysicalDeviceFeatures(m_physical_device,
                                    &features_vk);
 
-        if (is_device_extension_supported(VK_KHR_16BIT_STORAGE_EXTENSION_NAME) )
+        if (m_extension_info_ptr->get_device_extension_info()->ext_descriptor_indexing() )
+        {
+            const auto&                                               gpdp2_entrypoints = m_instance_ptr->get_extension_khr_get_physical_device_properties2_entrypoints();
+            Anvil::StructChainUniquePtr<VkPhysicalDeviceFeatures2KHR> struct_chain_ptr;
+            Anvil::StructChainer<VkPhysicalDeviceFeatures2KHR>        struct_chainer;
+
+            {
+                VkPhysicalDeviceFeatures2KHR features;
+
+                features.pNext = nullptr;
+                features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR;
+
+                struct_chainer.append_struct(features);
+            }
+
+            {
+                VkPhysicalDeviceDescriptorIndexingFeaturesEXT descriptor_indexing_features;
+
+                descriptor_indexing_features.pNext = nullptr;
+                descriptor_indexing_features.sType = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT);
+
+                descriptor_indexing_features_struct_id = struct_chainer.append_struct(descriptor_indexing_features);
+            }
+
+            struct_chain_ptr = struct_chainer.create_chain();
+
+            gpdp2_entrypoints.vkGetPhysicalDeviceFeatures2KHR(m_physical_device,
+                                                              struct_chain_ptr->get_root_struct() );
+
+            m_ext_descriptor_indexing_features_ptr.reset(
+                new EXTDescriptorIndexingFeatures(*struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceDescriptorIndexingFeaturesEXT>(descriptor_indexing_features_struct_id) )
+            );
+
+            if (m_ext_descriptor_indexing_features_ptr == nullptr)
+            {
+                anvil_assert(m_ext_descriptor_indexing_features_ptr != nullptr);
+
+                result = false;
+                goto end;
+            }
+        }
+
+        if (m_extension_info_ptr->get_device_extension_info()->khr_16bit_storage() )
         {
             const auto&                                               gpdp2_entrypoints          = m_instance_ptr->get_extension_khr_get_physical_device_properties2_entrypoints();
             Anvil::StructID                                           storage_features_struct_id = UINT32_MAX;
@@ -182,12 +229,13 @@ bool Anvil::PhysicalDevice::init()
             goto end;
         }
 
-        m_features = Anvil::PhysicalDeviceFeatures(m_core_features_vk10_ptr.get         (),
-                                                   m_khr_16_bit_storage_features_ptr.get() );
+        m_features = Anvil::PhysicalDeviceFeatures(m_core_features_vk10_ptr.get              (),
+                                                   m_ext_descriptor_indexing_features_ptr.get(),
+                                                   m_khr_16_bit_storage_features_ptr.get     () );
     }
 
     /* Retrieve device format properties */
-    texture_gather_bias_lod_support = is_device_extension_supported(VK_AMD_TEXTURE_GATHER_BIAS_LOD_EXTENSION_NAME);;
+    texture_gather_bias_lod_support = m_extension_info_ptr->get_device_extension_info()->amd_texture_gather_bias_lod();
 
     for (VkFormat current_format = static_cast<VkFormat>(1); /* skip the _UNDEFINED format */
                   current_format < VK_FORMAT_RANGE_SIZE;
@@ -250,11 +298,11 @@ bool Anvil::PhysicalDevice::init()
     }
 
     /* Retrieve additional device info */
-    if (m_instance_ptr->is_instance_extension_supported(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) )
+    if (m_instance_ptr->get_enabled_extensions_info()->khr_get_physical_device_properties2() )
     {
         const auto& gpdp2_entrypoints = m_instance_ptr->get_extension_khr_get_physical_device_properties2_entrypoints();
 
-        if (m_instance_ptr->is_instance_extension_supported(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME) )
+        if (m_instance_ptr->get_enabled_extensions_info()->khr_external_memory_capabilities() )
         {
             Anvil::StructID                                             device_id_props_struct_id  = UINT32_MAX;
             const VkPhysicalDeviceIDPropertiesKHR*                      result_device_id_props_ptr = nullptr;
@@ -313,7 +361,95 @@ bool Anvil::PhysicalDevice::init()
             m_driver_UUID_available = true;
         }
 
-        if (is_device_extension_supported(VK_KHR_MAINTENANCE3_EXTENSION_NAME) )
+        if (m_extension_info_ptr->get_device_extension_info()->amd_shader_core_properties() )
+        {
+            const VkPhysicalDeviceShaderCorePropertiesAMD*              result_shader_core_props_ptr = nullptr;
+            Anvil::StructID                                             shader_core_struct_id        = UINT32_MAX;
+            Anvil::StructChainUniquePtr<VkPhysicalDeviceProperties2KHR> struct_chain_ptr;
+            Anvil::StructChainer<VkPhysicalDeviceProperties2KHR>        struct_chainer;
+
+            {
+                VkPhysicalDeviceProperties2KHR general_props;
+
+                general_props.pNext = nullptr;
+                general_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
+
+                struct_chainer.append_struct(general_props);
+            }
+
+            {
+                VkPhysicalDeviceShaderCorePropertiesAMD shader_core_properties;
+
+                shader_core_properties.pNext = nullptr;
+                shader_core_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CORE_PROPERTIES_AMD;
+
+                shader_core_struct_id = struct_chainer.append_struct(shader_core_properties);
+            }
+
+            struct_chain_ptr             = struct_chainer.create_chain();
+            result_shader_core_props_ptr = struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceShaderCorePropertiesAMD>(shader_core_struct_id);
+
+            gpdp2_entrypoints.vkGetPhysicalDeviceProperties2KHR(m_physical_device,
+                                                                struct_chain_ptr->get_root_struct() );
+
+            m_amd_shader_core_properties_ptr.reset(
+                new AMDShaderCoreProperties(*result_shader_core_props_ptr)
+            );
+
+            if (m_amd_shader_core_properties_ptr == nullptr)
+            {
+                anvil_assert(m_amd_shader_core_properties_ptr != nullptr);
+
+                result = false;
+                goto end;
+            }
+        }
+
+        if (m_extension_info_ptr->get_device_extension_info()->ext_descriptor_indexing() )
+        {
+            Anvil::StructID                                             descriptor_indexing_props_struct_id         = UINT32_MAX;
+            const VkPhysicalDeviceDescriptorIndexingPropertiesEXT*      result_descriptor_indexing_props_struct_ptr = nullptr;
+            Anvil::StructChainUniquePtr<VkPhysicalDeviceProperties2KHR> struct_chain_ptr;
+            Anvil::StructChainer<VkPhysicalDeviceProperties2KHR>        struct_chainer;
+
+            {
+                VkPhysicalDeviceProperties2KHR general_props;
+
+                general_props.pNext = nullptr;
+                general_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
+
+                struct_chainer.append_struct(general_props);
+            }
+
+            {
+                VkPhysicalDeviceDescriptorIndexingPropertiesEXT descriptor_indexing_properties;
+
+                descriptor_indexing_properties.pNext = nullptr;
+                descriptor_indexing_properties.sType = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_PROPERTIES_EXT);
+
+                descriptor_indexing_props_struct_id = struct_chainer.append_struct(descriptor_indexing_properties);
+            }
+
+            struct_chain_ptr                            = struct_chainer.create_chain();
+            result_descriptor_indexing_props_struct_ptr = struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceDescriptorIndexingPropertiesEXT>(descriptor_indexing_props_struct_id);
+
+            gpdp2_entrypoints.vkGetPhysicalDeviceProperties2KHR(m_physical_device,
+                                                                struct_chain_ptr->get_root_struct() );
+
+            m_ext_descriptor_indexing_properties_ptr.reset(
+                new EXTDescriptorIndexingProperties(*result_descriptor_indexing_props_struct_ptr)
+            );
+
+            if (m_ext_descriptor_indexing_properties_ptr == nullptr)
+            {
+                anvil_assert(m_ext_descriptor_indexing_properties_ptr != nullptr);
+
+                result = false;
+                goto end;
+            }
+        }
+
+        if (m_extension_info_ptr->get_device_extension_info()->khr_maintenance3() )
         {
             Anvil::StructID                                             maintenance3_struct_id        = UINT32_MAX;
             const VkPhysicalDeviceMaintenance3PropertiesKHR*            result_maintenanc3_struct_ptr = nullptr;
@@ -377,8 +513,10 @@ bool Anvil::PhysicalDevice::init()
         }
     }
 
-    m_properties = Anvil::PhysicalDeviceProperties(m_core_properties_vk10_ptr.get       (),
-                                                   m_khr_maintenance3_properties_ptr.get() );
+    m_properties = Anvil::PhysicalDeviceProperties(m_amd_shader_core_properties_ptr.get        (),
+                                                   m_core_properties_vk10_ptr.get              (),
+                                                   m_ext_descriptor_indexing_properties_ptr.get(),
+                                                   m_khr_maintenance3_properties_ptr.get       () );
 
     /* Retrieve device queue data */
     vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device,
@@ -494,9 +632,9 @@ bool Anvil::PhysicalDevice::get_sparse_image_format_properties(VkFormat         
 /* Please see header for specification */
 bool Anvil::PhysicalDevice::is_device_extension_supported(const std::string& in_extension_name) const
 {
-    return std::find(m_extensions.begin(),
-                     m_extensions.end(),
-                     in_extension_name) != m_extensions.end();
+    anvil_assert(m_extension_info_ptr != nullptr);
+
+    return m_extension_info_ptr->get_device_extension_info()->by_name(in_extension_name);
 }
 
 /* Please see header for specification */
