@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -50,30 +50,7 @@ namespace Anvil
     public:
         /* Public functions */
 
-        /** Constructor.
-         *
-         *  @param in_device_ptr                Device to initialize the swapchain for.
-         *  @param in_parent_surface_ptr        Rendering surface the swapchain is to be created for. Must
-         *                                      not be nullptr.
-         *  @param in_window_ptr                current window to create the swapchain for. Must not be nullptr.
-         *  @param in_format                    Format to use for the swapchain image.
-         *  @param in_present_mode              Presentation mode to use for the swapchain.
-         *  @param in_usage_flags               Image usage flags to use for the swapchain.
-         *  @param in_n_images                  Number of swapchain images to use for the swapchain.
-         *  @param in_khr_swapchain_entrypoints VK_KHR_swapchain entrypoint container.
-         *  @param in_flags                     Swapchain create flags to pass, when creating the swapchain.
-         *
-         */
-        static Anvil::SwapchainUniquePtr create(const Anvil::BaseDevice*                in_device_ptr,
-                                                Anvil::RenderingSurface*                in_parent_surface_ptr,
-                                                Anvil::Window*                          in_window_ptr,
-                                                VkFormat                                in_format,
-                                                VkPresentModeKHR                        in_present_mode,
-                                                VkImageUsageFlags                       in_usage_flags,
-                                                uint32_t                                in_n_images,
-                                                const ExtensionKHRSwapchainEntrypoints& in_khr_swapchain_entrypoints,
-                                                MTSafety                                in_mt_safety,
-                                                VkSwapchainCreateFlagsKHR               in_flags                     = 0);
+        static Anvil::SwapchainUniquePtr create(Anvil::SwapchainCreateInfoUniquePtr in_create_info_ptr);
 
         /** Destructor.
          *
@@ -95,43 +72,15 @@ namespace Anvil
         uint32_t acquire_image(Anvil::Semaphore* in_opt_semaphore_ptr,
                                bool              in_should_block = false);
 
-        /* By default, swapchain instance will transparently destroy the underlying Vulkan swapchain handle, right before
-         * the window is closed.
-         *
-         * There are certain use cases where we want the order to be reversed (ie. the swapchain handle should be destroyed only after
-         * the window is closed). This function can be used to enable this behavior.
-         *
-         */
-        void disable_destroy_swapchain_before_parent_window_closes_behavior();
-
-        /** Returns device instance which has been used to create the swapchain */
-        const Anvil::BaseDevice* get_device() const
+        const SwapchainCreateInfo* get_create_info_ptr() const
         {
-            return m_device_ptr;
-        }
-
-        /** Returns flags used to create the swapchain. */
-        const VkSwapchainCreateFlagsKHR& get_flags() const
-        {
-            return m_flags;
+            return m_create_info_ptr.get();
         }
 
         /** Returns height of the swapchain, as specified at creation time */
         uint32_t get_height() const
         {
             return m_size.height;
-        }
-
-        /** Returns format used by swapchain images */
-        VkFormat get_image_format() const
-        {
-            return m_image_format;
-        }
-
-        /** Returns format used by swapchain image views. */
-        VkFormat get_image_view_format() const
-        {
-            return m_image_view_format;
         }
 
         /** Retrieves an Image instance associated with a swapchain image at index
@@ -169,18 +118,6 @@ namespace Anvil
             return m_last_acquired_image_index;
         }
 
-        /** Tells how many images the swap-chain encapsulates. */
-        uint32_t get_n_images() const
-        {
-            return m_n_swapchain_images;
-        }
-
-        /** Retrieves parent rendering surface. */
-        const Anvil::RenderingSurface* get_rendering_surface() const
-        {
-            return m_parent_surface_ptr;
-        }
-
         /** Retrieves a pointer to the raw Vulkan swapchain handle.  */
         const VkSwapchainKHR* get_swapchain_ptr() const
         {
@@ -192,64 +129,53 @@ namespace Anvil
             return m_swapchain;
         }
 
-        /** Returns width of the swapchain, as specified at creation time */
+        /** Returns width of the swapchain. */
         uint32_t get_width() const
         {
             return m_size.width;
         }
 
-        /** Retrieves a window, to which the swapchain is bound. Note that under certain
-         *  circumstances no window may be assigned. */
-        Anvil::Window* get_window() const
+        /* By default, swapchain instance will transparently destroy the underlying Vulkan swapchain handle, right before
+         * the window is closed.
+         *
+         * There are certain use cases where we want the order to be reversed (ie. the swapchain handle should be destroyed only after
+         * the window is closed). This behavior can be enabled by calling this function with @param in_value set to false.
+         */
+        void set_should_destroy_swapchain_before_parent_window_closes(const bool& in_value)
         {
-            return m_window_ptr;
+            m_destroy_swapchain_before_parent_window_closes = in_value;
+        }
+
+        const bool& should_destroy_swapchain_before_parent_window_closes()
+        {
+            return m_destroy_swapchain_before_parent_window_closes;
         }
 
     private:
         /* Private functions */
 
         /* Constructor. Please see create() for specification */
-        Swapchain(const Anvil::BaseDevice* in_device_ptr,
-                  Anvil::RenderingSurface* in_parent_surface_ptr,
-                  Anvil::Window*           in_window_ptr,
-                  VkFormat                                 in_format,
-                  VkPresentModeKHR                         in_present_mode,
-                  VkImageUsageFlags                        in_usage_flags,
-                  uint32_t                                 in_n_images,
-                  VkSwapchainCreateFlagsKHR                in_flags,
-                  const ExtensionKHRSwapchainEntrypoints&  in_khr_swapchain_entrypoints,
-                  bool                                     in_mt_safe);
+        Swapchain(Anvil::SwapchainCreateInfoUniquePtr in_create_info_ptr);
 
         Swapchain           (const Swapchain&);
         Swapchain& operator=(const Swapchain&);
 
         void destroy_swapchain();
-        void init             ();
+        bool init             ();
 
         void on_parent_window_about_to_close();
         void on_present_request_issued      (Anvil::CallbackArgument* in_callback_raw_ptr);
 
         /* Private variables */
-        bool                             m_destroy_swapchain_before_parent_window_closes;
-        const Anvil::BaseDevice*         m_device_ptr;
-        VkSwapchainCreateFlagsKHR        m_flags;
-        Anvil::FenceUniquePtr            m_image_available_fence_ptr;
-        VkFormat                         m_image_format;
-        std::vector<ImageUniquePtr>      m_image_ptrs;
-        VkFormat                         m_image_view_format;
-        std::vector<ImageViewUniquePtr>  m_image_view_ptrs;
-        uint32_t                         m_last_acquired_image_index;
-        uint32_t                         m_n_swapchain_images;
-        Anvil::RenderingSurface*         m_parent_surface_ptr;
-        VkPresentModeKHR                 m_present_mode;
-        VkSwapchainKHR                   m_swapchain;
-        Anvil::Window*                   m_window_ptr;
+        Anvil::SwapchainCreateInfoUniquePtr m_create_info_ptr;
+        Anvil::FenceUniquePtr               m_image_available_fence_ptr;
+        std::vector<ImageUniquePtr>         m_image_ptrs;
+        std::vector<ImageViewUniquePtr>     m_image_view_ptrs;
+        uint32_t                            m_last_acquired_image_index;
+        VkExtent2D                          m_size;
+        VkSwapchainKHR                      m_swapchain;
 
-        VkExtent2D m_size;
-
-        VkImageUsageFlagsVariable(m_usage_flags);
-
-        const ExtensionKHRSwapchainEntrypoints m_khr_swapchain_entrypoints;
+        bool m_destroy_swapchain_before_parent_window_closes;
 
         volatile uint64_t m_n_acquire_counter;
         volatile uint32_t m_n_acquire_counter_rounded;

@@ -21,7 +21,7 @@
 //
 
 #include "misc/debug.h"
-#include "misc/descriptor_set_info.h"
+#include "misc/descriptor_set_create_info.h"
 #include "misc/object_tracker.h"
 #include "wrappers/descriptor_set.h"
 #include "wrappers/descriptor_set_layout.h"
@@ -97,9 +97,9 @@ bool Anvil::DescriptorUpdateTemplate::init(const Anvil::DescriptorSetLayout*    
     const Anvil::ExtensionKHRDescriptorUpdateTemplateEntrypoints* entrypoints_ptr = nullptr;
     bool                                                          result          = true;
 
-    if (!m_device_ptr->is_khr_descriptor_update_template_extension_enabled() )
+    if (!m_device_ptr->get_extension_info()->khr_descriptor_update_template() )
     {
-        anvil_assert(m_device_ptr->is_khr_descriptor_update_template_extension_enabled() );
+        anvil_assert(m_device_ptr->get_extension_info()->khr_descriptor_update_template() );
 
         result = false;
         goto end;
@@ -181,14 +181,14 @@ bool Anvil::DescriptorUpdateTemplate::init(const Anvil::DescriptorSetLayout*    
         goto end;
     }
 
-    /* Finally, also cache descriptor set info using the user-specified DS layout */
-    m_ds_info_ptr.reset(
-        new Anvil::DescriptorSetInfo(*in_descriptor_set_layout_ptr->get_info() )
+    /* Finally, also cache descriptor set create info using the user-specified DS layout */
+    m_ds_create_info_ptr.reset(
+        new Anvil::DescriptorSetCreateInfo(*in_descriptor_set_layout_ptr->get_create_info() )
     );
 
-    if (m_ds_info_ptr == nullptr)
+    if (m_ds_create_info_ptr == nullptr)
     {
-        anvil_assert(m_ds_info_ptr != nullptr);
+        anvil_assert(m_ds_create_info_ptr != nullptr);
 
         result = false;
         goto end;
@@ -212,7 +212,7 @@ void Anvil::DescriptorUpdateTemplate::update_descriptor_set(const Anvil::Descrip
 
     #ifdef _DEBUG
     {
-        if (!(*inout_ds_ptr->get_descriptor_set_layout()->get_info() == *m_ds_info_ptr) )
+        if (!(*inout_ds_ptr->get_descriptor_set_layout()->get_create_info() == *m_ds_create_info_ptr) )
         {
             anvil_assert_fail();
 

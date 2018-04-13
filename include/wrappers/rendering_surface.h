@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -111,10 +111,10 @@ namespace Anvil
         bool get_supported_composite_alpha_flags(VkCompositeAlphaFlagsKHR* out_result_ptr) const;
 
         /** Returns transformations supported by the rendering surface */
-        bool get_supported_transformations(VkSurfaceTransformFlagsKHR* out_result_ptr) const;
+        bool get_supported_transformations(VkSurfaceTransformFlagsKHR*  out_result_ptr) const;
 
         /** Returns flags corresponding to image usage supported by the rendering surface */
-        bool get_supported_usages(VkImageUsageFlags* out_result_ptr) const;
+        bool get_supported_usages(VkImageUsageFlags*  out_result_ptr) const;
 
         /** Retrieves a raw handle to the underlying Vulkan Rendering Surface */
         VkSurfaceKHR get_surface() const
@@ -147,6 +147,8 @@ namespace Anvil
 
     private:
         /* Private type definitions */
+        typedef uint32_t DeviceGroupIndex;
+
         typedef struct PhysicalDeviceCapabilities
         {
             VkSurfaceCapabilitiesKHR            capabilities;
@@ -186,11 +188,11 @@ namespace Anvil
         const Anvil::BaseDevice* m_device_ptr;
         Anvil::Instance*         m_instance_ptr;
 
-        uint32_t                   m_height;
-        PhysicalDeviceCapabilities m_physical_device_capabilities;
-        VkSurfaceKHR               m_surface;
-        uint32_t                   m_width;
-        const Anvil::Window*       m_window_ptr;
+        uint32_t                                               m_height;
+        std::map<DeviceGroupIndex, PhysicalDeviceCapabilities> m_physical_device_capabilities;
+        VkSurfaceKHR                                           m_surface;
+        uint32_t                                               m_width;
+        const Anvil::Window*                                   m_window_ptr;
     };
 }; /* namespace Anvil */
 

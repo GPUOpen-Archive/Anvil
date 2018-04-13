@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -61,13 +61,13 @@ namespace Anvil
          *  @param in_device_ptr Device the layout will be created for.
          *
          **/
-        static DescriptorSetLayoutUniquePtr create(DescriptorSetInfoUniquePtr in_ds_info_ptr,
-                                                   const Anvil::BaseDevice*   in_device_ptr,
-                                                   MTSafety                   in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static DescriptorSetLayoutUniquePtr create(DescriptorSetCreateInfoUniquePtr in_ds_create_info_ptr,
+                                                   const Anvil::BaseDevice*         in_device_ptr,
+                                                   MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
 
-        const Anvil::DescriptorSetInfo* get_info() const
+        const Anvil::DescriptorSetCreateInfo* get_create_info() const
         {
-            return m_info_ptr.get();
+            return m_create_info_ptr.get();
         }
 
         /** Bakes a Vulkan object, if one is needed, and returns Vulkan DS layout handle.
@@ -83,6 +83,16 @@ namespace Anvil
 
             return m_layout;
         }
+
+        /* Returns the maximum number of variable descriptor count binding size supported for the specified descriptor set layout.
+         *
+         * Requires VK_KHR_maintenance3 and VK_KHR_descriptor_indexing.
+         *
+         * @param in_ds_create_info_ptr Instance obtained by calling DescriptorSetInfo::create_descriptor_set_layout_create_info().
+         *                              Must not be null.
+         */
+        static uint32_t get_maximum_variable_descriptor_count(const DescriptorSetLayoutCreateInfoContainer* in_ds_create_info_ptr,
+                                                              const Anvil::BaseDevice*                      in_device_ptr);
 
         /* Checks if the specified descriptor set layout create info structure can be used to create a descriptor set layout instance.
          *
@@ -110,17 +120,17 @@ namespace Anvil
         bool init();
 
         /* Please see create() documentation for more details */
-        DescriptorSetLayout(DescriptorSetInfoUniquePtr in_ds_info_ptr,
-                            const Anvil::BaseDevice*   in_device_ptr,
-                            bool                       in_mt_safe);
+        DescriptorSetLayout(DescriptorSetCreateInfoUniquePtr in_ds_create_info_ptr,
+                            const Anvil::BaseDevice*         in_device_ptr,
+                            bool                             in_mt_safe);
 
         DescriptorSetLayout           (const DescriptorSetLayout&);
         DescriptorSetLayout& operator=(const DescriptorSetLayout&);
 
         /* Private variables */
-        const Anvil::BaseDevice*   m_device_ptr;
-        DescriptorSetInfoUniquePtr m_info_ptr;
-        VkDescriptorSetLayout      m_layout;
+        DescriptorSetCreateInfoUniquePtr m_create_info_ptr;
+        const Anvil::BaseDevice*         m_device_ptr;
+        VkDescriptorSetLayout            m_layout;
     };
 }; /* namespace Anvil */
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,7 @@
 #ifndef WRAPPERS_INSTANCE_H
 #define WRAPPERS_INSTANCE_H
 
+#include "misc/extensions.h"
 #include "misc/mt_safety.h"
 #include "misc/types.h"
 
@@ -80,6 +81,11 @@ namespace Anvil
                                                DebugCallbackFunction           in_opt_validation_callback_proc,
                                                bool                            in_mt_safe,
                                                const std::vector<std::string>& in_opt_disallowed_instance_level_extensions = std::vector<std::string>() );
+
+        const Anvil::IExtensionInfoInstance<bool>* get_enabled_extensions_info() const
+        {
+            return m_enabled_extensions_info_ptr->get_instance_extension_info();
+        }
 
         /** Returns a container with entry-points to functions introduced by VK_KHR_get_physical_device_properties2.
          *
@@ -213,7 +219,9 @@ namespace Anvil
         const std::string     m_engine_name;
         DebugCallbackFunction m_validation_callback_function;
 
-        std::vector<std::string>                             m_enabled_extensions;
+        std::unique_ptr<Anvil::ExtensionInfo<bool> > m_enabled_extensions_info_ptr;
+        std::unique_ptr<Anvil::ExtensionInfo<bool> > m_supported_extensions_info_ptr;
+
         Anvil::Layer                                         m_global_layer;
         std::vector<std::unique_ptr<Anvil::PhysicalDevice> > m_physical_devices;
         std::vector<Anvil::Layer>                            m_supported_layers;

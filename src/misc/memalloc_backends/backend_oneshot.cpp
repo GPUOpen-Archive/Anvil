@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -152,7 +152,8 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
                         current_item_ptr->is_baked = true;
                     }
 
-                    dynamic_cast<IMemoryBlockBackendSupport*>(current_item_ptr->alloc_memory_block_ptr.get() )->set_parent_memory_allocator_backend_ptr(shared_from_this() );
+                    dynamic_cast<IMemoryBlockBackendSupport*>(current_item_ptr->alloc_memory_block_ptr.get() )->set_parent_memory_allocator_backend_ptr(shared_from_this(),
+                                                                                                                                                        reinterpret_cast<void*>(new_memory_block_ptr->get_memory() ));
                 }
 
                 m_memory_blocks.push_back(
@@ -172,6 +173,19 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
     return result;
 }
 
+VkResult Anvil::MemoryAllocatorBackends::OneShot::map(void*        in_memory_object,
+                                                      VkDeviceSize in_start_offset,
+                                                      VkDeviceSize in_size,
+                                                      void**       out_result_ptr)
+{
+    return vkMapMemory(m_device_ptr->get_device_vk(),
+                       reinterpret_cast<VkDeviceMemory>(in_memory_object),
+                       in_start_offset,
+                       in_size,
+                       0, /* flags */
+                       out_result_ptr);
+}
+
 /** Tells whether or not the backend is ready to handle allocation request.
  *
  *  One-shot memory allocator backend will return true until the first bake() invocation,
@@ -181,4 +195,15 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
 bool Anvil::MemoryAllocatorBackends::OneShot::supports_baking() const
 {
     return !m_is_baked;
+}
+
+bool Anvil::MemoryAllocatorBackends::OneShot::supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeFlags& in_external_memory_handle_types) const
+{
+    return (in_external_memory_handle_types == 0);
+}
+
+void Anvil::MemoryAllocatorBackends::OneShot::unmap(void* in_memory_object)
+{
+    vkUnmapMemory(m_device_ptr->get_device_vk(),
+                  reinterpret_cast<VkDeviceMemory>(in_memory_object) );
 }

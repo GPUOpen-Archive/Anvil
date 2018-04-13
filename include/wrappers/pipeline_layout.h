@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -57,9 +57,9 @@ namespace Anvil
             return m_push_constant_ranges;
         }
 
-        const std::vector<Anvil::DescriptorSetInfoUniquePtr>* get_ds_info_ptrs() const
+        const std::vector<Anvil::DescriptorSetCreateInfoUniquePtr>* get_ds_create_info_ptrs() const
         {
-            return &m_ds_info_ptrs;
+            return &m_ds_create_info_ptrs;
         }
 
         /** Retrieves a raw Vulkan pipeline layout handle.
@@ -88,7 +88,7 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool bake(const std::vector<DescriptorSetInfoUniquePtr>* in_ds_info_items_ptr);
+        bool bake(const std::vector<DescriptorSetCreateInfoUniquePtr>* in_ds_create_info_items_ptr);
 
         /** Initializes a new wrapper instance using information extracted from user-specified descriptor set groups (appended
          *  one after another, in the user-defined order).
@@ -97,22 +97,22 @@ namespace Anvil
          *  is set to true, attach_dsg() and attach_push_constant_range() calls invoked for such object
          *  will result in a failure.
          *
-         *  @param in_device_ptr           Device to use. Must not be nullptr.
-         *  @param in_ds_info_items_ptr    TODO
-         *  @param in_push_constant_ranges Push constant ranges to define for the pipeline layout.
+         *  @param in_device_ptr               Device to use. Must not be nullptr.
+         *  @param in_ds_create_info_items_ptr TODO
+         *  @param in_push_constant_ranges     Push constant ranges to define for the pipeline layout.
          *
          **/
-        static PipelineLayoutUniquePtr create(const Anvil::BaseDevice*                       in_device_ptr,
-                                              const std::vector<DescriptorSetInfoUniquePtr>* in_ds_info_items_ptr,
-                                              const PushConstantRanges&                      in_push_constant_ranges,
-                                              bool                                           in_mt_safe);
+        static PipelineLayoutUniquePtr create(const Anvil::BaseDevice*                             in_device_ptr,
+                                              const std::vector<DescriptorSetCreateInfoUniquePtr>* in_ds_create_info_items_ptr,
+                                              const PushConstantRanges&                            in_push_constant_ranges,
+                                              bool                                                 in_mt_safe);
 
         /* Private variables */
-        const Anvil::BaseDevice*                         m_device_ptr;
-        std::vector<Anvil::DescriptorSetInfoUniquePtr>   m_ds_info_ptrs;
-        std::vector<Anvil::DescriptorSetLayoutUniquePtr> m_ds_layout_ptrs;
-        VkPipelineLayout                                 m_layout_vk;
-        PushConstantRanges                               m_push_constant_ranges;
+        const Anvil::BaseDevice*                             m_device_ptr;
+        std::vector<Anvil::DescriptorSetCreateInfoUniquePtr> m_ds_create_info_ptrs;
+        std::vector<Anvil::DescriptorSetLayoutUniquePtr>     m_ds_layout_ptrs;
+        VkPipelineLayout                                     m_layout_vk;
+        PushConstantRanges                                   m_push_constant_ranges;
 
         friend class PipelineLayoutManager;
     };

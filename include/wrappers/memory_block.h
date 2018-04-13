@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -52,7 +52,8 @@ namespace Anvil
             /* Stub */
         }
 
-        virtual void set_parent_memory_allocator_backend_ptr(std::shared_ptr<Anvil::IMemoryAllocatorBackendBase> in_backend_ptr) = 0;
+        virtual void set_parent_memory_allocator_backend_ptr(std::shared_ptr<Anvil::IMemoryAllocatorBackendBase> in_backend_ptr,
+                                                             void*                                               in_backend_object) = 0;
     } IMemoryBlockBackendSupport;
 
     /** Wrapper class for memory objects. Please see header for more details */
@@ -64,16 +65,20 @@ namespace Anvil
 
         /** Create and bind a new device memory object to the instantiated MemoryBlock object.
          *
-         *  @param in_device_ptr               Device to use.
-         *  @param in_allowed_memory_bits      Memory type bits which meet the allocation requirements.
-         *  @param in_size                     Required allocation size.
-         *  @param in_memory_features          Required memory features.
+         *  @param in_device_ptr                   Device to use.
+         *  @param in_allowed_memory_bits          Memory type bits which meet the allocation requirements.
+         *  @param in_size                         Required allocation size.
+         *  @param in_memory_features              Required memory features.
+         *  @param in_external_memory_handle_types If the memory block is going to be exported to another process or Vulkan instance, use
+         *                                         this field to specify which handle types the allocation needs to support. Please see
+         *                                         documentation of Anvil::ExternalMemoryHandleTypeFlags for more details.
          **/
-         static MemoryBlockUniquePtr create(const Anvil::BaseDevice*  in_device_ptr,
-                                            uint32_t                  in_allowed_memory_bits,
-                                            VkDeviceSize              in_size,
-                                            Anvil::MemoryFeatureFlags in_memory_features,
-                                            MTSafety                  in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+         static MemoryBlockUniquePtr create(const Anvil::BaseDevice*             in_device_ptr,
+                                            uint32_t                             in_allowed_memory_bits,
+                                            VkDeviceSize                         in_size,
+                                            Anvil::MemoryFeatureFlags            in_memory_features,
+                                            MTSafety                             in_mt_safety                    = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE,
+                                            Anvil::ExternalMemoryHandleTypeFlags in_external_memory_handle_types = 0);
 
         /** Create a memory block whose storage space is maintained by another MemoryBlock instance.
          *
@@ -105,7 +110,8 @@ namespace Anvil
                                                                            uint32_t                             in_memory_type_index,
                                                                            VkDeviceSize                         in_size,
                                                                            VkDeviceSize                         in_start_offset,
-                                                                           OnMemoryBlockReleaseCallbackFunction in_on_release_callback_function);
+                                                                           OnMemoryBlockReleaseCallbackFunction in_on_release_callback_function,
+                                                                           Anvil::ExternalMemoryHandleTypeFlags in_external_memory_handle_types);
 
         /** Releases the Vulkan counterpart and unregisters the wrapper instance from the object tracker */
         virtual ~MemoryBlock();
@@ -249,16 +255,17 @@ namespace Anvil
         bool init();
 
         /** Please see create() for documentation */
+        MemoryBlock(const Anvil::BaseDevice*             in_device_ptr,
+                    uint32_t                             in_allowed_memory_bits,
+                    VkDeviceSize                         in_size,
+                    Anvil::MemoryFeatureFlags            in_memory_features,
+                    bool                                 in_mt_safe,
+                    Anvil::ExternalMemoryHandleTypeFlags in_external_memory_handle_types);
+
+        /** Please see create() for documentation */
         MemoryBlock(MemoryBlock* in_parent_memory_block_ptr,
                     VkDeviceSize in_start_offset,
                     VkDeviceSize in_size);
-
-        /** Please see create() for documentation */
-        MemoryBlock(const Anvil::BaseDevice*  in_device_ptr,
-                    uint32_t                  in_allowed_memory_bits,
-                    VkDeviceSize              in_size,
-                    Anvil::MemoryFeatureFlags in_memory_features,
-                    bool                      in_mt_safe);
 
         /** Please see create_derived_with_custom_delete_proc() for documentation */
         MemoryBlock(const Anvil::BaseDevice*             in_device_ptr,
@@ -268,7 +275,8 @@ namespace Anvil
                     uint32_t                             in_memory_type_index,
                     VkDeviceSize                         in_size,
                     VkDeviceSize                         in_start_offset,
-                    OnMemoryBlockReleaseCallbackFunction in_on_release_callback_function);
+                    OnMemoryBlockReleaseCallbackFunction in_on_release_callback_function,
+                    Anvil::ExternalMemoryHandleTypeFlags in_external_memory_handle_types);
 
         MemoryBlock           (const MemoryBlock&);
         MemoryBlock& operator=(const MemoryBlock&);
@@ -279,11 +287,29 @@ namespace Anvil
         bool     open_gpu_memory_access      ();
 
         /* IMemoryBlockBackendSupport */
-        void set_parent_memory_allocator_backend_ptr(std::shared_ptr<Anvil::IMemoryAllocatorBackendBase> in_backend_ptr)
+        void set_parent_memory_allocator_backend_ptr(std::shared_ptr<Anvil::IMemoryAllocatorBackendBase> in_backend_ptr,
+                                                     void*                                               in_backend_object)
         {
-            anvil_assert(m_parent_memory_allocator_backend_ptr == nullptr);
+            anvil_assert(m_owned_parent_memory_allocator_backend_ptr == nullptr);
 
-            m_parent_memory_allocator_backend_ptr = in_backend_ptr;
+            m_backend_object                            = in_backend_object;
+            m_owned_parent_memory_allocator_backend_ptr = in_backend_ptr;
+            m_parent_memory_allocator_backend_ptr       = m_owned_parent_memory_allocator_backend_ptr.get();
+
+            {
+                auto parent_memory_block_ptr = m_parent_memory_block_ptr;
+
+                while (parent_memory_block_ptr != nullptr)
+                {
+                    anvil_assert(parent_memory_block_ptr->m_parent_memory_allocator_backend_ptr == nullptr              ||
+                                 parent_memory_block_ptr->m_parent_memory_allocator_backend_ptr == in_backend_ptr.get() );
+
+                    parent_memory_block_ptr->m_backend_object                      = in_backend_object;
+                    parent_memory_block_ptr->m_parent_memory_allocator_backend_ptr = in_backend_ptr.get();
+
+                    parent_memory_block_ptr = parent_memory_block_ptr->m_parent_memory_block_ptr;
+                }
+            }
         }
 
         /* Private members */
@@ -292,16 +318,19 @@ namespace Anvil
         std::atomic<uint32_t> m_gpu_data_map_count; /* Only set for root memory blocks */
         void*                 m_gpu_data_ptr;       /* Only set for root memory blocks */
 
-        uint32_t                  m_allowed_memory_bits;
-        const Anvil::BaseDevice*  m_device_ptr;
-        VkDeviceMemory            m_memory;
-        Anvil::MemoryFeatureFlags m_memory_features;
-        uint32_t                  m_memory_type_index;
-        Anvil::MemoryBlock*       m_parent_memory_block_ptr;
-        VkDeviceSize              m_size;
-        VkDeviceSize              m_start_offset;
+        uint32_t                             m_allowed_memory_bits;
+        void*                                m_backend_object;
+        const Anvil::BaseDevice*             m_device_ptr;
+        Anvil::ExternalMemoryHandleTypeFlags m_external_memory_handle_types;
+        VkDeviceMemory                       m_memory;
+        Anvil::MemoryFeatureFlags            m_memory_features;
+        uint32_t                             m_memory_type_index;
+        Anvil::MemoryBlock*                  m_parent_memory_block_ptr;
+        VkDeviceSize                         m_size;
+        VkDeviceSize                         m_start_offset;
 
-        std::shared_ptr<Anvil::IMemoryAllocatorBackendBase> m_parent_memory_allocator_backend_ptr;
+        std::shared_ptr<Anvil::IMemoryAllocatorBackendBase> m_owned_parent_memory_allocator_backend_ptr;
+        Anvil::IMemoryAllocatorBackendBase*                 m_parent_memory_allocator_backend_ptr;
     };
 }; /* Vulkan namespace */
 

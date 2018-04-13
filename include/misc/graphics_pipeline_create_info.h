@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -19,41 +19,41 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
-#ifndef ANVIL_GRAPHICS_PIPELINE_INFO_H
-#define ANVIL_GRAPHICS_PIPELINE_INFO_H
+#ifndef ANVIL_GRAPHICS_PIPELINE_CREATE_INFO_H
+#define ANVIL_GRAPHICS_PIPELINE_CREATE_INFO_H
 
-#include "misc/base_pipeline_info.h"
+#include "misc/base_pipeline_create_info.h"
 
 
 namespace Anvil
 {
-    class GraphicsPipelineInfo : public BasePipelineInfo
+    class GraphicsPipelineCreateInfo : public BasePipelineCreateInfo
     {
     public:
         /* Public functions */
-        static Anvil::GraphicsPipelineInfoUniquePtr create_derivative_pipeline_info(bool                               in_disable_optimizations,
-                                                                                    bool                               in_allow_derivatives,
-                                                                                    const RenderPass*                  in_renderpass_ptr,
-                                                                                    SubPassID                          in_subpass_id,
-                                                                                    const ShaderModuleStageEntryPoint& in_fragment_shader_stage_entrypoint_info,
-                                                                                    const ShaderModuleStageEntryPoint& in_geometry_shader_stage_entrypoint_info,
-                                                                                    const ShaderModuleStageEntryPoint& in_tess_control_shader_stage_entrypoint_info,
-                                                                                    const ShaderModuleStageEntryPoint& in_tess_evaluation_shader_stage_entrypoint_info,
-                                                                                    const ShaderModuleStageEntryPoint& in_vertex_shader_shader_stage_entrypoint_info,
-                                                                                    Anvil::PipelineID                  in_base_pipeline_id);
-        static Anvil::GraphicsPipelineInfoUniquePtr create_proxy_pipeline_info     ();
-        static Anvil::GraphicsPipelineInfoUniquePtr create_regular_pipeline_info   (bool                               in_disable_optimizations,
-                                                                                    bool                               in_allow_derivatives,
-                                                                                    const RenderPass*                  in_renderpass_ptr,
-                                                                                    SubPassID                          in_subpass_id,
-                                                                                    const ShaderModuleStageEntryPoint& in_fragment_shader_stage_entrypoint_info,
-                                                                                    const ShaderModuleStageEntryPoint& in_geometry_shader_stage_entrypoint_info,
-                                                                                    const ShaderModuleStageEntryPoint& in_tess_control_shader_stage_entrypoint_info,
-                                                                                    const ShaderModuleStageEntryPoint& in_tess_evaluation_shader_stage_entrypoint_info,
-                                                                                    const ShaderModuleStageEntryPoint& in_vertex_shader_shader_stage_entrypoint_info,
-                                                                                    const Anvil::GraphicsPipelineInfo* in_opt_reference_pipeline_info_ptr = nullptr);
+        static Anvil::GraphicsPipelineCreateInfoUniquePtr create_derivative(bool                               in_disable_optimizations,
+                                                                            bool                               in_allow_derivatives,
+                                                                            const RenderPass*                  in_renderpass_ptr,
+                                                                            SubPassID                          in_subpass_id,
+                                                                            const ShaderModuleStageEntryPoint& in_fragment_shader_stage_entrypoint_info,
+                                                                            const ShaderModuleStageEntryPoint& in_geometry_shader_stage_entrypoint_info,
+                                                                            const ShaderModuleStageEntryPoint& in_tess_control_shader_stage_entrypoint_info,
+                                                                            const ShaderModuleStageEntryPoint& in_tess_evaluation_shader_stage_entrypoint_info,
+                                                                            const ShaderModuleStageEntryPoint& in_vertex_shader_shader_stage_entrypoint_info,
+                                                                            Anvil::PipelineID                  in_base_pipeline_id);
+        static Anvil::GraphicsPipelineCreateInfoUniquePtr create_proxy();
+        static Anvil::GraphicsPipelineCreateInfoUniquePtr create_regular(bool                                     in_disable_optimizations,
+                                                                         bool                                     in_allow_derivatives,
+                                                                         const RenderPass*                        in_renderpass_ptr,
+                                                                         SubPassID                                in_subpass_id,
+                                                                         const ShaderModuleStageEntryPoint&       in_fragment_shader_stage_entrypoint_info,
+                                                                         const ShaderModuleStageEntryPoint&       in_geometry_shader_stage_entrypoint_info,
+                                                                         const ShaderModuleStageEntryPoint&       in_tess_control_shader_stage_entrypoint_info,
+                                                                         const ShaderModuleStageEntryPoint&       in_tess_evaluation_shader_stage_entrypoint_info,
+                                                                         const ShaderModuleStageEntryPoint&       in_vertex_shader_shader_stage_entrypoint_info,
+                                                                         const Anvil::GraphicsPipelineCreateInfo* in_opt_reference_pipeline_create_info_ptr = nullptr);
 
-        ~GraphicsPipelineInfo();
+        ~GraphicsPipelineCreateInfo();
 
         /** Adds a new specialization constant.
          *
@@ -86,10 +86,10 @@ namespace Anvil
                 return false;
             }
 
-            return BasePipelineInfo::add_specialization_constant(in_shader_stage,
-                                                                 in_constant_id,
-                                                                 in_n_data_bytes,
-                                                                 in_data_ptr);
+            return BasePipelineCreateInfo::add_specialization_constant(in_shader_stage,
+                                                                       in_constant_id,
+                                                                       in_n_data_bytes,
+                                                                       in_data_ptr);
         }
 
         /** Adds a new vertex attribute descriptor to the specified graphics pipeline. This data will be used
@@ -883,10 +883,10 @@ namespace Anvil
         typedef std::map<uint32_t, InternalViewport>   InternalViewports;
 
         /* Private functions */
-        explicit GraphicsPipelineInfo(const RenderPass* in_renderpass_ptr,
-                                      SubPassID         in_subpass_id);
+        explicit GraphicsPipelineCreateInfo(const RenderPass* in_renderpass_ptr,
+                                            SubPassID         in_subpass_id);
 
-        bool copy_gfx_state_from(const Anvil::GraphicsPipelineInfo* in_src_pipeline_info_ptr);
+        bool copy_gfx_state_from(const Anvil::GraphicsPipelineCreateInfo* in_src_pipeline_create_info_ptr);
 
         /* Private variables */
         bool  m_depth_bounds_test_enabled;
@@ -944,4 +944,4 @@ namespace Anvil
 
 };
 
-#endif /* ANVIL_GRAPHICS_PIPELINE_INFO_H */
+#endif /* ANVIL_GRAPHICS_PIPELINE_CREATE_INFO_H */

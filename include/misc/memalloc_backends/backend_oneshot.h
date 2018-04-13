@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -61,8 +61,14 @@ namespace Anvil
         private:
             /* IMemoryAllocatorBackend functions */
 
-            bool bake           (Anvil::MemoryAllocator::Items& in_items);
-            bool supports_baking()                                        const;
+            bool     bake                            (Anvil::MemoryAllocator::Items&              in_items) final;
+            VkResult map                             (void*                                       in_memory_object,
+                                                      VkDeviceSize                                in_start_offset,
+                                                      VkDeviceSize                                in_size,
+                                                      void**                                      out_result_ptr) final;
+            bool     supports_baking                 () const final;
+            bool     supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeFlags& in_external_memory_handle_types) const final;
+            void     unmap                           (void*                                       in_memory_object) final;
 
             /* Private functions */
 

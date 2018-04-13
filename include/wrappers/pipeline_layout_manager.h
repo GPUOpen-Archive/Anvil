@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -47,7 +47,7 @@ namespace Anvil
         /** Returns a pipeline layout wrapper matching the specified DSG + push constant range configuration.
          *  If such pipeline layout has never been defined before, it will be created at the call time.
          *
-         *  @param in_ds_info_items_ptr        TODO.
+         *  @param in_ds_create_info_items_ptr TODO.
          *  @param in_push_constant_ranges     A vector of PushConstantRange descriptor, describing the push constant ranges
          *                                     the layout should define.
          *  @param out_pipeline_layout_ptr_ptr Deref will be set to a ptr to the pipeline layout wrapper instance, matching the described
@@ -55,9 +55,9 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_layout(const std::vector<DescriptorSetInfoUniquePtr>* in_ds_info_items_ptr,
-                        const PushConstantRanges&                      in_push_constant_ranges,
-                        Anvil::PipelineLayoutUniquePtr*                out_pipeline_layout_ptr_ptr);
+        bool get_layout(const std::vector<DescriptorSetCreateInfoUniquePtr>* in_ds_create_info_items_ptr,
+                        const PushConstantRanges&                            in_push_constant_ranges,
+                        Anvil::PipelineLayoutUniquePtr*                      out_pipeline_layout_ptr_ptr);
 
     protected:
         /* Protected functions */

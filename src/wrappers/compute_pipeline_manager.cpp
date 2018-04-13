@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,7 +20,7 @@
 // THE SOFTWARE.
 //
 
-#include "misc/compute_pipeline_info.h"
+#include "misc/compute_pipeline_create_info.h"
 #include "misc/debug.h"
 #include "misc/object_tracker.h"
 #include "wrappers/compute_pipeline_manager.h"
@@ -111,7 +111,7 @@ bool Anvil::ComputePipelineManager::bake()
     {
         auto                                      current_pipeline_id                      = pipeline_iterator->first;
         Pipeline*                                 current_pipeline_ptr                     = pipeline_iterator->second.get();
-        const auto                                current_pipeline_info_ptr                = current_pipeline_ptr->pipeline_info_ptr.get();
+        const auto                                current_pipeline_create_info_ptr         = current_pipeline_ptr->pipeline_create_info_ptr.get();
         VkComputePipelineCreateInfo               pipeline_create_info;
         const Anvil::ShaderModuleStageEntryPoint* shader_stage_entry_point_ptr             = nullptr;
         const unsigned char*                      specialization_constants_data_buffer_ptr = nullptr;
@@ -126,9 +126,9 @@ bool Anvil::ComputePipelineManager::bake()
             anvil_assert(current_pipeline_ptr->layout_ptr != nullptr);
         }
 
-        current_pipeline_info_ptr->get_specialization_constants(Anvil::SHADER_STAGE_COMPUTE,
-                                                               &specialization_constants_ptr,
-                                                               &specialization_constants_data_buffer_ptr);
+        current_pipeline_create_info_ptr->get_specialization_constants(Anvil::SHADER_STAGE_COMPUTE,
+                                                                      &specialization_constants_ptr,
+                                                                      &specialization_constants_data_buffer_ptr);
 
         if (specialization_constants_ptr->size() > 0)
         {
@@ -139,7 +139,7 @@ bool Anvil::ComputePipelineManager::bake()
         }
 
         /* Prepare the Vulkan create info descriptor & store it in the map for later baking */
-        const auto current_pipeline_base_pipeline_id = current_pipeline_info_ptr->get_base_pipeline_id();
+        const auto current_pipeline_base_pipeline_id = current_pipeline_create_info_ptr->get_base_pipeline_id();
 
         if (current_pipeline_base_pipeline_id != UINT32_MAX)
         {
@@ -156,7 +156,7 @@ bool Anvil::ComputePipelineManager::bake()
             auto& pipeline_vector        = layout_to_bake_item_map[pipeline_create_info.layout];
             auto  base_pipeline_iterator = std::find(pipeline_vector.begin(),
                                                      pipeline_vector.end(),
-                                                     current_pipeline_ptr->pipeline_info_ptr->get_base_pipeline_id() );
+                                                     current_pipeline_ptr->pipeline_create_info_ptr->get_base_pipeline_id() );
 
             if (base_pipeline_iterator != pipeline_vector.end() )
             {
@@ -187,8 +187,8 @@ bool Anvil::ComputePipelineManager::bake()
 
         anvil_assert(current_pipeline_ptr->layout_ptr != nullptr);
 
-        current_pipeline_info_ptr->get_shader_stage_properties(Anvil::SHADER_STAGE_COMPUTE,
-                                                              &shader_stage_entry_point_ptr);
+        current_pipeline_create_info_ptr->get_shader_stage_properties(Anvil::SHADER_STAGE_COMPUTE,
+                                                                     &shader_stage_entry_point_ptr);
 
         pipeline_create_info.flags                     = 0;
         pipeline_create_info.layout                    = current_pipeline_ptr->layout_ptr->get_pipeline_layout();
@@ -212,8 +212,8 @@ bool Anvil::ComputePipelineManager::bake()
             pipeline_create_info.flags |= VK_PIPELINE_CREATE_DERIVATIVE_BIT;
         }
 
-        pipeline_create_info.flags |= ((current_pipeline_info_ptr->allows_derivatives        () ) ? VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT    : 0) |
-                                      ((current_pipeline_info_ptr->has_optimizations_disabled() ) ? VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT : 0);
+        pipeline_create_info.flags |= ((current_pipeline_create_info_ptr->allows_derivatives        () ) ? VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT    : 0) |
+                                      ((current_pipeline_create_info_ptr->has_optimizations_disabled() ) ? VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT : 0);
 
         layout_to_bake_item_map[pipeline_create_info.layout].push_back(BakeItem(pipeline_create_info,
                                                                                 current_pipeline_id,

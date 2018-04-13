@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,8 +20,8 @@
 // THE SOFTWARE.
 //
 
-#ifndef MISC_DESCRIPTOR_SET_INFO_H
-#define MISC_DESCRIPTOR_SET_INFO_H
+#ifndef MISC_DESCRIPTOR_SET_CREATE_INFO_H
+#define MISC_DESCRIPTOR_SET_CREATE_INFO_H
 
 #include "misc/types.h"
 #include "misc/struct_chainer.h"
@@ -30,20 +30,25 @@ namespace Anvil
 {
     struct DescriptorSetLayoutCreateInfoContainer
     {
+        std::vector<VkDescriptorBindingFlagsEXT>                     binding_flags_vec;
         std::vector<VkDescriptorSetLayoutBinding>                    binding_info_items;
         std::vector<VkSampler>                                       sampler_items;
         Anvil::StructChainUniquePtr<VkDescriptorSetLayoutCreateInfo> struct_chain_ptr;
     };
 
-    class DescriptorSetInfo
+    class DescriptorSetCreateInfo
     {
     public:
         /* Public functions */
 
         /** Destructor. */
-        ~DescriptorSetInfo();
+        ~DescriptorSetCreateInfo();
 
         /** Adds a new binding.
+         *
+         *  If @param in_flags includes DESCRIPTOR_BINDING_FLAG_VARIABLE_DESCRIPTOR_COUNT_BIT, @param in_descriptor_array_size
+         *  tells the maximum number of descriptors the binding can take. The actual number of descriptors which is going to be
+         *  specified for the binding needs to be specified by separately calling set_binding_variable_descriptor_count().
          *
          *  It is an error to attempt to add a binding at an index, for which another binding has
          *  already been specified.
@@ -62,14 +67,38 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool add_binding(uint32_t                     in_binding_index,
-                         VkDescriptorType             in_descriptor_type,
-                         uint32_t                     in_descriptor_array_size,
-                         VkShaderStageFlags           in_stage_flags,
-                         const Anvil::Sampler* const* in_opt_immutable_sampler_ptr_ptr = nullptr);
+        bool add_binding(uint32_t                               in_binding_index,
+                         VkDescriptorType                       in_descriptor_type,
+                         uint32_t                               in_descriptor_array_size,
+                         VkShaderStageFlags                     in_stage_flags,
+                         const Anvil::DescriptorBindingFlags&   in_flags                         = 0,
+                         const Anvil::Sampler* const*           in_opt_immutable_sampler_ptr_ptr = nullptr);
 
-        /** Creates a new DescriptorSetInfo instance. **/
-        static DescriptorSetInfoUniquePtr create();
+        /** Tells if the DS info structure contains a variable descriptor count binding.
+         *
+         *  @param out_opt_binding_index_ptr If not null, deref will be set to the index of the variable descriptor
+         *                                   count binding.
+         *  @param out_opt_binding_size_ptr  If not null, deref will be set to the variable descriptor count binding's size.
+         *
+         *  @return true if such a binding has been defined, false otherwise.
+         */
+        bool contains_variable_descriptor_count_binding(uint32_t* out_opt_binding_index_ptr = nullptr,
+                                                        uint32_t* out_opt_binding_size_ptr  = nullptr) const
+        {
+            if (out_opt_binding_index_ptr != nullptr)
+            {
+                *out_opt_binding_index_ptr = m_n_variable_descriptor_count_binding;
+            }
+
+            if (out_opt_binding_size_ptr != nullptr)
+            {
+                *out_opt_binding_size_ptr = m_variable_descriptor_count_binding_size;
+            }
+
+            return (m_n_variable_descriptor_count_binding != UINT32_MAX);
+        }
+
+        static DescriptorSetCreateInfoUniquePtr create();
 
         /* Fills & returns a VkDescriptorSetLayoutCreateInfo structure holding all information necessary to spawn
          * a new descriptor set layout instance.
@@ -91,14 +120,17 @@ namespace Anvil
          *  @param out_opt_immutable_samplers_enabled_ptr May be nullptr. If not, deref will be set to true if immutable samplers
          *                                                have been defined for the specified binding; otherwise, it will be
          *                                                set to false.
+         *  @param out_opt_flags_ptr                      May be nullptr. If not, deref will be set to the flags specified at binding
+         *                                                addition time.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_binding_properties_by_binding_index(uint32_t            in_binding_index,
-                                                     VkDescriptorType*   out_opt_descriptor_type_ptr            = nullptr,
-                                                     uint32_t*           out_opt_descriptor_array_size_ptr      = nullptr,
-                                                     VkShaderStageFlags* out_opt_stage_flags_ptr                = nullptr,
-                                                     bool*               out_opt_immutable_samplers_enabled_ptr = nullptr) const;
+        bool get_binding_properties_by_binding_index(uint32_t                       in_binding_index,
+                                                     VkDescriptorType*              out_opt_descriptor_type_ptr            = nullptr,
+                                                     uint32_t*                      out_opt_descriptor_array_size_ptr      = nullptr,
+                                                     VkShaderStageFlags*            out_opt_stage_flags_ptr                = nullptr,
+                                                     bool*                          out_opt_immutable_samplers_enabled_ptr = nullptr,
+                                                     Anvil::DescriptorBindingFlags* out_opt_flags_ptr                      = nullptr) const;
 
         /** Retrieves properties of a binding at a given index number.
          *
@@ -124,7 +156,8 @@ namespace Anvil
                                                     VkDescriptorType*              out_opt_descriptor_type_ptr            = nullptr,
                                                     uint32_t*                      out_opt_descriptor_array_size_ptr      = nullptr,
                                                     VkShaderStageFlags*            out_opt_stage_flags_ptr                = nullptr,
-                                                    bool*                          out_opt_immutable_samplers_enabled_ptr = nullptr) const;
+                                                    bool*                          out_opt_immutable_samplers_enabled_ptr = nullptr,
+                                                    Anvil::DescriptorBindingFlags* out_opt_flags_ptr                      = nullptr) const;
 
         /** Returns the number of bindings defined for the layout. */
         uint32_t get_n_bindings() const
@@ -132,7 +165,14 @@ namespace Anvil
             return static_cast<uint32_t>(m_bindings.size() );
         }
 
-        bool operator==(const Anvil::DescriptorSetInfo& in_ds) const;
+        /* Sets the number of descriptors to be used for a variable descriptor count binding.
+         *
+         * A variable descriptor count binding must have been added to this DS info instance before this function
+         * can be called.
+         */
+        bool set_binding_variable_descriptor_count(const uint32_t& in_count);
+
+        bool operator==(const Anvil::DescriptorSetCreateInfo& in_ds) const;
 
     private:
         /* Private type definitions */
@@ -142,6 +182,7 @@ namespace Anvil
         {
             uint32_t                           descriptor_array_size;
             VkDescriptorType                   descriptor_type;
+            Anvil::DescriptorBindingFlags      flags;
             std::vector<const Anvil::Sampler*> immutable_samplers;
 
             VkShaderStageFlagsVariable(stage_flags);
@@ -151,6 +192,7 @@ namespace Anvil
             {
                 descriptor_array_size = 0;
                 descriptor_type       = VK_DESCRIPTOR_TYPE_MAX_ENUM;
+                flags                 = 0;
                 stage_flags           = static_cast<VkShaderStageFlagBits>(0);
             }
 
@@ -161,10 +203,12 @@ namespace Anvil
             Binding(uint32_t                      in_descriptor_array_size,
                     VkDescriptorType              in_descriptor_type,
                     VkShaderStageFlags            in_stage_flags,
-                    const Anvil::Sampler* const*  in_immutable_sampler_ptrs)
+                    const Anvil::Sampler* const*  in_immutable_sampler_ptrs,
+                    Anvil::DescriptorBindingFlags in_flags)
             {
                 descriptor_array_size = in_descriptor_array_size;
                 descriptor_type       = in_descriptor_type;
+                flags                 = in_flags;
                 stage_flags           = static_cast<VkShaderStageFlagBits>(in_stage_flags);
 
                 if (in_immutable_sampler_ptrs != nullptr)
@@ -182,6 +226,7 @@ namespace Anvil
             {
                 return (descriptor_array_size == in_binding.descriptor_array_size) &&
                        (descriptor_type       == in_binding.descriptor_type)       &&
+                       (flags                 == in_binding.flags)                 &&
                        (immutable_samplers    == in_binding.immutable_samplers)    &&
                        (stage_flags           == in_binding.stage_flags);
             }
@@ -192,13 +237,16 @@ namespace Anvil
         /* Private functions */
 
         /* Please see create() documentation for more details */
-        DescriptorSetInfo();
+        DescriptorSetCreateInfo();
 
         /* Private variables */
         BindingIndexToBindingMap m_bindings;
 
-        ANVIL_DISABLE_ASSIGNMENT_OPERATOR(DescriptorSetInfo);
+        uint32_t                 m_n_variable_descriptor_count_binding;
+        uint32_t                 m_variable_descriptor_count_binding_size;
+
+        ANVIL_DISABLE_ASSIGNMENT_OPERATOR(DescriptorSetCreateInfo);
     };
 }; /* namespace Anvil */
 
-#endif /* MISC_DESCRIPTOR_SET_INFO */
+#endif /* MISC_DESCRIPTOR_SET_CREATE_INFO */
