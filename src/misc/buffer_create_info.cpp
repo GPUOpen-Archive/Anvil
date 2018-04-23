@@ -91,14 +91,14 @@ Anvil::BufferCreateInfoUniquePtr Anvil::BufferCreateInfo::create_nonsparse_no_al
     return result_ptr;
 }
 
-Anvil::BufferCreateInfoUniquePtr Anvil::BufferCreateInfo::create_sparse_no_alloc(const Anvil::BaseDevice*             in_device_ptr,
-                                                                                 VkDeviceSize                         in_size,
-                                                                                 QueueFamilyBits                      in_queue_families,
-                                                                                 VkSharingMode                        in_sharing_mode,
-                                                                                 VkBufferUsageFlags                   in_usage_flags,
-                                                                                 Anvil::SparseResidencyScope          in_residency_scope,
-                                                                                 MTSafety                             in_mt_safety,
-                                                                                 Anvil::ExternalMemoryHandleTypeFlags in_external_memory_handle_types)
+Anvil::BufferCreateInfoUniquePtr Anvil::BufferCreateInfo::create_sparse_no_alloc(const Anvil::BaseDevice*            in_device_ptr,
+                                                                                 VkDeviceSize                        in_size,
+                                                                                 QueueFamilyBits                     in_queue_families,
+                                                                                 VkSharingMode                       in_sharing_mode,
+                                                                                 VkBufferUsageFlags                  in_usage_flags,
+                                                                                 Anvil::SparseResidencyScope         in_residency_scope,
+                                                                                 MTSafety                            in_mt_safety,
+                                                                                 Anvil::ExternalMemoryHandleTypeBits in_external_memory_handle_types)
 {
     Anvil::BufferCreateInfoUniquePtr result_ptr(nullptr,
                                                 std::default_delete<Anvil::BufferCreateInfo>() );
@@ -117,14 +117,14 @@ Anvil::BufferCreateInfoUniquePtr Anvil::BufferCreateInfo::create_sparse_no_alloc
     return result_ptr;
 }
 
-Anvil::BufferCreateInfo::BufferCreateInfo(const Anvil::BaseDevice*             in_device_ptr,
-                                          VkDeviceSize                         in_size,
-                                          QueueFamilyBits                      in_queue_families,
-                                          VkSharingMode                        in_sharing_mode,
-                                          VkBufferUsageFlags                   in_usage_flags,
-                                          Anvil::SparseResidencyScope          in_residency_scope,
-                                          MTSafety                             in_mt_safety,
-                                          Anvil::ExternalMemoryHandleTypeFlags in_external_memory_handle_types)
+Anvil::BufferCreateInfo::BufferCreateInfo(const Anvil::BaseDevice*            in_device_ptr,
+                                          VkDeviceSize                        in_size,
+                                          QueueFamilyBits                     in_queue_families,
+                                          VkSharingMode                       in_sharing_mode,
+                                          VkBufferUsageFlags                  in_usage_flags,
+                                          Anvil::SparseResidencyScope         in_residency_scope,
+                                          MTSafety                            in_mt_safety,
+                                          Anvil::ExternalMemoryHandleTypeBits in_external_memory_handle_types)
     :m_client_data_ptr             (nullptr),
      m_device_ptr                  (in_device_ptr),
      m_external_memory_handle_types(in_external_memory_handle_types),
@@ -164,16 +164,16 @@ Anvil::BufferCreateInfo::BufferCreateInfo(const Anvil::BaseDevice*             i
     }
 }
 
-Anvil::BufferCreateInfo::BufferCreateInfo(const Anvil::BufferType&             in_buffer_type,
-                                          const Anvil::BaseDevice*             in_device_ptr,
-                                          VkDeviceSize                         in_size,
-                                          QueueFamilyBits                      in_queue_families,
-                                          VkSharingMode                        in_sharing_mode,
-                                          VkBufferUsageFlags                   in_usage_flags,
-                                          MemoryFeatureFlags                   in_memory_features,
-                                          MTSafety                             in_mt_safety,
-                                          Anvil::ExternalMemoryHandleTypeFlags in_external_memory_handle_types,
-                                          const void*                          in_opt_client_data_ptr)
+Anvil::BufferCreateInfo::BufferCreateInfo(const Anvil::BufferType&            in_buffer_type,
+                                          const Anvil::BaseDevice*            in_device_ptr,
+                                          VkDeviceSize                        in_size,
+                                          QueueFamilyBits                     in_queue_families,
+                                          VkSharingMode                       in_sharing_mode,
+                                          VkBufferUsageFlags                  in_usage_flags,
+                                          MemoryFeatureFlags                  in_memory_features,
+                                          MTSafety                            in_mt_safety,
+                                          Anvil::ExternalMemoryHandleTypeBits in_external_memory_handle_types,
+                                          const void*                         in_opt_client_data_ptr)
     :m_client_data_ptr             (in_opt_client_data_ptr),
      m_device_ptr                  (in_device_ptr),
      m_external_memory_handle_types(in_external_memory_handle_types),

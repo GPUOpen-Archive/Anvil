@@ -21,11 +21,14 @@
 //
 
 #include "misc/debug.h"
+#include "misc/external_handle.h"
 #include "misc/fence_create_info.h"
 #include "misc/object_tracker.h"
+#include "misc/struct_chainer.h"
 #include "wrappers/device.h"
 #include "wrappers/fence.h"
 #include <algorithm>
+
 
 /* Please see header for specification */
 Anvil::Fence::Fence(Anvil::FenceCreateInfoUniquePtr in_create_info_ptr)
@@ -73,21 +76,268 @@ Anvil::FenceUniquePtr Anvil::Fence::create(Anvil::FenceCreateInfoUniquePtr in_cr
     return result_ptr;
 }
 
+/* Please see header for specification */
+Anvil::ExternalHandleUniquePtr Anvil::Fence::export_to_external_handle(const Anvil::ExternalFenceHandleTypeBit& in_fence_handle_type)
+{
+    #if defined(_WIN32)
+        const auto invalid_handle                 = nullptr;
+        const bool is_autorelease_handle          = Anvil::Utils::is_nt_handle(in_fence_handle_type);
+        const bool only_one_handle_ever_permitted = Anvil::Utils::is_nt_handle(in_fence_handle_type);
+    #else
+        const int  invalid_handle                 = -1;
+        const bool is_autorelease_handle          = true;
+        const bool only_one_handle_ever_permitted = false;
+    #endif
+
+    ExternalHandleType             result_handle = 0;
+    Anvil::ExternalHandleUniquePtr result_ptr;
+
+    /* Sanity checks */
+    #if defined(_WIN32)
+    {
+        if (!m_create_info_ptr->get_device()->get_extension_info()->khr_external_fence_win32() )
+        {
+            anvil_assert(m_create_info_ptr->get_device()->get_extension_info()->khr_external_fence_win32() );
+
+            goto end;
+        }
+    }
+    #else
+    {
+        if (!m_create_info_ptr->get_device()->get_extension_info()->khr_external_fence_fd() )
+        {
+            anvil_assert(m_create_info_ptr->get_device()->get_extension_info()->khr_external_fence_fd() );
+
+            goto end;
+        }
+    }
+    #endif
+
+    if (only_one_handle_ever_permitted                                                                                        &&
+        m_external_fence_created_for_handle_type.find(in_fence_handle_type) != m_external_fence_created_for_handle_type.end() )
+    {
+        anvil_assert_fail();
+
+        goto end;
+    }
+
+    /* Go and try to open a new handle. */
+    #if defined(_WIN32)
+    {
+        const auto                   entrypoints_ptr = &m_create_info_ptr->get_device()->get_extension_khr_external_fence_win32_entrypoints();
+        VkFenceGetWin32HandleInfoKHR info;
+
+        anvil_assert(m_fence != VK_NULL_HANDLE);
+
+        info.fence      = m_fence;
+        info.handleType = static_cast<VkExternalFenceHandleTypeFlagBits>(Anvil::Utils::convert_external_fence_handle_type_bits_to_vk_external_fence_handle_type_flags(in_fence_handle_type) );
+        info.pNext      = nullptr;
+        info.sType      = VK_STRUCTURE_TYPE_FENCE_GET_WIN32_HANDLE_INFO_KHR;
+
+        if (entrypoints_ptr->vkGetFenceWin32HandleKHR(m_create_info_ptr->get_device()->get_device_vk(),
+                                                      &info,
+                                                      &result_handle) != VK_SUCCESS)
+        {
+            anvil_assert_fail();
+
+            goto end;
+        }
+    }
+    #else
+    {
+        const auto          entrypoints_ptr = &m_create_info_ptr->get_device()->get_extension_khr_external_fence_fd_entrypoints();
+        VkFenceGetFdInfoKHR info;
+
+        anvil_assert(m_fence != VK_NULL_HANDLE);
+
+        info.fence      = m_fence;
+        info.handleType = static_cast<VkExternalFenceHandleTypeFlagBits>(Anvil::Utils::convert_external_fence_handle_type_bits_to_vk_external_fence_handle_type_flags(in_fence_handle_type) );
+        info.pNext      = nullptr;
+        info.sType      = VK_STRUCTURE_TYPE_FENCE_GET_FD_INFO_KHR;
+
+        if (entrypoints_ptr->vkGetFenceFdKHR(m_create_info_ptr->get_device()->get_device_vk(),
+                                            &info,
+                                            &result_handle) != VK_SUCCESS)
+        {
+            anvil_assert_fail();
+
+            goto end;
+        }
+    }
+    #endif
+
+    if (result_handle == invalid_handle)
+    {
+        anvil_assert(result_handle != invalid_handle);
+
+        goto end;
+    }
+
+    /* If this is necessary, cache the newly created handle so that we do not let the app attempt to re-create the external handle
+     * for the same Vulkan fence handle.
+     */
+    if (only_one_handle_ever_permitted)
+    {
+        m_external_fence_created_for_handle_type[in_fence_handle_type] = true;
+    }
+
+    result_ptr = Anvil::ExternalHandle::create(result_handle,
+                                               is_autorelease_handle); /* in_close_at_destruction_time */
+
+end:
+    return result_ptr;
+}
+
+#if defined(_WIN32)
+    bool Anvil::Fence::import_from_external_handle(const bool&                              in_temporary_import,
+                                                   const Anvil::ExternalFenceHandleTypeBit& in_handle_type,
+                                                   const ExternalHandleType&                in_opt_handle,
+                                                   const std::wstring&                      in_opt_name)
+#else
+    bool Anvil::Fence::import_from_external_handle(const bool&                              in_temporary_import,
+                                                   const Anvil::ExternalFenceHandleTypeBit& in_handle_type,
+                                                   const ExternalHandleType&                in_handle)
+#endif
+{
+    #if defined(_WIN32)
+        const auto entrypoints_ptr = &m_device_ptr->get_extension_khr_external_fence_win32_entrypoints();
+    #else
+        const auto entrypoints_ptr = &m_device_ptr->get_extension_khr_external_fence_fd_entrypoints();
+    #endif
+
+    bool result = false;
+
+    /* Sanity checks */
+    #if defined(_WIN32)
+    {
+        if (!m_device_ptr->get_extension_info()->khr_external_fence_win32() )
+        {
+            anvil_assert(m_device_ptr->get_extension_info()->khr_external_fence_win32() );
+
+            goto end;
+        }
+    }
+    #else
+    {
+        if (!m_device_ptr->get_extension_info()->khr_external_fence_fd() )
+        {
+            anvil_assert(m_device_ptr->get_extension_info()->khr_external_fence_fd() );
+
+            goto end;
+        }
+    }
+    #endif
+
+    /* Proceed */
+    #if defined(_WIN32)
+    {
+        VkImportFenceWin32HandleInfoKHR info_vk;
+
+        info_vk.fence      = m_fence;
+        info_vk.flags      = (in_temporary_import) ? VK_FENCE_IMPORT_TEMPORARY_BIT_KHR
+                                                   : 0;
+        info_vk.handle     = in_opt_handle;
+        info_vk.handleType = static_cast<VkExternalFenceHandleTypeFlagBitsKHR>(Anvil::Utils::convert_external_fence_handle_type_bits_to_vk_external_fence_handle_type_flags(in_handle_type) );
+        info_vk.name       = (in_opt_name.size() > 0) ? &in_opt_name.at(0)
+                                                      : nullptr;
+        info_vk.pNext      = nullptr;
+        info_vk.sType      = VK_STRUCTURE_TYPE_IMPORT_FENCE_WIN32_HANDLE_INFO_KHR;
+
+        result = (entrypoints_ptr->vkImportFenceWin32HandleKHR(m_device_ptr->get_device_vk(),
+                                                              &info_vk) == VK_SUCCESS);
+    }
+    #else
+    {
+        VkImportFenceFdInfoKHR info_vk;
+
+        info_vk.fd         = in_handle;
+        info_vk.fence      = m_fence;
+        info_vk.flags      = (in_temporary_import) ? VK_FENCE_IMPORT_TEMPORARY_BIT_KHR
+                                                   : 0;
+        info_vk.handleType = static_cast<VkExternalFenceHandleTypeFlagBitsKHR>(Anvil::Utils::convert_external_fence_handle_type_bits_to_vk_external_fence_handle_type_flags(in_handle_type) );
+        info_vk.pNext      = nullptr;
+        info_vk.sType      = VK_STRUCTURE_TYPE_IMPORT_FENCE_FD_INFO_KHR;
+
+        result = (entrypoints_ptr->vkImportFenceFdKHR(m_device_ptr->get_device_vk(),
+                                                     &info_vk) == VK_SUCCESS);
+    }
+    #endif
+end:
+    return result;
+}
+
 bool Anvil::Fence::init()
 {
-    VkFenceCreateInfo fence_create_info;
-    VkResult          result           (VK_ERROR_INITIALIZATION_FAILED);
+    VkFenceCreateInfo                              fence_create_info;
+    VkResult                                       result           (VK_ERROR_INITIALIZATION_FAILED);
+    Anvil::StructChainer<VkFenceCreateInfo>        struct_chainer;
+    Anvil::StructChainUniquePtr<VkFenceCreateInfo> struct_chain_ptr;
 
-    ANVIL_REDUNDANT_VARIABLE(result);
+    /* Sanity checks */
+    if (m_create_info_ptr->get_exportable_external_fence_handle_types() != Anvil::EXTERNAL_FENCE_HANDLE_TYPE_NONE)
+    {
+        if (!m_device_ptr->get_extension_info()->khr_external_fence() )
+        {
+            anvil_assert(m_device_ptr->get_extension_info()->khr_external_fence() );
+
+            goto end;
+        }
+    }
 
     /* Spawn a new fence */
-    fence_create_info.flags = (m_create_info_ptr->should_create_signalled() ) ? VK_FENCE_CREATE_SIGNALED_BIT
-                                                                              : 0u;
-    fence_create_info.pNext = nullptr;
-    fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    {
+        fence_create_info.flags = (m_create_info_ptr->should_create_signalled() ) ? VK_FENCE_CREATE_SIGNALED_BIT
+                                                                                  : 0u;
+        fence_create_info.pNext = nullptr;
+        fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+
+        struct_chainer.append_struct(fence_create_info);
+    }
+
+    if (m_create_info_ptr->get_exportable_external_fence_handle_types() != Anvil::EXTERNAL_FENCE_HANDLE_TYPE_NONE)
+    {
+        VkExportFenceCreateInfo create_info;
+
+        create_info.handleTypes = Anvil::Utils::convert_external_fence_handle_type_bits_to_vk_external_fence_handle_type_flags(m_create_info_ptr->get_exportable_external_fence_handle_types() );
+        create_info.pNext       = nullptr;
+        create_info.sType       = VK_STRUCTURE_TYPE_EXPORT_FENCE_CREATE_INFO_KHR;
+
+        struct_chainer.append_struct(create_info);
+    }
+
+    #if defined(_WIN32)
+    {
+        const Anvil::ExternalNTHandleInfo* nt_handle_info_ptr = nullptr;
+
+        if (m_create_info_ptr->get_exportable_nt_handle_info(&nt_handle_info_ptr) )
+        {
+            VkExportFenceWin32HandleInfoKHR handle_info;
+
+            anvil_assert(nt_handle_info_ptr                                                                                                   != nullptr);
+            anvil_assert(m_create_info_ptr->get_exportable_external_fence_handle_types() & Anvil::EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+
+            handle_info.dwAccess    = nt_handle_info_ptr->access;
+            handle_info.name        = (nt_handle_info_ptr->name.size() > 0) ? &nt_handle_info_ptr->name.at(0)
+                                                                            : nullptr;
+            handle_info.pAttributes = nt_handle_info_ptr->attributes_ptr;
+            handle_info.pNext       = nullptr;
+            handle_info.sType       = VK_STRUCTURE_TYPE_EXPORT_FENCE_WIN32_HANDLE_INFO_KHR;
+
+            struct_chainer.append_struct(handle_info);
+        }
+    }
+    #endif
+
+    struct_chain_ptr = struct_chainer.create_chain();
+    if (struct_chain_ptr == nullptr)
+    {
+        anvil_assert(struct_chain_ptr != nullptr);
+
+        goto end;
+    }
 
     result = vkCreateFence(m_device_ptr->get_device_vk(),
-                          &fence_create_info,
+                           struct_chain_ptr->get_root_struct(),
                            nullptr, /* pAllocator */
                           &m_fence);
 
@@ -97,6 +347,7 @@ bool Anvil::Fence::init()
         set_vk_handle(m_fence);
     }
 
+end:
     return is_vk_call_successful(result);
 }
 

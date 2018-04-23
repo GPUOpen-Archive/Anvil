@@ -254,7 +254,7 @@ namespace Anvil
             return m_device_ptr;
         }
 
-        const Anvil::ExternalMemoryHandleTypeFlags& get_external_memory_handle_types() const
+        const Anvil::ExternalMemoryHandleTypeBits& get_external_memory_handle_types() const
         {
             return m_external_memory_handle_types;
         }
@@ -375,7 +375,7 @@ namespace Anvil
             m_depth = in_depth;
         }
 
-        void set_external_memory_handle_types(const ExternalMemoryHandleTypeFlags& in_external_memory_handle_types)
+        void set_external_memory_handle_types(const ExternalMemoryHandleTypeBits& in_external_memory_handle_types)
         {
             m_external_memory_handle_types = in_external_memory_handle_types;
         }
@@ -468,53 +468,53 @@ namespace Anvil
     private:
         /* Private functions */
 
-        ImageCreateInfo(Anvil::ImageType                     in_type,
-                        const Anvil::BaseDevice*             in_device_ptr,
-                        VkImageType                          in_type_vk,
-                        VkFormat                             in_format,
-                        VkImageTiling                        in_tiling,
-                        VkSharingMode                        in_sharing_mode, 
-                        VkImageUsageFlags                    in_usage,
-                        uint32_t                             in_base_mipmap_width,
-                        uint32_t                             in_base_mipmap_height,
-                        uint32_t                             in_base_mipmap_depth,
-                        uint32_t                             in_n_layers,
-                        VkSampleCountFlagBits                in_sample_count,
-                        bool                                 in_use_full_mipmap_chain,
-                        ImageCreateFlags                     in_create_flags,
-                        Anvil::QueueFamilyBits               in_queue_families,
-                        VkImageLayout                        in_post_create_image_layout,
-                        const VkImageLayout&                 in_post_alloc_image_layout,
-                        const std::vector<MipmapRawData>*    in_opt_mipmaps_ptr,
-                        const Anvil::MTSafety&               in_mt_safety,
-                        Anvil::ExternalMemoryHandleTypeFlags in_external_memory_handle_types,
-                        const Anvil::MemoryFeatureFlags&     in_memory_features,
-                        const Anvil::SparseResidencyScope&   in_residency_scope);
+        ImageCreateInfo(Anvil::ImageType                    in_type,
+                        const Anvil::BaseDevice*            in_device_ptr,
+                        VkImageType                         in_type_vk,
+                        VkFormat                            in_format,
+                        VkImageTiling                       in_tiling,
+                        VkSharingMode                       in_sharing_mode, 
+                        VkImageUsageFlags                   in_usage,
+                        uint32_t                            in_base_mipmap_width,
+                        uint32_t                            in_base_mipmap_height,
+                        uint32_t                            in_base_mipmap_depth,
+                        uint32_t                            in_n_layers,
+                        VkSampleCountFlagBits               in_sample_count,
+                        bool                                in_use_full_mipmap_chain,
+                        ImageCreateFlags                    in_create_flags,
+                        Anvil::QueueFamilyBits              in_queue_families,
+                        VkImageLayout                       in_post_create_image_layout,
+                        const VkImageLayout&                in_post_alloc_image_layout,
+                        const std::vector<MipmapRawData>*   in_opt_mipmaps_ptr,
+                        const Anvil::MTSafety&              in_mt_safety,
+                        Anvil::ExternalMemoryHandleTypeBits in_external_memory_handle_types,
+                        const Anvil::MemoryFeatureFlags&    in_memory_features,
+                        const Anvil::SparseResidencyScope&  in_residency_scope);
 
         /* Private variables */
 
-        Anvil::ImageCreateFlags                m_create_flags;
-        uint32_t                               m_depth;
-        const Anvil::BaseDevice*               m_device_ptr;
-        Anvil::ExternalMemoryHandleTypeFlags   m_external_memory_handle_types;
-        VkFormat                               m_format;
-        uint32_t                               m_height;
-        Anvil::MemoryFeatureFlags              m_memory_features;
-        std::vector<MipmapRawData>             m_mipmaps_to_upload;
-        Anvil::MTSafety                        m_mt_safety;
-        uint32_t                               m_n_layers;
-        VkImageLayout                          m_post_alloc_layout;
-        VkImageLayout                          m_post_create_layout;
-        Anvil::QueueFamilyBits                 m_queue_families;
-        Anvil::SparseResidencyScope            m_residency_scope;
-        VkSampleCountFlags                     m_sample_count;
-        VkSharingMode                          m_sharing_mode;
-        VkImageTiling                          m_tiling;
-        const Anvil::ImageType                 m_type;
-        const VkImageType                      m_type_vk;
-        VkImageUsageFlags                      m_usage_flags;
-        bool                                   m_use_full_mipmap_chain;
-        uint32_t                               m_width;
+        Anvil::ImageCreateFlags             m_create_flags;
+        uint32_t                            m_depth;
+        const Anvil::BaseDevice*            m_device_ptr;
+        Anvil::ExternalMemoryHandleTypeBits m_external_memory_handle_types;
+        VkFormat                            m_format;
+        uint32_t                            m_height;
+        Anvil::MemoryFeatureFlags           m_memory_features;
+        std::vector<MipmapRawData>          m_mipmaps_to_upload;
+        Anvil::MTSafety                     m_mt_safety;
+        uint32_t                            m_n_layers;
+        VkImageLayout                       m_post_alloc_layout;
+        VkImageLayout                       m_post_create_layout;
+        Anvil::QueueFamilyBits              m_queue_families;
+        Anvil::SparseResidencyScope         m_residency_scope;
+        VkSampleCountFlags                  m_sample_count;
+        VkSharingMode                       m_sharing_mode;
+        VkImageTiling                       m_tiling;
+        const Anvil::ImageType              m_type;
+        const VkImageType                   m_type_vk;
+        VkImageUsageFlags                   m_usage_flags;
+        bool                                m_use_full_mipmap_chain;
+        uint32_t                            m_width;
 
         /* Only used for swapchain wrapper images */
         uint32_t                m_n_swapchain_image;

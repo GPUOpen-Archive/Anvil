@@ -71,9 +71,9 @@ Anvil::BaseDevice::~BaseDevice()
 
     m_command_pool_ptr_per_vk_queue_fam.clear();
     m_compute_pipeline_manager_ptr.reset     ();
-    m_descriptor_set_layout_manager_ptr.reset();
     m_dummy_dsg_ptr.reset                    ();
     m_graphics_pipeline_manager_ptr.reset    ();
+    m_descriptor_set_layout_manager_ptr.reset();
     m_pipeline_cache_ptr.reset               ();
     m_pipeline_layout_manager_ptr.reset      ();
     m_owned_queues.clear                     ();
@@ -101,6 +101,88 @@ const Anvil::DescriptorSet* Anvil::BaseDevice::get_dummy_descriptor_set() const
 Anvil::DescriptorSetLayout* Anvil::BaseDevice::get_dummy_descriptor_set_layout() const
 {
     return m_dummy_dsg_ptr->get_descriptor_set_layout(0);
+}
+
+/** Please see header for specification */
+bool Anvil::BaseDevice::get_memory_types_supported_for_external_handle(const Anvil::ExternalMemoryHandleTypeBit& in_external_handle_type,
+                                                                       ExternalHandleType                        in_handle,
+                                                                       uint32_t*                                 out_supported_memory_type_bits) const
+{
+    bool result = false;
+
+    /* Sanity checks */
+    #if defined(_WIN32)
+    {
+        if (!m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_memory_win32() )
+        {
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_memory_win32() );
+
+            goto end;
+        }
+
+        if (in_external_handle_type != Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT     &&
+            in_external_handle_type != Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT)
+        {
+            anvil_assert(in_external_handle_type == Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT        ||
+                         in_external_handle_type == Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT);
+
+            goto end;
+        }
+    }
+    #else
+    {
+        if (!m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_memory_fd() )
+        {
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_memory_fd() );
+
+            goto end;
+        }
+
+        if (in_external_handle_type != Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT)
+        {
+            anvil_assert(in_external_handle_type == Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
+
+            goto end;
+        }
+    }
+    #endif
+
+    /* Go ahead with the query */
+    #if defined(_WIN32)
+        VkMemoryWin32HandlePropertiesKHR result_props;
+
+        result_props.pNext = nullptr;
+        result_props.sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR;
+    #else
+        VkMemoryFdPropertiesKHR result_props;
+
+        result_props.pNext = nullptr;
+        result_props.sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR;
+    #endif
+
+    #if defined(_WIN32)
+        if (m_khr_external_memory_win32_extension_entrypoints.vkGetMemoryWin32HandlePropertiesKHR(m_device,
+                                                                                                  static_cast<VkExternalMemoryHandleTypeFlagBits>(Anvil::Utils::convert_external_memory_handle_type_bits_to_vk_external_memory_handle_type_flags(in_external_handle_type) ),
+                                                                                                  in_handle,
+                                                                                                 &result_props) != VK_SUCCESS)
+    #else
+        if (m_khr_external_memory_fd_extension_entrypoints.vkGetMemoryFdPropertiesKHR(m_device,
+                                                                                      static_cast<VkExternalMemoryHandleTypeFlagBits>(Anvil::Utils::convert_external_memory_handle_type_bits_to_vk_external_memory_handle_type_flags(in_external_handle_type) ),
+                                                                                      in_handle,
+                                                                                     &result_props) != VK_SUCCESS)
+    #endif
+    {
+        anvil_assert_fail();
+
+        goto end;
+    }
+
+    *out_supported_memory_type_bits = result_props.memoryTypeBits;
+
+    /* All done */
+    result = true;
+end:
+    return result;
 }
 
 /** Please see header for specification */
@@ -651,6 +733,36 @@ void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
         anvil_assert(m_khr_bind_memory2_extension_entrypoints.vkBindImageMemory2KHR  != nullptr);
     }
 
+    #if defined(_WIN32)
+    {
+        if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_fence_win32() )
+        {
+            m_khr_external_fence_win32_extension_entrypoints.vkGetFenceWin32HandleKHR    = reinterpret_cast<PFN_vkGetFenceWin32HandleKHR>   (get_proc_address("vkGetFenceWin32HandleKHR") );
+            m_khr_external_fence_win32_extension_entrypoints.vkImportFenceWin32HandleKHR = reinterpret_cast<PFN_vkImportFenceWin32HandleKHR>(get_proc_address("vkImportFenceWin32HandleKHR") );
+
+            anvil_assert(m_khr_external_fence_win32_extension_entrypoints.vkGetFenceWin32HandleKHR    != nullptr);
+            anvil_assert(m_khr_external_fence_win32_extension_entrypoints.vkImportFenceWin32HandleKHR != nullptr);
+        }
+
+        if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_memory_win32() )
+        {
+            m_khr_external_memory_win32_extension_entrypoints.vkGetMemoryWin32HandleKHR           = reinterpret_cast<PFN_vkGetMemoryWin32HandleKHR>          (get_proc_address("vkGetMemoryWin32HandleKHR"));
+            m_khr_external_memory_win32_extension_entrypoints.vkGetMemoryWin32HandlePropertiesKHR = reinterpret_cast<PFN_vkGetMemoryWin32HandlePropertiesKHR>(get_proc_address("vkGetMemoryWin32HandlePropertiesKHR"));
+
+            anvil_assert(m_khr_external_memory_win32_extension_entrypoints.vkGetMemoryWin32HandleKHR           != nullptr);
+            anvil_assert(m_khr_external_memory_win32_extension_entrypoints.vkGetMemoryWin32HandlePropertiesKHR != nullptr);
+        }
+
+        if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_semaphore_win32() )
+        {
+            m_khr_external_semaphore_win32_extension_entrypoints.vkGetSemaphoreWin32HandleKHR    = reinterpret_cast<PFN_vkGetSemaphoreWin32HandleKHR>   (get_proc_address("vkGetSemaphoreWin32HandleKHR"));
+            m_khr_external_semaphore_win32_extension_entrypoints.vkImportSemaphoreWin32HandleKHR = reinterpret_cast<PFN_vkImportSemaphoreWin32HandleKHR>(get_proc_address("vkImportSemaphoreWin32HandleKHR"));
+
+            anvil_assert(m_khr_external_semaphore_win32_extension_entrypoints.vkGetSemaphoreWin32HandleKHR    != nullptr);
+            anvil_assert(m_khr_external_semaphore_win32_extension_entrypoints.vkImportSemaphoreWin32HandleKHR != nullptr);
+        }
+    }
+    #endif
 
     if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_maintenance1() )
     {
@@ -854,16 +966,6 @@ bool Anvil::BaseDevice::is_universal_queue_family_index(const uint32_t& in_queue
            (m_queue_family_index_to_type.at  (in_queue_family_index) == Anvil::QueueFamilyType::UNIVERSAL);
 }
 
-bool Anvil::BaseDevice::supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeFlags& in_types) const
-{
-    bool result = m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_memory();
-
-    /* NOTE: Anvil does not support any external memory handle types YET. */
-    result &= (in_types == 0);
-
-    return result;
-}
-
 /* Please see header for specification */
 bool Anvil::BaseDevice::wait_idle() const
 {
@@ -1046,6 +1148,13 @@ Anvil::SwapchainUniquePtr Anvil::SGPUDevice::create_swapchain(Anvil::RenderingSu
     return result_ptr;
 }
 
+bool Anvil::SGPUDevice::get_physical_device_buffer_format_properties(const BufferFormatPropertiesQuery& in_query,
+                                                                     Anvil::BufferFormatProperties*     out_opt_result_ptr) const
+{
+    return m_parent_physical_device_ptr->get_buffer_format_properties(in_query,
+                                                                      out_opt_result_ptr);
+}
+
 /** Please see header for specification */
 const Anvil::PhysicalDeviceFeatures& Anvil::SGPUDevice::get_physical_device_features() const
 {
@@ -1053,30 +1162,25 @@ const Anvil::PhysicalDeviceFeatures& Anvil::SGPUDevice::get_physical_device_feat
 }
 
 /** Please see header for specification */
-const Anvil::FormatProperties& Anvil::SGPUDevice::get_physical_device_format_properties(VkFormat in_format) const
+bool Anvil::SGPUDevice::get_physical_device_fence_properties(const FencePropertiesQuery& in_query,
+                                                             Anvil::FenceProperties*     out_opt_result_ptr) const
+{
+    return m_parent_physical_device_ptr->get_fence_properties(in_query,
+                                                              out_opt_result_ptr);
+}
+
+/** Please see header for specification */
+Anvil::FormatProperties Anvil::SGPUDevice::get_physical_device_format_properties(VkFormat in_format) const
 {
     return m_parent_physical_device_ptr->get_format_properties(in_format);
 }
 
 /** Please see header for specification */
-bool Anvil::SGPUDevice::get_physical_device_image_format_properties(VkFormat                 in_format,
-                                                                    VkImageType              in_type,
-                                                                    VkImageTiling            in_tiling,
-                                                                    VkImageUsageFlags        in_usage,
-                                                                    VkImageCreateFlags       in_flags,
-                                                                    VkImageFormatProperties& out_result) const
+bool Anvil::SGPUDevice::get_physical_device_image_format_properties(const ImageFormatPropertiesQuery& in_query,
+                                                                    Anvil::ImageFormatProperties*     out_opt_result_ptr) const
 {
-    bool result;
-
-    result = is_vk_call_successful(vkGetPhysicalDeviceImageFormatProperties(m_parent_physical_device_ptr->get_physical_device(),
-                                                                            in_format,
-                                                                            in_type,
-                                                                            in_tiling,
-                                                                            in_usage,
-                                                                            in_flags,
-                                                                           &out_result) );
-
-    return result;
+    return m_parent_physical_device_ptr->get_image_format_properties(in_query,
+                                                                     out_opt_result_ptr);
 }
 
 /** Please see header for specification */

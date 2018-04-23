@@ -21,6 +21,7 @@
 //
 
 #include "misc/debug.h"
+#include "misc/memory_block_create_info.h"
 #include "wrappers/device.h"
 #include "wrappers/memory_block.h"
 #include "wrappers/physical_device.h"
@@ -205,15 +206,18 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
             allocation
         );
 
-        new_memory_block_ptr = Anvil::MemoryBlock::create_derived_with_custom_delete_proc(m_device_ptr,
-                                                                                          allocation_info.deviceMemory,
-                                                                                          memory_requirements_vk.memoryTypeBits,
-                                                                                          current_item_ptr->alloc_memory_required_features,
-                                                                                          allocation_info.memoryType,
-                                                                                          memory_requirements_vk.size,
-                                                                                          allocation_info.offset,
-                                                                                          release_callback_function,
-                                                                                          0); /* in_external_memory_handle_types */
+        {
+            auto create_info_ptr = Anvil::MemoryBlockCreateInfo::create_derived_with_custom_delete_proc(m_device_ptr,
+                                                                                                        allocation_info.deviceMemory,
+                                                                                                        memory_requirements_vk.memoryTypeBits,
+                                                                                                        current_item_ptr->alloc_memory_required_features,
+                                                                                                        allocation_info.memoryType,
+                                                                                                        memory_requirements_vk.size,
+                                                                                                        allocation_info.offset,
+                                                                                                        release_callback_function);
+
+            new_memory_block_ptr = Anvil::MemoryBlock::create(std::move(create_info_ptr) );
+        }
 
         if (new_memory_block_ptr == nullptr)
         {
@@ -301,7 +305,7 @@ void Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::on_vma_alloced_mem_block
                                                                                                    VmaAllocation       in_vma_allocation)
 {
     /* Only physically deallocate those memory blocks that are not derivatives of another memory blocks! */
-    if (in_memory_block_ptr->get_parent_memory_block() == nullptr)
+    if (in_memory_block_ptr->get_create_info_ptr()->get_parent_memory_block() == nullptr)
     {
         vmaFreeMemory(get_handle(),
                       in_vma_allocation);
@@ -323,7 +327,7 @@ bool Anvil::MemoryAllocatorBackends::VMA::supports_baking() const
     return true;
 }
 
-bool Anvil::MemoryAllocatorBackends::VMA::supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeFlags& in_external_memory_handle_types) const
+bool Anvil::MemoryAllocatorBackends::VMA::supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeBits& in_external_memory_handle_types) const
 {
     /* Vulkan Memory Allocator does NOT support external memory handles */
     ANVIL_REDUNDANT_VARIABLE_CONST(in_external_memory_handle_types);

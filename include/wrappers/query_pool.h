@@ -87,6 +87,43 @@ namespace Anvil
             return m_query_pool_vk;
         }
 
+        /* Uses vkGetQueryPoolResults() to retrieve result values for the user-specified query range.
+         *
+         * NOTE: It is assumed result values are to be returned to a tightly-packed array of size
+         *       @param in_n_queries * sizeof(query result type). if @param in_query_props includes QUERY_RESULT_WITH_AVAILABILITY_BIT,
+         *       twice the amount of memory is needed for result storage.
+         *
+         * NOTE: It is caller's responsibility to follow the requirements listed in the spec which guarantee
+         *       the results returned by this entrypoint are correct.
+         *
+         **/
+        bool get_query_pool_results(const uint32_t&        in_first_query_index,
+                                    const uint32_t&        in_n_queries,
+                                    const QueryResultBits& in_query_props,
+                                    uint32_t*              out_results_ptr,
+                                    bool*                  out_all_query_results_retrieved_ptr)
+        {
+            return get_query_pool_results_internal(in_first_query_index,
+                                                   in_n_queries,
+                                                   in_query_props,
+                                                   false, /* should_return_uint64 */
+                                                   out_results_ptr,
+                                                   out_all_query_results_retrieved_ptr);
+        }
+
+        bool get_query_pool_results(const uint32_t&        in_first_query_index,
+                                    const uint32_t&        in_n_queries,
+                                    const QueryResultBits& in_query_props,
+                                    uint64_t*              out_results_ptr,
+                                    bool*                  out_all_query_results_retrieved_ptr)
+        {
+            return get_query_pool_results_internal(in_first_query_index,
+                                                   in_n_queries,
+                                                   in_query_props,
+                                                   true, /* should_return_uint64 */
+                                                   out_results_ptr,
+                                                   out_all_query_results_retrieved_ptr);
+        }
 
     private:
         /* Constructor. Please see corresponding create() for specification */
@@ -101,6 +138,13 @@ namespace Anvil
                            VkFlags                  in_query_flags,
                            uint32_t                 in_n_max_concurrent_queries,
                            bool                     in_mt_safe);
+
+        bool get_query_pool_results_internal(const uint32_t&        in_first_query_index,
+                                             const uint32_t&        in_n_queries,
+                                             const QueryResultBits& in_query_props,
+                                             const bool&            in_should_return_uint64,
+                                             void*                  out_results_ptr,
+                                             bool*                  out_all_query_results_retrieved_ptr);
 
         /** Initializes the Vulkan counterpart.
          *
@@ -117,6 +161,7 @@ namespace Anvil
         const Anvil::BaseDevice* m_device_ptr;
         uint32_t                 m_n_max_indices;
         VkQueryPool              m_query_pool_vk;
+        const VkQueryType        m_query_type;
     };
 }; /* namespace Anvil */
 

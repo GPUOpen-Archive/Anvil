@@ -59,87 +59,12 @@ namespace Anvil
         /** Destructor */
         virtual ~PhysicalDevice();
 
-        /* Returns physical device's LUID.
+        /* TODO
          *
-         * Requires VK_KHR_external_memory support, as well as VkPhysicalDeviceIDPropertiesKHR::deviceLUIDValid
-         * to have been set to true by the driver owning the physical device, in order to report success.
-         *
-         * @param out_result_ptr Exactly VK_LUID_SIZE_KHR bytes will be copied under *out_result_ptr if
-         *                       function returns true. Must not be nullptr.
-         *
-         * @return true if successful, false otherwise.
-         **/
-        bool get_device_LUID(uint8_t* out_result_ptr) const
-        {
-            bool result = false;
-
-            if (m_device_LUID_available)
-            {
-                static_assert(sizeof(m_device_LUID) == VK_LUID_SIZE_KHR, "");
-
-                memcpy(out_result_ptr,
-                       m_device_LUID,
-                       VK_LUID_SIZE_KHR);
-
-                result = true;
-            }
-
-            return result;
-        }
-
-        /* Returns physical device's UUID.
-         *
-         * Requires VK_KHR_external_memory support to return successfully.
-         *
-         * @param out_result_ptr Exactly VK_UUID_SIZE bytes will be copied under *out_result_ptr if
-         *                       function returns true. Must not be nullptr.
-         *
-         * @return true if successful, false otherwise.
-         **/
-        bool get_device_UUID(uint8_t* out_result_ptr) const
-        {
-            bool result = false;
-
-            if (m_device_UUID_available)
-            {
-                static_assert(sizeof(m_device_UUID) == VK_UUID_SIZE, "");
-
-                memcpy(out_result_ptr,
-                       m_device_UUID,
-                       VK_UUID_SIZE);
-
-                result = true;
-            }
-
-            return result;
-        }
-
-        /* Returns UUID of the driver owning the physical device.
-         *
-         * Requires VK_KHR_external_memory support to return successfully.
-         *
-         * @param out_result_ptr Exactly VK_UUID_SIZE bytes will be copied under *out_result_ptr if
-         *                       function returns true. Must not be nullptr.
-         *
-         * @return true if successful, false otherwise.
-         **/
-        bool get_driver_UUID(uint8_t* out_result_ptr) const
-        {
-            bool result = false;
-
-            if (m_driver_UUID_available)
-            {
-                static_assert(sizeof(m_driver_UUID) == VK_UUID_SIZE, "");
-
-                memcpy(out_result_ptr,
-                       m_driver_UUID,
-                       VK_UUID_SIZE);
-
-                result = true;
-            }
-
-            return result;
-        }
+         * Requires VK_KHR_external_memory_capabilities.
+         */
+        bool get_buffer_format_properties(const Anvil::BufferFormatPropertiesQuery& in_query,
+                                          Anvil::BufferFormatProperties*            out_opt_result_ptr = nullptr) const;
 
         /** Retrieves features supported by the physical device */
         const Anvil::PhysicalDeviceFeatures& get_device_features() const
@@ -152,27 +77,27 @@ namespace Anvil
             return m_properties;
         }
 
-        /** Retrieves format properties, as reported by the wrapped physical device.
+        /* TODO
+         *
+         * Requires VK_KHR_external_fence_capabiltiies.
+         *
+         */
+        bool get_fence_properties(const Anvil::FencePropertiesQuery& in_query,
+                                  Anvil::FenceProperties*            out_opt_result_ptr = nullptr) const;
+
+        Anvil::FormatProperties get_format_properties(VkFormat in_format) const;
+
+        /** Retrieves image format properties, as reported by the wrapped physical device.
+         *
+         *  For external memory handle capability queries, VK_KHR_external_memory_capabilities support is required.
+         *
          *
          *  @param in_format Vulkan format to retrieve the filled structure for.
          *
          *  @return As per description.
          **/
-        const FormatProperties& get_format_properties(VkFormat in_format) const
-        {
-            auto format_props_iterator = m_format_properties.find(in_format);
-
-            if (format_props_iterator != m_format_properties.end() )
-            {
-                return format_props_iterator->second;
-            }
-            else
-            {
-                anvil_assert_fail();
-
-                return m_dummy;
-            }
-        }
+        bool get_image_format_properties(const ImageFormatPropertiesQuery& in_query,
+                                         Anvil::ImageFormatProperties*     out_opt_result_ptr = nullptr) const;
 
         /** Returns index of the physical device. */
         uint32_t get_index() const
@@ -219,6 +144,14 @@ namespace Anvil
             return m_queue_families;
         }
 
+        /* TODO
+         *
+         * Requires VK_KHR_external_semaphore_capabiltiies.
+         *
+         */
+        bool get_semaphore_properties(const Anvil::SemaphorePropertiesQuery& in_query,
+                                      Anvil::SemaphoreProperties*            out_opt_result_ptr = nullptr) const;
+
         /** Returns sparse image format properties for this physical device. See Vulkan spec
          *  for vkGetPhysicalDeviceSparseImageFormatProperties() function for more details.
          *
@@ -258,9 +191,6 @@ namespace Anvil
         bool is_layer_supported(const std::string& in_layer_name) const;
 
     private:
-        /* Private type definitions */
-        typedef std::map<VkFormat, FormatProperties> FormatPropertiesMap;
-
         /* Private functions */
 
         /** Constructor. Retrieves properties & capabilities of a physical device at
@@ -274,11 +204,9 @@ namespace Anvil
         explicit PhysicalDevice(Anvil::Instance* in_instance_ptr,
                                 uint32_t         in_index,
                                 VkPhysicalDevice in_physical_device)
-            :m_device_LUID_available(false),
-             m_device_UUID_available(false),
-             m_index                (in_index),
-             m_instance_ptr         (in_instance_ptr),
-             m_physical_device      (in_physical_device)
+            :m_index          (in_index),
+             m_instance_ptr   (in_instance_ptr),
+             m_physical_device(in_physical_device)
         {
             anvil_assert(in_physical_device != VK_NULL_HANDLE);
         }
@@ -294,27 +222,20 @@ namespace Anvil
         uint32_t                                     m_index;
         Anvil::Instance*                             m_instance_ptr;
         Anvil::PhysicalDeviceFeatures                m_features;
-        FormatPropertiesMap                          m_format_properties;
         Anvil::Layers                                m_layers;
         MemoryProperties                             m_memory_properties;
         VkPhysicalDevice                             m_physical_device;
         QueueFamilyInfoItems                         m_queue_families;
         Anvil::PhysicalDeviceProperties              m_properties;
 
-        std::unique_ptr<Anvil::AMDShaderCoreProperties>          m_amd_shader_core_properties_ptr;
-        std::unique_ptr<Anvil::PhysicalDeviceFeaturesCoreVK10>   m_core_features_vk10_ptr;
-        std::unique_ptr<Anvil::PhysicalDevicePropertiesCoreVK10> m_core_properties_vk10_ptr;
-        std::unique_ptr<Anvil::EXTDescriptorIndexingFeatures>    m_ext_descriptor_indexing_features_ptr;
-        std::unique_ptr<Anvil::EXTDescriptorIndexingProperties>  m_ext_descriptor_indexing_properties_ptr;
-        std::unique_ptr<Anvil::KHR16BitStorageFeatures>          m_khr_16_bit_storage_features_ptr;
-        std::unique_ptr<Anvil::KHRMaintenance3Properties>        m_khr_maintenance3_properties_ptr;
-
-        bool    m_device_LUID_available;
-        uint8_t m_device_LUID[VK_LUID_SIZE_KHR];
-        bool    m_device_UUID_available;
-        uint8_t m_device_UUID[VK_UUID_SIZE];
-        uint8_t m_driver_UUID[VK_UUID_SIZE];
-        bool    m_driver_UUID_available;
+        std::unique_ptr<Anvil::AMDShaderCoreProperties>                                 m_amd_shader_core_properties_ptr;
+        std::unique_ptr<Anvil::PhysicalDeviceFeaturesCoreVK10>                          m_core_features_vk10_ptr;
+        std::unique_ptr<Anvil::PhysicalDevicePropertiesCoreVK10>                        m_core_properties_vk10_ptr;
+        std::unique_ptr<Anvil::EXTDescriptorIndexingFeatures>                           m_ext_descriptor_indexing_features_ptr;
+        std::unique_ptr<Anvil::EXTDescriptorIndexingProperties>                         m_ext_descriptor_indexing_properties_ptr;
+        std::unique_ptr<Anvil::KHR16BitStorageFeatures>                                 m_khr_16_bit_storage_features_ptr;
+        std::unique_ptr<Anvil::KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties> m_khr_external_memory_capabilities_physical_device_id_properties_ptr;
+        std::unique_ptr<Anvil::KHRMaintenance3Properties>                               m_khr_maintenance3_properties_ptr;
 
         friend class Anvil::Instance;
     };

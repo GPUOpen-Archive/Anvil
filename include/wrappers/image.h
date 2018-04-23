@@ -433,8 +433,6 @@ namespace Anvil
 
         Image(Anvil::ImageCreateInfoUniquePtr in_create_info_ptr);
 
-        bool do_sanity_checks_for_external_memory_handle_types(const Anvil::ExternalMemoryHandleTypeFlags& in_external_memory_handle_types) const;
-
         bool init               ();
         void init_mipmap_props  ();
         void init_page_occupancy(const std::vector<VkSparseImageMemoryRequirements>& in_memory_reqs);

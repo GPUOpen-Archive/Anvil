@@ -56,6 +56,18 @@ namespace Anvil
          */
         static Anvil::FenceUniquePtr create(Anvil::FenceCreateInfoUniquePtr in_create_info_ptr);
 
+        /* Creates a new external fence handle of the user-specified type.
+         *
+         * For NT handle types, the function can only be called once per each NT handle type. Subsequent
+         * calls will result in the function triggering an assertion failure and returning null.
+         *
+         * Returns nullptr if unsuccessful.
+         *
+         * Requires VK_KHR_external_fence_fd    under Linux.
+         * Requires VK_KHR_external_fence_win32 under Windows.
+         */
+        ExternalHandleUniquePtr export_to_external_handle(const Anvil::ExternalFenceHandleTypeBit& in_fence_handle_type);
+
         const Anvil::FenceCreateInfo* get_create_info_ptr() const
         {
             return m_create_info_ptr.get();
@@ -74,6 +86,32 @@ namespace Anvil
 
             return &m_fence;
         }
+
+        /* TODO
+         *
+         * Requires VK_KHR_external_fence_fd    under Linux.
+         * Requires VK_KHR_external_fence_win32 under Windows.
+         *
+         *
+         * @return true if successful, false otherwise.
+         *
+         * @param in_temporary_import True if a temporary import operation should be performed. False if
+         *                            a permanent import is being requested.
+         * @param in_handle_type      Type of the handle that is being imported.
+         * @param in_handle           (Linux):   Handle to use.
+         * @param in_opt_handle       (Windows): Handle to use. Must not be null if @param in_opt_name is null and vice versa.
+         * @param in_opt_name         (Windows): Name of the handle to use. Must not be null if @param in_opt_handle is null and vice versa.
+         */
+        #if defined(_WIN32)
+            bool import_from_external_handle(const bool&                              in_temporary_import,
+                                             const Anvil::ExternalFenceHandleTypeBit& in_handle_type,
+                                             const ExternalHandleType&                in_opt_handle,
+                                             const std::wstring&                      in_opt_name);
+        #else
+            bool import_from_external_handle(const bool&                              in_temporary_import,
+                                             const Anvil::ExternalFenceHandleTypeBit& in_handle_type,
+                                             const ExternalHandleType&                in_handle);
+        #endif
 
         /** Tells whether the fence is signalled at the time of the call.
          *
@@ -117,9 +155,10 @@ namespace Anvil
         void release_fence();
 
         /* Private variables */
-        Anvil::FenceCreateInfoUniquePtr m_create_info_ptr;
-        VkFence                         m_fence;
-        mutable bool                    m_possibly_set;
+        Anvil::FenceCreateInfoUniquePtr                   m_create_info_ptr;
+        std::map<Anvil::ExternalFenceHandleTypeBit, bool> m_external_fence_created_for_handle_type;
+        VkFence                                           m_fence;
+        mutable bool                                      m_possibly_set;
     };
 }; /* namespace Anvil */
 
