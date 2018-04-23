@@ -170,10 +170,10 @@ uint32_t Anvil::Swapchain::acquire_image(Anvil::Semaphore* in_opt_semaphore_ptr,
         if (in_opt_semaphore_ptr != nullptr)
         {
             /* We need to set the semaphore manually in this scenario */
-            m_device_ptr->get_universal_queue(0)->submit_command_buffer_with_signal_semaphores(nullptr, /* cmd_buffer_ptr         */
-                                                                                                1,       /* n_semaphores_to_signal */
-                                                                                               &in_opt_semaphore_ptr,
-                                                                                                true); /* should_block */
+            m_device_ptr->get_universal_queue(0)->submit(
+                Anvil::SubmitInfo::create_signal(1,       /* n_semaphores_to_signal */
+                                                &in_opt_semaphore_ptr)
+            );
         }
 
         result = m_n_acquire_counter_rounded;

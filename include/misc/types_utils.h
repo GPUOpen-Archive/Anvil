@@ -28,7 +28,17 @@ namespace Anvil
     {
         MTSafety convert_boolean_to_mt_safety_enum(bool in_mt_safe);
 
-        VkExternalMemoryHandleTypeFlagsKHR convert_external_memory_handle_types_to_vk_external_memory_handle_type_flags(const Anvil::ExternalMemoryHandleTypeFlags& in_flags);
+        VkBufferCreateFlags      convert_buffer_create_flags_to_vk_buffer_create_flags(const Anvil::BufferCreateFlags& in_create_flags);
+        Anvil::BufferCreateFlags convert_vk_buffer_create_flags_to_buffer_create_flags(const VkBufferCreateFlags&      in_create_flags);
+
+        VkExternalFenceHandleTypeFlagsKHR  convert_external_fence_handle_type_bits_to_vk_external_fence_handle_type_flags(const Anvil::ExternalFenceHandleTypeBits& in_types);
+        Anvil::ExternalFenceHandleTypeBits convert_vk_external_fence_handle_type_flags_to_external_fence_handle_type_bits(const VkExternalFenceHandleTypeFlagsKHR&  in_types);
+
+        VkExternalMemoryHandleTypeFlagsKHR  convert_external_memory_handle_type_bits_to_vk_external_memory_handle_type_flags(const Anvil::ExternalMemoryHandleTypeBits& in_types);
+        Anvil::ExternalMemoryHandleTypeBits convert_vk_external_memory_handle_type_flags_to_external_memory_handle_type_bits(const VkExternalMemoryHandleTypeFlagsKHR&  in_types);
+
+        VkExternalSemaphoreHandleTypeFlagsKHR  convert_external_semaphore_handle_type_bits_to_vk_external_semaphore_handle_type_flags(const Anvil::ExternalSemaphoreHandleTypeBits& in_types);
+        Anvil::ExternalSemaphoreHandleTypeBits convert_vk_external_semaphore_handle_type_flags_to_external_semaphore_handle_type_bits(const VkExternalSemaphoreHandleTypeFlagsKHR&  in_types);
 
         bool convert_mt_safety_enum_to_boolean(MTSafety                 in_mt_safety,
                                                const Anvil::BaseDevice* in_device_ptr);
@@ -258,6 +268,12 @@ namespace Anvil
         void get_vk_property_flags_from_memory_feature_flags(Anvil::MemoryFeatureFlags in_mem_feature_flags,
                                                              VkMemoryPropertyFlags*    out_mem_type_flags_ptr,
                                                              VkMemoryHeapFlags*        out_mem_heap_flags_ptr);
+
+        #ifdef _WIN32
+            bool is_nt_handle(const Anvil::ExternalFenceHandleTypeBit&     in_type);
+            bool is_nt_handle(const Anvil::ExternalMemoryHandleTypeBit&    in_type);
+            bool is_nt_handle(const Anvil::ExternalSemaphoreHandleTypeBit& in_type);
+        #endif
 
         /** Tells whether @param in_value is a power-of-two. */
         template <typename type>

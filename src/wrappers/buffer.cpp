@@ -180,24 +180,6 @@ Anvil::BufferUniquePtr Anvil::Buffer::create(Anvil::BufferCreateInfoUniquePtr in
     return new_buffer_ptr;
 }
 
-bool Anvil::Buffer::do_external_memory_handle_type_sanity_checks() const
-{
-    const auto& external_memory_handle_types = m_create_info_ptr->get_external_memory_handle_types();
-    bool        result                       = true;
-
-    if (external_memory_handle_types != 0)
-    {
-        if (!m_device_ptr->supports_external_memory_handles(external_memory_handle_types) )
-        {
-            anvil_assert(!m_device_ptr->supports_external_memory_handles(external_memory_handle_types) );
-
-            result = false;
-        }
-    }
-
-    return result;
-}
-
 /* Please see header for specification */
 const Anvil::Buffer* Anvil::Buffer::get_base_buffer()
 {
@@ -307,11 +289,6 @@ bool Anvil::Buffer::init()
 
     if (m_create_info_ptr->get_type() != BufferType::NONSPARSE_NO_ALLOC_CHILD)
     {
-        if (!do_external_memory_handle_type_sanity_checks() )
-        {
-            goto end;
-        }
-
         /* Determine which queues the buffer should be available to. */
         Anvil::Utils::convert_queue_family_bits_to_family_indices(m_device_ptr,
                                                                   m_create_info_ptr->get_queue_families(),
@@ -344,7 +321,7 @@ bool Anvil::Buffer::init()
             {
                 VkExternalMemoryBufferCreateInfoKHR external_memory_buffer_create_info;
 
-                external_memory_buffer_create_info.handleTypes = Anvil::Utils::convert_external_memory_handle_types_to_vk_external_memory_handle_type_flags(external_memory_handle_types);
+                external_memory_buffer_create_info.handleTypes = Anvil::Utils::convert_external_memory_handle_type_bits_to_vk_external_memory_handle_type_flags(external_memory_handle_types);
                 external_memory_buffer_create_info.pNext       = nullptr;
                 external_memory_buffer_create_info.sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO_KHR;
 
@@ -389,12 +366,19 @@ bool Anvil::Buffer::init()
         case Anvil::BufferType::NONSPARSE_ALLOC:
         {
             /* Create a memory object and preallocate as much space as we need */
-            auto client_data_ptr  = m_create_info_ptr->get_client_data();
-            auto memory_block_ptr = Anvil::MemoryBlock::create(m_create_info_ptr->get_device(),
-                                                               m_buffer_memory_reqs.memoryTypeBits,
-                                                               m_buffer_memory_reqs.size,
-                                                               m_create_info_ptr->get_memory_features(),
-                                                               m_create_info_ptr->get_mt_safety      () );
+            auto                        client_data_ptr  = m_create_info_ptr->get_client_data();
+            Anvil::MemoryBlockUniquePtr memory_block_ptr;
+
+            {
+                auto create_info_ptr = Anvil::MemoryBlockCreateInfo::create_regular(m_create_info_ptr->get_device(),
+                                                                                    m_buffer_memory_reqs.memoryTypeBits,
+                                                                                    m_buffer_memory_reqs.size,
+                                                                                    m_create_info_ptr->get_memory_features() );
+
+                create_info_ptr->set_mt_safety(m_create_info_ptr->get_mt_safety() );
+
+                memory_block_ptr = Anvil::MemoryBlock::create(std::move(create_info_ptr) );
+            }
 
             if (!set_nonsparse_memory( std::move(memory_block_ptr) ))
             {
@@ -424,11 +408,17 @@ bool Anvil::Buffer::init()
 
         case Anvil::BufferType::NONSPARSE_NO_ALLOC_CHILD:
         {
-            m_owned_memory_blocks.push_back(
-                Anvil::MemoryBlock::create_derived(m_create_info_ptr->get_parent_buffer_ptr()->get_memory_block(0 /* in_n_memory_block */),
-                                                   m_create_info_ptr->get_start_offset(),
-                                                   m_create_info_ptr->get_size() )
-            );
+            Anvil::MemoryBlockUniquePtr mem_block_ptr;
+
+            {
+                auto create_info_ptr = Anvil::MemoryBlockCreateInfo::create_derived(m_create_info_ptr->get_parent_buffer_ptr()->get_memory_block(0 /* in_n_memory_block */),
+                                                                                    m_create_info_ptr->get_start_offset(),
+                                                                                    m_create_info_ptr->get_size() );
+
+                mem_block_ptr = Anvil::MemoryBlock::create(std::move(create_info_ptr) );
+            }
+
+            m_owned_memory_blocks.push_back(std::move(mem_block_ptr) );
 
             m_memory_block_ptr = m_owned_memory_blocks.back().get();
             anvil_assert(m_memory_block_ptr != nullptr);
@@ -489,7 +479,7 @@ bool Anvil::Buffer::read(VkDeviceSize                 in_start_offset,
     /* TODO: Support for sparse buffers */
     anvil_assert(m_create_info_ptr->get_type() != Anvil::BufferType::SPARSE_NO_ALLOC);
 
-    if ((memory_block_ptr->get_memory_features() & MEMORY_FEATURE_FLAG_MAPPABLE) != 0)
+    if ((memory_block_ptr->get_create_info_ptr()->get_memory_features() & MEMORY_FEATURE_FLAG_MAPPABLE) != 0)
     {
         result = memory_block_ptr->read(in_start_offset,
                                         in_size,
@@ -571,8 +561,10 @@ bool Anvil::Buffer::read(VkDeviceSize                 in_start_offset,
 
         if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
         {
-            queue_ptr->submit_command_buffer(copy_cmdbuf_ptr.get(),
-                                             true /* should_block */);
+            queue_ptr->submit(
+                Anvil::SubmitInfo::create_execute(copy_cmdbuf_ptr.get(),
+                                                  true /* should_block */)
+            );
         }
 
         result = staging_buffer_ptr->read(0,
@@ -790,10 +782,10 @@ bool Anvil::Buffer::write(VkDeviceSize                 in_start_offset,
         anvil_assert(m_page_tracker_ptr->get_n_memory_blocks() == 1);
     }
 
-    anvil_assert(memory_block_ptr             != nullptr);
-    anvil_assert(memory_block_ptr->get_size() >= in_size);
+    anvil_assert(memory_block_ptr                                    != nullptr);
+    anvil_assert(memory_block_ptr->get_create_info_ptr()->get_size() >= in_size);
 
-    if ((memory_block_ptr->get_memory_features() & MEMORY_FEATURE_FLAG_MAPPABLE) != 0)
+    if ((memory_block_ptr->get_create_info_ptr()->get_memory_features() & MEMORY_FEATURE_FLAG_MAPPABLE) != 0)
     {
         result = memory_block_ptr->write(in_start_offset,
                                          in_size,
@@ -940,8 +932,10 @@ bool Anvil::Buffer::write(VkDeviceSize                 in_start_offset,
 
         if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
         {
-            queue_ptr->submit_command_buffer(copy_cmdbuf_ptr.get(),
-                                             true /* should_block */);
+            queue_ptr->submit(
+                Anvil::SubmitInfo::create_execute(copy_cmdbuf_ptr.get(),
+                                                  true /* should_block */)
+            );
         }
 
         result = true;

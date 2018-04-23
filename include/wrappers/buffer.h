@@ -235,8 +235,6 @@ namespace Anvil
                                            uint32_t                     in_n_physical_devices,
                                            const Anvil::PhysicalDevice* in_physical_devices_ptr);
 
-        bool do_external_memory_handle_type_sanity_checks() const;
-
         /* Private members */
         VkBuffer                                 m_buffer;
         VkMemoryRequirements                     m_buffer_memory_reqs;

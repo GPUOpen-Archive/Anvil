@@ -13,7 +13,7 @@ include_directories("${Anvil_BINARY_DIR}/include"
                     "${Anvil_SOURCE_DIR}"
                     "${Anvil_SOURCE_DIR}/deps"
                     "${Anvil_SOURCE_DIR}/include")
-
+                    
 if (WIN32)
     if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
             link_directories   ($ENV{VK_SDK_PATH}/Bin
@@ -46,6 +46,7 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/include/misc/dummy_window.h"
               "${Anvil_SOURCE_DIR}/include/misc/event_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/extensions.h"
+              "${Anvil_SOURCE_DIR}/include/misc/external_handle.h"
               "${Anvil_SOURCE_DIR}/include/misc/fence_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/formats.h"
               "${Anvil_SOURCE_DIR}/include/misc/fp16.h"
@@ -56,6 +57,7 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/include/misc/image_view_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/io.h"
               "${Anvil_SOURCE_DIR}/include/misc/memory_allocator.h"
+              "${Anvil_SOURCE_DIR}/include/misc/memory_block_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/mt_safety.h"
               "${Anvil_SOURCE_DIR}/include/misc/object_tracker.h"
               "${Anvil_SOURCE_DIR}/include/misc/page_tracker.h"
@@ -120,6 +122,7 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/src/misc/debug_marker.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/descriptor_set_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/dummy_window.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/external_handle.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/event_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/fence_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/formats.cpp"
@@ -131,6 +134,7 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/src/misc/image_view_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/io.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/memory_allocator.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/memory_block_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/object_tracker.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/page_tracker.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/pools.cpp"

@@ -19,26 +19,46 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
-#include "misc/semaphore_create_info.h"
+#include "misc/external_handle.h"
 
-Anvil::SemaphoreCreateInfoUniquePtr Anvil::SemaphoreCreateInfo::create(const Anvil::BaseDevice* in_device_ptr)
+#if !defined(_WIN32)
+    #include <unistd.h>
+#endif
+
+Anvil::ExternalHandle::ExternalHandle(const ExternalHandleType& in_handle,
+                                      const bool&               in_close_at_destruction_time)
+    :m_close_at_destruction_time(in_close_at_destruction_time),
+     m_handle                   (in_handle)
 {
-    Anvil::SemaphoreCreateInfoUniquePtr result_ptr(nullptr,
-                                                   std::default_delete<Anvil::SemaphoreCreateInfo>() );
+    /* Stub */
+}
+
+Anvil::ExternalHandleUniquePtr Anvil::ExternalHandle::create(const ExternalHandleType& in_handle,
+                                                             const bool&               in_close_at_destruction_time)
+{
+    Anvil::ExternalHandleUniquePtr result_ptr(nullptr,
+                                              std::default_delete<Anvil::ExternalHandle>() );
 
     result_ptr.reset(
-        new Anvil::SemaphoreCreateInfo(in_device_ptr,
-                                       Anvil::MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+        new ExternalHandle(in_handle,
+                           in_close_at_destruction_time)
     );
 
     return result_ptr;
 }
 
-Anvil::SemaphoreCreateInfo::SemaphoreCreateInfo(const Anvil::BaseDevice* in_device_ptr,
-                                                MTSafety                 in_mt_safety)
-    :m_device_ptr                                (in_device_ptr),
-     m_exportable_external_semaphore_handle_types(Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_NONE),
-     m_mt_safety                                 (in_mt_safety)
+Anvil::ExternalHandle::~ExternalHandle()
 {
-    /* Stub */
+    if (m_close_at_destruction_time)
+    {
+        #if defined(_WIN32)
+        {
+            ::CloseHandle(m_handle);
+        }
+        #else
+        {
+            close(m_handle);
+        }
+        #endif
+    }
 }

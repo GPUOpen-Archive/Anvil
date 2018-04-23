@@ -220,7 +220,6 @@ bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                      
     }
 
     result = is_vk_call_successful(result_vk);
-
 end:
     return result;
 }

@@ -344,13 +344,15 @@ void App::draw_frame()
     }
 
     {
-        m_present_queue_ptr->submit_command_buffer_with_signal_wait_semaphores(render_cmdbuffer_ptr,
-                                                                               1, /* n_semaphores_to_signal */
-                                                                              &frame_ready_for_present_semaphore_ptr,
-                                                                               1, /* n_semaphores_to_wait_on */
-                                                                              &frame_ready_to_render_semaphore_ptr,
-                                                                              &wait_stage_mask,
-                                                                               false /* should_block */);
+        m_present_queue_ptr->submit(
+            Anvil::SubmitInfo::create_wait_execute_signal(render_cmdbuffer_ptr,
+                                                          1, /* n_semaphores_to_signal */
+                                                         &frame_ready_for_present_semaphore_ptr,
+                                                          1, /* n_semaphores_to_wait_on */
+                                                         &frame_ready_to_render_semaphore_ptr,
+                                                         &wait_stage_mask,
+                                                          false /* should_block */)
+        );
     }
 
     {

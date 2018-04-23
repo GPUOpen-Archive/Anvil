@@ -36,7 +36,8 @@ Anvil::QueryPool::QueryPool(const Anvil::BaseDevice* in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_QUERY_POOL_EXT),
      MTSafetySupportProvider   (in_mt_safe),
      m_device_ptr              (in_device_ptr),
-     m_n_max_indices           (in_n_max_concurrent_queries)
+     m_n_max_indices           (in_n_max_concurrent_queries),
+     m_query_type              (in_query_type)
 {
     anvil_assert(in_query_type == VK_QUERY_TYPE_OCCLUSION ||
                  in_query_type == VK_QUERY_TYPE_TIMESTAMP);
@@ -60,7 +61,8 @@ Anvil::QueryPool::QueryPool(const Anvil::BaseDevice* in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_QUERY_POOL_EXT),
      MTSafetySupportProvider   (in_mt_safe),
      m_device_ptr              (in_device_ptr),
-     m_n_max_indices           (in_n_max_concurrent_queries)
+     m_n_max_indices           (in_n_max_concurrent_queries),
+     m_query_type              (in_query_type)
 {
     init(in_query_type,
          in_query_flags,
@@ -134,6 +136,84 @@ Anvil::QueryPoolUniquePtr Anvil::QueryPool::create_ps_query_pool(const Anvil::Ba
     );
 
     return result_ptr;
+}
+
+bool Anvil::QueryPool::get_query_pool_results_internal(const uint32_t&        in_first_query_index,
+                                                       const uint32_t&        in_n_queries,
+                                                       const QueryResultBits& in_query_props,
+                                                       const bool&            in_should_return_uint64,
+                                                       void*                  out_results_ptr,
+                                                       bool*                  out_all_query_results_retrieved_ptr)
+{
+    VkQueryResultFlags flags             = 0;
+    uint32_t           result_query_size = 0;
+    bool               result            = false;
+    VkResult           result_vk;
+
+    if (in_first_query_index + in_n_queries > m_n_max_indices)
+    {
+        anvil_assert(in_first_query_index + in_n_queries <= m_n_max_indices);
+
+        goto end;
+    }
+
+    if (in_should_return_uint64)
+    {
+        flags             |= VK_QUERY_RESULT_64_BIT;
+        result_query_size  = sizeof(uint64_t);
+    }
+    else
+    {
+        result_query_size = sizeof(uint32_t);
+    }
+
+    if (in_query_props & Anvil::QUERY_RESULT_PARTIAL_BIT)
+    {
+        flags |= VK_QUERY_RESULT_PARTIAL_BIT;
+
+        if (m_query_type == VK_QUERY_TYPE_TIMESTAMP)
+        {
+            anvil_assert(m_query_type != VK_QUERY_TYPE_TIMESTAMP);
+
+            goto end;
+        }
+    }
+
+    if (in_query_props & Anvil::QUERY_RESULT_WAIT_BIT)
+    {
+        flags |= VK_QUERY_RESULT_WAIT_BIT;
+    }
+
+    if (in_query_props & Anvil::QUERY_RESULT_WITH_AVAILABILITY_BIT)
+    {
+        flags             |= VK_QUERY_RESULT_WITH_AVAILABILITY_BIT;
+        result_query_size *= 2;
+    }
+
+    /* Execute the request */
+    result_vk = vkGetQueryPoolResults(m_device_ptr->get_device_vk(),
+                                      m_query_pool_vk,
+                                      in_first_query_index,
+                                      in_n_queries,
+                                      result_query_size * in_n_queries,
+                                      out_results_ptr,
+                                      (in_should_return_uint64) ? sizeof(uint64_t) : sizeof(uint32_t),
+                                      flags);
+
+    if (in_query_props & Anvil::QUERY_RESULT_PARTIAL_BIT)
+    {
+        result                               = is_vk_call_successful(result_vk);
+        *out_all_query_results_retrieved_ptr = (result_vk == VK_SUCCESS);
+    }
+    else
+    {
+        result                               = is_vk_call_successful(result_vk);
+        *out_all_query_results_retrieved_ptr = (result);
+    }
+
+    /* All done */
+end:
+    return result;
 }
 
 /* Please see header for specification */

@@ -19,26 +19,37 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
-#include "misc/semaphore_create_info.h"
+#ifndef MISC_EXTERNAL_HANDLE_H
+#define MISC_EXTERNAL_HANDLE_H
 
-Anvil::SemaphoreCreateInfoUniquePtr Anvil::SemaphoreCreateInfo::create(const Anvil::BaseDevice* in_device_ptr)
+#include "misc/types.h"
+
+namespace Anvil
 {
-    Anvil::SemaphoreCreateInfoUniquePtr result_ptr(nullptr,
-                                                   std::default_delete<Anvil::SemaphoreCreateInfo>() );
+    class ExternalHandle
+    {
+    public:
+        /* Public functions */
+        static ExternalHandleUniquePtr create(const ExternalHandleType& in_handle,
+                                              const bool&               in_close_at_destruction_time);
 
-    result_ptr.reset(
-        new Anvil::SemaphoreCreateInfo(in_device_ptr,
-                                       Anvil::MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
-    );
+        ~ExternalHandle();
 
-    return result_ptr;
-}
+        ExternalHandleType get_handle() const
+        {
+            return m_handle;
+        }
 
-Anvil::SemaphoreCreateInfo::SemaphoreCreateInfo(const Anvil::BaseDevice* in_device_ptr,
-                                                MTSafety                 in_mt_safety)
-    :m_device_ptr                                (in_device_ptr),
-     m_exportable_external_semaphore_handle_types(Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_NONE),
-     m_mt_safety                                 (in_mt_safety)
-{
-    /* Stub */
-}
+    private:
+        ExternalHandle(const ExternalHandleType& in_handle,
+                       const bool&               in_close_at_destruction_time);
+
+        const bool               m_close_at_destruction_time;
+        const ExternalHandleType m_handle;
+
+        ANVIL_DISABLE_ASSIGNMENT_OPERATOR(ExternalHandle);
+        ANVIL_DISABLE_COPY_CONSTRUCTOR(ExternalHandle);
+    };
+} /* namespace Anvil */
+
+#endif /* MISC_EXTERNAL_HANDLE_H */

@@ -295,14 +295,16 @@ void App::draw_frame()
     };
     const uint32_t n_cmd_buffers = sizeof(cmd_buffers) / sizeof(cmd_buffers[0]);
 
-    present_queue_ptr->submit_command_buffers(n_cmd_buffers,
-                                              cmd_buffers,
-                                              1, /* n_semaphores_to_signal */
-                                             &curr_frame_signal_semaphore_ptr,
-                                              1, /* n_semaphores_to_wait_on */
-                                             &curr_frame_wait_semaphore_ptr,
-                                             &wait_stage_mask,
-                                              false); /* should_block */
+    present_queue_ptr->submit(
+        Anvil::SubmitInfo::create_wait_execute_signal(cmd_buffers,
+                                                      n_cmd_buffers,
+                                                      1, /* n_semaphores_to_signal */
+                                                     &curr_frame_signal_semaphore_ptr,
+                                                      1, /* n_semaphores_to_wait_on */
+                                                     &curr_frame_wait_semaphore_ptr,
+                                                     &wait_stage_mask,
+                                                      false) /* should_block */
+    );
 
     present_queue_ptr->present(m_swapchain_ptr.get(),
                                n_swapchain_image,
