@@ -30,12 +30,24 @@ namespace Anvil
     {
     public:
         /* Public functions */
-        static Anvil::SemaphoreCreateInfoUniquePtr create(const Anvil::BaseDevice* in_device_ptr,
-                                                          MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+
+        /* TODO.
+         *
+         * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
+         *
+         * - Exportable external semaphore handle type: none
+         * - MT safety:                                 MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         */
+        static Anvil::SemaphoreCreateInfoUniquePtr create(const Anvil::BaseDevice* in_device_ptr);
 
         const Anvil::BaseDevice* get_device() const
         {
             return m_device_ptr;
+        }
+
+        const Anvil::ExternalSemaphoreHandleTypeBits& get_exportable_external_semaphore_handle_types() const
+        {
+            return m_exportable_external_semaphore_handle_types;
         }
 
         const MTSafety& get_mt_safety() const
@@ -46,6 +58,15 @@ namespace Anvil
         void set_device(const Anvil::BaseDevice* in_device_ptr)
         {
             m_device_ptr = in_device_ptr;
+        }
+
+        /* TODO
+         *
+         * Requires VK_KHR_external_semaphore.
+         */
+        void set_exportable_external_semaphore_handle_types(const Anvil::ExternalFenceHandleTypeBits& in_external_handle_types)
+        {
+            m_exportable_external_semaphore_handle_types = in_external_handle_types;
         }
 
         void set_mt_safety(const MTSafety& in_mt_safety)
@@ -59,8 +80,9 @@ namespace Anvil
                             MTSafety                 in_mt_safety);
 
         /* Private variables */
-        const Anvil::BaseDevice* m_device_ptr;
-        Anvil::MTSafety          m_mt_safety;
+        const Anvil::BaseDevice*               m_device_ptr;
+        Anvil::ExternalSemaphoreHandleTypeBits m_exportable_external_semaphore_handle_types;
+        Anvil::MTSafety                        m_mt_safety;
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(SemaphoreCreateInfo);
         ANVIL_DISABLE_COPY_CONSTRUCTOR(SemaphoreCreateInfo);

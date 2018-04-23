@@ -64,12 +64,183 @@ Anvil::MTSafety Anvil::Utils::convert_boolean_to_mt_safety_enum(bool in_mt_safe)
                         : MT_SAFETY_DISABLED;
 }
 
-VkExternalMemoryHandleTypeFlagsKHR Anvil::Utils::convert_external_memory_handle_types_to_vk_external_memory_handle_type_flags(const Anvil::ExternalMemoryHandleTypeFlags& in_flags)
+VkBufferCreateFlags Anvil::Utils::convert_buffer_create_flags_to_vk_buffer_create_flags(const Anvil::BufferCreateFlags& in_create_flags)
 {
-    ANVIL_REDUNDANT_ARGUMENT_CONST(in_flags);
-    anvil_assert                  (in_flags == 0);
+    VkBufferCreateFlags result = 0;
 
-    return 0;
+    if (in_create_flags & Anvil::BUFFER_CREATE_FLAG_SPARSE_ALIASED_BIT)
+    {
+        result |= VK_BUFFER_CREATE_SPARSE_ALIASED_BIT;
+    }
+
+    if (in_create_flags & Anvil::BUFFER_CREATE_FLAG_SPARSE_BINDING_BIT)
+    {
+        result |= VK_BUFFER_CREATE_SPARSE_BINDING_BIT;
+    }
+
+    if (in_create_flags & Anvil::BUFFER_CREATE_FLAG_SPARSE_RESIDENCY_BIT)
+    {
+        result |= VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT;
+    }
+
+    return result;
+}
+
+VkExternalFenceHandleTypeFlagsKHR Anvil::Utils::convert_external_fence_handle_type_bits_to_vk_external_fence_handle_type_flags(const Anvil::ExternalFenceHandleTypeBits& in_types)
+{
+    VkExternalFenceHandleTypeFlagsKHR result = 0;
+
+    #if defined(_WIN32)
+    {
+        if (in_types & Anvil::EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT)
+        {
+            result |= VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR;
+        }
+
+        if (in_types & Anvil::EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT)
+        {
+            result |= VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR;
+        }
+    }
+    #else
+    {
+        if (in_types & Anvil::EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_FD_BIT)
+        {
+            result |= VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
+        }
+
+        if (in_types & Anvil::EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT)
+        {
+            result |= VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT_KHR;
+        }
+    }
+    #endif
+
+    return result;
+}
+
+VkExternalMemoryHandleTypeFlagsKHR Anvil::Utils::convert_external_memory_handle_type_bits_to_vk_external_memory_handle_type_flags(const Anvil::ExternalMemoryHandleTypeBits& in_types)
+{
+    VkExternalMemoryHandleTypeFlagsKHR result = 0;
+
+    #if defined(_WIN32)
+    {
+        if (in_types & Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT)
+        {
+            result |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR;
+        }
+
+        if (in_types & Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT)
+        {
+            result |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR;
+        }
+
+        if (in_types & Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT)
+        {
+            result |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT_KHR;
+        }
+
+        if (in_types & Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT)
+        {
+            result |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT_KHR;
+        }
+
+        if (in_types & Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT)
+        {
+            result |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT_KHR;
+        }
+
+        if (in_types & Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT)
+        {
+            result |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT_KHR;
+        }
+    }
+    #else
+    {
+        if (in_types & Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT)
+        {
+            result |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
+        }
+    }
+    #endif
+
+    return result;
+}
+
+VkExternalSemaphoreHandleTypeFlagsKHR Anvil::Utils::convert_external_semaphore_handle_type_bits_to_vk_external_semaphore_handle_type_flags(const Anvil::ExternalSemaphoreHandleTypeBits& in_types)
+{
+    VkExternalSemaphoreHandleTypeFlagsKHR result = 0;
+
+    #if defined(_WIN32)
+    {
+        if (in_types & Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT)
+        {
+            result |= VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT_KHR;
+        }
+
+        if (in_types & Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT)
+        {
+            result |= VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR;
+        }
+
+        if (in_types & Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT)
+        {
+            result |= VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR;
+        }
+    }
+    #else
+    {
+        if (in_types & Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT)
+        {
+            result |= VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
+        }
+
+        if (in_types & Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT)
+        {
+            result |= VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT_KHR;
+        }
+    }
+    #endif
+
+    return result;
+}
+
+Anvil::ExternalSemaphoreHandleTypeBits Anvil::Utils::convert_vk_external_semaphore_handle_type_flags_to_external_semaphore_handle_type_bits(const VkExternalSemaphoreHandleTypeFlagsKHR& in_types)
+{
+    Anvil::ExternalSemaphoreHandleTypeBits result = 0;
+
+    #if defined(_WIN32)
+    {
+        if (in_types & VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT_KHR)
+        {
+            result |= Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT;
+        }
+
+        if (in_types & VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR)
+        {
+            result |= Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+        }
+
+        if (in_types & VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR)
+        {
+            result |= Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
+        }
+    }
+    #else
+    {
+        if (in_types & VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT_KHR)
+        {
+            result |= Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT;
+        }
+
+        if (in_types & VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT_KHR)
+        {
+            result |= Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT;
+        }
+    }
+    #endif
+
+    return result;
 }
 
 bool Anvil::Utils::convert_mt_safety_enum_to_boolean(Anvil::MTSafety          in_mt_safety,
@@ -856,6 +1027,109 @@ VkShaderStageFlagBits Anvil::Utils::get_shader_stage_flag_bits_from_shader_stage
     return result;
 }
 
+Anvil::BufferCreateFlags Anvil::Utils::convert_vk_buffer_create_flags_to_buffer_create_flags(const VkBufferCreateFlags& in_create_flags)
+{
+    Anvil::BufferCreateFlags result = 0;
+
+    if (in_create_flags & VK_BUFFER_CREATE_SPARSE_ALIASED_BIT)
+    {
+        result |= Anvil::BUFFER_CREATE_FLAG_SPARSE_ALIASED_BIT;
+    }
+
+    if (in_create_flags & VK_BUFFER_CREATE_SPARSE_BINDING_BIT)
+    {
+        result |= Anvil::BUFFER_CREATE_FLAG_SPARSE_BINDING_BIT;
+    }
+
+    if (in_create_flags & VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT)
+    {
+        result |= Anvil::BUFFER_CREATE_FLAG_SPARSE_RESIDENCY_BIT;
+    }
+
+    return result;
+}
+
+Anvil::ExternalFenceHandleTypeBits Anvil::Utils::convert_vk_external_fence_handle_type_flags_to_external_fence_handle_type_bits(const VkExternalFenceHandleTypeFlagsKHR& in_types)
+{
+    Anvil::ExternalFenceHandleTypeBits result = 0;
+
+    #if defined(_WIN32)
+    {
+        if (in_types & VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR)
+        {
+            result |= Anvil::EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+        }
+
+        if (in_types & VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR)
+        {
+            result |= Anvil::EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
+        }
+    }
+    #else
+    {
+        if (in_types & VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_FD_BIT_KHR)
+        {
+            result |= Anvil::EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_FD_BIT;
+        }
+
+        if (in_types & VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT_KHR)
+        {
+            result |= Anvil::EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT;
+        }
+    }
+    #endif
+
+    return result;
+}
+
+Anvil::ExternalMemoryHandleTypeBits Anvil::Utils::convert_vk_external_memory_handle_type_flags_to_external_memory_handle_type_bits(const VkExternalMemoryHandleTypeFlagsKHR& in_types)
+{
+    Anvil::ExternalMemoryHandleTypeBits result = 0;
+
+    #if defined(_WIN32)
+    {
+        if (in_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR)
+        {
+            result |= Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+        }
+
+        if (in_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR)
+        {
+            result |= Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
+        }
+
+        if (in_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT_KHR)
+        {
+            result |= Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT;
+        }
+
+        if (in_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT_KHR)
+        {
+            result |= Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT;
+        }
+
+        if (in_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT_KHR)
+        {
+            result |= Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT;
+        }
+
+        if (in_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT_KHR)
+        {
+            result |= Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT;
+        }
+    }
+    #else
+    {
+        if (in_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR)
+        {
+            result |= Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+        }
+    }
+    #endif
+
+    return result;
+}
+
 /* Please see header for specification */
 void Anvil::Utils::get_vk_property_flags_from_memory_feature_flags(Anvil::MemoryFeatureFlags in_mem_feature_flags,
                                                                    VkMemoryPropertyFlags*    out_mem_type_flags_ptr,
@@ -892,3 +1166,24 @@ void Anvil::Utils::get_vk_property_flags_from_memory_feature_flags(Anvil::Memory
     *out_mem_heap_flags_ptr = result_mem_heap_flags;
     *out_mem_type_flags_ptr = result_mem_type_flags;
 }
+
+#ifdef _WIN32
+    bool Anvil::Utils::is_nt_handle(const Anvil::ExternalFenceHandleTypeBit& in_type)
+    {
+        return (in_type == Anvil::EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+    }
+
+    bool Anvil::Utils::is_nt_handle(const Anvil::ExternalMemoryHandleTypeBit& in_type)
+    {
+        return (in_type == Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT  ||
+                in_type == Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT     ||
+                in_type == Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT ||
+                in_type == Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+    }
+
+    bool Anvil::Utils::is_nt_handle(const Anvil::ExternalSemaphoreHandleTypeBit& in_type)
+    {
+        return (in_type == Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT   ||
+                in_type == Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+    }
+#endif

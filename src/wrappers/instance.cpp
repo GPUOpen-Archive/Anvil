@@ -277,6 +277,30 @@ void Anvil::Instance::enumerate_physical_devices()
 }
 
 /** Please see header for specification */
+const Anvil::ExtensionKHRExternalFenceCapabilitiesEntrypoints& Anvil::Instance::get_extension_khr_external_fence_capabilities_entrypoints() const
+{
+    anvil_assert(m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_external_fence_capabilities() );
+
+    return m_khr_external_fence_capabilities_entrypoints;
+}
+
+/** Please see header for specification */
+const Anvil::ExtensionKHRExternalMemoryCapabilitiesEntrypoints& Anvil::Instance::get_extension_khr_external_memory_capabilities_entrypoints() const
+{
+    anvil_assert(m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_external_memory_capabilities() );
+
+    return m_khr_external_memory_capabilities_entrypoints;
+}
+
+/** Please see header for specification */
+const Anvil::ExtensionKHRExternalSemaphoreCapabilitiesEntrypoints& Anvil::Instance::get_extension_khr_external_semaphore_capabilities_entrypoints() const
+{
+    anvil_assert(m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_external_semaphore_capabilities() );
+
+    return m_khr_external_semaphore_capabilities_entrypoints;
+}
+
+/** Please see header for specification */
 const Anvil::ExtensionKHRGetPhysicalDeviceProperties2& Anvil::Instance::get_extension_khr_get_physical_device_properties2_entrypoints() const
 {
     anvil_assert(m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_get_physical_device_properties2() );
@@ -580,6 +604,30 @@ void Anvil::Instance::init_func_pointers()
         anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceProperties2KHR                  != nullptr);
         anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceQueueFamilyProperties2KHR       != nullptr);
         anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceSparseImageFormatProperties2KHR != nullptr);
+    }
+
+    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_external_fence_capabilities() )
+    {
+        m_khr_external_fence_capabilities_entrypoints.vkGetPhysicalDeviceExternalFencePropertiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceExternalFencePropertiesKHR>(vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                "vkGetPhysicalDeviceExternalFencePropertiesKHR") );
+
+        anvil_assert(m_khr_external_fence_capabilities_entrypoints.vkGetPhysicalDeviceExternalFencePropertiesKHR!= nullptr);
+    }
+
+    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_external_memory_capabilities() )
+    {
+        m_khr_external_memory_capabilities_entrypoints.vkGetPhysicalDeviceExternalBufferPropertiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceExternalBufferPropertiesKHR>(vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                   "vkGetPhysicalDeviceExternalBufferPropertiesKHR") );
+
+        anvil_assert(m_khr_external_memory_capabilities_entrypoints.vkGetPhysicalDeviceExternalBufferPropertiesKHR != nullptr);
+    }
+
+    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_external_semaphore_capabilities() )
+    {
+        m_khr_external_semaphore_capabilities_entrypoints.vkGetPhysicalDeviceExternalSemaphorePropertiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceExternalSemaphorePropertiesKHR>(vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                            "vkGetPhysicalDeviceExternalSemaphorePropertiesKHR") );
+
+        anvil_assert(m_khr_external_semaphore_capabilities_entrypoints.vkGetPhysicalDeviceExternalSemaphorePropertiesKHR!= nullptr);
     }
 }
 

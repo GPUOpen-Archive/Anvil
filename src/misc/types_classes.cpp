@@ -71,7 +71,7 @@ void Anvil::SparseMemoryBindingUpdateInfo::append_buffer_memory_update(SparseMem
 
     if (in_memory_block_ptr != nullptr)
     {
-        anvil_assert(in_memory_block_ptr->get_size() >= in_memory_block_start_offset + in_size);
+        anvil_assert(in_memory_block_ptr->get_create_info_ptr()->get_size() >= in_memory_block_start_offset + in_size);
     }
 
     /* Cache the update */
@@ -119,7 +119,7 @@ void Anvil::SparseMemoryBindingUpdateInfo::append_image_memory_update(SparseMemo
 
     if (in_opt_memory_block_ptr != nullptr)
     {
-        anvil_assert(in_opt_memory_block_ptr->get_size() > in_opt_memory_block_start_offset);
+        anvil_assert(in_opt_memory_block_ptr->get_create_info_ptr()->get_size() > in_opt_memory_block_start_offset);
     }
 
     /* Cache the update */
@@ -165,7 +165,7 @@ void Anvil::SparseMemoryBindingUpdateInfo::append_opaque_image_memory_update(Spa
 
     if (in_opt_memory_block_ptr != nullptr)
     {
-        anvil_assert(in_opt_memory_block_ptr->get_size() >= in_opt_memory_block_start_offset + in_size);
+        anvil_assert(in_opt_memory_block_ptr->get_create_info_ptr()->get_size() >= in_opt_memory_block_start_offset + in_size);
     }
 
     /* Cache the update */

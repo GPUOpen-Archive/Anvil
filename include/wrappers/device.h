@@ -165,6 +165,50 @@ namespace Anvil
             return m_khr_descriptor_update_template_extension_entrypoints;
         }
 
+        #if defined(_WIN32)
+            const ExtensionKHRExternalFenceWin32Entrypoints& get_extension_khr_external_fence_win32_entrypoints() const
+            {
+                anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_fence_win32() );
+
+                return m_khr_external_fence_win32_extension_entrypoints;
+            }
+
+            const ExtensionKHRExternalMemoryWin32Entrypoints& get_extension_khr_external_memory_win32_entrypoints() const
+            {
+                anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_memory_win32() );
+
+                return m_khr_external_memory_win32_extension_entrypoints;
+            }
+
+            const ExtensionKHRExternalSemaphoreWin32Entrypoints& get_extension_khr_external_semaphore_win32_entrypoints() const
+            {
+                anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_semaphore_win32() );
+
+                return m_khr_external_semaphore_win32_extension_entrypoints;
+            }
+        #else
+            const ExtensionKHRExternalFenceFdEntrypoints& get_extension_khr_external_fence_fd_entrypoints() const
+            {
+                anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_fence_fd() );
+
+                return m_khr_external_fence_fd_extension_entrypoints;
+            }
+
+            const ExtensionKHRExternalMemoryFdEntrypoints& get_extension_khr_external_memory_fd_entrypoints() const
+            {
+                anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_memory_fd() );
+
+                return m_khr_external_memory_fd_extension_entrypoints;
+            }
+
+            const ExtensionKHRExternalSemaphoreFdEntrypoints& get_extension_khr_external_semaphore_fd_entrypoints() const
+            {
+                anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_semaphore_fd() );
+
+                return m_khr_external_semaphore_fd_extension_entrypoints;
+            }
+        #endif
+
         /** Returns a container with entry-points to functions introduced by VK_KHR_maintenance1 extension. **/
         const ExtensionKHRMaintenance1Entrypoints& get_extension_khr_maintenance1_entrypoints() const
         {
@@ -272,37 +316,21 @@ namespace Anvil
             return m_parent_instance_ptr;
         }
 
+        virtual bool get_physical_device_buffer_format_properties(const BufferFormatPropertiesQuery& in_query,
+                                                                  Anvil::BufferFormatProperties*     out_opt_result_ptr = nullptr) const = 0;
+
         /** Returns features supported by physical device(s) which have been used to instantiate
          *  this logical device instance.
          **/
         virtual const Anvil::PhysicalDeviceFeatures& get_physical_device_features() const = 0;
 
-        /** Returns format properties, as reported by physical device(s) which have been used to
-         *  instantiate this logical device instance.
-         *
-         *  @param in_format Format to use for the query.
-         */
-        virtual const Anvil::FormatProperties& get_physical_device_format_properties(VkFormat in_format) const = 0;
+        virtual bool get_physical_device_fence_properties(const FencePropertiesQuery& in_query,
+                                                          Anvil::FenceProperties*     out_opt_result_ptr = nullptr) const = 0;
 
-        /** Returns image format properties, as reported by physical device(s) which have been used
-         *  to instantiate this logical device instance.
-         *
-         *  @param in_format  Meaning as per Vulkan spec.
-         *  @param in_type    Meaning as per Vulkan spec.
-         *  @param in_tiling  Meaning as per Vulkan spec.
-         *  @param in_usage   Meaning as per Vulkan spec.
-         *  @param in_flags   Meaning as per Vulkan spec.
-         *  @param out_result If the function returns true, the requested information will be stored
-         *                    at this location.
-         *
-         *  @return true if successful, false otherwise.
-         **/
-        virtual bool get_physical_device_image_format_properties(VkFormat                 in_format,
-                                                                 VkImageType              in_type,
-                                                                 VkImageTiling            in_tiling,
-                                                                 VkImageUsageFlags        in_usage,
-                                                                 VkImageCreateFlags       in_flags,
-                                                                 VkImageFormatProperties& out_result) const = 0;
+        virtual Anvil::FormatProperties get_physical_device_format_properties(VkFormat in_format) const = 0;
+
+        virtual bool get_physical_device_image_format_properties(const ImageFormatPropertiesQuery& in_query,
+                                                                 Anvil::ImageFormatProperties*     out_opt_result_ptr = nullptr) const = 0;
 
         /** Returns memory properties, as reported by physical device(s) which have been used
          *  to instantiate this logical device instance.
@@ -445,6 +473,24 @@ namespace Anvil
         Anvil::Queue* get_sparse_binding_queue(uint32_t     in_n_queue,
                                                VkQueueFlags in_opt_required_queue_flags = 0) const;
 
+        /* Tells which memory types can be specified when creating an external memory handle for a Win32 handle @param in_handle
+         *
+         * Requires VK_KHR_external_memory_Fd    under Windows.
+         * Requires VK_KHR_external_memory_win32 under Windows.
+         *
+         * @return true if successful, false otherwise.
+         *
+         *
+         * @param in_external_handle_type            (Windows) must be either EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT or
+         *                                                     EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT.
+         *                                           (Linux)   must be EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT.
+         * @param out_supported_memory_type_bits_ptr Deref will be set to a set of bits where each index corresponds to support status
+         *                                           of a memory type with corresponding index. Must not be null.
+         */
+        bool get_memory_types_supported_for_external_handle(const Anvil::ExternalMemoryHandleTypeBit& in_external_handle_type,
+                                                            ExternalHandleType                        in_handle,
+                                                            uint32_t*                                 out_supported_memory_type_bits) const;
+
         /** Returns a Queue instance, corresponding to a transfer queue at index @param in_n_queue
          *
          *  @param in_n_queue Index of the transfer queue to retrieve the wrapper instance for.
@@ -507,8 +553,6 @@ namespace Anvil
         bool is_transfer_queue_family_index(const uint32_t& in_queue_family_index) const;
 
         bool is_universal_queue_family_index(const uint32_t& in_queue_family_index) const;
-
-        bool supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeFlags& in_types) const;
 
         bool wait_idle() const;
 
@@ -604,6 +648,15 @@ namespace Anvil
         ExtensionKHRSurfaceEntrypoints                    m_khr_surface_extension_entrypoints;
         ExtensionKHRSwapchainEntrypoints                  m_khr_swapchain_extension_entrypoints;
 
+        #if defined(_WIN32)
+            ExtensionKHRExternalFenceWin32Entrypoints     m_khr_external_fence_win32_extension_entrypoints;
+            ExtensionKHRExternalMemoryWin32Entrypoints    m_khr_external_memory_win32_extension_entrypoints;
+            ExtensionKHRExternalSemaphoreWin32Entrypoints m_khr_external_semaphore_win32_extension_entrypoints;
+        #else
+            ExtensionKHRExternalFenceFdEntrypoints        m_khr_external_fence_fd_extension_entrypoints;
+            ExtensionKHRExternalMemoryFdEntrypoints       m_khr_external_memory_fd_extension_entrypoints;
+            ExtensionKHRExternalSemaphoreFdEntrypoints    m_khr_external_semaphore_fd_extension_entrypoints;
+        #endif
     private:
         /* Private variables */
 
@@ -685,19 +738,19 @@ namespace Anvil
             return m_parent_physical_device_ptr;
         }
 
+        bool get_physical_device_buffer_format_properties(const BufferFormatPropertiesQuery& in_query,
+                                                          Anvil::BufferFormatProperties*     out_opt_result_ptr = nullptr) const override;
+
         /** See documentation in BaseDevice for more details */
         const Anvil::PhysicalDeviceFeatures& get_physical_device_features() const override;
 
-        /** See documentation in BaseDevice for more details */
-        const Anvil::FormatProperties& get_physical_device_format_properties(VkFormat in_format) const override;
+        bool get_physical_device_fence_properties(const FencePropertiesQuery& in_query,
+                                                  Anvil::FenceProperties*     out_opt_result_ptr = nullptr) const override;
 
-        /** See documentation in BaseDevice for more details */
-        bool get_physical_device_image_format_properties(VkFormat                 in_format,
-                                                         VkImageType              in_type,
-                                                         VkImageTiling            in_tiling,
-                                                         VkImageUsageFlags        in_usage,
-                                                         VkImageCreateFlags       in_flags,
-                                                         VkImageFormatProperties& out_result) const override;
+        Anvil::FormatProperties get_physical_device_format_properties(VkFormat in_format) const override;
+
+        bool get_physical_device_image_format_properties(const ImageFormatPropertiesQuery& in_query,
+                                                         Anvil::ImageFormatProperties*     out_opt_result_ptr = nullptr) const override;
 
         /** See documentation in BaseDevice for more details */
         const Anvil::MemoryProperties& get_physical_device_memory_properties() const override;

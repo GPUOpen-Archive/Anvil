@@ -87,6 +87,12 @@ namespace Anvil
             return m_enabled_extensions_info_ptr->get_instance_extension_info();
         }
 
+        const ExtensionKHRExternalFenceCapabilitiesEntrypoints& get_extension_khr_external_fence_capabilities_entrypoints() const;
+
+        const ExtensionKHRExternalMemoryCapabilitiesEntrypoints& get_extension_khr_external_memory_capabilities_entrypoints() const;
+
+        const ExtensionKHRExternalSemaphoreCapabilitiesEntrypoints& get_extension_khr_external_semaphore_capabilities_entrypoints() const;
+
         /** Returns a container with entry-points to functions introduced by VK_KHR_get_physical_device_properties2.
          *
          *  Will fire an assertion failure if the extension is not supported.
@@ -201,9 +207,12 @@ namespace Anvil
         /* DebugReport extension function pointers and data */
         VkDebugReportCallbackEXT m_debug_callback_data;
 
-        ExtensionEXTDebugReportEntrypoints       m_ext_debug_report_entrypoints;
-        ExtensionKHRGetPhysicalDeviceProperties2 m_khr_get_physical_device_properties2_entrypoints;
-        ExtensionKHRSurfaceEntrypoints           m_khr_surface_entrypoints;
+        ExtensionEXTDebugReportEntrypoints                   m_ext_debug_report_entrypoints;
+        ExtensionKHRExternalFenceCapabilitiesEntrypoints     m_khr_external_fence_capabilities_entrypoints;
+        ExtensionKHRExternalMemoryCapabilitiesEntrypoints    m_khr_external_memory_capabilities_entrypoints;
+        ExtensionKHRExternalSemaphoreCapabilitiesEntrypoints m_khr_external_semaphore_capabilities_entrypoints;
+        ExtensionKHRGetPhysicalDeviceProperties2             m_khr_get_physical_device_properties2_entrypoints;
+        ExtensionKHRSurfaceEntrypoints                       m_khr_surface_entrypoints;
 
         #ifdef _WIN32
             #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)

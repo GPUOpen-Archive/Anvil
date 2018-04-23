@@ -39,6 +39,14 @@ namespace Anvil
         ATTACHMENT_TYPE_UNKNOWN = ATTACHMENT_TYPE_COUNT
     };
 
+    enum BufferCreateFlagBits
+    {
+        BUFFER_CREATE_FLAG_SPARSE_BINDING_BIT   = 1 << 0,
+        BUFFER_CREATE_FLAG_SPARSE_RESIDENCY_BIT = 1 << 1,
+        BUFFER_CREATE_FLAG_SPARSE_ALIASED_BIT   = 1 << 2,
+    };
+    typedef uint32_t BufferCreateFlags;
+
     typedef enum class BufferType
     {
         NONSPARSE_ALLOC,
@@ -63,10 +71,52 @@ namespace Anvil
 
     typedef enum
     {
-        /* todo .. */
+        EXTERNAL_FENCE_HANDLE_TYPE_NONE = 0,
 
-    } ExternalMemoryHandleTypeFlag;
-    typedef uint32_t ExternalMemoryHandleTypeFlags;
+        #if defined(_WIN32)
+            EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT     = 1 << 0,
+            EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT = 1 << 1,
+        #else
+            EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_FD_BIT = 1 << 2,
+            EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT   = 1 << 2,
+        #endif
+
+    } ExternalFenceHandleTypeBit;
+    typedef uint32_t ExternalFenceHandleTypeBits;
+
+    typedef enum
+    {
+        EXTERNAL_MEMORY_HANDLE_TYPE_NONE = 0,
+
+        #if defined(_WIN32)
+            EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT      = 1 << 0,
+            EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT  = 1 << 1,
+            EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT     = 1 << 2,
+            EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT = 1 << 3,
+            EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT        = 1 << 4,
+            EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT    = 1 << 5,
+        #else
+            EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT = 1 << 6,
+        #endif
+
+    } ExternalMemoryHandleTypeBit;
+    typedef uint32_t ExternalMemoryHandleTypeBits;
+
+    typedef enum
+    {
+        EXTERNAL_SEMAPHORE_HANDLE_TYPE_NONE = 0,
+
+        #if defined(_WIN32)
+            EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT     = 1 << 0,
+            EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT = 1 << 1,
+            EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT      = 1 << 2,
+        #else
+            EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT = 1 << 3,
+            EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT   = 1 << 4,
+        #endif
+
+    } ExternalSemaphoreHandleTypeBit;
+    typedef uint32_t ExternalSemaphoreHandleTypeBits;
 
     /** Describes component layout of a format */
     typedef enum
@@ -205,6 +255,14 @@ namespace Anvil
         SWAPCHAIN_WRAPPER
     } ImageType;
 
+    typedef enum class MemoryBlockType
+    {
+        DERIVED,
+        DERIVED_WITH_CUSTOM_DELETE_PROC,
+        REGULAR
+
+    } MemoryBlockType;
+
     enum MemoryFeatureFlagBits
     {
         /* NOTE: If more memory feature flags are added here, make sure to also update Anvil::Utils::get_vk_property_flags_from_memory_feature_flags()
@@ -321,6 +379,30 @@ namespace Anvil
         FIRST     = COMPUTE,
         UNDEFINED = COUNT
     };
+
+    typedef enum
+    {
+        /* Implementation should wait for each query's status to become available before retrieving its results
+         *
+         * Core VK 1.0 functionality
+         */
+        QUERY_RESULT_WAIT_BIT = 1 << 0,
+
+        /* Each query result value is going to be followed by a status value. Non-zero values indicate result is
+         * available.
+         *
+         * Core VK 1.0 functionality
+         */
+        QUERY_RESULT_WITH_AVAILABILITY_BIT = 1 << 1,
+
+        /* Indicates it is OK for the function to return result values for a sub-range of the requested query range.
+         *
+         * Core VK 1.0 frunctionality
+         */
+        QUERY_RESULT_PARTIAL_BIT = 1 << 2,
+
+    } QueryResultBit;
+    typedef uint32_t QueryResultBits;
 
     /* Specifies one of the compute / rendering pipeline stages. */
     typedef enum

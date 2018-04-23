@@ -282,13 +282,15 @@ void App::draw_frame()
     /* Submit work chunk and present */
     update_data_ub_contents(n_swapchain_image);
 
-    present_queue_ptr->submit_command_buffer_with_signal_wait_semaphores(m_command_buffers[n_swapchain_image].get(),
-                                                                         1, /* n_semaphores_to_signal */
-                                                                        &curr_frame_signal_semaphore_ptr,
-                                                                         1, /* n_semaphores_to_wait_on */
-                                                                        &curr_frame_wait_semaphore_ptr,
-                                                                        &wait_stage_mask,
-                                                                         false /* should_block */);
+    present_queue_ptr->submit(
+        Anvil::SubmitInfo::create(m_command_buffers[n_swapchain_image].get(),
+                                  1, /* n_semaphores_to_signal */
+                                 &curr_frame_signal_semaphore_ptr,
+                                  1, /* n_semaphores_to_wait_on */
+                                 &curr_frame_wait_semaphore_ptr,
+                                 &wait_stage_mask,
+                                  false /* should_block */)
+    );
 
     present_queue_ptr->present(m_swapchain_ptr.get(),
                                n_swapchain_image,

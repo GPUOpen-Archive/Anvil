@@ -438,11 +438,15 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
             {
                 static const VkPipelineStageFlags dst_stage_mask(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
-                m_device_ptr->get_universal_queue(0)->submit_command_buffer_with_wait_semaphores(nullptr, /* cmd_buffer_ptr */
-                                                                                                 in_n_wait_semaphores,
-                                                                                                 in_wait_semaphore_ptrs,
-                                                                                                &dst_stage_mask,
-                                                                                                 true); /* should_block */
+                m_device_ptr->get_universal_queue(0)->submit(
+                    SubmitInfo::create(nullptr,
+                                       0,       /* in_n_semaphores_to_signal           */
+                                       nullptr, /* in_opt_semaphore_to_signal_ptrs_ptr */
+                                       in_n_wait_semaphores,
+                                       in_wait_semaphore_ptrs,
+                                      &dst_stage_mask,
+                                       true) /* in_should_block */
+                );
 
                 for (uint32_t n_presentation = 0;
                               n_presentation < 1;
@@ -630,77 +634,126 @@ void Anvil::Queue::present_lock_unlock(uint32_t                       in_n_swapc
 }
 
 /** Please see header for specification */
-void Anvil::Queue::submit_command_buffers(uint32_t                         in_n_command_buffers,
-                                          Anvil::CommandBufferBase* const* in_opt_cmd_buffer_ptrs,
-                                          uint32_t                         in_n_semaphores_to_signal,
-                                          Anvil::Semaphore* const*         in_opt_semaphore_to_signal_ptr_ptrs,
-                                          uint32_t                         in_n_semaphores_to_wait_on,
-                                          Anvil::Semaphore* const*         in_opt_semaphore_to_wait_on_ptr_ptrs,
-                                          const VkPipelineStageFlags*      in_opt_dst_stage_masks_to_wait_on_ptrs,
-                                          bool                             in_should_block,
-                                          Anvil::Fence*                    in_opt_fence_ptr)
+void Anvil::Queue::submit(const Anvil::SubmitInfo& in_submit_info)
 {
-    bool         needs_fence_reset(false);
-    VkResult     result           (VK_ERROR_INITIALIZATION_FAILED);
-    VkSubmitInfo submit_info;
+    Anvil::Fence*                      fence_ptr        (in_submit_info.get_fence() );
+    bool                               needs_fence_reset(false);
+    VkResult                           result           (VK_ERROR_INITIALIZATION_FAILED);
+    Anvil::StructChainer<VkSubmitInfo> struct_chainer;
 
-    std::vector<VkCommandBuffer> cmd_buffers_vk      (in_n_command_buffers);
-    std::vector<VkSemaphore>     signal_semaphores_vk(in_n_semaphores_to_signal);
-    std::vector<VkSemaphore>     wait_semaphores_vk  (in_n_semaphores_to_wait_on);
+    std::vector<VkCommandBuffer> cmd_buffers_vk      (in_submit_info.get_n_command_buffers  () );
+    std::vector<VkSemaphore>     signal_semaphores_vk(in_submit_info.get_n_signal_semaphores() );
+    std::vector<VkSemaphore>     wait_semaphores_vk  (in_submit_info.get_n_wait_semaphores  () );
 
     ANVIL_REDUNDANT_VARIABLE(result);
 
     /* Prepare for the submission */
-    for (uint32_t n_command_buffer = 0;
-                  n_command_buffer < in_n_command_buffers;
-                ++n_command_buffer)
+    switch (in_submit_info.get_type() )
     {
-        cmd_buffers_vk.at(n_command_buffer) = in_opt_cmd_buffer_ptrs[n_command_buffer]->get_command_buffer();
+        case SubmissionType::SGPU:
+        {
+            VkSubmitInfo submit_info;
+
+            for (uint32_t n_command_buffer = 0;
+                          n_command_buffer < in_submit_info.get_n_command_buffers();
+                        ++n_command_buffer)
+            {
+                cmd_buffers_vk.at(n_command_buffer) = in_submit_info.get_command_buffers_sgpu()[n_command_buffer]->get_command_buffer();
+            }
+
+            for (uint32_t n_signal_semaphore = 0;
+                          n_signal_semaphore < in_submit_info.get_n_signal_semaphores();
+                        ++n_signal_semaphore)
+            {
+                auto sem_ptr = in_submit_info.get_signal_semaphores_sgpu()[n_signal_semaphore];
+
+                signal_semaphores_vk.at(n_signal_semaphore) = sem_ptr->get_semaphore();
+            }
+
+            for (uint32_t n_wait_semaphore = 0;
+                          n_wait_semaphore < in_submit_info.get_n_wait_semaphores();
+                        ++n_wait_semaphore)
+            {
+                wait_semaphores_vk.at(n_wait_semaphore) = in_submit_info.get_wait_semaphores_sgpu()[n_wait_semaphore]->get_semaphore();
+            }
+
+            submit_info.commandBufferCount   = in_submit_info.get_n_command_buffers ();
+            submit_info.pCommandBuffers      = (in_submit_info.get_n_command_buffers()   != 0) ? &cmd_buffers_vk.at(0)       : nullptr;
+            submit_info.pNext                = nullptr;
+            submit_info.pSignalSemaphores    = (in_submit_info.get_n_signal_semaphores() != 0) ? &signal_semaphores_vk.at(0) : nullptr;
+            submit_info.pWaitDstStageMask    = in_submit_info.get_destination_stage_wait_masks();
+            submit_info.pWaitSemaphores      = (in_submit_info.get_n_wait_semaphores()   != 0) ? &wait_semaphores_vk.at(0)   : nullptr;
+            submit_info.signalSemaphoreCount = in_submit_info.get_n_signal_semaphores();
+            submit_info.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            submit_info.waitSemaphoreCount   = in_submit_info.get_n_wait_semaphores();
+
+            struct_chainer.append_struct(submit_info);
+
+            break;
+        }
+
+        default:
+        {
+            anvil_assert_fail();
+        }
     }
 
-    for (uint32_t n_signal_semaphore = 0;
-                  n_signal_semaphore < in_n_semaphores_to_signal;
-                ++n_signal_semaphore)
+    /* Any additional structs to chain? */
+    #if defined(_WIN32)
     {
-        auto sem_ptr = in_opt_semaphore_to_signal_ptr_ptrs[n_signal_semaphore];
+        const uint64_t* d3d12_fence_signal_semaphore_values_ptr = nullptr;
+        const uint64_t* d3d12_fence_wait_semaphore_values_ptr   = nullptr;
 
-        signal_semaphores_vk.at(n_signal_semaphore) = sem_ptr->get_semaphore();
+        if (in_submit_info.get_d3d12_fence_semaphore_values(&d3d12_fence_signal_semaphore_values_ptr,
+                                                            &d3d12_fence_wait_semaphore_values_ptr) )
+        {
+            VkD3D12FenceSubmitInfoKHR fence_info;
+
+            fence_info.pNext                      = nullptr;
+            fence_info.pSignalSemaphoreValues     = d3d12_fence_signal_semaphore_values_ptr;
+            fence_info.pWaitSemaphoreValues       = d3d12_fence_wait_semaphore_values_ptr;
+            fence_info.signalSemaphoreValuesCount = in_submit_info.get_n_signal_semaphores();
+            fence_info.sType                      = VK_STRUCTURE_TYPE_D3D12_FENCE_SUBMIT_INFO_KHR;
+            fence_info.waitSemaphoreValuesCount   = in_submit_info.get_n_wait_semaphores();
+
+            struct_chainer.append_struct(fence_info);
+        }
+    }
+    #endif
+
+    /* Go for it */
+    if (fence_ptr                         == nullptr &&
+        in_submit_info.get_should_block() )
+    {
+        fence_ptr         = m_submit_fence_ptr.get();
+        needs_fence_reset = true;
     }
 
-    for (uint32_t n_wait_semaphore = 0;
-                  n_wait_semaphore < in_n_semaphores_to_wait_on;
-                ++n_wait_semaphore)
+    switch (in_submit_info.get_type() )
     {
-        wait_semaphores_vk.at(n_wait_semaphore) = in_opt_semaphore_to_wait_on_ptr_ptrs[n_wait_semaphore]->get_semaphore();
-    }
+        case SubmissionType::SGPU:
+        {
+             submit_command_buffers_lock_unlock(in_submit_info.get_n_command_buffers     (),
+                                                in_submit_info.get_command_buffers_sgpu  (),
+                                                in_submit_info.get_n_signal_semaphores   (),
+                                                in_submit_info.get_signal_semaphores_sgpu(),
+                                                in_submit_info.get_n_wait_semaphores     (),
+                                                in_submit_info.get_wait_semaphores_sgpu  (),
+                                                fence_ptr,
+                                                true); /* in_should_lock */
 
-    submit_info.commandBufferCount   = in_n_command_buffers;
-    submit_info.pCommandBuffers      = (in_n_command_buffers != 0) ? &cmd_buffers_vk.at(0) : nullptr;
-    submit_info.pNext                = nullptr;
-    submit_info.pSignalSemaphores    = (in_n_semaphores_to_signal != 0) ? &signal_semaphores_vk.at(0) : nullptr;
-    submit_info.pWaitDstStageMask    = in_opt_dst_stage_masks_to_wait_on_ptrs;
-    submit_info.pWaitSemaphores      = (in_n_semaphores_to_wait_on != 0) ? &wait_semaphores_vk.at(0) : nullptr;
-    submit_info.signalSemaphoreCount = in_n_semaphores_to_signal;
-    submit_info.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.waitSemaphoreCount   = in_n_semaphores_to_wait_on;
+             break;
+        }
 
-     /* Go for it */
-     if (in_opt_fence_ptr == nullptr &&
-         in_should_block)
-     {
-         in_opt_fence_ptr  = m_submit_fence_ptr.get();
-         needs_fence_reset = true;
+        default:
+        {
+            anvil_assert_fail();
+        }
      }
 
-     submit_command_buffers_lock_unlock(in_n_command_buffers,
-                                        in_opt_cmd_buffer_ptrs,
-                                        in_n_semaphores_to_signal,
-                                        in_opt_semaphore_to_signal_ptr_ptrs,
-                                        in_n_semaphores_to_wait_on,
-                                        in_opt_semaphore_to_wait_on_ptr_ptrs,
-                                        in_opt_fence_ptr,
-                                        true); /* in_should_lock */
      {
+        auto chain_ptr = struct_chainer.create_chain();
+
         if (needs_fence_reset)
         {
             m_submit_fence_ptr->reset();
@@ -708,31 +761,44 @@ void Anvil::Queue::submit_command_buffers(uint32_t                         in_n_
 
          result = vkQueueSubmit(m_queue,
                                 1, /* submitCount */
-                               &submit_info,
-                               (in_opt_fence_ptr != nullptr) ? in_opt_fence_ptr->get_fence() 
-                                                             : VK_NULL_HANDLE);
+                                chain_ptr->get_root_struct(),
+                               (fence_ptr != nullptr) ? fence_ptr->get_fence() 
+                                                      : VK_NULL_HANDLE);
 
-        if (in_should_block)
+        if (in_submit_info.get_should_block() )
         {
             /* Wait till initialization finishes GPU-side */
             result = vkWaitForFences(m_device_ptr->get_device_vk(),
                                      1, /* fenceCount */
-                                     in_opt_fence_ptr->get_fence_ptr(),
+                                     fence_ptr->get_fence_ptr(),
                                      VK_TRUE,     /* waitAll */
                                      UINT64_MAX); /* timeout */
 
             anvil_assert_vk_call_succeeded(result);
         }
      }
-     submit_command_buffers_lock_unlock(in_n_command_buffers,
-                                        in_opt_cmd_buffer_ptrs,
-                                        in_n_semaphores_to_signal,
-                                        in_opt_semaphore_to_signal_ptr_ptrs,
-                                        in_n_semaphores_to_wait_on,
-                                        in_opt_semaphore_to_wait_on_ptr_ptrs,
-                                        in_opt_fence_ptr,
-                                        false); /* in_should_lock */
 
+     switch (in_submit_info.get_type() )
+     {
+         case SubmissionType::SGPU:
+         {
+             submit_command_buffers_lock_unlock(in_submit_info.get_n_command_buffers     (),
+                                                in_submit_info.get_command_buffers_sgpu  (),
+                                                in_submit_info.get_n_signal_semaphores   (),
+                                                in_submit_info.get_signal_semaphores_sgpu(),
+                                                in_submit_info.get_n_wait_semaphores     (),
+                                                in_submit_info.get_wait_semaphores_sgpu  (),
+                                                fence_ptr,
+                                                false); /* in_should_lock */
+
+             break;
+         }
+
+         default:
+         {
+             anvil_assert_fail();
+         }
+     }
 
      anvil_assert_vk_call_succeeded(result);
 }

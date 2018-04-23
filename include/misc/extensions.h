@@ -54,11 +54,23 @@ namespace Anvil
             ValueType khr_16bit_storage;
             ValueType khr_bind_memory2;
             ValueType khr_descriptor_update_template;
+            ValueType khr_external_fence;
             ValueType khr_external_memory;
+            ValueType khr_external_semaphore;
             ValueType khr_maintenance1;
             ValueType khr_maintenance3;
             ValueType khr_storage_buffer_storage_class;
             ValueType khr_swapchain;
+
+            #if defined(_WIN32)
+                ValueType khr_external_fence_win32;
+                ValueType khr_external_memory_win32;
+                ValueType khr_external_semaphore_win32;
+            #else
+                ValueType khr_external_fence_fd;
+                ValueType khr_external_memory_fd;
+                ValueType khr_external_semaphore_fd;
+            #endif
 
             std::map<std::string, ValueType> values_by_extension_names;
 
@@ -103,7 +115,18 @@ namespace Anvil
                     {ExtensionData(VK_EXT_SHADER_SUBGROUP_VOTE_EXTENSION_NAME,             &ext_shader_subgroup_vote)},
                     {ExtensionData(VK_KHR_16BIT_STORAGE_EXTENSION_NAME,                    &khr_16bit_storage)},
                     {ExtensionData(VK_KHR_DESCRIPTOR_UPDATE_TEMPLATE_EXTENSION_NAME,       &khr_descriptor_update_template)},
+                    {ExtensionData(VK_KHR_EXTERNAL_FENCE_EXTENSION_NAME,                   &khr_external_fence)},
                     {ExtensionData(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,                  &khr_external_memory)},
+                    {ExtensionData(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME,               &khr_external_semaphore)},
+                    #if defined(_WIN32)
+                        {ExtensionData(VK_KHR_EXTERNAL_FENCE_WIN32_EXTENSION_NAME,     &khr_external_fence_win32)},
+                        {ExtensionData(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME,    &khr_external_memory_win32)},
+                        {ExtensionData(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME, &khr_external_semaphore_win32)},
+                    #else
+                        {ExtensionData(VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME,     &khr_external_fence_fd)},
+                        {ExtensionData(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,    &khr_external_memory_fd)},
+                        {ExtensionData(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME, &khr_external_semaphore_fd)},
+                    #endif
                     {ExtensionData(VK_KHR_MAINTENANCE1_EXTENSION_NAME,                     &khr_maintenance1)},
                     {ExtensionData(VK_KHR_MAINTENANCE3_EXTENSION_NAME,                     &khr_maintenance3)},
                     {ExtensionData(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,                    &khr_bind_memory2)},
@@ -134,7 +157,9 @@ namespace Anvil
         template<typename ValueType>
         struct InstanceExtensions
         {
+            ValueType khr_external_fence_capabilities;
             ValueType khr_external_memory_capabilities;
+            ValueType khr_external_semaphore_capabilities;
             ValueType khr_get_physical_device_properties2;
             ValueType khr_surface;
 
@@ -166,7 +191,9 @@ namespace Anvil
 
                 std::vector<ExtensionData> recognized_extensions =
                 {
+                    {ExtensionData(VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME,      &khr_external_fence_capabilities)},
                     {ExtensionData(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME,     &khr_external_memory_capabilities)},
+                    {ExtensionData(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME,  &khr_external_semaphore_capabilities)},
                     {ExtensionData(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME, &khr_get_physical_device_properties2)},
                     {ExtensionData(VK_KHR_SURFACE_EXTENSION_NAME,                          &khr_surface)},
 
@@ -228,7 +255,18 @@ namespace Anvil
         virtual ValueType khr_16bit_storage                   () const = 0;
         virtual ValueType khr_bind_memory2                    () const = 0;
         virtual ValueType khr_descriptor_update_template      () const = 0;
+        virtual ValueType khr_external_fence                  () const = 0;
         virtual ValueType khr_external_memory                 () const = 0;
+        virtual ValueType khr_external_semaphore              () const = 0;
+        #if defined(_WIN32)
+            virtual ValueType khr_external_fence_win32    () const = 0;
+            virtual ValueType khr_external_memory_win32   () const = 0;
+            virtual ValueType khr_external_semaphore_win32() const = 0;
+        #else
+            virtual ValueType khr_external_fence_fd    () const = 0;
+            virtual ValueType khr_external_memory_fd   () const = 0;
+            virtual ValueType khr_external_semaphore_fd() const = 0;
+        #endif
         virtual ValueType khr_maintenance1                    () const = 0;
         virtual ValueType khr_maintenance3                    () const = 0;
         virtual ValueType khr_storage_buffer_storage_class    () const = 0;
@@ -246,7 +284,9 @@ namespace Anvil
             /* Stub */
         }
 
+        virtual bool khr_external_fence_capabilities    () const = 0;
         virtual bool khr_external_memory_capabilities   () const = 0;
+        virtual bool khr_external_semaphore_capabilities() const = 0;
         virtual bool khr_get_physical_device_properties2() const = 0;
         virtual bool khr_surface                        () const = 0;
 
@@ -500,12 +540,74 @@ namespace Anvil
             return m_device_extensions_ptr->khr_descriptor_update_template;
         }
 
+        ValueType khr_external_fence() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->khr_external_fence;
+        }
+
+        #if defined(_WIN32)
+            ValueType khr_external_fence_win32() const final
+            {
+                anvil_assert(m_expose_device_extensions);
+
+                return m_device_extensions_ptr->khr_external_fence_win32;
+            }
+        #else
+            ValueType khr_external_fence_fd() const final
+            {
+                anvil_assert(m_expose_device_extensions);
+
+                return m_device_extensions_ptr->khr_external_fence_fd;
+            }
+        #endif
+
         ValueType khr_external_memory() const final
         {
             anvil_assert(m_expose_device_extensions);
 
             return m_device_extensions_ptr->khr_external_memory;
         }
+
+        #if defined(_WIN32)
+            ValueType khr_external_memory_win32() const final
+            {
+                anvil_assert(m_expose_device_extensions);
+
+                return m_device_extensions_ptr->khr_external_memory_win32;
+            }
+        #else
+            ValueType khr_external_memory_fd() const final
+            {
+                anvil_assert(m_expose_device_extensions);
+
+                return m_device_extensions_ptr->khr_external_memory_fd;
+            }
+        #endif
+
+        ValueType khr_external_semaphore() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->khr_external_semaphore;
+        }
+
+        #if defined(_WIN32)
+            ValueType khr_external_semaphore_win32() const final
+            {
+                anvil_assert(m_expose_device_extensions);
+
+                return m_device_extensions_ptr->khr_external_semaphore_win32;
+            }
+        #else
+            ValueType khr_external_semaphore_fd() const final
+            {
+                anvil_assert(m_expose_device_extensions);
+
+                return m_device_extensions_ptr->khr_external_semaphore_fd;
+            }
+        #endif
 
         ValueType khr_maintenance1() const final
         {
@@ -537,11 +639,25 @@ namespace Anvil
 
         /* IExtensionInfoInstance */
 
+        ValueType khr_external_fence_capabilities() const final
+        {
+            anvil_assert(!m_expose_device_extensions);
+
+            return m_instance_extensions_ptr->khr_external_fence_capabilities;
+        }
+
         ValueType khr_external_memory_capabilities() const final
         {
             anvil_assert(!m_expose_device_extensions);
 
             return m_instance_extensions_ptr->khr_external_memory_capabilities;
+        }
+
+        ValueType khr_external_semaphore_capabilities() const final
+        {
+            anvil_assert(!m_expose_device_extensions);
+
+            return m_instance_extensions_ptr->khr_external_semaphore_capabilities;
         }
 
         ValueType khr_get_physical_device_properties2() const final
@@ -589,7 +705,7 @@ namespace Anvil
     {
         DeviceExtensionConfiguration()
         {
-            /* NOTE: By default, Anvil enables all extensions it has support implemented for, which are reported
+            /* NOTE: By default, Anvil enables nearly all extensions it has support implemented for, which are reported
              *       as available.
              */
             {
@@ -614,6 +730,9 @@ namespace Anvil
                 extension_status[VK_EXT_DEBUG_MARKER_EXTENSION_NAME] = EXTENSION_AVAILABILITY_IGNORE;
             }
             #endif
+
+            /* 3. Disable VK_AMD_shader_info by default. */
+            extension_status[VK_AMD_SHADER_INFO_EXTENSION_NAME] = EXTENSION_AVAILABILITY_IGNORE;
         }
  
         std::map<std::string, ExtensionAvailability> extension_status;

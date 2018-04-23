@@ -24,6 +24,7 @@
 #include "misc/debug.h"
 #include "misc/formats.h"
 #include "misc/image_create_info.h"
+#include "misc/memory_block_create_info.h"
 #include "misc/object_tracker.h"
 #include "misc/struct_chainer.h"
 #include "misc/swapchain_create_info.h"
@@ -125,13 +126,18 @@ void Anvil::Image::change_image_layout(Anvil::Queue*                  in_queue_p
 
     if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
     {
-        in_queue_ptr->submit_command_buffer_with_signal_wait_semaphores(transition_command_buffer_ptr.get(),
-                                                                        in_opt_n_set_semaphores,
-                                                                        in_opt_set_semaphore_ptrs,
-                                                                        in_opt_n_wait_semaphores,
-                                                                        in_opt_wait_semaphore_ptrs,
-                                                                        in_opt_wait_dst_stage_mask_ptrs,
-                                                                        true /* should_block */);
+        Anvil::CommandBufferBase* cmd_buffer_ptr = transition_command_buffer_ptr.get();
+
+        in_queue_ptr->submit(
+            Anvil::SubmitInfo::create(1, /* in_n_cmd_bufers */
+                                     &cmd_buffer_ptr,
+                                      in_opt_n_set_semaphores,
+                                      in_opt_set_semaphore_ptrs,
+                                      in_opt_n_wait_semaphores,
+                                      in_opt_wait_semaphore_ptrs,
+                                      in_opt_wait_dst_stage_mask_ptrs,
+                                      true /* should_block */)
+        );
     }
 }
 
@@ -183,23 +189,6 @@ Anvil::ImageUniquePtr Anvil::Image::create(Anvil::ImageCreateInfoUniquePtr in_cr
     }
 
     return result_ptr;
-}
-
-bool Anvil::Image::do_sanity_checks_for_external_memory_handle_types(const Anvil::ExternalMemoryHandleTypeFlags& in_external_memory_handle_types) const
-{
-    bool result = true;
-
-    if (in_external_memory_handle_types != 0)
-    {
-        if (!m_device_ptr->supports_external_memory_handles(in_external_memory_handle_types) )
-        {
-            anvil_assert(!m_device_ptr->supports_external_memory_handles(in_external_memory_handle_types) );
-
-            result = false;
-        }
-    }
-
-    return result;
 }
 
 /** Please see header for specification */
@@ -285,18 +274,13 @@ bool Anvil::Image::init()
 {
     std::vector<VkImageAspectFlags>         aspects_used;
     VkImageCreateFlags                      image_flags             = 0;
-    VkImageFormatProperties                 image_format_props;
+    Anvil::ImageFormatProperties            image_format_props;
     const auto                              memory_features         = m_create_info_ptr->get_memory_features();
     uint32_t                                n_queue_family_indices  = 0;
     uint32_t                                queue_family_indices[3];
     VkResult                                result                  = VK_ERROR_INITIALIZATION_FAILED;
-    bool                                    result_bool             = false;
+    bool                                    result_bool             = true;
     Anvil::StructChainer<VkImageCreateInfo> struct_chainer;
-
-    if (!do_sanity_checks_for_external_memory_handle_types(m_create_info_ptr->get_external_memory_handle_types() ))
-    {
-        goto end;
-    }
 
     if ((memory_features & MEMORY_FEATURE_FLAG_MAPPABLE) == 0)
     {
@@ -324,37 +308,35 @@ bool Anvil::Image::init()
                                                              &n_queue_family_indices);
 
     /* Is the requested texture size valid? */
-    result_bool = m_device_ptr->get_physical_device_image_format_properties(m_create_info_ptr->get_format     (),
-                                                                            m_create_info_ptr->get_type_vk    (),
-                                                                            m_create_info_ptr->get_tiling     (),
-                                                                            m_create_info_ptr->get_usage_flags(),
-                                                                            0, /* flags */
-                                                                            image_format_props);
-
-    if (!result_bool)
+    if (!m_device_ptr->get_physical_device_image_format_properties(Anvil::ImageFormatPropertiesQuery(m_create_info_ptr->get_format      (),
+                                                                                                     m_create_info_ptr->get_type_vk     (),
+                                                                                                     m_create_info_ptr->get_tiling      (),
+                                                                                                     m_create_info_ptr->get_usage_flags (),
+                                                                                                     m_create_info_ptr->get_create_flags() ),
+                                                                  &image_format_props) )
     {
-        anvil_assert(result_bool);
+        anvil_assert_fail();
 
         goto end;
     }
 
-    anvil_assert(m_create_info_ptr->get_base_mip_width() <= image_format_props.maxExtent.width);
+    anvil_assert(m_create_info_ptr->get_base_mip_width() <= image_format_props.max_extent.width);
 
     if (m_create_info_ptr->get_base_mip_height() > 1)
     {
-        anvil_assert(m_create_info_ptr->get_base_mip_height() <= image_format_props.maxExtent.height);
+        anvil_assert(m_create_info_ptr->get_base_mip_height() <= image_format_props.max_extent.height);
     }
 
     if (m_create_info_ptr->get_base_mip_depth() > 1)
     {
-        anvil_assert(m_create_info_ptr->get_base_mip_depth() <= image_format_props.maxExtent.depth);
+        anvil_assert(m_create_info_ptr->get_base_mip_depth() <= image_format_props.max_extent.depth);
     }
 
     anvil_assert(m_create_info_ptr->get_n_layers() >= 1);
 
     if (m_create_info_ptr->get_n_layers() > 1)
     {
-        anvil_assert(m_create_info_ptr->get_n_layers() <= image_format_props.maxArrayLayers);
+        anvil_assert(m_create_info_ptr->get_n_layers() <= image_format_props.n_max_array_layers);
     }
 
     /* If multisample image is requested, make sure the number of samples is supported. */
@@ -362,7 +344,7 @@ bool Anvil::Image::init()
 
     if (m_create_info_ptr->get_sample_count() > 1)
     {
-        anvil_assert((image_format_props.sampleCounts & m_create_info_ptr->get_sample_count() ) != 0);
+        anvil_assert((image_format_props.sample_counts & m_create_info_ptr->get_sample_count() ) != 0);
     }
 
     /* Create the image object */
@@ -454,7 +436,7 @@ bool Anvil::Image::init()
         VkExternalMemoryImageCreateInfoKHR external_memory_image_create_info;
         const auto                         handle_types                      = m_create_info_ptr->get_external_memory_handle_types();
 
-        external_memory_image_create_info.handleTypes = Anvil::Utils::convert_external_memory_handle_types_to_vk_external_memory_handle_type_flags(handle_types);
+        external_memory_image_create_info.handleTypes = Anvil::Utils::convert_external_memory_handle_type_bits_to_vk_external_memory_handle_type_flags(handle_types);
         external_memory_image_create_info.pNext       = nullptr;
         external_memory_image_create_info.sType       = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO_KHR;
 
@@ -593,11 +575,18 @@ bool Anvil::Image::init()
     if (m_create_info_ptr->get_type() == Anvil::ImageType::NONSPARSE_ALLOC)
     {
         /* Allocate memory for the image */
-        auto memory_block_ptr = Anvil::MemoryBlock::create(m_device_ptr,
-                                                           m_memory_reqs.memoryTypeBits,
-                                                           m_memory_reqs.size,
-                                                           m_create_info_ptr->get_memory_features(),
-                                                           Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe()) );
+        Anvil::MemoryBlockUniquePtr memory_block_ptr;
+
+        {
+            auto create_info_ptr = Anvil::MemoryBlockCreateInfo::create_regular(m_device_ptr,
+                                                                                m_memory_reqs.memoryTypeBits,
+                                                                                m_memory_reqs.size,
+                                                                                m_create_info_ptr->get_memory_features() );
+
+            create_info_ptr->set_mt_safety(Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe()) );
+
+            memory_block_ptr = Anvil::MemoryBlock::create(std::move(create_info_ptr) );
+        }
 
         if (memory_block_ptr == nullptr)
         {
@@ -1210,7 +1199,7 @@ void Anvil::Image::on_memory_backing_opaque_update(VkDeviceSize        in_resour
 
     if (in_memory_block_ptr != nullptr)
     {
-        anvil_assert(in_memory_block_ptr->get_size() <= in_memory_block_start_offset + in_size);
+        anvil_assert(in_memory_block_ptr->get_create_info_ptr()->get_size() <= in_memory_block_start_offset + in_size);
     }
 
     if (m_create_info_ptr->get_residency_scope() == Anvil::SPARSE_RESIDENCY_SCOPE_NONE)
@@ -1929,7 +1918,14 @@ void Anvil::Image::upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_p
         temp_cmdbuf_ptr->stop_recording();
 
         /* Execute the command buffer */
-        universal_queue_ptr->submit_command_buffer(temp_cmdbuf_ptr.get(),
-                                                   true /* should_block */);
+        {
+            Anvil::CommandBufferBase* cmd_buffer_raw_ptr = temp_cmdbuf_ptr.get();
+
+            universal_queue_ptr->submit(
+                Anvil::SubmitInfo::create_execute(&cmd_buffer_raw_ptr,
+                                                  1,    /* in_n_cmd_buffers */
+                                                  true) /* should_block     */
+            );
+        }
     }
 }

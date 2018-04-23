@@ -132,11 +132,15 @@ Anvil::BufferBarrier::~BufferBarrier()
     /* Stub */
 }
 
-Anvil::BufferMemoryBindingUpdate::BufferMemoryBindingUpdate()
+Anvil::BufferFormatProperties::BufferFormatProperties()
 {
-    buffer_ptr                   = nullptr;
-    memory_block_owned_by_buffer = false;
-    memory_block_ptr             = nullptr;
+    /* Stub */
+}
+
+Anvil::BufferFormatProperties::BufferFormatProperties(const ExternalMemoryProperties& in_external_handle_properties)
+    :external_handle_properties (in_external_handle_properties)
+{
+    /* Stub */
 }
 
 Anvil::DescriptorSetAllocation::DescriptorSetAllocation(const Anvil::DescriptorSetLayout* in_ds_layout_ptr)
@@ -329,6 +333,59 @@ Anvil::ExtensionKHRDeviceGroupCreationEntrypoints::ExtensionKHRDeviceGroupCreati
 {
     vkEnumeratePhysicalDeviceGroupsKHR = nullptr;
 }
+
+Anvil::ExtensionKHRExternalFenceCapabilitiesEntrypoints::ExtensionKHRExternalFenceCapabilitiesEntrypoints()
+{
+    vkGetPhysicalDeviceExternalFencePropertiesKHR = nullptr;
+}
+
+Anvil::ExtensionKHRExternalMemoryCapabilitiesEntrypoints::ExtensionKHRExternalMemoryCapabilitiesEntrypoints()
+{
+    vkGetPhysicalDeviceExternalBufferPropertiesKHR = nullptr;
+}
+
+Anvil::ExtensionKHRExternalSemaphoreCapabilitiesEntrypoints::ExtensionKHRExternalSemaphoreCapabilitiesEntrypoints()
+{
+    vkGetPhysicalDeviceExternalSemaphorePropertiesKHR = nullptr;
+}
+
+#ifdef _WIN32
+    Anvil::ExtensionKHRExternalFenceWin32Entrypoints::ExtensionKHRExternalFenceWin32Entrypoints()
+    {
+        vkGetFenceWin32HandleKHR    = nullptr;
+        vkImportFenceWin32HandleKHR = nullptr;
+    }
+
+    Anvil::ExtensionKHRExternalMemoryWin32Entrypoints::ExtensionKHRExternalMemoryWin32Entrypoints()
+    {
+        vkGetMemoryWin32HandleKHR           = nullptr;
+        vkGetMemoryWin32HandlePropertiesKHR = nullptr;
+    }
+
+    Anvil::ExtensionKHRExternalSemaphoreWin32Entrypoints::ExtensionKHRExternalSemaphoreWin32Entrypoints()
+    {
+        vkGetSemaphoreWin32HandleKHR    = nullptr;
+        vkImportSemaphoreWin32HandleKHR = nullptr;
+    }
+#else
+    Anvil::ExtensionKHRExternalFenceFdEntrypoints::ExtensionKHRExternalFenceFdEntrypoints()
+    {
+        vkGetFenceFdKHR    = nullptr;
+        vkImportFenceFdKHR = nullptr;
+    }
+
+    Anvil::ExtensionKHRExternalMemoryFdEntrypoints::ExtensionKHRExternalMemoryFdEntrypoints()
+    {
+        vkGetMemoryFdKHR           = nullptr;
+        vkGetMemoryFdPropertiesKHR = nullptr;
+    }
+
+    Anvil::ExtensionKHRExternalSemaphoreFdEntrypoints::ExtensionKHRExternalSemaphoreFdEntrypoints()
+    {
+        vkGetSemaphoreFdKHR    = nullptr;
+        vkImportSemaphoreFdKHR = nullptr;
+    }
+#endif
 
 Anvil::ExtensionKHRMaintenance1Entrypoints::ExtensionKHRMaintenance1Entrypoints()
 {
@@ -567,6 +624,65 @@ bool Anvil::EXTDescriptorIndexingProperties::operator==(const EXTDescriptorIndex
             shader_uniform_buffer_array_non_uniform_indexing_native      == in_props.shader_uniform_buffer_array_non_uniform_indexing_native);
 }
 
+Anvil::ExternalFenceProperties::ExternalFenceProperties()
+{
+    compatible_external_handle_types           = 0;
+    export_from_imported_external_handle_types = 0;
+    is_exportable                              = false;
+    is_importable                              = false;
+}
+
+Anvil::ExternalFenceProperties::ExternalFenceProperties(const VkExternalFencePropertiesKHR& in_external_fence_props)
+{
+    compatible_external_handle_types           = Anvil::Utils::convert_vk_external_fence_handle_type_flags_to_external_fence_handle_type_bits(in_external_fence_props.compatibleHandleTypes);
+    export_from_imported_external_handle_types = Anvil::Utils::convert_vk_external_fence_handle_type_flags_to_external_fence_handle_type_bits(in_external_fence_props.exportFromImportedHandleTypes);
+    is_exportable                              = (in_external_fence_props.externalFenceFeatures & VK_EXTERNAL_FENCE_FEATURE_EXPORTABLE_BIT_KHR) != 0;
+    is_importable                              = (in_external_fence_props.externalFenceFeatures & VK_EXTERNAL_FENCE_FEATURE_IMPORTABLE_BIT_KHR) != 0;
+}
+
+Anvil::ExternalMemoryProperties::ExternalMemoryProperties()
+{
+    compatible_external_handle_types           = 0;
+    export_from_imported_external_handle_types = 0;
+    is_exportable                              = false;
+    is_importable                              = false;
+}
+
+Anvil::ExternalMemoryProperties::ExternalMemoryProperties(const VkExternalMemoryPropertiesKHR& in_external_memory_props)
+{
+    compatible_external_handle_types           = Anvil::Utils::convert_vk_external_memory_handle_type_flags_to_external_memory_handle_type_bits(in_external_memory_props.compatibleHandleTypes);
+    export_from_imported_external_handle_types = Anvil::Utils::convert_vk_external_memory_handle_type_flags_to_external_memory_handle_type_bits(in_external_memory_props.exportFromImportedHandleTypes);
+    is_exportable                              = (in_external_memory_props.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT_KHR) != 0;
+    is_importable                              = (in_external_memory_props.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT_KHR) != 0;
+}
+
+Anvil::ExternalSemaphoreProperties::ExternalSemaphoreProperties()
+{
+    compatible_external_handle_types           = 0;
+    export_from_imported_external_handle_types = 0;
+    is_exportable                              = false;
+    is_importable                              = false;
+}
+
+Anvil::ExternalSemaphoreProperties::ExternalSemaphoreProperties(const VkExternalSemaphorePropertiesKHR& in_external_semaphore_props)
+{
+    compatible_external_handle_types           = Anvil::Utils::convert_vk_external_semaphore_handle_type_flags_to_external_semaphore_handle_type_bits(in_external_semaphore_props.compatibleHandleTypes);
+    export_from_imported_external_handle_types = Anvil::Utils::convert_vk_external_semaphore_handle_type_flags_to_external_semaphore_handle_type_bits(in_external_semaphore_props.exportFromImportedHandleTypes);
+    is_exportable                              = (in_external_semaphore_props.externalSemaphoreFeatures & VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT_KHR) != 0;
+    is_importable                              = (in_external_semaphore_props.externalSemaphoreFeatures & VK_EXTERNAL_SEMAPHORE_FEATURE_IMPORTABLE_BIT_KHR) != 0;
+}
+
+Anvil::FenceProperties::FenceProperties()
+{
+    /* Stub */
+}
+
+Anvil::FenceProperties::FenceProperties(const ExternalFenceProperties& in_external_fence_properties)
+    :external_fence_properties(in_external_fence_properties)
+{
+    /* Stub */
+}
+
 Anvil::FormatProperties::FormatProperties()
 {
     memset(this,
@@ -576,19 +692,29 @@ Anvil::FormatProperties::FormatProperties()
 
 Anvil::FormatProperties::FormatProperties(const VkFormatProperties& in_format_props)
 {
-    buffer_capabilities                  = in_format_props.bufferFeatures;
-    linear_tiling_capabilities           = in_format_props.linearTilingFeatures;
-    optimal_tiling_capabilities          = in_format_props.optimalTilingFeatures;
-    supports_amd_texture_gather_bias_lod = false;
+    buffer_capabilities         = in_format_props.bufferFeatures;
+    linear_tiling_capabilities  = in_format_props.linearTilingFeatures;
+    optimal_tiling_capabilities = in_format_props.optimalTilingFeatures;
 }
 
-/** Please see header for specification */
-bool Anvil::operator==(const Anvil::FormatProperties& in1,
-                       const Anvil::FormatProperties& in2)
+Anvil::ImageFormatProperties::ImageFormatProperties()
 {
-    return memcmp(&in1,
-                  &in2,
-                  sizeof(Anvil::FormatProperties) ) == 0;
+    memset(this,
+           0,
+           sizeof(*this) );
+}
+
+Anvil::ImageFormatProperties::ImageFormatProperties(const VkImageFormatProperties&  in_image_format_props,
+                                                    const bool&                     in_supports_amd_texture_gather_bias_lod,
+                                                    const ExternalMemoryProperties& in_external_handle_properties)
+{
+    external_handle_properties           = in_external_handle_properties;
+    max_extent                           = in_image_format_props.maxExtent;
+    max_resource_size                    = in_image_format_props.maxResourceSize;
+    n_max_array_layers                   = in_image_format_props.maxArrayLayers;
+    n_max_mip_levels                     = in_image_format_props.maxMipLevels;
+    sample_counts                        = in_image_format_props.sampleCounts;
+    supports_amd_texture_gather_bias_lod = in_supports_amd_texture_gather_bias_lod;
 }
 
 /** Please see header for specification */
@@ -1404,14 +1530,16 @@ Anvil::PhysicalDeviceProperties::PhysicalDeviceProperties()
     khr_maintenance3_properties_ptr        = nullptr;
 }
 
-Anvil::PhysicalDeviceProperties::PhysicalDeviceProperties(const AMDShaderCoreProperties*          in_amd_shader_core_properties_ptr,
-                                                          const PhysicalDevicePropertiesCoreVK10* in_core_vk1_0_properties_ptr,
-                                                          const EXTDescriptorIndexingProperties*  in_ext_descriptor_indexing_properties_ptr,
-                                                          const KHRMaintenance3Properties*        in_khr_maintenance3_properties_ptr)
-    :amd_shader_core_properties_ptr        (in_amd_shader_core_properties_ptr),
-     core_vk1_0_properties_ptr             (in_core_vk1_0_properties_ptr),
-     ext_descriptor_indexing_properties_ptr(in_ext_descriptor_indexing_properties_ptr),
-     khr_maintenance3_properties_ptr       (in_khr_maintenance3_properties_ptr)
+Anvil::PhysicalDeviceProperties::PhysicalDeviceProperties(const AMDShaderCoreProperties*                                        in_amd_shader_core_properties_ptr,
+                                                          const PhysicalDevicePropertiesCoreVK10*                               in_core_vk1_0_properties_ptr,
+                                                          const EXTDescriptorIndexingProperties*                                in_ext_descriptor_indexing_properties_ptr,
+                                                          const Anvil::KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties* in_khr_external_memory_caps_physical_device_id_props_ptr,
+                                                          const KHRMaintenance3Properties*                                      in_khr_maintenance3_properties_ptr)
+    :amd_shader_core_properties_ptr                                    (in_amd_shader_core_properties_ptr),
+     core_vk1_0_properties_ptr                                         (in_core_vk1_0_properties_ptr),
+     ext_descriptor_indexing_properties_ptr                            (in_ext_descriptor_indexing_properties_ptr),
+     khr_external_memory_capabilities_physical_device_id_properties_ptr(in_khr_external_memory_caps_physical_device_id_props_ptr),
+     khr_maintenance3_properties_ptr                                   (in_khr_maintenance3_properties_ptr)
 {
     /* Stub */
 }
@@ -1830,6 +1958,40 @@ bool Anvil::PhysicalDeviceLimits::operator==(const Anvil::PhysicalDeviceLimits& 
     return result;
 }
 
+Anvil::KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties::KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties()
+{
+    device_luid_valid = false;
+    device_node_mask  = 0;
+
+    memset(device_luid,
+           0,
+           VK_LUID_SIZE);
+    memset(device_uuid,
+           0,
+           VK_UUID_SIZE);
+    memset(driver_uuid,
+           0,
+           VK_UUID_SIZE);
+}
+
+Anvil::KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties::KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties(const VkPhysicalDeviceIDPropertiesKHR& in_properties)
+{
+    anvil_assert(in_properties.pNext == nullptr);
+
+    device_luid_valid = VK_BOOL32_TO_BOOL(in_properties.deviceLUIDValid);
+    device_node_mask  = in_properties.deviceNodeMask;
+
+    memcpy(device_luid,
+           in_properties.deviceLUID,
+           VK_LUID_SIZE);
+    memcpy(device_uuid,
+           in_properties.deviceUUID,
+           VK_UUID_SIZE);
+    memcpy(driver_uuid,
+           in_properties.driverUUID,
+           VK_UUID_SIZE);
+}
+
 Anvil::PhysicalDevicePropertiesCoreVK10::PhysicalDevicePropertiesCoreVK10(const VkPhysicalDeviceProperties& in_physical_device_properties)
      :api_version      (in_physical_device_properties.apiVersion),
       device_id        (in_physical_device_properties.deviceID),
@@ -1936,6 +2098,19 @@ bool Anvil::operator==(const Anvil::QueueFamilyInfo& in1,
             in1.min_image_transfer_granularity.width  == in2.min_image_transfer_granularity.width  &&
             in1.n_queues                              == in2.n_queues                              &&
             in1.n_timestamp_bits                      == in2.n_timestamp_bits);
+}
+
+/** Please see header for specification */
+Anvil::SemaphoreProperties::SemaphoreProperties()
+{
+    /* Stub */
+}
+
+/** Please see header for specification */
+Anvil::SemaphoreProperties::SemaphoreProperties(const ExternalSemaphoreProperties& in_external_semaphore_properties)
+    :external_semaphore_properties(in_external_semaphore_properties)
+{
+    /* Stub */
 }
 
 /** Please see header for specification */
@@ -2082,7 +2257,7 @@ Anvil::PhysicalDeviceFeaturesCoreVK10::PhysicalDeviceFeaturesCoreVK10()
      independent_blend                           (false),
      inherited_queries                           (false),
      large_points                                (false),
-     logic_ip                                    (false),
+     logic_op                                    (false),
      multi_draw_indirect                         (false),
      multi_viewport                              (false),
      occlusion_query_precise                     (false),
@@ -2142,7 +2317,7 @@ Anvil::PhysicalDeviceFeaturesCoreVK10::PhysicalDeviceFeaturesCoreVK10(const VkPh
      independent_blend                           (VK_BOOL32_TO_BOOL(in_physical_device_features.independentBlend) ),
      inherited_queries                           (VK_BOOL32_TO_BOOL(in_physical_device_features.inheritedQueries) ),
      large_points                                (VK_BOOL32_TO_BOOL(in_physical_device_features.largePoints) ),
-     logic_ip                                    (VK_BOOL32_TO_BOOL(in_physical_device_features.logicOp) ),
+     logic_op                                    (VK_BOOL32_TO_BOOL(in_physical_device_features.logicOp) ),
      multi_draw_indirect                         (VK_BOOL32_TO_BOOL(in_physical_device_features.multiDrawIndirect) ),
      multi_viewport                              (VK_BOOL32_TO_BOOL(in_physical_device_features.multiViewport) ),
      occlusion_query_precise                     (VK_BOOL32_TO_BOOL(in_physical_device_features.occlusionQueryPrecise) ),
@@ -2205,7 +2380,7 @@ VkPhysicalDeviceFeatures Anvil::PhysicalDeviceFeaturesCoreVK10::get_vk_physical_
     result.independentBlend                        = BOOL_TO_VK_BOOL32(independent_blend);
     result.inheritedQueries                        = BOOL_TO_VK_BOOL32(inherited_queries);
     result.largePoints                             = BOOL_TO_VK_BOOL32(large_points);
-    result.logicOp                                 = BOOL_TO_VK_BOOL32(logic_ip);
+    result.logicOp                                 = BOOL_TO_VK_BOOL32(logic_op);
     result.multiDrawIndirect                       = BOOL_TO_VK_BOOL32(multi_draw_indirect);
     result.multiViewport                           = BOOL_TO_VK_BOOL32(multi_viewport);
     result.occlusionQueryPrecise                   = BOOL_TO_VK_BOOL32(occlusion_query_precise);
@@ -2266,7 +2441,7 @@ bool Anvil::PhysicalDeviceFeaturesCoreVK10::operator==(const Anvil::PhysicalDevi
            (independent_blend                            == in_data.independent_blend)                            &&
            (inherited_queries                            == in_data.inherited_queries)                            &&
            (large_points                                 == in_data.large_points)                                 &&
-           (logic_ip                                     == in_data.logic_ip)                                     &&
+           (logic_op                                     == in_data.logic_op)                                     &&
            (multi_draw_indirect                          == in_data.multi_draw_indirect)                          &&
            (multi_viewport                               == in_data.multi_viewport)                               &&
            (occlusion_query_precise                      == in_data.occlusion_query_precise)                      &&
@@ -2354,3 +2529,343 @@ bool Anvil::PhysicalDeviceProperties::operator==(const PhysicalDeviceProperties&
            ext_descriptor_indexing_properties_match &&
            khr_maintenance3_properties_match;
 }
+
+Anvil::SubmitInfo::SubmitInfo(uint32_t                         in_n_command_buffers,
+                              Anvil::CommandBufferBase* const* in_opt_cmd_buffer_ptrs_ptr,
+                              uint32_t                         in_n_semaphores_to_signal,
+                              Anvil::Semaphore* const*         in_opt_semaphore_to_signal_ptrs_ptr,
+                              uint32_t                         in_n_semaphores_to_wait_on,
+                              Anvil::Semaphore* const*         in_opt_semaphore_to_wait_on_ptrs_ptr,
+                              const VkPipelineStageFlags*      in_opt_dst_stage_masks_to_wait_on_ptrs,
+                              bool                             in_should_block,
+                              Anvil::Fence*                    in_opt_fence_ptr)
+    :command_buffers_sgpu_ptr               (in_opt_cmd_buffer_ptrs_ptr),
+#if defined(_WIN32)
+     d3d12_fence_signal_semaphore_values_ptr(nullptr),
+     d3d12_fence_wait_semaphore_values_ptr  (nullptr),
+#endif
+     dst_stage_wait_masks_ptr               (in_opt_dst_stage_masks_to_wait_on_ptrs),
+     fence_ptr                              (in_opt_fence_ptr),
+     n_command_buffers                      (in_n_command_buffers),
+     n_signal_semaphores                    (in_n_semaphores_to_signal),
+     n_wait_semaphores                      (in_n_semaphores_to_wait_on),
+     signal_semaphores_sgpu_ptr             (in_opt_semaphore_to_signal_ptrs_ptr),
+     should_block                           (in_should_block),
+     type                                   (SubmissionType::SGPU),
+     wait_semaphores_sgpu_ptr               (in_opt_semaphore_to_wait_on_ptrs_ptr)
+{
+    anvil_assert((in_n_command_buffers == 0)                                          ||
+                 (in_n_command_buffers != 0 && in_opt_cmd_buffer_ptrs_ptr != nullptr) );
+
+    anvil_assert((in_n_semaphores_to_signal == 0)                                                   ||
+                 (in_n_semaphores_to_signal != 0 && in_opt_semaphore_to_signal_ptrs_ptr != nullptr) );
+
+    anvil_assert((in_n_semaphores_to_wait_on == 0)                                                                                                         ||
+                 (in_n_semaphores_to_wait_on != 0 && in_opt_semaphore_to_wait_on_ptrs_ptr != nullptr && in_opt_dst_stage_masks_to_wait_on_ptrs != nullptr) );
+}
+
+Anvil::SubmitInfo::SubmitInfo(Anvil::CommandBufferBase*   in_cmd_buffer_ptr,
+                              uint32_t                    in_n_semaphores_to_signal,
+                              Anvil::Semaphore* const*    in_opt_semaphore_to_signal_ptrs_ptr,
+                              uint32_t                    in_n_semaphores_to_wait_on,
+                              Anvil::Semaphore* const*    in_opt_semaphore_to_wait_on_ptrs_ptr,
+                              const VkPipelineStageFlags* in_opt_dst_stage_masks_to_wait_on_ptrs,
+                              bool                        in_should_block,
+                              Anvil::Fence*               in_opt_fence_ptr)
+    :command_buffers_sgpu_ptr               (nullptr),
+#if defined(_WIN32)
+     d3d12_fence_signal_semaphore_values_ptr(nullptr),
+     d3d12_fence_wait_semaphore_values_ptr  (nullptr),
+#endif
+     dst_stage_wait_masks_ptr               (in_opt_dst_stage_masks_to_wait_on_ptrs),
+     fence_ptr                              (in_opt_fence_ptr),
+     n_command_buffers                      ((in_cmd_buffer_ptr != nullptr) ? 1 : 0),
+     n_signal_semaphores                    (in_n_semaphores_to_signal),
+     n_wait_semaphores                      (in_n_semaphores_to_wait_on),
+     signal_semaphores_sgpu_ptr             (in_opt_semaphore_to_signal_ptrs_ptr),
+     should_block                           (in_should_block),
+     type                                   (SubmissionType::SGPU),
+     wait_semaphores_sgpu_ptr               (in_opt_semaphore_to_wait_on_ptrs_ptr)
+{
+    anvil_assert((in_n_semaphores_to_signal == 0)                                                   ||
+                 (in_n_semaphores_to_signal != 0 && in_opt_semaphore_to_signal_ptrs_ptr != nullptr) );
+
+    anvil_assert((in_n_semaphores_to_wait_on == 0)                                                                                                         ||
+                 (in_n_semaphores_to_wait_on != 0 && in_opt_semaphore_to_wait_on_ptrs_ptr != nullptr && in_opt_dst_stage_masks_to_wait_on_ptrs != nullptr) );
+
+    helper_cmd_buffer_raw_ptr = in_cmd_buffer_ptr;
+    command_buffers_sgpu_ptr  = &helper_cmd_buffer_raw_ptr;
+}
+
+Anvil::SubmitInfo Anvil::SubmitInfo::create(Anvil::CommandBufferBase*   in_opt_cmd_buffer_ptr,
+                                            uint32_t                    in_n_semaphores_to_signal,
+                                            Anvil::Semaphore* const*    in_opt_semaphore_to_signal_ptrs_ptr,
+                                            uint32_t                    in_n_semaphores_to_wait_on,
+                                            Anvil::Semaphore* const*    in_opt_semaphore_to_wait_on_ptrs_ptr,
+                                            const VkPipelineStageFlags* in_opt_dst_stage_masks_to_wait_on_ptrs,
+                                            bool                        in_should_block,
+                                            Anvil::Fence*               in_opt_fence_ptr)
+{
+    return Anvil::SubmitInfo(in_opt_cmd_buffer_ptr,
+                             in_n_semaphores_to_signal,
+                             in_opt_semaphore_to_signal_ptrs_ptr,
+                             in_n_semaphores_to_wait_on,
+                             in_opt_semaphore_to_wait_on_ptrs_ptr,
+                             in_opt_dst_stage_masks_to_wait_on_ptrs,
+                             in_should_block,
+                             in_opt_fence_ptr);
+}
+
+Anvil::SubmitInfo Anvil::SubmitInfo::create(uint32_t                         in_n_cmd_buffers,
+                                            Anvil::CommandBufferBase* const* in_opt_cmd_buffer_ptrs_ptr,
+                                            uint32_t                         in_n_semaphores_to_signal,
+                                            Anvil::Semaphore* const*         in_opt_semaphore_to_signal_ptrs_ptr,
+                                            uint32_t                         in_n_semaphores_to_wait_on,
+                                            Anvil::Semaphore* const*         in_opt_semaphore_to_wait_on_ptrs_ptr,
+                                            const VkPipelineStageFlags*      in_opt_dst_stage_masks_to_wait_on_ptrs,
+                                            bool                             in_should_block,
+                                            Anvil::Fence*                    in_opt_fence_ptr)
+{
+    return Anvil::SubmitInfo(in_n_cmd_buffers,
+                             in_opt_cmd_buffer_ptrs_ptr,
+                             in_n_semaphores_to_signal,
+                             in_opt_semaphore_to_signal_ptrs_ptr,
+                             in_n_semaphores_to_wait_on,
+                             in_opt_semaphore_to_wait_on_ptrs_ptr,
+                             in_opt_dst_stage_masks_to_wait_on_ptrs,
+                             in_should_block,
+                             in_opt_fence_ptr);
+}
+
+Anvil::SubmitInfo Anvil::SubmitInfo::create_execute(Anvil::CommandBufferBase* in_cmd_buffer_ptr,
+                                                    bool                      in_should_block,
+                                                    Anvil::Fence*             in_opt_fence_ptr)
+{
+    anvil_assert(in_cmd_buffer_ptr != nullptr);
+
+    return Anvil::SubmitInfo(in_cmd_buffer_ptr,
+                             0,       /* in_n_semaphores_to_signal              */
+                             nullptr, /* in_opt_semaphore_to_signal_ptrs_ptr    */
+                             0,       /* in_n_semaphores_to_wait_on             */
+                             nullptr, /* in_opt_semaphore_to_wait_on_ptrs_ptr   */
+                             nullptr, /* in_opt_dst_stage_masks_to_wait_on_ptrs */
+                             in_should_block,
+                             in_opt_fence_ptr);
+}
+
+Anvil::SubmitInfo Anvil::SubmitInfo::create_execute(Anvil::CommandBufferBase* const* in_cmd_buffer_ptrs_ptr,
+                                                    uint32_t                         in_n_cmd_buffers,
+                                                    bool                             in_should_block,
+                                                    Anvil::Fence*                    in_opt_fence_ptr)
+{
+    anvil_assert(in_cmd_buffer_ptrs_ptr != nullptr);
+    anvil_assert(in_n_cmd_buffers       >  0);
+
+    return Anvil::SubmitInfo(in_n_cmd_buffers,
+                             in_cmd_buffer_ptrs_ptr,
+                             0,       /* in_n_semaphores_to_signal              */
+                             nullptr, /* in_opt_semaphore_to_signal_ptrs_ptr    */
+                             0,       /* in_n_semaphores_to_wait_on             */
+                             nullptr, /* in_opt_semaphore_to_wait_on_ptrs_ptr   */
+                             nullptr, /* in_opt_dst_stage_masks_to_wait_on_ptrs */
+                             in_should_block,
+                             in_opt_fence_ptr);
+}
+
+Anvil::SubmitInfo Anvil::SubmitInfo::create_execute_signal(Anvil::CommandBufferBase* in_cmd_buffer_ptr,
+                                                           uint32_t                  in_n_semaphores_to_signal,
+                                                           Anvil::Semaphore* const*  in_semaphore_to_signal_ptrs_ptr,
+                                                           bool                      in_should_block,
+                                                           Anvil::Fence*             in_opt_fence_ptr)
+{
+    anvil_assert(in_cmd_buffer_ptr               != nullptr);
+    anvil_assert(in_semaphore_to_signal_ptrs_ptr != nullptr);
+
+    return Anvil::SubmitInfo(in_cmd_buffer_ptr,
+                             in_n_semaphores_to_signal,
+                             in_semaphore_to_signal_ptrs_ptr,
+                             0,       /* in_n_semaphores_to_wait_on             */
+                             nullptr, /* in_opt_semaphore_to_wait_on_ptrs_ptr   */
+                             nullptr, /* in_opt_dst_stage_masks_to_wait_on_ptrs */
+                             in_should_block,
+                             in_opt_fence_ptr);
+}
+
+Anvil::SubmitInfo Anvil::SubmitInfo::create_execute_signal(Anvil::CommandBufferBase* const* in_cmd_buffer_ptrs_ptr,
+                                                           uint32_t                         in_n_cmd_buffers,
+                                                           uint32_t                         in_n_semaphores_to_signal,
+                                                           Anvil::Semaphore* const*         in_semaphore_to_signal_ptrs_ptr,
+                                                           bool                             in_should_block,
+                                                           Anvil::Fence*                    in_opt_fence_ptr)
+{
+    anvil_assert(in_cmd_buffer_ptrs_ptr          != nullptr);
+    anvil_assert(in_n_cmd_buffers                >  0);
+    anvil_assert(in_semaphore_to_signal_ptrs_ptr != nullptr);
+
+    return Anvil::SubmitInfo(in_n_cmd_buffers,
+                             in_cmd_buffer_ptrs_ptr,
+                             in_n_semaphores_to_signal,
+                             in_semaphore_to_signal_ptrs_ptr,
+                             0,       /* in_n_semaphores_to_wait_on             */
+                             nullptr, /* in_opt_semaphore_to_wait_on_ptrs_ptr   */
+                             nullptr, /* in_opt_dst_stage_masks_to_wait_on_ptrs */
+                             in_should_block,
+                             in_opt_fence_ptr);
+}
+
+Anvil::SubmitInfo Anvil::SubmitInfo::create_signal(uint32_t                 in_n_semaphores_to_signal,
+                                                   Anvil::Semaphore* const* in_semaphore_to_signal_ptrs_ptr,
+                                                   Anvil::Fence*            in_opt_fence_ptr)
+{
+    anvil_assert(in_n_semaphores_to_signal       >  0);
+    anvil_assert(in_semaphore_to_signal_ptrs_ptr != nullptr);
+
+    return Anvil::SubmitInfo(0,       /* in_n_command_buffers */
+                             nullptr, /* in_cmd_buffer_ptr    */
+                             in_n_semaphores_to_signal,
+                             in_semaphore_to_signal_ptrs_ptr,
+                             0,       /* in_n_semaphores_to_wait_on         */
+                             nullptr, /* in_semaphore_to_wait_on_ptrs_ptr   */
+                             nullptr, /* in_dst_stage_masks_to_wait_on_ptrs */
+                             true,    /* in_should_block                    */
+                             in_opt_fence_ptr);
+}
+
+Anvil::SubmitInfo Anvil::SubmitInfo::create_signal_wait(uint32_t                    in_n_semaphores_to_signal,
+                                                        Anvil::Semaphore* const*    in_semaphore_to_signal_ptrs_ptr,
+                                                        uint32_t                    in_n_semaphores_to_wait_on,
+                                                        Anvil::Semaphore* const*    in_semaphore_to_wait_on_ptrs_ptr,
+                                                        const VkPipelineStageFlags* in_dst_stage_masks_to_wait_on_ptrs,
+                                                        bool                        in_should_block,
+                                                        Anvil::Fence*               in_opt_fence_ptr)
+{
+    anvil_assert(in_n_semaphores_to_signal        >  0);
+    anvil_assert(in_semaphore_to_signal_ptrs_ptr  != nullptr);
+    anvil_assert(in_n_semaphores_to_wait_on       >  0);
+    anvil_assert(in_semaphore_to_wait_on_ptrs_ptr != nullptr);
+
+    return Anvil::SubmitInfo(0,       /* in_n_command_buffers */
+                             nullptr, /* in_cmd_buffer_ptr    */
+                             in_n_semaphores_to_signal,
+                             in_semaphore_to_signal_ptrs_ptr,
+                             in_n_semaphores_to_wait_on,
+                             in_semaphore_to_wait_on_ptrs_ptr,
+                             in_dst_stage_masks_to_wait_on_ptrs,
+                             in_should_block,
+                             in_opt_fence_ptr);
+}
+
+Anvil::SubmitInfo Anvil::SubmitInfo::create_wait(uint32_t                         in_n_semaphores_to_wait_on,
+                                                 Anvil::Semaphore* const*         in_semaphore_to_wait_on_ptrs_ptr,
+                                                 const VkPipelineStageFlags*      in_dst_stage_masks_to_wait_on_ptrs,
+                                                 Anvil::Fence*                    in_opt_fence_ptr)
+{
+    anvil_assert(in_dst_stage_masks_to_wait_on_ptrs != nullptr);
+    anvil_assert(in_n_semaphores_to_wait_on         >  0);
+    anvil_assert(in_semaphore_to_wait_on_ptrs_ptr   != nullptr);
+
+    return Anvil::SubmitInfo(0,       /* in_n_command_buffers            */
+                             nullptr, /* in_cmd_buffer_ptr               */
+                             0,       /* in_n_semaphores_to_signal       */
+                             nullptr, /* in_semaphore_to_signal_ptrs_ptr */
+                             in_n_semaphores_to_wait_on,
+                             in_semaphore_to_wait_on_ptrs_ptr,
+                             in_dst_stage_masks_to_wait_on_ptrs,
+                             true,    /* in_should_block */
+                             in_opt_fence_ptr);
+}
+
+Anvil::SubmitInfo Anvil::SubmitInfo::create_wait_execute(Anvil::CommandBufferBase*   in_cmd_buffer_ptr,
+                                                         uint32_t                    in_n_semaphores_to_wait_on,
+                                                         Anvil::Semaphore* const*    in_semaphore_to_wait_on_ptrs_ptr,
+                                                         const VkPipelineStageFlags* in_dst_stage_masks_to_wait_on_ptrs,
+                                                         bool                        in_should_block,
+                                                         Anvil::Fence*               in_opt_fence_ptr)
+{
+    anvil_assert(in_cmd_buffer_ptr                  != nullptr);
+    anvil_assert(in_dst_stage_masks_to_wait_on_ptrs != nullptr);
+    anvil_assert(in_semaphore_to_wait_on_ptrs_ptr   != nullptr);
+
+    return Anvil::SubmitInfo(in_cmd_buffer_ptr,
+                             0,       /* in_n_semaphores_to_signal           */
+                             nullptr, /* in_opt_semaphore_to_signal_ptrs_ptr */
+                             in_n_semaphores_to_wait_on,
+                             in_semaphore_to_wait_on_ptrs_ptr,
+                             in_dst_stage_masks_to_wait_on_ptrs,
+                             in_should_block,
+                             in_opt_fence_ptr);
+}
+
+Anvil::SubmitInfo Anvil::SubmitInfo::create_wait_execute(Anvil::CommandBufferBase* const* in_cmd_buffer_ptrs_ptr,
+                                                         uint32_t                         in_n_cmd_buffers,
+                                                         uint32_t                         in_n_semaphores_to_wait_on,
+                                                         Anvil::Semaphore* const*         in_semaphore_to_wait_on_ptrs_ptr,
+                                                         const VkPipelineStageFlags*      in_dst_stage_masks_to_wait_on_ptrs,
+                                                         bool                             in_should_block,
+                                                         Anvil::Fence*                    in_opt_fence_ptr)
+{
+    anvil_assert(in_cmd_buffer_ptrs_ptr             != nullptr);
+    anvil_assert(in_n_cmd_buffers                   >  0);
+    anvil_assert(in_dst_stage_masks_to_wait_on_ptrs != nullptr);
+    anvil_assert(in_semaphore_to_wait_on_ptrs_ptr   != nullptr);
+
+    return Anvil::SubmitInfo(in_n_cmd_buffers,
+                             in_cmd_buffer_ptrs_ptr,
+                             0,       /* in_n_semaphores_to_signal           */
+                             nullptr, /* in_opt_semaphore_to_signal_ptrs_ptr */
+                             in_n_semaphores_to_wait_on,
+                             in_semaphore_to_wait_on_ptrs_ptr,
+                             in_dst_stage_masks_to_wait_on_ptrs,
+                             in_should_block,
+                             in_opt_fence_ptr);
+}
+
+Anvil::SubmitInfo Anvil::SubmitInfo::create_wait_execute_signal(Anvil::CommandBufferBase*   in_cmd_buffer_ptr,
+                                                                uint32_t                    in_n_semaphores_to_signal,
+                                                                Anvil::Semaphore* const*    in_semaphore_to_signal_ptrs_ptr,
+                                                                uint32_t                    in_n_semaphores_to_wait_on,
+                                                                Anvil::Semaphore* const*    in_semaphore_to_wait_on_ptrs_ptr,
+                                                                const VkPipelineStageFlags* in_dst_stage_masks_to_wait_on_ptrs,
+                                                                bool                        in_should_block,
+                                                                Anvil::Fence*               in_opt_fence_ptr)
+{
+    anvil_assert(in_cmd_buffer_ptr                != nullptr);
+    anvil_assert(in_semaphore_to_signal_ptrs_ptr  != nullptr);
+    anvil_assert(in_semaphore_to_wait_on_ptrs_ptr != nullptr);
+
+    return Anvil::SubmitInfo(in_cmd_buffer_ptr,
+                             in_n_semaphores_to_signal,
+                             in_semaphore_to_signal_ptrs_ptr,
+                             in_n_semaphores_to_wait_on,
+                             in_semaphore_to_wait_on_ptrs_ptr,
+                             in_dst_stage_masks_to_wait_on_ptrs,
+                             in_should_block,
+                             in_opt_fence_ptr);
+}
+
+Anvil::SubmitInfo Anvil::SubmitInfo::create_wait_execute_signal(Anvil::CommandBufferBase* const* in_cmd_buffer_ptrs_ptr,
+                                                                uint32_t                         in_n_cmd_buffers,
+                                                                uint32_t                         in_n_semaphores_to_signal,
+                                                                Anvil::Semaphore* const*         in_semaphore_to_signal_ptrs_ptr,
+                                                                uint32_t                         in_n_semaphores_to_wait_on,
+                                                                Anvil::Semaphore* const*         in_semaphore_to_wait_on_ptrs_ptr,
+                                                                const VkPipelineStageFlags*      in_dst_stage_masks_to_wait_on_ptrs,
+                                                                bool                             in_should_block,
+                                                                Anvil::Fence*                    in_opt_fence_ptr)
+{
+    anvil_assert(in_cmd_buffer_ptrs_ptr           != nullptr);
+    anvil_assert(in_n_cmd_buffers                 >  0);
+    anvil_assert(in_semaphore_to_signal_ptrs_ptr  != nullptr);
+    anvil_assert(in_semaphore_to_wait_on_ptrs_ptr != nullptr);
+
+    return Anvil::SubmitInfo(in_n_cmd_buffers,
+                             in_cmd_buffer_ptrs_ptr,
+                             in_n_semaphores_to_signal,
+                             in_semaphore_to_signal_ptrs_ptr,
+                             in_n_semaphores_to_wait_on,
+                             in_semaphore_to_wait_on_ptrs_ptr,
+                             in_dst_stage_masks_to_wait_on_ptrs,
+                             in_should_block,
+                             in_opt_fence_ptr);
+}
+

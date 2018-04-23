@@ -24,6 +24,48 @@
 
 namespace Anvil
 {
+    typedef struct ExternalFenceProperties
+    {
+        Anvil::ExternalFenceHandleTypeBits compatible_external_handle_types;
+        Anvil::ExternalFenceHandleTypeBits export_from_imported_external_handle_types;
+
+        bool is_exportable;
+        bool is_importable;
+
+        /* Dummy constructor */
+        ExternalFenceProperties();
+
+        ExternalFenceProperties(const VkExternalFencePropertiesKHR& in_external_memory_props);
+    } ExternalFenceProperties;
+
+    typedef struct ExternalMemoryProperties
+    {
+        Anvil::ExternalMemoryHandleTypeBits compatible_external_handle_types;
+        Anvil::ExternalMemoryHandleTypeBits export_from_imported_external_handle_types;
+
+        bool is_exportable;
+        bool is_importable;
+
+        /* Dummy constructor */
+        ExternalMemoryProperties();
+
+        ExternalMemoryProperties(const VkExternalMemoryPropertiesKHR& in_external_memory_props);
+    } ExternalMemoryProperties;
+
+    typedef struct ExternalSemaphoreProperties
+    {
+        Anvil::ExternalSemaphoreHandleTypeBits compatible_external_handle_types;
+        Anvil::ExternalSemaphoreHandleTypeBits export_from_imported_external_handle_types;
+
+        bool is_exportable;
+        bool is_importable;
+
+        /* Dummy constructor */
+        ExternalSemaphoreProperties();
+
+        ExternalSemaphoreProperties(const VkExternalSemaphorePropertiesKHR& in_external_memory_props);
+    } ExternalSemaphoreProperties;
+
     /* Holds shader core properties pertaining to a physical device */
     typedef struct AMDShaderCoreProperties
     {
@@ -124,17 +166,54 @@ namespace Anvil
         BufferBarrier& operator=(const BufferBarrier&);
     } BufferBarrier;
 
-    typedef struct BufferMemoryBindingUpdate
+    typedef struct BufferFormatProperties
     {
-        Anvil::Buffer*      buffer_ptr;
-        bool                memory_block_owned_by_buffer;
-        Anvil::MemoryBlock* memory_block_ptr;
+        ExternalMemoryProperties external_handle_properties;
 
-        /* May either be empty or hold the physical device, from which the logical device has been created */
-        std::vector<const Anvil::PhysicalDevice*> physical_devices;
+        BufferFormatProperties();
+        BufferFormatProperties(const ExternalMemoryProperties& in_external_handle_properties);
 
-        BufferMemoryBindingUpdate();
-    } BufferMemoryBindingUpdate;
+        BufferFormatProperties           (const BufferFormatProperties&) = default;
+        BufferFormatProperties& operator=(const BufferFormatProperties&) = default;
+    } BufferFormatProperties;
+
+    typedef struct BufferFormatPropertiesQuery
+    {
+        const Anvil::BufferCreateFlags           create_flags;
+        const Anvil::ExternalMemoryHandleTypeBit external_memory_handle_type;
+        const VkFormat                           format;
+        const VkBufferUsageFlags                 usage_flags;
+
+        explicit BufferFormatPropertiesQuery(const Anvil::BufferCreateFlags            in_create_flags,
+                                             const Anvil::ExternalMemoryHandleTypeBit& in_external_memory_handle_type,
+                                             const VkFormat&                           in_format,
+                                             const VkBufferUsageFlags&                 in_usage_flags)
+            :create_flags               (in_create_flags),
+             external_memory_handle_type(in_external_memory_handle_type),
+             format                     (in_format),
+             usage_flags                (in_usage_flags)
+        {
+            /* Stub */
+        }
+
+        BufferFormatPropertiesQuery           (const BufferFormatPropertiesQuery& in_query) = default;
+        BufferFormatPropertiesQuery& operator=(const BufferFormatPropertiesQuery& in_query) = delete;
+    } BufferFormatPropertiesQuery;
+
+    #if defined(_WIN32)
+        typedef struct ExternalNTHandleInfo
+        {
+            DWORD                      access;
+            const SECURITY_ATTRIBUTES* attributes_ptr;
+            std::wstring               name;
+
+            ExternalNTHandleInfo()
+            {
+                access         = 0;
+                attributes_ptr = nullptr;
+            }
+        } ExternalNTHandleInfo;
+    #endif
 
     typedef struct EXTDescriptorIndexingFeatures
     {
@@ -307,6 +386,77 @@ namespace Anvil
       ExtensionKHRDescriptorUpdateTemplateEntrypoints();
     } ExtensionKHRDescriptorUpdateTemplateEntrypoints;
 
+    typedef struct ExtensionKHRExternalFenceCapabilitiesEntrypoints
+    {
+        PFN_vkGetPhysicalDeviceExternalFencePropertiesKHR vkGetPhysicalDeviceExternalFencePropertiesKHR;
+
+        ExtensionKHRExternalFenceCapabilitiesEntrypoints();
+    } ExtensionKHRExternalFenceCapabilitiesEntrypoints;
+
+    typedef struct ExtensionKHRExternalMemoryCapabilitiesEntrypoints
+    {
+        PFN_vkGetPhysicalDeviceExternalBufferPropertiesKHR vkGetPhysicalDeviceExternalBufferPropertiesKHR;
+
+        ExtensionKHRExternalMemoryCapabilitiesEntrypoints();
+    } ExtensionKHRExternalMemoryCapabilitiesEntrypoints;
+
+    typedef struct ExtensionKHRExternalSemaphoreCapabilitiesEntrypoints
+    {
+        PFN_vkGetPhysicalDeviceExternalSemaphorePropertiesKHR vkGetPhysicalDeviceExternalSemaphorePropertiesKHR;
+
+        ExtensionKHRExternalSemaphoreCapabilitiesEntrypoints();
+    } ExtensionKHRExternalSemaphoreCapabilitiesEntrypoints;
+
+    #if defined(_WIN32)
+        typedef struct ExtensionKHRExternalFenceWin32Entrypoints
+        {
+            PFN_vkGetFenceWin32HandleKHR    vkGetFenceWin32HandleKHR;
+            PFN_vkImportFenceWin32HandleKHR vkImportFenceWin32HandleKHR;
+
+            ExtensionKHRExternalFenceWin32Entrypoints();
+        } ExtensionKHRExternalFenceWin32Entrypoints;
+
+        typedef struct ExtensionKHRExternalMemoryWin32Entrypoints
+        {
+            PFN_vkGetMemoryWin32HandleKHR           vkGetMemoryWin32HandleKHR;
+            PFN_vkGetMemoryWin32HandlePropertiesKHR vkGetMemoryWin32HandlePropertiesKHR;
+
+            ExtensionKHRExternalMemoryWin32Entrypoints();
+        } ExtensionKHRExternalMemoryWin32Entrypoints;
+
+        typedef struct ExtensionKHRExternalSemaphoreWin32Entrypoints
+        {
+            PFN_vkGetSemaphoreWin32HandleKHR    vkGetSemaphoreWin32HandleKHR;
+            PFN_vkImportSemaphoreWin32HandleKHR vkImportSemaphoreWin32HandleKHR;
+
+            ExtensionKHRExternalSemaphoreWin32Entrypoints();
+        } ExtensionKHRExternalSemaphoreWin32Entrypoints;
+#else
+        typedef struct ExtensionKHRExternalFenceFdEntrypoints
+        {
+            PFN_vkGetFenceFdKHR    vkGetFenceFdKHR;
+            PFN_vkImportFenceFdKHR vkImportFenceFdKHR;
+
+            ExtensionKHRExternalFenceFdEntrypoints();
+        } ExtensionKHRExternalFenceFdEntrypoints;
+
+        typedef struct ExtensionKHRExternalMemoryFdEntrypoints
+        {
+            PFN_vkGetMemoryFdKHR           vkGetMemoryFdKHR;
+            PFN_vkGetMemoryFdPropertiesKHR vkGetMemoryFdPropertiesKHR;
+
+            ExtensionKHRExternalMemoryFdEntrypoints();
+        } ExtensionKHRExternalMemoryFdEntrypoints;
+
+        typedef struct ExtensionKHRExternalSemaphoreFdEntrypoints
+        {
+            PFN_vkGetSemaphoreFdKHR    vkGetSemaphoreFdKHR;
+            PFN_vkImportSemaphoreFdKHR vkImportSemaphoreFdKHR;
+
+            ExtensionKHRExternalSemaphoreFdEntrypoints();
+        } ExtensionKHRExternalSemaphoreFdEntrypoints;
+#endif
+
     typedef struct ExtensionKHRGetPhysicalDeviceProperties2
     {
         PFN_vkGetPhysicalDeviceFeatures2KHR                    vkGetPhysicalDeviceFeatures2KHR;
@@ -384,28 +534,104 @@ namespace Anvil
         ExtensionKHRDeviceGroupCreationEntrypoints();
     } ExtensionKHRDeviceGroupCreationEntrypoints;
 
-    /** Holds driver-specific format capabilities */
+    typedef struct FenceProperties
+    {
+        ExternalFenceProperties external_fence_properties;
+
+        /* Dummy constructor */
+        FenceProperties();
+
+        FenceProperties(const ExternalFenceProperties& in_external_fence_properties);
+    } FenceProperties;
+
+    typedef struct FencePropertiesQuery
+    {
+        const Anvil::ExternalFenceHandleTypeBit external_fence_handle_type;
+
+        explicit FencePropertiesQuery(const Anvil::ExternalFenceHandleTypeBit& in_external_fence_handle_type)
+            :external_fence_handle_type(in_external_fence_handle_type)
+        {
+            /* Stub */
+        }
+
+        FencePropertiesQuery           (const FencePropertiesQuery&) = default;
+        FencePropertiesQuery& operator=(const FencePropertiesQuery&) = delete;
+    } FencePropertiesQuery;
+
     typedef struct FormatProperties
     {
         VkFormatFeatureFlagsVariable(buffer_capabilities);
         VkFormatFeatureFlagsVariable(linear_tiling_capabilities);
         VkFormatFeatureFlagsVariable(optimal_tiling_capabilities);
 
+        FormatProperties();
+        FormatProperties(const VkFormatProperties& in_format_props);
+    } FormatProperties;
+
+    typedef struct ImageFormatProperties
+    {
+        ExternalMemoryProperties external_handle_properties;
+
+        VkExtent3D         max_extent;
+        VkDeviceSize       max_resource_size;
+        uint32_t           n_max_array_layers;
+        uint32_t           n_max_mip_levels;
+        VkSampleCountFlags sample_counts;
+
         /* Tells whether the format can be used with functions introduced in VK_AMD_texture_gather_bias_lod */
         bool supports_amd_texture_gather_bias_lod;
 
+
         /** Dummy constructor */
-        FormatProperties();
+        ImageFormatProperties();
 
         /** Constructor. Initializes the instance using data provided by the driver.
          *
          *  @param in_format_props Vulkan structure to use for initialization.
          **/
-        FormatProperties(const VkFormatProperties& in_format_props);
-    } FormatProperties;
+        ImageFormatProperties(const VkImageFormatProperties&   in_image_format_props,
+                              const bool&                      in_supports_amd_texture_gather_bias_lod,
+                              const ExternalMemoryProperties& in_external_handle_properties);
+    } ImageFormatProperties;
 
-    extern bool operator==(const FormatProperties& in1,
-                           const FormatProperties& in2);
+    typedef struct ImageFormatPropertiesQuery
+    {
+        /* TODO
+         *
+         * NOTE: In order to retrieve information regarding device's external handle support for a particular image
+         *       configuration, make sure to call ImageFormatPropertiesQuery::set_external_memory_handle_type(), prior
+         *       to passing the struct instance as an arg to get_image_format_properties().
+         */
+        explicit ImageFormatPropertiesQuery(const VkFormat&           in_format,
+                                            const VkImageType&        in_image_type,
+                                            const VkImageTiling&      in_tiling,
+                                            const VkImageUsageFlags&  in_usage_flags,
+                                            const VkImageCreateFlags& in_create_flags)
+            :create_flags               (in_create_flags),
+             external_memory_handle_type(EXTERNAL_MEMORY_HANDLE_TYPE_NONE),
+             format                     (in_format),
+             image_type                 (in_image_type),
+             tiling                     (in_tiling),
+             usage_flags                (in_usage_flags)
+        {
+            /* Stub */
+        }
+
+        void set_external_memory_handle_type(const Anvil::ExternalMemoryHandleTypeBit& in_external_memory_handle_type)
+        {
+            external_memory_handle_type = in_external_memory_handle_type;
+        }
+
+        const VkImageCreateFlags           create_flags;
+        Anvil::ExternalMemoryHandleTypeBit external_memory_handle_type;
+        const VkFormat                     format;
+        const VkImageType                  image_type;
+        const VkImageTiling                tiling;
+        const VkImageUsageFlags            usage_flags;
+
+        ImageFormatPropertiesQuery           (const ImageFormatPropertiesQuery& in_query) = default;
+        ImageFormatPropertiesQuery& operator=(const ImageFormatPropertiesQuery& in_query) = delete;
+    } ImageFormatPropertiesQuery;
 
     /** Describes an image memory barrier. */
     typedef struct ImageBarrier
@@ -487,6 +713,24 @@ namespace Anvil
         ImageBarrier& operator=(const ImageBarrier&);
     } ImageBarrier;
 
+    typedef struct ExternalMemoryHandleImportInfo
+    {
+        ExternalHandleType handle;
+
+        #if defined(_WIN32)
+            std::wstring name;
+        #endif
+
+        ExternalMemoryHandleImportInfo()
+        {
+            #if defined(_WIN32)
+                handle = nullptr;
+            #else
+                handle = -1;
+            #endif
+        }
+    } ExternalMemoryHandleImportInfo;
+
     /* Holds 16-bit storage features */
     typedef struct KHR16BitStorageFeatures
     {
@@ -502,6 +746,20 @@ namespace Anvil
 
         bool operator==(const KHR16BitStorageFeatures& in_features) const;
     } KHR16BitStorageFeatures;
+
+    typedef struct KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties
+    {
+        uint8_t  device_luid[VK_LUID_SIZE];
+        bool     device_luid_valid;
+
+        uint8_t  device_uuid[VK_UUID_SIZE];
+        uint8_t  driver_uuid[VK_UUID_SIZE];
+
+        uint32_t device_node_mask;
+
+        KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties();
+        KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties(const VkPhysicalDeviceIDPropertiesKHR& in_properties);
+    } KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties;
 
     typedef struct KHRMaintenance3Properties
     {
@@ -1015,7 +1273,7 @@ namespace Anvil
         bool independent_blend;
         bool inherited_queries;
         bool large_points;
-        bool logic_ip;
+        bool logic_op;
         bool multi_draw_indirect;
         bool multi_viewport;
         bool occlusion_query_precise;
@@ -1229,16 +1487,18 @@ namespace Anvil
 
     typedef struct PhysicalDeviceProperties
     {
-        const AMDShaderCoreProperties*          amd_shader_core_properties_ptr;
-        const PhysicalDevicePropertiesCoreVK10* core_vk1_0_properties_ptr;
-        const EXTDescriptorIndexingProperties*  ext_descriptor_indexing_properties_ptr;
-        const KHRMaintenance3Properties*        khr_maintenance3_properties_ptr;
+        const AMDShaderCoreProperties*                                 amd_shader_core_properties_ptr;
+        const PhysicalDevicePropertiesCoreVK10*                        core_vk1_0_properties_ptr;
+        const EXTDescriptorIndexingProperties*                         ext_descriptor_indexing_properties_ptr;
+        const KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties* khr_external_memory_capabilities_physical_device_id_properties_ptr;
+        const KHRMaintenance3Properties*                               khr_maintenance3_properties_ptr;
 
         PhysicalDeviceProperties();
-        PhysicalDeviceProperties(const AMDShaderCoreProperties*          in_amd_shader_core_properties_ptr,
-                                 const PhysicalDevicePropertiesCoreVK10* in_core_vk1_0_properties_ptr,
-                                 const EXTDescriptorIndexingProperties*  in_ext_descriptor_indexing_properties_ptr,
-                                 const KHRMaintenance3Properties*        in_khr_maintenance3_properties_ptr);
+        PhysicalDeviceProperties(const AMDShaderCoreProperties*                                 in_amd_shader_core_properties_ptr,
+                                 const PhysicalDevicePropertiesCoreVK10*                        in_core_vk1_0_properties_ptr,
+                                 const EXTDescriptorIndexingProperties*                         in_ext_descriptor_indexing_properties_ptr,
+                                 const KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties* in_khr_external_memory_caps_physical_device_id_props_ptr,
+                                 const KHRMaintenance3Properties*                               in_khr_maintenance3_properties_ptr);
 
         bool operator==(const PhysicalDeviceProperties& in_props) const;
     } PhysicalDeviceProperties;
@@ -1295,6 +1555,30 @@ namespace Anvil
 
         explicit PhysicalDeviceGroup();
     } PhysicalDeviceGroup;
+
+    typedef struct SemaphoreProperties
+    {
+        ExternalSemaphoreProperties external_semaphore_properties;
+
+        /* Dummy constructor */
+        SemaphoreProperties();
+
+        SemaphoreProperties(const ExternalSemaphoreProperties& in_external_semaphore_properties);
+    } SemaphoreProperties;
+
+    typedef struct SemaphorePropertiesQuery
+    {
+        const Anvil::ExternalSemaphoreHandleTypeBit external_semaphore_handle_type;
+
+        explicit SemaphorePropertiesQuery(const Anvil::ExternalSemaphoreHandleTypeBit& in_external_semaphore_handle_type)
+            :external_semaphore_handle_type(in_external_semaphore_handle_type)
+        {
+            /* Stub */
+        }
+
+        SemaphorePropertiesQuery           (const SemaphorePropertiesQuery&) = default;
+        SemaphorePropertiesQuery& operator=(const SemaphorePropertiesQuery&) = delete;
+    } SemaphorePropertiesQuery;
 
     /** Holds all information related to a specific shader module stage entry-point. */
     typedef struct ShaderModuleStageEntryPoint
@@ -1366,6 +1650,296 @@ namespace Anvil
     } SpecializationConstant;
 
     typedef std::vector<SpecializationConstant> SpecializationConstants;
+
+    typedef enum class SubmissionType
+    {
+        SGPU
+    } SubmissionType;
+
+    typedef struct SubmitInfo
+    {
+        /** Creates a submission info which, when submitted, waits on the semaphores specified by the user,
+         *  executes user-defined command buffers, and then signals the semaphores passed by arguments.
+         *  If a non-nullptr fence is specified, the function will also wait on the call to finish GPU-side
+         *  before returning.
+         *
+         *  It is valid to specify 0 command buffers or signal/wait semaphores, in which case
+         *  these steps will be skipped.
+         *
+         *  If @param in_should_block is true and @param in_opt_fence_ptr is nullptr, the function will create
+         *  a new fence, wait on it, and then release it prior to leaving. This may come at a performance cost.
+         *
+         *  NOTE: By default, the following values are associated with a new SubmitInfo instance:
+         *
+         *  - D3D12 fence submit info: none
+         *
+         *  To adjust these settings, please use corresponding set_..() functions, prior to passing the structure over to Queue::submit().
+         *
+         *
+         *  @param in_n_command_buffers                   Number of command buffers under @param in_opt_cmd_buffer_ptrs
+         *                                                which should be executed. May be 0.
+         *  @param in_opt_cmd_buffer_ptrs_ptr             Ptr to an array of command buffers to execute. Can be nullptr if
+         *                                                @param n_command_buffers is 0.
+         *  @param in_n_semaphores_to_signal              Number of semaphores to signal after command buffers finish
+         *                                                executing. May be 0.
+         *  @param in_opt_semaphore_to_signal_ptrs_ptr    Ptr to an array of semaphores to signal after execution. May be nullptr if
+         *                                                @param n_semaphores_to_signal is 0.
+         *  @param in_n_semaphores_to_wait_on             Number of semaphores to wait on before executing command buffers.
+         *                                                May be 0.
+         *  @param in_opt_semaphore_to_wait_on_ptrs_ptr   Ptr to an array of semaphores to wait on prior to execution. May be nullptr
+         *                                                if @param in_n_semaphores_to_wait_on is 0.
+         *  @param in_opt_dst_stage_masks_to_wait_on_ptrs Array of size @param in_n_semaphores_to_wait_on, specifying stages
+         *                                                at which the wait ops should be performed. May be nullptr if
+         *                                                @param n_semaphores_to_wait_on is 0.
+         *  @param in_should_block                        true if the function should wait for the scheduled commands to
+         *                                                finish executing, false otherwise.
+         *  @param in_opt_fence_ptr                       Fence to use when submitting the comamnd buffers to the queue.
+         *                                                The fence will be waited on if @param in_should_block is true.
+         *                                                If @param in_should_block is false, the fence will be passed at
+         *                                                submit call time, but will not be waited on.
+         *
+         *  @param in_command_buffer_submissions          TODO
+         *  @param in_semaphores_to_signal_ptr            TODO
+         *  @param in_semaphores_to_wait_on_ptr           TODO
+         **/
+
+        static SubmitInfo create(Anvil::CommandBufferBase*        in_opt_cmd_buffer_ptr,
+                                 uint32_t                         in_n_semaphores_to_signal,
+                                 Anvil::Semaphore* const*         in_opt_semaphore_to_signal_ptrs_ptr,
+                                 uint32_t                         in_n_semaphores_to_wait_on,
+                                 Anvil::Semaphore* const*         in_opt_semaphore_to_wait_on_ptrs_ptr,
+                                 const VkPipelineStageFlags*      in_opt_dst_stage_masks_to_wait_on_ptrs,
+                                 bool                             in_should_block,
+                                 Anvil::Fence*                    in_opt_fence_ptr = nullptr);
+        static SubmitInfo create(uint32_t                         in_n_cmd_buffers,
+                                 Anvil::CommandBufferBase* const* in_opt_cmd_buffer_ptrs_ptr,
+                                 uint32_t                         in_n_semaphores_to_signal,
+                                 Anvil::Semaphore* const*         in_opt_semaphore_to_signal_ptrs_ptr,
+                                 uint32_t                         in_n_semaphores_to_wait_on,
+                                 Anvil::Semaphore* const*         in_opt_semaphore_to_wait_on_ptrs_ptr,
+                                 const VkPipelineStageFlags*      in_opt_dst_stage_masks_to_wait_on_ptrs,
+                                 bool                             in_should_block,
+                                 Anvil::Fence*                    in_opt_fence_ptr = nullptr);
+
+        static SubmitInfo create_execute(Anvil::CommandBufferBase*        in_cmd_buffer_ptr,
+                                         bool                             in_should_block,
+                                         Anvil::Fence*                    in_opt_fence_ptr = nullptr);
+        static SubmitInfo create_execute(Anvil::CommandBufferBase* const* in_cmd_buffer_ptrs_ptr,
+                                         uint32_t                         in_n_cmd_buffers,
+                                         bool                             in_should_block,
+                                         Anvil::Fence*                    in_opt_fence_ptr = nullptr);
+
+        static SubmitInfo create_execute_signal(Anvil::CommandBufferBase*        in_cmd_buffer_ptr,
+                                                uint32_t                         in_n_semaphores_to_signal,
+                                                Anvil::Semaphore* const*         in_semaphore_to_signal_ptrs_ptr,
+                                                bool                             in_should_block,
+                                                Anvil::Fence*                    in_opt_fence_ptr = nullptr);
+        static SubmitInfo create_execute_signal(Anvil::CommandBufferBase* const* in_cmd_buffer_ptrs_ptr,
+                                                uint32_t                         in_n_cmd_buffers,
+                                                uint32_t                         in_n_semaphores_to_signal,
+                                                Anvil::Semaphore* const*         in_semaphore_to_signal_ptrs_ptr,
+                                                bool                             in_should_block,
+                                                Anvil::Fence*                    in_opt_fence_ptr = nullptr);
+
+        /** TODO
+         *
+         *  NOTE: This function always blocks.
+         */
+        static SubmitInfo create_signal(uint32_t                 in_n_semaphores_to_signal,
+                                        Anvil::Semaphore* const* in_semaphore_to_signal_ptrs_ptr,
+                                        Anvil::Fence*            in_opt_fence_ptr = nullptr);
+
+        static SubmitInfo create_signal_wait(uint32_t                    in_n_semaphores_to_signal,
+                                             Anvil::Semaphore* const*    in_semaphore_to_signal_ptrs_ptr,
+                                             uint32_t                    in_n_semaphores_to_wait_on,
+                                             Anvil::Semaphore* const*    in_semaphore_to_wait_on_ptrs_ptr,
+                                             const VkPipelineStageFlags* in_dst_stage_masks_to_wait_on_ptrs,
+                                             bool                        in_should_block,
+                                             Anvil::Fence*               in_opt_fence_ptr = nullptr);
+
+        /** TODO
+         *
+         *  NOTE: This function always blocks.
+         */
+        static SubmitInfo create_wait(uint32_t                         in_n_semaphores_to_wait_on,
+                                      Anvil::Semaphore* const*         in_semaphore_to_wait_on_ptrs_ptr,
+                                      const VkPipelineStageFlags*      in_dst_stage_masks_to_wait_on_ptrs,
+                                      Anvil::Fence*                    in_opt_fence_ptr = nullptr);
+
+        static SubmitInfo create_wait_execute(Anvil::CommandBufferBase*        in_cmd_buffer_ptr,
+                                              uint32_t                         in_n_semaphores_to_wait_on,
+                                              Anvil::Semaphore* const*         in_semaphore_to_wait_on_ptrs_ptr,
+                                              const VkPipelineStageFlags*      in_dst_stage_masks_to_wait_on_ptrs,
+                                              bool                             in_should_block,
+                                              Anvil::Fence*                    in_opt_fence_ptr = nullptr);
+        static SubmitInfo create_wait_execute(Anvil::CommandBufferBase* const* in_cmd_buffer_ptrs_ptr,
+                                              uint32_t                         in_n_cmd_buffers,
+                                              uint32_t                         in_n_semaphores_to_wait_on,
+                                              Anvil::Semaphore* const*         in_semaphore_to_wait_on_ptrs_ptr,
+                                              const VkPipelineStageFlags*      in_dst_stage_masks_to_wait_on_ptrs,
+                                              bool                             in_should_block,
+                                              Anvil::Fence*                    in_opt_fence_ptr = nullptr);
+
+        static SubmitInfo create_wait_execute_signal(Anvil::CommandBufferBase*        in_cmd_buffer_ptr,
+                                                     uint32_t                         in_n_semaphores_to_signal,
+                                                     Anvil::Semaphore* const*         in_semaphore_to_signal_ptrs_ptr,
+                                                     uint32_t                         in_n_semaphores_to_wait_on,
+                                                     Anvil::Semaphore* const*         in_semaphore_to_wait_on_ptrs_ptr,
+                                                     const VkPipelineStageFlags*      in_dst_stage_masks_to_wait_on_ptrs,
+                                                     bool                             in_should_block,
+                                                     Anvil::Fence*                    in_opt_fence_ptr = nullptr);
+        static SubmitInfo create_wait_execute_signal(Anvil::CommandBufferBase* const* in_cmd_buffer_ptrs_ptr,
+                                                     uint32_t                         in_n_cmd_buffers,
+                                                     uint32_t                         in_n_semaphores_to_signal,
+                                                     Anvil::Semaphore* const*         in_semaphore_to_signal_ptrs_ptr,
+                                                     uint32_t                         in_n_semaphores_to_wait_on,
+                                                     Anvil::Semaphore* const*         in_semaphore_to_wait_on_ptrs_ptr,
+                                                     const VkPipelineStageFlags*      in_dst_stage_masks_to_wait_on_ptrs,
+                                                     bool                             in_should_block,
+                                                     Anvil::Fence*                    in_opt_fence_ptr = nullptr);
+
+        Anvil::CommandBufferBase* const* get_command_buffers_sgpu() const
+        {
+            return command_buffers_sgpu_ptr;
+        }
+
+        #if defined(_WIN32)
+            bool get_d3d12_fence_semaphore_values(const uint64_t** out_d3d12_fence_signal_semaphore_values_ptr_ptr,
+                                                  const uint64_t** out_d3d12_fence_wait_semaphore_values_ptr_ptr) const
+            {
+                bool result = (d3d12_fence_signal_semaphore_values_ptr != nullptr && n_signal_semaphores != 0) ||
+                              (d3d12_fence_wait_semaphore_values_ptr   != nullptr && n_wait_semaphores   != 0);
+
+                *out_d3d12_fence_signal_semaphore_values_ptr_ptr = d3d12_fence_signal_semaphore_values_ptr;
+                *out_d3d12_fence_wait_semaphore_values_ptr_ptr   = d3d12_fence_wait_semaphore_values_ptr;
+
+                return result;
+            }
+        #endif
+
+        const VkPipelineStageFlags* get_destination_stage_wait_masks() const
+        {
+            return dst_stage_wait_masks_ptr;
+        }
+
+        Anvil::Fence* get_fence() const
+        {
+            return fence_ptr;
+        }
+
+        const uint32_t& get_n_command_buffers() const
+        {
+            return n_command_buffers;
+        }
+
+        const uint32_t& get_n_signal_semaphores() const
+        {
+            return n_signal_semaphores;
+        }
+
+        const uint32_t& get_n_wait_semaphores() const
+        {
+            return n_wait_semaphores;
+        }
+
+        Anvil::Semaphore* const* get_signal_semaphores_sgpu() const
+        {
+            return signal_semaphores_sgpu_ptr;
+        }
+
+        const bool& get_should_block() const
+        {
+            return should_block;
+        }
+
+        const SubmissionType& get_type() const
+        {
+            return type;
+        }
+
+        Anvil::Semaphore* const* get_wait_semaphores_sgpu() const
+        {
+            return wait_semaphores_sgpu_ptr;
+        }
+
+        #if defined(_WIN32)
+            /* Calling this function will make Anvil fill & chain a VkD3D12FenceSubmitInfoKHR struct at queue submission time.
+             *
+             * Requires VK_KHR_external_semaphore_win32 support.
+             *
+             * NOTE: The structure caches the provided pointers, not the contents available under derefs! Make sure the pointers remain valid
+             *       for the time of the Queue::submit() call.
+             *
+             * @param in_signal_semaphore_values_ptr An array of exactly n_signal_semaphores values. Usage as per VkD3D12FenceSubmitInfoKHR::pSignalSemaphoreValues.
+             *                                       Must not be nullptr unless n_signal_semaphores is 0.
+             * @param in_wait_semaphore_values_ptr   An array of exactly n_wait_semaphores values. Usage as per VkD3D12FenceSubmitInfoKHR::pWaitSemaphoreValues.
+             *                                       Must not be nullptr unless n_wait_semaphores is 0.
+             **/
+            void set_d3d12_fence_semaphore_values(const uint64_t* in_signal_semaphore_values_ptr,
+                                                  const uint32_t& in_n_signal_semaphore_values,
+                                                  const uint64_t* in_wait_semaphore_values_ptr,
+                                                  const uint32_t& in_n_wait_semaphore_values)
+            {
+                ANVIL_REDUNDANT_ARGUMENT_CONST(in_n_signal_semaphore_values);
+                ANVIL_REDUNDANT_ARGUMENT_CONST(in_n_wait_semaphore_values);
+
+                anvil_assert((n_signal_semaphores != 0  && in_signal_semaphore_values_ptr != nullptr) ||
+                             (n_signal_semaphores == 0) );
+                anvil_assert((n_wait_semaphores   != 0  && in_wait_semaphore_values_ptr   != nullptr) ||
+                             (n_wait_semaphores   == 0) );
+
+                anvil_assert(in_n_signal_semaphore_values == n_signal_semaphores);
+                anvil_assert(in_n_wait_semaphore_values   == n_wait_semaphores);
+
+                d3d12_fence_signal_semaphore_values_ptr = in_signal_semaphore_values_ptr;
+                d3d12_fence_wait_semaphore_values_ptr   = in_wait_semaphore_values_ptr;
+            }
+        #endif
+
+    private:
+        SubmitInfo(Anvil::CommandBufferBase*   in_cmd_buffer_ptr,
+                   uint32_t                    in_n_semaphores_to_signal,
+                   Anvil::Semaphore* const*    in_opt_semaphore_to_signal_ptrs_ptr,
+                   uint32_t                    in_n_semaphores_to_wait_on,
+                   Anvil::Semaphore* const*    in_opt_semaphore_to_wait_on_ptrs_ptr,
+                   const VkPipelineStageFlags* in_opt_dst_stage_masks_to_wait_on_ptrs,
+                   bool                        in_should_block,
+                   Anvil::Fence*               in_opt_fence_ptr);
+
+        SubmitInfo(uint32_t                         in_n_command_buffers,
+                   Anvil::CommandBufferBase* const* in_opt_cmd_buffer_ptrs_ptr,
+                   uint32_t                         in_n_semaphores_to_signal,
+                   Anvil::Semaphore* const*         in_opt_semaphore_to_signal_ptrs_ptr,
+                   uint32_t                         in_n_semaphores_to_wait_on,
+                   Anvil::Semaphore* const*         in_opt_semaphore_to_wait_on_ptrs_ptr,
+                   const VkPipelineStageFlags*      in_opt_dst_stage_masks_to_wait_on_ptrs,
+                   bool                             in_should_block,
+                   Anvil::Fence*                    in_opt_fence_ptr);
+
+        Anvil::CommandBufferBase* helper_cmd_buffer_raw_ptr;
+
+        Anvil::CommandBufferBase* const*   command_buffers_sgpu_ptr;
+        uint32_t                           n_command_buffers;
+
+        Anvil::Semaphore* const*       signal_semaphores_sgpu_ptr;
+        uint32_t                       n_signal_semaphores;
+
+        const VkPipelineStageFlags*    dst_stage_wait_masks_ptr;
+        Anvil::Semaphore* const*       wait_semaphores_sgpu_ptr;
+        uint32_t                       n_wait_semaphores;
+
+        Anvil::Fence* fence_ptr;
+
+        #if defined(_WIN32)
+            const uint64_t* d3d12_fence_signal_semaphore_values_ptr;
+            const uint64_t* d3d12_fence_wait_semaphore_values_ptr;
+        #endif
+
+        bool                 should_block;
+        const SubmissionType type;
+
+        ANVIL_DISABLE_ASSIGNMENT_OPERATOR(SubmitInfo);
+    } SubmitInfo;
 
     /* Represents a Vulkan structure header */
     typedef struct
