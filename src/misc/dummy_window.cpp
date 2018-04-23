@@ -174,8 +174,6 @@ std::unique_ptr<uint8_t[]> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_ima
     ANVIL_REDUNDANT_VARIABLE(swapchain_image_format);
 
     anvil_assert(swapchain_image_subresource_range.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
-    anvil_assert(device_ptr->get_physical_device_format_properties(swapchain_image_format).optimal_tiling_capabilities   & VK_FORMAT_FEATURE_BLIT_SRC_BIT);
-    anvil_assert(device_ptr->get_physical_device_format_properties(VK_FORMAT_R8G8B8A8_UNORM).optimal_tiling_capabilities & VK_FORMAT_FEATURE_BLIT_DST_BIT);
 
     /* Initialize storage for the raw R8G8B8A8 image data */
     Anvil::BufferUniquePtr raw_image_buffer_ptr;
@@ -356,8 +354,14 @@ std::unique_ptr<uint8_t[]> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_ima
     command_buffer_ptr->stop_recording();
 
     /* Execute the command buffer */
-    universal_queue_ptr->submit_command_buffer(command_buffer_ptr.get(),
-                                               true); /* should_block */
+    {
+        Anvil::CommandBufferBase* cmd_buffer_raw_ptr = command_buffer_ptr.get();
+
+        universal_queue_ptr->submit(Anvil::SubmitInfo::create_execute(&cmd_buffer_raw_ptr,
+                                                                      1,    /* in_n_cmd_buffers */
+                                                                      true) /* should_block     */
+        );
+    }
 
     /* Read back the result data */
     raw_image_buffer_ptr->read(0, /* offset */

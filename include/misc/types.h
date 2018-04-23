@@ -128,6 +128,7 @@ namespace Anvil
     class  DescriptorSetLayout;
     class  DescriptorSetLayoutManager;
     class  DescriptorUpdateTemplate;
+    class  ExternalHandle;
     class  Event;
     class  EventCreateInfo;
     class  Fence;
@@ -144,6 +145,7 @@ namespace Anvil
     class  Instance;
     class  MemoryAllocator;
     class  MemoryBlock;
+    class  MemoryBlockCreateInfo;
     struct MemoryHeap;
     struct MemoryProperties;
     struct MemoryType;
@@ -185,6 +187,7 @@ namespace Anvil
     typedef std::unique_ptr<DescriptorSetLayoutManager, std::function<void(DescriptorSetLayoutManager*)> > DescriptorSetLayoutManagerUniquePtr;
     typedef std::unique_ptr<DescriptorSet,              std::function<void(DescriptorSet*)> >              DescriptorSetUniquePtr;
     typedef std::unique_ptr<DescriptorUpdateTemplate,   std::function<void(DescriptorUpdateTemplate*)> >   DescriptorUpdateTemplateUniquePtr;
+    typedef std::unique_ptr<ExternalHandle,             std::function<void(ExternalHandle*)> >             ExternalHandleUniquePtr;
     typedef std::unique_ptr<EventCreateInfo>                                                               EventCreateInfoUniquePtr;
     typedef std::unique_ptr<Event,                      std::function<void(Event*)> >                      EventUniquePtr;
     typedef std::unique_ptr<FenceCreateInfo>                                                               FenceCreateInfoUniquePtr;
@@ -200,6 +203,7 @@ namespace Anvil
     typedef std::unique_ptr<ImageView,                  std::function<void(ImageView*)> >                  ImageViewUniquePtr;
     typedef std::unique_ptr<Instance,                   std::function<void(Instance*)> >                   InstanceUniquePtr;
     typedef std::unique_ptr<MemoryAllocator,            std::function<void(MemoryAllocator*)> >            MemoryAllocatorUniquePtr;
+    typedef std::unique_ptr<MemoryBlockCreateInfo>                                                         MemoryBlockCreateInfoUniquePtr;
     typedef std::unique_ptr<MemoryBlock,                std::function<void(MemoryBlock*)> >                MemoryBlockUniquePtr;
     typedef std::unique_ptr<PipelineCache,              std::function<void(PipelineCache*)> >              PipelineCacheUniquePtr;
     typedef std::unique_ptr<PipelineLayoutManager,      std::function<void(PipelineLayoutManager*)> >      PipelineLayoutManagerUniquePtr;
@@ -222,9 +226,15 @@ namespace Anvil
     typedef std::unique_ptr<Window,                     std::function<void(Window*)> >                     WindowUniquePtr;
 };
 
-/* Defines various enums used by Vulkan API wrapper classes. */
+/* Defines various types used by Vulkan API wrapper classes. */
 namespace Anvil
 {
+    #if defined(_WIN32)
+        typedef HANDLE ExternalHandleType;
+    #else
+        typedef int ExternalHandleType;
+    #endif
+
     /** ID of an Anvil framebuffer's attachment */
     typedef uint32_t FramebufferAttachmentID;
 
@@ -234,6 +244,9 @@ namespace Anvil
     typedef BindingElementIndex StartBindingElementIndex;
 
     typedef std::pair<StartBindingElementIndex, NumberOfBindingElements> BindingElementArrayRange;
+
+    /** "About to be deleted" call-back function prototype. */
+    typedef std::function<void (Anvil::MemoryBlock* in_memory_block_ptr)> OnMemoryBlockReleaseCallbackFunction;
 
     /** Base pipeline ID. Internal type, used to represent compute / graphics pipeline IDs */
     typedef uint32_t PipelineID;

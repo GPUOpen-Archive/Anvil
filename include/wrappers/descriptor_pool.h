@@ -153,7 +153,7 @@ namespace Anvil
 
         std::vector<VkDescriptorSet>       m_ds_cache;
         std::vector<VkDescriptorSetLayout> m_ds_layout_cache;
-        const DescriptorPoolFlags&         m_flags;
+        const DescriptorPoolFlags           m_flags;
     };
 
 }; /* namespace Anvil */

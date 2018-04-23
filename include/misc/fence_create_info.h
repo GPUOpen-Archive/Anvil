@@ -35,7 +35,8 @@ namespace Anvil
          *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
-         * - MT safety: MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         * - Exportable external fence handle type: none
+         * - MT safety:                             MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
          */
         static Anvil::FenceCreateInfoUniquePtr create(const Anvil::BaseDevice* in_device_ptr,
                                                       bool                     in_create_signalled);
@@ -44,6 +45,31 @@ namespace Anvil
         {
             return m_device_ptr;
         }
+
+        const Anvil::ExternalFenceHandleTypeBits& get_exportable_external_fence_handle_types() const
+        {
+            return m_exportable_external_fence_handle_types;
+        }
+
+        #if defined(_WIN32)
+            /* Returns true if set_exportable_nt_handle_info() has been called prior to this call.
+             * Otherwise returns false.
+             *
+             * If the func returns true, *out_result_ptr is set to the queried data.
+             */
+            bool get_exportable_nt_handle_info(const ExternalNTHandleInfo** out_result_ptr_ptr) const
+            {
+                bool result = false;
+
+                if (m_exportable_nt_handle_info_specified)
+                {
+                    *out_result_ptr_ptr = &m_exportable_nt_handle_info;
+                    result              = true;
+                }
+
+                return result;
+            }
+        #endif
 
         const MTSafety& get_mt_safety() const
         {
@@ -55,6 +81,36 @@ namespace Anvil
             return m_create_signalled;
         }
 
+        #if defined(_WIN32)
+            /* Lets the app specify additional details for exportable NT handles.
+             *
+             * If @param in_name is zero-sized, <name> member of the VkExportFenceWin32HandleInfoKHR struct, as chained to the VkFenceCreateInfo struct chain,
+             * will be set to nullptr.
+             *
+             * Requires VK_KHR_external_fence_win32
+             */
+            void set_exportable_nt_handle_info(const SECURITY_ATTRIBUTES* in_opt_attributes_ptr,
+                                               const DWORD&               in_access,
+                                               const std::wstring&        in_name)
+            {
+                anvil_assert(!m_exportable_nt_handle_info_specified);
+
+                m_exportable_nt_handle_info.access         = in_access;
+                m_exportable_nt_handle_info.attributes_ptr = in_opt_attributes_ptr;
+                m_exportable_nt_handle_info.name           = in_name;
+
+                m_exportable_nt_handle_info_specified      = true;
+            }
+        #endif
+
+        /* TODO
+         *
+         * Requires VK_KHR_external_fence.
+         */
+        void set_exportable_external_fence_handle_types(const Anvil::ExternalFenceHandleTypeBits& in_external_fence_handle_types)
+        {
+            m_exportable_external_fence_handle_types = in_external_fence_handle_types;
+        }
 
         void set_device(const Anvil::BaseDevice* in_device_ptr)
         {
@@ -78,9 +134,15 @@ namespace Anvil
                         MTSafety                 in_mt_safety);
 
         /* Private variables */
-        bool                     m_create_signalled;
-        const Anvil::BaseDevice* m_device_ptr;
-        Anvil::MTSafety          m_mt_safety;
+        bool                               m_create_signalled;
+        const Anvil::BaseDevice*           m_device_ptr;
+        Anvil::ExternalFenceHandleTypeBits m_exportable_external_fence_handle_types;
+        Anvil::MTSafety                    m_mt_safety;
+
+        #ifdef _WIN32
+            ExternalNTHandleInfo m_exportable_nt_handle_info;
+            bool                 m_exportable_nt_handle_info_specified;
+        #endif
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(FenceCreateInfo);
         ANVIL_DISABLE_COPY_CONSTRUCTOR(FenceCreateInfo);

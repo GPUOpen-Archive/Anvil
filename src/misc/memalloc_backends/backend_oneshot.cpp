@@ -24,6 +24,7 @@
 #include "misc/debug.h"
 #include "misc/formats.h"
 #include "misc/memory_allocator.h"
+#include "misc/memory_block_create_info.h"
 #include "wrappers/buffer.h"
 #include "wrappers/device.h"
 #include "wrappers/image.h"
@@ -126,11 +127,16 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
                 }
 
                 /* Bake the block and stash it */
-                new_memory_block_ptr = Anvil::MemoryBlock::create(m_device_ptr,
-                                                                  1u << current_memory_type_index,
-                                                                  n_bytes_required,
-                                                                  (memory_props.types[current_memory_type_index].features),
-                                                                  Anvil::Utils::convert_boolean_to_mt_safety_enum(m_device_ptr->is_mt_safe()) );
+                {
+                    auto create_info_ptr = Anvil::MemoryBlockCreateInfo::create_regular(m_device_ptr,
+                                                                                        1u << current_memory_type_index,
+                                                                                        n_bytes_required,
+                                                                                        (memory_props.types[current_memory_type_index].features) );
+
+                    create_info_ptr->set_mt_safety(Anvil::Utils::convert_boolean_to_mt_safety_enum(m_device_ptr->is_mt_safe()) );
+
+                    new_memory_block_ptr = Anvil::MemoryBlock::create(std::move(create_info_ptr) );
+                }
 
                 if (new_memory_block_ptr == nullptr)
                 {
@@ -143,9 +149,13 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
                 /* Go through the items again and assign the result memory block */
                 for (auto& current_item_ptr : current_item_vector)
                 {
-                    current_item_ptr->alloc_memory_block_ptr = Anvil::MemoryBlock::create_derived(new_memory_block_ptr.get(),
-                                                                                                  alloc_offset_map.at(current_item_ptr),
-                                                                                                  current_item_ptr->alloc_size);
+                    {
+                        auto create_info_ptr = Anvil::MemoryBlockCreateInfo::create_derived(new_memory_block_ptr.get(),
+                                                                                            alloc_offset_map.at(current_item_ptr),
+                                                                                            current_item_ptr->alloc_size);
+
+                        current_item_ptr->alloc_memory_block_ptr = Anvil::MemoryBlock::create(std::move(create_info_ptr) );
+                    }
 
                     if (current_item_ptr->alloc_memory_block_ptr != nullptr)
                     {
@@ -197,7 +207,7 @@ bool Anvil::MemoryAllocatorBackends::OneShot::supports_baking() const
     return !m_is_baked;
 }
 
-bool Anvil::MemoryAllocatorBackends::OneShot::supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeFlags& in_external_memory_handle_types) const
+bool Anvil::MemoryAllocatorBackends::OneShot::supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeBits& in_external_memory_handle_types) const
 {
     return (in_external_memory_handle_types == 0);
 }
