@@ -102,3 +102,5 @@ anvil = static_library('Anvil',
 install_subdir('include/misc', install_dir: 'include/Anvil')
 install_subdir('include/wrappers', install_dir: 'include/Anvil')
 install_subdir('deps/VulkanMemoryAllocator', install_dir: 'include/Anvil')
+
+anvil_dep = declare_dependency(link_with: anvil, include_directories: anvil_include_dirs)
