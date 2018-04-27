@@ -287,10 +287,10 @@ void Anvil::ShaderModule::destroy()
     }
 }
 
+#ifdef ANVIL_LINK_WITH_GLSLANG
 /** Please see header for specification */
 const std::string& Anvil::ShaderModule::get_disassembly()
 {
-    #ifdef ANVIL_LINK_WITH_GLSLANG
     {
         if (m_disassembly.size() == 0)
         {
@@ -303,10 +303,10 @@ const std::string& Anvil::ShaderModule::get_disassembly()
             m_disassembly = disassembly_sstream.str();
         }
     }
-    #endif
 
     return m_disassembly;
 }
+#endif
 
 /** Please see header for specification */
 bool Anvil::ShaderModule::init_from_spirv_blob(const char* in_spirv_blob,
