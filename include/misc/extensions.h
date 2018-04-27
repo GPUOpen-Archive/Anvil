@@ -164,9 +164,13 @@ namespace Anvil
             ValueType khr_surface;
 
             #ifdef _WIN32
-                ValueType khr_win32_surface;
+                #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+                    ValueType khr_win32_surface;
+                #endif
             #else
-                ValueType khr_xcb_surface;
+                #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+                    ValueType khr_xcb_surface;
+                #endif
             #endif
 
             std::map<std::string, ValueType> values_by_extension_names;
@@ -198,9 +202,13 @@ namespace Anvil
                     {ExtensionData(VK_KHR_SURFACE_EXTENSION_NAME,                          &khr_surface)},
 
                     #ifdef _WIN32
-                        {ExtensionData(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, &khr_win32_surface)},
+                        #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+                            {ExtensionData(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, &khr_win32_surface)},
+                        #endif
                     #else
-                        {ExtensionData(VK_KHR_XCB_SURFACE_EXTENSION_NAME,   &khr_xcb_surface)},
+                        #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+                            {ExtensionData(VK_KHR_XCB_SURFACE_EXTENSION_NAME,   &khr_xcb_surface)},
+                        #endif
                     #endif
                 };
 
@@ -291,9 +299,13 @@ namespace Anvil
         virtual bool khr_surface                        () const = 0;
 
         #ifdef _WIN32
-            virtual bool khr_win32_surface() const = 0;
+            #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+                virtual bool khr_win32_surface() const = 0;
+            #endif
         #else
-            virtual bool khr_xcb_surface() const = 0;
+            #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+                virtual bool khr_xcb_surface() const = 0;
+            #endif
         #endif
 
         virtual bool by_name(const std::string& in_name) const = 0;
@@ -676,19 +688,23 @@ namespace Anvil
 
 
         #ifdef _WIN32
-            ValueType khr_win32_surface() const final
-            {
-                anvil_assert(!m_expose_device_extensions);
+            #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
+                ValueType khr_win32_surface() const final
+                {
+                    anvil_assert(!m_expose_device_extensions);
 
-                return m_instance_extensions_ptr->khr_win32_surface;
-            }
+                    return m_instance_extensions_ptr->khr_win32_surface;
+                }
+            #endif
         #else
-            ValueType khr_xcb_surface() const final
-            {
-                anvil_assert(!m_expose_device_extensions);
+            #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
+                ValueType khr_xcb_surface() const final
+                {
+                    anvil_assert(!m_expose_device_extensions);
 
-                return m_instance_extensions_ptr->khr_xcb_surface;
-            }
+                    return m_instance_extensions_ptr->khr_xcb_surface;
+                }
+            #endif
         #endif
 
         /* Private variables */

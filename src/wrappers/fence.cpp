@@ -36,8 +36,7 @@ Anvil::Fence::Fence(Anvil::FenceCreateInfoUniquePtr in_create_info_ptr)
                                 VK_DEBUG_REPORT_OBJECT_TYPE_FENCE_EXT),
      MTSafetySupportProvider   (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety(),
                                                                                 in_create_info_ptr->get_device   () )),
-     m_fence                   (VK_NULL_HANDLE),
-     m_possibly_set            (false)
+     m_fence                   (VK_NULL_HANDLE)
 {
     m_create_info_ptr = std::move(in_create_info_ptr);
 
@@ -395,10 +394,6 @@ bool Anvil::Fence::reset()
     }
     unlock();
 
-    anvil_assert_vk_call_succeeded(result);
-
-    m_possibly_set = false;
-
     return (result == VK_SUCCESS);
 }
 
@@ -434,8 +429,6 @@ bool Anvil::Fence::reset_fences(const uint32_t in_n_fences,
 
             device_ptr           = current_fence.m_device_ptr;
             fence_cache[n_fence] = current_fence.m_fence;
-
-            current_fence.m_possibly_set = false;
 
             current_fence.lock();
         }
