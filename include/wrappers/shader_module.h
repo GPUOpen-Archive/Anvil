@@ -146,6 +146,7 @@ namespace Anvil
             return m_cs_entrypoint_name;
         }
 
+#ifdef ANVIL_LINK_WITH_GLSLANG
         /** Returns a disassembly of the SPIR-V blob.
          *
          *  The actual disassembly is retrieved from glslang and cached for subsequent requests.
@@ -153,6 +154,7 @@ namespace Anvil
          *  This function only returns a non-empty string if ANVIL_LINK_WITH_GLSLANG is enabled.
          */
         const std::string& get_disassembly();
+#endif
 
         /** Returns name of the fragment shader stage entry-point, as defined at construction time.
          *

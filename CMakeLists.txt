@@ -51,7 +51,6 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/include/misc/formats.h"
               "${Anvil_SOURCE_DIR}/include/misc/fp16.h"
               "${Anvil_SOURCE_DIR}/include/misc/framebuffer_create_info.h"
-              "${Anvil_SOURCE_DIR}/include/misc/glsl_to_spirv.h"
               "${Anvil_SOURCE_DIR}/include/misc/graphics_pipeline_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/image_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/image_view_create_info.h"
@@ -128,7 +127,6 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/src/misc/formats.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/fp16.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/framebuffer_create_info.cpp"
-              "${Anvil_SOURCE_DIR}/src/misc/glsl_to_spirv.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/graphics_pipeline_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/image_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/image_view_create_info.cpp"
@@ -187,6 +185,12 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/deps/VulkanMemoryAllocator/vk_mem_alloc.h"
                          )
 
+if (ANVIL_LINK_WITH_GLSLANG)
+    list(APPEND SRC_LIST
+        "${Anvil_SOURCE_DIR}/include/misc/glsl_to_spirv.h"
+        "${Anvil_SOURCE_DIR}/src/misc/glsl_to_spirv.cpp")
+endif()
+
 # prepare source code files for different OS
 if(WIN32)
     if (ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
@@ -225,11 +229,13 @@ else()
     set(CMAKE_CXX_FLAGS "$(CMAKE_CXX_FLAGS) /EHsc /MP")
 endif()
 
-# Add dependendencies
-if (WIN32)
-    add_subdirectory("deps\\glslang")
-else()
-    add_subdirectory("deps/glslang")
+if (ANVIL_LINK_WITH_GLSLANG)
+    # Add dependendencies
+    if (WIN32)
+        add_subdirectory("deps\\glslang")
+    else()
+        add_subdirectory("deps/glslang")
+    endif()
 endif()
 
 # Enable level-4 warnings
