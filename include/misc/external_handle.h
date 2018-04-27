@@ -40,11 +40,25 @@ namespace Anvil
             return m_handle;
         }
 
+        #if defined(_WIN32)
+            /* If a payload of an object exported to a NT handle is imported to ano                                                                                             ther object, the ownership is passed
+             * to the new object.
+             *
+             * For NT handles, it is assumed the handle should be destroyed when th                                                                                             e wrapper goes out of scope. If the above
+             * import is performed, you MUST tell ExternalHandleWrapper to release                                                                                              the ownership of the handle, or else anything
+             * can happen.
+             */
+            void release_ownership()
+            {
+                m_close_at_destruction_time = false;
+            }
+        #endif
+
     private:
         ExternalHandle(const ExternalHandleType& in_handle,
                        const bool&               in_close_at_destruction_time);
 
-        const bool               m_close_at_destruction_time;
+        bool                     m_close_at_destruction_time;
         const ExternalHandleType m_handle;
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(ExternalHandle);

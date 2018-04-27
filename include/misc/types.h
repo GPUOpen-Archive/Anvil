@@ -50,9 +50,7 @@
 
 /* The following #define is required to include Vulkan entry-point prototype declarations. */
 #ifdef _WIN32
-    #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
-        #define VK_USE_PLATFORM_WIN32_KHR
-    #endif
+    #define VK_USE_PLATFORM_WIN32_KHR
 #else
     #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
         #define VK_USE_PLATFORM_XCB_KHR
