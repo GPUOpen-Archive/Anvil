@@ -258,9 +258,6 @@ namespace Anvil
 
         uint32_t get_n_viewports() const;
 
-        bool get_pipeline_color_blend_attachment_state(uint32_t                             in_n_subpass_color_attachment,
-                                                       VkPipelineColorBlendAttachmentState* out_result_ptr) const;
-
         /** Tells what primitive topology has been specified for this instance. **/
         VkPrimitiveTopology get_primitive_topology() const;
 
