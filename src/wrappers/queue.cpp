@@ -875,3 +875,12 @@ void Anvil::Queue::submit_command_buffers_lock_unlock(uint32_t                  
         }
     }
 }
+
+void Anvil::Queue::wait_idle()
+{
+    lock();
+    {
+        vkQueueWaitIdle(m_queue);
+    }
+    unlock();
+}

@@ -82,8 +82,6 @@ namespace Anvil
         /** Retrieves a pointer to the raw handle to the underlying Vulkan fence instance */
         const VkFence* get_fence_ptr() const
         {
-            m_possibly_set = true;
-
             return &m_fence;
         }
 
@@ -158,7 +156,6 @@ namespace Anvil
         Anvil::FenceCreateInfoUniquePtr                   m_create_info_ptr;
         std::map<Anvil::ExternalFenceHandleTypeBit, bool> m_external_fence_created_for_handle_type;
         VkFence                                           m_fence;
-        mutable bool                                      m_possibly_set;
     };
 }; /* namespace Anvil */
 

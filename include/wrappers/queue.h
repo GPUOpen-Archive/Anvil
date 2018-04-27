@@ -140,6 +140,8 @@ namespace Anvil
             return m_supports_sparse_bindings;
         }
 
+        void wait_idle();
+
     private:
         /* Private functions */
         void present_lock_unlock(uint32_t                            in_n_swapchains,

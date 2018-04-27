@@ -405,15 +405,13 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
                  n_instance_layer < n_instance_layers;
                ++n_instance_layer)
     {
-        const auto&        layer_extensions = m_supported_layers[n_instance_layer].extensions;
-        const std::string& layer_name       = m_supported_layers[n_instance_layer].name;
+        const std::string& layer_description = m_supported_layers[n_instance_layer].description;
+        const std::string& layer_name        = m_supported_layers[n_instance_layer].name;
 
         /* If validation is enabled and this is a layer which issues debug call-backs, cache it, so that
          * we can request for it at vkCreateInstance() call time */
-        if (m_validation_callback_function != nullptr                               &&
-            std::find(layer_extensions.begin(),
-                      layer_extensions.end(),
-                      VK_EXT_DEBUG_REPORT_EXTENSION_NAME) != layer_extensions.end() )
+        if (m_validation_callback_function       != nullptr          &&
+            layer_description.find("Validation") != std::string::npos)
         {
             enabled_layers.push_back(layer_name.c_str() );
         }
@@ -451,9 +449,19 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
             extension_enabled_status[VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME] = true;
         }
 
+        if (is_instance_extension_supported(VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME) )
+        {
+            extension_enabled_status[VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME] = true;
+        }
+
         if (is_instance_extension_supported(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME) )
         {
             extension_enabled_status[VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME] = true;
+        }
+
+        if (is_instance_extension_supported(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME) )
+        {
+            extension_enabled_status[VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME] = true;
         }
 
         /* Filter out undesired extensions */

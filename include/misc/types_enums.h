@@ -77,10 +77,12 @@ namespace Anvil
             EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT     = 1 << 0,
             EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT = 1 << 1,
         #else
-            EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_FD_BIT = 1 << 2,
-            EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT   = 1 << 2,
+            EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_FD_BIT = 1 << 0,
+            EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT   = 1 << 1,
         #endif
 
+        /* Always last */
+        EXTERNAL_FENCE_HANDLE_TYPE_COUNT
     } ExternalFenceHandleTypeBit;
     typedef uint32_t ExternalFenceHandleTypeBits;
 
@@ -96,9 +98,11 @@ namespace Anvil
             EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT        = 1 << 4,
             EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT    = 1 << 5,
         #else
-            EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT = 1 << 6,
+            EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT = 1 << 0,
         #endif
 
+        /* Always last */
+        EXTERNAL_MEMORY_HANDLE_TYPE_COUNT
     } ExternalMemoryHandleTypeBit;
     typedef uint32_t ExternalMemoryHandleTypeBits;
 
@@ -111,10 +115,12 @@ namespace Anvil
             EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT = 1 << 1,
             EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT      = 1 << 2,
         #else
-            EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT = 1 << 3,
-            EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT   = 1 << 4,
+            EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT = 1 << 0,
+            EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT   = 1 << 1,
         #endif
 
+        /* Always last */
+        EXTERNAL_SEMAPHORE_HANDLE_TYPE_COUNT
     } ExternalSemaphoreHandleTypeBit;
     typedef uint32_t ExternalSemaphoreHandleTypeBits;
 
