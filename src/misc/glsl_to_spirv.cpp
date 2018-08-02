@@ -561,6 +561,8 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob() const
     }
     #endif
 
+    end:
+    
     return result;
 }
 
@@ -722,12 +724,13 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob() const
      *  @return true if successful, false otherwise.
      **/
     bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob_by_spawning_glslang_process(const std::string& in_glsl_filename_with_path,
-                                                                                        const std::string& in_spirv_filename_with_path)
+                                                                                        const std::string& in_spirv_filename_with_path) const
     {
         auto        callback_arg            = OnGLSLToSPIRVConversionAboutToBeStartedCallbackArgument(this);
         std::string glslangvalidator_params;
         bool        result                  = false;
         size_t      spirv_file_size         = 0;
+        char*       spirv_blob_ptr          = nullptr;
 
         callback(GLSL_SHADER_TO_SPIRV_GENERATOR_CALLBACK_ID_CONVERSION_ABOUT_TO_START,
                 &callback_arg);
@@ -818,7 +821,7 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob() const
         #endif
 
         /* Now, read the SPIR-V file contents */
-        char* spirv_blob_ptr = nullptr;
+        
 
         Anvil::IO::read_file(in_spirv_filename_with_path.c_str(),
                              false, /* is_text_file */
