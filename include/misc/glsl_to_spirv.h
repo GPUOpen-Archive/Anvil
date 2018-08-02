@@ -332,7 +332,7 @@ namespace Anvil
             EShLanguage get_glslang_shader_stage          () const;
         #else
             bool bake_spirv_blob_by_spawning_glslang_process(const std::string& in_glsl_filename_with_path,
-                                                             const std::string& in_spirv_filename_with_path);
+                                                             const std::string& in_spirv_filename_with_path) const;
         #endif
 
         /* Private members */
