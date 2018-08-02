@@ -553,15 +553,18 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob() const
             result = bake_spirv_blob_by_calling_glslang(m_glsl_source_code.c_str() );
         }
     }
+
     #else
     {
         /* We need to point glslangvalidator at a location where it can stash the SPIR-V blob. */
         result = bake_spirv_blob_by_spawning_glslang_process(glsl_filename_with_path,
                                                              "temp.spv");
     }
+
+end:
     #endif
 
-    end:
+
     
     return result;
 }
