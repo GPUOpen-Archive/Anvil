@@ -166,39 +166,36 @@ namespace Anvil
         BufferBarrier& operator=(const BufferBarrier&);
     } BufferBarrier;
 
-    typedef struct BufferFormatProperties
+    typedef struct BufferProperties
     {
         ExternalMemoryProperties external_handle_properties;
 
-        BufferFormatProperties();
-        BufferFormatProperties(const ExternalMemoryProperties& in_external_handle_properties);
+        BufferProperties();
+        BufferProperties(const ExternalMemoryProperties& in_external_handle_properties);
 
-        BufferFormatProperties           (const BufferFormatProperties&) = default;
-        BufferFormatProperties& operator=(const BufferFormatProperties&) = default;
-    } BufferFormatProperties;
+        BufferProperties           (const BufferProperties&) = default;
+        BufferProperties& operator=(const BufferProperties&) = default;
+    } BufferProperties;
 
-    typedef struct BufferFormatPropertiesQuery
+    typedef struct BufferPropertiesQuery
     {
         const Anvil::BufferCreateFlags           create_flags;
         const Anvil::ExternalMemoryHandleTypeBit external_memory_handle_type;
-        const VkFormat                           format;
         const VkBufferUsageFlags                 usage_flags;
 
-        explicit BufferFormatPropertiesQuery(const Anvil::BufferCreateFlags            in_create_flags,
-                                             const Anvil::ExternalMemoryHandleTypeBit& in_external_memory_handle_type,
-                                             const VkFormat&                           in_format,
-                                             const VkBufferUsageFlags&                 in_usage_flags)
+        explicit BufferPropertiesQuery(const Anvil::BufferCreateFlags            in_create_flags,
+                                       const Anvil::ExternalMemoryHandleTypeBit& in_external_memory_handle_type,
+                                       const VkBufferUsageFlags&                 in_usage_flags)
             :create_flags               (in_create_flags),
              external_memory_handle_type(in_external_memory_handle_type),
-             format                     (in_format),
              usage_flags                (in_usage_flags)
         {
             /* Stub */
         }
 
-        BufferFormatPropertiesQuery           (const BufferFormatPropertiesQuery& in_query) = default;
-        BufferFormatPropertiesQuery& operator=(const BufferFormatPropertiesQuery& in_query) = delete;
-    } BufferFormatPropertiesQuery;
+        BufferPropertiesQuery           (const BufferPropertiesQuery& in_query) = default;
+        BufferPropertiesQuery& operator=(const BufferPropertiesQuery& in_query) = delete;
+    } BufferPropertiesQuery;
 
     #if defined(_WIN32)
         typedef struct ExternalNTHandleInfo
@@ -275,6 +272,14 @@ namespace Anvil
 
         bool operator==(const EXTDescriptorIndexingProperties& in_props) const;
     } EXTDescriptorIndexingProperties;
+
+    typedef struct EXTVertexAttributeDivisorProperties
+    {
+        uint32_t max_vertex_attribute_divisor;
+
+        EXTVertexAttributeDivisorProperties();
+        EXTVertexAttributeDivisorProperties(const VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT& in_props);
+    } EXTVertexAttributeDivisorProperties;
 
     typedef struct DescriptorSetAllocation
     {
@@ -369,6 +374,14 @@ namespace Anvil
         ExtensionEXTDebugReportEntrypoints();
     } ExtensionEXTDebugReportEntrypoints;
 
+    typedef struct ExtensionKHRDrawIndirectCountEntrypoints
+    {
+        PFN_vkCmdDrawIndexedIndirectCountKHR vkCmdDrawIndexedIndirectCountKHR;
+        PFN_vkCmdDrawIndirectCountKHR        vkCmdDrawIndirectCountKHR;
+
+        ExtensionKHRDrawIndirectCountEntrypoints();
+    } ExtensionKHRDrawIndirectCountEntrypoints;
+
     typedef struct ExtensionKHRBindMemory2Entrypoints
     {
         PFN_vkBindBufferMemory2KHR vkBindBufferMemory2KHR;
@@ -456,6 +469,15 @@ namespace Anvil
             ExtensionKHRExternalSemaphoreFdEntrypoints();
         } ExtensionKHRExternalSemaphoreFdEntrypoints;
 #endif
+
+    typedef struct ExtensionKHRGetMemoryRequirements2Entrypoints
+    {
+        PFN_vkGetBufferMemoryRequirements2KHR      vkGetBufferMemoryRequirements2KHR;
+        PFN_vkGetImageMemoryRequirements2KHR       vkGetImageMemoryRequirements2KHR;
+        PFN_vkGetImageSparseMemoryRequirements2KHR vkGetImageSparseMemoryRequirements2KHR;
+
+        ExtensionKHRGetMemoryRequirements2Entrypoints();
+    } ExtensionKHRGetMemoryRequirements2Entrypoints;
 
     typedef struct ExtensionKHRGetPhysicalDeviceProperties2
     {
@@ -1490,6 +1512,7 @@ namespace Anvil
         const AMDShaderCoreProperties*                                 amd_shader_core_properties_ptr;
         const PhysicalDevicePropertiesCoreVK10*                        core_vk1_0_properties_ptr;
         const EXTDescriptorIndexingProperties*                         ext_descriptor_indexing_properties_ptr;
+        const EXTVertexAttributeDivisorProperties*                     ext_vertex_attribute_divisor_properties_ptr;
         const KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties* khr_external_memory_capabilities_physical_device_id_properties_ptr;
         const KHRMaintenance3Properties*                               khr_maintenance3_properties_ptr;
 
@@ -1497,6 +1520,7 @@ namespace Anvil
         PhysicalDeviceProperties(const AMDShaderCoreProperties*                                 in_amd_shader_core_properties_ptr,
                                  const PhysicalDevicePropertiesCoreVK10*                        in_core_vk1_0_properties_ptr,
                                  const EXTDescriptorIndexingProperties*                         in_ext_descriptor_indexing_properties_ptr,
+                                 const EXTVertexAttributeDivisorProperties*                     in_ext_vertex_attribute_divisor_properties_ptr,
                                  const KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties* in_khr_external_memory_caps_physical_device_id_props_ptr,
                                  const KHRMaintenance3Properties*                               in_khr_maintenance3_properties_ptr);
 
@@ -1852,6 +1876,11 @@ namespace Anvil
             return should_block;
         }
 
+        const uint64_t& get_timeout() const
+        {
+            return timeout;
+        }
+
         const SubmissionType& get_type() const
         {
             return type;
@@ -1896,6 +1925,16 @@ namespace Anvil
             }
         #endif
 
+        /* Sets a timeout which is used when waiting on a fence that the submission is associated with.
+         *
+         * If your submission times out, you're likely about to experience a TDR and lose the device.
+         */
+        void set_timeout(const uint64_t& in_timeout)
+        {
+            anvil_assert(should_block);
+
+            timeout = in_timeout;
+        }
     private:
         SubmitInfo(Anvil::CommandBufferBase*   in_cmd_buffer_ptr,
                    uint32_t                    in_n_semaphores_to_signal,
@@ -1936,6 +1975,7 @@ namespace Anvil
         #endif
 
         bool                 should_block;
+        uint64_t             timeout;
         const SubmissionType type;
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(SubmitInfo);

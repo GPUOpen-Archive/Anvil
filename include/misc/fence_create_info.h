@@ -95,11 +95,23 @@ namespace Anvil
             {
                 anvil_assert(!m_exportable_nt_handle_info_specified);
 
-                m_exportable_nt_handle_info.access         = in_access;
-                m_exportable_nt_handle_info.attributes_ptr = in_opt_attributes_ptr;
-                m_exportable_nt_handle_info.name           = in_name;
+                m_exportable_nt_handle_info.access    = in_access;
+                m_exportable_nt_handle_info.name      = in_name;
+                m_exportable_nt_handle_info_specified = true;
 
-                m_exportable_nt_handle_info_specified      = true;
+                if (in_opt_attributes_ptr != nullptr)
+                {
+                    m_exportable_nt_handle_info_security_attributes           = *in_opt_attributes_ptr;
+                    m_exportable_nt_handle_info_security_attributes_specified = true;
+
+                    m_exportable_nt_handle_info.attributes_ptr = &m_exportable_nt_handle_info_security_attributes;
+                }
+                else
+                {
+                    m_exportable_nt_handle_info.attributes_ptr                = nullptr;
+                    m_exportable_nt_handle_info_security_attributes_specified = false;
+                }
+
             }
         #endif
 
@@ -141,6 +153,8 @@ namespace Anvil
 
         #ifdef _WIN32
             ExternalNTHandleInfo m_exportable_nt_handle_info;
+            SECURITY_ATTRIBUTES  m_exportable_nt_handle_info_security_attributes;
+            bool                 m_exportable_nt_handle_info_security_attributes_specified;
             bool                 m_exportable_nt_handle_info_specified;
         #endif
 

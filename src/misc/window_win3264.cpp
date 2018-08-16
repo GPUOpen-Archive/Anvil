@@ -62,7 +62,8 @@ Anvil::WindowUniquePtr Anvil::WindowWin3264::create(const std::string&          
                                                     unsigned int                   in_width,
                                                     unsigned int                   in_height,
                                                     bool                           in_closable,
-                                                    Anvil::PresentCallbackFunction in_present_callback_func)
+                                                    Anvil::PresentCallbackFunction in_present_callback_func,
+                                                    bool                           in_visible)
 {
     WindowUniquePtr result_ptr(
         new Anvil::WindowWin3264(in_title,
@@ -75,7 +76,7 @@ Anvil::WindowUniquePtr Anvil::WindowWin3264::create(const std::string&          
 
     if (result_ptr)
     {
-        if (!dynamic_cast<WindowWin3264*>(result_ptr.get() )->init() )
+        if (!dynamic_cast<WindowWin3264*>(result_ptr.get() )->init(in_visible) )
         {
             result_ptr.reset();
         }
@@ -137,7 +138,7 @@ Anvil::WindowUniquePtr Anvil::WindowWin3264::create(HWND in_window_handle)
 
     if (result_ptr)
     {
-        if (!dynamic_cast<WindowWin3264*>(result_ptr.get() )->init() )
+        if (!dynamic_cast<WindowWin3264*>(result_ptr.get() )->init(::IsWindowVisible(in_window_handle) == TRUE))
         {
             result_ptr.reset();
         }
@@ -165,7 +166,7 @@ void Anvil::WindowWin3264::close()
 }
 
 /** Creates a new system window and prepares it for usage. */
-bool Anvil::WindowWin3264::init()
+bool Anvil::WindowWin3264::init(const bool& in_visible)
 {
     static volatile uint32_t n_windows_spawned = 0;
     bool                     result            = false;
@@ -228,10 +229,12 @@ bool Anvil::WindowWin3264::init()
         }
 
         /* NOTE: Anvil currently does not support automatic swapchain resizing so make sure the window is not scalable. */
+        const auto visibility_flag = (in_visible) ? WS_VISIBLE : 0;
+
         m_window = ::CreateWindowEx(0,                    /* dwExStyle */
                                     window_class_name,
                                     m_title.c_str(),
-                                    (WS_OVERLAPPEDWINDOW | WS_VISIBLE | WS_SYSMENU) ^ WS_THICKFRAME,
+                                    (WS_OVERLAPPEDWINDOW | visibility_flag | WS_SYSMENU) ^ WS_THICKFRAME,
                                     0, /* X */
                                     0, /* Y */
                                     window_rect.right - window_rect.left,

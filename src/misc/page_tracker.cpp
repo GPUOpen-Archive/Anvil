@@ -75,12 +75,12 @@ bool Anvil::PageTracker::set_binding(MemoryBlock* in_memory_block_ptr,
                                      VkDeviceSize in_start_offset,
                                      VkDeviceSize in_size)
 {
-    const auto end_offset_page_aligned    = Anvil::Utils::round_up(in_start_offset + in_size,
-                                                                   m_page_size);
-    uint32_t   n_pages;
-    uint32_t   occupancy_item_start_index;
-    uint32_t   occupancy_vec_start_index;
-    bool       result                     = false;
+    const auto     end_offset_page_aligned    = Anvil::Utils::round_up(in_start_offset + in_size,
+                                                                       m_page_size);
+    uint32_t       n_pages;
+    uint32_t       occupancy_item_start_index;
+    const uint32_t pages_per_vec_item         = 32;
+    bool           result                     = false;
 
     /* Sanity checks */
     if (in_start_offset + in_size > m_region_size)
@@ -107,10 +107,6 @@ bool Anvil::PageTracker::set_binding(MemoryBlock* in_memory_block_ptr,
     }
 
     /* Store the memory block binding */
-    n_pages                    = static_cast<uint32_t>(in_size         / m_page_size);
-    occupancy_item_start_index = static_cast<uint32_t>(in_start_offset % m_page_size);
-    occupancy_vec_start_index  = static_cast<uint32_t>(in_start_offset / m_page_size / 32 /* pages in a single vec item */);
-
     for (auto mem_binding_iterator  = m_memory_blocks.begin();
               mem_binding_iterator != m_memory_blocks.end();
             ++mem_binding_iterator)
@@ -199,34 +195,37 @@ bool Anvil::PageTracker::set_binding(MemoryBlock* in_memory_block_ptr,
             in_start_offset)
         );
 
-    /* Update page occupancy info
-     *
-     * TODO: Perf of the code below could definitely be improved
-     */
+    /* Update page occupancy info */
+    n_pages                    = static_cast<uint32_t>(in_size         / m_page_size);
+    occupancy_item_start_index = static_cast<uint32_t>(in_start_offset / m_page_size);
+
+    /* TODO: Perf of the code below could definitely be improved */
     for (uint32_t n_page = 0;
                   n_page < n_pages;
                 ++n_page)
     {
-        uint32_t occupancy_item_index = occupancy_item_start_index + n_page;
-        uint32_t occupancy_vec_index  = occupancy_vec_start_index;
+        const uint32_t occupancy_item_index = (occupancy_item_start_index + n_page) % pages_per_vec_item;
+        const uint32_t occupancy_vec_index  = (occupancy_item_start_index + n_page) / pages_per_vec_item;
+        const uint32_t n_page_mask          = m_sparse_page_occupancy[occupancy_vec_index].raw & (1 << occupancy_item_index);
 
-        while (occupancy_item_index >= 32)
-        {
-            occupancy_item_index -= 32;
-            occupancy_vec_index  ++;
-        }
-
+        /* Change the number of memory-backed pages only if a bit would be flipped */
         if (in_memory_block_ptr != nullptr)
         {
-            m_sparse_page_occupancy[occupancy_vec_index].raw |= (1 << occupancy_item_index);
+            if (n_page_mask == 0)
+            {
+                m_sparse_page_occupancy[occupancy_vec_index].raw |= (1 << occupancy_item_index);
 
-            ++m_n_pages_with_memory_backing;
+                ++m_n_pages_with_memory_backing;
+            }
         }
         else
         {
-            m_sparse_page_occupancy[occupancy_vec_index].raw &= ~(1 << occupancy_item_index);
+            if (n_page_mask != 0)
+            {
+                m_sparse_page_occupancy[occupancy_vec_index].raw &= ~(1 << occupancy_item_index);
 
-            --m_n_pages_with_memory_backing;
+                --m_n_pages_with_memory_backing;
+            }
         }
     }
 

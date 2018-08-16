@@ -47,6 +47,7 @@ namespace Anvil
          *                                 the user from being able to destroy the window on their own.
          * @param in_present_callback_func Func pointer to a function which is going to render frame contents to
          *                                 the swapchain image. Must not be null.
+         * @param in_visible               Should the window be made visible at creation time?
          *
          * @return New Anvil::Window instance if successful, or null otherwise.
          */
@@ -54,7 +55,8 @@ namespace Anvil
                                              unsigned int                   in_width,
                                              unsigned int                   in_height,
                                              bool                           in_closable,
-                                             Anvil::PresentCallbackFunction in_present_callback_func);
+                                             Anvil::PresentCallbackFunction in_present_callback_func,
+                                             bool                           in_visible);
 
         /* Creates a window wrapper instance from an existing window handle.
          *
@@ -110,7 +112,7 @@ namespace Anvil
                       PresentCallbackFunction        in_present_callback_func);
 
         /** Creates a new system window and prepares it for usage. */
-        bool init();
+        bool init(const bool& in_visible);
 
         static LRESULT CALLBACK msg_callback_pfn_proc(HWND   in_window_handle,
                                                       UINT   in_message_id,

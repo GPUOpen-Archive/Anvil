@@ -56,6 +56,7 @@ namespace Anvil
          * @param in_closable              Should the "close button" of the window be accesible to the user? Depending on the OS,
          *                                 this may translate to the button being greyed out or not reacting to the user's requests.
          * @param in_present_callback_func Callback function to use for rendering frame contents.
+         * @param in_visible               Should the created window be made visible at creation time?
          *
          * @return A new Window wrapper instance if successful, null otherwise.
          **/
@@ -64,7 +65,8 @@ namespace Anvil
                                                     unsigned int                   in_width,
                                                     unsigned int                   in_height,
                                                     bool                           in_closable,
-                                                    Anvil::PresentCallbackFunction in_present_callback_func);
+                                                    Anvil::PresentCallbackFunction in_present_callback_func,
+                                                    bool                           in_visible               = true);
 
         /* Creates a Window wrapper instance using app-managed window handle.
          *

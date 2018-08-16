@@ -256,7 +256,7 @@ namespace Anvil
 
         const Anvil::ExternalMemoryHandleTypeBits& get_external_memory_handle_types() const
         {
-            return m_external_memory_handle_types;
+            return m_exportable_external_memory_handle_types;
         }
 
         const VkFormat& get_format() const
@@ -375,9 +375,9 @@ namespace Anvil
             m_depth = in_depth;
         }
 
-        void set_external_memory_handle_types(const ExternalMemoryHandleTypeBits& in_external_memory_handle_types)
+        void set_exportable_external_memory_handle_types(const ExternalMemoryHandleTypeBits& in_external_memory_handle_types)
         {
-            m_external_memory_handle_types = in_external_memory_handle_types;
+            m_exportable_external_memory_handle_types = in_external_memory_handle_types;
         }
 
         void set_format(const VkFormat& in_format)
@@ -487,7 +487,7 @@ namespace Anvil
                         const VkImageLayout&                in_post_alloc_image_layout,
                         const std::vector<MipmapRawData>*   in_opt_mipmaps_ptr,
                         const Anvil::MTSafety&              in_mt_safety,
-                        Anvil::ExternalMemoryHandleTypeBits in_external_memory_handle_types,
+                        Anvil::ExternalMemoryHandleTypeBits in_exportable_external_memory_handle_types,
                         const Anvil::MemoryFeatureFlags&    in_memory_features,
                         const Anvil::SparseResidencyScope&  in_residency_scope);
 
@@ -496,7 +496,7 @@ namespace Anvil
         Anvil::ImageCreateFlags             m_create_flags;
         uint32_t                            m_depth;
         const Anvil::BaseDevice*            m_device_ptr;
-        Anvil::ExternalMemoryHandleTypeBits m_external_memory_handle_types;
+        Anvil::ExternalMemoryHandleTypeBits m_exportable_external_memory_handle_types;
         VkFormat                            m_format;
         uint32_t                            m_height;
         Anvil::MemoryFeatureFlags           m_memory_features;

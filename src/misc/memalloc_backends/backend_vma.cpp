@@ -96,8 +96,9 @@ std::shared_ptr<Anvil::MemoryAllocatorBackends::VMA::VMAAllocator> Anvil::Memory
  **/
 bool Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::init()
 {
-    VmaAllocatorCreateInfo create_info = {};
-    VkResult               result        (VK_ERROR_DEVICE_LOST);
+    VmaAllocatorCreateInfo create_info                        = {};
+    const bool             khr_dedicated_allocation_supported = m_device_ptr->get_extension_info()->khr_dedicated_allocation();
+    VkResult               result                             = VK_ERROR_DEVICE_LOST;
 
     switch (m_device_ptr->get_type() )
     {
@@ -115,6 +116,7 @@ bool Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::init()
         }
     }
 
+    create_info.flags                       = (khr_dedicated_allocation_supported) ? VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT : 0;
     create_info.device                      = m_device_ptr->get_device_vk();
     create_info.pAllocationCallbacks        = nullptr;
     create_info.preferredLargeHeapBlockSize = 0;
@@ -167,6 +169,7 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
         VmaAllocation                               allocation                  = VK_NULL_HANDLE;
         VmaAllocationCreateInfo                     allocation_create_info      = {};
         VmaAllocationInfo                           allocation_info             = {};
+        bool                                        is_dedicated_alloc          = false;
         VkMemoryRequirements                        memory_requirements_vk;
         Anvil::OnMemoryBlockReleaseCallbackFunction release_callback_function;
         VkMemoryHeapFlags                           required_mem_heap_flags     = 0;
@@ -183,6 +186,8 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
         memory_requirements_vk.memoryTypeBits = current_item_ptr->alloc_memory_supported_memory_types;
         memory_requirements_vk.size           = current_item_ptr->alloc_size;
 
+        allocation_create_info.flags         = (current_item_ptr->alloc_is_dedicated_memory) ? VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT
+                                                                                             : 0;
         allocation_create_info.requiredFlags = required_mem_property_flags;
 
         result_vk = vmaAllocateMemory(m_vma_allocator_ptr->get_handle(),
@@ -196,6 +201,10 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
             result = false;
 
             continue;
+        }
+        else
+        {
+            is_dedicated_alloc = (allocation->GetType() == VmaAllocation_T::ALLOCATION_TYPE_DEDICATED);
         }
 
         /* Bake the block and stash it */
@@ -215,6 +224,28 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
                                                                                                         memory_requirements_vk.size,
                                                                                                         allocation_info.offset,
                                                                                                         release_callback_function);
+
+            if (is_dedicated_alloc)
+            {
+                if (current_item_ptr->type == Anvil::MemoryAllocator::ITEM_TYPE_BUFFER               ||
+                    current_item_ptr->type == Anvil::MemoryAllocator::ITEM_TYPE_SPARSE_BUFFER_REGION)
+                {
+                    anvil_assert(current_item_ptr->buffer_ptr != nullptr);
+
+                    create_info_ptr->use_dedicated_allocation(current_item_ptr->buffer_ptr,
+                                                              nullptr); /* in_opt_image_ptr */
+                }
+                else
+                if (current_item_ptr->type == Anvil::MemoryAllocator::ITEM_TYPE_IMAGE_WHOLE              ||
+                    current_item_ptr->type == Anvil::MemoryAllocator::ITEM_TYPE_SPARSE_IMAGE_MIPTAIL     ||
+                    current_item_ptr->type == Anvil::MemoryAllocator::ITEM_TYPE_SPARSE_IMAGE_SUBRESOURCE)
+                {
+                    anvil_assert(current_item_ptr->image_ptr != nullptr);
+
+                    create_info_ptr->use_dedicated_allocation(nullptr, /* in_opt_buffer_ptr */
+                                                              current_item_ptr->image_ptr);
+                }
+            }
 
             new_memory_block_ptr = Anvil::MemoryBlock::create(std::move(create_info_ptr) );
         }

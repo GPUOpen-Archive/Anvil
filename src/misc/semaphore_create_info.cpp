@@ -36,9 +36,13 @@ Anvil::SemaphoreCreateInfoUniquePtr Anvil::SemaphoreCreateInfo::create(const Anv
 
 Anvil::SemaphoreCreateInfo::SemaphoreCreateInfo(const Anvil::BaseDevice* in_device_ptr,
                                                 MTSafety                 in_mt_safety)
-    :m_device_ptr                                (in_device_ptr),
-     m_exportable_external_semaphore_handle_types(Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_NONE),
-     m_mt_safety                                 (in_mt_safety)
+    :m_device_ptr                                             (in_device_ptr),
+     m_exportable_external_semaphore_handle_types             (Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_NONE),
+#if defined(_WIN32)
+     m_exportable_nt_handle_info_specified                    (false),
+     m_exportable_nt_handle_info_security_attributes_specified(false),
+#endif
+     m_mt_safety                                              (in_mt_safety)
 {
     /* Stub */
 }

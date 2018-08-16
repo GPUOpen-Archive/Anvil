@@ -133,8 +133,6 @@ namespace Anvil
                                VkDeviceSize in_size,
                                VkDeviceSize in_start_offset)
             {
-                anvil_assert(in_memory_block_ptr != nullptr);
-
                 memory_block_ptr          = in_memory_block_ptr;
                 memory_block_start_offset = in_memory_block_start_offset;
                 size                      = in_size;

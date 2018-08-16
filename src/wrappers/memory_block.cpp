@@ -178,7 +178,9 @@ Anvil::ExternalHandleUniquePtr Anvil::MemoryBlock::export_to_external_memory_han
         const bool only_one_handle_ever_permitted = false;
     #endif
 
-    ExternalHandleType             result_handle       = invalid_handle;
+    auto                           memory                  = get_memory();
+    MemoryBlock*                   parent_memory_block_ptr = nullptr;
+    ExternalHandleType             result_handle           = invalid_handle;
     Anvil::ExternalHandleUniquePtr result_returned_ptr;
 
     /* Sanity checks */
@@ -204,18 +206,29 @@ Anvil::ExternalHandleUniquePtr Anvil::MemoryBlock::export_to_external_memory_han
 
     if (m_create_info_ptr->get_type() != Anvil::MemoryBlockType::REGULAR)
     {
-        anvil_assert(m_create_info_ptr->get_type() == Anvil::MemoryBlockType::REGULAR);
+        parent_memory_block_ptr = m_create_info_ptr->get_parent_memory_block();
 
-        goto end;
+        while (parent_memory_block_ptr->get_create_info_ptr()->get_parent_memory_block() != nullptr)
+        {
+            parent_memory_block_ptr = parent_memory_block_ptr->get_create_info_ptr()->get_parent_memory_block();
+        }
+
+        anvil_assert(m_create_info_ptr->get_type        () == Anvil::MemoryBlockType::DERIVED                            &&
+                     m_create_info_ptr->get_start_offset() == 0                                                          &&
+                     m_create_info_ptr->get_size        () == parent_memory_block_ptr->get_create_info_ptr()->get_size() );
     }
+    else
+    {
+        anvil_assert(m_create_info_ptr->get_parent_memory_block() == nullptr);
 
-    anvil_assert(m_create_info_ptr->get_parent_memory_block() == nullptr);
+        parent_memory_block_ptr = this;
+    }
 
     /* Should we try to return a handle which has already been created for this memory block? */
     if (only_one_handle_ever_permitted)
     {
-        auto map_iterator = m_external_handle_type_to_external_handle.find(in_memory_handle_type);
-        if (map_iterator != m_external_handle_type_to_external_handle.end() )
+        auto map_iterator = parent_memory_block_ptr->m_external_handle_type_to_external_handle.find(in_memory_handle_type);
+        if (map_iterator != parent_memory_block_ptr->m_external_handle_type_to_external_handle.end() )
         {
             result_returned_ptr = Anvil::ExternalHandleUniquePtr(map_iterator->second.get(),
                                                                  [](Anvil::ExternalHandle*){} );
@@ -234,10 +247,10 @@ Anvil::ExternalHandleUniquePtr Anvil::MemoryBlock::export_to_external_memory_han
             VkMemoryGetFdInfoKHR info;
         #endif
 
-        anvil_assert(m_memory != VK_NULL_HANDLE);
+        anvil_assert(memory != VK_NULL_HANDLE);
 
         info.handleType = static_cast<VkExternalMemoryHandleTypeFlagBits>(Anvil::Utils::convert_external_memory_handle_type_bits_to_vk_external_memory_handle_type_flags(in_memory_handle_type) );
-        info.memory     = m_memory;
+        info.memory     = memory;
         info.pNext      = nullptr;
 
         #if defined(_WIN32)
@@ -274,7 +287,7 @@ Anvil::ExternalHandleUniquePtr Anvil::MemoryBlock::export_to_external_memory_han
         result_returned_ptr = Anvil::ExternalHandleUniquePtr(result_owned_ptr.get(),
                                                              [](Anvil::ExternalHandle*){} );
 
-        m_external_handle_type_to_external_handle[in_memory_handle_type] = std::move(result_owned_ptr);
+        parent_memory_block_ptr->m_external_handle_type_to_external_handle[in_memory_handle_type] = std::move(result_owned_ptr);
     }
     else
     {
@@ -357,17 +370,40 @@ bool Anvil::MemoryBlock::init()
     Anvil::StructChainer<VkMemoryAllocateInfo> struct_chainer;
 
     {
-        VkMemoryAllocateInfo buffer_data_alloc_info;
+        VkMemoryAllocateInfo mem_alloc_info;
 
-        buffer_data_alloc_info.allocationSize  = m_create_info_ptr->get_size();
-        buffer_data_alloc_info.memoryTypeIndex = get_device_memory_type_index(m_create_info_ptr->get_allowed_memory_bits(),
-                                                                              m_create_info_ptr->get_memory_features    () );
-        buffer_data_alloc_info.pNext           = nullptr;
-        buffer_data_alloc_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        mem_alloc_info.allocationSize  = m_create_info_ptr->get_size();
+        mem_alloc_info.memoryTypeIndex = (m_create_info_ptr->get_imported_external_memory_handle_type() != 0) ? m_create_info_ptr->get_memory_type_index()
+                                                                                                              : get_device_memory_type_index            (m_create_info_ptr->get_allowed_memory_bits(),
+                                                                                                                                                         m_create_info_ptr->get_memory_features    () );
+        mem_alloc_info.pNext           = nullptr;
+        mem_alloc_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 
-        m_memory_type_index = buffer_data_alloc_info.memoryTypeIndex;
+        m_memory_type_index = mem_alloc_info.memoryTypeIndex;
 
-        struct_chainer.append_struct(buffer_data_alloc_info);
+        struct_chainer.append_struct(mem_alloc_info);
+    }
+
+    {
+        Anvil::Buffer* dedicated_allocation_buffer_ptr = nullptr;
+        Anvil::Image*  dedicated_allocation_image_ptr  = nullptr;
+        bool           use_dedicated_allocation        = false;
+
+        m_create_info_ptr->get_dedicated_allocation_properties(&use_dedicated_allocation,
+                                                               &dedicated_allocation_buffer_ptr,
+                                                               &dedicated_allocation_image_ptr);
+
+        if (use_dedicated_allocation)
+        {
+            VkMemoryDedicatedAllocateInfoKHR alloc_info;
+
+            alloc_info.buffer = (dedicated_allocation_buffer_ptr != nullptr) ? dedicated_allocation_buffer_ptr->get_buffer(false) : VK_NULL_HANDLE;
+            alloc_info.image  = (dedicated_allocation_image_ptr  != nullptr) ? dedicated_allocation_image_ptr->get_image  (false) : VK_NULL_HANDLE;
+            alloc_info.pNext  = nullptr;
+            alloc_info.sType  = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
+
+            struct_chainer.append_struct(alloc_info);
+        }
     }
 
     if (m_create_info_ptr->get_exportable_external_memory_handle_types() != Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_NONE)
@@ -380,46 +416,18 @@ bool Anvil::MemoryBlock::init()
 
         struct_chainer.append_struct(export_memory_alloc_info);
 
-        {
-            const Anvil::ExternalMemoryHandleImportInfo* handle_import_info_ptr = nullptr;
-
-            if (m_create_info_ptr->get_external_handle_import_info(&handle_import_info_ptr) )
-            {
-                #if defined(_WIN32)
-                    VkImportMemoryWin32HandleInfoKHR handle_info_khr;
-                #else
-                    VkImportMemoryFdInfoKHR handle_info_khr;
-                #endif
-
-                handle_info_khr.handleType = static_cast<VkExternalMemoryHandleTypeFlagBitsKHR>(Anvil::Utils::convert_external_memory_handle_type_bits_to_vk_external_memory_handle_type_flags(static_cast<Anvil::ExternalMemoryHandleTypeBits>(m_create_info_ptr->get_imported_external_memory_handle_type() )) );
-                handle_info_khr.pNext      = nullptr;
-
-                #if defined(_WIN32)
-                    handle_info_khr.handle = handle_import_info_ptr->handle;
-                    handle_info_khr.name   = (handle_import_info_ptr->name.size() > 0) ? handle_import_info_ptr->name.c_str()
-                                                                                       : nullptr;
-                    handle_info_khr.sType  = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR;
-                #else
-                    handle_info_khr.fd     = handle_import_info_ptr->handle;
-                    handle_info_khr.sType  = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR;
-                #endif
-
-                struct_chainer.append_struct(handle_info_khr);
-            }
-        }
-
         #if defined(_WIN32)
         {
-            const Anvil::ExternalNTHandleInfo* nt_handle_import_info_ptr = nullptr;
+            const Anvil::ExternalNTHandleInfo* nt_handle_info_ptr = nullptr;
 
-            if (m_create_info_ptr->get_external_nt_handle_import_info(&nt_handle_import_info_ptr) )
+            if (m_create_info_ptr->get_exportable_nt_handle_info(&nt_handle_info_ptr) )
             {
                 VkExportMemoryWin32HandleInfoKHR handle_info_khr;
 
-                handle_info_khr.dwAccess    = nt_handle_import_info_ptr->access;
-                handle_info_khr.name        = (nt_handle_import_info_ptr->name.size() > 0) ? nt_handle_import_info_ptr->name.c_str()
-                                                                                           : nullptr;
-                handle_info_khr.pAttributes = nt_handle_import_info_ptr->attributes_ptr;
+                handle_info_khr.dwAccess    =  nt_handle_info_ptr->access;
+                handle_info_khr.name        = (nt_handle_info_ptr->name.size() > 0) ? nt_handle_info_ptr->name.c_str()
+                                                                                    : nullptr;
+                handle_info_khr.pAttributes = nt_handle_info_ptr->attributes_ptr;
                 handle_info_khr.pNext       = nullptr;
                 handle_info_khr.sType       = VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR;
 
@@ -427,6 +435,34 @@ bool Anvil::MemoryBlock::init()
             }
         }
         #endif
+    }
+
+    {
+        const Anvil::ExternalMemoryHandleImportInfo* handle_import_info_ptr = nullptr;
+
+        if (m_create_info_ptr->get_external_handle_import_info(&handle_import_info_ptr) )
+        {
+            #if defined(_WIN32)
+                VkImportMemoryWin32HandleInfoKHR handle_info_khr;
+            #else
+                VkImportMemoryFdInfoKHR handle_info_khr;
+            #endif
+
+            handle_info_khr.handleType = static_cast<VkExternalMemoryHandleTypeFlagBitsKHR>(Anvil::Utils::convert_external_memory_handle_type_bits_to_vk_external_memory_handle_type_flags(static_cast<Anvil::ExternalMemoryHandleTypeBits>(m_create_info_ptr->get_imported_external_memory_handle_type() )) );
+            handle_info_khr.pNext      = nullptr;
+
+            #if defined(_WIN32)
+                handle_info_khr.handle = handle_import_info_ptr->handle;
+                handle_info_khr.name   = (handle_import_info_ptr->name.size() > 0) ? handle_import_info_ptr->name.c_str()
+                                                                                   : nullptr;
+                handle_info_khr.sType  = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR;
+            #else
+                handle_info_khr.fd     = handle_import_info_ptr->handle;
+                handle_info_khr.sType  = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR;
+            #endif
+
+            struct_chainer.append_struct(handle_info_khr);
+        }
     }
 
     {
