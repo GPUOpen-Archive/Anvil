@@ -87,7 +87,8 @@ bool Anvil::GraphicsPipelineCreateInfo::add_vertex_attribute(uint32_t           
                                                              uint32_t           in_offset_in_bytes,
                                                              uint32_t           in_stride_in_bytes,
                                                              VkVertexInputRate  in_step_rate,
-                                                             uint32_t           in_explicit_binding_index)
+                                                             uint32_t           in_explicit_binding_index,
+                                                             uint32_t           in_divisor)
 {
     bool result = false;
 
@@ -126,6 +127,7 @@ bool Anvil::GraphicsPipelineCreateInfo::add_vertex_attribute(uint32_t           
      * time. */
     m_attributes.push_back(
         InternalVertexAttribute(
+            in_divisor,
             in_explicit_binding_index,
             in_format,
             in_location,
@@ -744,7 +746,8 @@ bool Anvil::GraphicsPipelineCreateInfo::get_vertex_attribute_properties(uint32_t
                                                                         uint32_t*          out_opt_offset_ptr,
                                                                         uint32_t*          out_opt_explicit_vertex_binding_index_ptr,
                                                                         uint32_t*          out_opt_stride_ptr,
-                                                                        VkVertexInputRate* out_opt_rate_ptr) const
+                                                                        VkVertexInputRate* out_opt_rate_ptr,
+                                                                        uint32_t*          out_opt_divisor_ptr) const
 {
     const InternalVertexAttribute* attribute_ptr = nullptr;
     bool                           result        = false;
@@ -786,6 +789,11 @@ bool Anvil::GraphicsPipelineCreateInfo::get_vertex_attribute_properties(uint32_t
     if (out_opt_rate_ptr != nullptr)
     {
         *out_opt_rate_ptr = attribute_ptr->rate;
+    }
+
+    if (out_opt_divisor_ptr != nullptr)
+    {
+        *out_opt_divisor_ptr = attribute_ptr->divisor;
     }
 
     /* All done */

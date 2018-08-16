@@ -39,7 +39,8 @@ namespace Anvil
                                              unsigned int                   in_width,
                                              unsigned int                   in_height,
                                              bool                           in_closable,
-                                             Anvil::PresentCallbackFunction in_present_callback_func);
+                                             Anvil::PresentCallbackFunction in_present_callback_func,
+                                             bool                           in_visible);
 
         static Anvil::WindowUniquePtr create(xcb_connection_t* in_connection_ptr,
                                              WindowHandle      in_window_handle);
@@ -77,7 +78,7 @@ namespace Anvil
                   WindowHandle                   in_window_handle);
 
         /** Creates a new system window and prepares it for usage. */
-        bool init();
+        bool init           (const bool& in_visible);
         bool init_connection();
 
         /* Private variables */

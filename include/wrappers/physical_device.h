@@ -63,8 +63,8 @@ namespace Anvil
          *
          * Requires VK_KHR_external_memory_capabilities.
          */
-        bool get_buffer_format_properties(const Anvil::BufferFormatPropertiesQuery& in_query,
-                                          Anvil::BufferFormatProperties*            out_opt_result_ptr = nullptr) const;
+        bool get_buffer_properties(const Anvil::BufferPropertiesQuery& in_query,
+                                   Anvil::BufferProperties*            out_opt_result_ptr = nullptr) const;
 
         /** Retrieves features supported by the physical device */
         const Anvil::PhysicalDeviceFeatures& get_device_features() const
@@ -233,6 +233,7 @@ namespace Anvil
         std::unique_ptr<Anvil::PhysicalDevicePropertiesCoreVK10>                        m_core_properties_vk10_ptr;
         std::unique_ptr<Anvil::EXTDescriptorIndexingFeatures>                           m_ext_descriptor_indexing_features_ptr;
         std::unique_ptr<Anvil::EXTDescriptorIndexingProperties>                         m_ext_descriptor_indexing_properties_ptr;
+        std::unique_ptr<Anvil::EXTVertexAttributeDivisorProperties>                     m_ext_vertex_attribute_divisor_properties_ptr;
         std::unique_ptr<Anvil::KHR16BitStorageFeatures>                                 m_khr_16_bit_storage_features_ptr;
         std::unique_ptr<Anvil::KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties> m_khr_external_memory_capabilities_physical_device_id_properties_ptr;
         std::unique_ptr<Anvil::KHRMaintenance3Properties>                               m_khr_maintenance3_properties_ptr;

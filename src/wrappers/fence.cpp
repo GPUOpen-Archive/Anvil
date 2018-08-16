@@ -80,11 +80,11 @@ Anvil::ExternalHandleUniquePtr Anvil::Fence::export_to_external_handle(const Anv
 {
     #if defined(_WIN32)
         const auto invalid_handle                 = nullptr;
-        const bool is_autorelease_handle          = Anvil::Utils::is_nt_handle(in_fence_handle_type);
+        const bool handle_needs_manual_release    = Anvil::Utils::is_nt_handle(in_fence_handle_type);
         const bool only_one_handle_ever_permitted = Anvil::Utils::is_nt_handle(in_fence_handle_type);
     #else
         const int  invalid_handle                 = -1;
-        const bool is_autorelease_handle          = true;
+        const bool handle_needs_manual_release    = true;
         const bool only_one_handle_ever_permitted = false;
     #endif
 
@@ -181,7 +181,7 @@ Anvil::ExternalHandleUniquePtr Anvil::Fence::export_to_external_handle(const Anv
     }
 
     result_ptr = Anvil::ExternalHandle::create(result_handle,
-                                               is_autorelease_handle); /* in_close_at_destruction_time */
+                                               handle_needs_manual_release); /* in_close_at_destruction_time */
 
 end:
     return result_ptr;

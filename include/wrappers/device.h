@@ -165,6 +165,17 @@ namespace Anvil
             return m_khr_descriptor_update_template_extension_entrypoints;
         }
 
+        /** Returns a container with entry-points to functions introduced by VK_KHR_draw_indirect_count extension.
+         *
+         *  Will fire an assertion failure if the extension was not requested at device creation time.
+         **/
+        const ExtensionKHRDrawIndirectCountEntrypoints& get_extension_khr_draw_indirect_count_entrypoints() const
+        {
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_draw_indirect_count() );
+
+            return m_khr_draw_indirect_count_extension_entrypoints;
+        }
+
         #if defined(_WIN32)
             const ExtensionKHRExternalFenceWin32Entrypoints& get_extension_khr_external_fence_win32_entrypoints() const
             {
@@ -208,6 +219,14 @@ namespace Anvil
                 return m_khr_external_semaphore_fd_extension_entrypoints;
             }
         #endif
+
+        /** Returns a container with entry-points to functions introduced by VK_KHR_get_memory_requirements2 extension. **/
+        const ExtensionKHRGetMemoryRequirements2Entrypoints& get_extension_khr_get_memory_requirements2_entrypoints() const
+        {
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_get_memory_requirements2() );
+
+            return m_khr_get_memory_requirements2_extension_entrypoints;
+        }
 
         /** Returns a container with entry-points to functions introduced by VK_KHR_maintenance1 extension. **/
         const ExtensionKHRMaintenance1Entrypoints& get_extension_khr_maintenance1_entrypoints() const
@@ -269,9 +288,9 @@ namespace Anvil
 
             switch (in_family_type)
             {
-                case Anvil::QueueFamilyType::COMPUTE:   result = static_cast<uint32_t>(m_compute_queues.size() );      break;
-                case Anvil::QueueFamilyType::TRANSFER:  result = static_cast<uint32_t>(m_transfer_queues.size() );     break;
-                case Anvil::QueueFamilyType::UNIVERSAL: result = static_cast<uint32_t>(m_universal_queues.size() );    break;
+                case Anvil::QueueFamilyType::COMPUTE:      result = static_cast<uint32_t>(m_compute_queues.size() );      break;
+                case Anvil::QueueFamilyType::TRANSFER:     result = static_cast<uint32_t>(m_transfer_queues.size() );     break;
+                case Anvil::QueueFamilyType::UNIVERSAL:    result = static_cast<uint32_t>(m_universal_queues.size() );    break;
 
                 default:
                 {
@@ -316,8 +335,8 @@ namespace Anvil
             return m_parent_instance_ptr;
         }
 
-        virtual bool get_physical_device_buffer_format_properties(const BufferFormatPropertiesQuery& in_query,
-                                                                  Anvil::BufferFormatProperties*     out_opt_result_ptr = nullptr) const = 0;
+        virtual bool get_physical_device_buffer_properties(const BufferPropertiesQuery& in_query,
+                                                           Anvil::BufferProperties*     out_opt_result_ptr = nullptr) const = 0;
 
         /** Returns features supported by physical device(s) which have been used to instantiate
          *  this logical device instance.
@@ -346,6 +365,9 @@ namespace Anvil
          *  logical device instance.
          **/
         virtual const QueueFamilyInfoItems& get_physical_device_queue_families() const = 0;
+
+        virtual bool get_physical_device_semaphore_properties(const SemaphorePropertiesQuery& in_query,
+                                                              Anvil::SemaphoreProperties*     out_opt_result_ptr = nullptr) const = 0;
 
         /** Returns sparse image format properties, as reported by physical device(s) which have been
          *  used to instantiate this logical device instance.
@@ -643,6 +665,8 @@ namespace Anvil
         ExtensionEXTDebugMarkerEntrypoints                m_ext_debug_marker_extension_entrypoints;
         ExtensionKHRBindMemory2Entrypoints                m_khr_bind_memory2_extension_entrypoints;
         ExtensionKHRDescriptorUpdateTemplateEntrypoints   m_khr_descriptor_update_template_extension_entrypoints;
+        ExtensionKHRDrawIndirectCountEntrypoints          m_khr_draw_indirect_count_extension_entrypoints;
+        ExtensionKHRGetMemoryRequirements2Entrypoints     m_khr_get_memory_requirements2_extension_entrypoints;
         ExtensionKHRMaintenance1Entrypoints               m_khr_maintenance1_extension_entrypoints;
         ExtensionKHRMaintenance3Entrypoints               m_khr_maintenance3_extension_entrypoints;
         ExtensionKHRSurfaceEntrypoints                    m_khr_surface_extension_entrypoints;
@@ -738,14 +762,17 @@ namespace Anvil
             return m_parent_physical_device_ptr;
         }
 
-        bool get_physical_device_buffer_format_properties(const BufferFormatPropertiesQuery& in_query,
-                                                          Anvil::BufferFormatProperties*     out_opt_result_ptr = nullptr) const override;
+        bool get_physical_device_buffer_properties(const BufferPropertiesQuery& in_query,
+                                                   Anvil::BufferProperties*     out_opt_result_ptr = nullptr) const override;
 
         /** See documentation in BaseDevice for more details */
         const Anvil::PhysicalDeviceFeatures& get_physical_device_features() const override;
 
         bool get_physical_device_fence_properties(const FencePropertiesQuery& in_query,
                                                   Anvil::FenceProperties*     out_opt_result_ptr = nullptr) const override;
+
+        bool get_physical_device_semaphore_properties(const SemaphorePropertiesQuery& in_query,
+                                                      Anvil::SemaphoreProperties*     out_opt_result_ptr = nullptr) const override;
 
         Anvil::FormatProperties get_physical_device_format_properties(VkFormat in_format) const override;
 
@@ -805,6 +832,7 @@ namespace Anvil
         /* Private variables */
         const Anvil::PhysicalDevice* m_parent_physical_device_ptr;
     };
+
 }; /* namespace Anvil */
 
 #endif /* WRAPPERS_DEVICE_H */

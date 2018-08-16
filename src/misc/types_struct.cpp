@@ -132,12 +132,12 @@ Anvil::BufferBarrier::~BufferBarrier()
     /* Stub */
 }
 
-Anvil::BufferFormatProperties::BufferFormatProperties()
+Anvil::BufferProperties::BufferProperties()
 {
     /* Stub */
 }
 
-Anvil::BufferFormatProperties::BufferFormatProperties(const ExternalMemoryProperties& in_external_handle_properties)
+Anvil::BufferProperties::BufferProperties(const ExternalMemoryProperties& in_external_handle_properties)
     :external_handle_properties (in_external_handle_properties)
 {
     /* Stub */
@@ -334,6 +334,12 @@ Anvil::ExtensionKHRDeviceGroupCreationEntrypoints::ExtensionKHRDeviceGroupCreati
     vkEnumeratePhysicalDeviceGroupsKHR = nullptr;
 }
 
+Anvil::ExtensionKHRDrawIndirectCountEntrypoints::ExtensionKHRDrawIndirectCountEntrypoints()
+{
+    vkCmdDrawIndexedIndirectCountKHR = nullptr;
+    vkCmdDrawIndirectCountKHR        = nullptr;
+}
+
 Anvil::ExtensionKHRExternalFenceCapabilitiesEntrypoints::ExtensionKHRExternalFenceCapabilitiesEntrypoints()
 {
     vkGetPhysicalDeviceExternalFencePropertiesKHR = nullptr;
@@ -431,6 +437,13 @@ Anvil::ExtensionKHRSwapchainEntrypoints::ExtensionKHRSwapchainEntrypoints()
         }
     #endif
 #endif
+
+Anvil::ExtensionKHRGetMemoryRequirements2Entrypoints::ExtensionKHRGetMemoryRequirements2Entrypoints()
+{
+    vkGetBufferMemoryRequirements2KHR      = nullptr;
+    vkGetImageMemoryRequirements2KHR       = nullptr;
+    vkGetImageSparseMemoryRequirements2KHR = nullptr;
+}
 
 Anvil::ExtensionKHRGetPhysicalDeviceProperties2::ExtensionKHRGetPhysicalDeviceProperties2()
 {
@@ -622,6 +635,18 @@ bool Anvil::EXTDescriptorIndexingProperties::operator==(const EXTDescriptorIndex
             shader_storage_buffer_array_non_uniform_indexing_native      == in_props.shader_storage_buffer_array_non_uniform_indexing_native      &&
             shader_storage_image_array_non_uniform_indexing_native       == in_props.shader_storage_image_array_non_uniform_indexing_native       &&
             shader_uniform_buffer_array_non_uniform_indexing_native      == in_props.shader_uniform_buffer_array_non_uniform_indexing_native);
+}
+
+Anvil::EXTVertexAttributeDivisorProperties::EXTVertexAttributeDivisorProperties()
+    :max_vertex_attribute_divisor(0)
+{
+    /* Stub */
+}
+
+Anvil::EXTVertexAttributeDivisorProperties::EXTVertexAttributeDivisorProperties(const VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT& in_props)
+    :max_vertex_attribute_divisor(in_props.maxVertexAttribDivisor)
+{
+    /* Stub */
 }
 
 Anvil::ExternalFenceProperties::ExternalFenceProperties()
@@ -1524,20 +1549,22 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_array_from_uchar_vect
 
 Anvil::PhysicalDeviceProperties::PhysicalDeviceProperties()
 {
-    amd_shader_core_properties_ptr         = nullptr;
-    core_vk1_0_properties_ptr              = nullptr;
-    ext_descriptor_indexing_properties_ptr = nullptr;
-    khr_maintenance3_properties_ptr        = nullptr;
+    amd_shader_core_properties_ptr                   = nullptr;
+    core_vk1_0_properties_ptr                        = nullptr;
+    ext_descriptor_indexing_properties_ptr           = nullptr;
+    khr_maintenance3_properties_ptr                  = nullptr;
 }
 
 Anvil::PhysicalDeviceProperties::PhysicalDeviceProperties(const AMDShaderCoreProperties*                                        in_amd_shader_core_properties_ptr,
                                                           const PhysicalDevicePropertiesCoreVK10*                               in_core_vk1_0_properties_ptr,
                                                           const EXTDescriptorIndexingProperties*                                in_ext_descriptor_indexing_properties_ptr,
+                                                          const EXTVertexAttributeDivisorProperties*                            in_ext_vertex_attribute_divisor_properties_ptr,
                                                           const Anvil::KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties* in_khr_external_memory_caps_physical_device_id_props_ptr,
                                                           const KHRMaintenance3Properties*                                      in_khr_maintenance3_properties_ptr)
     :amd_shader_core_properties_ptr                                    (in_amd_shader_core_properties_ptr),
      core_vk1_0_properties_ptr                                         (in_core_vk1_0_properties_ptr),
      ext_descriptor_indexing_properties_ptr                            (in_ext_descriptor_indexing_properties_ptr),
+     ext_vertex_attribute_divisor_properties_ptr                       (in_ext_vertex_attribute_divisor_properties_ptr),
      khr_external_memory_capabilities_physical_device_id_properties_ptr(in_khr_external_memory_caps_physical_device_id_props_ptr),
      khr_maintenance3_properties_ptr                                   (in_khr_maintenance3_properties_ptr)
 {
@@ -2486,10 +2513,10 @@ bool Anvil::PhysicalDeviceFeaturesCoreVK10::operator==(const Anvil::PhysicalDevi
 
 bool Anvil::PhysicalDeviceProperties::operator==(const PhysicalDeviceProperties& in_props) const
 {
-    bool       amd_shader_core_properties_match         = false;
-    const bool core_vk1_0_features_match                = (*core_vk1_0_properties_ptr == *in_props.core_vk1_0_properties_ptr);
-    bool       ext_descriptor_indexing_properties_match = false;
-    bool       khr_maintenance3_properties_match        = false;
+    bool       amd_shader_core_properties_match                   = false;
+    const bool core_vk1_0_features_match                          = (*core_vk1_0_properties_ptr == *in_props.core_vk1_0_properties_ptr);
+    bool       ext_descriptor_indexing_properties_match           = false;
+    bool       khr_maintenance3_properties_match                  = false;
 
     if (amd_shader_core_properties_ptr          != nullptr &&
         in_props.amd_shader_core_properties_ptr != nullptr)
@@ -2524,9 +2551,9 @@ bool Anvil::PhysicalDeviceProperties::operator==(const PhysicalDeviceProperties&
                                              in_props.khr_maintenance3_properties_ptr == nullptr);
     }
 
-    return amd_shader_core_properties_match         &&
-           core_vk1_0_features_match                &&
-           ext_descriptor_indexing_properties_match &&
+    return amd_shader_core_properties_match                   &&
+           core_vk1_0_features_match                          &&
+           ext_descriptor_indexing_properties_match           &&
            khr_maintenance3_properties_match;
 }
 
@@ -2551,6 +2578,7 @@ Anvil::SubmitInfo::SubmitInfo(uint32_t                         in_n_command_buff
      n_wait_semaphores                      (in_n_semaphores_to_wait_on),
      signal_semaphores_sgpu_ptr             (in_opt_semaphore_to_signal_ptrs_ptr),
      should_block                           (in_should_block),
+     timeout                                (UINT64_MAX),
      type                                   (SubmissionType::SGPU),
      wait_semaphores_sgpu_ptr               (in_opt_semaphore_to_wait_on_ptrs_ptr)
 {
@@ -2584,6 +2612,7 @@ Anvil::SubmitInfo::SubmitInfo(Anvil::CommandBufferBase*   in_cmd_buffer_ptr,
      n_wait_semaphores                      (in_n_semaphores_to_wait_on),
      signal_semaphores_sgpu_ptr             (in_opt_semaphore_to_signal_ptrs_ptr),
      should_block                           (in_should_block),
+     timeout                                (UINT64_MAX),
      type                                   (SubmissionType::SGPU),
      wait_semaphores_sgpu_ptr               (in_opt_semaphore_to_wait_on_ptrs_ptr)
 {

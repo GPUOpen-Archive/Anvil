@@ -44,7 +44,8 @@ Anvil::WindowUniquePtr Anvil::WindowXcb::create(const std::string&             i
                                                 unsigned int                   in_width,
                                                 unsigned int                   in_height,
                                                 bool                           in_closable,
-                                                Anvil::PresentCallbackFunction in_present_callback_func)
+                                                Anvil::PresentCallbackFunction in_present_callback_func,
+                                                bool                           in_visible)
 {
     WindowUniquePtr result_ptr(nullptr,
                                std::default_delete<Window>() );
@@ -59,7 +60,7 @@ Anvil::WindowUniquePtr Anvil::WindowXcb::create(const std::string&             i
 
     if (result_ptr)
     {
-        if (!dynamic_cast<Anvil::WindowXcb*>(result_ptr.get() )->init() )
+        if (!dynamic_cast<Anvil::WindowXcb*>(result_ptr.get() )->init(in_visible) )
         {
             result_ptr.reset();
         }
@@ -81,7 +82,7 @@ Anvil::WindowUniquePtr Anvil::WindowXcb::create(xcb_connection_t* in_connection_
 
     if (result_ptr)
     {
-        if (!dynamic_cast<WindowXcb*>(result_ptr.get() )->init() )
+        if (!dynamic_cast<WindowXcb*>(result_ptr.get() )->init(true /* in_visible */) )
         {
             result_ptr.reset();
         }
@@ -160,7 +161,7 @@ void Anvil::WindowXcb::close()
 }
 
 /** Creates a new system window and prepares it for usage. */
-bool Anvil::WindowXcb::init()
+bool Anvil::WindowXcb::init(const bool& in_visible)
 {
     bool                  result        = false;
     const XCBLoaderFuncs* xcb_procs_ptr = nullptr;
@@ -282,9 +283,13 @@ bool Anvil::WindowXcb::init()
 
         free(atom_reply_ptr);
 
-        xcb_procs_ptr->pfn_xcbMapWindow(m_connection_ptr,
-                                        m_window);
-        xcb_procs_ptr->pfn_xcbFlush    (m_connection_ptr);
+        if (in_visible)
+        {
+            xcb_procs_ptr->pfn_xcbMapWindow(m_connection_ptr,
+                                            m_window);
+        }
+
+        xcb_procs_ptr->pfn_xcbFlush(m_connection_ptr);
 
         m_atom_wm_delete_window_ptr = atom_wm_delete_window_ptr;
         m_key_symbols               = xcb_procs_ptr->pfn_xcbKeySymbolsAlloc(m_connection_ptr);

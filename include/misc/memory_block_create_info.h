@@ -59,6 +59,7 @@ namespace Anvil
          *
          *  - Exportable external memory handle types: Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_NONE
          *  - Importable external memory handle type:  Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_NONE
+         *  - Use a dedicated allocation?:             No.
          *
          *  These can be further adjusted by callingt corresponding set_..() functions prior to passing the CreateInfo instance
          *  to MemoryBlock::create().
@@ -81,6 +82,7 @@ namespace Anvil
          *  - Exportable external memory handle types: Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_NONE
          *  - Importable external memory handle type:  Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_NONE
          *  - MT safety:                               MT_SAFETY_INHERIT_FROM_PARENT_DEVICE.
+         *  - Use a dedicated allocation?:             No.
          *
          *  These can be further adjusted by callingt corresponding set_..() functions prior to passing the CreateInfo instance
          *  to MemoryBlock::create().
@@ -98,6 +100,26 @@ namespace Anvil
         const uint32_t& get_allowed_memory_bits() const
         {
             return m_allowed_memory_bits;
+        }
+
+        void get_dedicated_allocation_properties(bool*           out_opt_enabled_ptr,
+                                                 Anvil::Buffer** out_opt_buffer_ptr_ptr,
+                                                 Anvil::Image**  out_opt_image_ptr_ptr) const
+        {
+            if (out_opt_enabled_ptr != nullptr)
+            {
+                *out_opt_enabled_ptr = m_use_dedicated_allocation;
+            }
+
+            if (out_opt_buffer_ptr_ptr != nullptr)
+            {
+                *out_opt_buffer_ptr_ptr = m_dedicated_allocation_buffer_ptr;
+            }
+
+            if (out_opt_image_ptr_ptr != nullptr)
+            {
+                *out_opt_image_ptr_ptr = m_dedicated_allocation_image_ptr;
+            }
         }
 
         const Anvil::BaseDevice* get_device() const
@@ -129,18 +151,18 @@ namespace Anvil
         }
 
         #if defined(_WIN32)
-            /* Returns true if set_external_nt_handle_import_info() has been called prior to this call.
+            /* Returns true if set_exportable_nt_handle_info() has been called prior to this call.
              * Otherwise returns false.
              *
              * If the func returns true, *out_result_ptr is set to the queried data.
              */
-            bool get_external_nt_handle_import_info(const ExternalNTHandleInfo** out_result_ptr_ptr) const
+            bool get_exportable_nt_handle_info(const ExternalNTHandleInfo** out_result_ptr_ptr) const
             {
                 bool result = false;
 
-                if (m_external_nt_handle_import_info_specified)
+                if (m_exportable_nt_handle_info_specified)
                 {
-                    *out_result_ptr_ptr = &m_external_nt_handle_import_info;
+                    *out_result_ptr_ptr = &m_exportable_nt_handle_info;
                     result              = true;
                 }
 
@@ -248,17 +270,17 @@ namespace Anvil
              *
              * Requires VK_KHR_external_memory_win32
              */
-            void set_external_nt_handle_import_info(const SECURITY_ATTRIBUTES* in_opt_attributes_ptr,
-                                                    const DWORD&               in_access,
-                                                    const std::wstring&        in_name)
+            void set_exportable_nt_handle_info(const SECURITY_ATTRIBUTES* in_opt_attributes_ptr,
+                                               const DWORD&               in_access,
+                                               const std::wstring&        in_name)
             {
-                anvil_assert(!m_external_nt_handle_import_info_specified);
+                anvil_assert(!m_exportable_nt_handle_info_specified);
 
-                m_external_nt_handle_import_info.access         = in_access;
-                m_external_nt_handle_import_info.attributes_ptr = in_opt_attributes_ptr;
-                m_external_nt_handle_import_info.name           = in_name;
+                m_exportable_nt_handle_info.access         = in_access;
+                m_exportable_nt_handle_info.attributes_ptr = in_opt_attributes_ptr;
+                m_exportable_nt_handle_info.name           = in_name;
 
-                m_external_nt_handle_import_info_specified      = true;
+                m_exportable_nt_handle_info_specified      = true;
             }
         #endif
 
@@ -270,6 +292,31 @@ namespace Anvil
         void set_mt_safety(const Anvil::MTSafety& in_mt_safety)
         {
             m_mt_safety = in_mt_safety;
+        }
+
+        /* Call to request a dedicated allocation for the memory block. Requirements are:
+         *
+         * 1) Device must support VK_KHR_dedicated_allocation.
+         * 2) Either in_opt_buffer_ptr or in_opt_image_ptr must not be null. Cases where both
+         *    are nullptr or != nullptr are not allowed.
+         *
+         * May only be called once.
+         * The specified object must remain alive until the actual memory allocation takes place.
+         *
+         */
+        void use_dedicated_allocation(Anvil::Buffer* in_opt_buffer_ptr,
+                                      Anvil::Image*  in_opt_image_ptr)
+        {
+            anvil_assert(m_dedicated_allocation_buffer_ptr == nullptr);
+            anvil_assert(m_dedicated_allocation_image_ptr  == nullptr);
+            anvil_assert(!m_use_dedicated_allocation);
+
+            anvil_assert((in_opt_buffer_ptr == nullptr && in_opt_image_ptr != nullptr) ||
+                         (in_opt_buffer_ptr != nullptr && in_opt_image_ptr == nullptr) );
+
+            m_dedicated_allocation_buffer_ptr = in_opt_buffer_ptr;
+            m_dedicated_allocation_image_ptr  = in_opt_image_ptr;
+            m_use_dedicated_allocation        = true;
         }
 
     private:
@@ -301,9 +348,13 @@ namespace Anvil
         VkDeviceSize                                m_start_offset;
         const Anvil::MemoryBlockType                m_type;
 
+        Anvil::Buffer* m_dedicated_allocation_buffer_ptr;
+        Anvil::Image*  m_dedicated_allocation_image_ptr;
+        bool           m_use_dedicated_allocation;
+
         #ifdef _WIN32
-            ExternalNTHandleInfo m_external_nt_handle_import_info;
-            bool                 m_external_nt_handle_import_info_specified;
+            ExternalNTHandleInfo m_exportable_nt_handle_info;
+            bool                 m_exportable_nt_handle_info_specified;
         #endif
 
         ExternalMemoryHandleImportInfo m_external_handle_import_info;

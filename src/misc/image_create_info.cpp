@@ -63,8 +63,8 @@ Anvil::ImageCreateInfoUniquePtr Anvil::ImageCreateInfo::create_nonsparse_no_allo
                             in_post_alloc_image_layout,
                             in_opt_mipmaps_ptr,
                             Anvil::MT_SAFETY_INHERIT_FROM_PARENT_DEVICE,
-                            0, /* in_external_memory_handle_types */
-                            0, /* in_memory_features              */
+                            0, /* in_exportable_external_memory_handle_types */
+                            0, /* in_memory_features                         */
                             Anvil::SPARSE_RESIDENCY_SCOPE_UNDEFINED) 
     );
 
@@ -112,7 +112,7 @@ Anvil::ImageCreateInfoUniquePtr Anvil::ImageCreateInfo::create_nonsparse_alloc(c
                             in_post_alloc_image_layout,
                             in_opt_mipmaps_ptr,
                             Anvil::MT_SAFETY_INHERIT_FROM_PARENT_DEVICE,
-                            0, /* in_external_memory_handle_types */
+                            0, /* in_exportable_external_memory_handle_types */
                             in_memory_features,
                             Anvil::SPARSE_RESIDENCY_SCOPE_UNDEFINED) 
     );
@@ -230,33 +230,33 @@ Anvil::ImageCreateInfo::ImageCreateInfo(Anvil::ImageType                    in_t
                                         const VkImageLayout&                in_post_alloc_image_layout,
                                         const std::vector<MipmapRawData>*   in_opt_mipmaps_ptr,
                                         const Anvil::MTSafety&              in_mt_safety,
-                                        Anvil::ExternalMemoryHandleTypeBits in_external_memory_handle_types,
+                                        Anvil::ExternalMemoryHandleTypeBits in_exportable_external_memory_handle_types,
                                         const Anvil::MemoryFeatureFlags&    in_memory_features,
                                         const Anvil::SparseResidencyScope&  in_residency_scope)
-     :m_create_flags                (in_create_flags),
-      m_depth                       (in_base_mipmap_depth),
-      m_device_ptr                  (in_device_ptr),
-      m_external_memory_handle_types(in_external_memory_handle_types),
-      m_format                      (in_format),
-      m_height                      (in_base_mipmap_height),
-      m_memory_features             (in_memory_features),
-      m_mipmaps_to_upload           ((in_opt_mipmaps_ptr != nullptr) ? *in_opt_mipmaps_ptr : std::vector<MipmapRawData>() ),
-      m_mt_safety                   (in_mt_safety),
-      m_n_layers                    (in_n_layers),
-      m_n_swapchain_image           (UINT32_MAX),
-      m_post_alloc_layout           (in_post_alloc_image_layout),
-      m_post_create_layout          (in_post_create_image_layout),
-      m_queue_families              (in_queue_families),
-      m_residency_scope             (in_residency_scope),
-      m_sample_count                (in_sample_count),
-      m_sharing_mode                (in_sharing_mode),
-      m_swapchain_ptr               (nullptr),
-      m_tiling                      (in_tiling),
-      m_type                        (in_type),
-      m_type_vk                     (in_type_vk),
-      m_usage_flags                 (static_cast<VkImageUsageFlagBits>(in_usage)),
-      m_use_full_mipmap_chain       (in_use_full_mipmap_chain),
-      m_width                       (in_base_mipmap_width)
+     :m_create_flags                           (in_create_flags),
+      m_depth                                  (in_base_mipmap_depth),
+      m_device_ptr                             (in_device_ptr),
+      m_exportable_external_memory_handle_types(in_exportable_external_memory_handle_types),
+      m_format                                 (in_format),
+      m_height                                 (in_base_mipmap_height),
+      m_memory_features                        (in_memory_features),
+      m_mipmaps_to_upload                      ((in_opt_mipmaps_ptr != nullptr) ? *in_opt_mipmaps_ptr : std::vector<MipmapRawData>() ),
+      m_mt_safety                              (in_mt_safety),
+      m_n_layers                               (in_n_layers),
+      m_n_swapchain_image                      (UINT32_MAX),
+      m_post_alloc_layout                      (in_post_alloc_image_layout),
+      m_post_create_layout                     (in_post_create_image_layout),
+      m_queue_families                         (in_queue_families),
+      m_residency_scope                        (in_residency_scope),
+      m_sample_count                           (in_sample_count),
+      m_sharing_mode                           (in_sharing_mode),
+      m_swapchain_ptr                          (nullptr),
+      m_tiling                                 (in_tiling),
+      m_type                                   (in_type),
+      m_type_vk                                (in_type_vk),
+      m_usage_flags                            (static_cast<VkImageUsageFlagBits>(in_usage)),
+      m_use_full_mipmap_chain                  (in_use_full_mipmap_chain),
+      m_width                                  (in_base_mipmap_width)
 {
     /* Stub */
 }
