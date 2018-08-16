@@ -73,6 +73,43 @@ namespace Anvil
         static bool get_format_aspects(VkFormat                         in_format,
                                        std::vector<VkImageAspectFlags>* out_aspects_ptr);
 
+        /** Returns bit layout for the specified format.
+         *
+         *  NOTE: Only non-compressed formats are supported.
+         *  NOTE: Components not used by the specified format have start and end bit indices set to UINT32_MAX.
+         *
+         *  @param in_format                                     Non-compressed format to use for the query.
+         *  @param out_opt_red_component_start_bit_index_ptr     If not null, deref will be set to the bit index, from which red component data starts.
+         *  @param out_opt_red_component_end_bit_index_ptr       If not null, deref will be set to the bit index, at which red component data ends. (data under the bit includes the data!)
+         *  @param out_opt_green_component_start_bit_index_ptr   If not null, deref will be set to the bit index, from which green component data starts.
+         *  @param out_opt_green_component_end_bit_index_ptr     If not null, deref will be set to the bit index, at which green component data ends. (data under the bit includes the data!)
+         *  @param out_opt_blue_component_start_bit_index_ptr    If not null, deref will be set to the bit index, from which blue component data starts.
+         *  @param out_opt_blue_component_end_bit_index_ptr      If not null, deref will be set to the bit index, at which blue component data ends. (data under the bit includes the data!)
+         *  @param out_opt_alpha_component_start_bit_index_ptr   If not null, deref will be set to the bit index, from which alpha component data starts.
+         *  @param out_opt_alpha_component_end_bit_index_ptr     If not null, deref will be set to the bit index, at which alpha component data ends. (data under the bit includes the data!)
+         *  @param out_opt_shared_component_start_bit_index_ptr  If not null, deref will be set to the bit index, from which shared component data starts.
+         *  @param out_opt_shared_component_end_bit_index_ptr    If not null, deref will be set to the bit index, at which shared component data ends. (data under the bit includes the data!)
+         *  @param out_opt_depth_component_start_bit_index_ptr   If not null, deref will be set to the bit index, from which depth component data starts.
+         *  @param out_opt_depth_component_end_bit_index_ptr     If not null, deref will be set to the bit index, at which depth component data ends. (data under the bit includes the data!)
+         *  @param out_opt_stencil_component_start_bit_index_ptr If not null, deref will be set to the bit index, from which stencil component data starts.
+         *  @param out_opt_stencil_component_end_bit_index_ptr   If not null, deref will be set to the bit index, at which stencil component data ends. (data under the bit includes the data!)
+         */
+        static void get_format_bit_layout(VkFormat  in_format,
+                                          uint32_t* out_opt_red_component_start_bit_index_ptr     = nullptr,
+                                          uint32_t* out_opt_red_component_end_bit_index_ptr       = nullptr,
+                                          uint32_t* out_opt_green_component_start_bit_index_ptr   = nullptr,
+                                          uint32_t* out_opt_green_component_end_bit_index_ptr     = nullptr,
+                                          uint32_t* out_opt_blue_component_start_bit_index_ptr    = nullptr,
+                                          uint32_t* out_opt_blue_component_end_bit_index_ptr      = nullptr,
+                                          uint32_t* out_opt_alpha_component_start_bit_index_ptr   = nullptr,
+                                          uint32_t* out_opt_alpha_component_end_bit_index_ptr     = nullptr,
+                                          uint32_t* out_opt_shared_component_start_bit_index_ptr  = nullptr,
+                                          uint32_t* out_opt_shared_component_end_bit_index_ptr    = nullptr,
+                                          uint32_t* out_opt_depth_component_start_bit_index_ptr   = nullptr,
+                                          uint32_t* out_opt_depth_component_end_bit_index_ptr     = nullptr,
+                                          uint32_t* out_opt_stencil_component_start_bit_index_ptr = nullptr,
+                                          uint32_t* out_opt_stencil_component_end_bit_index_ptr   = nullptr);
+
         /** Tells what component layout is used by @param in_format. */
         static ComponentLayout get_format_component_layout(VkFormat in_format);
 
@@ -81,6 +118,9 @@ namespace Anvil
 
         /* Tells the number of bits used for each component in case of Vulkan format specified
          * under @param in_format.
+         *
+         * NOTE: Number of bits reported for each component uses ordering as reported for the format
+         *       via get_format_component_layout(). This is especially important in the context of packed formats.
          *
          * @param in_format             Vulkan format to use for the query.
          * @param out_channel0_bits_ptr Deref will be set to the number of bits used for channel 0. Must
@@ -113,6 +153,8 @@ namespace Anvil
         /** Tells whether @param in_format format is a block format. */
         static bool is_format_compressed(VkFormat in_format);
 
+        /** Tells whether @param in_format is a packed format */
+        static bool is_format_packed(VkFormat in_format);
     };
 };
 

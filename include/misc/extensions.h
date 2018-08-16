@@ -51,12 +51,16 @@ namespace Anvil
             ValueType ext_shader_stencil_export;
             ValueType ext_shader_subgroup_ballot;
             ValueType ext_shader_subgroup_vote;
+            ValueType ext_vertex_attribute_divisor;
             ValueType khr_16bit_storage;
             ValueType khr_bind_memory2;
+            ValueType khr_dedicated_allocation;
             ValueType khr_descriptor_update_template;
+            ValueType khr_draw_indirect_count;
             ValueType khr_external_fence;
             ValueType khr_external_memory;
             ValueType khr_external_semaphore;
+            ValueType khr_get_memory_requirements2;
             ValueType khr_maintenance1;
             ValueType khr_maintenance3;
             ValueType khr_storage_buffer_storage_class;
@@ -113,8 +117,11 @@ namespace Anvil
                     {ExtensionData(VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME,            &ext_shader_stencil_export)},
                     {ExtensionData(VK_EXT_SHADER_SUBGROUP_BALLOT_EXTENSION_NAME,           &ext_shader_subgroup_ballot)},
                     {ExtensionData(VK_EXT_SHADER_SUBGROUP_VOTE_EXTENSION_NAME,             &ext_shader_subgroup_vote)},
+                    {ExtensionData(VK_EXT_VERTEX_ATTRIBUTE_DIVISOR_EXTENSION_NAME,         &ext_vertex_attribute_divisor)},
                     {ExtensionData(VK_KHR_16BIT_STORAGE_EXTENSION_NAME,                    &khr_16bit_storage)},
+                    {ExtensionData(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,             &khr_dedicated_allocation)},
                     {ExtensionData(VK_KHR_DESCRIPTOR_UPDATE_TEMPLATE_EXTENSION_NAME,       &khr_descriptor_update_template)},
+                    {ExtensionData(VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME,              &khr_draw_indirect_count)},
                     {ExtensionData(VK_KHR_EXTERNAL_FENCE_EXTENSION_NAME,                   &khr_external_fence)},
                     {ExtensionData(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,                  &khr_external_memory)},
                     {ExtensionData(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME,               &khr_external_semaphore)},
@@ -127,6 +134,7 @@ namespace Anvil
                         {ExtensionData(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,    &khr_external_memory_fd)},
                         {ExtensionData(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME, &khr_external_semaphore_fd)},
                     #endif
+                    {ExtensionData(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,        &khr_get_memory_requirements2)},
                     {ExtensionData(VK_KHR_MAINTENANCE1_EXTENSION_NAME,                     &khr_maintenance1)},
                     {ExtensionData(VK_KHR_MAINTENANCE3_EXTENSION_NAME,                     &khr_maintenance3)},
                     {ExtensionData(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,                    &khr_bind_memory2)},
@@ -260,9 +268,12 @@ namespace Anvil
         virtual ValueType ext_shader_stencil_export           () const = 0;
         virtual ValueType ext_shader_subgroup_ballot          () const = 0;
         virtual ValueType ext_shader_subgroup_vote            () const = 0;
+        virtual ValueType ext_vertex_attribute_divisor        () const = 0;
         virtual ValueType khr_16bit_storage                   () const = 0;
         virtual ValueType khr_bind_memory2                    () const = 0;
+        virtual ValueType khr_dedicated_allocation            () const = 0;
         virtual ValueType khr_descriptor_update_template      () const = 0;
+        virtual ValueType khr_draw_indirect_count             () const = 0;
         virtual ValueType khr_external_fence                  () const = 0;
         virtual ValueType khr_external_memory                 () const = 0;
         virtual ValueType khr_external_semaphore              () const = 0;
@@ -275,6 +286,7 @@ namespace Anvil
             virtual ValueType khr_external_memory_fd   () const = 0;
             virtual ValueType khr_external_semaphore_fd() const = 0;
         #endif
+        virtual ValueType khr_get_memory_requirements2        () const = 0;
         virtual ValueType khr_maintenance1                    () const = 0;
         virtual ValueType khr_maintenance3                    () const = 0;
         virtual ValueType khr_storage_buffer_storage_class    () const = 0;
@@ -510,6 +522,13 @@ namespace Anvil
             return m_device_extensions_ptr->ext_descriptor_indexing;
         }
 
+        ValueType ext_vertex_attribute_divisor() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->ext_vertex_attribute_divisor;
+        }
+
         ValueType ext_shader_stencil_export() const final
         {
             anvil_assert(m_expose_device_extensions);
@@ -545,11 +564,25 @@ namespace Anvil
             return m_device_extensions_ptr->khr_bind_memory2;
         }
 
+        ValueType khr_dedicated_allocation() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->khr_dedicated_allocation;
+        }
+
         ValueType khr_descriptor_update_template() const final
         {
             anvil_assert(m_expose_device_extensions);
 
             return m_device_extensions_ptr->khr_descriptor_update_template;
+        }
+
+        ValueType khr_draw_indirect_count() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->khr_draw_indirect_count;
         }
 
         ValueType khr_external_fence() const final
@@ -620,6 +653,13 @@ namespace Anvil
                 return m_device_extensions_ptr->khr_external_semaphore_fd;
             }
         #endif
+
+        ValueType khr_get_memory_requirements2() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->khr_get_memory_requirements2;
+        }
 
         ValueType khr_maintenance1() const final
         {

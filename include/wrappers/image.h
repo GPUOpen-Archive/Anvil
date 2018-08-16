@@ -140,8 +140,12 @@ namespace Anvil
          *
          *  In case of sparse images, the callback will only occur if at least one memory allocation
          *  has been scheduled for this image instance.
+         *
+         *  This behavior may optionally be disabled by setting @param in_bake_memory_if_necessary to false.
+         *  Should only be done in special circumstances.
+         *
          */
-        const VkImage& get_image();
+        const VkImage& get_image(const bool& in_bake_memory_if_necessary = true);
 
         /** Returns information about the data alignment required by the underlying VkImage instance */
         VkDeviceSize get_image_alignment() const
@@ -259,7 +263,15 @@ namespace Anvil
                                        uint32_t              in_y,
                                        uint32_t              in_z) const;
 
-        
+        bool prefers_dedicated_allocation() const
+        {
+            return m_prefers_dedicated_allocation;
+        }
+
+        bool requires_dedicated_allocation() const
+        {
+            return m_requires_dedicated_allocation;
+        }
 
         /** Binds the specified region of a Vulkan memory object to an Image and caches information
          *  about the new binding.
@@ -478,6 +490,9 @@ namespace Anvil
         VkDeviceSize                           m_storage_size;
         bool                                   m_swapchain_memory_assigned;
         bool                                   m_uses_full_mipmap_chain;
+
+        bool m_prefers_dedicated_allocation;
+        bool m_requires_dedicated_allocation;
 
         MemoryBlockUniquePtr              m_metadata_memory_block_ptr;
         std::vector<MemoryBlockUniquePtr> m_memory_blocks_owned;

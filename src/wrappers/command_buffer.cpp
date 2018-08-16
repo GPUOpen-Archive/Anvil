@@ -498,6 +498,25 @@ Anvil::CommandBufferBase::DrawIndexedIndirectCountAMDCommand::DrawIndexedIndirec
 }
 
 /** Please see header for specification */
+Anvil::CommandBufferBase::DrawIndexedIndirectCountKHRCommand::DrawIndexedIndirectCountKHRCommand(Anvil::Buffer* in_buffer_ptr,
+                                                                                                 VkDeviceSize   in_offset,
+                                                                                                 Anvil::Buffer* in_count_buffer_ptr,
+                                                                                                 VkDeviceSize   in_count_offset,
+                                                                                                 uint32_t       in_max_draw_count,
+                                                                                                 uint32_t       in_stride)
+    :Command(COMMAND_TYPE_DRAW_INDEXED_INDIRECT_COUNT_KHR)
+{
+    buffer           = in_buffer_ptr->get_buffer();
+    buffer_ptr       = in_buffer_ptr;
+    count_buffer     = in_count_buffer_ptr->get_buffer();
+    count_buffer_ptr = in_count_buffer_ptr;
+    count_offset     = in_count_offset;
+    max_draw_count   = in_max_draw_count;
+    offset           = in_offset;
+    stride           = in_stride;
+}
+
+/** Please see header for specification */
 Anvil::CommandBufferBase::DrawIndirectCommand::DrawIndirectCommand(Anvil::Buffer* in_buffer_ptr,
                                                                    VkDeviceSize   in_offset,
                                                                    uint32_t       in_count,
@@ -519,6 +538,25 @@ Anvil::CommandBufferBase::DrawIndirectCountAMDCommand::DrawIndirectCountAMDComma
                                                                                    uint32_t       in_max_draw_count,
                                                                                    uint32_t       in_stride)
     :Command(COMMAND_TYPE_DRAW_INDIRECT_COUNT_AMD)
+{
+    buffer           = in_buffer_ptr->get_buffer();
+    buffer_ptr       = in_buffer_ptr;
+    count_buffer     = in_count_buffer_ptr->get_buffer();
+    count_buffer_ptr = in_count_buffer_ptr;
+    count_offset     = in_count_offset;
+    max_draw_count   = in_max_draw_count;
+    offset           = in_offset;
+    stride           = in_stride;
+}
+
+/** Please see header for specification */
+Anvil::CommandBufferBase::DrawIndirectCountKHRCommand::DrawIndirectCountKHRCommand(Anvil::Buffer* in_buffer_ptr,
+                                                                                   VkDeviceSize   in_offset,
+                                                                                   Anvil::Buffer* in_count_buffer_ptr,
+                                                                                   VkDeviceSize   in_count_offset,
+                                                                                   uint32_t       in_max_draw_count,
+                                                                                   uint32_t       in_stride)
+    :Command(COMMAND_TYPE_DRAW_INDIRECT_COUNT_KHR)
 {
     buffer           = in_buffer_ptr->get_buffer();
     buffer_ptr       = in_buffer_ptr;
@@ -2126,6 +2164,69 @@ end:
 }
 
 /* Please see header for specification */
+bool Anvil::CommandBufferBase::record_draw_indexed_indirect_count_KHR(Anvil::Buffer* in_buffer_ptr,
+                                                                      VkDeviceSize   in_offset,
+                                                                      Anvil::Buffer* in_count_buffer_ptr,
+                                                                      VkDeviceSize   in_count_offset,
+                                                                      uint32_t       in_max_draw_count,
+                                                                      uint32_t       in_stride)
+{
+    Anvil::ExtensionKHRDrawIndirectCountEntrypoints entrypoints;
+    bool                                            result     (false);
+
+    if (!m_is_renderpass_active)
+    {
+        anvil_assert(m_is_renderpass_active);
+
+        goto end;
+    }
+
+    if (!m_recording_in_progress)
+    {
+        anvil_assert(m_recording_in_progress);
+
+        goto end;
+    }
+
+    anvil_assert(m_device_ptr->get_extension_info()->khr_draw_indirect_count() );
+
+
+    #ifdef STORE_COMMAND_BUFFER_COMMANDS
+    {
+        if (!m_command_stashing_disabled)
+        {
+            m_commands.push_back(DrawIndexedIndirectCountKHRCommand(in_buffer_ptr,
+                                                                    in_offset,
+                                                                    in_count_buffer_ptr,
+                                                                    in_count_offset,
+                                                                    in_max_draw_count,
+                                                                    in_stride) );
+        }
+    }
+    #endif
+
+    entrypoints = m_device_ptr->get_extension_khr_draw_indirect_count_entrypoints();
+    
+    m_parent_command_pool_ptr->lock();
+    lock();
+    {
+        entrypoints.vkCmdDrawIndexedIndirectCountKHR(m_command_buffer,
+                                                     in_buffer_ptr->get_buffer(),
+                                                     in_offset,
+                                                     in_count_buffer_ptr->get_buffer(),
+                                                     in_count_offset,
+                                                     in_max_draw_count,
+                                                     in_stride);
+    }
+    unlock();
+    m_parent_command_pool_ptr->unlock();
+
+    result = true;
+end:
+    return result;
+}
+
+/* Please see header for specification */
 bool Anvil::CommandBufferBase::record_draw_indirect(Anvil::Buffer* in_buffer_ptr,
                                                     VkDeviceSize   in_offset,
                                                     uint32_t       in_count,
@@ -2224,6 +2325,69 @@ bool Anvil::CommandBufferBase::record_draw_indirect_count_AMD(Anvil::Buffer* in_
     lock();
     {
         entrypoints.vkCmdDrawIndirectCountAMD(m_command_buffer,
+                                              in_buffer_ptr->get_buffer(),
+                                              in_offset,
+                                              in_count_buffer_ptr->get_buffer(),
+                                              in_count_offset,
+                                              in_max_draw_count,
+                                              in_stride);
+    }
+    unlock();
+    m_parent_command_pool_ptr->unlock();
+
+    result = true;
+end:
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::CommandBufferBase::record_draw_indirect_count_KHR(Anvil::Buffer* in_buffer_ptr,
+                                                              VkDeviceSize   in_offset,
+                                                              Anvil::Buffer* in_count_buffer_ptr,
+                                                              VkDeviceSize   in_count_offset,
+                                                              uint32_t       in_max_draw_count,
+                                                              uint32_t       in_stride)
+{
+    Anvil::ExtensionKHRDrawIndirectCountEntrypoints entrypoints;
+    bool                                            result     (false);
+
+    if (!m_is_renderpass_active)
+    {
+        anvil_assert(m_is_renderpass_active);
+
+        goto end;
+    }
+
+    if (!m_recording_in_progress)
+    {
+        anvil_assert(m_recording_in_progress);
+
+        goto end;
+    }
+
+    anvil_assert(m_device_ptr->get_extension_info()->khr_draw_indirect_count() );
+
+
+    #ifdef STORE_COMMAND_BUFFER_COMMANDS
+    {
+        if (!m_command_stashing_disabled)
+        {
+            m_commands.push_back(DrawIndirectCountKHRCommand(in_buffer_ptr,
+                                                             in_offset,
+                                                             in_count_buffer_ptr,
+                                                             in_count_offset,
+                                                             in_max_draw_count,
+                                                             in_stride) );
+        }
+    }
+    #endif
+
+    entrypoints = m_device_ptr->get_extension_khr_draw_indirect_count_entrypoints();
+
+    m_parent_command_pool_ptr->lock();
+    lock();
+    {
+        entrypoints.vkCmdDrawIndirectCountKHR(m_command_buffer,
                                               in_buffer_ptr->get_buffer(),
                                               in_offset,
                                               in_count_buffer_ptr->get_buffer(),

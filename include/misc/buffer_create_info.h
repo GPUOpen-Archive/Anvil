@@ -140,9 +140,9 @@ namespace Anvil
             return m_device_ptr;
         }
 
-        const Anvil::ExternalMemoryHandleTypeBits& get_external_memory_handle_types() const
+        const Anvil::ExternalMemoryHandleTypeBits& get_exportable_external_memory_handle_types() const
         {
-            return m_external_memory_handle_types;
+            return m_exportable_external_memory_handle_types;
         }
 
         const Anvil::MemoryFeatureFlags& get_memory_features() const
@@ -222,9 +222,9 @@ namespace Anvil
             m_device_ptr = in_device_ptr;
         }
 
-        void set_external_memory_handle_types(const Anvil::ExternalMemoryHandleTypeBits& in_external_memory_handle_types)
+        void set_exportable_external_memory_handle_types(const Anvil::ExternalMemoryHandleTypeBits& in_external_memory_handle_types)
         {
-            m_external_memory_handle_types = in_external_memory_handle_types;
+            m_exportable_external_memory_handle_types = in_external_memory_handle_types;
         }
 
         void set_memory_features(const Anvil::MemoryFeatureFlags& in_memory_features)
@@ -274,7 +274,7 @@ namespace Anvil
                          VkBufferUsageFlags                  in_usage_flags,
                          Anvil::SparseResidencyScope         in_residency_scope,
                          MTSafety                            in_mt_safety,
-                         Anvil::ExternalMemoryHandleTypeBits in_external_memory_handle_types);
+                         Anvil::ExternalMemoryHandleTypeBits in_exportable_external_memory_handle_types);
         BufferCreateInfo(const Anvil::BufferType&            in_buffer_type,
                          const Anvil::BaseDevice*            in_device_ptr,
                          VkDeviceSize                        in_size,
@@ -283,7 +283,7 @@ namespace Anvil
                          VkBufferUsageFlags                  in_usage_flags,
                          MemoryFeatureFlags                  in_memory_features,
                          MTSafety                            in_mt_safety,
-                         Anvil::ExternalMemoryHandleTypeBits in_external_memory_handle_types,
+                         Anvil::ExternalMemoryHandleTypeBits in_exportable_external_memory_handle_types,
                          const void*                         in_opt_client_data_ptr);
         BufferCreateInfo(Anvil::Buffer*                      in_parent_buffer_ptr,
                          VkDeviceSize                        in_start_offset,
@@ -293,7 +293,7 @@ namespace Anvil
         /* Private variables */
         const void*                         m_client_data_ptr;
         const Anvil::BaseDevice*            m_device_ptr;
-        Anvil::ExternalMemoryHandleTypeBits m_external_memory_handle_types;
+        Anvil::ExternalMemoryHandleTypeBits m_exportable_external_memory_handle_types;
         Anvil::MemoryFeatureFlags           m_memory_features;
         MTSafety                            m_mt_safety;
         Anvil::Buffer* const                m_parent_buffer_ptr;

@@ -85,8 +85,10 @@ namespace Anvil
         COMMAND_TYPE_DRAW_INDEXED,
         COMMAND_TYPE_DRAW_INDEXED_INDIRECT,
         COMMAND_TYPE_DRAW_INDEXED_INDIRECT_COUNT_AMD,
+        COMMAND_TYPE_DRAW_INDEXED_INDIRECT_COUNT_KHR,
         COMMAND_TYPE_DRAW_INDIRECT,
         COMMAND_TYPE_DRAW_INDIRECT_COUNT_AMD,
+        COMMAND_TYPE_DRAW_INDIRECT_COUNT_KHR,
         COMMAND_TYPE_END_QUERY,
         COMMAND_TYPE_END_RENDER_PASS,
         COMMAND_TYPE_EXECUTE_COMMANDS,
@@ -775,7 +777,7 @@ namespace Anvil
                                           uint32_t       in_draw_count,
                                           uint32_t       in_stride);
 
-        /** Issues a vkCmdDrawIndexedIndirectCount() call and appends it to the internal vector of commands
+        /** Issues a vkCmdDrawIndexedIndirectCountAMD() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
          *  #define enabled).
          *
@@ -802,6 +804,33 @@ namespace Anvil
                                                     uint32_t       in_max_draw_count,
                                                     uint32_t       in_stride);
         
+        /** Issues a vkCmdDrawIndexedIndirectCountKHR() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  It is also illegal to call this function when not recording renderpass commands. Doing so
+         *  will also result in an assertion failure.
+         *
+         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
+         *  and will be released when the command buffer is released or resetted.
+         *
+         *  This function is only available if VK_KHR_draw_indirect_count is supported by the Vulkan
+         *  device AND if the extension has been requested at creation time.
+         *
+         *  Argument meaning is as per VK_KHR_draw_indirect_count specification.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_draw_indexed_indirect_count_KHR(Anvil::Buffer* in_buffer_ptr,
+                                                    VkDeviceSize   in_offset,
+                                                    Anvil::Buffer* in_count_buffer_ptr,
+                                                    VkDeviceSize   in_count_offset,
+                                                    uint32_t       in_max_draw_count,
+                                                    uint32_t       in_stride);
+
         /** Issues a vkCmdDrawIndirect() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
          *  #define enabled).
@@ -845,6 +874,33 @@ namespace Anvil
          *  @return true if successful, false otherwise.
          **/
         bool record_draw_indirect_count_AMD(Anvil::Buffer* in_buffer_ptr,
+                                            VkDeviceSize   in_offset,
+                                            Anvil::Buffer* in_count_buffer_ptr,
+                                            VkDeviceSize   in_count_offset,
+                                            uint32_t       in_max_draw_count,
+                                            uint32_t       in_stride);
+
+        /** Issues a vkCmdDrawIndirectCount() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  It is also illegal to call this function when not recording renderpass commands. Doing so
+         *  will also result in an assertion failure.
+         *
+         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
+         *  and will be released when the command buffer is released or resetted.
+         *
+         *  This function is only available if VK_KHR_draw_indirect_count is supported by the Vulkan
+         *  device AND if the extension has been requested at creation time.
+         *
+         *  Argument meaning is as per VK_KHR_draw_indirect_count specification.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_draw_indirect_count_KHR(Anvil::Buffer* in_buffer_ptr,
                                             VkDeviceSize   in_offset,
                                             Anvil::Buffer* in_count_buffer_ptr,
                                             VkDeviceSize   in_count_offset,
@@ -1882,6 +1938,36 @@ namespace Anvil
             DrawIndirectCountAMDCommand& operator=(const DrawIndirectCountAMDCommand&);
         } DrawIndirectCountAMDCommand;
 
+        /** Holds all arguments passed to a vkCmdDrawIndirectCountKHR() command. */
+        typedef struct DrawIndirectCountKHRCommand : public Command
+        {
+            VkBuffer       buffer;
+            Anvil::Buffer* buffer_ptr;
+            VkBuffer       count_buffer;
+            Anvil::Buffer* count_buffer_ptr;
+            VkDeviceSize   count_offset;
+            uint32_t       max_draw_count;
+            VkDeviceSize   offset;
+            uint32_t       stride;
+
+            /** Constructor. **/
+            explicit DrawIndirectCountKHRCommand(Anvil::Buffer* in_buffer_ptr,
+                                                 VkDeviceSize   in_offset,
+                                                 Anvil::Buffer* in_count_buffer_ptr,
+                                                 VkDeviceSize   in_count_offset,
+                                                 uint32_t       in_max_draw_count,
+                                                 uint32_t       in_stride);
+
+            /** Destructor */
+            virtual ~DrawIndirectCountKHRCommand()
+            {
+                /* Stub */
+            }
+
+        private:
+            DrawIndirectCountKHRCommand& operator=(const DrawIndirectCountKHRCommand&);
+        } DrawIndirectCountKHRCommand;
+
         /** Holds all arguments passed to a vkCmdDrawIndexedIndirect() command. */
         typedef struct DrawIndexedIndirectCommand : public Command
         {
@@ -1936,6 +2022,36 @@ namespace Anvil
         private:
             DrawIndexedIndirectCountAMDCommand& operator=(const DrawIndexedIndirectCountAMDCommand&);
         } DrawIndexedIndirectCountAMDCommand;
+
+        /** Holds all arguments passed to a vkCmdDrawIndexedIndirectCountKHR() command. */
+        typedef struct DrawIndexedIndirectCountKHRCommand : public Command
+        {
+            VkBuffer       buffer;
+            Anvil::Buffer* buffer_ptr;
+            VkBuffer       count_buffer;
+            Anvil::Buffer* count_buffer_ptr;
+            VkDeviceSize   count_offset;
+            uint32_t       max_draw_count;
+            VkDeviceSize   offset;
+            uint32_t       stride;
+
+            /** Constructor. **/
+            explicit DrawIndexedIndirectCountKHRCommand(Anvil::Buffer* in_buffer_ptr,
+                                                        VkDeviceSize   in_offset,
+                                                        Anvil::Buffer* in_count_buffer_ptr,
+                                                        VkDeviceSize   in_count_offset,
+                                                        uint32_t       in_max_draw_count,
+                                                        uint32_t       in_stride);
+
+            /** Destructor */
+            virtual ~DrawIndexedIndirectCountKHRCommand()
+            {
+                /* Stub */
+            }
+
+        private:
+            DrawIndexedIndirectCountKHRCommand& operator=(const DrawIndexedIndirectCountKHRCommand&);
+        } DrawIndexedIndirectCountKHRCommand;
 
         /** Holds all arguments passed to a vkCmdEndQuery() command. */
         typedef struct EndQueryCommand : public Command

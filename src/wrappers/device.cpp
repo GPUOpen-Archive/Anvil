@@ -733,6 +733,15 @@ void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
         anvil_assert(m_khr_bind_memory2_extension_entrypoints.vkBindImageMemory2KHR  != nullptr);
     }
 
+    if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_draw_indirect_count() )
+    {
+        m_khr_draw_indirect_count_extension_entrypoints.vkCmdDrawIndexedIndirectCountKHR = reinterpret_cast<PFN_vkCmdDrawIndexedIndirectCountKHR>(get_proc_address("vkCmdDrawIndexedIndirectCountKHR") );
+        m_khr_draw_indirect_count_extension_entrypoints.vkCmdDrawIndirectCountKHR        = reinterpret_cast<PFN_vkCmdDrawIndirectCountKHR>       (get_proc_address("vkCmdDrawIndirectCountKHR") );
+
+        anvil_assert(m_khr_draw_indirect_count_extension_entrypoints.vkCmdDrawIndexedIndirectCountKHR != nullptr);
+        anvil_assert(m_khr_draw_indirect_count_extension_entrypoints.vkCmdDrawIndirectCountKHR        != nullptr);
+    }
+
     #if defined(_WIN32)
     {
         if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_fence_win32() )
@@ -762,7 +771,47 @@ void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
             anvil_assert(m_khr_external_semaphore_win32_extension_entrypoints.vkImportSemaphoreWin32HandleKHR != nullptr);
         }
     }
+    #else
+    {
+        if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_fence_fd() )
+        {
+            m_khr_external_fence_fd_extension_entrypoints.vkGetFenceFdKHR    = reinterpret_cast<PFN_vkGetFenceFdKHR>   (get_proc_address("vkGetFenceFdKHR") );
+            m_khr_external_fence_fd_extension_entrypoints.vkImportFenceFdKHR = reinterpret_cast<PFN_vkImportFenceFdKHR>(get_proc_address("vkImportFenceFdKHR") );
+
+            anvil_assert(m_khr_external_fence_fd_extension_entrypoints.vkGetFenceFdKHR    != nullptr);
+            anvil_assert(m_khr_external_fence_fd_extension_entrypoints.vkImportFenceFdKHR != nullptr);
+        }
+
+        if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_memory_fd() )
+        {
+            m_khr_external_memory_fd_extension_entrypoints.vkGetMemoryFdKHR           = reinterpret_cast<PFN_vkGetMemoryFdKHR>          (get_proc_address("vkGetMemoryFdKHR"));
+            m_khr_external_memory_fd_extension_entrypoints.vkGetMemoryFdPropertiesKHR = reinterpret_cast<PFN_vkGetMemoryFdPropertiesKHR>(get_proc_address("vkGetMemoryFdPropertiesKHR"));
+
+            anvil_assert(m_khr_external_memory_win32_extension_entrypoints.vkGetMemoryFdKHR           != nullptr);
+            anvil_assert(m_khr_external_memory_win32_extension_entrypoints.vkGetMemoryFdPropertiesKHR != nullptr);
+        }
+
+        if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_semaphore_fd() )
+        {
+            m_khr_external_semaphore_fd_extension_entrypoints.vkGetSemaphoreFdKHR    = reinterpret_cast<PFN_vkGetSemaphoreFdKHR>   (get_proc_address("vkGetSemaphoreFdKHR"));
+            m_khr_external_semaphore_fd_extension_entrypoints.vkImportSemaphoreFdKHR = reinterpret_cast<PFN_vkImportSemaphoreFdKHR>(get_proc_address("vkImportSemaphoreFdKHR"));
+
+            anvil_assert(m_khr_external_semaphore_fd_extension_entrypoints.vkGetSemaphoreFdKHR    != nullptr);
+            anvil_assert(m_khr_external_semaphore_fd_extension_entrypoints.vkImportSemaphoreFdKHR != nullptr);
+        }
+    }
     #endif
+
+    if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_get_memory_requirements2() )
+    {
+        m_khr_get_memory_requirements2_extension_entrypoints.vkGetBufferMemoryRequirements2KHR      = reinterpret_cast<PFN_vkGetBufferMemoryRequirements2KHR>     (get_proc_address("vkGetBufferMemoryRequirements2KHR") );
+        m_khr_get_memory_requirements2_extension_entrypoints.vkGetImageMemoryRequirements2KHR       = reinterpret_cast<PFN_vkGetImageMemoryRequirements2KHR>      (get_proc_address("vkGetImageMemoryRequirements2KHR") );
+        m_khr_get_memory_requirements2_extension_entrypoints.vkGetImageSparseMemoryRequirements2KHR = reinterpret_cast<PFN_vkGetImageSparseMemoryRequirements2KHR>(get_proc_address("vkGetImageSparseMemoryRequirements2KHR") );
+
+        anvil_assert(m_khr_get_memory_requirements2_extension_entrypoints.vkGetBufferMemoryRequirements2KHR      != nullptr);
+        anvil_assert(m_khr_get_memory_requirements2_extension_entrypoints.vkGetImageMemoryRequirements2KHR       != nullptr);
+        anvil_assert(m_khr_get_memory_requirements2_extension_entrypoints.vkGetImageSparseMemoryRequirements2KHR != nullptr);
+    }
 
     if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_maintenance1() )
     {
@@ -1148,11 +1197,11 @@ Anvil::SwapchainUniquePtr Anvil::SGPUDevice::create_swapchain(Anvil::RenderingSu
     return result_ptr;
 }
 
-bool Anvil::SGPUDevice::get_physical_device_buffer_format_properties(const BufferFormatPropertiesQuery& in_query,
-                                                                     Anvil::BufferFormatProperties*     out_opt_result_ptr) const
+bool Anvil::SGPUDevice::get_physical_device_buffer_properties(const BufferPropertiesQuery& in_query,
+                                                              Anvil::BufferProperties*     out_opt_result_ptr) const
 {
-    return m_parent_physical_device_ptr->get_buffer_format_properties(in_query,
-                                                                      out_opt_result_ptr);
+    return m_parent_physical_device_ptr->get_buffer_properties(in_query,
+                                                               out_opt_result_ptr);
 }
 
 /** Please see header for specification */
@@ -1199,6 +1248,14 @@ const Anvil::PhysicalDeviceProperties& Anvil::SGPUDevice::get_physical_device_pr
 const Anvil::QueueFamilyInfoItems& Anvil::SGPUDevice::get_physical_device_queue_families() const
 {
     return m_parent_physical_device_ptr->get_queue_families();
+}
+
+/** Please see header for specification */
+bool Anvil::SGPUDevice::get_physical_device_semaphore_properties(const SemaphorePropertiesQuery& in_query,
+                                                                 Anvil::SemaphoreProperties*     out_opt_result_ptr) const
+{
+    return m_parent_physical_device_ptr->get_semaphore_properties(in_query,
+                                                                  out_opt_result_ptr);
 }
 
 /** Please see header for specification */

@@ -132,7 +132,7 @@ namespace Anvil
                          uint32_t                 in_n_wait_semaphores,
                          Anvil::Semaphore* const* in_wait_semaphore_ptrs_ptr);
 
-        void submit(const SubmitInfo& in_submit_info);
+        bool submit(const SubmitInfo& in_submit_info);
 
         /** Tells whether the queue supports sparse bindings */
         bool supports_sparse_bindings() const

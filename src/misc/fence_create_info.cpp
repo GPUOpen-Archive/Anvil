@@ -39,13 +39,14 @@ Anvil::FenceCreateInfoUniquePtr Anvil::FenceCreateInfo::create(const Anvil::Base
 Anvil::FenceCreateInfo::FenceCreateInfo(const Anvil::BaseDevice* in_device_ptr,
                                         bool                     in_create_signalled,
                                         MTSafety                 in_mt_safety)
-    :m_create_signalled                      (in_create_signalled),
-     m_device_ptr                            (in_device_ptr),
+    :m_create_signalled                                       (in_create_signalled),
+     m_device_ptr                                             (in_device_ptr),
 #if defined(_WIN32)
-     m_exportable_nt_handle_info_specified   (false),
+     m_exportable_nt_handle_info_specified                    (false),
+     m_exportable_nt_handle_info_security_attributes_specified(false),
 #endif
-     m_exportable_external_fence_handle_types(Anvil::EXTERNAL_FENCE_HANDLE_TYPE_NONE),
-     m_mt_safety                             (in_mt_safety)
+     m_exportable_external_fence_handle_types                 (Anvil::EXTERNAL_FENCE_HANDLE_TYPE_NONE),
+     m_mt_safety                                              (in_mt_safety)
 {
     /* Stub */
 }

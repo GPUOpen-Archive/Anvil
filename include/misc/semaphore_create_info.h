@@ -50,6 +50,26 @@ namespace Anvil
             return m_exportable_external_semaphore_handle_types;
         }
 
+        #if defined(_WIN32)
+            /* Returns true if set_exportable_nt_handle_info() has been called prior to this call.
+             * Otherwise returns false.
+             *
+             * If the func returns true, *out_result_ptr is set to the queried data.
+             */
+            bool get_exportable_nt_handle_info(const ExternalNTHandleInfo** out_result_ptr_ptr) const
+            {
+                bool result = false;
+
+                if (m_exportable_nt_handle_info_specified)
+                {
+                    *out_result_ptr_ptr = &m_exportable_nt_handle_info;
+                    result              = true;
+                }
+
+                return result;
+            }
+        #endif
+
         const MTSafety& get_mt_safety() const
         {
             return m_mt_safety;
@@ -69,6 +89,40 @@ namespace Anvil
             m_exportable_external_semaphore_handle_types = in_external_handle_types;
         }
 
+        #if defined(_WIN32)
+            /* Lets the app specify additional details for exportable NT handles.
+             *
+             * If @param in_name is zero-sized, <name> member of the VkExportSemaphoreWin32HandleInfoKHR struct, as chained to the VkSemaphoreCreateInfo struct chain,
+             * will be set to nullptr.
+             *
+             * Requires VK_KHR_external_semaphore_win32
+             */
+            void set_exportable_nt_handle_info(const SECURITY_ATTRIBUTES* in_opt_attributes_ptr,
+                                               const DWORD&               in_access,
+                                               const std::wstring&        in_name)
+            {
+                anvil_assert(!m_exportable_nt_handle_info_specified);
+
+                m_exportable_nt_handle_info.access    = in_access;
+                m_exportable_nt_handle_info.name      = in_name;
+                m_exportable_nt_handle_info_specified = true;
+
+                if (in_opt_attributes_ptr != nullptr)
+                {
+                    m_exportable_nt_handle_info_security_attributes           = *in_opt_attributes_ptr;
+                    m_exportable_nt_handle_info_security_attributes_specified = true;
+
+                    m_exportable_nt_handle_info.attributes_ptr = &m_exportable_nt_handle_info_security_attributes;
+                }
+                else
+                {
+                    m_exportable_nt_handle_info.attributes_ptr                = nullptr;
+                    m_exportable_nt_handle_info_security_attributes_specified = false;
+                }
+
+            }
+        #endif
+
         void set_mt_safety(const MTSafety& in_mt_safety)
         {
             m_mt_safety = in_mt_safety;
@@ -83,6 +137,13 @@ namespace Anvil
         const Anvil::BaseDevice*               m_device_ptr;
         Anvil::ExternalSemaphoreHandleTypeBits m_exportable_external_semaphore_handle_types;
         Anvil::MTSafety                        m_mt_safety;
+
+        #ifdef _WIN32
+            ExternalNTHandleInfo m_exportable_nt_handle_info;
+            SECURITY_ATTRIBUTES  m_exportable_nt_handle_info_security_attributes;
+            bool                 m_exportable_nt_handle_info_security_attributes_specified;
+            bool                 m_exportable_nt_handle_info_specified;
+        #endif
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(SemaphoreCreateInfo);
         ANVIL_DISABLE_COPY_CONSTRUCTOR(SemaphoreCreateInfo);

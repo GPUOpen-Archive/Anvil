@@ -60,6 +60,8 @@ Anvil::Image::Image(Anvil::ImageCreateInfoUniquePtr in_create_info_ptr)
      m_image                                (VK_NULL_HANDLE),
      m_memory_types                         (0),
      m_n_mipmaps                            (0),
+     m_prefers_dedicated_allocation         (false),
+     m_requires_dedicated_allocation        (false),
      m_storage_size                         (0),
      m_swapchain_memory_assigned            (false)
 {
@@ -273,14 +275,15 @@ Anvil::MemoryBlock* Anvil::Image::get_memory_block()
 bool Anvil::Image::init()
 {
     std::vector<VkImageAspectFlags>         aspects_used;
-    VkImageCreateFlags                      image_flags             = 0;
+    VkImageCreateFlags                      image_flags              = 0;
     Anvil::ImageFormatProperties            image_format_props;
-    const auto                              memory_features         = m_create_info_ptr->get_memory_features();
-    uint32_t                                n_queue_family_indices  = 0;
+    const auto                              memory_features          = m_create_info_ptr->get_memory_features();
+    uint32_t                                n_queue_family_indices   = 0;
     uint32_t                                queue_family_indices[3];
-    VkResult                                result                  = VK_ERROR_INITIALIZATION_FAILED;
-    bool                                    result_bool             = true;
+    VkResult                                result                   = VK_ERROR_INITIALIZATION_FAILED;
+    bool                                    result_bool              = true;
     Anvil::StructChainer<VkImageCreateInfo> struct_chainer;
+    bool                                    use_dedicated_allocation = false;
 
     if ((memory_features & MEMORY_FEATURE_FLAG_MAPPABLE) == 0)
     {
@@ -464,10 +467,50 @@ bool Anvil::Image::init()
 
     if (m_create_info_ptr->get_type() != Anvil::ImageType::SWAPCHAIN_WRAPPER)
     {
-        /* Extract various image properties we're going to need later */
-        vkGetImageMemoryRequirements(m_device_ptr->get_device_vk(),
-                                     m_image,
-                                    &m_memory_reqs);
+        /* Extract various image properties we're going to need later.
+         *
+         * Prefer facilities exposed by VK_KHR_get_memory_requirements2 unless unsupported.
+         */
+        if (m_device_ptr->get_extension_info()->khr_get_memory_requirements2() )
+        {
+            const auto                        gmr2_entrypoints                   = m_device_ptr->get_extension_khr_get_memory_requirements2_entrypoints();
+            VkImageMemoryRequirementsInfo2KHR info;
+            const bool                        khr_dedicated_allocation_available = m_device_ptr->get_extension_info()->khr_dedicated_allocation        ();
+            VkMemoryDedicatedRequirementsKHR  memory_dedicated_reqs;
+            VkMemoryRequirements2KHR          result_reqs;
+
+            memory_dedicated_reqs.pNext                       = nullptr;
+            memory_dedicated_reqs.prefersDedicatedAllocation  = VK_FALSE;
+            memory_dedicated_reqs.requiresDedicatedAllocation = VK_FALSE;
+            memory_dedicated_reqs.sType                       = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS_KHR;
+
+            info.image = m_image;
+            info.pNext = nullptr;
+            info.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2_KHR;
+
+            result_reqs.pNext = (khr_dedicated_allocation_available) ? &memory_dedicated_reqs : nullptr;
+            result_reqs.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2_KHR;
+
+            gmr2_entrypoints.vkGetImageMemoryRequirements2KHR(m_device_ptr->get_device_vk(),
+                                                             &info,
+                                                             &result_reqs);
+
+            m_memory_reqs = result_reqs.memoryRequirements;
+
+            if (khr_dedicated_allocation_available)
+            {
+                m_prefers_dedicated_allocation  = (memory_dedicated_reqs.prefersDedicatedAllocation  == VK_TRUE);
+                m_requires_dedicated_allocation = (memory_dedicated_reqs.requiresDedicatedAllocation == VK_TRUE);
+
+                use_dedicated_allocation = m_requires_dedicated_allocation;
+            }
+        }
+        else
+        {
+            vkGetImageMemoryRequirements(m_device_ptr->get_device_vk(),
+                                         m_image,
+                                        &m_memory_reqs);
+        }
 
         m_alignment    = m_memory_reqs.alignment;
         m_memory_types = m_memory_reqs.memoryTypeBits;
@@ -526,20 +569,59 @@ bool Anvil::Image::init()
 
         /* Retrieve image aspect properties. Since Vulkan lets a single props structure to refer to more than
          * just a single aspect, we first cache the exposed info in a vec and then distribute the information to
-         * a map, whose key is allowed to consist of a single bit ( = individual aspect) only */
-        vkGetImageSparseMemoryRequirements(m_device_ptr->get_device_vk(),
-                                           m_image,
-                                          &n_reqs,
-                                           nullptr);
+         * a map, whose key is allowed to consist of a single bit ( = individual aspect) only
+         *
+         * Prefer facilities exposed by VK_KHR_get_memory_requirements2 unless unsupported. This will be leveraged
+         * in the future, but for now admittedly is a bit of a moot move.
+         */
+        if (m_device_ptr->get_extension_info()->khr_get_memory_requirements2() )
+        {
+            const auto                                       gmr2_entrypoints = m_device_ptr->get_extension_khr_get_memory_requirements2_entrypoints();
+            VkImageSparseMemoryRequirementsInfo2KHR          info;
+            uint32_t                                         n_current_item = 0;
+            std::vector<VkSparseImageMemoryRequirements2KHR> temp_vec;
 
-        anvil_assert(n_reqs >= 1);
+            info.image = m_image;
+            info.pNext = nullptr;
+            info.sType = VK_STRUCTURE_TYPE_IMAGE_SPARSE_MEMORY_REQUIREMENTS_INFO_2_KHR;
 
-        sparse_image_memory_reqs.resize(n_reqs);
+            gmr2_entrypoints.vkGetImageSparseMemoryRequirements2KHR(m_device_ptr->get_device_vk(),
+                                                                   &info,
+                                                                   &n_reqs,
+                                                                    nullptr); /* pSparseMemoryRequirements */
 
-        vkGetImageSparseMemoryRequirements(m_device_ptr->get_device_vk(),
-                                           m_image,
-                                          &n_reqs,
-                                          &sparse_image_memory_reqs[0]);
+            anvil_assert(n_reqs >= 1);
+            sparse_image_memory_reqs.resize(n_reqs);
+            temp_vec.resize                (n_reqs);
+
+            gmr2_entrypoints.vkGetImageSparseMemoryRequirements2KHR(m_device_ptr->get_device_vk(),
+                                                                   &info,
+                                                                   &n_reqs,
+                                                                   &temp_vec[0]); /* pSparseMemoryRequirements */
+
+            for (const auto& current_temp_vec_item : temp_vec)
+            {
+                sparse_image_memory_reqs[n_current_item] = current_temp_vec_item.memoryRequirements;
+
+                /* Move on */
+                n_current_item++;
+            }
+        }
+        else
+        {
+            vkGetImageSparseMemoryRequirements(m_device_ptr->get_device_vk(),
+                                               m_image,
+                                              &n_reqs,
+                                               nullptr);
+
+            anvil_assert(n_reqs >= 1);
+            sparse_image_memory_reqs.resize(n_reqs);
+
+            vkGetImageSparseMemoryRequirements(m_device_ptr->get_device_vk(),
+                                               m_image,
+                                              &n_reqs,
+                                              &sparse_image_memory_reqs[0]);
+        }
 
         for (const auto& image_memory_req : sparse_image_memory_reqs)
         {
@@ -584,6 +666,12 @@ bool Anvil::Image::init()
                                                                                 m_create_info_ptr->get_memory_features() );
 
             create_info_ptr->set_mt_safety(Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe()) );
+
+            if (use_dedicated_allocation)
+            {
+                create_info_ptr->use_dedicated_allocation(nullptr, /* in_opt_buffer_ptr */
+                                                          this);
+            }
 
             memory_block_ptr = Anvil::MemoryBlock::create(std::move(create_info_ptr) );
         }
@@ -775,11 +863,12 @@ Anvil::Image::~Image()
 }
 
 /* Please see header for specification */
-const VkImage& Anvil::Image::get_image()
+const VkImage& Anvil::Image::get_image(const bool& in_bake_memory_if_necessary)
 {
     if (m_create_info_ptr->get_type() != Anvil::ImageType::SPARSE_NO_ALLOC)
     {
-        if (m_memory_blocks_owned.size() == 0)
+        if (m_memory_blocks_owned.size() == 0 &&
+            in_bake_memory_if_necessary)
         {
             get_memory_block();
         }
