@@ -134,8 +134,12 @@ void Anvil::Instance::destroy()
         /* Make sure no physical devices are still registered with Object Tracker at this point */
         auto object_manager_ptr = Anvil::ObjectTracker::get();
 
-        anvil_assert(object_manager_ptr->get_object_at_index(Anvil::OBJECT_TYPE_PHYSICAL_DEVICE,
-                                                             0) == nullptr);
+        if (object_manager_ptr->get_object_at_index(Anvil::OBJECT_TYPE_INSTANCE,
+                                                    0) == nullptr)
+        {
+            anvil_assert(object_manager_ptr->get_object_at_index(Anvil::OBJECT_TYPE_PHYSICAL_DEVICE,
+                                                                 0) == nullptr);
+        }
     }
     #endif
 }

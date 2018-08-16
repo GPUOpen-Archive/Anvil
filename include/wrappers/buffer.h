@@ -92,8 +92,11 @@ namespace Anvil
          *  any memory allocator, which has this buffer scheduled for deferred memory allocation,
          *  gets a chance to allocate & bind a memory block to the instance. A non-sparse buffer instance
          *  without any memory block bound msut not be used for any GPU-side operation.
+         *
+         *  This behavior may optionally be disabled by setting @param in_bake_memory_if_necessary to false.
+         *  Should only be done in special circumstances.
          */
-        VkBuffer get_buffer();
+        VkBuffer get_buffer(const bool& in_bake_memory_if_necessary = true);
 
         /** Returns a pointer to the encapsulated raw Vulkan buffer handle */
         const VkBuffer* get_buffer_ptr() const
@@ -130,6 +133,11 @@ namespace Anvil
             return m_page_tracker_ptr.get();
         }
 
+        bool prefers_dedicated_allocation() const
+        {
+            return m_prefers_dedicated_allocation;
+        }
+
         /** Reads @param in_size bytes, starting from @param in_start_offset, from the wrapped memory object.
          *
          *  If the buffer object uses mappable storage memory, the affected region will be mapped into process space,
@@ -157,6 +165,11 @@ namespace Anvil
                   VkDeviceSize                 in_size,
                   const Anvil::PhysicalDevice* in_physical_device_ptr,
                   void*                        out_result_ptr);
+
+        bool requires_dedicated_allocation() const
+        {
+            return m_requires_dedicated_allocation;
+        }
 
         /** Attaches a memory block to the buffer object.
          *
@@ -246,6 +259,8 @@ namespace Anvil
         VkBufferCreateFlagsVariable(m_create_flags);
 
         std::vector<MemoryBlockUniquePtr> m_owned_memory_blocks;
+        bool                              m_prefers_dedicated_allocation;
+        bool                              m_requires_dedicated_allocation;
 
         friend class Anvil::Queue; /* set_memory_sparse() */
 

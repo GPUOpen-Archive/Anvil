@@ -90,6 +90,7 @@ namespace Anvil
          * Requires VK_KHR_external_fence_fd    under Linux.
          * Requires VK_KHR_external_fence_win32 under Windows.
          *
+         * NOTE: Under Linux, @param in_handle is no longer valid if function returns true.
          *
          * @return true if successful, false otherwise.
          *

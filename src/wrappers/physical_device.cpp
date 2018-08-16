@@ -355,6 +355,50 @@ bool Anvil::PhysicalDevice::init()
             }
         }
 
+        if (m_extension_info_ptr->get_device_extension_info()->ext_vertex_attribute_divisor() )
+        {
+            const VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT*  result_vertex_attribute_divisor_props_struct_ptr = nullptr;
+            Anvil::StructChainUniquePtr<VkPhysicalDeviceProperties2KHR> struct_chain_ptr;
+            Anvil::StructChainer<VkPhysicalDeviceProperties2KHR>        struct_chainer;
+            Anvil::StructID                                             vertex_attribute_divisor_props_struct_id         = UINT32_MAX;
+
+            {
+                VkPhysicalDeviceProperties2KHR general_props;
+
+                general_props.pNext = nullptr;
+                general_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
+
+                struct_chainer.append_struct(general_props);
+            }
+
+            {
+                VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT vertex_attribute_divisor_properties;
+
+                vertex_attribute_divisor_properties.pNext = nullptr;
+                vertex_attribute_divisor_properties.sType = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_PROPERTIES_EXT);
+
+                vertex_attribute_divisor_props_struct_id = struct_chainer.append_struct(vertex_attribute_divisor_properties);
+            }
+
+            struct_chain_ptr                                 = struct_chainer.create_chain();
+            result_vertex_attribute_divisor_props_struct_ptr = struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT>(vertex_attribute_divisor_props_struct_id);
+
+            gpdp2_entrypoints.vkGetPhysicalDeviceProperties2KHR(m_physical_device,
+                                                                struct_chain_ptr->get_root_struct() );
+
+            m_ext_vertex_attribute_divisor_properties_ptr.reset(
+                new EXTVertexAttributeDivisorProperties(*result_vertex_attribute_divisor_props_struct_ptr)
+            );
+
+            if (m_ext_vertex_attribute_divisor_properties_ptr == nullptr)
+            {
+                anvil_assert(m_ext_vertex_attribute_divisor_properties_ptr != nullptr);
+
+                result = false;
+                goto end;
+            }
+        }
+
         if (m_extension_info_ptr->get_device_extension_info()->khr_maintenance3() )
         {
             Anvil::StructID                                             maintenance3_struct_id        = UINT32_MAX;
@@ -422,6 +466,7 @@ bool Anvil::PhysicalDevice::init()
     m_properties = Anvil::PhysicalDeviceProperties(m_amd_shader_core_properties_ptr.get                                    (),
                                                    m_core_properties_vk10_ptr.get                                          (),
                                                    m_ext_descriptor_indexing_properties_ptr.get                            (),
+                                                   m_ext_vertex_attribute_divisor_properties_ptr.get                       (),
                                                    m_khr_external_memory_capabilities_physical_device_id_properties_ptr.get(),
                                                    m_khr_maintenance3_properties_ptr.get                                   () );
 
@@ -497,8 +542,8 @@ end:
     return result;
 }
 
-bool Anvil::PhysicalDevice::get_buffer_format_properties(const Anvil::BufferFormatPropertiesQuery& in_query,
-                                                         Anvil::BufferFormatProperties*            out_opt_result_ptr) const
+bool Anvil::PhysicalDevice::get_buffer_properties(const Anvil::BufferPropertiesQuery& in_query,
+                                                  Anvil::BufferProperties*            out_opt_result_ptr) const
 {
     const Anvil::ExtensionKHRExternalMemoryCapabilitiesEntrypoints* emc_entrypoints_ptr = nullptr;
     VkPhysicalDeviceExternalBufferInfoKHR                           input_struct;
@@ -531,7 +576,7 @@ bool Anvil::PhysicalDevice::get_buffer_format_properties(const Anvil::BufferForm
 
     if (out_opt_result_ptr != nullptr)
     {
-        *out_opt_result_ptr = std::move(Anvil::BufferFormatProperties(ExternalMemoryProperties(result_struct.externalMemoryProperties) ));
+        *out_opt_result_ptr = std::move(Anvil::BufferProperties(ExternalMemoryProperties(result_struct.externalMemoryProperties) ));
     }
 
     /* All done */
@@ -611,16 +656,20 @@ bool Anvil::PhysicalDevice::get_image_format_properties(const ImageFormatPropert
     }
 
     /* Retrieve core VK1.0 information first. */
-    vkGetPhysicalDeviceFormatProperties     (m_physical_device,
-                                             in_query.format,
-                                             &core_vk10_format_props);
-    vkGetPhysicalDeviceImageFormatProperties(m_physical_device,
-                                             in_query.format,
-                                             in_query.image_type,
-                                             in_query.tiling,
-                                             in_query.usage_flags,
-                                             in_query.create_flags,
-                                            &core_vk10_image_format_properties);
+    vkGetPhysicalDeviceFormatProperties(m_physical_device,
+                                        in_query.format,
+                                        &core_vk10_format_props);
+
+    if (vkGetPhysicalDeviceImageFormatProperties(m_physical_device,
+                                                 in_query.format,
+                                                 in_query.image_type,
+                                                 in_query.tiling,
+                                                 in_query.usage_flags,
+                                                 in_query.create_flags,
+                                                &core_vk10_image_format_properties) != VK_SUCCESS)
+    {
+        goto end;
+    }
 
     if (gpdp2_entrypoints_ptr != nullptr)
     {

@@ -126,12 +126,14 @@ Anvil::MemoryBlockCreateInfo::MemoryBlockCreateInfo(const Anvil::MemoryBlockType
                                                     const VkDeviceSize&                                in_size,
                                                     const VkDeviceSize&                                in_start_offset)
     :m_allowed_memory_bits                     (in_allowed_memory_bits),
+     m_dedicated_allocation_buffer_ptr         (nullptr),
+     m_dedicated_allocation_image_ptr          (nullptr),
      m_device_ptr                              (in_device_ptr),
      m_exportable_external_memory_handle_types (Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_NONE),
-     m_external_handle_import_info_specified   (false),
 #ifdef _WIN32
-     m_external_nt_handle_import_info_specified(false),
+     m_exportable_nt_handle_info_specified     (false),
 #endif
+     m_external_handle_import_info_specified   (false),
      m_imported_external_memory_handle_type    (Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_NONE),
      m_memory                                  (in_memory),
      m_memory_features                         (in_memory_features),
@@ -141,7 +143,8 @@ Anvil::MemoryBlockCreateInfo::MemoryBlockCreateInfo(const Anvil::MemoryBlockType
      m_parent_memory_block_ptr                 (in_parent_memory_block_ptr),
      m_size                                    (in_size),
      m_start_offset                            (in_start_offset),
-     m_type                                    (in_type)
+     m_type                                    (in_type),
+     m_use_dedicated_allocation                (false)
 {
     if (in_n_physical_devices != 0)
     {

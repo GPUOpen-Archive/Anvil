@@ -96,7 +96,7 @@ namespace Anvil
          *  at baking time to configure input vertex attribute & bindings for the Vulkan pipeline object.
          *
          *  By default, Anvil only assigns a unique binding to those vertex attributes, whose characteristics
-         *  are unique (ie. whose input rate & stride match). This works well for most of the use cases, the
+         *  are unique (ie. whose divisor & input rate & stride match). This works well for most of the use cases, the
          *  only exception being when you need to associate a unique offset to a specific vertex binding. In
          *  this case, you need to set @param in_explicit_binding_index to an index, under which your exclusive
          *  binding is going to be stored.
@@ -110,6 +110,9 @@ namespace Anvil
          *  @param in_stride_in_bytes        Stride of the vertex attribute data.
          *  @param in_step_rate              Step rate to use for the vertex attribute data.
          *  @param in_explicit_binding_index Please see general description of the function for more details.
+         *  @param in_divisor                Divisor to use for the attribute. Please read EXT_vertex_attribute_divisor
+         *                                   for more details. Only set to values different than 1 if the extension
+         *                                   is reported as supported.
          *
          *  @return true if successful, false otherwise.
          **/
@@ -118,7 +121,8 @@ namespace Anvil
                                   uint32_t           in_offset_in_bytes,
                                   uint32_t           in_stride_in_bytes,
                                   VkVertexInputRate  in_step_rate,
-                                  uint32_t           in_explicit_binding_index = UINT32_MAX);
+                                  uint32_t           in_explicit_binding_index = UINT32_MAX,
+                                  uint32_t           in_divisor                = 1);
 
         /** Tells whether depth writes have been enabled. **/
         bool are_depth_writes_enabled() const;
@@ -386,16 +390,18 @@ namespace Anvil
          *  @param out_opt_explicit_vertex_binding_index_ptr If not null, deref will be set to the specified attribute's explicit vertex binding index.
          *  @param out_opt_stride_ptr                        If not null, deref will be set to the specified attribute's stride.
          *  @param out_opt_rate_ptr                          If not null, deref will be set to the specified attribute's step rate.
+         *  @param out_opt_divisor_ptr                       If not null, deref will be set to the specified attribute's divisor.
          *
          *  @return true if successful, false otherwise.
          **/
         bool get_vertex_attribute_properties(uint32_t           in_n_vertex_input_attribute,
-                                             uint32_t*          out_opt_location_ptr,
-                                             VkFormat*          out_opt_format_ptr,
-                                             uint32_t*          out_opt_offset_ptr,
-                                             uint32_t*          out_opt_explicit_vertex_binding_index_ptr,
-                                             uint32_t*          out_opt_stride_ptr,
-                                             VkVertexInputRate* out_opt_rate_ptr) const;
+                                             uint32_t*          out_opt_location_ptr                      = nullptr,
+                                             VkFormat*          out_opt_format_ptr                        = nullptr,
+                                             uint32_t*          out_opt_offset_ptr                        = nullptr,
+                                             uint32_t*          out_opt_explicit_vertex_binding_index_ptr = nullptr,
+                                             uint32_t*          out_opt_stride_ptr                        = nullptr,
+                                             VkVertexInputRate* out_opt_rate_ptr                          = nullptr,
+                                             uint32_t*          out_opt_divisor_ptr                       = nullptr) const;
 
         /** Retrieves properties of a viewport at a given index.
          *
@@ -833,6 +839,7 @@ namespace Anvil
          */
         typedef struct InternalVertexAttribute
         {
+            uint32_t          divisor;
             uint32_t          explicit_binding_index;
             VkFormat          format;
             uint32_t          location;
@@ -843,6 +850,7 @@ namespace Anvil
             /** Dummy constructor. Should only be used by STL. */
             InternalVertexAttribute()
             {
+                divisor                = 1;
                 explicit_binding_index = UINT32_MAX;
                 format                 = VK_FORMAT_UNDEFINED;
                 location               = UINT32_MAX;
@@ -853,19 +861,22 @@ namespace Anvil
 
             /** Constructor.
              *
+             *  @param in_divisor         Divisor to use for the attribute.
              *  @param in_format          Attribute format.
              *  @param in_location        Attribute location.
              *  @param in_offset_in_bytes Start offset in bytes.
              *  @param in_rate            Step rate.
              *  @param in_stride_in_bytes Stride in bytes.
              **/
-            InternalVertexAttribute(uint32_t          in_explicit_binding_index,
+            InternalVertexAttribute(uint32_t          in_divisor,
+                                    uint32_t          in_explicit_binding_index,
                                     VkFormat          in_format,
                                     uint32_t          in_location,
                                     uint32_t          in_offset_in_bytes,
                                     VkVertexInputRate in_rate,
                                     uint32_t          in_stride_in_bytes)
             {
+                divisor                = in_divisor;
                 explicit_binding_index = in_explicit_binding_index;
                 format                 = in_format;
                 location               = in_location;

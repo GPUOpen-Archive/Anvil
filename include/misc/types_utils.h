@@ -277,7 +277,7 @@ namespace Anvil
 
         /** Tells whether @param in_value is a power-of-two. */
         template <typename type>
-        type is_pow2(const type in_value)
+        bool is_pow2(const type in_value)
         {
             return ((in_value & (in_value - 1)) == 0);
         }

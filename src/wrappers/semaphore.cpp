@@ -326,6 +326,30 @@ bool Anvil::Semaphore::reset()
         struct_chainer.append_struct(create_info);
     }
 
+    #if defined(_WIN32)
+    {
+        const Anvil::ExternalNTHandleInfo* nt_handle_info_ptr = nullptr;
+
+        if (m_create_info_ptr->get_exportable_nt_handle_info(&nt_handle_info_ptr) )
+        {
+            VkExportSemaphoreWin32HandleInfoKHR handle_info;
+
+            anvil_assert( nt_handle_info_ptr                                                                                                            != nullptr);
+            anvil_assert((m_create_info_ptr->get_exportable_external_semaphore_handle_types() & Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT) ||
+                         (m_create_info_ptr->get_exportable_external_semaphore_handle_types() & Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT) );
+
+            handle_info.dwAccess    = nt_handle_info_ptr->access;
+            handle_info.name        = (nt_handle_info_ptr->name.size() > 0) ? &nt_handle_info_ptr->name.at(0)
+                                                                            : nullptr;
+            handle_info.pAttributes = nt_handle_info_ptr->attributes_ptr;
+            handle_info.pNext       = nullptr;
+            handle_info.sType       = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR;
+
+            struct_chainer.append_struct(handle_info);
+        }
+    }
+    #endif
+
     struct_chain_ptr = struct_chainer.create_chain();
     if (struct_chain_ptr == nullptr)
     {

@@ -116,11 +116,41 @@ namespace Anvil
         /* Private type declarations */
         typedef std::map<uint32_t, uint32_t> AttributeLocationToBindingIndexMap;
 
+        typedef struct VertexInputBinding
+        {
+            uint32_t          binding;
+            uint32_t          divisor;
+            VkVertexInputRate input_rate;
+            uint32_t          stride;
+
+            VertexInputBinding()
+            {
+                binding    = 0;
+                divisor    = 0;
+                input_rate = VK_VERTEX_INPUT_RATE_MAX_ENUM;
+                stride     = 0;
+            }
+
+            VertexInputBinding(const VkVertexInputBindingDescription& in_binding_vk,
+                               const uint32_t&                        in_divisor)
+            {
+                binding    = in_binding_vk.binding;
+                divisor    = in_divisor;
+                input_rate = in_binding_vk.inputRate;
+                stride     = in_binding_vk.stride;
+            }
+        } VertexInputBinding;
+
         typedef struct GraphicsPipelineData
         {
             AttributeLocationToBindingIndexMap             attribute_location_to_binding_index_map;
             const Anvil::GraphicsPipelineCreateInfo*       pipeline_create_info_ptr;
             std::vector<VkVertexInputAttributeDescription> vk_input_attributes;
+
+            /* NOTE: VkVertexInputBindingDescription does not include divisor information so we need to maintain a custom
+             *       set of structs as well.
+             */
+            std::vector<VertexInputBinding>                input_bindings;
             std::vector<VkVertexInputBindingDescription>   vk_input_bindings;
 
             explicit GraphicsPipelineData(const Anvil::GraphicsPipelineCreateInfo* in_pipeline_create_info_ptr)

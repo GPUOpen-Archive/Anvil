@@ -39,9 +39,11 @@ Anvil::Buffer::Buffer(Anvil::BufferCreateInfoUniquePtr in_create_info_ptr)
                                         VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT),
      MTSafetySupportProvider           (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety(),
                                                                                         in_create_info_ptr->get_device   () )),
-     m_buffer          (VK_NULL_HANDLE),
-     m_create_flags    (0),
-     m_memory_block_ptr(nullptr)
+     m_buffer                          (VK_NULL_HANDLE),
+     m_create_flags                    (0),
+     m_memory_block_ptr                (nullptr),
+     m_prefers_dedicated_allocation    (false),
+     m_requires_dedicated_allocation   (false)
 {
     switch (in_create_info_ptr->get_type() )
     {
@@ -195,11 +197,12 @@ const Anvil::Buffer* Anvil::Buffer::get_base_buffer()
 }
 
 /* Please see header for specification */
-VkBuffer Anvil::Buffer::get_buffer()
+VkBuffer Anvil::Buffer::get_buffer(const bool& in_bake_memory_if_necessary)
 {
     if (get_create_info_ptr()->get_type() != Anvil::BufferType::SPARSE_NO_ALLOC)
     {
-        if (m_memory_block_ptr == nullptr)
+        if (in_bake_memory_if_necessary            &&
+            m_memory_block_ptr          == nullptr)
         {
             get_memory_block(0 /* in_n_memory_block */);
         }
@@ -278,8 +281,9 @@ bool Anvil::Buffer::init()
 {
     uint32_t                                 n_queue_family_indices;
     uint32_t                                 queue_family_indices   [8];
-    VkResult                                 result                    (VK_ERROR_INITIALIZATION_FAILED);
+    VkResult                                 result                  (VK_ERROR_INITIALIZATION_FAILED);
     Anvil::StructChainer<VkBufferCreateInfo> struct_chainer;
+    bool                                     use_dedicated_allocation(false);
 
     if ( m_create_info_ptr->get_client_data    ()                                        != nullptr &&
         (m_create_info_ptr->get_memory_features() & Anvil::MEMORY_FEATURE_FLAG_MAPPABLE) == 0)
@@ -306,8 +310,8 @@ bool Anvil::Buffer::init()
             buffer_create_info.pNext                 = nullptr;
             buffer_create_info.pQueueFamilyIndices   = queue_family_indices;
             buffer_create_info.queueFamilyIndexCount = n_queue_family_indices;
-            buffer_create_info.sharingMode           = (n_queue_family_indices == 1) ? VK_SHARING_MODE_EXCLUSIVE : m_create_info_ptr->get_sharing_mode();
-            buffer_create_info.size                  = m_create_info_ptr->get_size();
+            buffer_create_info.sharingMode           = m_create_info_ptr->get_sharing_mode();
+            buffer_create_info.size                  = m_create_info_ptr->get_size        ();
             buffer_create_info.sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
             buffer_create_info.usage                 = m_create_info_ptr->get_usage_flags();
 
@@ -315,7 +319,7 @@ bool Anvil::Buffer::init()
         }
 
         {
-            const auto& external_memory_handle_types = m_create_info_ptr->get_external_memory_handle_types();
+            const auto& external_memory_handle_types = m_create_info_ptr->get_exportable_external_memory_handle_types();
 
             if (external_memory_handle_types != 0)
             {
@@ -344,10 +348,73 @@ bool Anvil::Buffer::init()
         {
             set_vk_handle(m_buffer);
 
-            /* Cache buffer data memory requirements */
-            vkGetBufferMemoryRequirements(m_device_ptr->get_device_vk(),
-                                          m_buffer,
-                                         &m_buffer_memory_reqs);
+            /* Cache buffer data memory requirements.
+             *
+             * Prefer facility exposed by VK_KHR_get_memory_requirements2, unless the extension is unavailable.
+             */
+            if (m_device_ptr->get_extension_info()->khr_get_memory_requirements2() )
+            {
+                Anvil::StructID                                       dedicated_reqs_struct_id           = static_cast<Anvil::StructID>(UINT32_MAX);
+                const auto                                            gmr2_entrypoints                   = m_device_ptr->get_extension_khr_get_memory_requirements2_entrypoints();
+                VkBufferMemoryRequirementsInfo2KHR                    info;
+                const bool                                            khr_dedicated_allocation_available = m_device_ptr->get_extension_info()->khr_dedicated_allocation();
+                Anvil::StructChainUniquePtr<VkMemoryRequirements2KHR> result_reqs_chain_ptr;
+                VkMemoryRequirements2KHR*                             result_reqs_chain_raw_ptr          = nullptr;
+                Anvil::StructChainer<VkMemoryRequirements2KHR>        result_reqs_chainer;
+
+                info.buffer = m_buffer;
+                info.pNext  = nullptr;
+                info.sType  = VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2_KHR;
+
+                {
+                    VkMemoryRequirements2KHR reqs;
+
+                    reqs.pNext = nullptr;
+                    reqs.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2_KHR;
+
+                    result_reqs_chainer.append_struct(reqs);
+                }
+
+                if (khr_dedicated_allocation_available)
+                {
+                    VkMemoryDedicatedRequirementsKHR dedicated_reqs;
+
+                    dedicated_reqs.pNext                       = nullptr;
+                    dedicated_reqs.prefersDedicatedAllocation  = VK_FALSE;
+                    dedicated_reqs.requiresDedicatedAllocation = VK_FALSE;
+                    dedicated_reqs.sType                       = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS_KHR;
+
+                    dedicated_reqs_struct_id = result_reqs_chainer.append_struct(dedicated_reqs);
+                }
+
+                result_reqs_chain_ptr = result_reqs_chainer.create_chain();
+                anvil_assert(result_reqs_chain_ptr != nullptr);
+
+                result_reqs_chain_raw_ptr = result_reqs_chain_ptr->get_root_struct();
+                anvil_assert(result_reqs_chain_raw_ptr != nullptr);
+
+                gmr2_entrypoints.vkGetBufferMemoryRequirements2KHR(m_device_ptr->get_device_vk(),
+                                                                  &info,
+                                                                   result_reqs_chain_raw_ptr);
+
+                m_buffer_memory_reqs = result_reqs_chain_raw_ptr->memoryRequirements;
+
+                if (khr_dedicated_allocation_available)
+                {
+                    const auto dedicated_alloc_info_ptr = result_reqs_chain_ptr->get_struct_with_id<VkMemoryDedicatedRequirementsKHR>(dedicated_reqs_struct_id);
+
+                    m_prefers_dedicated_allocation  = (dedicated_alloc_info_ptr->prefersDedicatedAllocation  == VK_TRUE);
+                    m_requires_dedicated_allocation = (dedicated_alloc_info_ptr->requiresDedicatedAllocation == VK_TRUE);
+
+                    use_dedicated_allocation = m_requires_dedicated_allocation;
+                }
+            }
+            else
+            {
+                vkGetBufferMemoryRequirements(m_device_ptr->get_device_vk(),
+                                              m_buffer,
+                                             &m_buffer_memory_reqs);
+            }
         }
     }
     else
@@ -376,6 +443,12 @@ bool Anvil::Buffer::init()
                                                                                     m_create_info_ptr->get_memory_features() );
 
                 create_info_ptr->set_mt_safety(m_create_info_ptr->get_mt_safety() );
+
+                if (use_dedicated_allocation)
+                {
+                    create_info_ptr->use_dedicated_allocation(this,
+                                                              nullptr); /* in_opt_image_ptr */
+                }
 
                 memory_block_ptr = Anvil::MemoryBlock::create(std::move(create_info_ptr) );
             }
@@ -416,6 +489,12 @@ bool Anvil::Buffer::init()
                                                                                     m_create_info_ptr->get_size() );
 
                 mem_block_ptr = Anvil::MemoryBlock::create(std::move(create_info_ptr) );
+
+                if (use_dedicated_allocation)
+                {
+                    create_info_ptr->use_dedicated_allocation(this,
+                                                              nullptr); /* in_opt_image_ptr */
+                }
             }
 
             m_owned_memory_blocks.push_back(std::move(mem_block_ptr) );
