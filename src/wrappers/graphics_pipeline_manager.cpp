@@ -240,7 +240,10 @@ bool Anvil::GraphicsPipelineManager::bake()
                 VkPipelineColorBlendStateCreateInfo color_blend_state_create_info;
                 VkLogicOp                           logic_op;
                 bool                                logic_op_enabled              = false;
+                uint32_t                            max_location_index            = UINT32_MAX;
                 const uint32_t                      start_offset                  = static_cast<uint32_t>(color_blend_attachment_states_vk_cache.size() );
+
+                max_location_index = current_pipeline_renderpass_ptr->get_render_pass_create_info()->get_max_color_location_used_by_subpass(current_pipeline_subpass_id);
 
                 current_pipeline_create_info_ptr->get_blending_properties(&blend_constant_ptr,
                                                                           nullptr); /* out_opt_n_blend_attachments_ptr */
@@ -248,7 +251,7 @@ bool Anvil::GraphicsPipelineManager::bake()
                 current_pipeline_create_info_ptr->get_logic_op_state(&logic_op_enabled,
                                                                      &logic_op);
 
-                color_blend_state_create_info.attachmentCount       = subpass_n_color_attachments;
+                color_blend_state_create_info.attachmentCount       = max_location_index + 1;
                 color_blend_state_create_info.flags                 = 0;
                 color_blend_state_create_info.logicOp               = logic_op;
                 color_blend_state_create_info.logicOpEnable         = (logic_op_enabled) ? VK_TRUE : VK_FALSE;
@@ -260,24 +263,33 @@ bool Anvil::GraphicsPipelineManager::bake()
                        blend_constant_ptr,
                        sizeof(color_blend_state_create_info.blendConstants) );
 
+                anvil_assert(subpass_n_color_attachments <= current_pipeline_renderpass_ptr->get_render_pass_create_info()->get_n_attachments() );
+
                 for (uint32_t n_subpass_color_attachment = 0;
-                              n_subpass_color_attachment < subpass_n_color_attachments;
+                              n_subpass_color_attachment <= max_location_index;
                             ++n_subpass_color_attachment)
                 {
                     color_blend_attachment_states_vk_cache.push_back(VkPipelineColorBlendAttachmentState() );
 
                     VkPipelineColorBlendAttachmentState* blend_attachment_state_ptr         = &color_blend_attachment_states_vk_cache.back();
+                    VkImageLayout                        dummy                              = VK_IMAGE_LAYOUT_MAX_ENUM;
                     bool                                 is_blending_enabled_for_attachment = false;
+                    Anvil::RenderPassAttachmentID        rp_attachment_id                   = UINT32_MAX;
 
-                    if (!current_pipeline_create_info_ptr->get_color_blend_attachment_properties(n_subpass_color_attachment,
-                                                                                                &is_blending_enabled_for_attachment,
-                                                                                                &blend_attachment_state_ptr->colorBlendOp,
-                                                                                                &blend_attachment_state_ptr->alphaBlendOp,
-                                                                                                &blend_attachment_state_ptr->srcColorBlendFactor,
-                                                                                                &blend_attachment_state_ptr->dstColorBlendFactor,
-                                                                                                &blend_attachment_state_ptr->srcAlphaBlendFactor,
-                                                                                                &blend_attachment_state_ptr->dstAlphaBlendFactor,
-                                                                                                &blend_attachment_state_ptr->colorWriteMask) )
+                    if (!current_pipeline_renderpass_ptr->get_render_pass_create_info()->get_subpass_attachment_properties(current_pipeline_subpass_id,
+                                                                                                                           Anvil::ATTACHMENT_TYPE_COLOR,
+                                                                                                                           n_subpass_color_attachment,
+                                                                                                                          &rp_attachment_id,
+                                                                                                                          &dummy) || /* out_layout_ptr */
+                        !current_pipeline_create_info_ptr->get_color_blend_attachment_properties                          (rp_attachment_id,
+                                                                                                                          &is_blending_enabled_for_attachment,
+                                                                                                                          &blend_attachment_state_ptr->colorBlendOp,
+                                                                                                                          &blend_attachment_state_ptr->alphaBlendOp,
+                                                                                                                          &blend_attachment_state_ptr->srcColorBlendFactor,
+                                                                                                                          &blend_attachment_state_ptr->dstColorBlendFactor,
+                                                                                                                          &blend_attachment_state_ptr->srcAlphaBlendFactor,
+                                                                                                                          &blend_attachment_state_ptr->dstAlphaBlendFactor,
+                                                                                                                          &blend_attachment_state_ptr->colorWriteMask) )
                     {
                         /* The user has not defined blending properties for current color attachment. Use default state values .. */
                         blend_attachment_state_ptr->blendEnable         = VK_FALSE;
@@ -294,9 +306,7 @@ bool Anvil::GraphicsPipelineManager::bake()
                     }
                     else
                     {
-                        anvil_assert(is_blending_enabled_for_attachment);
-
-                        blend_attachment_state_ptr->blendEnable = VK_TRUE;
+                        blend_attachment_state_ptr->blendEnable = (is_blending_enabled_for_attachment) ? VK_TRUE : VK_FALSE;
                     }
                 }
 
