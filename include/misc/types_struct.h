@@ -731,6 +731,8 @@ namespace Anvil
            return &image_barrier_vk;
        }
 
+       bool operator==(const ImageBarrier& in_barrier) const;
+
     private:
         ImageBarrier& operator=(const ImageBarrier&);
     } ImageBarrier;

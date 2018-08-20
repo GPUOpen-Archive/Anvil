@@ -745,6 +745,7 @@ Anvil::ImageFormatProperties::ImageFormatProperties(const VkImageFormatPropertie
 /** Please see header for specification */
 Anvil::ImageBarrier::ImageBarrier(const ImageBarrier& in)
 {
+    by_region              = in.by_region;
     dst_access_mask        = in.dst_access_mask;
     dst_queue_family_index = in.dst_queue_family_index;
     image                  = in.image;
@@ -803,6 +804,30 @@ Anvil::ImageBarrier::ImageBarrier(VkAccessFlags           in_source_access_mask,
 Anvil::ImageBarrier::~ImageBarrier()
 {
     /* Stub */
+}
+
+bool Anvil::ImageBarrier::operator==(const ImageBarrier& in_barrier) const
+{
+    bool result = true;
+
+    result &= (dst_access_mask == in_barrier.dst_access_mask);
+    result &= (src_access_mask == in_barrier.src_access_mask);
+
+    result &= (by_region              == in_barrier.by_region);
+    result &= (dst_queue_family_index == in_barrier.dst_queue_family_index);
+    result &= (image                  == in_barrier.image);
+    result &= (image_ptr              == in_barrier.image_ptr);
+    result &= (new_layout             == in_barrier.new_layout);
+    result &= (old_layout             == in_barrier.old_layout);
+    result &= (src_queue_family_index == in_barrier.src_queue_family_index);
+
+    result &= (subresource_range.aspectMask     == in_barrier.subresource_range.aspectMask);
+    result &= (subresource_range.baseArrayLayer == in_barrier.subresource_range.baseArrayLayer);
+    result &= (subresource_range.baseMipLevel   == in_barrier.subresource_range.baseMipLevel);
+    result &= (subresource_range.layerCount     == in_barrier.subresource_range.layerCount);
+    result &= (subresource_range.levelCount     == in_barrier.subresource_range.levelCount);
+
+    return result;
 }
 
 Anvil::KHR16BitStorageFeatures::KHR16BitStorageFeatures()
