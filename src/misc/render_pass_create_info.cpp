@@ -25,6 +25,9 @@
 #include <algorithm>
 #include <cmath>
 
+#if defined(max)
+    #undef max
+#endif
 
 Anvil::RenderPassCreateInfo::RenderPassCreateInfo(const Anvil::BaseDevice* in_device_ptr)
     :m_device_ptr                  (in_device_ptr),
@@ -716,6 +719,31 @@ end:
 }
 
 /* Please see header for specification */
+uint32_t Anvil::RenderPassCreateInfo::get_max_color_location_used_by_subpass(const SubPassID& in_subpass_id) const
+{
+    uint32_t result           = UINT32_MAX;
+    auto     subpass_iterator = (m_subpasses.size() > in_subpass_id) ? m_subpasses.begin() + in_subpass_id : m_subpasses.end();
+
+    if (subpass_iterator == m_subpasses.end() )
+    {
+        anvil_assert(subpass_iterator != m_subpasses.end() );
+
+        goto end;
+    }
+
+    result = 0;
+
+    for (const auto& current_color_attachment_data : (*subpass_iterator)->color_attachments_map)
+    {
+        result = std::max(result,
+                          current_color_attachment_data.first);
+    }
+
+end:
+    return result;
+}
+
+/* Please see header for specification */
 bool Anvil::RenderPassCreateInfo::get_subpass_n_attachments(SubPassID      in_subpass_id,
                                                             AttachmentType in_attachment_type,
                                                             uint32_t*      out_n_attachments_ptr) const
@@ -809,12 +837,22 @@ bool Anvil::RenderPassCreateInfo::get_subpass_attachment_properties(SubPassID   
                                     : (in_attachment_type == ATTACHMENT_TYPE_INPUT) ? &subpass_ptr->input_attachments_map
                                                                                     : &subpass_ptr->resolved_attachments_map;
 
-            auto iterator = subpass_attachments_ptr->find(in_n_subpass_attachment);
+            auto iterator = subpass_attachments_ptr->begin();
+
+            for (uint32_t n_key = 0;
+                          n_key < in_n_subpass_attachment;
+                        ++n_key)
+            {
+                if (iterator == subpass_attachments_ptr->end() )
+                {
+                    goto end;
+                }
+
+                iterator ++;
+            }
 
             if (iterator == subpass_attachments_ptr->end() )
             {
-                anvil_assert_fail();
-
                 goto end;
             }
 

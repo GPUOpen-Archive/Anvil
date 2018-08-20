@@ -212,6 +212,15 @@ namespace Anvil
             return m_usage_flags;
         }
 
+        /** Use to specify contents which should be uploaded to a buffer at memory block assignment time.
+         *
+         *  Note that this setting will be ignored for partially-resident buffers.
+         *
+         *  The specified pointer must remain valid until Buffer::set_nonsparse_memory() call time.
+         *
+         *  @param in_client_data_ptr Pointer to data storage holding contents the created buffer should be filled with.
+         *                            Must remain valid until memory block assignment time.
+         */
         void set_client_data(const void* const in_client_data_ptr)
         {
             m_client_data_ptr = in_client_data_ptr;
