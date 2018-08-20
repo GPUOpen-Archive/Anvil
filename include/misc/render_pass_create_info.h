@@ -377,6 +377,16 @@ namespace Anvil
             return m_device_ptr;
         }
 
+        /* Returns the largest location assigned to color attachments for the specified subpass.
+         *
+         * If no color attachments have been defined for the queried subpass, UINT32_MAX is returned.
+         *
+         * @param in_subpass_id ID of the subpass to use for the query.
+         *
+         * @return As per description.
+         **/
+        uint32_t get_max_color_location_used_by_subpass(const SubPassID& in_subpass_id) const;
+
         /** Returns the number of added attachments */
         uint32_t get_n_attachments() const
         {

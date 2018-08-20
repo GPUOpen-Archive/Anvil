@@ -656,16 +656,25 @@ bool Anvil::MemoryBlock::read(VkDeviceSize in_start_offset,
         if ((m_create_info_ptr->get_memory_features() & Anvil::MEMORY_FEATURE_FLAG_HOST_COHERENT) == 0)
         {
             VkMappedMemoryRange mapped_memory_range;
-            VkResult            result_vk          (VK_ERROR_INITIALIZATION_FAILED);
+            const auto          mem_block_size         = m_create_info_ptr->get_size();
+            const auto          non_coherent_atom_size = m_create_info_ptr->get_device()->get_physical_device_properties().core_vk1_0_properties_ptr->limits.non_coherent_atom_size;
+            VkResult            result_vk              = VK_ERROR_INITIALIZATION_FAILED;
 
             anvil_assert            (m_start_offset == 0);
             ANVIL_REDUNDANT_VARIABLE(result_vk);
 
             mapped_memory_range.memory = m_memory;
-            mapped_memory_range.offset = in_start_offset;
+            mapped_memory_range.offset = Anvil::Utils::round_down(in_start_offset,
+                                                                  non_coherent_atom_size);
             mapped_memory_range.pNext  = nullptr;
-            mapped_memory_range.size   = in_size;
+            mapped_memory_range.size   = Anvil::Utils::round_up(in_size,
+                                                                non_coherent_atom_size);
             mapped_memory_range.sType  = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+
+            if (mapped_memory_range.size + mapped_memory_range.offset > mem_block_size)
+            {
+                mapped_memory_range.size = mem_block_size - mapped_memory_range.offset;
+            }
 
             result_vk = vkInvalidateMappedMemoryRanges(m_create_info_ptr->get_device()->get_device_vk(),
                                                        1, /* memRangeCount */
@@ -746,15 +755,24 @@ bool Anvil::MemoryBlock::write(VkDeviceSize in_start_offset,
         if ((m_create_info_ptr->get_memory_features() & Anvil::MEMORY_FEATURE_FLAG_HOST_COHERENT) == 0)
         {
             VkMappedMemoryRange mapped_memory_range;
-            VkResult            result_vk          (VK_ERROR_INITIALIZATION_FAILED);
+            const auto          mem_block_size         = m_create_info_ptr->get_size();
+            const auto          non_coherent_atom_size = m_create_info_ptr->get_device()->get_physical_device_properties().core_vk1_0_properties_ptr->limits.non_coherent_atom_size;
+            auto                result_vk              = VkResult(VK_ERROR_INITIALIZATION_FAILED);
 
             ANVIL_REDUNDANT_VARIABLE(result_vk);
 
             mapped_memory_range.memory = m_memory;
-            mapped_memory_range.offset = in_start_offset;
+            mapped_memory_range.offset = Anvil::Utils::round_down(in_start_offset,
+                                                                  non_coherent_atom_size);
             mapped_memory_range.pNext  = nullptr;
-            mapped_memory_range.size   = in_size;
+            mapped_memory_range.size   = Anvil::Utils::round_up(in_size,
+                                                                non_coherent_atom_size);
             mapped_memory_range.sType  = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+
+            if (mapped_memory_range.size + mapped_memory_range.offset > mem_block_size)
+            {
+                mapped_memory_range.size = mem_block_size - mapped_memory_range.offset;
+            }
 
             result_vk = vkFlushMappedMemoryRanges(m_create_info_ptr->get_device()->get_device_vk(),
                                                   1, /* memRangeCount */

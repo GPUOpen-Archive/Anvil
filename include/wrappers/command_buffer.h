@@ -481,7 +481,7 @@ namespace Anvil
          *  Calling this function for a command buffer which has not been put into a recording mode
          *  (by issuing a start_recording() call earlier) will result in an assertion failure.
          *
-         *  It is also illegal to call this function when not recording renderpass commands. Doing so
+         *  It is also illegal to call this function when recording renderpass commands. Doing so
          *  will also result in an assertion failure.
          *
          *  Any Vulkan object wrapper instances passed to this function are going to be retained,

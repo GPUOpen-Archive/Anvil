@@ -74,7 +74,7 @@ bool Anvil::PipelineLayout::bake(const std::vector<DescriptorSetCreateInfoUnique
     /* Convert descriptor set layouts to Vulkan equivalents */
     const VkDescriptorSetLayout dummy_ds_layout = m_device_ptr->get_dummy_descriptor_set_layout()->get_layout();
 
-    ds_layouts_vk.resize(in_ds_create_info_items_ptr->size() + 1,
+    ds_layouts_vk.resize(in_ds_create_info_items_ptr->size(),
                          dummy_ds_layout);
 
     if (in_ds_create_info_items_ptr         != nullptr &&
