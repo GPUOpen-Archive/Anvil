@@ -243,6 +243,11 @@ namespace Anvil
              {
                  return m_program_info_log;
              }
+             
+             const std::string& get_program_debug_info_log() const
+             {
+                 return m_program_debug_info_log;
+             }
 
              /** Returns info log which contains detailed information regarding the shader compilation process.
               *
@@ -340,6 +345,7 @@ namespace Anvil
             mutable std::string            m_debug_info_log;
             std::unique_ptr<GLSLangLimits> m_limits_ptr;
             mutable std::string            m_program_info_log;
+            mutable std::string            m_program_debug_info_log;
             mutable std::string            m_shader_info_log;
         #endif
 
