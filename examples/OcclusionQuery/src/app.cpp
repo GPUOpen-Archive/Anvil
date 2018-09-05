@@ -346,9 +346,9 @@ void App::init_buffers()
 {
     const VkDeviceSize uniform_alignment_req(m_physical_device_ptr->get_device_properties().core_vk1_0_properties_ptr->limits.min_uniform_buffer_offset_alignment);
 
-    m_n_bytes_per_query                = static_cast<uint32_t>(Anvil::Utils::round_up(sizeof(uint32_t),
+    m_n_bytes_per_query                = static_cast<uint32_t>(Anvil::Utils::round_up(static_cast<VkDeviceSize>(sizeof(uint32_t)),
                                                                                       uniform_alignment_req) );
-    m_time_n_bytes_per_swapchain_image = static_cast<uint32_t>(Anvil::Utils::round_up(sizeof(float),
+    m_time_n_bytes_per_swapchain_image = static_cast<uint32_t>(Anvil::Utils::round_up(static_cast<VkDeviceSize>(sizeof(float)),
                                                                                       uniform_alignment_req) );
 
     {
