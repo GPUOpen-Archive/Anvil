@@ -16,12 +16,11 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     endif()
 endif()
 
-add_subdirectory   (../.. "${CMAKE_CURRENT_BINARY_DIR}/anvil")
+if (NOT ANVIL_LINK_EXAMPLES)
+	add_subdirectory   (../.. "${CMAKE_CURRENT_BINARY_DIR}/anvil")	
+endif()
 
 target_include_directories(Anvil PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/anvil/include")
-
-include_directories(${Anvil_SOURCE_DIR}/include
-                    ${MultiViewport_SOURCE_DIR}/include)
 
 if (WIN32)
     include_directories($ENV{VK_SDK_PATH}/Include
@@ -46,6 +45,9 @@ else()
                         $ENV{VULKAN_SDK}/lib
                         $ENV{VULKAN_SDK}/x86_64/lib)
 endif()
+
+include_directories(${Anvil_SOURCE_DIR}/include
+                    ${MultiViewport_SOURCE_DIR}/include)
 
 # Create the MultiViewport project.
 add_executable (MultiViewport include/app.h

@@ -880,7 +880,7 @@ const VkImage& Anvil::Image::get_image(const bool& in_bake_memory_if_necessary)
 /* Please see header for specification */
 VkExtent2D Anvil::Image::get_image_extent_2D(uint32_t in_n_mipmap) const
 {
-    VkExtent2D result;
+	VkExtent2D result = { 0u, 0u };
     uint32_t   size[2];
 
     if (!get_image_mipmap_size(in_n_mipmap,
@@ -903,7 +903,7 @@ end:
 /* Please see header for specification */
 VkExtent3D Anvil::Image::get_image_extent_3D(uint32_t in_n_mipmap) const
 {
-    VkExtent3D result;
+	VkExtent3D result = { 0u, 0u, 0u };
     uint32_t   size[3];
 
     if (!get_image_mipmap_size(in_n_mipmap,

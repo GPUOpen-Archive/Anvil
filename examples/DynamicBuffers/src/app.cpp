@@ -478,7 +478,7 @@ void App::init_buffers()
 
     /* We also need some space for a uniform block which is going to hold time info. */
     const auto dynamic_ub_alignment_requirement                = m_device_ptr->get_physical_device_properties().core_vk1_0_properties_ptr->limits.min_uniform_buffer_offset_alignment;
-    const auto sine_props_data_buffer_size_per_swapchain_image = Anvil::Utils::round_up(sizeof(float),
+    const auto sine_props_data_buffer_size_per_swapchain_image = Anvil::Utils::round_up(static_cast<decltype(dynamic_ub_alignment_requirement)>(sizeof(float)),
                                                                                         dynamic_ub_alignment_requirement);
     const auto sine_props_data_buffer_size_total               = sine_props_data_buffer_size_per_swapchain_image * N_SWAPCHAIN_IMAGES;
 
