@@ -16,7 +16,9 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     endif()
 endif()
 
-add_subdirectory   (../.. "${CMAKE_CURRENT_BINARY_DIR}/anvil")
+if (NOT ANVIL_LINK_EXAMPLES)
+	add_subdirectory   (../.. "${CMAKE_CURRENT_BINARY_DIR}/anvil")
+endif()
 
 target_include_directories(Anvil PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/anvil/include")
 

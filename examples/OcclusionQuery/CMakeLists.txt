@@ -16,12 +16,11 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     endif()
 endif()
 
-add_subdirectory   (../.. "${CMAKE_CURRENT_BINARY_DIR}/anvil")
+if (NOT ANVIL_LINK_EXAMPLES)
+	add_subdirectory   (../.. "${CMAKE_CURRENT_BINARY_DIR}/anvil")
+endif()
 
 target_include_directories(Anvil PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/anvil/include")
-
-include_directories(${Anvil_SOURCE_DIR}/include
-                    ${OcclusionQuery_SOURCE_DIR}/include)
 
 # Include the Vulkan header.
 if (WIN32)
@@ -46,7 +45,10 @@ else()
     link_directories   ($ENV{VK_SDK_PATH}/x86_64/lib
                         $ENV{VULKAN_SDK}/lib
                         $ENV{VULKAN_SDK}/x86_64/lib)
-endif()
+endif()	
+
+include_directories(${Anvil_SOURCE_DIR}/include
+                    ${OcclusionQuery_SOURCE_DIR}/include)
 
 # Create the OcclusionQuery project.
 add_executable (OcclusionQuery include/app.h

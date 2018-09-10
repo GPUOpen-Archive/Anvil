@@ -4,6 +4,7 @@ project (Anvil)
 option(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT "Includes 32-/64-bit Windows window system support (Windows builds only)" ON)
 option(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT     "Includes XCB window system support (Linux builds only)" ON)
 option(ANVIL_LINK_WITH_GLSLANG                     "Links with glslang, instead of spawning a new process whenever GLSL->SPIR-V conversion is required" ON)
+option(ANVIL_LINK_EXAMPLES                         "Build examples showing how to use Anvil" OFF)
 
 
 # Do not modify anything after this line, unless you know what you're doing.
@@ -236,6 +237,15 @@ if (ANVIL_LINK_WITH_GLSLANG)
     else()
         add_subdirectory("deps/glslang")
     endif()
+endif()
+
+
+if (ANVIL_LINK_EXAMPLES)
+	add_subdirectory("examples/DynamicBuffers")
+	add_subdirectory("examples/MultiViewport")
+	add_subdirectory("examples/OcclusionQuery")
+	add_subdirectory("examples/OutOfOrderRasterization")
+	add_subdirectory("examples/PushConstants")
 endif()
 
 # Enable level-4 warnings
