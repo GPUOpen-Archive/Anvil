@@ -423,8 +423,8 @@ void App::init_buffers()
         auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_no_alloc(m_device_ptr.get(),
                                                                                   m_sine_offset_data_buffer_size,
                                                                                   Anvil::QUEUE_FAMILY_COMPUTE_BIT | Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
-                                                                                  VK_SHARING_MODE_CONCURRENT,
-                                                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+                                                                                  Anvil::SharingMode::CONCURRENT,
+                                                                                  Anvil::BUFFER_USAGE_FLAG_STORAGE_BUFFER_BIT);
 
         m_sine_offset_data_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
     }
@@ -465,8 +465,8 @@ void App::init_buffers()
         auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_no_alloc(m_device_ptr.get(),
                                                                                   m_sine_data_buffer_size,
                                                                                   Anvil::QUEUE_FAMILY_COMPUTE_BIT | Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
-                                                                                  VK_SHARING_MODE_CONCURRENT,
-                                                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+                                                                                  Anvil::SharingMode::CONCURRENT,
+                                                                                  Anvil::BUFFER_USAGE_FLAG_STORAGE_BUFFER_BIT);
 
         m_sine_data_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
     }
@@ -488,8 +488,8 @@ void App::init_buffers()
         auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_no_alloc(m_device_ptr.get(),
                                                                                   sine_props_data_buffer_size_total,
                                                                                   Anvil::QUEUE_FAMILY_COMPUTE_BIT | Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
-                                                                                  VK_SHARING_MODE_CONCURRENT,
-                                                                                  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+                                                                                  Anvil::SharingMode::CONCURRENT,
+                                                                                  Anvil::BUFFER_USAGE_FLAG_UNIFORM_BUFFER_BIT);
 
         m_sine_props_data_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
     }
@@ -526,8 +526,8 @@ void App::init_buffers()
         auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_no_alloc(m_device_ptr.get(),
                                                                                   m_sine_color_buffer_size,
                                                                                   Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
-                                                                                  VK_SHARING_MODE_EXCLUSIVE,
-                                                                                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+                                                                                  Anvil::SharingMode::EXCLUSIVE,
+                                                                                  Anvil::BUFFER_USAGE_FLAG_VERTEX_BUFFER_BIT);
 
         m_sine_color_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
     }
@@ -582,8 +582,8 @@ void App::init_command_buffers()
             Anvil::ImageBarrier image_barrier(0,                                    /* source_access_mask      */
                                               VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, /* destination_access_mask */
                                               false,
-                                              VK_IMAGE_LAYOUT_UNDEFINED,
-                                              VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                              Anvil::ImageLayout::UNDEFINED,
+                                              Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
                                               universal_queue_ptr->get_queue_family_index(),
                                               universal_queue_ptr->get_queue_family_index(),
                                               m_swapchain_ptr->get_image(n_current_swapchain_image),
@@ -946,9 +946,9 @@ void App::init_gfx_pipelines()
 
     /* Create a renderpass instance */
     #ifdef ENABLE_OFFSCREEN_RENDERING
-        const VkImageLayout final_layout = VK_IMAGE_LAYOUT_GENERAL;
+        const auto final_layout = Anvil::ImageLayout::GENERAL;
     #else
-        const VkImageLayout final_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        const auto final_layout = Anvil::ImageLayout::PRESENT_SRC_KHR;
     #endif
 
     Anvil::RenderPassAttachmentID render_pass_color_attachment_id = -1;
@@ -956,34 +956,34 @@ void App::init_gfx_pipelines()
     Anvil::SubPassID              render_pass_subpass_id          = -1;
 
     renderpass_create_info_ptr->add_color_attachment(m_swapchain_ptr->get_create_info_ptr()->get_format(),
-                                                     VK_SAMPLE_COUNT_1_BIT,
+                                                     Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_1_BIT,
                                                      VK_ATTACHMENT_LOAD_OP_CLEAR,
                                                      VK_ATTACHMENT_STORE_OP_STORE,
-                                                     VK_IMAGE_LAYOUT_UNDEFINED,
+                                                     Anvil::ImageLayout::UNDEFINED,
                                                      final_layout,
                                                      false, /* may_alias */
                                                     &render_pass_color_attachment_id);
 
     renderpass_create_info_ptr->add_depth_stencil_attachment(m_depth_images[0]->get_create_info_ptr()->get_format(),
                                                              m_depth_images[0]->get_create_info_ptr()->get_sample_count(),
-                                                             VK_ATTACHMENT_LOAD_OP_CLEAR,                      /* depth_load_op    */
-                                                             VK_ATTACHMENT_STORE_OP_DONT_CARE,                 /* depth_store_op   */
-                                                             VK_ATTACHMENT_LOAD_OP_DONT_CARE,                  /* stencil_load_op  */
-                                                             VK_ATTACHMENT_STORE_OP_DONT_CARE,                 /* stencil_store_op */
-                                                             VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, /* initial_layout   */
-                                                             VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, /* final_layout     */
-                                                             false,                                            /* may_alias        */
+                                                             VK_ATTACHMENT_LOAD_OP_CLEAR,                          /* depth_load_op    */
+                                                             VK_ATTACHMENT_STORE_OP_DONT_CARE,                     /* depth_store_op   */
+                                                             VK_ATTACHMENT_LOAD_OP_DONT_CARE,                      /* stencil_load_op  */
+                                                             VK_ATTACHMENT_STORE_OP_DONT_CARE,                     /* stencil_store_op */
+                                                             Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL, /* initial_layout   */
+                                                             Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL, /* final_layout     */
+                                                             false,                                                /* may_alias        */
                                                             &render_pass_depth_attachment_id);
 
     renderpass_create_info_ptr->add_subpass(&render_pass_subpass_id);
 
     renderpass_create_info_ptr->add_subpass_color_attachment        (render_pass_subpass_id,
-                                                                     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                                     Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
                                                                      render_pass_color_attachment_id,
                                                                      0,        /* location                      */
                                                                      nullptr); /* opt_attachment_resolve_id_ptr */
     renderpass_create_info_ptr->add_subpass_depth_stencil_attachment(render_pass_subpass_id,
-                                                                     VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                                     Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                                                                      render_pass_depth_attachment_id);
 
     m_consumer_render_pass_ptr = Anvil::RenderPass::create(std::move(renderpass_create_info_ptr),
@@ -1004,7 +1004,7 @@ void App::init_gfx_pipelines()
                                                                                        *m_consumer_vs_ptr);
 
     consumer_pipeline_info_ptr->add_vertex_attribute          (0, /* location */
-                                                               VK_FORMAT_R8G8_UNORM,
+                                                               Anvil::Format::R8G8_UNORM,
                                                                0,                /* offset_in_bytes */
                                                                sizeof(char) * 2, /* stride_in_bytes */
                                                                VK_VERTEX_INPUT_RATE_INSTANCE);
@@ -1032,21 +1032,21 @@ void App::init_images()
     {
         {
             auto create_info_ptr = Anvil::ImageCreateInfo::create_nonsparse_alloc(m_device_ptr.get(),
-                                                                                  VK_IMAGE_TYPE_2D,
-                                                                                  VK_FORMAT_D16_UNORM,
-                                                                                  VK_IMAGE_TILING_OPTIMAL,
-                                                                                  VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                                                                  Anvil::ImageType::_2D,
+                                                                                  Anvil::Format::D16_UNORM,
+                                                                                  Anvil::ImageTiling::OPTIMAL,
+                                                                                  Anvil::IMAGE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT_BIT,
                                                                                   WINDOW_WIDTH,
                                                                                   WINDOW_HEIGHT,
                                                                                   1,                    /* in_base_mipmap_depth */
                                                                                   1,                    /* in_n_layers          */
-                                                                                  VK_SAMPLE_COUNT_1_BIT,
+                                                                                  Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_1_BIT,
                                                                                   Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
-                                                                                  VK_SHARING_MODE_EXCLUSIVE,
+                                                                                  Anvil::SharingMode::EXCLUSIVE,
                                                                                   false,                /* in_use_full_mipmap_chain */
                                                                                   0,                    /* in_memory_features       */
                                                                                   0,                    /* in_create_flags          */
-                                                                                  VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                                                  Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                                                                                   nullptr);             /* in_mipmaps_ptr */
 
             m_depth_images[n_depth_image] = Anvil::Image::create(std::move(create_info_ptr) );
@@ -1058,12 +1058,12 @@ void App::init_images()
                                                                          0,                                              /* n_base_layer        */
                                                                          0,                                              /* n_base_mipmap_level */
                                                                          1,                                              /* n_mipmaps           */
-                                                                         VK_IMAGE_ASPECT_DEPTH_BIT,
+                                                                         Anvil::IMAGE_ASPECT_FLAG_DEPTH_BIT,
                                                                          m_depth_images[n_depth_image]->get_create_info_ptr()->get_format(),
-                                                                         VK_COMPONENT_SWIZZLE_IDENTITY,
-                                                                         VK_COMPONENT_SWIZZLE_IDENTITY,
-                                                                         VK_COMPONENT_SWIZZLE_IDENTITY,
-                                                                         VK_COMPONENT_SWIZZLE_IDENTITY);
+                                                                         Anvil::ComponentSwizzle::IDENTITY,
+                                                                         Anvil::ComponentSwizzle::IDENTITY,
+                                                                         Anvil::ComponentSwizzle::IDENTITY,
+                                                                         Anvil::ComponentSwizzle::IDENTITY);
 
             m_depth_image_views[n_depth_image] = Anvil::ImageView::create(std::move(create_info_ptr) );
         }
@@ -1177,19 +1177,20 @@ void App::init_swapchain()
     m_rendering_surface_ptr->set_name("Main rendering surface");
 
 
-    m_swapchain_ptr = m_device_ptr->create_swapchain(m_rendering_surface_ptr.get(),
-                                                     m_window_ptr.get           (),
-                                                     VK_FORMAT_B8G8R8A8_UNORM,
-                                                     VK_PRESENT_MODE_FIFO_KHR,
-                                                     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                                                     m_n_swapchain_images);
+    m_swapchain_ptr = reinterpret_cast<Anvil::SGPUDevice*>(m_device_ptr.get())->create_swapchain(m_rendering_surface_ptr.get(),
+                                                                                                 m_window_ptr.get           (),
+                                                                                                 Anvil::Format::B8G8R8A8_UNORM,
+                                                                                                 VK_PRESENT_MODE_FIFO_KHR,
+                                                                                                 Anvil::IMAGE_USAGE_FLAG_COLOR_ATTACHMENT_BIT,
+                                                                                                 m_n_swapchain_images);
 
     m_swapchain_ptr->set_name("Main swapchain");
 
     /* Cache the queue we are going to use for presentation */
     const std::vector<uint32_t>* present_queue_fams_ptr = nullptr;
 
-    if (!m_rendering_surface_ptr->get_queue_families_with_present_support(&present_queue_fams_ptr) )
+    if (!m_rendering_surface_ptr->get_queue_families_with_present_support(reinterpret_cast<Anvil::SGPUDevice*>(m_device_ptr.get() )->get_physical_device(),
+                                                                         &present_queue_fams_ptr) )
     {
         anvil_assert_fail();
     }

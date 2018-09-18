@@ -123,10 +123,32 @@ namespace Anvil
     #endif
 #endif
 
+        /** Returns a container with entry-points to functions introduced by VK_KHR_device_group_creation extension.
+         *
+         *  Will fire an assertion failure if the extension is not supported.
+         **/
+        const ExtensionKHRDeviceGroupCreationEntrypoints& get_extension_khr_device_group_creation_entrypoints() const;
+
         /** Returns a raw wrapped VkInstance handle. */
         VkInstance get_instance_vk() const
         {
             return m_instance;
+        }
+
+        /** Returns information about @param in_n_physical_device_group -th physical device group, as reported
+         *  for this instance.
+         *
+         *  @param in_n_physical_device_group Index of the physical device group to retrieve properties of.
+         *                                    This value must NOT be equal or larger than the value reported by
+         *                                    get_n_physical_device_groups().
+         *
+         ** @return As per description.
+         **/
+        const Anvil::PhysicalDeviceGroup& get_physical_device_group(uint32_t in_n_physical_device_group) const
+        {
+            anvil_assert(m_physical_device_groups.size() > in_n_physical_device_group);
+
+            return m_physical_device_groups.at(in_n_physical_device_group);
         }
 
         /** Returns a PhysicalDevice wrapper for a physical device at index @param in_n_device.
@@ -140,6 +162,15 @@ namespace Anvil
         const Anvil::PhysicalDevice* get_physical_device(uint32_t in_n_device) const
         {
             return m_physical_devices.at(in_n_device).get();
+        }
+
+        /** Returns the total number of physical device groups supported on the running platform.
+         *
+         *  Will return 0 if VK_KHR_physical_device_group_creation is not supported.
+         */
+        uint32_t get_n_physical_device_groups() const
+        {
+            return static_cast<uint32_t>(m_physical_device_groups.size() );
         }
 
         /** Returns the total number of physical devices supported on the running platform. */
@@ -184,13 +215,14 @@ namespace Anvil
         Instance& operator=(const Instance&);
         Instance           (const Instance&);
 
-        void destroy                   ();
-        void enumerate_instance_layers ();
-        void enumerate_layer_extensions(Anvil::Layer* layer_ptr);
-        void enumerate_physical_devices();
-        void init                      (const std::vector<std::string>& in_disallowed_instance_level_extensions);
-        void init_debug_callbacks      ();
-        void init_func_pointers        ();
+        void destroy                         ();
+        void enumerate_instance_layers       ();
+        void enumerate_layer_extensions      (Anvil::Layer* layer_ptr);
+        void enumerate_physical_device_groups();
+        void enumerate_physical_devices      ();
+        void init                            (const std::vector<std::string>& in_disallowed_instance_level_extensions);
+        void init_debug_callbacks            ();
+        void init_func_pointers              ();
 
         static VkBool32 VKAPI_PTR debug_callback_pfn_proc(VkDebugReportFlagsEXT      in_message_flags,
                                                           VkDebugReportObjectTypeEXT in_object_type,
@@ -208,6 +240,7 @@ namespace Anvil
         VkDebugReportCallbackEXT m_debug_callback_data;
 
         ExtensionEXTDebugReportEntrypoints                   m_ext_debug_report_entrypoints;
+        ExtensionKHRDeviceGroupCreationEntrypoints           m_khr_device_group_creation_entrypoints;
         ExtensionKHRExternalFenceCapabilitiesEntrypoints     m_khr_external_fence_capabilities_entrypoints;
         ExtensionKHRExternalMemoryCapabilitiesEntrypoints    m_khr_external_memory_capabilities_entrypoints;
         ExtensionKHRExternalSemaphoreCapabilitiesEntrypoints m_khr_external_semaphore_capabilities_entrypoints;
@@ -232,6 +265,7 @@ namespace Anvil
         std::unique_ptr<Anvil::ExtensionInfo<bool> > m_supported_extensions_info_ptr;
 
         Anvil::Layer                                         m_global_layer;
+        std::vector<Anvil::PhysicalDeviceGroup>              m_physical_device_groups;
         std::vector<std::unique_ptr<Anvil::PhysicalDevice> > m_physical_devices;
         std::vector<Anvil::Layer>                            m_supported_layers;
 

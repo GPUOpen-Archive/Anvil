@@ -23,6 +23,7 @@
 #include "misc/debug.h"
 #include "misc/object_tracker.h"
 #include "misc/render_pass_create_info.h"
+#include "misc/struct_chainer.h"
 #include "wrappers/device.h"
 #include "wrappers/graphics_pipeline_manager.h"
 #include "wrappers/pipeline_layout.h"
@@ -66,12 +67,13 @@ Anvil::RenderPass::~RenderPass()
 /* Please see header for specification */
 bool Anvil::RenderPass::init()
 {
-    std::vector<VkAttachmentDescription> renderpass_attachments_vk;
-    VkRenderPassCreateInfo               render_pass_create_info;
-    bool                                 result                           (false);
-    VkResult                             result_vk;
-    std::vector<VkSubpassDependency>     subpass_dependencies_vk;
-    std::vector<VkSubpassDescription>    subpass_descriptions_vk;
+    std::vector<std::unique_ptr<VkInputAttachmentAspectReferenceKHR> > input_attachment_aspect_reference_ptrs;
+    std::vector<VkAttachmentDescription>                               renderpass_attachments_vk;
+    Anvil::StructChainer<VkRenderPassCreateInfo>                       render_pass_create_info_chainer;
+    bool                                                               result                                (false);
+    VkResult                                                           result_vk;
+    std::vector<VkSubpassDependency>                                   subpass_dependencies_vk;
+    std::vector<VkSubpassDescription>                                  subpass_descriptions_vk;
 
     /* NOTE: We need to reserve storage in advance for each of the vectors below,
      *       so that it is guaranteed the push_back() calls do not cause a realloc()
@@ -144,11 +146,11 @@ bool Anvil::RenderPass::init()
     {
         VkAttachmentDescription attachment_vk;
 
-        attachment_vk.finalLayout    = renderpass_attachment_iterator->final_layout;
+        attachment_vk.finalLayout    = static_cast<VkImageLayout>(renderpass_attachment_iterator->final_layout);
         attachment_vk.flags          = (renderpass_attachment_iterator->may_alias) ? VK_ATTACHMENT_DESCRIPTION_MAY_ALIAS_BIT
                                                                                    : 0u;
-        attachment_vk.format         = renderpass_attachment_iterator->format;
-        attachment_vk.initialLayout  = renderpass_attachment_iterator->initial_layout;
+        attachment_vk.format         = static_cast<VkFormat>(renderpass_attachment_iterator->format);
+        attachment_vk.initialLayout  = static_cast<VkImageLayout>(renderpass_attachment_iterator->initial_layout);
         attachment_vk.loadOp         = renderpass_attachment_iterator->color_depth_load_op;
         attachment_vk.samples        = static_cast<VkSampleCountFlagBits>(renderpass_attachment_iterator->sample_count);
         attachment_vk.stencilLoadOp  = renderpass_attachment_iterator->stencil_load_op;
@@ -164,7 +166,7 @@ bool Anvil::RenderPass::init()
     {
         VkSubpassDependency dependency_vk;
 
-        dependency_vk.dependencyFlags = ((subpass_dependency_iterator->by_region) ? VK_DEPENDENCY_BY_REGION_BIT : 0u);
+        dependency_vk.dependencyFlags = subpass_dependency_iterator->flags;
         dependency_vk.dstAccessMask   = subpass_dependency_iterator->destination_access_mask;
         dependency_vk.dstStageMask    = subpass_dependency_iterator->destination_stage_mask;
         dependency_vk.dstSubpass      = (subpass_dependency_iterator->destination_subpass_ptr != nullptr) ? subpass_dependency_iterator->destination_subpass_ptr->index
@@ -186,11 +188,12 @@ bool Anvil::RenderPass::init()
         uint32_t                              highest_subpass_color_attachment_location = UINT32_MAX;
         uint32_t                              highest_subpass_input_attachment_index    = UINT32_MAX;
         bool                                  need_color_resolve_attachments            = false;
+        const uint32_t                        subpass_index                             = static_cast<uint32_t>(subpass_iterator - m_render_pass_create_info_ptr->m_subpasses.begin() );
         VkSubpassDescription                  subpass_vk;
         VkAttachmentReference                 unused_reference;
 
         unused_reference.attachment = VK_ATTACHMENT_UNUSED;
-        unused_reference.layout     = VK_IMAGE_LAYOUT_UNDEFINED;
+        unused_reference.layout     = static_cast<VkImageLayout>(Anvil::ImageLayout::UNDEFINED);
 
         /* Determine whether any of the color attachments are going to be resolved. */
         for (auto subpass_color_attachment_iterator  = (*subpass_iterator)->color_attachments_map.cbegin();
@@ -331,23 +334,77 @@ bool Anvil::RenderPass::init()
     }
 
     /* Set up a create info descriptor and spawn a new Vulkan RenderPass object. */
-    render_pass_create_info.attachmentCount = static_cast<uint32_t>(m_render_pass_create_info_ptr->m_attachments.size         () );
-    render_pass_create_info.dependencyCount = static_cast<uint32_t>(m_render_pass_create_info_ptr->m_subpass_dependencies.size() );
-    render_pass_create_info.subpassCount    = static_cast<uint32_t>(m_render_pass_create_info_ptr->m_subpasses.size           () );
-    render_pass_create_info.flags           = 0;
-    render_pass_create_info.pAttachments    = (render_pass_create_info.attachmentCount > 0) ? &renderpass_attachments_vk.at(0)
-                                                                                            : nullptr;
-    render_pass_create_info.pDependencies   = (render_pass_create_info.dependencyCount > 0) ? &subpass_dependencies_vk.at(0)
-                                                                                            : nullptr;
-    render_pass_create_info.pNext           = nullptr;
-    render_pass_create_info.pSubpasses      = (render_pass_create_info.subpassCount > 0) ? &subpass_descriptions_vk.at(0)
-                                                                                         : nullptr;
-    render_pass_create_info.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    {
+        VkRenderPassCreateInfo render_pass_create_info;
 
-    result_vk = vkCreateRenderPass(m_device_ptr->get_device_vk(),
-                                  &render_pass_create_info,
-                                   nullptr, /* pAllocator */
-                                  &m_render_pass);
+        render_pass_create_info.attachmentCount = static_cast<uint32_t>(m_render_pass_create_info_ptr->m_attachments.size         () );
+        render_pass_create_info.dependencyCount = static_cast<uint32_t>(m_render_pass_create_info_ptr->m_subpass_dependencies.size() );
+        render_pass_create_info.subpassCount    = static_cast<uint32_t>(m_render_pass_create_info_ptr->m_subpasses.size           () );
+        render_pass_create_info.flags           = 0;
+        render_pass_create_info.pAttachments    = (render_pass_create_info.attachmentCount > 0) ? &renderpass_attachments_vk.at(0)
+                                                                                                : nullptr;
+        render_pass_create_info.pDependencies   = (render_pass_create_info.dependencyCount > 0) ? &subpass_dependencies_vk.at(0)
+                                                                                                : nullptr;
+        render_pass_create_info.pNext           = nullptr;
+        render_pass_create_info.pSubpasses      = (render_pass_create_info.subpassCount > 0) ? &subpass_descriptions_vk.at(0)
+                                                                                             : nullptr;
+        render_pass_create_info.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+
+        render_pass_create_info_chainer.append_struct(render_pass_create_info);
+    }
+
+    /* Also chain info regarding aspects accessed by input attachments, if KHR_maintenance2 is supported and relevant info
+     * has been provided at attachment addition time.
+     */
+    if (m_device_ptr->is_extension_enabled(VK_KHR_MAINTENANCE2_EXTENSION_NAME) )
+    {
+        for (auto subpass_iterator  = m_render_pass_create_info_ptr->m_subpasses.cbegin();
+                  subpass_iterator != m_render_pass_create_info_ptr->m_subpasses.cend();
+                ++subpass_iterator)
+        {
+            const auto current_subpass_index = (*subpass_iterator)->index;
+
+            for (auto subpass_input_attachment_iterator  = (*subpass_iterator)->input_attachments_map.cbegin();
+                      subpass_input_attachment_iterator != (*subpass_iterator)->input_attachments_map.cend();
+                    ++subpass_input_attachment_iterator)
+            {
+                const auto& current_attachment_accessed_aspects = subpass_input_attachment_iterator->second.aspects_accessed;
+                const auto& current_attachment_index            = subpass_input_attachment_iterator->first;
+
+                if (current_attachment_accessed_aspects != Anvil::ImageAspectFlagBits::IMAGE_ASPECT_UNKNOWN)
+                {
+                    std::unique_ptr<VkInputAttachmentAspectReferenceKHR> attachment_aspect_reference_info_ptr(new VkInputAttachmentAspectReferenceKHR() );
+
+                    attachment_aspect_reference_info_ptr->aspectMask           = static_cast<VkImageAspectFlags>(current_attachment_accessed_aspects);
+                    attachment_aspect_reference_info_ptr->inputAttachmentIndex = current_attachment_index;
+                    attachment_aspect_reference_info_ptr->subpass              = current_subpass_index;
+
+                    input_attachment_aspect_reference_ptrs.push_back( std::move(attachment_aspect_reference_info_ptr) );
+                }
+            }
+        }
+
+        if (input_attachment_aspect_reference_ptrs.size() > 0)
+        {
+            VkRenderPassInputAttachmentAspectCreateInfoKHR input_attachment_aspect_create_info;
+
+            input_attachment_aspect_create_info.aspectReferenceCount = static_cast<uint32_t>(input_attachment_aspect_reference_ptrs.size() );
+            input_attachment_aspect_create_info.pAspectReferences    = reinterpret_cast<VkInputAttachmentAspectReference*>(&input_attachment_aspect_reference_ptrs.at(0) );
+            input_attachment_aspect_create_info.pNext                = nullptr;
+            input_attachment_aspect_create_info.sType                = VK_STRUCTURE_TYPE_RENDER_PASS_INPUT_ATTACHMENT_ASPECT_CREATE_INFO_KHR;
+
+            render_pass_create_info_chainer.append_struct(input_attachment_aspect_create_info);
+        }
+    }
+
+    {
+        auto create_info_chain_ptr = render_pass_create_info_chainer.create_chain();
+
+        result_vk = vkCreateRenderPass(m_device_ptr->get_device_vk(),
+                                       create_info_chain_ptr->get_root_struct(),
+                                       nullptr, /* pAllocator */
+                                      &m_render_pass);
+    }
 
     if (!is_vk_call_successful(result_vk) )
     {

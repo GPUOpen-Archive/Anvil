@@ -117,7 +117,7 @@ namespace Anvil
          *  @return true if successful, false otherwise.
          **/
         bool add_vertex_attribute(uint32_t           in_location,
-                                  VkFormat           in_format,
+                                  Anvil::Format      in_format,
                                   uint32_t           in_offset_in_bytes,
                                   uint32_t           in_stride_in_bytes,
                                   VkVertexInputRate  in_step_rate,
@@ -249,8 +249,8 @@ namespace Anvil
          *  @param out_opt_sample_mask_ptr  If not null, deref will be set to the sample mask assigned
          *                                  to the pipeline.
          **/
-        void get_multisampling_properties(VkSampleCountFlags* out_opt_sample_count_ptr,
-                                          VkSampleMask*       out_opt_sample_mask_ptr) const;
+        void get_multisampling_properties(Anvil::SampleCountFlagBits* out_opt_sample_count_ptr,
+                                          VkSampleMask*               out_opt_sample_mask_ptr) const;
 
         /** Tells the number of dynamic scissor boxes. **/
         uint32_t get_n_dynamic_scissor_boxes() const;
@@ -375,6 +375,15 @@ namespace Anvil
             return m_subpass_id;
         }
 
+        /* TODO
+         *
+         * Requires VK_KHR_maintenance2.
+         */
+        Anvil::TessellationDomainOrigin get_tessellation_domain_origin() const
+        {
+            return m_tessellation_domain_origin;
+        }
+
         /** Tells the number of patch control points associated with this instance. **/
         uint32_t get_n_patch_control_points() const;
 
@@ -396,7 +405,7 @@ namespace Anvil
          **/
         bool get_vertex_attribute_properties(uint32_t           in_n_vertex_input_attribute,
                                              uint32_t*          out_opt_location_ptr                      = nullptr,
-                                             VkFormat*          out_opt_format_ptr                        = nullptr,
+                                             Anvil::Format*     out_opt_format_ptr                        = nullptr,
                                              uint32_t*          out_opt_offset_ptr                        = nullptr,
                                              uint32_t*          out_opt_explicit_vertex_binding_index_ptr = nullptr,
                                              uint32_t*          out_opt_stride_ptr                        = nullptr,
@@ -477,9 +486,9 @@ namespace Anvil
          *  @param in_min_sample_shading Minimum number of unique samples to shade for each fragment.
          *  @param in_sample_mask        Sample mask to use.
          */
-        void set_multisampling_properties(VkSampleCountFlagBits in_sample_count,
-                                          float                 in_min_sample_shading,
-                                          const VkSampleMask    in_sample_mask);
+        void set_multisampling_properties(Anvil::SampleCountFlagBits in_sample_count,
+                                          float                      in_min_sample_shading,
+                                          const VkSampleMask         in_sample_mask);
 
         /** Updates the number of scissor boxes to be used, when dynamic scissor state is enabled.
          *
@@ -561,6 +570,12 @@ namespace Anvil
                                          uint32_t    in_stencil_compare_mask,
                                          uint32_t    in_stencil_write_mask,
                                          uint32_t    in_stencil_reference);
+
+        /* TODO
+         *
+         * Requires VK_KHR_maintenance2.
+         */
+        void set_tessellation_domain_origin(const Anvil::TessellationDomainOrigin& in_new_origin);
 
         /** Sets properties of a viewport at the specified index.
          *
@@ -841,7 +856,7 @@ namespace Anvil
         {
             uint32_t          divisor;
             uint32_t          explicit_binding_index;
-            VkFormat          format;
+            Anvil::Format     format;
             uint32_t          location;
             uint32_t          offset_in_bytes;
             VkVertexInputRate rate;
@@ -852,7 +867,7 @@ namespace Anvil
             {
                 divisor                = 1;
                 explicit_binding_index = UINT32_MAX;
-                format                 = VK_FORMAT_UNDEFINED;
+                format                 = Anvil::Format::UNKNOWN;
                 location               = UINT32_MAX;
                 offset_in_bytes        = UINT32_MAX;
                 rate                   = VK_VERTEX_INPUT_RATE_MAX_ENUM;
@@ -870,7 +885,7 @@ namespace Anvil
              **/
             InternalVertexAttribute(uint32_t          in_divisor,
                                     uint32_t          in_explicit_binding_index,
-                                    VkFormat          in_format,
+                                    Anvil::Format     in_format,
                                     uint32_t          in_location,
                                     uint32_t          in_offset_in_bytes,
                                     VkVertexInputRate in_rate,
@@ -927,6 +942,8 @@ namespace Anvil
 
         VkRasterizationOrderAMD m_rasterization_order;
 
+        TessellationDomainOrigin m_tessellation_domain_origin;
+
         InternalVertexAttributes                 m_attributes;
         float                                    m_blend_constant[4];
         VkPolygonMode                            m_polygon_mode;
@@ -938,13 +955,13 @@ namespace Anvil
         uint32_t                                 m_n_dynamic_viewports;
         uint32_t                                 m_n_patch_control_points;
         VkPrimitiveTopology                      m_primitive_topology;
+        Anvil::SampleCountFlagBits               m_sample_count;
         VkSampleMask                             m_sample_mask;
         InternalScissorBoxes                     m_scissor_boxes;
         SubPassAttachmentToBlendingPropertiesMap m_subpass_attachment_blending_properties;
         InternalViewports                        m_viewports;
 
         VkCullModeFlagsVariable   (m_cull_mode);
-        VkSampleCountFlagsVariable(m_sample_count);
 
         const RenderPass* m_renderpass_ptr;
         SubPassID         m_subpass_id;

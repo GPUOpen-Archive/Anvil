@@ -92,7 +92,7 @@ bool Anvil::BufferView::init()
     /* Spawn a new Vulkan buffer view */
     buffer_view_create_info.buffer = m_create_info_ptr->get_parent_buffer()->get_buffer();
     buffer_view_create_info.flags  = 0;
-    buffer_view_create_info.format = m_create_info_ptr->get_format      ();
+    buffer_view_create_info.format = static_cast<VkFormat>(m_create_info_ptr->get_format() );
     buffer_view_create_info.offset = m_create_info_ptr->get_start_offset();
     buffer_view_create_info.pNext  = nullptr;
     buffer_view_create_info.range  = m_create_info_ptr->get_size();

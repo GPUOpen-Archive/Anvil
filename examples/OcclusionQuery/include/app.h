@@ -61,7 +61,7 @@ private:
                                     const char*                message);
 
     /* Private variables */
-    Anvil::SGPUDeviceUniquePtr       m_device_ptr;
+    Anvil::BaseDeviceUniquePtr       m_device_ptr;
     Anvil::InstanceUniquePtr         m_instance_ptr;
     const Anvil::PhysicalDevice*     m_physical_device_ptr;
     Anvil::Queue*                    m_present_queue_ptr;

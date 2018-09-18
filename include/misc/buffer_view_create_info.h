@@ -40,7 +40,7 @@ namespace Anvil
          */
         static Anvil::BufferViewCreateInfoUniquePtr create(const Anvil::BaseDevice* in_device_ptr,
                                                            Anvil::Buffer*           in_buffer_ptr,
-                                                           VkFormat                 in_format,
+                                                           Anvil::Format            in_format,
                                                            VkDeviceSize             in_start_offset,
                                                            VkDeviceSize             in_size);
 
@@ -50,7 +50,7 @@ namespace Anvil
         }
 
         /** Returns format used by the buffer view */
-        VkFormat get_format() const
+        Anvil::Format get_format() const
         {
             return m_format;
         }
@@ -83,7 +83,7 @@ namespace Anvil
             m_device_ptr = in_device_ptr;
         }
 
-        void set_format(const VkFormat& in_format)
+        void set_format(const Anvil::Format& in_format)
         {
             m_format = in_format;
         }
@@ -114,7 +114,7 @@ namespace Anvil
 
         BufferViewCreateInfo(const Anvil::BaseDevice* in_device_ptr,
                              Anvil::Buffer*           in_buffer_ptr,
-                             VkFormat                 in_format,
+                             Anvil::Format            in_format,
                              VkDeviceSize             in_start_offset,
                              VkDeviceSize             in_size,
                              MTSafety                 in_mt_safety);
@@ -123,7 +123,7 @@ namespace Anvil
         /* Private variables */
         Anvil::Buffer*           m_buffer_ptr;
         const Anvil::BaseDevice* m_device_ptr;
-        VkFormat                 m_format;
+        Anvil::Format            m_format;
         Anvil::MTSafety          m_mt_safety;
         VkDeviceSize             m_size;
         VkDeviceSize             m_start_offset;

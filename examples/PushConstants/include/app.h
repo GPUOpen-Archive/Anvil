@@ -65,9 +65,9 @@ private:
     const unsigned char* get_mesh_data                      () const;
     uint32_t             get_mesh_data_color_start_offset   () const;
     uint32_t             get_mesh_data_color_stride         () const;
-    VkFormat             get_mesh_data_color_format         () const;
+    Anvil::Format        get_mesh_data_color_format         () const;
     uint32_t             get_mesh_data_size                 () const;
-    VkFormat             get_mesh_data_position_format      () const;
+    Anvil::Format        get_mesh_data_position_format      () const;
     uint32_t             get_mesh_data_position_start_offset() const;
     uint32_t             get_mesh_data_position_stride      () const;
     uint32_t             get_mesh_n_vertices                () const;
@@ -76,7 +76,7 @@ private:
 
 
     /* Private variables */
-    Anvil::SGPUDeviceUniquePtr       m_device_ptr;
+    Anvil::BaseDeviceUniquePtr       m_device_ptr;
     Anvil::InstanceUniquePtr         m_instance_ptr;
     const Anvil::PhysicalDevice*     m_physical_device_ptr;
     Anvil::Queue*                    m_present_queue_ptr;

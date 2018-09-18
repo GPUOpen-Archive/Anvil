@@ -41,6 +41,9 @@
 #include "wrappers/rendering_surface.h"
 #include "wrappers/swapchain.h"
 
+#ifdef max
+#undef max
+#endif
 
 /* Please see header for specification */
 Anvil::BaseDevice::BaseDevice(const Anvil::Instance* in_parent_instance_ptr,
@@ -103,7 +106,6 @@ Anvil::DescriptorSetLayout* Anvil::BaseDevice::get_dummy_descriptor_set_layout()
     return m_dummy_dsg_ptr->get_descriptor_set_layout(0);
 }
 
-/** Please see header for specification */
 bool Anvil::BaseDevice::get_memory_types_supported_for_external_handle(const Anvil::ExternalMemoryHandleTypeBit& in_external_handle_type,
                                                                        ExternalHandleType                        in_handle,
                                                                        uint32_t*                                 out_supported_memory_type_bits) const
@@ -241,9 +243,9 @@ Anvil::Queue* Anvil::BaseDevice::get_queue(const Anvil::QueueFamilyType& in_queu
 
     switch (in_queue_family_type)
     {
-        case Anvil::QueueFamilyType::COMPUTE:   result_ptr = get_compute_queue     (in_n_queue); break;
-        case Anvil::QueueFamilyType::TRANSFER:  result_ptr = get_transfer_queue    (in_n_queue); break;
-        case Anvil::QueueFamilyType::UNIVERSAL: result_ptr = get_universal_queue   (in_n_queue); break;
+        case Anvil::QueueFamilyType::COMPUTE:      result_ptr = get_compute_queue     (in_n_queue); break;
+        case Anvil::QueueFamilyType::TRANSFER:     result_ptr = get_transfer_queue    (in_n_queue); break;
+        case Anvil::QueueFamilyType::UNIVERSAL:    result_ptr = get_universal_queue   (in_n_queue); break;
 
         default:
         {
@@ -325,9 +327,9 @@ void Anvil::BaseDevice::get_queue_family_indices_for_physical_device(const Anvil
     /* NOTE: Vulkan API only guarantees universal queue family's availability */
     anvil_assert(result_universal_queue_families.size() > 0);
 
-    out_device_queue_family_info_ptr->queue_families[Anvil::QueueFamilyType::COMPUTE]   = result_compute_queue_families;
-    out_device_queue_family_info_ptr->queue_families[Anvil::QueueFamilyType::TRANSFER]  = result_transfer_queue_families;
-    out_device_queue_family_info_ptr->queue_families[Anvil::QueueFamilyType::UNIVERSAL] = result_universal_queue_families;
+    out_device_queue_family_info_ptr->queue_families[Anvil::QueueFamilyType::COMPUTE]      = result_compute_queue_families;
+    out_device_queue_family_info_ptr->queue_families[Anvil::QueueFamilyType::TRANSFER]     = result_transfer_queue_families;
+    out_device_queue_family_info_ptr->queue_families[Anvil::QueueFamilyType::UNIVERSAL]    = result_universal_queue_families;
 
     for (Anvil::QueueFamilyType current_queue_family_type  = Anvil::QueueFamilyType::FIRST;
                                 current_queue_family_type != Anvil::QueueFamilyType::COUNT;
@@ -383,7 +385,7 @@ bool Anvil::BaseDevice::get_queue_family_indices_for_queue_family_type(const Anv
 /** Please see header for specification */
 Anvil::QueueFamilyType Anvil::BaseDevice::get_queue_family_type(uint32_t in_queue_family_index) const
 {
-    return m_queue_family_index_to_type.at(in_queue_family_index);
+    return m_queue_family_index_to_types.at(in_queue_family_index).at(0);
 }
 
 /** Please see header for specification */
@@ -405,7 +407,7 @@ Anvil::Queue* Anvil::BaseDevice::get_queue_for_queue_family_index(uint32_t in_n_
 }
 
 /* Please see header for specification */
-bool Anvil::BaseDevice::get_sample_locations(VkSampleCountFlagBits        in_sample_count,
+bool Anvil::BaseDevice::get_sample_locations(Anvil::SampleCountFlagBits   in_sample_count,
                                              std::vector<SampleLocation>* out_result_ptr) const
 {
     bool                        result                            = true;
@@ -414,6 +416,18 @@ bool Anvil::BaseDevice::get_sample_locations(VkSampleCountFlagBits        in_sam
 
     switch (get_type() )
     {
+        case Anvil::DEVICE_TYPE_MULTI_GPU:
+        {
+            /* Sample locations must not differ for all devices within a given device group, so it technically
+             * doesn't matter which physical device we choose to check for standard sample locations support.
+             */
+            const Anvil::MGPUDevice* mgpu_device_ptr = reinterpret_cast<const Anvil::MGPUDevice*>(this);
+            anvil_assert(mgpu_device_ptr != nullptr);
+
+            standard_sample_locations_support = (mgpu_device_ptr->get_physical_device_properties().core_vk1_0_properties_ptr->limits.standard_sample_locations);
+            break;
+        }
+
         case Anvil::DEVICE_TYPE_SINGLE_GPU:
         {
             const Anvil::SGPUDevice* sgpu_device_ptr = reinterpret_cast<const Anvil::SGPUDevice*>(this);
@@ -438,7 +452,7 @@ bool Anvil::BaseDevice::get_sample_locations(VkSampleCountFlagBits        in_sam
 
     switch (in_sample_count)
     {
-        case VK_SAMPLE_COUNT_1_BIT:
+        case Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_1_BIT:
         {
             out_result_ptr->clear();
 
@@ -447,7 +461,7 @@ bool Anvil::BaseDevice::get_sample_locations(VkSampleCountFlagBits        in_sam
             break;
         }
 
-        case VK_SAMPLE_COUNT_2_BIT:
+        case Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_2_BIT:
         {
             out_result_ptr->clear();
 
@@ -458,7 +472,7 @@ bool Anvil::BaseDevice::get_sample_locations(VkSampleCountFlagBits        in_sam
 
         }
 
-        case VK_SAMPLE_COUNT_4_BIT:
+        case Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_4_BIT:
         {
             out_result_ptr->clear();
 
@@ -470,7 +484,7 @@ bool Anvil::BaseDevice::get_sample_locations(VkSampleCountFlagBits        in_sam
             break;
         }
 
-        case VK_SAMPLE_COUNT_8_BIT:
+        case Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_8_BIT:
         {
             out_result_ptr->clear();
 
@@ -486,7 +500,7 @@ bool Anvil::BaseDevice::get_sample_locations(VkSampleCountFlagBits        in_sam
             break;
         }
 
-        case VK_SAMPLE_COUNT_16_BIT:
+        case Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_16_BIT:
         {
             out_result_ptr->clear();
 
@@ -724,6 +738,31 @@ void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
         anvil_assert(m_khr_descriptor_update_template_extension_entrypoints.vkUpdateDescriptorSetWithTemplateKHR != nullptr);
     }
 
+    if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_device_group() )
+    {
+        m_khr_device_group_extension_entrypoints.vkCmdDispatchBaseKHR                    = reinterpret_cast<PFN_vkCmdDispatchBaseKHR>                   (get_proc_address("vkCmdDispatchBaseKHR") );
+        m_khr_device_group_extension_entrypoints.vkCmdSetDeviceMaskKHR                   = reinterpret_cast<PFN_vkCmdSetDeviceMaskKHR>                  (get_proc_address("vkCmdSetDeviceMaskKHR") );
+        m_khr_device_group_extension_entrypoints.vkGetDeviceGroupPeerMemoryFeaturesKHR   = reinterpret_cast<PFN_vkGetDeviceGroupPeerMemoryFeaturesKHR>  (get_proc_address("vkGetDeviceGroupPeerMemoryFeaturesKHR") );
+
+        /* NOTE: Certain device group entrypoints are only available if KHR_swapchain is also enabled */
+        if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_swapchain() )
+        {
+            m_khr_device_group_extension_entrypoints.vkAcquireNextImage2KHR                  = reinterpret_cast<PFN_vkAcquireNextImage2KHR>                 (get_proc_address("vkAcquireNextImage2KHR") );
+            m_khr_device_group_extension_entrypoints.vkGetPhysicalDevicePresentRectanglesKHR = reinterpret_cast<PFN_vkGetPhysicalDevicePresentRectanglesKHR>(get_proc_address("vkGetPhysicalDevicePresentRectanglesKHR") );
+            m_khr_device_group_extension_entrypoints.vkGetDeviceGroupSurfacePresentModesKHR  = reinterpret_cast<PFN_vkGetDeviceGroupSurfacePresentModesKHR> (get_proc_address("vkGetDeviceGroupSurfacePresentModesKHR") );
+            m_khr_device_group_extension_entrypoints.vkGetDeviceGroupPresentCapabilitiesKHR  = reinterpret_cast<PFN_vkGetDeviceGroupPresentCapabilitiesKHR> (get_proc_address("vkGetDeviceGroupPresentCapabilitiesKHR") );
+
+            anvil_assert(m_khr_device_group_extension_entrypoints.vkAcquireNextImage2KHR                  != nullptr);
+            anvil_assert(m_khr_device_group_extension_entrypoints.vkGetDeviceGroupPresentCapabilitiesKHR  != nullptr);
+            anvil_assert(m_khr_device_group_extension_entrypoints.vkGetDeviceGroupSurfacePresentModesKHR  != nullptr);
+            anvil_assert(m_khr_device_group_extension_entrypoints.vkGetPhysicalDevicePresentRectanglesKHR != nullptr);
+        }
+
+        anvil_assert(m_khr_device_group_extension_entrypoints.vkCmdDispatchBaseKHR                  != nullptr);
+        anvil_assert(m_khr_device_group_extension_entrypoints.vkCmdSetDeviceMaskKHR                 != nullptr);
+        anvil_assert(m_khr_device_group_extension_entrypoints.vkGetDeviceGroupPeerMemoryFeaturesKHR != nullptr);
+    }
+
     if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_bind_memory2() )
     {
         m_khr_bind_memory2_extension_entrypoints.vkBindBufferMemory2KHR = reinterpret_cast<PFN_vkBindBufferMemory2KHR>(get_proc_address("vkBindBufferMemory2KHR"));
@@ -857,9 +896,9 @@ void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
 
         switch (queue_family_type)
         {
-            case Anvil::QueueFamilyType::COMPUTE:   out_queues_ptr = &m_compute_queues;   break;
-            case Anvil::QueueFamilyType::TRANSFER:  out_queues_ptr = &m_transfer_queues;  break;
-            case Anvil::QueueFamilyType::UNIVERSAL: out_queues_ptr = &m_universal_queues; break;
+            case Anvil::QueueFamilyType::COMPUTE:      out_queues_ptr = &m_compute_queues;      break;
+            case Anvil::QueueFamilyType::TRANSFER:     out_queues_ptr = &m_transfer_queues;     break;
+            case Anvil::QueueFamilyType::UNIVERSAL:    out_queues_ptr = &m_universal_queues;    break;
 
             default:
             {
@@ -871,44 +910,50 @@ void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
         {
             auto queue_ptr_storage_ptr = &m_queue_ptrs_per_vk_queue_fam[current_queue_fam.family_index];
 
-            anvil_assert(m_queue_family_index_to_type.find(current_queue_fam.family_index)                 == m_queue_family_index_to_type.end() );
             anvil_assert(std::find(m_queue_family_type_to_queue_family_indices[queue_family_type].begin(),
                                    m_queue_family_type_to_queue_family_indices[queue_family_type].end(),
                                    current_queue_fam.family_index)                                         == m_queue_family_type_to_queue_family_indices[queue_family_type].end() );
 
-            m_queue_family_index_to_type               [current_queue_fam.family_index] = queue_family_type;
-            m_queue_family_type_to_queue_family_indices[queue_family_type].push_back(current_queue_fam.family_index);
+            m_queue_family_index_to_types              [current_queue_fam.family_index].push_back(queue_family_type);
+            m_queue_family_type_to_queue_family_indices[queue_family_type].push_back             (current_queue_fam.family_index);
 
             for (uint32_t n_queue = 0;
                           n_queue < current_queue_fam.n_queues;
                         ++n_queue)
             {
-                std::unique_ptr<Anvil::Queue> new_queue_ptr = Anvil::Queue::create(this,
-                                                                                   current_queue_fam.family_index,
-                                                                                   n_queue,
-                                                                                   is_mt_safe() );
+                bool queue_already_instantiated = false;
 
-                anvil_assert(out_queues_ptr != nullptr);
-
-                out_queues_ptr->push_back(new_queue_ptr.get() );
-
-                /* If this queue supports sparse binding ops, cache it in a separate vector as well */
-                if (new_queue_ptr->supports_sparse_bindings() )
+                if (!queue_already_instantiated)
                 {
-                    m_sparse_binding_queues.push_back(new_queue_ptr.get() );
-                }
+                    std::unique_ptr<Anvil::Queue> new_queue_ptr = Anvil::Queue::create(this,
+                                                                                       current_queue_fam.family_index,
+                                                                                       n_queue,
+                                                                                       is_mt_safe() );
 
-                /* Cache the queue in general-purpose storage as well */
-                if (std::find(queue_ptr_storage_ptr->cbegin(),
-                              queue_ptr_storage_ptr->cend  (),
-                              new_queue_ptr.get() ) == queue_ptr_storage_ptr->cend() )
-                {
-                    queue_ptr_storage_ptr->push_back(new_queue_ptr.get() );
-                }
+                    {
+                        anvil_assert(out_queues_ptr != nullptr);
 
-                m_owned_queues.push_back(
-                    std::move(new_queue_ptr)
-                );
+                        out_queues_ptr->push_back(new_queue_ptr.get() );
+                    }
+
+                    /* If this queue supports sparse binding ops, cache it in a separate vector as well */
+                    if (new_queue_ptr->supports_sparse_bindings() )
+                    {
+                        m_sparse_binding_queues.push_back(new_queue_ptr.get() );
+                    }
+
+                    /* Cache the queue in general-purpose storage as well */
+                    if (std::find(queue_ptr_storage_ptr->cbegin(),
+                                  queue_ptr_storage_ptr->cend  (),
+                                  new_queue_ptr.get() ) == queue_ptr_storage_ptr->cend() )
+                    {
+                        queue_ptr_storage_ptr->push_back(new_queue_ptr.get() );
+                    }
+
+                    m_owned_queues.push_back(
+                        std::move(new_queue_ptr)
+                    );
+                }
             }
         }
     }
@@ -997,22 +1042,22 @@ void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
 /** Please see header for specification */
 bool Anvil::BaseDevice::is_compute_queue_family_index(const uint32_t& in_queue_family_index) const
 {
-    return (m_queue_family_index_to_type.find(in_queue_family_index) != m_queue_family_index_to_type.end()) &&
-           (m_queue_family_index_to_type.at  (in_queue_family_index) == Anvil::QueueFamilyType::COMPUTE);
+    return (m_queue_family_index_to_types.find(in_queue_family_index)       != m_queue_family_index_to_types.end()) &&
+           (m_queue_family_index_to_types.at  (in_queue_family_index).at(0) == Anvil::QueueFamilyType::COMPUTE);
 }
 
 /** Please see header for specification */
 bool Anvil::BaseDevice::is_transfer_queue_family_index(const uint32_t& in_queue_family_index) const
 {
-    return (m_queue_family_index_to_type.find(in_queue_family_index) != m_queue_family_index_to_type.end()) &&
-           (m_queue_family_index_to_type.at  (in_queue_family_index) == Anvil::QueueFamilyType::TRANSFER);
+    return (m_queue_family_index_to_types.find(in_queue_family_index)       != m_queue_family_index_to_types.end()) &&
+           (m_queue_family_index_to_types.at  (in_queue_family_index).at(0) == Anvil::QueueFamilyType::TRANSFER);
 }
 
 /** Please see header for specification */
 bool Anvil::BaseDevice::is_universal_queue_family_index(const uint32_t& in_queue_family_index) const
 {
-    return (m_queue_family_index_to_type.find(in_queue_family_index) != m_queue_family_index_to_type.end() ) &&
-           (m_queue_family_index_to_type.at  (in_queue_family_index) == Anvil::QueueFamilyType::UNIVERSAL);
+    return (m_queue_family_index_to_types.find(in_queue_family_index)       != m_queue_family_index_to_types.end() ) &&
+           (m_queue_family_index_to_types.at  (in_queue_family_index).at(0) == Anvil::QueueFamilyType::UNIVERSAL);
 }
 
 /* Please see header for specification */
@@ -1049,6 +1094,688 @@ bool Anvil::BaseDevice::wait_idle() const
     return is_vk_call_successful(result_vk);
 }
 
+
+/* Please see header for specification */
+Anvil::MGPUDevice::MGPUDevice(std::vector<const Anvil::PhysicalDevice*> in_physical_device_ptrs,
+                              bool                                      in_mt_safe)
+    :BaseDevice               (in_physical_device_ptrs[0]->get_instance(),
+                               in_mt_safe),
+     m_supported_present_modes(static_cast<VkDeviceGroupPresentModeFlagBitsKHR>(0) )
+{
+    const uint32_t n_physical_device_ptrs = static_cast<uint32_t>(in_physical_device_ptrs.size() );
+
+    ANVIL_REDUNDANT_VARIABLE_CONST(n_physical_device_ptrs);
+
+    /* MGPUDevice instance should not be used for cases where SGPUDevice would do */
+    anvil_assert(n_physical_device_ptrs > 1);
+
+    /* Sanity checks */
+    #ifdef _DEBUG
+    {
+        for (uint32_t n_physical_device = 0;
+                      n_physical_device < n_physical_device_ptrs - 1;
+                    ++n_physical_device)
+        {
+            auto next_device_ptr(in_physical_device_ptrs[n_physical_device + 1]);
+            auto this_device_ptr(in_physical_device_ptrs[n_physical_device]);
+
+            /* Physical devices must come from the same Vulkan instance */
+            anvil_assert(this_device_ptr->get_instance() == next_device_ptr->get_instance() );
+
+            /* Physical devices must not repeat */
+            anvil_assert(this_device_ptr != next_device_ptr);
+
+            /* All physical devices must come from the same device group */
+            anvil_assert(this_device_ptr->get_device_group_index() == next_device_ptr->get_device_group_index() );
+
+            /* ..but must be ed unique device indices */
+            anvil_assert(this_device_ptr->get_device_group_device_index() != next_device_ptr->get_device_group_device_index() );
+
+            /* Extension spec is a bit vague about this restriction, but our implementation assumes that all physical devices
+             * in a device group offer exactly the same set of queues and queue families. Their ordering also must match.
+             */
+            anvil_assert(this_device_ptr->get_queue_families() == next_device_ptr->get_queue_families() );
+        }
+    }
+    #endif
+
+    for (auto physical_device_ptr : in_physical_device_ptrs)
+    {
+        ParentPhysicalDeviceProperties device_props;
+
+        device_props.physical_device_ptr = physical_device_ptr;
+
+        m_parent_physical_devices.push_back    (device_props);
+        m_parent_physical_devices_vec.push_back(physical_device_ptr);
+    }
+
+    for (uint32_t n_physical_device = 0;
+                  n_physical_device < static_cast<uint32_t>(m_parent_physical_devices.size() );
+                ++n_physical_device)
+    {
+        const auto& physical_device_info = m_parent_physical_devices.at(n_physical_device);
+
+        anvil_assert(m_device_index_to_physical_device_props.find(n_physical_device) == m_device_index_to_physical_device_props.end() );
+        m_device_index_to_physical_device_props[n_physical_device] = &physical_device_info;
+    }
+}
+
+/* Please see header for specification */
+Anvil::MGPUDevice::~MGPUDevice()
+{
+    /* Stub */
+}
+
+/* Please see header for specification */
+Anvil::BaseDeviceUniquePtr Anvil::MGPUDevice::create(std::vector<const Anvil::PhysicalDevice*> in_physical_device_ptrs,
+                                                     bool                                      in_enable_shader_module_cache,
+                                                     const DeviceExtensionConfiguration&       in_extensions,
+                                                     const std::vector<std::string>&           in_layers,
+                                                     bool                                      in_transient_command_buffer_allocs_only,
+                                                     bool                                      in_support_resettable_command_buffer_allocs,
+                                                     bool                                      in_mt_safe)
+{
+    Anvil::BaseDeviceUniquePtr result_ptr;
+
+    /* Make sure the caller has requested the VK_KHR_device_group and VK_KHR_bind_memory2 extensions */
+    #ifdef _DEBUG
+    {
+        anvil_assert(in_extensions.extension_status.at(VK_KHR_DEVICE_GROUP_EXTENSION_NAME)  == ExtensionAvailability::EXTENSION_AVAILABILITY_REQUIRE);
+        anvil_assert(in_extensions.extension_status.at(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME) == ExtensionAvailability::EXTENSION_AVAILABILITY_REQUIRE);
+    }
+    #endif
+
+    result_ptr = Anvil::BaseDeviceUniquePtr(
+        new Anvil::MGPUDevice(in_physical_device_ptrs,
+                              in_mt_safe),
+        std::default_delete<Anvil::BaseDevice>()
+    );
+
+    dynamic_cast<Anvil::MGPUDevice*>(result_ptr.get() )->init(in_extensions,
+                                                              in_layers,
+                                                              in_transient_command_buffer_allocs_only,
+                                                              in_support_resettable_command_buffer_allocs,
+                                                              in_enable_shader_module_cache);
+
+    return result_ptr;
+}
+
+/** TODO */
+void Anvil::MGPUDevice::create_device(const std::vector<const char*>& in_extensions,
+                                      const std::vector<const char*>& in_layers,
+                                      const VkPhysicalDeviceFeatures& in_features,
+                                      DeviceQueueFamilyInfo*          out_queue_families_ptr)
+{
+    std::vector<VkDeviceQueueCreateInfo>     device_queue_create_info_items;
+    std::vector<float>                       device_queue_priorities;
+    auto                                     features_chain_ptr               (get_physical_device_features_chain (&in_features) );
+    auto                                     features_chain_root_struct_ptr   (features_chain_ptr->get_root_struct() );
+    VkResult                                 result                           (VK_ERROR_INITIALIZATION_FAILED);
+    Anvil::StructChainer<VkDeviceCreateInfo> struct_chainer;
+    const Anvil::PhysicalDevice*             zeroth_physical_device_ptr       (m_parent_physical_devices.at(0).physical_device_ptr);
+    const auto&                              zeroth_physical_device_queue_fams(zeroth_physical_device_ptr->get_queue_families() );
+
+    ANVIL_REDUNDANT_VARIABLE(result);
+
+    /* Set up queue create info structure instances.
+     *
+     * Use up all available queues.
+     */
+    for (uint32_t n_queue_fam = 0;
+                  n_queue_fam < static_cast<uint32_t>(zeroth_physical_device_queue_fams.size() );
+                ++n_queue_fam)
+    {
+        const auto& current_queue_fam(zeroth_physical_device_queue_fams.at(n_queue_fam) );
+
+        if (current_queue_fam.n_queues > 0)
+        {
+            device_queue_priorities.resize(std::max(static_cast<uint32_t>(device_queue_priorities.size() ),
+                                                    current_queue_fam.n_queues),
+                                           1.0f);
+        }
+    }
+
+    for (uint32_t n_queue_fam = 0;
+                  n_queue_fam < static_cast<uint32_t>(zeroth_physical_device_queue_fams.size() );
+                ++n_queue_fam)
+    {
+        const auto& current_queue_fam(zeroth_physical_device_queue_fams.at(n_queue_fam) );
+
+        if (current_queue_fam.n_queues > 0)
+        {
+            VkDeviceQueueCreateInfo queue_create_info;
+
+            queue_create_info.flags            = 0;
+            queue_create_info.pNext            = nullptr;
+            queue_create_info.pQueuePriorities = &device_queue_priorities[0];
+            queue_create_info.queueCount       = current_queue_fam.n_queues;
+            queue_create_info.queueFamilyIndex = n_queue_fam;
+            queue_create_info.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+
+            device_queue_create_info_items.push_back(queue_create_info);
+        }
+    }
+
+    {
+        VkDeviceCreateInfo create_info;
+
+        create_info.enabledExtensionCount   = static_cast<uint32_t>(in_extensions.size() );
+        create_info.enabledLayerCount       = static_cast<uint32_t>(in_layers.size() );
+        create_info.flags                   = 0;
+        create_info.pEnabledFeatures        = nullptr; /* chained */
+        create_info.pNext                   = nullptr;
+        create_info.ppEnabledExtensionNames = (in_extensions.size() > 0) ? &in_extensions[0] : nullptr;
+        create_info.ppEnabledLayerNames     = (in_layers.size()     > 0) ? &in_layers    [0] : nullptr;
+        create_info.pQueueCreateInfos       = &device_queue_create_info_items[0];
+        create_info.queueCreateInfoCount    = static_cast<uint32_t>(device_queue_create_info_items.size() );
+        create_info.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+
+        struct_chainer.append_struct(create_info);
+    }
+
+    /* Set up the device create info descriptor. Enable all features available. */
+    std::vector<VkPhysicalDevice> physical_devices(m_parent_physical_devices.size() );
+
+    for (uint32_t n_physical_device = 0;
+                  n_physical_device < static_cast<uint32_t>(physical_devices.size() );
+                ++n_physical_device)
+    {
+        physical_devices.at(n_physical_device) = m_parent_physical_devices.at(n_physical_device).physical_device_ptr->get_physical_device();
+    }
+
+    {
+        VkDeviceGroupDeviceCreateInfoKHR device_group_device_create_info;
+
+        device_group_device_create_info.physicalDeviceCount = static_cast<uint32_t>(m_parent_physical_devices.size() );
+        device_group_device_create_info.pPhysicalDevices    = &physical_devices[0];
+        device_group_device_create_info.pNext               = nullptr;
+        device_group_device_create_info.sType               = VK_STRUCTURE_TYPE_DEVICE_GROUP_DEVICE_CREATE_INFO_KHR;
+
+        struct_chainer.append_struct(device_group_device_create_info);
+    }
+
+    /* Finally manually append the features chain to our chain
+     *
+     * NOTE: This is a dirty hack! Do NOT append any structs after this point, or else the struct we just chained here gets lost.
+     */
+    struct_chainer.get_last_struct()->pNext = reinterpret_cast<void*>((zeroth_physical_device_ptr->get_instance()->get_enabled_extensions_info()->khr_get_physical_device_properties2() ) ? features_chain_root_struct_ptr
+                                                                                                                                                                                          : features_chain_root_struct_ptr->pNext);
+
+    {
+        auto struct_chain_ptr = struct_chainer.create_chain();
+
+        result = vkCreateDevice(m_parent_physical_devices.at(0).physical_device_ptr->get_physical_device(),
+                                struct_chain_ptr->get_root_struct(),
+                                nullptr, /* pAllocator */
+                               &m_device);
+        anvil_assert_vk_call_succeeded(result);
+    }
+
+    /* Now that all queues are available, assign them to queue families Anvil recognizes. */
+    get_queue_family_indices(out_queue_families_ptr);
+}
+
+/** Please see header for specification */
+Anvil::SwapchainUniquePtr Anvil::MGPUDevice::create_swapchain(Anvil::RenderingSurface*         in_parent_surface_ptr,
+                                                              Anvil::Window*                   in_window_ptr,
+                                                              Anvil::Format                    in_image_format,
+                                                              VkPresentModeKHR                 in_present_mode,
+                                                              Anvil::ImageUsageFlags           in_usage,
+                                                              uint32_t                         in_n_swapchain_images,
+                                                              bool                             in_support_SFR,
+                                                              VkDeviceGroupPresentModeFlagsKHR in_presentation_modes_to_support)
+{
+    SwapchainUniquePtr result_ptr(nullptr,
+                                  std::default_delete<Anvil::Swapchain>() );
+
+    {
+        auto swapchain_create_info_ptr = Anvil::SwapchainCreateInfo::create(this,
+                                                                            in_parent_surface_ptr,
+                                                                            in_window_ptr,
+                                                                            in_image_format,
+                                                                            in_present_mode,
+                                                                            in_usage,
+                                                                            in_n_swapchain_images);
+
+        swapchain_create_info_ptr->set_mt_safety              (Anvil::MT_SAFETY_ENABLED);
+        swapchain_create_info_ptr->set_mgpu_present_mode_flags(in_presentation_modes_to_support);
+
+        if (in_support_SFR)
+        {
+            swapchain_create_info_ptr->set_flags(VK_SWAPCHAIN_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT_KHR);
+        }
+
+        result_ptr = Anvil::Swapchain::create(std::move(swapchain_create_info_ptr) );
+    }
+
+    anvil_assert(result_ptr != nullptr);
+
+    return result_ptr;
+}
+
+/** Please see header for specification */
+bool Anvil::MGPUDevice::get_peer_memory_features(const Anvil::PhysicalDevice* in_local_physical_device_ptr,
+                                                 const Anvil::PhysicalDevice* in_remote_physical_device_ptr,
+                                                 uint32_t                     in_memory_heap_index,
+                                                 PeerMemoryFeatureFlags*      out_result_ptr) const
+{
+    const uint32_t&                                                                  local_physical_device_index          = in_local_physical_device_ptr->get_device_group_device_index();
+    decltype(m_device_index_to_physical_device_props)::const_iterator                local_physical_device_props_iterator;
+    ParentPhysicalDeviceProperties::HeapIndexToPeerMemoryFeaturesMap::const_iterator memory_heap_iterator;
+    const uint32_t&                                                                  remote_physical_device_index         = in_remote_physical_device_ptr->get_device_group_device_index();
+    decltype(ParentPhysicalDeviceProperties::peer_memory_features)::const_iterator   remote_physical_device_iterator;
+    bool                                                                             result                               = false;
+
+    if (in_local_physical_device_ptr == in_remote_physical_device_ptr)
+    {
+        anvil_assert(in_local_physical_device_ptr != in_remote_physical_device_ptr);
+
+        goto end;
+    }
+
+    /* Retrieve cached peer memory features data for the local phys dev + remote phys dev + heap index tuple */
+    local_physical_device_props_iterator = m_device_index_to_physical_device_props.find(local_physical_device_index);
+
+    if (local_physical_device_props_iterator == m_device_index_to_physical_device_props.end() )
+    {
+        /* The specified local physical device is not a part of this logical device? */
+        anvil_assert(local_physical_device_props_iterator != m_device_index_to_physical_device_props.end());
+
+        goto end;
+    }
+
+
+    remote_physical_device_iterator = local_physical_device_props_iterator->second->peer_memory_features.find(remote_physical_device_index);
+
+    if (remote_physical_device_iterator == local_physical_device_props_iterator->second->peer_memory_features.end() )
+    {
+        /* The specified remote physical device is not a part of this logical device? */
+        anvil_assert(remote_physical_device_iterator != local_physical_device_props_iterator->second->peer_memory_features.end() );
+
+        goto end;
+    }
+
+
+    memory_heap_iterator = remote_physical_device_iterator->second.find(in_memory_heap_index);
+
+    if (memory_heap_iterator == remote_physical_device_iterator->second.end() )
+    {
+        anvil_assert(memory_heap_iterator != remote_physical_device_iterator->second.end());
+
+        goto end;
+    }
+
+    /* All done */
+    *out_result_ptr = memory_heap_iterator->second;
+    result          = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
+const Anvil::PhysicalDevice* Anvil::MGPUDevice::get_physical_device(uint32_t in_n_physical_device) const
+{
+    anvil_assert(m_parent_physical_devices.size() > in_n_physical_device);
+
+    return m_parent_physical_devices.at(in_n_physical_device).physical_device_ptr;
+}
+
+bool Anvil::MGPUDevice::get_physical_device_buffer_properties(const BufferPropertiesQuery& in_query,
+                                                              Anvil::BufferProperties*     out_opt_result_ptr) const
+{
+    /* NOTE: All physical devices within a device group are assumed to report the same format properties */
+    return m_parent_physical_devices.at(0).physical_device_ptr->get_buffer_properties(in_query,
+                                                                                      out_opt_result_ptr);
+}
+
+/** Please see header for specification */
+const Anvil::PhysicalDeviceFeatures& Anvil::MGPUDevice::get_physical_device_features() const
+{
+    /* NOTE: We're assuming here all physical devices within a device group offer the same set of features.
+     *
+     *       An assertion check to double-check this holds is implemented in the init function.
+     */
+    return m_parent_physical_devices.at(0).physical_device_ptr->get_device_features();
+}
+
+bool Anvil::MGPUDevice::get_physical_device_fence_properties(const FencePropertiesQuery& in_query,
+                                                             Anvil::FenceProperties*     out_opt_result_ptr) const
+{
+    /* NOTE: All physical devices within a device group are assumed to report the same fence properties */
+    return m_parent_physical_devices.at(0).physical_device_ptr->get_fence_properties(in_query,
+                                                                                     out_opt_result_ptr);
+}
+
+/** Please see header for specification */
+Anvil::FormatProperties Anvil::MGPUDevice::get_physical_device_format_properties(Anvil::Format in_format) const
+{
+    /* NOTE: All physical devices within a device group are assumed to report the same format properties */
+    return m_parent_physical_devices.at(0).physical_device_ptr->get_format_properties(in_format);
+}
+
+
+/** Please see header for specification */
+bool Anvil::MGPUDevice::get_physical_device_image_format_properties(const ImageFormatPropertiesQuery& in_query,
+                                                                    Anvil::ImageFormatProperties*     out_opt_result_ptr) const
+{
+    /* NOTE: All physical devices within a device group are assumed to report the same image format properties */
+    return m_parent_physical_devices.at(0).physical_device_ptr->get_image_format_properties(in_query,
+                                                                                            out_opt_result_ptr);
+}
+
+/** Please see header for specification */
+const Anvil::MemoryProperties& Anvil::MGPUDevice::get_physical_device_memory_properties() const
+{
+    /* NOTE: We're assuming here all physical devices within a device group have the same memory caps.
+     *
+     *       An assertion check to double-check this holds is implemented in the init function.
+     */
+    return m_parent_physical_devices.at(0).physical_device_ptr->get_memory_properties();
+}
+
+/* Please see header for specification */
+const Anvil::PhysicalDeviceProperties& Anvil::MGPUDevice::get_physical_device_properties() const
+{
+    /* NOTE: We're assuming here all physical devices within a device group have the same properties.
+     *
+     *       An assertion check to double-check this holds is implemented in the init function.
+     */
+    return m_parent_physical_devices.at(0).physical_device_ptr->get_device_properties();
+}
+
+/* Please see header for specification */
+const Anvil::QueueFamilyInfoItems& Anvil::MGPUDevice::get_physical_device_queue_families() const
+{
+    /* NOTE: We're assuming here all physical devices within a device group offer the same set of queue families.
+     *
+     *       An assertion check to double-check this holds is implemented in the init function.
+     */
+    return m_parent_physical_devices.at(0).physical_device_ptr->get_queue_families();
+}
+
+bool Anvil::MGPUDevice::get_physical_device_semaphore_properties(const SemaphorePropertiesQuery& in_query,
+                                                                 Anvil::SemaphoreProperties*     out_opt_result_ptr) const
+{
+    /* NOTE: All physical devices within a device group are assumed to report the same semaphore properties */
+    return m_parent_physical_devices.at(0).physical_device_ptr->get_semaphore_properties(in_query,
+                                                                                         out_opt_result_ptr);
+}
+
+/** Please see header for specification */
+bool Anvil::MGPUDevice::get_physical_device_sparse_image_format_properties(Anvil::Format                               in_format,
+                                                                           Anvil::ImageType                            in_type,
+                                                                           Anvil::SampleCountFlagBits                  in_sample_count,
+                                                                           Anvil::ImageUsageFlags                      in_usage,
+                                                                           Anvil::ImageTiling                          in_tiling,
+                                                                           std::vector<VkSparseImageFormatProperties>& out_result) const
+{
+    /* NOTE: All physical devices within a device group are assumed to report the same sparse image format properties */
+    uint32_t n_props = 0;
+
+    vkGetPhysicalDeviceSparseImageFormatProperties(m_parent_physical_devices.at(0).physical_device_ptr->get_physical_device(),
+                                                   static_cast<VkFormat>             (in_format),
+                                                   static_cast<VkImageType>          (in_type),
+                                                   static_cast<VkSampleCountFlagBits>(in_sample_count),
+                                                   in_usage,
+                                                   static_cast<VkImageTiling>(in_tiling),
+                                                  &n_props,
+                                                   nullptr); /* pProperties */
+
+    if (n_props > 0)
+    {
+        out_result.resize(n_props);
+
+        vkGetPhysicalDeviceSparseImageFormatProperties(m_parent_physical_devices.at(0).physical_device_ptr->get_physical_device(),
+                                                       static_cast<VkFormat>             (in_format),
+                                                       static_cast<VkImageType>          (in_type),
+                                                       static_cast<VkSampleCountFlagBits>(in_sample_count),
+                                                       in_usage,
+                                                       static_cast<VkImageTiling>(in_tiling),
+                                                      &n_props,
+                                                      &out_result[0]);
+    }
+
+    return true;
+}
+
+/* Please see header for specification */
+bool Anvil::MGPUDevice::get_physical_device_surface_capabilities(Anvil::RenderingSurface*  in_surface_ptr,
+                                                                 VkSurfaceCapabilitiesKHR* out_result_ptr) const
+{
+    /* NOTE: All physical devices within a device group are assumed to report the same sparse image format properties */
+    return (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_parent_physical_devices.at(0).physical_device_ptr->get_physical_device(),
+                                                      in_surface_ptr->get_surface(),
+                                                      out_result_ptr) == VK_SUCCESS);
+}
+
+/* Please see header for specification */
+bool Anvil::MGPUDevice::get_present_compatible_physical_devices(uint32_t                                          in_device_index,
+                                                                const std::vector<const Anvil::PhysicalDevice*>** out_result_ptr) const
+{
+    bool result = false;
+
+    if (m_parent_physical_devices.size() > in_device_index)
+    {
+        result = true;
+
+        *out_result_ptr = &m_parent_physical_devices.at(in_device_index).presentation_compatible_physical_devices;
+    }
+    else
+    {
+        anvil_assert(m_parent_physical_devices.size() > in_device_index);
+    }
+
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::MGPUDevice::get_present_rectangles(uint32_t                       in_device_index,
+                                               const Anvil::RenderingSurface* in_rendering_surface_ptr,
+                                               std::vector<VkRect2D>*         out_result_ptr) const
+{
+    uint32_t                     n_rectangles        = 0;
+    const Anvil::PhysicalDevice* physical_device_ptr = nullptr;
+    bool                         result              = false;
+    VkResult                     result_vk;
+
+    if (m_parent_physical_devices.size() <= in_device_index)
+    {
+        anvil_assert(!(m_parent_physical_devices.size() <= in_device_index) );
+
+        goto end;
+    }
+    else
+    {
+        physical_device_ptr = m_parent_physical_devices.at(in_device_index).physical_device_ptr;
+    }
+
+    in_rendering_surface_ptr->lock();
+    {
+        result_vk = m_khr_device_group_extension_entrypoints.vkGetPhysicalDevicePresentRectanglesKHR(physical_device_ptr->get_physical_device(),
+                                                                                                     in_rendering_surface_ptr->get_surface(),
+                                                                                                    &n_rectangles,
+                                                                                                     nullptr); /* pRects */
+
+        if (is_vk_call_successful(result_vk) )
+        {
+            out_result_ptr->resize(n_rectangles);
+
+            result_vk = m_khr_device_group_extension_entrypoints.vkGetPhysicalDevicePresentRectanglesKHR(physical_device_ptr->get_physical_device(),
+                                                                                                         in_rendering_surface_ptr->get_surface(),
+                                                                                                        &n_rectangles,
+                                                                                                        &((*out_result_ptr)[0])); /* pRects */
+        }
+    }
+    in_rendering_surface_ptr->unlock();
+
+    if (!is_vk_call_successful(result_vk) )
+    {
+        anvil_assert(is_vk_call_successful(result_vk));
+
+        goto end;
+    }
+
+    /* All done */
+    result = true;
+end:
+    return result;
+}
+
+/* Please see header for specification */
+void Anvil::MGPUDevice::get_queue_family_indices(DeviceQueueFamilyInfo* out_device_queue_family_info_ptr) const
+{
+    /* Assuming all physical devices within a device group offer the same set of queue families and queues,
+     * and that the ordering of queue families matches across all those physical devices, we're good to
+     * specify any physical device we're going to use to set up a multi-GPU VkDevice instance.
+     */
+    get_queue_family_indices_for_physical_device(m_parent_physical_devices.at(0).physical_device_ptr,
+                                                 out_device_queue_family_info_ptr);
+}
+
+/** Please see header for specification */
+const Anvil::QueueFamilyInfo* Anvil::MGPUDevice::get_queue_family_info(uint32_t in_queue_family_index) const
+{
+    /* NOTE: It is assumed here that all physical devices within a device group have a matching set of queue families */
+    const auto                    physical_device_ptr(m_parent_physical_devices.at(0).physical_device_ptr);
+    const auto&                   queue_fams         (physical_device_ptr->get_queue_families() );
+    const Anvil::QueueFamilyInfo* result_ptr         (nullptr);
+
+    if (queue_fams.size() > in_queue_family_index)
+    {
+        result_ptr = &queue_fams.at(in_queue_family_index);
+    }
+
+    return result_ptr;
+}
+
+/** Please see header for specification */
+VkDeviceGroupPresentModeFlagsKHR Anvil::MGPUDevice::get_supported_present_modes_for_surface(const Anvil::RenderingSurface* in_surface_ptr) const
+{
+    VkDeviceGroupPresentModeFlagsKHR result    = 0;
+    VkResult                         result_vk = VK_ERROR_INITIALIZATION_FAILED;
+
+    ANVIL_REDUNDANT_VARIABLE(result_vk);
+
+    result_vk = m_khr_device_group_extension_entrypoints.vkGetDeviceGroupSurfacePresentModesKHR(m_device,
+                                                                                                in_surface_ptr->get_surface(),
+                                                                                               &result);
+    anvil_assert_vk_call_succeeded(result_vk);
+
+    return result;
+}
+
+/** Please see header for specification */
+void Anvil::MGPUDevice::init_device()
+{
+    VkResult result(VK_ERROR_INITIALIZATION_FAILED);
+
+    ANVIL_REDUNDANT_VARIABLE(result);
+
+    /* Extract present capabilities of each physical device in the device group */
+    VkDeviceGroupPresentCapabilitiesKHR present_caps;
+
+    present_caps.pNext = nullptr;
+    present_caps.sType = VK_STRUCTURE_TYPE_DEVICE_GROUP_PRESENT_CAPABILITIES_KHR;
+
+    result = m_khr_device_group_extension_entrypoints.vkGetDeviceGroupPresentCapabilitiesKHR(m_device,
+                                                                                            &present_caps);
+
+    anvil_assert_vk_call_succeeded(result);
+    anvil_assert                  ((present_caps.modes & VK_DEVICE_GROUP_PRESENT_MODE_LOCAL_BIT_KHR) == VK_DEVICE_GROUP_PRESENT_MODE_LOCAL_BIT_KHR);
+
+    m_supported_present_modes = static_cast<VkDeviceGroupPresentModeFlagBitsKHR>(present_caps.modes);
+
+    for (uint32_t n_physical_device = 0;
+                  n_physical_device < static_cast<uint32_t>(m_parent_physical_devices.size() );
+                ++n_physical_device)
+    {
+        auto& physical_device_props = m_parent_physical_devices.at(n_physical_device);
+
+        anvil_assert( present_caps.presentMask[n_physical_device] == 0                                                                                    ||
+                      present_caps.presentMask[n_physical_device] != 0 && (present_caps.presentMask[n_physical_device] & (1 << n_physical_device) ) != 0);
+
+        for (uint32_t n_sub_physical_device = 0;
+                      n_sub_physical_device < static_cast<uint32_t>(m_parent_physical_devices.size() );
+                    ++n_sub_physical_device)
+        {
+            if ((present_caps.presentMask[n_physical_device] & (1 << n_sub_physical_device) ) != 0)
+            {
+                const Anvil::PhysicalDevice* sub_physical_device_ptr(m_parent_physical_devices.at(n_sub_physical_device).physical_device_ptr);
+
+                physical_device_props.presentation_compatible_physical_devices.push_back(sub_physical_device_ptr);
+            }
+        }
+    }
+
+    /* Extract & cache peer memory features information */
+    for (uint32_t n_src_physical_device = 0;
+                  n_src_physical_device < static_cast<uint32_t>(m_parent_physical_devices.size() );
+                ++n_src_physical_device)
+    {
+        auto&          src_physical_device_info = m_parent_physical_devices.at(n_src_physical_device);
+        const auto&    src_physical_device_ptr  = src_physical_device_info.physical_device_ptr;
+        const uint32_t n_src_memory_heaps       = src_physical_device_ptr->get_memory_properties().n_heaps;
+
+        for (uint32_t n_dst_physical_device = 0;
+                      n_dst_physical_device < static_cast<uint32_t>(m_parent_physical_devices.size() );
+                    ++n_dst_physical_device)
+        {
+            const auto&    dst_physical_device_ptr = m_parent_physical_devices.at(n_dst_physical_device).physical_device_ptr;
+            const uint32_t n_dst_memory_heaps      = dst_physical_device_ptr->get_memory_properties().n_heaps;
+
+            ANVIL_REDUNDANT_VARIABLE_CONST(n_dst_memory_heaps);
+
+            if (n_src_physical_device == n_dst_physical_device)
+            {
+                continue;
+            }
+
+            anvil_assert(n_src_memory_heaps == n_dst_memory_heaps);
+
+            for (uint32_t n_heap = 0;
+                          n_heap < n_src_memory_heaps;
+                        ++n_heap)
+            {
+                const uint32_t              dst_physical_device_index = dst_physical_device_ptr->get_device_group_device_index();
+                VkPeerMemoryFeatureFlagsKHR memory_features           = 0;
+                const uint32_t              src_physical_device_index = src_physical_device_ptr->get_device_group_device_index();
+
+                m_khr_device_group_extension_entrypoints.vkGetDeviceGroupPeerMemoryFeaturesKHR(m_device,
+                                                                                               n_heap,
+                                                                                               src_physical_device_index,
+                                                                                               dst_physical_device_index,
+                                                                                              &memory_features);
+
+                anvil_assert( (memory_features & VK_PEER_MEMORY_FEATURE_COPY_DST_BIT_KHR) != 0); /* As per spec */
+
+                src_physical_device_info.peer_memory_features[dst_physical_device_index][n_heap] = Utils::convert_vk_peer_memory_feature_flags_to_peer_memory_feature_flags(memory_features);
+            }
+        }
+    }
+
+    /* Cache info whether this logical device supports subset allocations or not */
+    const Anvil::PhysicalDevice* ref_physical_device_ptr = m_parent_physical_devices.at(0).physical_device_ptr;
+    const Anvil::Instance*       instance_ptr            = ref_physical_device_ptr->get_instance();
+    const uint32_t               device_group_index      = ref_physical_device_ptr->get_device_group_index();
+
+    m_supports_subset_allocations = instance_ptr->get_physical_device_group(device_group_index).supports_subset_allocations;
+}
+
+/** Please see header for specification */
+bool Anvil::MGPUDevice::is_layer_supported(const std::string& in_layer_name) const
+{
+    /* Note: All physical devices within a device group must support exactly the same layers. */
+    return m_parent_physical_devices.at(0).physical_device_ptr->is_layer_supported(in_layer_name);
+}
+
+/** Please see header for specification */
+bool Anvil::MGPUDevice::is_physical_device_extension_supported(const std::string& in_extension_name) const
+{
+    /* Note: All physical devices within a device group must support exactly the same device extensions. */
+    return m_parent_physical_devices.at(0).physical_device_ptr->is_device_extension_supported(in_extension_name);
+}
+
+
 /* Please see header for specification */
 Anvil::SGPUDevice::SGPUDevice(const Anvil::PhysicalDevice* in_physical_device_ptr,
                               bool                         in_mt_safe)
@@ -1067,7 +1794,7 @@ Anvil::SGPUDevice::~SGPUDevice()
 
 
 /* Please see header for specification */
-Anvil::SGPUDeviceUniquePtr Anvil::SGPUDevice::create(const Anvil::PhysicalDevice*         in_physical_device_ptr,
+Anvil::BaseDeviceUniquePtr Anvil::SGPUDevice::create(const Anvil::PhysicalDevice*         in_physical_device_ptr,
                                                      bool                                 in_enable_shader_module_cache,
                                                      const DeviceExtensionConfiguration&  in_extensions,
                                                      const std::vector<std::string>&      in_layers,
@@ -1075,19 +1802,19 @@ Anvil::SGPUDeviceUniquePtr Anvil::SGPUDevice::create(const Anvil::PhysicalDevice
                                                      bool                                 in_support_resettable_command_buffer_allocs,
                                                      bool                                 in_mt_safe)
 {
-    SGPUDeviceUniquePtr result_ptr(nullptr,
-                                   std::default_delete<Anvil::SGPUDevice>() );
+    BaseDeviceUniquePtr result_ptr(nullptr,
+                                   std::default_delete<Anvil::BaseDevice>() );
 
-    result_ptr = std::unique_ptr<Anvil::SGPUDevice>(
+    result_ptr = std::unique_ptr<Anvil::BaseDevice>(
         new Anvil::SGPUDevice(in_physical_device_ptr,
                                in_mt_safe)
     );
 
-    result_ptr->init(in_extensions,
-                     in_layers,
-                     in_transient_command_buffer_allocs_only,
-                     in_support_resettable_command_buffer_allocs,
-                     in_enable_shader_module_cache);
+    dynamic_cast<Anvil::SGPUDevice*>(result_ptr.get() )->init(in_extensions,
+                                                              in_layers,
+                                                              in_transient_command_buffer_allocs_only,
+                                                              in_support_resettable_command_buffer_allocs,
+                                                              in_enable_shader_module_cache);
 
     return result_ptr;
 }
@@ -1172,9 +1899,9 @@ void Anvil::SGPUDevice::create_device(const std::vector<const char*>& in_extensi
 /** Please see header for specification */
 Anvil::SwapchainUniquePtr Anvil::SGPUDevice::create_swapchain(Anvil::RenderingSurface* in_parent_surface_ptr,
                                                               Anvil::Window*           in_window_ptr,
-                                                              VkFormat                 in_image_format,
+                                                              Anvil::Format            in_image_format,
                                                               VkPresentModeKHR         in_present_mode,
-                                                              VkImageUsageFlags        in_usage,
+                                                              Anvil::ImageUsageFlags   in_usage,
                                                               uint32_t                 in_n_swapchain_images)
 {
     SwapchainUniquePtr result_ptr(nullptr,
@@ -1219,7 +1946,7 @@ bool Anvil::SGPUDevice::get_physical_device_fence_properties(const FenceProperti
 }
 
 /** Please see header for specification */
-Anvil::FormatProperties Anvil::SGPUDevice::get_physical_device_format_properties(VkFormat in_format) const
+Anvil::FormatProperties Anvil::SGPUDevice::get_physical_device_format_properties(Anvil::Format in_format) const
 {
     return m_parent_physical_device_ptr->get_format_properties(in_format);
 }
@@ -1259,21 +1986,21 @@ bool Anvil::SGPUDevice::get_physical_device_semaphore_properties(const Semaphore
 }
 
 /** Please see header for specification */
-bool Anvil::SGPUDevice::get_physical_device_sparse_image_format_properties(VkFormat                                    in_format,
-                                                                           VkImageType                                 in_type,
-                                                                           VkSampleCountFlagBits                       in_sample_count,
-                                                                           VkImageUsageFlags                           in_usage,
-                                                                           VkImageTiling                               in_tiling,
+bool Anvil::SGPUDevice::get_physical_device_sparse_image_format_properties(Anvil::Format                               in_format,
+                                                                           Anvil::ImageType                            in_type,
+                                                                           Anvil::SampleCountFlagBits                  in_sample_count,
+                                                                           Anvil::ImageUsageFlags                      in_usage,
+                                                                           Anvil::ImageTiling                          in_tiling,
                                                                            std::vector<VkSparseImageFormatProperties>& out_result) const
 {
     uint32_t n_props = 0;
 
     vkGetPhysicalDeviceSparseImageFormatProperties(m_parent_physical_device_ptr->get_physical_device(),
-                                                   in_format,
-                                                   in_type,
-                                                   in_sample_count,
+                                                   static_cast<VkFormat>             (in_format),
+                                                   static_cast<VkImageType>          (in_type),
+                                                   static_cast<VkSampleCountFlagBits>(in_sample_count),
                                                    in_usage,
-                                                   in_tiling,
+                                                   static_cast<VkImageTiling>(in_tiling),
                                                   &n_props,
                                                    nullptr); /* pProperties */
 
@@ -1282,11 +2009,11 @@ bool Anvil::SGPUDevice::get_physical_device_sparse_image_format_properties(VkFor
         out_result.resize(n_props);
 
         vkGetPhysicalDeviceSparseImageFormatProperties(m_parent_physical_device_ptr->get_physical_device(),
-                                                       in_format,
-                                                       in_type,
-                                                       in_sample_count,
+                                                       static_cast<VkFormat>             (in_format),
+                                                       static_cast<VkImageType>          (in_type),
+                                                       static_cast<VkSampleCountFlagBits>(in_sample_count),
                                                        in_usage,
-                                                       in_tiling,
+                                                       static_cast<VkImageTiling>(in_tiling),
                                                       &n_props,
                                                       &out_result[0]);
     }

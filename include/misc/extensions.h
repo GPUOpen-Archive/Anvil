@@ -56,13 +56,16 @@ namespace Anvil
             ValueType khr_bind_memory2;
             ValueType khr_dedicated_allocation;
             ValueType khr_descriptor_update_template;
+            ValueType khr_device_group;
             ValueType khr_draw_indirect_count;
             ValueType khr_external_fence;
             ValueType khr_external_memory;
             ValueType khr_external_semaphore;
             ValueType khr_get_memory_requirements2;
             ValueType khr_maintenance1;
+            ValueType khr_maintenance2;
             ValueType khr_maintenance3;
+            ValueType khr_shader_draw_parameters;
             ValueType khr_storage_buffer_storage_class;
             ValueType khr_swapchain;
 
@@ -136,8 +139,11 @@ namespace Anvil
                     #endif
                     {ExtensionData(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,        &khr_get_memory_requirements2)},
                     {ExtensionData(VK_KHR_MAINTENANCE1_EXTENSION_NAME,                     &khr_maintenance1)},
+                    {ExtensionData(VK_KHR_MAINTENANCE2_EXTENSION_NAME,                     &khr_maintenance2)},
                     {ExtensionData(VK_KHR_MAINTENANCE3_EXTENSION_NAME,                     &khr_maintenance3)},
+                    {ExtensionData(VK_KHR_DEVICE_GROUP_EXTENSION_NAME,                     &khr_device_group)},
                     {ExtensionData(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,                    &khr_bind_memory2)},
+                    {ExtensionData(VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,           &khr_shader_draw_parameters)},
                     {ExtensionData(VK_KHR_STORAGE_BUFFER_STORAGE_CLASS_EXTENSION_NAME,     &khr_storage_buffer_storage_class)},
                     {ExtensionData(VK_KHR_SWAPCHAIN_EXTENSION_NAME,                        &khr_swapchain)},
                 };
@@ -165,6 +171,7 @@ namespace Anvil
         template<typename ValueType>
         struct InstanceExtensions
         {
+            ValueType khr_device_group_creation;
             ValueType khr_external_fence_capabilities;
             ValueType khr_external_memory_capabilities;
             ValueType khr_external_semaphore_capabilities;
@@ -203,6 +210,7 @@ namespace Anvil
 
                 std::vector<ExtensionData> recognized_extensions =
                 {
+                    {ExtensionData(VK_KHR_DEVICE_GROUP_CREATION_EXTENSION_NAME,            &khr_device_group_creation)},
                     {ExtensionData(VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME,      &khr_external_fence_capabilities)},
                     {ExtensionData(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME,     &khr_external_memory_capabilities)},
                     {ExtensionData(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME,  &khr_external_semaphore_capabilities)},
@@ -273,6 +281,7 @@ namespace Anvil
         virtual ValueType khr_bind_memory2                    () const = 0;
         virtual ValueType khr_dedicated_allocation            () const = 0;
         virtual ValueType khr_descriptor_update_template      () const = 0;
+        virtual ValueType khr_device_group                    () const = 0;
         virtual ValueType khr_draw_indirect_count             () const = 0;
         virtual ValueType khr_external_fence                  () const = 0;
         virtual ValueType khr_external_memory                 () const = 0;
@@ -288,7 +297,9 @@ namespace Anvil
         #endif
         virtual ValueType khr_get_memory_requirements2        () const = 0;
         virtual ValueType khr_maintenance1                    () const = 0;
+        virtual ValueType khr_maintenance2                    () const = 0;
         virtual ValueType khr_maintenance3                    () const = 0;
+        virtual ValueType khr_shader_draw_parameters          () const = 0;
         virtual ValueType khr_storage_buffer_storage_class    () const = 0;
         virtual ValueType khr_swapchain                       () const = 0;
 
@@ -304,6 +315,7 @@ namespace Anvil
             /* Stub */
         }
 
+        virtual bool khr_device_group_creation          () const = 0;
         virtual bool khr_external_fence_capabilities    () const = 0;
         virtual bool khr_external_memory_capabilities   () const = 0;
         virtual bool khr_external_semaphore_capabilities() const = 0;
@@ -409,7 +421,6 @@ namespace Anvil
         }
 
         /* IExtensionInfoDevice */
-
         ValueType amd_draw_indirect_count() const final
         {
             anvil_assert(m_expose_device_extensions);
@@ -578,6 +589,13 @@ namespace Anvil
             return m_device_extensions_ptr->khr_descriptor_update_template;
         }
 
+        ValueType khr_device_group() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->khr_device_group;
+        }
+
         ValueType khr_draw_indirect_count() const final
         {
             anvil_assert(m_expose_device_extensions);
@@ -668,6 +686,13 @@ namespace Anvil
             return m_device_extensions_ptr->khr_maintenance1;
         }
 
+        ValueType khr_maintenance2() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->khr_maintenance2;
+        }
+
         ValueType khr_maintenance3() const final
         {
             anvil_assert(m_expose_device_extensions);
@@ -682,6 +707,13 @@ namespace Anvil
             return m_device_extensions_ptr->khr_storage_buffer_storage_class;
         }
 
+        ValueType khr_shader_draw_parameters() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->khr_shader_draw_parameters;
+        }
+
         ValueType khr_swapchain() const final
         {
             anvil_assert(m_expose_device_extensions);
@@ -690,6 +722,13 @@ namespace Anvil
         }
 
         /* IExtensionInfoInstance */
+
+        ValueType khr_device_group_creation() const final
+        {
+            anvil_assert(!m_expose_device_extensions);
+
+            return m_instance_extensions_ptr->khr_device_group_creation;
+        }
 
         ValueType khr_external_fence_capabilities() const final
         {

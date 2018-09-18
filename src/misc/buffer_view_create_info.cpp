@@ -23,7 +23,7 @@
 
 Anvil::BufferViewCreateInfoUniquePtr Anvil::BufferViewCreateInfo::create(const Anvil::BaseDevice* in_device_ptr,
                                                                          Anvil::Buffer*           in_buffer_ptr,
-                                                                         VkFormat                 in_format,
+                                                                         Anvil::Format            in_format,
                                                                          VkDeviceSize             in_start_offset,
                                                                          VkDeviceSize             in_size)
 {
@@ -44,7 +44,7 @@ Anvil::BufferViewCreateInfoUniquePtr Anvil::BufferViewCreateInfo::create(const A
 
 Anvil::BufferViewCreateInfo::BufferViewCreateInfo(const Anvil::BaseDevice* in_device_ptr,
                                                   Anvil::Buffer*           in_buffer_ptr,
-                                                  VkFormat                 in_format,
+                                                  Anvil::Format            in_format,
                                                   VkDeviceSize             in_start_offset,
                                                   VkDeviceSize             in_size,
                                                   MTSafety                 in_mt_safety)

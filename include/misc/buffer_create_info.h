@@ -49,8 +49,7 @@ namespace Anvil
          *  @param in_size             Size of the buffer object to be initialized.
          *  @param in_queue_families   Queue families which the buffer object is going to be used with.
          *                             One or more user queue family bits can be enabled.
-         *  @param in_sharing_mode     VkSharingMode value, which is going to be passed to the vkCreateBuffer()
-         *                             call.
+         *  @param in_sharing_mode     Sharing mode to pass to the vkCreateBuffer() call.
          *  @param in_usage_flags      Usage flags to set in the VkBufferCreateInfo descriptor, passed to
          *                             to the vkCreateBuffer() call.
          *  @param in_memory_freatures Required memory features.
@@ -58,8 +57,8 @@ namespace Anvil
         static Anvil::BufferCreateInfoUniquePtr create_nonsparse_alloc(const Anvil::BaseDevice*  in_device_ptr,
                                                                        VkDeviceSize              in_size,
                                                                        QueueFamilyBits           in_queue_families,
-                                                                       VkSharingMode             in_sharing_mode,
-                                                                       VkBufferUsageFlags        in_usage_flags,
+                                                                       Anvil::SharingMode        in_sharing_mode,
+                                                                       Anvil::BufferUsageFlags   in_usage_flags,
                                                                        Anvil::MemoryFeatureFlags in_memory_features);
 
         /** Creates a create info for a NON-SPARSE buffer object.
@@ -76,16 +75,15 @@ namespace Anvil
          *  @param in_size           Size of the buffer object to be initialized.
          *  @param in_queue_families Queue families which the buffer object is going to be used with.
          *                           One or more user queue family bits can be enabled.
-         *  @param in_sharing_mode   VkSharingMode value, which is going to be passed to the vkCreateBuffer()
-         *                           call.
+         *  @param in_sharing_mode   Sharing mode to pass to the vkCreateBuffer() call.
          *  @param in_usage_flags    Usage flags to set in the VkBufferCreateInfo descriptor, passed to
          *                           to the vkCreateBuffer() call.
          **/
         static Anvil::BufferCreateInfoUniquePtr create_nonsparse_no_alloc(const Anvil::BaseDevice* in_device_ptr,
                                                                           VkDeviceSize             in_size,
                                                                           QueueFamilyBits          in_queue_families,
-                                                                          VkSharingMode            in_sharing_mode,
-                                                                          VkBufferUsageFlags       in_usage_flags);
+                                                                          Anvil::SharingMode       in_sharing_mode,
+                                                                          Anvil::BufferUsageFlags  in_usage_flags);
 
         /** Creates a create info for a NON-SPARSE buffer object.
          *
@@ -112,8 +110,7 @@ namespace Anvil
          *  @param in_size                         Size of the buffer object to be initialized.
          *  @param in_queue_families               Queue families which the buffer object is going to be used with.
          *                                         One or more user queue family bits can be enabled.
-         *  @param in_sharing_mode                 VkSharingMode value, which is going to be passed to the vkCreateBuffer()
-         *                                         call.
+         *  @param in_sharing_mode                 Sharing mode to pass with the vkCreateBuffer() call.
          *  @param in_usage_flags                  Usage flags to set in the VkBufferCreateInfo descriptor, passed to
          *                                         to the vkCreateBuffer() call.
          *  @param in_residency_scope              Scope of residency to support for the buffer.
@@ -124,8 +121,8 @@ namespace Anvil
         static Anvil::BufferCreateInfoUniquePtr create_sparse_no_alloc(const Anvil::BaseDevice*            in_device_ptr,
                                                                        VkDeviceSize                        in_size,
                                                                        QueueFamilyBits                     in_queue_families,
-                                                                       VkSharingMode                       in_sharing_mode,
-                                                                       VkBufferUsageFlags                  in_usage_flags,
+                                                                       Anvil::SharingMode                  in_sharing_mode,
+                                                                       Anvil::BufferUsageFlags             in_usage_flags,
                                                                        Anvil::SparseResidencyScope         in_residency_scope,
                                                                        MTSafety                            in_mt_safety                    = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE,
                                                                        Anvil::ExternalMemoryHandleTypeBits in_external_memory_handle_types = 0);
@@ -179,7 +176,7 @@ namespace Anvil
         }
 
         /** Returns sharing mode of the buffer */
-        VkSharingMode get_sharing_mode() const
+        Anvil::SharingMode get_sharing_mode() const
         {
             return m_sharing_mode;
         }
@@ -207,7 +204,7 @@ namespace Anvil
             return m_type;
         }
 
-        const VkBufferUsageFlags get_usage_flags() const
+        const Anvil::BufferUsageFlags get_usage_flags() const
         {
             return m_usage_flags;
         }
@@ -251,7 +248,7 @@ namespace Anvil
             m_queue_families = in_queue_families;
         }
 
-        void set_sharing_mode(const VkSharingMode& in_sharing_mode)
+        void set_sharing_mode(const Anvil::SharingMode& in_sharing_mode)
         {
             m_sharing_mode = in_sharing_mode;
         }
@@ -266,7 +263,7 @@ namespace Anvil
             m_start_offset = in_start_offset;
         }
 
-        void set_usage_flags(const VkBufferUsageFlags& in_usage_flags)
+        void set_usage_flags(const Anvil::BufferUsageFlags& in_usage_flags)
         {
             m_usage_flags = in_usage_flags;
         }
@@ -279,8 +276,8 @@ namespace Anvil
         BufferCreateInfo(const Anvil::BaseDevice*            in_device_ptr,
                          VkDeviceSize                        in_size,
                          QueueFamilyBits                     in_queue_families,
-                         VkSharingMode                       in_sharing_mode,
-                         VkBufferUsageFlags                  in_usage_flags,
+                         Anvil::SharingMode                  in_sharing_mode,
+                         Anvil::BufferUsageFlags             in_usage_flags,
                          Anvil::SparseResidencyScope         in_residency_scope,
                          MTSafety                            in_mt_safety,
                          Anvil::ExternalMemoryHandleTypeBits in_exportable_external_memory_handle_types);
@@ -288,8 +285,8 @@ namespace Anvil
                          const Anvil::BaseDevice*            in_device_ptr,
                          VkDeviceSize                        in_size,
                          QueueFamilyBits                     in_queue_families,
-                         VkSharingMode                       in_sharing_mode,
-                         VkBufferUsageFlags                  in_usage_flags,
+                         Anvil::SharingMode                  in_sharing_mode,
+                         Anvil::BufferUsageFlags             in_usage_flags,
                          MemoryFeatureFlags                  in_memory_features,
                          MTSafety                            in_mt_safety,
                          Anvil::ExternalMemoryHandleTypeBits in_exportable_external_memory_handle_types,
@@ -308,11 +305,11 @@ namespace Anvil
         Anvil::Buffer* const                m_parent_buffer_ptr;
         Anvil::QueueFamilyBits              m_queue_families;
         const Anvil::SparseResidencyScope   m_residency_scope;
-        VkSharingMode                       m_sharing_mode;
+        Anvil::SharingMode                  m_sharing_mode;
         VkDeviceSize                        m_size;
         VkDeviceSize                        m_start_offset;
         const BufferType                    m_type;
-        VkBufferUsageFlags                  m_usage_flags;
+        Anvil::BufferUsageFlags             m_usage_flags;
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(BufferCreateInfo);
         ANVIL_DISABLE_COPY_CONSTRUCTOR(BufferCreateInfo);

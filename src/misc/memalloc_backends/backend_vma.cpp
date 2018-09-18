@@ -102,6 +102,20 @@ bool Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::init()
 
     switch (m_device_ptr->get_type() )
     {
+        case Anvil::DEVICE_TYPE_MULTI_GPU:
+        {
+            /* VMA library takes a physical device handle to extract info regarding supported
+             * memory types and the like. As VK_KHR_device_group provide explicit mGPU support,
+             * it is guaranteed all physical devices within a logical device offer exactly the
+             * same capabilities. This means we're safe to pass zeroth physical device to the
+             * library, and everything will still be OK.
+             */
+            const Anvil::MGPUDevice* mgpu_device_ptr(dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr) );
+
+            create_info.physicalDevice = mgpu_device_ptr->get_physical_device(0)->get_physical_device();
+            break;
+        }
+
         case Anvil::DEVICE_TYPE_SINGLE_GPU:
         {
             const Anvil::SGPUDevice* sgpu_device_ptr(dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr) );
@@ -356,6 +370,12 @@ void Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::on_vma_alloced_mem_block
 bool Anvil::MemoryAllocatorBackends::VMA::supports_baking() const
 {
     return true;
+}
+
+bool Anvil::MemoryAllocatorBackends::VMA::supports_device_masks() const
+{
+    /* The version of VMA we currently use does not provide support for device groups. */
+    return false;
 }
 
 bool Anvil::MemoryAllocatorBackends::VMA::supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeBits& in_external_memory_handle_types) const

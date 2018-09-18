@@ -55,6 +55,9 @@ namespace Anvil
         /** Adds a new bind info to the container. The application can then append buffer memory updates
          *  to the bind info by calling append_buffer_memory_update().
          *
+         *  For mGPU devices, zeroth device index is used by default for both memory and resource device indices.
+         *  You can adjust these default values by calling set_memory_device_index() and set_resource_device_index().
+         *
          *  @param in_n_signal_semaphores            Number of semaphores to signal after the bind info is processed. Can be 0.
          *  @param in_opt_signal_semaphores_ptrs_ptr Ptr to an array of semaphores (sized @param in_n_signal_semaphores) to signal.
          *                                           Should be null if @param in_n_signal_semaphores is 0.
@@ -208,6 +211,11 @@ namespace Anvil
                                                  bool*                  out_opt_memory_block_owned_by_buffer_ptr,
                                                  VkDeviceSize*          out_opt_size_ptr) const;
 
+        /** Returns memory & resource device indices assigned to this batch */
+        bool get_device_indices(SparseMemoryBindInfoID in_bind_info_id,
+                                uint32_t*              out_opt_resource_device_index_ptr,
+                                uint32_t*              out_opt_memory_device_index_ptr) const;
+
         /** Retrieves the fence, if one was earlier assigned to the instance */
         const Anvil::Fence* get_fence() const
         {
@@ -285,6 +293,10 @@ namespace Anvil
             return static_cast<uint32_t>(m_bindings.size() );
         }
 
+        /* Tells whether this instance requires VK_KHR_device_group extension in order for the vkQueueBindSparse()
+         * invocation. */
+        bool is_device_group_support_required() const;
+
         /* Changes the fence (null by default), which should be set by the Vulkan implementation after it finishes
          * updating the bindings.
         **/
@@ -292,6 +304,26 @@ namespace Anvil
         {
             m_fence_ptr = in_fence_ptr;
         }
+
+        /* Updates memory device index, associated with this batch.
+         *
+         * Do not modify unless VK_KHR_device_group is supported
+         *
+         * @param in_memory_device_index New memory device index to use.
+         *
+         **/
+        void set_memory_device_index(SparseMemoryBindInfoID in_bind_info_id,
+                                     const uint32_t&        in_memory_device_index);
+
+        /* Updates resource device index, associated with this batch.
+         *
+         * Do not modify unless VK_KHR_device_group is supported
+         *
+         * @param in_resource_device_index New resource device index to use.
+         *
+         **/
+        void set_resource_device_index(SparseMemoryBindInfoID in_bind_info_id,
+                                       const uint32_t&        in_resource_device_index);
 
     private:
         /* Private type definitions */
@@ -340,6 +372,9 @@ namespace Anvil
             ImageOpaqueBindUpdateMap image_opaque_updates;
             ImageBindUpdateMap       image_updates;
 
+            uint32_t memory_device_index;
+            uint32_t resource_device_index;
+
             std::vector<Anvil::Semaphore*> signal_semaphores;
             std::vector<VkSemaphore>       signal_semaphores_vk;
             std::vector<Anvil::Semaphore*> wait_semaphores;
@@ -347,7 +382,8 @@ namespace Anvil
 
             BindingInfo()
             {
-                /* Stub */
+                memory_device_index   = 0;
+                resource_device_index = 0;
             }
         } BindingInfo;
 
@@ -357,6 +393,7 @@ namespace Anvil
 
         std::vector<VkBindSparseInfo>                  m_bindings_vk;
         std::vector<VkSparseBufferMemoryBindInfo>      m_buffer_bindings_vk;
+        std::vector<VkDeviceGroupBindSparseInfoKHR>    m_device_group_bindings_vk;
         std::vector<VkSparseImageMemoryBindInfo>       m_image_bindings_vk;
         std::vector<VkSparseImageOpaqueMemoryBindInfo> m_image_opaque_bindings_vk;
 
