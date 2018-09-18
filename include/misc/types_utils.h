@@ -43,6 +43,11 @@ namespace Anvil
         bool convert_mt_safety_enum_to_boolean(MTSafety                 in_mt_safety,
                                                const Anvil::BaseDevice* in_device_ptr);
 
+        VkIndexType      convert_index_type_to_vk_index_type(const IndexType&   in_index_type);
+        Anvil::IndexType convert_vk_index_type_to_index_type(const VkIndexType& in_index_type);
+
+        Anvil::PeerMemoryFeatureFlags convert_vk_peer_memory_feature_flags_to_peer_memory_feature_flags(const VkPeerMemoryFeatureFlags& in_value);
+
         Anvil::QueueFamilyBits get_queue_family_bits_from_queue_family_type(Anvil::QueueFamilyType in_queue_family_type);
 
         /** Converts a Anvil::QueueFamilyBits bitfield value to an array of queue family indices.
@@ -59,13 +64,26 @@ namespace Anvil
                                                          uint32_t*                out_opt_queue_family_indices_ptr,
                                                          uint32_t*                out_opt_n_queue_family_indices_ptr);
 
+        /** Count the number of set bits in an unsigned value (popcount).
+         *  Algorithm taken from Software Optimization Guide for AMD64 Processors, p. 179.
+         **/
+        static inline uint32_t count_set_bits(uint32_t x)
+        {
+            x = x - ((x >> 1) & 0x55555555);
+            x = (x & 0x33333333) + ((x >> 2) & 0x33333333);
+            x = (((x + (x >> 4)) & 0x0F0F0F0F) * 0x01010101) >> ((sizeof(uint32_t) - 1) << 3);
+
+            return x;
+        }
+
         /** Returns an access mask which has all the access bits, relevant to the user-specified image layout,
          *  enabled.
          *
          *  The access mask can be further restricted to the specified queue family type.
          */
-        VkAccessFlags get_access_mask_from_image_layout(VkImageLayout          in_layout,
+        VkAccessFlags get_access_mask_from_image_layout(Anvil::ImageLayout     in_layout,
                                                         Anvil::QueueFamilyType in_queue_family_type = Anvil::QueueFamilyType::UNDEFINED);
+
 
         /** Converts a pair of VkMemoryPropertyFlags and VkMemoryHeapFlags bitfields to a corresponding Anvil::MemoryFeatureFlags
          *  enum.

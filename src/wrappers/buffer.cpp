@@ -43,7 +43,8 @@ Anvil::Buffer::Buffer(Anvil::BufferCreateInfoUniquePtr in_create_info_ptr)
      m_create_flags                    (0),
      m_memory_block_ptr                (nullptr),
      m_prefers_dedicated_allocation    (false),
-     m_requires_dedicated_allocation   (false)
+     m_requires_dedicated_allocation   (false),
+     m_staging_buffer_queue_ptr        (nullptr)
 {
     switch (in_create_info_ptr->get_type() )
     {
@@ -62,8 +63,7 @@ Anvil::Buffer::Buffer(Anvil::BufferCreateInfoUniquePtr in_create_info_ptr)
                  */
                 auto usage_flags = in_create_info_ptr->get_usage_flags();
 
-                usage_flags |= static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                                                  VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+                usage_flags |= Anvil::BUFFER_USAGE_FLAG_TRANSFER_DST_BIT | Anvil::BUFFER_USAGE_FLAG_TRANSFER_SRC_BIT;
 
                 in_create_info_ptr->set_usage_flags(usage_flags);
             }
@@ -117,8 +117,7 @@ Anvil::Buffer::Buffer(Anvil::BufferCreateInfoUniquePtr in_create_info_ptr)
             {
                 auto usage_flags = in_create_info_ptr->get_usage_flags();
 
-                usage_flags |= static_cast<VkBufferUsageFlagBits>(VK_BUFFER_USAGE_TRANSFER_DST_BIT  |
-                                                                  VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+                usage_flags |= Anvil::BUFFER_USAGE_FLAG_TRANSFER_DST_BIT | Anvil::BUFFER_USAGE_FLAG_TRANSFER_SRC_BIT;
 
                 in_create_info_ptr->set_usage_flags(usage_flags);
             }
@@ -288,7 +287,7 @@ bool Anvil::Buffer::init()
     if ( m_create_info_ptr->get_client_data    ()                                        != nullptr &&
         (m_create_info_ptr->get_memory_features() & Anvil::MEMORY_FEATURE_FLAG_MAPPABLE) == 0)
     {
-        m_create_info_ptr->set_usage_flags(m_create_info_ptr->get_usage_flags() | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+        m_create_info_ptr->set_usage_flags(m_create_info_ptr->get_usage_flags() | Anvil::BUFFER_USAGE_FLAG_TRANSFER_DST_BIT);
     }
 
     if (m_create_info_ptr->get_type() != BufferType::NONSPARSE_NO_ALLOC_CHILD)
@@ -310,8 +309,8 @@ bool Anvil::Buffer::init()
             buffer_create_info.pNext                 = nullptr;
             buffer_create_info.pQueueFamilyIndices   = queue_family_indices;
             buffer_create_info.queueFamilyIndexCount = n_queue_family_indices;
-            buffer_create_info.sharingMode           = m_create_info_ptr->get_sharing_mode();
-            buffer_create_info.size                  = m_create_info_ptr->get_size        ();
+            buffer_create_info.sharingMode           = static_cast<VkSharingMode>(m_create_info_ptr->get_sharing_mode() );
+            buffer_create_info.size                  = m_create_info_ptr->get_size();
             buffer_create_info.sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
             buffer_create_info.usage                 = m_create_info_ptr->get_usage_flags();
 
@@ -532,28 +531,130 @@ end:
     return is_vk_call_successful(result);
 }
 
+/* TODO */
+bool Anvil::Buffer::init_staging_buffer(const VkDeviceSize& in_size,
+                                        Anvil::Queue*       in_opt_queue_ptr)
+{
+    Anvil::PrimaryCommandBufferUniquePtr      copy_cmdbuf_ptr;
+    std::vector<const Anvil::PhysicalDevice*> helper_vec;
+    const auto                                queue_fams                    = m_create_info_ptr->get_queue_families();
+    Anvil::QueueFamilyBits                    staging_buffer_queue_fam_bits = 0;
+
+    m_staging_buffer_ptr.reset();
+    m_staging_buffer_queue_ptr = nullptr;
+
+    if (m_create_info_ptr->get_sharing_mode() == Anvil::SharingMode::EXCLUSIVE)
+    {
+        /* We need to use a user-specified queue, since we can't tell which queue fam the buffer is currently configured to be compatible with.
+         *
+         * This can be worked around if the buffer can only be used with a specific queue family type.
+         */
+        if (Anvil::Utils::is_pow2(queue_fams) )
+        {
+            switch (queue_fams)
+            {
+                case Anvil::QUEUE_FAMILY_COMPUTE_BIT:  m_staging_buffer_queue_ptr = m_device_ptr->get_compute_queue  (0); break;
+                case Anvil::QUEUE_FAMILY_DMA_BIT:      m_staging_buffer_queue_ptr = m_device_ptr->get_transfer_queue (0); break;
+                case Anvil::QUEUE_FAMILY_GRAPHICS_BIT: m_staging_buffer_queue_ptr = m_device_ptr->get_universal_queue(0); break;
+
+                default:
+                {
+                    anvil_assert_fail();
+                }
+            }
+        }
+        else
+        {
+            anvil_assert(in_opt_queue_ptr != nullptr);
+
+            m_staging_buffer_queue_ptr = in_opt_queue_ptr;
+        }
+
+        anvil_assert(m_staging_buffer_queue_ptr != nullptr);
+
+        switch (m_device_ptr->get_queue_family_type(m_staging_buffer_queue_ptr->get_queue_family_index() ) )
+        {
+            case Anvil::QueueFamilyType::COMPUTE:   staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_COMPUTE_BIT;  break;
+            case Anvil::QueueFamilyType::TRANSFER:  staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_DMA_BIT;      break;
+            case Anvil::QueueFamilyType::UNIVERSAL: staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_GRAPHICS_BIT; break;
+
+            default:
+            {
+                anvil_assert_fail();
+            }
+        }
+    }
+    else
+    {
+        /* We can use any queue from the list of queue fams this buffer is compatible with, in order to perform the copy op. */
+        if ((queue_fams & Anvil::QUEUE_FAMILY_GRAPHICS_BIT) != 0)
+        {
+            m_staging_buffer_queue_ptr    = m_device_ptr->get_universal_queue(0);
+            staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_GRAPHICS_BIT;
+        }
+        else
+        if ((queue_fams & Anvil::QUEUE_FAMILY_DMA_BIT) != 0)
+        {
+            m_staging_buffer_queue_ptr    = m_device_ptr->get_transfer_queue(0);
+            staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_DMA_BIT;
+        }
+        else
+        {
+            anvil_assert((queue_fams & Anvil::QUEUE_FAMILY_COMPUTE_BIT) != 0)
+
+            m_staging_buffer_queue_ptr    = m_device_ptr->get_compute_queue(0);
+            staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_COMPUTE_BIT;
+        }
+    }
+
+    if (m_staging_buffer_ptr == nullptr                                   ||
+        m_staging_buffer_ptr->get_create_info_ptr()->get_size() < in_size)
+    {
+        {
+            const auto sharing_mode    = Anvil::Utils::is_pow2(staging_buffer_queue_fam_bits) ? Anvil::SharingMode::EXCLUSIVE
+                                                                                              : Anvil::SharingMode::CONCURRENT;
+
+            auto       create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_alloc(m_device_ptr,
+                                                                                         in_size,
+                                                                                         staging_buffer_queue_fam_bits,
+                                                                                         sharing_mode,
+                                                                                         Anvil::BUFFER_USAGE_FLAG_TRANSFER_SRC_BIT,
+                                                                                         Anvil::MEMORY_FEATURE_FLAG_MAPPABLE);
+
+            create_info_ptr->set_mt_safety  (MT_SAFETY_DISABLED);
+
+            m_staging_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
+        }
+
+        if (m_staging_buffer_ptr == nullptr)
+        {
+            anvil_assert(m_staging_buffer_ptr != nullptr);
+        }
+    }
+
+    return (m_staging_buffer_ptr != nullptr);
+}
+
 /* Please see header for specification */
-bool Anvil::Buffer::read(VkDeviceSize start_offset,
-                         VkDeviceSize size,
+bool Anvil::Buffer::read(VkDeviceSize in_start_offset,
+                         VkDeviceSize in_size,
                          void*        out_result_ptr)
 {
-    return read(start_offset,
-                size,
-                nullptr, /* in_physical_device_ptr */
+    return read(in_start_offset,
+                in_size,
+                UINT32_MAX, /* in_device_mask */
                 out_result_ptr);
 }
 
 /* Please see header for specification */
-bool Anvil::Buffer::read(VkDeviceSize                 in_start_offset,
-                         VkDeviceSize                 in_size,
-                         const Anvil::PhysicalDevice* in_physical_device_ptr,
-                         void*                        out_result_ptr)
+bool Anvil::Buffer::read(VkDeviceSize in_start_offset,
+                         VkDeviceSize in_size,
+                         uint32_t     in_device_mask,
+                         void*        out_result_ptr)
 {
     const Anvil::DeviceType device_type      (m_device_ptr->get_type() );
     auto                    memory_block_ptr (get_memory_block(0 /* in_n_memory_block */) );
     bool                    result           (false);
-
-    ANVIL_REDUNDANT_ARGUMENT(in_physical_device_ptr);
 
     /* TODO: Support for sparse buffers */
     anvil_assert(m_create_info_ptr->get_type() != Anvil::BufferType::SPARSE_NO_ALLOC);
@@ -568,54 +669,58 @@ bool Anvil::Buffer::read(VkDeviceSize                 in_start_offset,
     {
         /* The buffer memory is not mappable. We need to create a staging buffer,
          * do a non-mappable->mappable memory copy, and then read back data from the mappable buffer. */
-        const uint32_t                       n_transfer_queues             = m_device_ptr->get_n_transfer_queues();
-        Anvil::Queue*                        queue_ptr                     = (n_transfer_queues > 0) ? m_device_ptr->get_transfer_queue (0)
-                                                                                                     : m_device_ptr->get_universal_queue(0);
-        Anvil::BufferUniquePtr               staging_buffer_ptr;
-        const Anvil::QueueFamilyBits         staging_buffer_queue_fam_bits = (n_transfer_queues > 0) ? Anvil::QUEUE_FAMILY_DMA_BIT
-                                                                                                     : Anvil::QUEUE_FAMILY_GRAPHICS_BIT;
-        Anvil::PrimaryCommandBufferUniquePtr copy_cmdbuf_ptr               = m_device_ptr->get_command_pool_for_queue_family_index(queue_ptr->get_queue_family_index() )->alloc_primary_level_command_buffer();
+        Anvil::PrimaryCommandBufferUniquePtr copy_cmdbuf_ptr;
+
+        if (m_staging_buffer_ptr                                    == nullptr ||
+            m_staging_buffer_ptr->get_create_info_ptr()->get_size() <  in_size)
+        {
+            if (!init_staging_buffer(in_size,
+                                     nullptr) ) /* in_opt_queue_ptr */
+            {
+                result = false;
+
+                goto end;
+            }
+        }
+
+        if (m_staging_buffer_ptr == nullptr)
+        {
+            anvil_assert(m_staging_buffer_ptr != nullptr);
+
+            goto end;
+        }
+
+        copy_cmdbuf_ptr = m_device_ptr->get_command_pool_for_queue_family_index(m_staging_buffer_queue_ptr->get_queue_family_index() )->alloc_primary_level_command_buffer();
 
         if (copy_cmdbuf_ptr == nullptr)
         {
             anvil_assert(copy_cmdbuf_ptr != nullptr);
 
             goto end;
+
         }
-
-        {
-            auto buffer_create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_alloc(m_device_ptr,
-                                                                                          in_size,
-                                                                                          staging_buffer_queue_fam_bits,
-                                                                                          VK_SHARING_MODE_CONCURRENT,
-                                                                                          VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                                                          MEMORY_FEATURE_FLAG_MAPPABLE);
-
-            buffer_create_info_ptr->set_mt_safety(MT_SAFETY_DISABLED);
-
-            staging_buffer_ptr = Anvil::Buffer::create(std::move(buffer_create_info_ptr) );
-        }
-
-        if (staging_buffer_ptr == nullptr)
-        {
-            anvil_assert(staging_buffer_ptr != nullptr);
-
-            goto end;
-        }
-
         if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
         {
             copy_cmdbuf_ptr->start_recording(true,   /* one_time_submit          */
                                              false); /* simultaneous_use_allowed */
+        }
+        else
+        {
+            anvil_assert(device_type == Anvil::DEVICE_TYPE_MULTI_GPU);
+            anvil_assert(Utils::count_set_bits(in_device_mask) == 1);
+
+            copy_cmdbuf_ptr->start_recording(true,  /* one_time_submit          */
+                                             false, /* simultaneous_use_allowed */
+                                             in_device_mask); /* in_opt_device_mask */
         }
         {
             Anvil::BufferBarrier buffer_barrier(VK_ACCESS_TRANSFER_WRITE_BIT,
                                                 VK_ACCESS_HOST_READ_BIT,
                                                 VK_QUEUE_FAMILY_IGNORED,
                                                 VK_QUEUE_FAMILY_IGNORED,
-                                                staging_buffer_ptr.get(),
+                                                m_staging_buffer_ptr.get(),
                                                 0, /* in_offset */
-                                                staging_buffer_ptr->get_create_info_ptr()->get_size() );
+                                                in_size);
             VkBufferCopy         copy_region;
 
             copy_region.dstOffset = 0;
@@ -623,7 +728,7 @@ bool Anvil::Buffer::read(VkDeviceSize                 in_start_offset,
             copy_region.srcOffset = in_start_offset;
 
             copy_cmdbuf_ptr->record_copy_buffer     (this,
-                                                     staging_buffer_ptr.get(),
+                                                     m_staging_buffer_ptr.get(),
                                                      1, /* in_region_count */
                                                     &copy_region);
             copy_cmdbuf_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -640,31 +745,42 @@ bool Anvil::Buffer::read(VkDeviceSize                 in_start_offset,
 
         if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
         {
-            queue_ptr->submit(
+            m_staging_buffer_queue_ptr->submit(
                 Anvil::SubmitInfo::create_execute(copy_cmdbuf_ptr.get(),
                                                   true /* should_block */)
             );
         }
+        else
+        {
+            Anvil::CommandBufferMGPUSubmission cmd_buffer_submission;
 
-        result = staging_buffer_ptr->read(0,
-                                          in_size,
-                                          out_result_ptr);
+            anvil_assert((in_device_mask != 0) && (in_device_mask != UINT32_MAX));
+
+            cmd_buffer_submission.cmd_buffer_ptr = copy_cmdbuf_ptr.get();
+            cmd_buffer_submission.device_mask    = in_device_mask;
+
+            m_staging_buffer_queue_ptr->submit(
+                Anvil::SubmitInfo::create_execute(&cmd_buffer_submission,
+                                                  true /* should_block */)
+            );
+        }
+
+        result = m_staging_buffer_ptr->read(0,
+                                            in_size,
+                                            out_result_ptr);
     }
 
 end:
     return result;
 }
 
-bool Anvil::Buffer::set_memory_nonsparse_internal(MemoryBlockUniquePtr         in_memory_block_ptr,
-                                                  uint32_t                     in_n_physical_devices,
-                                                  const Anvil::PhysicalDevice* in_physical_devices_ptr)
+bool Anvil::Buffer::set_memory_nonsparse_internal(MemoryBlockUniquePtr  in_memory_block_ptr,
+                                                  uint32_t              in_n_device_group_indices,
+                                                  const uint32_t*       in_device_group_indices_ptr)
 {
     const Anvil::DeviceType      device_type             (m_device_ptr->get_type() );
     bool                         result                  (false);
     VkResult                     result_vk;
-
-    ANVIL_REDUNDANT_ARGUMENT(in_physical_devices_ptr);
-
 
     if (in_memory_block_ptr == nullptr)
     {
@@ -687,21 +803,53 @@ bool Anvil::Buffer::set_memory_nonsparse_internal(MemoryBlockUniquePtr         i
         goto end;
     }
 
-    if (device_type           == Anvil::DEVICE_TYPE_SINGLE_GPU &&
-        in_n_physical_devices == 0)
-    {
-        in_n_physical_devices = 1;
-    }
-
     /* Bind the memory object to the buffer object */
-    lock();
+    if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
     {
-        result_vk = vkBindBufferMemory(m_device_ptr->get_device_vk(),
-                                       m_buffer,
-                                       in_memory_block_ptr->get_memory      (),
-                                       in_memory_block_ptr->get_start_offset() );
+        lock();
+        {
+            result_vk = vkBindBufferMemory(m_device_ptr->get_device_vk(),
+                                           m_buffer,
+                                           in_memory_block_ptr->get_memory      (),
+                                           in_memory_block_ptr->get_start_offset() );
+        }
+        unlock();
     }
-    unlock();
+    else
+    {
+        StructChainUniquePtr<VkBindBufferMemoryInfoKHR> bind_info_struct_chain_ptr;
+        Anvil::StructChainer<VkBindBufferMemoryInfoKHR> bind_info_struct_chainer;
+
+        const Anvil::MGPUDevice* mgpu_device_ptr(dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr) );
+        const auto&              entrypoints    (mgpu_device_ptr->get_extension_khr_bind_memory2_entrypoints() );
+
+        anvil_assert(device_type == Anvil::DEVICE_TYPE_MULTI_GPU);
+
+        {
+            VkBindBufferMemoryInfoKHR            bind_info;
+            VkBindBufferMemoryDeviceGroupInfoKHR bind_info_dg;
+
+            bind_info_dg.deviceIndexCount = in_n_device_group_indices;
+            bind_info_dg.pDeviceIndices   = in_device_group_indices_ptr;
+            bind_info_dg.pNext            = nullptr;
+            bind_info_dg.sType            = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_DEVICE_GROUP_INFO_KHR;
+
+            bind_info.buffer        = m_buffer;
+            bind_info.memory        = in_memory_block_ptr->get_memory      ();
+            bind_info.memoryOffset  = in_memory_block_ptr->get_start_offset();
+            bind_info.pNext         = nullptr;
+            bind_info.sType         = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO_KHR;
+
+            bind_info_struct_chainer.append_struct(bind_info);
+            bind_info_struct_chainer.append_struct(bind_info_dg);
+        }
+
+        bind_info_struct_chain_ptr = bind_info_struct_chainer.create_chain();
+
+        result_vk = entrypoints.vkBindBufferMemory2KHR(m_device_ptr->get_device_vk(),
+                                                       1, /* bindInfoCount */
+                                                       bind_info_struct_chain_ptr ->get_root_struct() );
+    }
 
     if (!is_vk_call_successful(result_vk) )
     {
@@ -788,23 +936,23 @@ bool Anvil::Buffer::set_nonsparse_memory(MemoryBlock* in_memory_block_ptr,
 }
 
 /* Please see header for specification */
-bool Anvil::Buffer::set_nonsparse_memory(MemoryBlockUniquePtr         in_memory_block_ptr,
-                                         uint32_t                     in_n_physical_devices,
-                                         const Anvil::PhysicalDevice* in_physical_devices_ptr)
+bool Anvil::Buffer::set_nonsparse_memory(MemoryBlockUniquePtr   in_memory_block_ptr,
+                                         uint32_t               in_n_device_group_indices,
+                                         const uint32_t*        in_device_group_indices_ptr)
 {
     MemoryBlockUniquePtr memory_block_ptr = MemoryBlockUniquePtr(in_memory_block_ptr.release(),
                                                                  std::default_delete<Anvil::MemoryBlock>() );
 
     return set_memory_nonsparse_internal(std::move(memory_block_ptr),
-                                         in_n_physical_devices,
-                                         in_physical_devices_ptr);
+                                         in_n_device_group_indices,
+                                         in_device_group_indices_ptr);
 }
 
 /* Please see header for specification */
-bool Anvil::Buffer::set_nonsparse_memory(MemoryBlock*                 in_memory_block_ptr,
-                                         bool                         in_memory_block_owned_by_buffer,
-                                         uint32_t                     in_n_physical_devices,
-                                         const Anvil::PhysicalDevice* in_physical_devices_ptr)
+bool Anvil::Buffer::set_nonsparse_memory(MemoryBlock*       in_memory_block_ptr,
+                                         bool               in_memory_block_owned_by_buffer,
+                                         uint32_t           in_n_device_group_indices,
+                                         const uint32_t*    in_device_group_indices_ptr)
 {
     MemoryBlockUniquePtr memory_block_ptr;
 
@@ -823,8 +971,148 @@ bool Anvil::Buffer::set_nonsparse_memory(MemoryBlock*                 in_memory_
     }
 
     return set_memory_nonsparse_internal(std::move(memory_block_ptr),
-                                         in_n_physical_devices,
-                                         in_physical_devices_ptr);
+                                         in_n_device_group_indices,
+                                         in_device_group_indices_ptr);
+}
+
+/* Please see header for specification */
+bool Anvil::Buffer::set_nonsparse_memory_multi(uint32_t                   in_n_buffer_memory_binding_updates,
+                                               BufferMemoryBindingUpdate* in_updates_ptr)
+{
+    StructChainVector<VkBindBufferMemoryInfoKHR> bind_info_struct_chains;
+    const Anvil::BaseDevice*                     device_ptr              (nullptr);
+    uint32_t                                     n_total_physical_devices(0);
+    bool                                         result                  (false);
+
+    /* Sanity checks */
+    if (in_n_buffer_memory_binding_updates == 0)
+    {
+        anvil_assert(in_n_buffer_memory_binding_updates != 0);
+
+        goto end;
+    }
+
+    /* Convert input structure into VkBindBufferMemoryInfoKHR structures */
+    for (uint32_t n_update = 0;
+                  n_update < in_n_buffer_memory_binding_updates;
+                ++n_update)
+    {
+        const auto&              current_update (in_updates_ptr[n_update]);
+        const Anvil::MGPUDevice* mgpu_device_ptr(dynamic_cast<const Anvil::MGPUDevice*>(current_update.buffer_ptr->m_device_ptr) );
+
+        if (current_update.physical_devices.size() != mgpu_device_ptr->get_n_physical_devices() )
+        {
+            anvil_assert(current_update.physical_devices.size() == mgpu_device_ptr->get_n_physical_devices() ||
+                         current_update.physical_devices.size() == 0);
+
+            goto end;
+        }
+
+        n_total_physical_devices += static_cast<uint32_t>(current_update.physical_devices.size() );
+
+        if (n_update == 0)
+        {
+            device_ptr = current_update.buffer_ptr->m_device_ptr;
+        }
+        else
+        {
+            anvil_assert(device_ptr == current_update.buffer_ptr->m_device_ptr);
+        }
+    }
+
+    {
+        std::vector<uint32_t> device_indices           (n_total_physical_devices);
+        uint32_t              n_current_physical_device(0);
+        VkResult              result_vk;
+        const auto&           entrypoints              (device_ptr->get_extension_khr_bind_memory2_entrypoints() );
+
+        for (uint32_t n_update = 0;
+                      n_update < in_n_buffer_memory_binding_updates;
+                    ++n_update)
+        {
+            const auto& current_update = in_updates_ptr[n_update];
+
+            for (uint32_t n_physical_device = 0;
+                          n_physical_device < current_update.physical_devices.size();
+                        ++n_physical_device, ++n_current_physical_device)
+            {
+                device_indices.at(n_current_physical_device) = current_update.physical_devices.at(n_physical_device)->get_device_group_device_index();
+            }
+        }
+
+        n_current_physical_device = 0;
+
+        for (uint32_t n_update = 0;
+                      n_update < in_n_buffer_memory_binding_updates;
+                    ++n_update)
+        {
+            VkBindBufferMemoryInfoKHR                current_bind_info;
+            VkBindBufferMemoryDeviceGroupInfoKHR     current_bind_info_device_group;
+            StructChainer<VkBindBufferMemoryInfoKHR> current_bind_info_chain;
+            const auto&                              current_update                      = in_updates_ptr[n_update];
+
+            current_bind_info_device_group.sType            = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO_KHR;
+            current_bind_info_device_group.deviceIndexCount = static_cast<uint32_t>(current_update.physical_devices.size());
+            current_bind_info_device_group.pDeviceIndices   = &device_indices.at(n_current_physical_device);
+
+            current_bind_info.buffer        = current_update.buffer_ptr->get_buffer            ();
+            current_bind_info.memory        = current_update.memory_block_ptr->get_memory      ();
+            current_bind_info.memoryOffset  = current_update.memory_block_ptr->get_start_offset();
+            current_bind_info.pNext         = nullptr;
+            current_bind_info.sType         = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO_KHR;
+
+            current_bind_info_chain.append_struct(current_bind_info);
+            current_bind_info_chain.append_struct(current_bind_info_device_group);
+
+            bind_info_struct_chains.append_struct_chain(current_bind_info_chain.create_chain() );
+
+            n_current_physical_device += static_cast<uint32_t>(current_update.physical_devices.size());
+        }
+
+        result_vk = entrypoints.vkBindBufferMemory2KHR(device_ptr->get_device_vk(),
+                                                       in_n_buffer_memory_binding_updates,
+                                                       bind_info_struct_chains.get_root_structs() );
+
+        if (!is_vk_call_successful(result_vk) )
+        {
+            anvil_assert(is_vk_call_successful(result_vk) );
+
+            goto end;
+        }
+
+        for (uint32_t n_update = 0;
+                      n_update < in_n_buffer_memory_binding_updates;
+                    ++n_update)
+        {
+            auto& current_update = in_updates_ptr[n_update];
+
+            anvil_assert(current_update.buffer_ptr->m_memory_block_ptr == nullptr);
+
+            anvil_assert(std::find_if(current_update.buffer_ptr->m_owned_memory_blocks.begin(),
+                                      current_update.buffer_ptr->m_owned_memory_blocks.end  (),
+                                      [=](const MemoryBlockUniquePtr& in_memory_block_ptr)
+                                      {
+                                          return (in_memory_block_ptr.get() == current_update.memory_block_ptr);
+                                      }) == current_update.buffer_ptr->m_owned_memory_blocks.end() );
+
+            current_update.buffer_ptr->m_memory_block_ptr = current_update.memory_block_ptr;
+
+            if (current_update.memory_block_owned_by_buffer)
+            {
+                MemoryBlockUniquePtr memory_block_ptr(current_update.memory_block_ptr,
+                                                      std::default_delete<MemoryBlock>() );
+
+                current_update.buffer_ptr->m_owned_memory_blocks.push_back(
+                    std::move(memory_block_ptr)
+                );
+            }
+        }
+    }
+
+    /* All done */
+    result = true;
+end:
+    return result;
 }
 
 /* Please see header for specification */
@@ -835,23 +1123,20 @@ bool Anvil::Buffer::write(VkDeviceSize  in_start_offset,
 {
     return write(in_start_offset,
                  in_size,
-                 nullptr,
                  in_data,
+                 UINT32_MAX, /* in_device_mask */
                  in_opt_queue_ptr);
 }
 
 /* Please see header for specification */
-bool Anvil::Buffer::write(VkDeviceSize                 in_start_offset,
-                          VkDeviceSize                 in_size,
-                          const Anvil::PhysicalDevice* in_physical_device_ptr,
-                          const void*                  in_data,
-                          Anvil::Queue*                in_opt_queue_ptr)
+bool Anvil::Buffer::write(VkDeviceSize  in_start_offset,
+                          VkDeviceSize  in_size,
+                          const void*   in_data,
+                          uint32_t      in_device_mask,
+                          Anvil::Queue* in_opt_queue_ptr)
 {
     const Anvil::DeviceType device_type(m_device_ptr->get_type() );
     bool                    result     (false);
-
-    ANVIL_REDUNDANT_ARGUMENT(in_physical_device_ptr);
-
 
     /** TODO: Support for sparse-resident buffers whose n_memory_blocks > 1 */
     Anvil::MemoryBlock* memory_block_ptr(get_memory_block(0) );
@@ -866,6 +1151,8 @@ bool Anvil::Buffer::write(VkDeviceSize                 in_start_offset,
 
     if ((memory_block_ptr->get_create_info_ptr()->get_memory_features() & MEMORY_FEATURE_FLAG_MAPPABLE) != 0)
     {
+        anvil_assert((memory_block_ptr->get_create_info_ptr()->get_memory_features() & MEMORY_FEATURE_FLAG_MULTI_INSTANCE) == 0);
+
         result = memory_block_ptr->write(in_start_offset,
                                          in_size,
                                          in_data);
@@ -874,102 +1161,31 @@ bool Anvil::Buffer::write(VkDeviceSize                 in_start_offset,
     {
         /* The buffer memory is not mappable. We need to create a staging memory,
          * upload user's data there, and then issue a copy op. */
-        Anvil::PrimaryCommandBufferUniquePtr copy_cmdbuf_ptr;
-        const auto                           queue_fams                    = m_create_info_ptr->get_queue_families();
-        Anvil::Queue*                        queue_ptr                     = nullptr;
-        Anvil::BufferUniquePtr               staging_buffer_ptr;
-        Anvil::QueueFamilyBits               staging_buffer_queue_fam_bits = 0;
+        Anvil::PrimaryCommandBufferUniquePtr      copy_cmdbuf_ptr;
 
-        if (m_create_info_ptr->get_sharing_mode() == VK_SHARING_MODE_EXCLUSIVE)
+        if (m_staging_buffer_ptr == nullptr                                    ||
+            m_staging_buffer_ptr->get_create_info_ptr()->get_size() < in_size)
         {
-            /* We need to use a user-specified queue, since we can't tell which queue fam the buffer is currently configured to be compatible with.
-             *
-             * This can be worked around if the buffer can only be used with a specific queue family type.
-             */
-            if (Anvil::Utils::is_pow2(queue_fams) )
+            if (!init_staging_buffer(in_size,
+                                     in_opt_queue_ptr) )
             {
-                switch (queue_fams)
-                {
-                    case Anvil::QUEUE_FAMILY_COMPUTE_BIT:  queue_ptr = m_device_ptr->get_compute_queue  (0); break;
-                    case Anvil::QUEUE_FAMILY_DMA_BIT:      queue_ptr = m_device_ptr->get_transfer_queue (0); break;
-                    case Anvil::QUEUE_FAMILY_GRAPHICS_BIT: queue_ptr = m_device_ptr->get_universal_queue(0); break;
+                result = false;
 
-                    default:
-                    {
-                        anvil_assert_fail();
-                    }
-                }
-            }
-            else
-            {
-                anvil_assert(in_opt_queue_ptr != nullptr);
-
-                queue_ptr = in_opt_queue_ptr;
+                goto end;
             }
 
-            anvil_assert(queue_ptr != nullptr);
-
-            switch (m_device_ptr->get_queue_family_type(queue_ptr->get_queue_family_index() ) )
-            {
-                case Anvil::QueueFamilyType::COMPUTE:   staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_COMPUTE_BIT;  break;
-                case Anvil::QueueFamilyType::TRANSFER:  staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_DMA_BIT;      break;
-                case Anvil::QueueFamilyType::UNIVERSAL: staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_GRAPHICS_BIT; break;
-
-                default:
-                {
-                    anvil_assert_fail();
-                }
-            }
-        }
-        else
-        {
-            /* We can use any queue from the list of queue fams this buffer is compatible, in order to perform the copy op. */
-            if ((queue_fams & Anvil::QUEUE_FAMILY_GRAPHICS_BIT) != 0)
-            {
-                queue_ptr                     = m_device_ptr->get_universal_queue(0);
-                staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_GRAPHICS_BIT;
-            }
-            else
-            if ((queue_fams & Anvil::QUEUE_FAMILY_DMA_BIT) != 0)
-            {
-                queue_ptr                     = m_device_ptr->get_transfer_queue(0);
-                staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_DMA_BIT;
-            }
-            else
-            {
-                anvil_assert((queue_fams & Anvil::QUEUE_FAMILY_COMPUTE_BIT) != 0)
-
-                queue_ptr                     = m_device_ptr->get_compute_queue(0);
-                staging_buffer_queue_fam_bits = Anvil::QUEUE_FAMILY_COMPUTE_BIT;
-            }
+            anvil_assert(m_staging_buffer_ptr != nullptr);
         }
 
-        copy_cmdbuf_ptr = m_device_ptr->get_command_pool_for_queue_family_index(queue_ptr->get_queue_family_index() )->alloc_primary_level_command_buffer();
+        m_staging_buffer_ptr->write(0, /* in_start_offset */
+                                    in_size,
+                                    in_data);
+
+        copy_cmdbuf_ptr = m_device_ptr->get_command_pool_for_queue_family_index(m_staging_buffer_queue_ptr->get_queue_family_index() )->alloc_primary_level_command_buffer();
 
         if (copy_cmdbuf_ptr == nullptr)
         {
             anvil_assert(copy_cmdbuf_ptr != nullptr);
-
-            goto end;
-        }
-
-        {
-            auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_alloc(m_device_ptr,
-                                                                                   in_size,
-                                                                                   staging_buffer_queue_fam_bits,
-                                                                                   VK_SHARING_MODE_CONCURRENT,
-                                                                                   VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                                                   Anvil::MEMORY_FEATURE_FLAG_MAPPABLE);
-
-            create_info_ptr->set_client_data(in_data);
-            create_info_ptr->set_mt_safety  (MT_SAFETY_DISABLED);
-
-            staging_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
-        }
-
-        if (staging_buffer_ptr == nullptr)
-        {
-            anvil_assert(staging_buffer_ptr != nullptr);
 
             goto end;
         }
@@ -979,14 +1195,23 @@ bool Anvil::Buffer::write(VkDeviceSize                 in_start_offset,
             copy_cmdbuf_ptr->start_recording(true,   /* one_time_submit          */
                                              false); /* simultaneous_use_allowed */
         }
+        else
+        {
+            anvil_assert(device_type == Anvil::DEVICE_TYPE_MULTI_GPU);
+            anvil_assert(Utils::count_set_bits(in_device_mask) == 1);
+
+            copy_cmdbuf_ptr->start_recording(true,   /* one_time_submit          */
+                                             false,  /* simultaneous_use_allowed */
+                                             in_device_mask);
+        }
         {
             BufferBarrier buffer_barrier(VK_ACCESS_HOST_WRITE_BIT,
                                          VK_ACCESS_TRANSFER_READ_BIT,
                                          VK_QUEUE_FAMILY_IGNORED,
                                          VK_QUEUE_FAMILY_IGNORED,
-                                         staging_buffer_ptr.get(),
+                                         m_staging_buffer_ptr.get(),
                                          0, /* in_offset */
-                                         staging_buffer_ptr->get_create_info_ptr()->get_size() );
+                                         in_size);
             VkBufferCopy  copy_region;
 
             copy_region.dstOffset = in_start_offset;
@@ -1002,7 +1227,7 @@ bool Anvil::Buffer::write(VkDeviceSize                 in_start_offset,
                                                      &buffer_barrier,
                                                      0,               /* in_image_memory_barrier_count */
                                                      nullptr);        /* in_image_memory_barriers_ptr  */
-            copy_cmdbuf_ptr->record_copy_buffer     (staging_buffer_ptr.get(),
+            copy_cmdbuf_ptr->record_copy_buffer     (m_staging_buffer_ptr.get(),
                                                      this,
                                                      1, /* in_region_count */
                                                     &copy_region);
@@ -1011,8 +1236,34 @@ bool Anvil::Buffer::write(VkDeviceSize                 in_start_offset,
 
         if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
         {
-            queue_ptr->submit(
+            m_staging_buffer_queue_ptr->submit(
                 Anvil::SubmitInfo::create_execute(copy_cmdbuf_ptr.get(),
+                                                  true /* should_block */)
+            );
+        }
+        else
+        {
+            Anvil::CommandBufferMGPUSubmission copy_cmdbuf_submission;
+
+            copy_cmdbuf_submission.cmd_buffer_ptr = copy_cmdbuf_ptr.get();
+            copy_cmdbuf_submission.device_mask    = in_device_mask;
+
+            /* Need to update all memory instances */
+            if ((m_memory_block_ptr->get_create_info_ptr()->get_memory_features() & Anvil::MEMORY_FEATURE_FLAG_MULTI_INSTANCE) != 0)
+            {
+                auto                     device_mask     = m_memory_block_ptr->get_create_info_ptr()->get_device_mask();
+                const Anvil::MGPUDevice* mgpu_device_ptr = dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr);
+
+                if (device_mask == 0)
+                {
+                    device_mask = (1 << mgpu_device_ptr->get_n_physical_devices()) - 1;
+                }
+
+                copy_cmdbuf_submission.device_mask = device_mask;
+            }
+
+            m_staging_buffer_queue_ptr->submit(
+                Anvil::SubmitInfo::create_execute(&copy_cmdbuf_submission,
                                                   true /* should_block */)
             );
         }

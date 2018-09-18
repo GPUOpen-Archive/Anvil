@@ -143,6 +143,14 @@ Anvil::BufferProperties::BufferProperties(const ExternalMemoryProperties& in_ext
     /* Stub */
 }
 
+
+Anvil::BufferMemoryBindingUpdate::BufferMemoryBindingUpdate()
+{
+    buffer_ptr                   = nullptr;
+    memory_block_owned_by_buffer = false;
+    memory_block_ptr             = nullptr;
+}
+
 Anvil::DescriptorSetAllocation::DescriptorSetAllocation(const Anvil::DescriptorSetLayout* in_ds_layout_ptr)
 {
     anvil_assert( in_ds_layout_ptr                                                                  != nullptr);
@@ -314,6 +322,17 @@ Anvil::ExtensionEXTDebugReportEntrypoints::ExtensionEXTDebugReportEntrypoints()
 {
     vkCreateDebugReportCallbackEXT  = nullptr;
     vkDestroyDebugReportCallbackEXT = nullptr;
+}
+
+Anvil::ExtensionKHRDeviceGroupEntrypoints::ExtensionKHRDeviceGroupEntrypoints()
+{
+    vkAcquireNextImage2KHR                  = nullptr;
+    vkCmdDispatchBaseKHR                    = nullptr;
+    vkGetDeviceGroupPeerMemoryFeaturesKHR   = nullptr;
+    vkGetDeviceGroupPresentCapabilitiesKHR  = nullptr;
+    vkGetDeviceGroupSurfacePresentModesKHR  = nullptr;
+    vkGetPhysicalDevicePresentRectanglesKHR = nullptr;
+    vkCmdSetDeviceMaskKHR                   = nullptr;
 }
 
 Anvil::ExtensionKHRBindMemory2Entrypoints::ExtensionKHRBindMemory2Entrypoints()
@@ -762,8 +781,8 @@ Anvil::ImageBarrier::ImageBarrier(const ImageBarrier& in)
 Anvil::ImageBarrier::ImageBarrier(VkAccessFlags           in_source_access_mask,
                                   VkAccessFlags           in_destination_access_mask,
                                   bool                    in_by_region_barrier,
-                                  VkImageLayout           in_old_layout,
-                                  VkImageLayout           in_new_layout,
+                                  Anvil::ImageLayout      in_old_layout,
+                                  Anvil::ImageLayout      in_new_layout,
                                   uint32_t                in_src_queue_family_index,
                                   uint32_t                in_dst_queue_family_index,
                                   Anvil::Image*           in_image_ptr,
@@ -785,8 +804,8 @@ Anvil::ImageBarrier::ImageBarrier(VkAccessFlags           in_source_access_mask,
     image_barrier_vk.dstQueueFamilyIndex = in_dst_queue_family_index;
     image_barrier_vk.image               = (in_image_ptr != nullptr) ? in_image_ptr->get_image()
                                                                      : VK_NULL_HANDLE;
-    image_barrier_vk.newLayout           = in_new_layout;
-    image_barrier_vk.oldLayout           = in_old_layout;
+    image_barrier_vk.newLayout           = static_cast<VkImageLayout>(in_new_layout);
+    image_barrier_vk.oldLayout           = static_cast<VkImageLayout>(in_old_layout);
     image_barrier_vk.pNext               = nullptr;
     image_barrier_vk.srcAccessMask       = in_source_access_mask;
     image_barrier_vk.srcQueueFamilyIndex = in_src_queue_family_index;
@@ -830,6 +849,20 @@ bool Anvil::ImageBarrier::operator==(const ImageBarrier& in_barrier) const
     return result;
 }
 
+Anvil::ImagePhysicalDeviceMemoryBindingUpdate::ImagePhysicalDeviceMemoryBindingUpdate()
+{
+    image_ptr                   = nullptr;
+    memory_block_ptr            = nullptr;
+    memory_block_owned_by_image = false;
+}
+
+Anvil::ImageSFRMemoryBindingUpdate::ImageSFRMemoryBindingUpdate()
+{
+    image_ptr                   = nullptr;
+    memory_block_owned_by_image = false;
+    memory_block_ptr            = nullptr;
+}
+
 Anvil::KHR16BitStorageFeatures::KHR16BitStorageFeatures()
 {
     is_input_output_storage_supported                     = false;
@@ -867,6 +900,23 @@ VkPhysicalDevice16BitStorageFeaturesKHR Anvil::KHR16BitStorageFeatures::get_vk_p
 
     return result;
 
+}
+
+Anvil::KHRMaintenance2PhysicalDevicePointClippingProperties::KHRMaintenance2PhysicalDevicePointClippingProperties()
+    :point_clipping_behavior(PointClippingBehavior::UNKNOWN)
+{
+    /* Stub */
+}
+
+Anvil::KHRMaintenance2PhysicalDevicePointClippingProperties::KHRMaintenance2PhysicalDevicePointClippingProperties(const VkPhysicalDevicePointClippingPropertiesKHR& in_props)
+    :point_clipping_behavior(static_cast<PointClippingBehavior>(in_props.pointClippingBehavior) )
+{
+    /* Stub */
+}
+
+bool Anvil::KHRMaintenance2PhysicalDevicePointClippingProperties::operator==(const Anvil::KHRMaintenance2PhysicalDevicePointClippingProperties& in_props) const
+{
+    return (in_props.point_clipping_behavior == point_clipping_behavior);
 }
 
 Anvil::KHRMaintenance3Properties::KHRMaintenance3Properties()
@@ -924,6 +974,7 @@ Anvil::MemoryBarrier::MemoryBarrier(VkAccessFlags in_destination_access_mask,
 Anvil::MemoryHeap::MemoryHeap()
 {
     flags = 0;
+    index = UINT32_MAX;
     size  = 0;
 }
 
@@ -979,6 +1030,7 @@ void Anvil::MemoryProperties::init(const VkPhysicalDeviceMemoryProperties& in_me
                     ++n_heap)
     {
         heaps[n_heap].flags = static_cast<VkMemoryHeapFlagBits>(in_mem_properties.memoryHeaps[n_heap].flags);
+        heaps[n_heap].index = n_heap;
         heaps[n_heap].size  = in_mem_properties.memoryHeaps[n_heap].size;
     }
 
@@ -1024,9 +1076,9 @@ bool Anvil::operator==(const Anvil::MemoryType& in1,
  *
  *  NOTE: It is caller's responsibility to configure one of the data storage pointer members.
  */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_1D(VkImageAspectFlagBits in_aspect,
-                                                     uint32_t              in_n_mipmap,
-                                                     uint32_t              in_row_size)
+Anvil::MipmapRawData Anvil::MipmapRawData::create_1D(Anvil::ImageAspectFlagBits in_aspect,
+                                                     uint32_t                   in_n_mipmap,
+                                                     uint32_t                   in_row_size)
 {
     MipmapRawData result;
 
@@ -1048,12 +1100,12 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_1D(VkImageAspectFlagBits in_as
  *
  *  NOTE: It is caller's responsibility to configure one of the data storage pointer members.
  */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array(VkImageAspectFlagBits in_aspect,
-                                                           uint32_t              in_n_layer,
-                                                           uint32_t              in_n_layers,
-                                                           uint32_t              in_n_mipmap,
-                                                           uint32_t              in_row_size,
-                                                           uint32_t              in_data_size)
+Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array(Anvil::ImageAspectFlagBits in_aspect,
+                                                           uint32_t                   in_n_layer,
+                                                           uint32_t                   in_n_layers,
+                                                           uint32_t                   in_n_mipmap,
+                                                           uint32_t                   in_row_size,
+                                                           uint32_t                   in_data_size)
 {
     MipmapRawData result;
 
@@ -1076,10 +1128,10 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array(VkImageAspectFlagBits
  *
  *  NOTE: It is caller's responsibility to configure one of the data storage pointer members.
  */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_2D(VkImageAspectFlagBits in_aspect,
-                                                     uint32_t              in_n_mipmap,
-                                                     uint32_t              in_data_size,
-                                                     uint32_t              in_row_size)
+Anvil::MipmapRawData Anvil::MipmapRawData::create_2D(Anvil::ImageAspectFlagBits in_aspect,
+                                                     uint32_t                   in_n_mipmap,
+                                                     uint32_t                   in_data_size,
+                                                     uint32_t                   in_row_size)
 {
     MipmapRawData result;
 
@@ -1101,12 +1153,12 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_2D(VkImageAspectFlagBits in_as
  *
  *  NOTE: It is caller's responsibility to configure one of the data storage pointer members.
  */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array(VkImageAspectFlagBits in_aspect,
-                                                           uint32_t              in_n_layer,
-                                                           uint32_t              in_n_layers,
-                                                           uint32_t              in_n_mipmap,
-                                                           uint32_t              in_data_size,
-                                                           uint32_t              in_row_size)
+Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array(Anvil::ImageAspectFlagBits in_aspect,
+                                                           uint32_t                   in_n_layer,
+                                                           uint32_t                   in_n_layers,
+                                                           uint32_t                   in_n_mipmap,
+                                                           uint32_t                   in_data_size,
+                                                           uint32_t                   in_row_size)
 {
     MipmapRawData result;
 
@@ -1129,12 +1181,12 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array(VkImageAspectFlagBits
  *
  *  NOTE: It is caller's responsibility to configure one of the data storage pointer members.
  */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_3D(VkImageAspectFlagBits in_aspect,
-                                                     uint32_t              in_n_layer,
-                                                     uint32_t              in_n_slices,
-                                                     uint32_t              in_n_mipmap,
-                                                     uint32_t              in_data_size,
-                                                     uint32_t              in_row_size)
+Anvil::MipmapRawData Anvil::MipmapRawData::create_3D(Anvil::ImageAspectFlagBits in_aspect,
+                                                     uint32_t                   in_n_layer,
+                                                     uint32_t                   in_n_slices,
+                                                     uint32_t                   in_n_mipmap,
+                                                     uint32_t                   in_data_size,
+                                                     uint32_t                   in_row_size)
 {
     MipmapRawData result;
 
@@ -1155,7 +1207,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_3D(VkImageAspectFlagBits in_as
 
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_from_uchar_ptr(VkImageAspectFlagBits          in_aspect,
+Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_from_uchar_ptr(Anvil::ImageAspectFlagBits     in_aspect,
                                                                     uint32_t                       in_n_mipmap,
                                                                     std::shared_ptr<unsigned char> in_linear_tightly_packed_data_ptr,
                                                                     uint32_t                       in_row_size)
@@ -1170,10 +1222,10 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_from_uchar_ptr(VkImageAspec
 }
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_from_uchar_ptr(VkImageAspectFlagBits in_aspect,
-                                                                    uint32_t              in_n_mipmap,
-                                                                    const unsigned char*  in_linear_tightly_packed_data_ptr,
-                                                                    uint32_t              in_row_size)
+Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_from_uchar_ptr(Anvil::ImageAspectFlagBits in_aspect,
+                                                                    uint32_t                   in_n_mipmap,
+                                                                    const unsigned char*       in_linear_tightly_packed_data_ptr,
+                                                                    uint32_t                   in_row_size)
 {
     MipmapRawData result = create_1D(in_aspect,
                                      in_n_mipmap,
@@ -1185,7 +1237,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_from_uchar_ptr(VkImageAspec
 }
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_from_uchar_vector_ptr(Anvil::ImageAspectFlagBits                   in_aspect,
                                                                            uint32_t                                     in_n_mipmap,
                                                                            std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
                                                                            uint32_t                                     in_row_size)
@@ -1200,7 +1252,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_from_uchar_vector_ptr(VkIma
 }
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array_from_uchar_ptr(VkImageAspectFlagBits          in_aspect,
+Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array_from_uchar_ptr(Anvil::ImageAspectFlagBits     in_aspect,
                                                                           uint32_t                       in_n_layer,
                                                                           uint32_t                       in_n_layers,
                                                                           uint32_t                       in_n_mipmap,
@@ -1221,13 +1273,13 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array_from_uchar_ptr(VkImag
 }
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array_from_uchar_ptr(VkImageAspectFlagBits in_aspect,
-                                                                          uint32_t              in_n_layer,
-                                                                          uint32_t              in_n_layers,
-                                                                          uint32_t              in_n_mipmap,
-                                                                          const unsigned char*  in_linear_tightly_packed_data_ptr,
-                                                                          uint32_t              in_row_size,
-                                                                          uint32_t              in_data_size)
+Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array_from_uchar_ptr(Anvil::ImageAspectFlagBits in_aspect,
+                                                                          uint32_t                   in_n_layer,
+                                                                          uint32_t                   in_n_layers,
+                                                                          uint32_t                   in_n_mipmap,
+                                                                          const unsigned char*       in_linear_tightly_packed_data_ptr,
+                                                                          uint32_t                   in_row_size,
+                                                                          uint32_t                   in_data_size)
 {
     MipmapRawData result = create_1D_array(in_aspect,
                                            in_n_layer,
@@ -1242,7 +1294,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array_from_uchar_ptr(VkImag
 }
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array_from_uchar_vector_ptr(Anvil::ImageAspectFlagBits                   in_aspect,
                                                                                  uint32_t                                     in_n_layer,
                                                                                  uint32_t                                     in_n_layers,
                                                                                  uint32_t                                     in_n_mipmap,
@@ -1263,7 +1315,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array_from_uchar_vector_ptr
 }
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_from_uchar_ptr(VkImageAspectFlagBits          in_aspect,
+Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_from_uchar_ptr(Anvil::ImageAspectFlagBits     in_aspect,
                                                                     uint32_t                       in_n_mipmap,
                                                                     std::shared_ptr<unsigned char> in_linear_tightly_packed_data_ptr,
                                                                     uint32_t                       in_data_size,
@@ -1280,11 +1332,11 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_from_uchar_ptr(VkImageAspec
 }
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_from_uchar_ptr(VkImageAspectFlagBits in_aspect,
-                                                                    uint32_t              in_n_mipmap,
-                                                                    const unsigned char*  in_linear_tightly_packed_data_ptr,
-                                                                    uint32_t              in_data_size,
-                                                                    uint32_t              in_row_size)
+Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_from_uchar_ptr(Anvil::ImageAspectFlagBits in_aspect,
+                                                                    uint32_t                   in_n_mipmap,
+                                                                    const unsigned char*       in_linear_tightly_packed_data_ptr,
+                                                                    uint32_t                   in_data_size,
+                                                                    uint32_t                   in_row_size)
 {
     MipmapRawData result = create_2D(in_aspect,
                                      in_n_mipmap,
@@ -1297,7 +1349,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_from_uchar_ptr(VkImageAspec
 }
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_from_uchar_vector_ptr(Anvil::ImageAspectFlagBits                   in_aspect,
                                                                            uint32_t                                     in_n_mipmap,
                                                                            std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
                                                                            uint32_t                                     in_data_size,
@@ -1314,7 +1366,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_from_uchar_vector_ptr(VkIma
 }
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array_from_uchar_ptr(VkImageAspectFlagBits          in_aspect,
+Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array_from_uchar_ptr(Anvil::ImageAspectFlagBits     in_aspect,
                                                                           uint32_t                       in_n_layer,
                                                                           uint32_t                       in_n_layers,
                                                                           uint32_t                       in_n_mipmap,
@@ -1335,13 +1387,13 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array_from_uchar_ptr(VkImag
 }
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array_from_uchar_ptr(VkImageAspectFlagBits in_aspect,
-                                                                          uint32_t              in_n_layer,
-                                                                          uint32_t              in_n_layers,
-                                                                          uint32_t              in_n_mipmap,
-                                                                          const unsigned char*  in_linear_tightly_packed_data_ptr,
-                                                                          uint32_t              in_data_size,
-                                                                          uint32_t              in_row_size)
+Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array_from_uchar_ptr(Anvil::ImageAspectFlagBits in_aspect,
+                                                                          uint32_t                   in_n_layer,
+                                                                          uint32_t                   in_n_layers,
+                                                                          uint32_t                   in_n_mipmap,
+                                                                          const unsigned char*       in_linear_tightly_packed_data_ptr,
+                                                                          uint32_t                   in_data_size,
+                                                                          uint32_t                   in_row_size)
 {
     MipmapRawData result = create_2D_array(in_aspect,
                                            in_n_layer,
@@ -1356,7 +1408,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array_from_uchar_ptr(VkImag
 }
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array_from_uchar_vector_ptr(Anvil::ImageAspectFlagBits                   in_aspect,
                                                                                  uint32_t                                     in_n_layer,
                                                                                  uint32_t                                     in_n_layers,
                                                                                  uint32_t                                     in_n_mipmap,
@@ -1379,7 +1431,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array_from_uchar_vector_ptr
 
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_3D_from_uchar_ptr(VkImageAspectFlagBits          in_aspect,
+Anvil::MipmapRawData Anvil::MipmapRawData::create_3D_from_uchar_ptr(Anvil::ImageAspectFlagBits     in_aspect,
                                                                     uint32_t                       in_n_layer,
                                                                     uint32_t                       in_n_layer_slices,
                                                                     uint32_t                       in_n_mipmap,
@@ -1400,13 +1452,13 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_3D_from_uchar_ptr(VkImageAspec
 }
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_3D_from_uchar_ptr(VkImageAspectFlagBits in_aspect,
-                                                                    uint32_t              in_n_layer,
-                                                                    uint32_t              in_n_layer_slices,
-                                                                    uint32_t              in_n_mipmap,
-                                                                    const unsigned char*  in_linear_tightly_packed_data_ptr,
-                                                                    uint32_t              in_slice_data_size,
-                                                                    uint32_t              in_row_size)
+Anvil::MipmapRawData Anvil::MipmapRawData::create_3D_from_uchar_ptr(Anvil::ImageAspectFlagBits in_aspect,
+                                                                    uint32_t                   in_n_layer,
+                                                                    uint32_t                   in_n_layer_slices,
+                                                                    uint32_t                   in_n_mipmap,
+                                                                    const unsigned char*       in_linear_tightly_packed_data_ptr,
+                                                                    uint32_t                   in_slice_data_size,
+                                                                    uint32_t                   in_row_size)
 {
     MipmapRawData result = create_3D(in_aspect,
                                      in_n_layer,
@@ -1421,7 +1473,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_3D_from_uchar_ptr(VkImageAspec
 }
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_3D_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+Anvil::MipmapRawData Anvil::MipmapRawData::create_3D_from_uchar_vector_ptr(Anvil::ImageAspectFlagBits                   in_aspect,
                                                                            uint32_t                                     in_n_layer,
                                                                            uint32_t                                     in_n_layer_slices,
                                                                            uint32_t                                     in_n_mipmap,
@@ -1443,7 +1495,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_3D_from_uchar_vector_ptr(VkIma
 
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_from_uchar_ptr(VkImageAspectFlagBits          in_aspect,
+Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_from_uchar_ptr(Anvil::ImageAspectFlagBits     in_aspect,
                                                                           uint32_t                       in_n_layer,
                                                                           uint32_t                       in_n_mipmap,
                                                                           std::shared_ptr<unsigned char> in_linear_tightly_packed_data_ptr,
@@ -1465,12 +1517,12 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_from_uchar_ptr(VkImag
 }
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_from_uchar_ptr(VkImageAspectFlagBits in_aspect,
-                                                                          uint32_t              in_n_layer,
-                                                                          uint32_t              in_n_mipmap,
-                                                                          const unsigned char*  in_linear_tightly_packed_data_ptr,
-                                                                          uint32_t              in_data_size,
-                                                                          uint32_t              in_row_size)
+Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_from_uchar_ptr(Anvil::ImageAspectFlagBits in_aspect,
+                                                                          uint32_t                   in_n_layer,
+                                                                          uint32_t                   in_n_mipmap,
+                                                                          const unsigned char*       in_linear_tightly_packed_data_ptr,
+                                                                          uint32_t                   in_data_size,
+                                                                          uint32_t                   in_row_size)
 {
     anvil_assert(in_n_layer < 6);
 
@@ -1487,7 +1539,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_from_uchar_ptr(VkImag
 }
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_from_uchar_vector_ptr(Anvil::ImageAspectFlagBits                   in_aspect,
                                                                                  uint32_t                                     in_n_layer,
                                                                                  uint32_t                                     in_n_mipmap,
                                                                                  std::shared_ptr<std::vector<unsigned char> > in_linear_tightly_packed_data_ptr,
@@ -1510,7 +1562,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_from_uchar_vector_ptr
 
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_array_from_uchar_ptr(VkImageAspectFlagBits          in_aspect,
+Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_array_from_uchar_ptr(Anvil::ImageAspectFlagBits     in_aspect,
                                                                                 uint32_t                       in_n_layer,
                                                                                 uint32_t                       in_n_layers,
                                                                                 uint32_t                       in_n_mipmap,
@@ -1531,13 +1583,13 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_array_from_uchar_ptr(
 }
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_array_from_uchar_ptr(VkImageAspectFlagBits in_aspect,
-                                                                                uint32_t              in_n_layer,
-                                                                                uint32_t              in_n_layers,
-                                                                                uint32_t              in_n_mipmap,
-                                                                                const unsigned char*  in_linear_tightly_packed_data_ptr,
-                                                                                uint32_t              in_data_size,
-                                                                                uint32_t              in_row_size)
+Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_array_from_uchar_ptr(Anvil::ImageAspectFlagBits in_aspect,
+                                                                                uint32_t                   in_n_layer,
+                                                                                uint32_t                   in_n_layers,
+                                                                                uint32_t                   in_n_mipmap,
+                                                                                const unsigned char*       in_linear_tightly_packed_data_ptr,
+                                                                                uint32_t                   in_data_size,
+                                                                                uint32_t                   in_row_size)
 {
     MipmapRawData result = create_2D_array(in_aspect,
                                            in_n_layer,
@@ -1552,7 +1604,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_array_from_uchar_ptr(
 }
 
 /* Please see header for specification */
-Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_array_from_uchar_vector_ptr(VkImageAspectFlagBits                        in_aspect,
+Anvil::MipmapRawData Anvil::MipmapRawData::create_cube_map_array_from_uchar_vector_ptr(Anvil::ImageAspectFlagBits                   in_aspect,
                                                                                        uint32_t                                     in_n_layer,
                                                                                        uint32_t                                     in_n_layers,
                                                                                        uint32_t                                     in_n_mipmap,
@@ -1577,6 +1629,7 @@ Anvil::PhysicalDeviceProperties::PhysicalDeviceProperties()
     amd_shader_core_properties_ptr                   = nullptr;
     core_vk1_0_properties_ptr                        = nullptr;
     ext_descriptor_indexing_properties_ptr           = nullptr;
+    khr_maintenance2_point_clipping_properties_ptr   = nullptr;
     khr_maintenance3_properties_ptr                  = nullptr;
 }
 
@@ -1585,12 +1638,14 @@ Anvil::PhysicalDeviceProperties::PhysicalDeviceProperties(const AMDShaderCorePro
                                                           const EXTDescriptorIndexingProperties*                                in_ext_descriptor_indexing_properties_ptr,
                                                           const EXTVertexAttributeDivisorProperties*                            in_ext_vertex_attribute_divisor_properties_ptr,
                                                           const Anvil::KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties* in_khr_external_memory_caps_physical_device_id_props_ptr,
-                                                          const KHRMaintenance3Properties*                                      in_khr_maintenance3_properties_ptr)
+                                                          const KHRMaintenance3Properties*                                      in_khr_maintenance3_properties_ptr,
+                                                          const Anvil::KHRMaintenance2PhysicalDevicePointClippingProperties*    in_khr_maintenance2_point_clipping_properties_ptr)
     :amd_shader_core_properties_ptr                                    (in_amd_shader_core_properties_ptr),
      core_vk1_0_properties_ptr                                         (in_core_vk1_0_properties_ptr),
      ext_descriptor_indexing_properties_ptr                            (in_ext_descriptor_indexing_properties_ptr),
      ext_vertex_attribute_divisor_properties_ptr                       (in_ext_vertex_attribute_divisor_properties_ptr),
      khr_external_memory_capabilities_physical_device_id_properties_ptr(in_khr_external_memory_caps_physical_device_id_props_ptr),
+     khr_maintenance2_point_clipping_properties_ptr                    (in_khr_maintenance2_point_clipping_properties_ptr),
      khr_maintenance3_properties_ptr                                   (in_khr_maintenance3_properties_ptr)
 {
     /* Stub */
@@ -1635,10 +1690,10 @@ Anvil::PhysicalDeviceGroup::PhysicalDeviceGroup()
 Anvil::PhysicalDeviceLimits::PhysicalDeviceLimits()
     :buffer_image_granularity                             (std::numeric_limits<VkDeviceSize>::max() ),
      discrete_queue_priorities                            (UINT32_MAX),
-     framebuffer_color_sample_counts                      (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
-     framebuffer_depth_sample_counts                      (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
-     framebuffer_no_attachments_sample_counts             (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
-     framebuffer_stencil_sample_counts                    (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     framebuffer_color_sample_counts                      (Anvil::SampleCountFlagBits::SAMPLE_COUNT_UNKNOWN),
+     framebuffer_depth_sample_counts                      (Anvil::SampleCountFlagBits::SAMPLE_COUNT_UNKNOWN),
+     framebuffer_no_attachments_sample_counts             (Anvil::SampleCountFlagBits::SAMPLE_COUNT_UNKNOWN),
+     framebuffer_stencil_sample_counts                    (Anvil::SampleCountFlagBits::SAMPLE_COUNT_UNKNOWN),
      line_width_granularity                               (FLT_MAX),
      max_bound_descriptor_sets                            (UINT32_MAX),
      max_clip_distances                                   (UINT32_MAX),
@@ -1719,13 +1774,13 @@ Anvil::PhysicalDeviceLimits::PhysicalDeviceLimits()
      optimal_buffer_copy_offset_alignment                 (std::numeric_limits<VkDeviceSize>::max() ),
      optimal_buffer_copy_row_pitch_alignment              (std::numeric_limits<VkDeviceSize>::max() ),
      point_size_granularity                               (FLT_MAX),
-     sampled_image_color_sample_counts                    (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM), 
-     sampled_image_depth_sample_counts                    (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
-     sampled_image_integer_sample_counts                  (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
-     sampled_image_stencil_sample_counts                  (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     sampled_image_color_sample_counts                    (Anvil::SampleCountFlagBits::SAMPLE_COUNT_UNKNOWN), 
+     sampled_image_depth_sample_counts                    (Anvil::SampleCountFlagBits::SAMPLE_COUNT_UNKNOWN),
+     sampled_image_integer_sample_counts                  (Anvil::SampleCountFlagBits::SAMPLE_COUNT_UNKNOWN),
+     sampled_image_stencil_sample_counts                  (Anvil::SampleCountFlagBits::SAMPLE_COUNT_UNKNOWN),
      sparse_address_space_size                            (std::numeric_limits<VkDeviceSize>::max() ),
      standard_sample_locations                            (false),
-     storage_image_sample_counts                          (VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM),
+     storage_image_sample_counts                          (Anvil::SampleCountFlagBits::SAMPLE_COUNT_UNKNOWN),
      strict_lines                                         (false),
      sub_pixel_interpolation_offset_bits                  (UINT32_MAX),
      sub_pixel_precision_bits                             (UINT32_MAX),
@@ -2134,10 +2189,10 @@ bool Anvil::PushConstantRange::operator==(const PushConstantRange& in) const
 
 Anvil::QueueFamilyInfo::QueueFamilyInfo(const VkQueueFamilyProperties& in_props)
 {
-    flags                          = in_props.queueFlags;
-    min_image_transfer_granularity = in_props.minImageTransferGranularity;
-    n_queues                       = in_props.queueCount;
-    n_timestamp_bits               = in_props.timestampValidBits;
+    flags                                             = in_props.queueFlags;
+    min_image_transfer_granularity                    = in_props.minImageTransferGranularity;
+    n_queues                                          = in_props.queueCount;
+    n_timestamp_bits                                  = in_props.timestampValidBits;
 }
 
 /** Please see header for specification */
@@ -2591,7 +2646,8 @@ Anvil::SubmitInfo::SubmitInfo(uint32_t                         in_n_command_buff
                               const VkPipelineStageFlags*      in_opt_dst_stage_masks_to_wait_on_ptrs,
                               bool                             in_should_block,
                               Anvil::Fence*                    in_opt_fence_ptr)
-    :command_buffers_sgpu_ptr               (in_opt_cmd_buffer_ptrs_ptr),
+    :command_buffers_mgpu_ptr               (nullptr),
+     command_buffers_sgpu_ptr               (in_opt_cmd_buffer_ptrs_ptr),
 #if defined(_WIN32)
      d3d12_fence_signal_semaphore_values_ptr(nullptr),
      d3d12_fence_wait_semaphore_values_ptr  (nullptr),
@@ -2601,10 +2657,12 @@ Anvil::SubmitInfo::SubmitInfo(uint32_t                         in_n_command_buff
      n_command_buffers                      (in_n_command_buffers),
      n_signal_semaphores                    (in_n_semaphores_to_signal),
      n_wait_semaphores                      (in_n_semaphores_to_wait_on),
+     signal_semaphores_mgpu_ptr             (nullptr),
      signal_semaphores_sgpu_ptr             (in_opt_semaphore_to_signal_ptrs_ptr),
      should_block                           (in_should_block),
      timeout                                (UINT64_MAX),
      type                                   (SubmissionType::SGPU),
+     wait_semaphores_mgpu_ptr               (nullptr),
      wait_semaphores_sgpu_ptr               (in_opt_semaphore_to_wait_on_ptrs_ptr)
 {
     anvil_assert((in_n_command_buffers == 0)                                          ||
@@ -2625,7 +2683,8 @@ Anvil::SubmitInfo::SubmitInfo(Anvil::CommandBufferBase*   in_cmd_buffer_ptr,
                               const VkPipelineStageFlags* in_opt_dst_stage_masks_to_wait_on_ptrs,
                               bool                        in_should_block,
                               Anvil::Fence*               in_opt_fence_ptr)
-    :command_buffers_sgpu_ptr               (nullptr),
+    :command_buffers_mgpu_ptr               (nullptr),
+     command_buffers_sgpu_ptr               (nullptr),
 #if defined(_WIN32)
      d3d12_fence_signal_semaphore_values_ptr(nullptr),
      d3d12_fence_wait_semaphore_values_ptr  (nullptr),
@@ -2635,10 +2694,12 @@ Anvil::SubmitInfo::SubmitInfo(Anvil::CommandBufferBase*   in_cmd_buffer_ptr,
      n_command_buffers                      ((in_cmd_buffer_ptr != nullptr) ? 1 : 0),
      n_signal_semaphores                    (in_n_semaphores_to_signal),
      n_wait_semaphores                      (in_n_semaphores_to_wait_on),
+     signal_semaphores_mgpu_ptr             (nullptr),
      signal_semaphores_sgpu_ptr             (in_opt_semaphore_to_signal_ptrs_ptr),
      should_block                           (in_should_block),
      timeout                                (UINT64_MAX),
      type                                   (SubmissionType::SGPU),
+     wait_semaphores_mgpu_ptr               (nullptr),
      wait_semaphores_sgpu_ptr               (in_opt_semaphore_to_wait_on_ptrs_ptr)
 {
     anvil_assert((in_n_semaphores_to_signal == 0)                                                   ||
@@ -2649,6 +2710,44 @@ Anvil::SubmitInfo::SubmitInfo(Anvil::CommandBufferBase*   in_cmd_buffer_ptr,
 
     helper_cmd_buffer_raw_ptr = in_cmd_buffer_ptr;
     command_buffers_sgpu_ptr  = &helper_cmd_buffer_raw_ptr;
+}
+
+Anvil::SubmitInfo::SubmitInfo(uint32_t                           in_n_command_buffer_submissions,
+                              const CommandBufferMGPUSubmission* in_opt_command_buffer_submissions_ptr,
+                              uint32_t                           in_n_signal_semaphore_submissions,
+                              const SemaphoreMGPUSubmission*     in_opt_signal_semaphore_submissions_ptr,
+                              uint32_t                           in_n_wait_semaphore_submissions,
+                              const SemaphoreMGPUSubmission*     in_opt_wait_semaphore_submissions_ptr,
+                              const VkPipelineStageFlags*        in_opt_dst_stage_masks_to_wait_on_ptr,
+                              bool                               in_should_block,
+                              Anvil::Fence*                      in_opt_fence_ptr)
+    :command_buffers_mgpu_ptr               (in_opt_command_buffer_submissions_ptr),
+     command_buffers_sgpu_ptr               (nullptr),
+#if defined(_WIN32)
+     d3d12_fence_signal_semaphore_values_ptr(nullptr),
+     d3d12_fence_wait_semaphore_values_ptr  (nullptr),
+#endif
+     dst_stage_wait_masks_ptr               (in_opt_dst_stage_masks_to_wait_on_ptr),
+     fence_ptr                              (in_opt_fence_ptr),
+     n_command_buffers                      (in_n_command_buffer_submissions),
+     n_signal_semaphores                    (in_n_signal_semaphore_submissions),
+     n_wait_semaphores                      (in_n_wait_semaphore_submissions),
+     signal_semaphores_mgpu_ptr             (in_opt_signal_semaphore_submissions_ptr),
+     signal_semaphores_sgpu_ptr             (nullptr),
+     should_block                           (in_should_block),
+     timeout                                (UINT64_MAX),
+     type                                   (SubmissionType::MGPU),
+     wait_semaphores_mgpu_ptr               (in_opt_wait_semaphore_submissions_ptr),
+     wait_semaphores_sgpu_ptr               (nullptr)
+{
+    anvil_assert((in_n_command_buffer_submissions == 0)                                                     ||
+                 (in_n_command_buffer_submissions != 0 && in_opt_command_buffer_submissions_ptr != nullptr) );
+
+    anvil_assert((in_n_signal_semaphore_submissions == 0)                                                       ||
+                 (in_n_signal_semaphore_submissions != 0 && in_opt_signal_semaphore_submissions_ptr != nullptr) );
+
+    anvil_assert((in_n_wait_semaphore_submissions == 0)                                                                                                         ||
+                 (in_n_wait_semaphore_submissions != 0 && in_opt_wait_semaphore_submissions_ptr != nullptr && in_opt_dst_stage_masks_to_wait_on_ptr != nullptr) );
 }
 
 Anvil::SubmitInfo Anvil::SubmitInfo::create(Anvil::CommandBufferBase*   in_opt_cmd_buffer_ptr,
@@ -2726,6 +2825,21 @@ Anvil::SubmitInfo Anvil::SubmitInfo::create_execute(Anvil::CommandBufferBase* co
                              in_opt_fence_ptr);
 }
 
+Anvil::SubmitInfo Anvil::SubmitInfo::create_execute(const CommandBufferMGPUSubmission* in_cmd_buffer_submission_ptr,
+                                                    bool                               in_should_block,
+                                                    Anvil::Fence*                      in_opt_fence_ptr)
+{
+    return Anvil::SubmitInfo(1,       /* in_n_command_buffers */
+                             in_cmd_buffer_submission_ptr,
+                             0,       /* in_n_semaphores_to_signal              */
+                             nullptr, /* in_opt_semaphore_to_signal_ptrs_ptr    */
+                             0,       /* in_n_semaphores_to_wait_on             */
+                             nullptr, /* in_opt_semaphore_to_wait_on_ptrs_ptr   */
+                             nullptr, /* in_opt_dst_stage_masks_to_wait_on_ptrs */
+                             in_should_block,
+                             in_opt_fence_ptr);
+}
+
 Anvil::SubmitInfo Anvil::SubmitInfo::create_execute_signal(Anvil::CommandBufferBase* in_cmd_buffer_ptr,
                                                            uint32_t                  in_n_semaphores_to_signal,
                                                            Anvil::Semaphore* const*  in_semaphore_to_signal_ptrs_ptr,
@@ -2760,6 +2874,26 @@ Anvil::SubmitInfo Anvil::SubmitInfo::create_execute_signal(Anvil::CommandBufferB
                              in_cmd_buffer_ptrs_ptr,
                              in_n_semaphores_to_signal,
                              in_semaphore_to_signal_ptrs_ptr,
+                             0,       /* in_n_semaphores_to_wait_on             */
+                             nullptr, /* in_opt_semaphore_to_wait_on_ptrs_ptr   */
+                             nullptr, /* in_opt_dst_stage_masks_to_wait_on_ptrs */
+                             in_should_block,
+                             in_opt_fence_ptr);
+}
+
+Anvil::SubmitInfo Anvil::SubmitInfo::create_execute_signal(const Anvil::CommandBufferMGPUSubmission* in_cmd_buffer_submission_ptr,
+                                                           uint32_t                                  in_n_signal_semaphore_submissions,
+                                                           const Anvil::SemaphoreMGPUSubmission*     in_signal_semaphore_submissions_ptr,
+                                                           bool                                      in_should_block,
+                                                           Anvil::Fence*                             in_opt_fence_ptr)
+{
+    anvil_assert(in_cmd_buffer_submission_ptr        != nullptr);
+    anvil_assert(in_signal_semaphore_submissions_ptr != nullptr);
+
+    return Anvil::SubmitInfo(1,       /* in_n_command_buffers */
+                             in_cmd_buffer_submission_ptr,
+                             in_n_signal_semaphore_submissions,
+                             in_signal_semaphore_submissions_ptr,
                              0,       /* in_n_semaphores_to_wait_on             */
                              nullptr, /* in_opt_semaphore_to_wait_on_ptrs_ptr   */
                              nullptr, /* in_opt_dst_stage_masks_to_wait_on_ptrs */
@@ -2874,6 +3008,27 @@ Anvil::SubmitInfo Anvil::SubmitInfo::create_wait_execute(Anvil::CommandBufferBas
                              in_opt_fence_ptr);
 }
 
+Anvil::SubmitInfo Anvil::SubmitInfo::create_wait_execute(const Anvil::CommandBufferMGPUSubmission* in_cmd_buffer_submission_ptr,
+                                                         uint32_t                                  in_n_wait_semaphore_submissions,
+                                                         const Anvil::SemaphoreMGPUSubmission*     in_wait_semaphore_submissions_ptr,
+                                                         const VkPipelineStageFlags*               in_dst_stage_masks_to_wait_on_ptrs,
+                                                         bool                                      in_should_block,
+                                                         Anvil::Fence*                             in_opt_fence_ptr)
+{
+    anvil_assert(in_cmd_buffer_submission_ptr      != nullptr);
+    anvil_assert(in_wait_semaphore_submissions_ptr != nullptr);
+
+    return Anvil::SubmitInfo(1,       /* in_n_command_buffers */
+                             in_cmd_buffer_submission_ptr,
+                             0,       /* in_n_semaphores_to_signal           */
+                             nullptr, /* in_opt_semaphore_to_signal_ptrs_ptr */
+                             in_n_wait_semaphore_submissions,
+                             in_wait_semaphore_submissions_ptr,
+                             in_dst_stage_masks_to_wait_on_ptrs,
+                             in_should_block,
+                             in_opt_fence_ptr);
+}
+
 Anvil::SubmitInfo Anvil::SubmitInfo::create_wait_execute_signal(Anvil::CommandBufferBase*   in_cmd_buffer_ptr,
                                                                 uint32_t                    in_n_semaphores_to_signal,
                                                                 Anvil::Semaphore* const*    in_semaphore_to_signal_ptrs_ptr,
@@ -2918,6 +3073,31 @@ Anvil::SubmitInfo Anvil::SubmitInfo::create_wait_execute_signal(Anvil::CommandBu
                              in_semaphore_to_signal_ptrs_ptr,
                              in_n_semaphores_to_wait_on,
                              in_semaphore_to_wait_on_ptrs_ptr,
+                             in_dst_stage_masks_to_wait_on_ptrs,
+                             in_should_block,
+                             in_opt_fence_ptr);
+}
+
+Anvil::SubmitInfo Anvil::SubmitInfo::create_wait_execute_signal(const Anvil::CommandBufferMGPUSubmission* in_cmd_buffer_submission_ptr,
+                                                                uint32_t                                  in_n_signal_semaphore_submissions,
+                                                                const Anvil::SemaphoreMGPUSubmission*     in_signal_semaphore_submissions_ptr,
+                                                                uint32_t                                  in_n_wait_semaphore_submissions,
+                                                                const Anvil::SemaphoreMGPUSubmission*     in_wait_semaphore_submissions_ptr,
+                                                                const VkPipelineStageFlags*               in_dst_stage_masks_to_wait_on_ptrs,
+                                                                bool                                      in_should_block,
+                                                                Anvil::Fence*                             in_opt_fence_ptr)
+{
+    anvil_assert(in_cmd_buffer_submission_ptr        != nullptr);
+    anvil_assert(in_dst_stage_masks_to_wait_on_ptrs  != nullptr);
+    anvil_assert(in_signal_semaphore_submissions_ptr != nullptr);
+    anvil_assert(in_wait_semaphore_submissions_ptr   != nullptr);
+
+    return Anvil::SubmitInfo(1,       /* in_n_command_buffers */
+                             in_cmd_buffer_submission_ptr,
+                             in_n_signal_semaphore_submissions,
+                             in_signal_semaphore_submissions_ptr,
+                             in_n_wait_semaphore_submissions,
+                             in_wait_semaphore_submissions_ptr,
                              in_dst_stage_masks_to_wait_on_ptrs,
                              in_should_block,
                              in_opt_fence_ptr);

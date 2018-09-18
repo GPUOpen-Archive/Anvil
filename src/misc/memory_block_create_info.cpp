@@ -22,6 +22,7 @@
 #include "misc/memory_block_create_info.h"
 #include "wrappers/device.h"
 #include "wrappers/memory_block.h"
+#include "wrappers/physical_device.h"
 
 
 Anvil::MemoryBlockCreateInfoUniquePtr Anvil::MemoryBlockCreateInfo::create_derived(MemoryBlock* in_parent_memory_block_ptr,
@@ -40,7 +41,7 @@ Anvil::MemoryBlockCreateInfoUniquePtr Anvil::MemoryBlockCreateInfo::create_deriv
                                          const_cast<Anvil::BaseDevice*>(in_parent_memory_block_ptr->get_create_info_ptr()->m_device_ptr),
                                          VK_NULL_HANDLE, /* in_memory */
                                          in_parent_memory_block_ptr->get_create_info_ptr()->m_memory_features,
-                                         UINT32_MAX, /* in_memory_type_index */
+                                         in_parent_memory_block_ptr->get_create_info_ptr()->m_memory_type_index,
                                          n_physical_devices,
                                          Anvil::OnMemoryBlockReleaseCallbackFunction(),
                                          (n_physical_devices != 0) ? &in_parent_memory_block_ptr->get_create_info_ptr()->m_physical_devices.at(0)
@@ -90,10 +91,30 @@ Anvil::MemoryBlockCreateInfoUniquePtr Anvil::MemoryBlockCreateInfo::create_regul
                                                                                    VkDeviceSize              in_size,
                                                                                    Anvil::MemoryFeatureFlags in_memory_features)
 {
-    auto result_ptr = Anvil::MemoryBlockCreateInfoUniquePtr(nullptr,
-                                                            std::default_delete<Anvil::MemoryBlockCreateInfo>() );
+    std::vector<const Anvil::PhysicalDevice*> physical_devices;
+    auto                                      result_ptr        = Anvil::MemoryBlockCreateInfoUniquePtr(nullptr,
+                                                                                                        std::default_delete<Anvil::MemoryBlockCreateInfo>() );
 
-    anvil_assert(in_device_ptr->get_type() == Anvil::DEVICE_TYPE_SINGLE_GPU); /* todo: pass physical device array below accordingly */
+    if (in_device_ptr->get_type() == Anvil::DEVICE_TYPE_MULTI_GPU)
+    {
+        const auto     device_mgpu_ptr    = dynamic_cast<const Anvil::MGPUDevice*>(in_device_ptr);
+        const uint32_t n_physical_devices = device_mgpu_ptr->get_n_physical_devices();
+
+        anvil_assert(n_physical_devices > 0);
+
+        physical_devices.resize(n_physical_devices);
+
+        for (uint32_t n_physical_device = 0;
+                      n_physical_device < n_physical_devices;
+                    ++n_physical_device)
+        {
+            physical_devices.at(n_physical_device) = device_mgpu_ptr->get_physical_device(n_physical_device);
+        }
+    }
+    else
+    {
+        /* Moot */
+    }
 
     result_ptr.reset(
         new Anvil::MemoryBlockCreateInfo(Anvil::MemoryBlockType::REGULAR,
@@ -102,9 +123,10 @@ Anvil::MemoryBlockCreateInfoUniquePtr Anvil::MemoryBlockCreateInfo::create_regul
                                          VK_NULL_HANDLE, /* in_memory */
                                          in_memory_features,
                                          0, /* in_memory_type_index  */
-                                         0, /* in_n_physical_devices */
+                                         static_cast<uint32_t>(physical_devices.size() ),
                                          OnMemoryBlockReleaseCallbackFunction(),
-                                         nullptr, /* in_physical_device_ptr_ptr */
+                                         (physical_devices.size() > 0) ? &physical_devices.at(0)
+                                                                       : nullptr,
                                          nullptr, /* in_parent_memory_block_ptr */
                                          in_size,
                                          0)       /* in_start_offset */
@@ -128,6 +150,7 @@ Anvil::MemoryBlockCreateInfo::MemoryBlockCreateInfo(const Anvil::MemoryBlockType
     :m_allowed_memory_bits                     (in_allowed_memory_bits),
      m_dedicated_allocation_buffer_ptr         (nullptr),
      m_dedicated_allocation_image_ptr          (nullptr),
+     m_device_mask                             (0),
      m_device_ptr                              (in_device_ptr),
      m_exportable_external_memory_handle_types (Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_NONE),
 #ifdef _WIN32
@@ -146,6 +169,12 @@ Anvil::MemoryBlockCreateInfo::MemoryBlockCreateInfo(const Anvil::MemoryBlockType
      m_type                                    (in_type),
      m_use_dedicated_allocation                (false)
 {
+    if (in_parent_memory_block_ptr != nullptr)
+    {
+        m_device_mask      = in_parent_memory_block_ptr->get_create_info_ptr()->m_device_mask;
+        m_physical_devices = in_parent_memory_block_ptr->get_create_info_ptr()->m_physical_devices;
+    }
+    else
     if (in_n_physical_devices != 0)
     {
         anvil_assert(in_opt_physical_device_ptr_ptr != nullptr);
@@ -156,7 +185,24 @@ Anvil::MemoryBlockCreateInfo::MemoryBlockCreateInfo(const Anvil::MemoryBlockType
                       n_physical_device < in_n_physical_devices;
                     ++n_physical_device)
         {
+            m_device_mask |= 1 << (in_opt_physical_device_ptr_ptr[n_physical_device]->get_device_group_device_index() );
+
             m_physical_devices.at(n_physical_device) = in_opt_physical_device_ptr_ptr[n_physical_device];
+        }
+    }
+    else
+    {
+        if (m_device_ptr->get_type() == Anvil::DeviceType::DEVICE_TYPE_MULTI_GPU)
+        {
+            const auto     device_mgpu_ptr    = dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr);
+            const uint32_t n_physical_devices = device_mgpu_ptr->get_n_physical_devices();
+
+            for (uint32_t n_physical_device = 0;
+                          n_physical_device < n_physical_devices;
+                        ++n_physical_device)
+            {
+                m_device_mask |= 1 << (device_mgpu_ptr->get_physical_device(n_physical_device)->get_device_group_device_index() );
+            }
         }
     }
 }

@@ -38,6 +38,45 @@
 
 namespace Anvil
 {
+    /** TODO */
+    typedef struct LocalModePresentationItem
+    {
+        /* Tells which physical device's swapchain image at index @param in_swapchain_image_index should be presented. */
+        const Anvil::PhysicalDevice* physical_device_ptr;
+
+        uint32_t          swapchain_image_index;
+        Anvil::Swapchain* swapchain_ptr;
+
+        LocalModePresentationItem()
+        {
+            swapchain_image_index = ~0u;
+            swapchain_ptr         = nullptr;
+        }
+    } LocalModePresentationItem;
+
+    /** TODO */
+    typedef struct SumModePresentationItem
+    {
+        uint32_t                            n_physical_devices;
+        const Anvil::PhysicalDevice* const* physical_devices_ptr;
+        uint32_t                            swapchain_image_index;
+        Anvil::Swapchain*                   swapchain_ptr;
+
+        SumModePresentationItem()
+        {
+            n_physical_devices    = ~0u;
+            physical_devices_ptr  = nullptr;
+            swapchain_image_index = ~0u;
+            swapchain_ptr         = nullptr;
+        }
+    } SumModePresentationItem;
+
+    /** TODO */
+    typedef SumModePresentationItem LocalMultiDeviceModePresentationItem;
+
+    /** TODO */
+    typedef LocalModePresentationItem RemoteModePresentationItem;
+
     typedef enum
     {
         /* Notification fired right after vkQueuePresentKHR() has been issued for a swapchain.
@@ -114,7 +153,7 @@ namespace Anvil
          *  This function will only succeed if used for a single-GPU device instance.
          *
          *  NOTE: If you are presenting to an off-screen window, make sure to transition
-         *        the image to VK_IMAGE_LAYOUT_GENERAL, instead of VK_IMAGE_LAYOUT_PRESENT_SRC_KHR.
+         *        the image to Anvil::ImageLayout::GENERAL, instead of Anvil::ImageLayout::PRESENT_SRC_KHR.
          *        In off-screen rendering mode, swapchain images are actually regular images, so
          *        presentable layout is not supported.
          *
@@ -132,6 +171,70 @@ namespace Anvil
                          uint32_t                 in_n_wait_semaphores,
                          Anvil::Semaphore* const* in_wait_semaphore_ptrs_ptr);
 
+        /** See present() documentation for general information about this function.
+         *
+         *  This function can be called for both single-GPU and multi-GPU devices.
+         *
+         *  @param in_n_local_mode_presentation_items TODO
+         *  @param in_local_mode_presentation_items   TODO
+         *  @param in_n_wait_semaphores               TODO
+         *  @param in_wait_semaphore_ptrs_ptr         TODO
+         *
+         *  @return TODO
+         **/
+        VkResult present_in_local_presentation_mode(uint32_t                         in_n_local_mode_presentation_items,
+                                                    const LocalModePresentationItem* in_local_mode_presentation_items,
+                                                    uint32_t                         in_n_wait_semaphores,
+                                                    Anvil::Semaphore* const*         in_wait_semaphore_ptrs_ptr);
+
+        /** See present() documentation for general information about this function.
+         *
+         *  This function can be called for both single-GPU and multi-GPU devices.
+         *
+         *  @param in_n_local_multi_device_mode_presentation_items TODO
+         *  @param in_local_multi_device_mode_presentation_items   TODO
+         *  @param in_n_wait_semaphores                            TODO
+         *  @param in_wait_semaphore_ptrs_ptr                      TODO
+         *
+         *  @return TODO
+         **/
+        VkResult present_in_local_multi_device_presentation_mode(uint32_t                                    in_n_local_multi_device_mode_presentation_items,
+                                                                 const LocalMultiDeviceModePresentationItem* in_local_multi_device_mode_presentation_items,
+                                                                 uint32_t                                    in_n_wait_semaphores,
+                                                                 Anvil::Semaphore* const*                    in_wait_semaphore_ptrs_ptr);
+
+        /** See present() documentation for general information about this function.
+         *
+         *  This function can be called for multi-GPU devices.
+         *
+         *  @param in_n_remote_mode_presentation_items TODO
+         *  @param in_remote_mode_presentation_items   TODO
+         *  @param in_n_wait_semaphores                TODO
+         *  @param in_wait_semaphore_ptrs_ptr          TODO
+         *
+         *  @return TODO
+         **/
+        VkResult present_in_remote_presentation_mode(uint32_t                          in_n_remote_mode_presentation_items,
+                                                     const RemoteModePresentationItem* in_remote_mode_presentation_items,
+                                                     uint32_t                          in_n_wait_semaphores,
+                                                     Anvil::Semaphore* const*          in_wait_semaphore_ptrs_ptr);
+
+        /** See present() documentation for general information about this function.
+         *
+         *  This function can be called for multi-GPU devices.
+         *
+         *  @param in_n_sum_mode_presentation_items TODO
+         *  @param in_sum_mode_presentation_items   TODO
+         *  @param in_n_wait_semaphores             TODO
+         *  @param in_wait_semaphore_ptrs_ptr       TODO
+         *
+         *  @return TODO
+         **/
+        VkResult present_in_sum_presentation_mode(uint32_t                       in_n_sum_mode_presentation_items,
+                                                  const SumModePresentationItem* in_sum_mode_presentation_items,
+                                                  uint32_t                       in_n_wait_semaphores,
+                                                  Anvil::Semaphore* const*       in_wait_semaphore_ptrs_ptr);
+
         bool submit(const SubmitInfo& in_submit_info);
 
         /** Tells whether the queue supports sparse bindings */
@@ -144,11 +247,18 @@ namespace Anvil
 
     private:
         /* Private functions */
-        void present_lock_unlock(uint32_t                            in_n_swapchains,
-                                 const Anvil::Swapchain* const*      in_swapchains,
-                                 uint32_t                            in_n_wait_semaphores,
-                                 Anvil::Semaphore* const*            in_wait_semaphore_ptrs,
-                                 bool                                in_should_lock);
+        VkResult present_internal   (VkDeviceGroupPresentModeFlagBitsKHR in_presentation_mode,
+                                     uint32_t                            in_n_swapchains,
+                                     Anvil::Swapchain* const*            in_swapchains,
+                                     const uint32_t*                     in_swapchain_image_indices,
+                                     const uint32_t*                     in_device_masks,
+                                     uint32_t                            in_n_wait_semaphores,
+                                     Anvil::Semaphore* const*            in_wait_semaphore_ptrs);
+        void     present_lock_unlock(uint32_t                            in_n_swapchains,
+                                     const Anvil::Swapchain* const*      in_swapchains,
+                                     uint32_t                            in_n_wait_semaphores,
+                                     Anvil::Semaphore* const*            in_wait_semaphore_ptrs,
+                                     bool                                in_should_lock);
 
         void bind_sparse_memory_lock_unlock    (Anvil::SparseMemoryBindingUpdateInfo& in_update,
                                                 bool                                  in_should_lock);
@@ -158,6 +268,14 @@ namespace Anvil
                                                 Anvil::Semaphore* const*              in_opt_semaphore_to_signal_ptrs_ptr,
                                                 uint32_t                              in_n_semaphores_to_wait_on,
                                                 Anvil::Semaphore* const*              in_opt_semaphore_to_wait_on_ptrs_ptr,
+                                                Anvil::Fence*                         in_opt_fence_ptr,
+                                                bool                                  in_should_lock);
+        void submit_command_buffers_lock_unlock(uint32_t                              in_n_command_buffer_submissions,
+                                                const CommandBufferMGPUSubmission*    in_opt_command_buffer_submissions_ptr,
+                                                uint32_t                              in_n_signal_semaphore_submissions,
+                                                const SemaphoreMGPUSubmission*        in_opt_signal_semaphore_submissions_ptr,
+                                                uint32_t                              in_n_wait_semaphore_submissions,
+                                                const SemaphoreMGPUSubmission*        in_opt_wait_semaphore_submissions_ptr,
                                                 Anvil::Fence*                         in_opt_fence_ptr,
                                                 bool                                  in_should_lock);
 

@@ -100,6 +100,27 @@ bool Anvil::Queue::bind_sparse_memory(Anvil::SparseMemoryBindingUpdateInfo& in_u
                                         &bind_info_items,
                                         &fence_ptr);
 
+    /* If any of the bindings we are about to request requires non-zero memory or resource device indices,
+     * make sure we're using a mGPU device */
+    if (in_update.is_device_group_support_required() )
+    {
+        const Anvil::MGPUDevice* mgpu_device_ptr(dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr));
+
+        if (mgpu_device_ptr == nullptr)
+        {
+            anvil_assert(mgpu_device_ptr != nullptr);
+
+            goto end;
+        }
+
+        if (!mgpu_device_ptr->is_extension_enabled(VK_KHR_DEVICE_GROUP_EXTENSION_NAME) )
+        {
+            anvil_assert(mgpu_device_ptr->is_extension_enabled(VK_KHR_DEVICE_GROUP_EXTENSION_NAME));
+
+            goto end;
+        }
+    }
+
     if (mt_safe)
     {
         bind_sparse_memory_lock_unlock(in_update,
@@ -225,6 +246,7 @@ bool Anvil::Queue::bind_sparse_memory(Anvil::SparseMemoryBindingUpdateInfo& in_u
         }
     }
 
+end:
     return (result == VK_SUCCESS);
 }
 
@@ -413,6 +435,289 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
                                uint32_t                 in_n_wait_semaphores,
                                Anvil::Semaphore* const* in_wait_semaphore_ptrs)
 {
+    static const uint32_t device_mask = 0x1;
+
+    return present_internal(VK_DEVICE_GROUP_PRESENT_MODE_LOCAL_BIT_KHR,
+                            1, /* n_swapchain_image_indices */
+                           &in_swapchain_ptr,
+                           &in_swapchain_image_index,
+                           &device_mask,
+                            in_n_wait_semaphores,
+                            in_wait_semaphore_ptrs);
+}
+
+/** Please see header for specification */
+VkResult Anvil::Queue::present_in_local_presentation_mode(uint32_t                         in_n_local_mode_presentation_items,
+                                                          const LocalModePresentationItem* in_local_mode_presentation_items,
+                                                          uint32_t                         in_n_wait_semaphores,
+                                                          Anvil::Semaphore* const*         in_wait_semaphore_ptrs)
+{
+    const Anvil::DeviceType device_type  (m_device_ptr->get_type() );
+    uint32_t                n_swapchains;
+    VkResult                result;
+
+    uint32_t                device_masks           [MAX_SWAPCHAINS];
+    uint32_t                swapchain_image_indices[MAX_SWAPCHAINS];
+    Anvil::Swapchain*       swapchains             [MAX_SWAPCHAINS];
+
+    if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
+    {
+        const Anvil::SGPUDevice* sgpu_device_ptr(dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr) );
+
+        ANVIL_REDUNDANT_VARIABLE(sgpu_device_ptr);
+
+        anvil_assert(in_n_local_mode_presentation_items                                             == 1);
+        anvil_assert(in_local_mode_presentation_items[0].physical_device_ptr->get_physical_device() == sgpu_device_ptr->get_physical_device()->get_physical_device() );
+
+        device_masks[0]            = 0x1;
+        n_swapchains               = 1;
+        swapchain_image_indices[0] = in_local_mode_presentation_items[0].swapchain_image_index;
+        swapchains[0]              = in_local_mode_presentation_items[0].swapchain_ptr;
+    }
+    else
+    {
+        anvil_assert(device_type                        == Anvil::DEVICE_TYPE_MULTI_GPU);
+        anvil_assert(in_n_local_mode_presentation_items <  MAX_SWAPCHAINS);
+
+        n_swapchains = in_n_local_mode_presentation_items;
+
+        for (uint32_t n_item = 0;
+                      n_item < in_n_local_mode_presentation_items;
+                    ++n_item)
+        {
+            const auto current_item_ptr = in_local_mode_presentation_items + n_item;
+
+            device_masks           [n_item] = (1u << current_item_ptr->physical_device_ptr->get_device_group_device_index());
+            swapchains             [n_item] = current_item_ptr->swapchain_ptr;
+            swapchain_image_indices[n_item] = current_item_ptr->swapchain_image_index;
+        }
+    }
+
+    result = present_internal(VK_DEVICE_GROUP_PRESENT_MODE_LOCAL_BIT_KHR,
+                              n_swapchains,
+                              swapchains,
+                              swapchain_image_indices,
+                              device_masks,
+                              in_n_wait_semaphores,
+                              in_wait_semaphore_ptrs);
+
+    return result;
+}
+
+/** Please see header for specification */
+VkResult Anvil::Queue::present_in_local_multi_device_presentation_mode(uint32_t                                           in_n_local_multi_device_mode_presentation_items,
+                                                                       const Anvil::LocalMultiDeviceModePresentationItem* in_local_multi_device_mode_presentation_items,
+                                                                       uint32_t                                           in_n_wait_semaphores,
+                                                                       Anvil::Semaphore* const*                           in_wait_semaphore_ptrs)
+{
+    uint32_t          n_swapchains;
+    VkResult          result;
+
+    uint32_t          device_masks           [MAX_SWAPCHAINS];
+    uint32_t          swapchain_image_indices[MAX_SWAPCHAINS];
+    Anvil::Swapchain* swapchains             [MAX_SWAPCHAINS];
+
+    anvil_assert(in_n_local_multi_device_mode_presentation_items <  MAX_SWAPCHAINS);
+
+    n_swapchains = in_n_local_multi_device_mode_presentation_items;
+
+    for (uint32_t n_item = 0;
+                  n_item < in_n_local_multi_device_mode_presentation_items;
+                ++n_item)
+    {
+        const auto current_item_ptr(in_local_multi_device_mode_presentation_items + n_item);
+        uint32_t   device_mask     (0);
+
+        for (uint32_t n_physical_device = 0;
+                      n_physical_device < current_item_ptr->n_physical_devices;
+                    ++n_physical_device)
+        {
+            const uint32_t device_index = current_item_ptr->physical_devices_ptr[n_physical_device]->get_device_group_device_index();
+
+            device_mask |= 1 << device_index;
+        }
+
+        device_masks           [n_item] = device_mask;
+        swapchains             [n_item] = current_item_ptr->swapchain_ptr;
+        swapchain_image_indices[n_item] = current_item_ptr->swapchain_image_index;
+    }
+
+    result = present_internal(VK_DEVICE_GROUP_PRESENT_MODE_LOCAL_MULTI_DEVICE_BIT_KHR,
+                              n_swapchains,
+                              swapchains,
+                              swapchain_image_indices,
+                              device_masks,
+                              in_n_wait_semaphores,
+                              in_wait_semaphore_ptrs);
+
+    return result;
+}
+
+/** Please see header for specification */
+VkResult Anvil::Queue::present_in_remote_presentation_mode(uint32_t                                 in_n_remote_mode_presentation_items,
+                                                           const Anvil::RemoteModePresentationItem* in_remote_mode_presentation_items,
+                                                           uint32_t                                 in_n_wait_semaphores,
+                                                           Anvil::Semaphore* const*                 in_wait_semaphore_ptrs)
+{
+    const Anvil::MGPUDevice* mgpu_device_ptr(dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr));
+    uint32_t                 n_swapchains;
+    VkResult                 result;
+
+    uint32_t          device_masks           [MAX_SWAPCHAINS];
+    uint32_t          swapchain_image_indices[MAX_SWAPCHAINS];
+    Anvil::Swapchain* swapchains             [MAX_SWAPCHAINS];
+
+    ANVIL_REDUNDANT_VARIABLE_CONST(mgpu_device_ptr);
+    anvil_assert                  (mgpu_device_ptr                     != nullptr);
+    anvil_assert                  (in_n_remote_mode_presentation_items <  MAX_SWAPCHAINS);
+
+    n_swapchains = in_n_remote_mode_presentation_items;
+
+    for (uint32_t n_item = 0;
+                  n_item < in_n_remote_mode_presentation_items;
+                ++n_item)
+    {
+        const auto     current_item_ptr = in_remote_mode_presentation_items + n_item;
+        const uint32_t device_index     = current_item_ptr->physical_device_ptr->get_device_group_device_index();
+
+        #if defined(_DEBUG)
+        {
+            const std::vector<const Anvil::PhysicalDevice*>* present_compatible_physical_devices_ptr;
+
+            mgpu_device_ptr->get_present_compatible_physical_devices(device_index,
+                                                                    &present_compatible_physical_devices_ptr);
+
+            anvil_assert(present_compatible_physical_devices_ptr->size() > 0);
+        }
+        #endif
+
+        device_masks           [n_item] = (1u << device_index);
+        swapchains             [n_item] = current_item_ptr->swapchain_ptr;
+        swapchain_image_indices[n_item] = current_item_ptr->swapchain_image_index;
+    }
+
+    result = present_internal(VK_DEVICE_GROUP_PRESENT_MODE_REMOTE_BIT_KHR,
+                              n_swapchains,
+                              swapchains,
+                              swapchain_image_indices,
+                              device_masks,
+                              in_n_wait_semaphores,
+                              in_wait_semaphore_ptrs);
+
+    return result;
+}
+
+/** Please see header for specification */
+VkResult Anvil::Queue::present_in_sum_presentation_mode(uint32_t                              in_n_sum_mode_presentation_items,
+                                                        const Anvil::SumModePresentationItem* in_sum_mode_presentation_items,
+                                                        uint32_t                              in_n_wait_semaphores,
+                                                        Anvil::Semaphore* const*              in_wait_semaphore_ptrs)
+{
+    const Anvil::MGPUDevice* mgpu_device_ptr(dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr));
+    uint32_t                 n_swapchains;
+    VkResult                 result;
+
+    uint32_t          device_masks           [MAX_SWAPCHAINS];
+    uint32_t          swapchain_image_indices[MAX_SWAPCHAINS];
+    Anvil::Swapchain* swapchains             [MAX_SWAPCHAINS];
+
+    ANVIL_REDUNDANT_VARIABLE_CONST(mgpu_device_ptr);
+    anvil_assert                  (mgpu_device_ptr                  != nullptr);
+    anvil_assert                  (in_n_sum_mode_presentation_items <  MAX_SWAPCHAINS);
+
+    n_swapchains = in_n_sum_mode_presentation_items;
+
+    for (uint32_t n_item = 0;
+                  n_item < in_n_sum_mode_presentation_items;
+                ++n_item)
+    {
+        const auto current_item_ptr (in_sum_mode_presentation_items + n_item);
+        uint32_t   device_mask      (0);
+
+        #ifdef _DEBUG
+            const uint32_t n_physical_devices = mgpu_device_ptr->get_n_physical_devices();
+            bool           request_supported  = false;
+
+            anvil_assert(mgpu_device_ptr->get_supported_present_modes_for_surface(current_item_ptr->swapchain_ptr->get_create_info_ptr()->get_rendering_surface() ));
+
+            /* Make sure at least one physical device supports SUM presentation mode for all the specified physical devices */
+            for (uint32_t n_physical_device = 0;
+                          n_physical_device < n_physical_devices && !request_supported;
+                        ++n_physical_device)
+            {
+                const std::vector<const Anvil::PhysicalDevice* >* compatible_physical_devices_ptr;
+
+                if (!mgpu_device_ptr->get_present_compatible_physical_devices(n_physical_device,
+                                                                             &compatible_physical_devices_ptr) )
+                {
+                    anvil_assert_fail();
+
+                    continue;
+                }
+
+                request_supported = true;
+
+                for (uint32_t n_checked_physical_device = 0;
+                              n_checked_physical_device < current_item_ptr->n_physical_devices && request_supported;
+                            ++n_checked_physical_device)
+                {
+                    const auto& physical_device_ptr = current_item_ptr->physical_devices_ptr[n_checked_physical_device];
+                    bool        match_found         = false;
+
+                    for (uint32_t n_compatible_physical_device = 0;
+                                  n_compatible_physical_device < compatible_physical_devices_ptr->size() && !match_found;
+                                ++n_compatible_physical_device)
+                    {
+                        auto compatible_physical_device_ptr = compatible_physical_devices_ptr->at(n_compatible_physical_device);
+
+                        if (compatible_physical_device_ptr == physical_device_ptr)
+                        {
+                            match_found = true;
+                        }
+                    }
+
+                    request_supported = match_found;
+                }
+            }
+
+            anvil_assert(request_supported);
+        #endif
+
+        for (uint32_t n_physical_device = 0;
+                      n_physical_device < current_item_ptr->n_physical_devices;
+                    ++n_physical_device)
+        {
+            const uint32_t device_index = current_item_ptr->physical_devices_ptr[n_physical_device]->get_device_group_device_index();
+
+            device_mask |= 1 << device_index;
+        }
+
+        device_masks           [n_item] = device_mask;
+        swapchains             [n_item] = current_item_ptr->swapchain_ptr;
+        swapchain_image_indices[n_item] = current_item_ptr->swapchain_image_index;
+    }
+
+    result = present_internal(VK_DEVICE_GROUP_PRESENT_MODE_SUM_BIT_KHR,
+                              n_swapchains,
+                              swapchains,
+                              swapchain_image_indices,
+                              device_masks,
+                              in_n_wait_semaphores,
+                              in_wait_semaphore_ptrs);
+
+    return result;
+}
+
+/** Please see header for specification */
+VkResult Anvil::Queue::present_internal(VkDeviceGroupPresentModeFlagBitsKHR in_presentation_mode,
+                                        uint32_t                            in_n_swapchains,
+                                        Anvil::Swapchain* const*            in_swapchains,
+                                        const uint32_t*                     in_swapchain_image_indices,
+                                        const uint32_t*                     in_device_masks,
+                                        uint32_t                            in_n_wait_semaphores,
+                                        Anvil::Semaphore* const*            in_wait_semaphore_ptrs)
+{
+    const Anvil::DeviceType                 device_type            (m_device_ptr->get_type() );
     VkResult                                presentation_results   [MAX_SWAPCHAINS];
     VkResult                                result;
     Anvil::StructChainer<VkPresentInfoKHR>  struct_chainer;
@@ -420,14 +725,25 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
     VkSwapchainKHR                          swapchains_vk          [MAX_SWAPCHAINS];
     std::vector<VkSemaphore>                wait_semaphores_vk     (in_n_wait_semaphores);
 
+    /* Sanity checks */
+    anvil_assert(in_n_swapchains      <  MAX_SWAPCHAINS);
+    anvil_assert(in_swapchains        != nullptr);
+
+    if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
+    {
+        anvil_assert(*in_device_masks     == 1);
+        anvil_assert(in_n_swapchains      == 1);
+        anvil_assert(in_presentation_mode == VK_DEVICE_GROUP_PRESENT_MODE_LOCAL_BIT_KHR);
+    }
+
     /* If the application is only interested in off-screen rendering, do *not* post the present request,
      * since the fake swapchain image is not presentable. We still have to wait on the user-specified
      * semaphores though. */
-    if (in_swapchain_ptr != nullptr)
+    if (in_swapchains[0] != nullptr)
     {
         Anvil::Window* window_ptr = nullptr;
 
-        window_ptr = in_swapchain_ptr->get_create_info_ptr()->get_window();
+        window_ptr = in_swapchains[0]->get_create_info_ptr()->get_window();
 
         if (window_ptr != nullptr)
         {
@@ -449,10 +765,10 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
                 );
 
                 for (uint32_t n_presentation = 0;
-                              n_presentation < 1;
+                              n_presentation < in_n_swapchains;
                             ++n_presentation)
                 {
-                    OnPresentRequestIssuedCallbackArgument callback_argument(in_swapchain_ptr);
+                    OnPresentRequestIssuedCallbackArgument callback_argument(in_swapchains[n_presentation]);
 
                     CallbacksSupportProvider::callback(QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
                                                       &callback_argument);
@@ -466,10 +782,12 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
 
     /* Convert arrays of Anvil objects to raw Vulkan handle arrays */
     for (uint32_t n_swapchain = 0;
-                  n_swapchain < 1;
+                  n_swapchain < in_n_swapchains;
                 ++n_swapchain)
     {
-        swapchains_vk[n_swapchain] = in_swapchain_ptr->get_swapchain_vk();
+        anvil_assert(in_swapchains[n_swapchain] != nullptr);
+
+        swapchains_vk[n_swapchain] = in_swapchains[n_swapchain]->get_swapchain_vk();
     }
 
     for (uint32_t n_wait_semaphore = 0;
@@ -482,22 +800,36 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
     {
         VkPresentInfoKHR image_presentation_info;
 
-        image_presentation_info.pImageIndices      = &in_swapchain_image_index;
+        image_presentation_info.pImageIndices      = in_swapchain_image_indices;
         image_presentation_info.pNext              = nullptr;
         image_presentation_info.pResults           = presentation_results;
         image_presentation_info.pSwapchains        = swapchains_vk;
         image_presentation_info.pWaitSemaphores    = (in_n_wait_semaphores != 0) ? &wait_semaphores_vk.at(0) : nullptr;
         image_presentation_info.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-        image_presentation_info.swapchainCount     = 1;
+        image_presentation_info.swapchainCount     = in_n_swapchains;
         image_presentation_info.waitSemaphoreCount = in_n_wait_semaphores;
 
         struct_chainer.append_struct(image_presentation_info);
     }
 
+    /* For multi-GPU support, we're likely going to need to attach the VkDeviceGroupPresentInfoKHR struct */
+    if (device_type == Anvil::DEVICE_TYPE_MULTI_GPU)
+    {
+        VkDeviceGroupPresentInfoKHR device_group_present_info;
+
+        device_group_present_info.mode           = in_presentation_mode;
+        device_group_present_info.pDeviceMasks   = in_device_masks;
+        device_group_present_info.pNext          = nullptr;
+        device_group_present_info.sType          = VK_STRUCTURE_TYPE_DEVICE_GROUP_PRESENT_INFO_KHR;
+        device_group_present_info.swapchainCount = in_n_swapchains;
+
+        struct_chainer.append_struct(device_group_present_info);
+    }
+
     swapchain_entrypoints_ptr = &m_device_ptr->get_extension_khr_swapchain_entrypoints();
 
-    present_lock_unlock(1,
-                       &in_swapchain_ptr,
+    present_lock_unlock(in_n_swapchains,
+                        in_swapchains,
                         in_n_wait_semaphores,
                         in_wait_semaphore_ptrs,
                         true);
@@ -507,8 +839,8 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
         result = swapchain_entrypoints_ptr->vkQueuePresentKHR(m_queue,
                                                               chain_ptr->get_root_struct() );
     }
-    present_lock_unlock(1,
-                       &in_swapchain_ptr,
+    present_lock_unlock(in_n_swapchains,
+                        in_swapchains,
                         in_n_wait_semaphores,
                         in_wait_semaphore_ptrs,
                         false);
@@ -518,7 +850,7 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
     if (is_vk_call_successful(result) )
     {
         for (uint32_t n_presentation = 0;
-                      n_presentation < 1;
+                      n_presentation < in_n_swapchains;
                     ++n_presentation)
         {
             anvil_assert(is_vk_call_successful(presentation_results[n_presentation]));
@@ -576,7 +908,7 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
             }
 
             {
-                OnPresentRequestIssuedCallbackArgument callback_argument(in_swapchain_ptr);
+                OnPresentRequestIssuedCallbackArgument callback_argument(in_swapchains[n_presentation]);
 
                 CallbacksSupportProvider::callback(QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
                                                   &callback_argument);
@@ -645,11 +977,88 @@ bool Anvil::Queue::submit(const Anvil::SubmitInfo& in_submit_info)
     std::vector<VkSemaphore>     signal_semaphores_vk(in_submit_info.get_n_signal_semaphores() );
     std::vector<VkSemaphore>     wait_semaphores_vk  (in_submit_info.get_n_wait_semaphores  () );
 
+    std::vector<uint32_t> cmd_buffer_device_masks         = std::vector<uint32_t>(in_submit_info.get_n_command_buffers() );
+    std::vector<uint32_t> signal_semaphore_device_indices = std::vector<uint32_t>(in_submit_info.get_n_signal_semaphores() );
+    std::vector<uint32_t> wait_semaphore_device_indices   = std::vector<uint32_t>(in_submit_info.get_n_wait_semaphores  () );
+
     ANVIL_REDUNDANT_VARIABLE(result);
 
     /* Prepare for the submission */
     switch (in_submit_info.get_type() )
     {
+        case SubmissionType::MGPU:
+        {
+            uint32_t n_cmd_buffers = 0;
+
+            for (uint32_t n_command_buffer_submission = 0;
+                          n_command_buffer_submission < in_submit_info.get_n_command_buffers();
+                        ++n_command_buffer_submission)
+            {
+                const auto& current_submission = in_submit_info.get_command_buffers_mgpu()[n_command_buffer_submission];
+
+                if (current_submission.cmd_buffer_ptr != nullptr)
+                {
+                    cmd_buffers_vk.at         (n_cmd_buffers) = current_submission.cmd_buffer_ptr->get_command_buffer();
+                    cmd_buffer_device_masks.at(n_cmd_buffers) = current_submission.device_mask;
+
+                    ++n_cmd_buffers;
+                }
+            }
+
+            for (uint32_t n_signal_semaphore_submission = 0;
+                          n_signal_semaphore_submission < in_submit_info.get_n_signal_semaphores();
+                        ++n_signal_semaphore_submission)
+            {
+                const auto& current_submission = in_submit_info.get_signal_semaphores_mgpu()[n_signal_semaphore_submission];
+
+                signal_semaphore_device_indices.at(n_signal_semaphore_submission) = current_submission.physical_device_ptr->get_device_group_device_index();
+                signal_semaphores_vk.at           (n_signal_semaphore_submission) = current_submission.semaphore_ptr->get_semaphore();
+            }
+
+            for (uint32_t n_wait_semaphore_submission = 0;
+                          n_wait_semaphore_submission < in_submit_info.get_n_wait_semaphores();
+                        ++n_wait_semaphore_submission)
+            {
+                const auto& current_submission = in_submit_info.get_wait_semaphores_mgpu()[n_wait_semaphore_submission];
+
+                wait_semaphore_device_indices.at(n_wait_semaphore_submission) = current_submission.physical_device_ptr->get_device_group_device_index();
+                wait_semaphores_vk.at           (n_wait_semaphore_submission) = current_submission.semaphore_ptr->get_semaphore();
+            }
+
+            {
+                VkSubmitInfo submit_info;
+
+                submit_info.commandBufferCount   = in_submit_info.get_n_command_buffers();
+                submit_info.pCommandBuffers      = (submit_info.commandBufferCount           != 0) ? &cmd_buffers_vk.at(0)       : nullptr;
+                submit_info.pNext                = nullptr;
+                submit_info.pSignalSemaphores    = (in_submit_info.get_n_signal_semaphores() != 0) ? &signal_semaphores_vk.at(0) : nullptr;
+                submit_info.pWaitDstStageMask    = in_submit_info.get_destination_stage_wait_masks();
+                submit_info.pWaitSemaphores      = (in_submit_info.get_n_wait_semaphores()   != 0) ? &wait_semaphores_vk.at(0)   : nullptr;
+                submit_info.signalSemaphoreCount = in_submit_info.get_n_signal_semaphores();
+                submit_info.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+                submit_info.waitSemaphoreCount   = in_submit_info.get_n_wait_semaphores();
+
+                struct_chainer.append_struct(submit_info);
+            }
+
+            {
+                VkDeviceGroupSubmitInfoKHR submit_info_device_group;
+
+                submit_info_device_group.commandBufferCount            = n_cmd_buffers;
+                submit_info_device_group.pCommandBufferDeviceMasks     = (n_cmd_buffers != 0) ? &cmd_buffer_device_masks.at(0) : nullptr;
+                submit_info_device_group.pNext                         = nullptr;
+                submit_info_device_group.pSignalSemaphoreDeviceIndices = (in_submit_info.get_n_signal_semaphores() != 0) ? &signal_semaphore_device_indices.at(0) : nullptr;
+                submit_info_device_group.pWaitSemaphoreDeviceIndices   = (in_submit_info.get_n_wait_semaphores  () != 0) ? &wait_semaphore_device_indices.at  (0) : nullptr;
+                submit_info_device_group.signalSemaphoreCount          = in_submit_info.get_n_signal_semaphores();
+                submit_info_device_group.sType                         = VK_STRUCTURE_TYPE_DEVICE_GROUP_SUBMIT_INFO_KHR;
+                submit_info_device_group.waitSemaphoreCount            = in_submit_info.get_n_wait_semaphores();
+
+                struct_chainer.append_struct(submit_info_device_group);
+            }
+
+            break;
+        }
+
         case SubmissionType::SGPU:
         {
             VkSubmitInfo submit_info;
@@ -731,6 +1140,20 @@ bool Anvil::Queue::submit(const Anvil::SubmitInfo& in_submit_info)
 
     switch (in_submit_info.get_type() )
     {
+        case SubmissionType::MGPU:
+        {
+            submit_command_buffers_lock_unlock(in_submit_info.get_n_command_buffers     (),
+                                               in_submit_info.get_command_buffers_mgpu  (),
+                                               in_submit_info.get_n_signal_semaphores   (),
+                                               in_submit_info.get_signal_semaphores_mgpu(),
+                                               in_submit_info.get_n_wait_semaphores     (),
+                                               in_submit_info.get_wait_semaphores_mgpu  (),
+                                               fence_ptr,
+                                               true);
+
+            break;
+        }
+
         case SubmissionType::SGPU:
         {
              submit_command_buffers_lock_unlock(in_submit_info.get_n_command_buffers     (),
@@ -762,7 +1185,7 @@ bool Anvil::Queue::submit(const Anvil::SubmitInfo& in_submit_info)
          result = vkQueueSubmit(m_queue,
                                 1, /* submitCount */
                                 chain_ptr->get_root_struct(),
-                               (fence_ptr != nullptr) ? fence_ptr->get_fence() 
+                               (fence_ptr != nullptr) ? fence_ptr->get_fence()
                                                       : VK_NULL_HANDLE);
 
         if (in_submit_info.get_should_block() )
@@ -778,6 +1201,20 @@ bool Anvil::Queue::submit(const Anvil::SubmitInfo& in_submit_info)
 
      switch (in_submit_info.get_type() )
      {
+         case SubmissionType::MGPU:
+         {
+             submit_command_buffers_lock_unlock(in_submit_info.get_n_command_buffers     (),
+                                                in_submit_info.get_command_buffers_mgpu  (),
+                                                in_submit_info.get_n_signal_semaphores   (),
+                                                in_submit_info.get_signal_semaphores_mgpu(),
+                                                in_submit_info.get_n_wait_semaphores     (),
+                                                in_submit_info.get_wait_semaphores_mgpu  (),
+                                                fence_ptr,
+                                                false); /* in_should_lock */
+
+             break;
+         }
+
          case SubmissionType::SGPU:
          {
              submit_command_buffers_lock_unlock(in_submit_info.get_n_command_buffers     (),
@@ -858,6 +1295,84 @@ void Anvil::Queue::submit_command_buffers_lock_unlock(uint32_t                  
         else
         {
             in_opt_semaphore_to_wait_on_ptr_ptrs[n_wait_semaphore]->unlock();
+        }
+    }
+
+    if (in_opt_fence_ptr != nullptr)
+    {
+        if (in_should_lock)
+        {
+            in_opt_fence_ptr->lock();
+        }
+        else
+        {
+            in_opt_fence_ptr->unlock();
+        }
+    }
+}
+
+void Anvil::Queue::submit_command_buffers_lock_unlock(uint32_t                           in_n_command_buffer_submissions,
+                                                      const CommandBufferMGPUSubmission* in_opt_command_buffer_submissions_ptr,
+                                                      uint32_t                           in_n_signal_semaphore_submissions,
+                                                      const SemaphoreMGPUSubmission*     in_opt_signal_semaphore_submissions_ptr,
+                                                      uint32_t                           in_n_wait_semaphore_submissions,
+                                                      const SemaphoreMGPUSubmission*     in_opt_wait_semaphore_submissions_ptr,
+                                                      Anvil::Fence*                      in_opt_fence_ptr,
+                                                      bool                               in_should_lock)
+{
+    if (in_should_lock)
+    {
+        lock();
+    }
+    else
+    {
+        unlock();
+    }
+
+    for (uint32_t n_command_buffer_submission = 0;
+                  n_command_buffer_submission < in_n_command_buffer_submissions;
+                ++n_command_buffer_submission)
+    {
+        const auto& current_submission = in_opt_command_buffer_submissions_ptr[n_command_buffer_submission];
+
+        if (current_submission.cmd_buffer_ptr != nullptr)
+        {
+            if (in_should_lock)
+            {
+                current_submission.cmd_buffer_ptr->lock();
+            }
+            else
+            {
+                current_submission.cmd_buffer_ptr->unlock();
+            }
+        }
+    }
+
+    for (uint32_t n_signal_semaphore_submission = 0;
+                  n_signal_semaphore_submission < in_n_signal_semaphore_submissions;
+                ++n_signal_semaphore_submission)
+    {
+        if (in_should_lock)
+        {
+            in_opt_signal_semaphore_submissions_ptr[n_signal_semaphore_submission].semaphore_ptr->lock();
+        }
+        else
+        {
+            in_opt_signal_semaphore_submissions_ptr[n_signal_semaphore_submission].semaphore_ptr->unlock();
+        }
+    }
+
+    for (uint32_t n_wait_semaphore_submission = 0;
+                  n_wait_semaphore_submission < in_n_wait_semaphore_submissions;
+                ++n_wait_semaphore_submission)
+    {
+        if (in_should_lock)
+        {
+            in_opt_wait_semaphore_submissions_ptr[n_wait_semaphore_submission].semaphore_ptr->lock();
+        }
+        else
+        {
+            in_opt_wait_semaphore_submissions_ptr[n_wait_semaphore_submission].semaphore_ptr->unlock();
         }
     }
 

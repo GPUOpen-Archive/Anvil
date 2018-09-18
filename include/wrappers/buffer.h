@@ -146,25 +146,31 @@ namespace Anvil
          *
          *  If the buffer object uses non-mappable storage memory, a staging buffer using mappable memory will be created
          *  instead. User-specified region of the source buffer will then be copied into it by submitting a copy operation,
-         *  executed either on the transfer queue (if available), or on the universal queue. Afterward, the staging buffer 
+         *  executed either on the transfer queue (if available), or on the universal queue. Afterward, the staging buffer
          *  will be released.
+         *
+         *  The function prototype without @param in_device_mask argument should be used for single-GPU devices only.
+         *  The function prototype with @param in_device_mask argument should be used for multi-GPU devices only.
+         *  The mask must contain only one bit set.
+         *
+         *  This function must not be used to read data from buffers, whose memory backing comes from a multi-instance heap.
          *
          *  This function blocks until the transfer completes.
          *
-         *  @param in_start_offset   As per description. Must be smaller than the underlying memory object's size.
-         *  @param in_size           As per description. @param in_start_offset + @param in_size must be lower than or
-         *                           equal to the underlying memory object's size.
-         *  @param in_out_result_ptr Retrieved data will be stored under this location. Must not be nullptr.
+         *  @param in_start_offset As per description. Must be smaller than the underlying memory object's size.
+         *  @param in_size         As per description. @param in_start_offset + @param in_size must be lower than or
+         *                         equal to the underlying memory object's size.
+         *  @param out_result_ptr  Retrieved data will be stored under this location. Must not be nullptr.
          *
          *  @return true if the operation was successful, false otherwise.
          **/
-        bool read(VkDeviceSize                 in_start_offset,
-                  VkDeviceSize                 in_size,
-                  void*                        in_out_result_ptr);
-        bool read(VkDeviceSize                 in_start_offset,
-                  VkDeviceSize                 in_size,
-                  const Anvil::PhysicalDevice* in_physical_device_ptr,
-                  void*                        out_result_ptr);
+        bool read(VkDeviceSize in_start_offset,
+                  VkDeviceSize in_size,
+                  void*        out_result_ptr);
+        bool read(VkDeviceSize in_start_offset,
+                  VkDeviceSize in_size,
+                  uint32_t     in_device_mask,
+                  void*        out_result_ptr);
 
         bool requires_dedicated_allocation() const
         {
@@ -179,10 +185,18 @@ namespace Anvil
          *  This function can only be used for NON-SPARSE buffers. Calling this function for sparse buffers will
          *  result in an assertion failure.
          *
+         *  Single-argument function prototype can only be used for single-GPU device instances, whereas the other one
+         *  can be used for both single- multi-GPU device instances. In the latter case:
+         *
+         *  1) If the memory comes from a memory heap with VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR flag, all physical devices
+         *     are bound its own instance of the memory and @param in_physical_devices_ptr is ignored.
+         *  2) If the memory comes from a memory heap without the flag, physical devices specified by the caller are assigned
+         *     the same instance of the memory.
+         *
          *  @param in_memory_block_ptr             Memory block to attach to the buffer object. Must not be NULL.
          *  @param in_memory_block_owned_by_buffer TODO
-         *  @param in_n_physical_devices           Describes the number of physical devices available under @param in_opt_physical_devices_ptr.
-         *  @param in_physical_devices_ptr         Physical devices to use to form the device mask.
+         *  @param in_n_device_group_indices       Describes the number of device indices available under @param in_device_group_indices_ptr.
+         *  @param in_device_group_indices_ptr     Device group indices to use to form the device mask.
          *
          *  @return true if successful, false otherwise.
          **/
@@ -190,13 +204,25 @@ namespace Anvil
         bool set_nonsparse_memory(MemoryBlock*         in_memory_block_ptr,
                                   bool                 in_memory_block_owned_by_buffer);
 
-        bool set_nonsparse_memory(MemoryBlockUniquePtr         in_memory_block_ptr,
-                                  uint32_t                     in_n_physical_devices,
-                                  const Anvil::PhysicalDevice* in_physical_devices_ptr);
-        bool set_nonsparse_memory(MemoryBlock*                 in_memory_block_ptr,
-                                  bool                         in_memory_block_owned_by_buffer,
-                                  uint32_t                     in_n_physical_devices,
-                                  const Anvil::PhysicalDevice* in_physical_devices_ptr);
+        bool set_nonsparse_memory(MemoryBlockUniquePtr in_memory_block_ptr,
+                                  uint32_t             in_n_device_group_indices,
+                                  const uint32_t*      in_device_group_indices_ptr);
+        bool set_nonsparse_memory(MemoryBlock*         in_memory_block_ptr,
+                                  bool                 in_memory_block_owned_by_buffer,
+                                  uint32_t             in_n_device_group_indices,
+                                  const uint32_t*      in_device_group_indices_ptr);
+
+        /** See set_nonsparse_memory() for general documentation.
+         *
+         *  This static function can be used to set buffer memory bindings in a batched manner.
+         *
+         *  Can be used for both single- and multi-GPU devices.
+         *  Requires VK_KHR_device_group to be supported by & enabled for the device.
+         *
+         *  TODO
+         **/
+        static bool set_nonsparse_memory_multi(uint32_t                   in_n_buffer_memory_binding_updates,
+                                               BufferMemoryBindingUpdate* in_updates_ptr);
 
         /** Writes @param in_size bytes, starting from @param in_start_offset, into the wrapped memory object.
          *
@@ -208,6 +234,13 @@ namespace Anvil
          *  instead. It will then be filled with user-specified data and used as a source for a copy operation which will
          *  transfer the new contents to the target buffer. The operation will be submitted via a transfer queue, if one
          *  is available, or a universal queue otherwise.
+         *
+         *  This function must not be used to read data from buffers, whose memory backing comes from a multi-instance heap.
+         *
+         *  The function prototype without @param in_device_mask argument should be used for single-GPU devices only.
+         *
+         *  The function prototype with @param in_device_mask argument should be used for multi-GPU devices only.
+         *  The mask must contain only one bit set.
          *
          *  If the buffer instance uses an exclusive sharing mode and supports more than just one queue family type AND memory
          *  backing the buffer is not mappable, you MUST specify a queue instance that should be used to perform a buffer->buffer
@@ -228,8 +261,8 @@ namespace Anvil
                    Anvil::Queue*                        in_opt_queue_ptr = nullptr);
         bool write(VkDeviceSize                         in_start_offset,
                    VkDeviceSize                         in_size,
-                   const Anvil::PhysicalDevice*         in_physical_device_ptr,
                    const void*                          in_data,
+                   uint32_t                             in_device_mask,
                    Anvil::Queue*                        in_opt_queue_ptr = nullptr);
 
     private:
@@ -237,16 +270,18 @@ namespace Anvil
 
         Buffer(Anvil::BufferCreateInfoUniquePtr in_create_info_ptr);
 
-        bool init             ();
-        bool set_memory_sparse(MemoryBlock*           in_memory_block_ptr,
-                               bool                   in_memory_block_owned_by_buffer,
-                               VkDeviceSize           in_memory_start_offset,
-                               VkDeviceSize           in_start_offset,
-                               VkDeviceSize           in_size);
+        bool init               ();
+        bool init_staging_buffer(const VkDeviceSize& in_size,
+                                 Anvil::Queue*       in_opt_queue_ptr);
+        bool set_memory_sparse  (MemoryBlock*        in_memory_block_ptr,
+                                 bool                in_memory_block_owned_by_buffer,
+                                 VkDeviceSize        in_memory_start_offset,
+                                 VkDeviceSize        in_start_offset,
+                                 VkDeviceSize        in_size);
 
-        bool set_memory_nonsparse_internal(MemoryBlockUniquePtr         in_memory_block_ptr,
-                                           uint32_t                     in_n_physical_devices,
-                                           const Anvil::PhysicalDevice* in_physical_devices_ptr);
+        bool set_memory_nonsparse_internal(MemoryBlockUniquePtr in_memory_block_ptr,
+                                           uint32_t             in_n_device_group_indices,
+                                           const uint32_t*      in_device_group_indices_ptr);
 
         /* Private members */
         VkBuffer                                 m_buffer;
@@ -255,6 +290,8 @@ namespace Anvil
 
         Anvil::MemoryBlock*                  m_memory_block_ptr; // only used by non-sparse buffers
         std::unique_ptr<Anvil::PageTracker>  m_page_tracker_ptr; // only used by sparse buffers
+        Anvil::BufferUniquePtr               m_staging_buffer_ptr;
+        Anvil::Queue*                        m_staging_buffer_queue_ptr;
 
         VkBufferCreateFlagsVariable(m_create_flags);
 

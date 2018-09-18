@@ -215,6 +215,11 @@ bool Anvil::ComputePipelineManager::bake()
         pipeline_create_info.flags |= ((current_pipeline_create_info_ptr->allows_derivatives        () ) ? VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT    : 0) |
                                       ((current_pipeline_create_info_ptr->has_optimizations_disabled() ) ? VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT : 0);
 
+        if (m_device_ptr->get_type() == Anvil::DEVICE_TYPE_MULTI_GPU)
+        {
+            pipeline_create_info.flags |= VK_PIPELINE_CREATE_DISPATCH_BASE_KHR;
+        }
+
         layout_to_bake_item_map[pipeline_create_info.layout].push_back(BakeItem(pipeline_create_info,
                                                                                 current_pipeline_id,
                                                                                 current_pipeline_ptr) );

@@ -60,6 +60,8 @@ namespace Anvil
 
         /** Acquires a new swapchain image.
          *
+         *  Can be used for both SGPUDevice and mGPU swapchains.
+         *
          *  @param in_semaphore_ptr Semaphore to set upon frame acquisition. May be nullptr (assuming the implications are understood!)
          *  @param in_should_block  Set to true, if you want to wait on a fence set by vkAcquireNextImage*KHR() functions
          *                          which are called by this function. The wrapper instantiates a unique fence for each allotted swapchain
@@ -69,8 +71,12 @@ namespace Anvil
          *
          *  @return Index of the swapchain image that the commands should be submitted against.
          **/
-        uint32_t acquire_image(Anvil::Semaphore* in_opt_semaphore_ptr,
-                               bool              in_should_block = false);
+        uint32_t acquire_image(Anvil::Semaphore*                   in_opt_semaphore_ptr,
+                               bool                                in_should_block = false);
+        uint32_t acquire_image(Anvil::Semaphore*                   in_opt_semaphore_ptr,
+                               uint32_t                            in_n_mgpu_physical_devices,
+                               const Anvil::PhysicalDevice* const* in_mgpu_physical_device_ptrs,
+                               bool                                in_should_block = false);
 
         const SwapchainCreateInfo* get_create_info_ptr() const
         {

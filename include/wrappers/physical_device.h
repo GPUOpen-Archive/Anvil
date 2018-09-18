@@ -72,6 +72,18 @@ namespace Anvil
             return m_features;
         }
 
+        /** Retrieves device group index of this physical device. */
+        uint32_t get_device_group_index() const
+        {
+            return m_device_group_index;
+        }
+
+        /** Retrieves index of the physical device within a device group. */
+        uint32_t get_device_group_device_index() const
+        {
+            return m_device_group_device_index;
+        }
+
         const Anvil::PhysicalDeviceProperties& get_device_properties() const
         {
             return m_properties;
@@ -85,7 +97,7 @@ namespace Anvil
         bool get_fence_properties(const Anvil::FencePropertiesQuery& in_query,
                                   Anvil::FenceProperties*            out_opt_result_ptr = nullptr) const;
 
-        Anvil::FormatProperties get_format_properties(VkFormat in_format) const;
+        Anvil::FormatProperties get_format_properties(Anvil::Format in_format) const;
 
         /** Retrieves image format properties, as reported by the wrapped physical device.
          *
@@ -165,11 +177,11 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise
          **/
-        bool get_sparse_image_format_properties(VkFormat                                    in_format,
-                                                VkImageType                                 in_type,
-                                                VkSampleCountFlagBits                       in_sample_count,
-                                                VkImageUsageFlags                           in_usage,
-                                                VkImageTiling                               in_tiling,
+        bool get_sparse_image_format_properties(Anvil::Format                               in_format,
+                                                Anvil::ImageType                            in_type,
+                                                Anvil::SampleCountFlagBits                  in_sample_count,
+                                                Anvil::ImageUsageFlags                      in_usage,
+                                                Anvil::ImageTiling                          in_tiling,
                                                 std::vector<VkSparseImageFormatProperties>& out_result) const;
 
         /** Tells whether user-specified extension is supported by the physical device.
@@ -204,9 +216,11 @@ namespace Anvil
         explicit PhysicalDevice(Anvil::Instance* in_instance_ptr,
                                 uint32_t         in_index,
                                 VkPhysicalDevice in_physical_device)
-            :m_index          (in_index),
-             m_instance_ptr   (in_instance_ptr),
-             m_physical_device(in_physical_device)
+            :m_device_group_device_index(0),
+             m_device_group_index       (0),
+             m_index                    (in_index),
+             m_instance_ptr             (in_instance_ptr),
+             m_physical_device          (in_physical_device)
         {
             anvil_assert(in_physical_device != VK_NULL_HANDLE);
         }
@@ -214,10 +228,13 @@ namespace Anvil
         PhysicalDevice           (const PhysicalDevice&);
         PhysicalDevice& operator=(const PhysicalDevice&);
 
-        bool init();
+        bool init                         ();
+        void set_device_group_device_index(uint32_t in_new_device_group_device_index);
+        void set_device_group_index       (uint32_t in_new_device_group_index);
 
         /* Private variables */
-        FormatProperties                             m_dummy;
+        uint32_t                                     m_device_group_device_index;
+        uint32_t                                     m_device_group_index;
         std::unique_ptr<Anvil::ExtensionInfo<bool> > m_extension_info_ptr;
         uint32_t                                     m_index;
         Anvil::Instance*                             m_instance_ptr;
@@ -236,6 +253,7 @@ namespace Anvil
         std::unique_ptr<Anvil::EXTVertexAttributeDivisorProperties>                     m_ext_vertex_attribute_divisor_properties_ptr;
         std::unique_ptr<Anvil::KHR16BitStorageFeatures>                                 m_khr_16_bit_storage_features_ptr;
         std::unique_ptr<Anvil::KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties> m_khr_external_memory_capabilities_physical_device_id_properties_ptr;
+        std::unique_ptr<Anvil::KHRMaintenance2PhysicalDevicePointClippingProperties>    m_khr_maintenance2_physical_device_point_clipping_properties_ptr;
         std::unique_ptr<Anvil::KHRMaintenance3Properties>                               m_khr_maintenance3_properties_ptr;
 
         friend class Anvil::Instance;

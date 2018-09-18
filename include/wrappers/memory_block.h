@@ -70,24 +70,8 @@ namespace Anvil
          *
          * Cached external memory handles will be destroyed & released at MemoryBlock's destruction time.
          *
-         *  @param in_device_ptr                   Device to use.
-         *  @param in_allowed_memory_bits          Memory type bits which meet the allocation requirements.
-         *  @param in_size                         Required allocation size.
-         *  @param in_memory_features              Required memory features.
-         *  @param in_external_memory_handle_types If the memory block is going to be exported to another process or Vulkan instance, use
-         *                                         this field to specify which handle types the allocation needs to support. Please see
-         *                                         documentation of Anvil::ExternalMemoryHandleTypeFlags for more details.
-         **/
-         static MemoryBlockUniquePtr create(const Anvil::BaseDevice*            in_device_ptr,
-                                            uint32_t                            in_allowed_memory_bits,
-                                            VkDeviceSize                        in_size,
-                                            Anvil::MemoryFeatureFlags           in_memory_features,
-                                            MTSafety                            in_mt_safety                    = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE,
-                                            Anvil::ExternalMemoryHandleTypeBits in_external_memory_handle_types = 0);
-
-        /** Create a memory block whose storage space is maintained by another MemoryBlock instance.
-         *
-         * Only supports REGULAR memory blocks. Derived memory blocks are NOT supported.
+         * Supports DERIVED and REGULAR memory blocks. The latter case is only supported if memory region covered by
+         * the derived region completely encapsulates the underlying Vulkan allocation.
          *
          * Returns nullptr if unsuccessful.
          *
@@ -117,11 +101,6 @@ namespace Anvil
             {
                 return m_memory;
             }
-        }
-
-        const uint32_t& get_memory_type_index() const
-        {
-            return m_memory_type_index;
         }
 
         const VkDeviceSize& get_start_offset() const
@@ -165,6 +144,13 @@ namespace Anvil
          *  However, making that call in advance will skip map()+unmap() invocations, wnich would
          *  otherwise have to be done for each read() call.
          *
+         *  Note that reading from multi_instance memory heaps is not permitted by VK_KHR_device_group.
+         *  Any attempt to do so will result in an assertion failure and an error being reported by
+         *  this function.
+         *
+         *  Since this function is device-agnostic, it doesn't matter if the parent device is a single-
+         *  or a multi-GPU instance.
+         *
          *  @param in_start_offset Start offset of the region to be mapped.
          *  @param in_size         Size of the region to be mapped.
          *  @param out_result_ptr  The read data will be copied to the location specified by this
@@ -190,6 +176,13 @@ namespace Anvil
          *  This function does not require the caller to issue a map() call, prior to being called.
          *  However, making that call in advance will skip map()+unmap() invocations, wnich would
          *  otherwise have to be done for each write() call.
+         *
+         *  Note that writing to multi_instance memory heaps is not permitted by VK_KHR_device_group.
+         *  Any attempt to do so will result in an assertion failure and an error being reported by
+         *  this function.
+         *
+         *  Since this function is device-agnostic, it doesn't matter if the parent device is a single-
+         *  or a multi-GPU instance.
          *
          *  @param in_start_offset Start offset of the region to modify
          *  @param in_size         Size of the region to be modified.
@@ -248,9 +241,10 @@ namespace Anvil
         void*                                 m_backend_object;
         Anvil::MemoryBlockCreateInfoUniquePtr m_create_info_ptr;
         VkDeviceMemory                        m_memory;
-        uint32_t                              m_memory_type_index;
+        const Anvil::MemoryType*              m_memory_type_props_ptr; /* keep for simplified debugging */
         VkDeviceSize                          m_start_offset;
 
+        std::vector<const Anvil::PhysicalDevice*>           m_mgpu_physical_devices;
         std::shared_ptr<Anvil::IMemoryAllocatorBackendBase> m_owned_parent_memory_allocator_backend_ptr;
         Anvil::IMemoryAllocatorBackendBase*                 m_parent_memory_allocator_backend_ptr;
 

@@ -66,7 +66,7 @@ namespace Anvil
         /* Stub window implementation - useful for off-screen rendering.
          *
          * This dummy window saves each "presented" frame in a PNG file. For that process to be successful,
-         * the application MUST ensure the swapchain image is transitioned to VK_IMAGE_LAYOUT_GENERAL before
+         * the application MUST ensure the swapchain image is transitioned to Anvil::ImageLayout::GENERAL before
          * it is presented.
          **/
         WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS,

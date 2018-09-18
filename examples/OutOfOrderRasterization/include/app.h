@@ -67,7 +67,7 @@ private:
                                     const char*                message);
 
     /* Private variables */
-    Anvil::SGPUDeviceUniquePtr m_device_ptr;
+    Anvil::BaseDeviceUniquePtr m_device_ptr;
 
     Anvil::InstanceUniquePtr         m_instance_ptr;
     Anvil::Queue*                    m_present_queue_ptr;
@@ -95,8 +95,24 @@ private:
     std::unique_ptr<float> m_teapot_props_data_ptr;
     Anvil::Time            m_time;
 
-    std::vector<Anvil::SemaphoreUniquePtr> m_frame_signal_semaphores;
-    std::vector<Anvil::SemaphoreUniquePtr> m_frame_wait_semaphores;
+    typedef struct SemaphoreBundle
+    {
+        SemaphoreBundle()
+        {
+            /* Stub */
+        }
+
+        /* Holds as many semaphores as there are physical devices bound to a logical device */
+        std::vector<Anvil::SemaphoreUniquePtr> semaphores;
+
+    private:
+        SemaphoreBundle           (const SemaphoreBundle&) = delete;
+        SemaphoreBundle& operator=(const SemaphoreBundle&) = delete;
+    } SemaphoreBundle;
+
+    std::vector<Anvil::SemaphoreUniquePtr>          m_frame_acquisition_wait_semaphores;
+    std::vector<std::unique_ptr<SemaphoreBundle> >  m_frame_signal_semaphore_bundles;
+    std::vector<std::unique_ptr<SemaphoreBundle> >  m_frame_wait_semaphore_bundles;
 
     bool              m_frame_drawn_status[N_SWAPCHAIN_IMAGES];
     Anvil::PipelineID m_general_pipeline_id;

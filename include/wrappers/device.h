@@ -165,6 +165,14 @@ namespace Anvil
             return m_khr_descriptor_update_template_extension_entrypoints;
         }
 
+        /** Returns a container with entry-points to functions introduced by VK_KHR_device_group extension. **/
+        const ExtensionKHRDeviceGroupEntrypoints& get_extension_khr_device_group_entrypoints() const
+        {
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_device_group() );
+
+            return m_khr_device_group_extension_entrypoints;
+        }
+
         /** Returns a container with entry-points to functions introduced by VK_KHR_draw_indirect_count extension.
          *
          *  Will fire an assertion failure if the extension was not requested at device creation time.
@@ -346,7 +354,7 @@ namespace Anvil
         virtual bool get_physical_device_fence_properties(const FencePropertiesQuery& in_query,
                                                           Anvil::FenceProperties*     out_opt_result_ptr = nullptr) const = 0;
 
-        virtual Anvil::FormatProperties get_physical_device_format_properties(VkFormat in_format) const = 0;
+        virtual Anvil::FormatProperties get_physical_device_format_properties(Anvil::Format in_format) const = 0;
 
         virtual bool get_physical_device_image_format_properties(const ImageFormatPropertiesQuery& in_query,
                                                                  Anvil::ImageFormatProperties*     out_opt_result_ptr = nullptr) const = 0;
@@ -382,11 +390,11 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        virtual bool get_physical_device_sparse_image_format_properties(VkFormat                                    in_format,
-                                                                        VkImageType                                 in_type,
-                                                                        VkSampleCountFlagBits                       in_sample_count,
-                                                                        VkImageUsageFlags                           in_usage,
-                                                                        VkImageTiling                               in_tiling,
+        virtual bool get_physical_device_sparse_image_format_properties(Anvil::Format                               in_format,
+                                                                        Anvil::ImageType                            in_type,
+                                                                        Anvil::SampleCountFlagBits                  in_sample_count,
+                                                                        ImageUsageFlags                             in_usage,
+                                                                        Anvil::ImageTiling                          in_tiling,
                                                                         std::vector<VkSparseImageFormatProperties>& out_result) const = 0;
 
 
@@ -474,7 +482,7 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          */
-        bool get_sample_locations(VkSampleCountFlagBits               in_sample_count,
+        bool get_sample_locations(Anvil::SampleCountFlagBits          in_sample_count,
                                   std::vector<Anvil::SampleLocation>* out_result_ptr) const;
 
         /** Returns shader module cache instance */
@@ -627,7 +635,7 @@ namespace Anvil
         BaseDevice& operator=(const BaseDevice&);
         BaseDevice           (const BaseDevice&);
 
-        /** Retrieves family indices of compute, DMA, graphics, and transfer queue families for the specified physical device.
+        /** Retrieves family indices of compute, DMA, graphics, transfer queue families for the specified physical device.
          *
          *  @param in_physical_device_ptr           Physical device to use for the query.
          *  @param out_device_queue_family_info_ptr Deref will be used to store the result info. Must not be null.
@@ -653,7 +661,7 @@ namespace Anvil
 
         std::vector<std::unique_ptr<Anvil::Queue> > m_owned_queues;
 
-        std::map<uint32_t, Anvil::QueueFamilyType>                                      m_queue_family_index_to_type;
+        std::map<uint32_t, std::vector<Anvil::QueueFamilyType> >                        m_queue_family_index_to_types;
         std::map<Anvil::QueueFamilyType, std::vector<uint32_t> >                        m_queue_family_type_to_queue_family_indices;
         std::map<uint32_t /* Vulkan queue family index */, std::vector<Anvil::Queue*> > m_queue_ptrs_per_vk_queue_fam;
 
@@ -665,6 +673,7 @@ namespace Anvil
         ExtensionEXTDebugMarkerEntrypoints                m_ext_debug_marker_extension_entrypoints;
         ExtensionKHRBindMemory2Entrypoints                m_khr_bind_memory2_extension_entrypoints;
         ExtensionKHRDescriptorUpdateTemplateEntrypoints   m_khr_descriptor_update_template_extension_entrypoints;
+        ExtensionKHRDeviceGroupEntrypoints                m_khr_device_group_extension_entrypoints;
         ExtensionKHRDrawIndirectCountEntrypoints          m_khr_draw_indirect_count_extension_entrypoints;
         ExtensionKHRGetMemoryRequirements2Entrypoints     m_khr_get_memory_requirements2_extension_entrypoints;
         ExtensionKHRMaintenance1Entrypoints               m_khr_maintenance1_extension_entrypoints;
@@ -685,15 +694,15 @@ namespace Anvil
         /* Private variables */
 
 
-        std::unique_ptr<Anvil::ComputePipelineManager> m_compute_pipeline_manager_ptr;
-        DescriptorSetLayoutManagerUniquePtr            m_descriptor_set_layout_manager_ptr;
-        Anvil::DescriptorSetGroupUniquePtr             m_dummy_dsg_ptr;
-        std::unique_ptr<Anvil::ExtensionInfo<bool> >   m_extension_enabled_info_ptr;
-        GraphicsPipelineManagerUniquePtr               m_graphics_pipeline_manager_ptr;
-        const Anvil::Instance*                         m_parent_instance_ptr;
-        PipelineCacheUniquePtr                         m_pipeline_cache_ptr;
-        PipelineLayoutManagerUniquePtr                 m_pipeline_layout_manager_ptr;
-        Anvil::ShaderModuleCacheUniquePtr              m_shader_module_cache_ptr;
+        std::unique_ptr<Anvil::ComputePipelineManager>   m_compute_pipeline_manager_ptr;
+        DescriptorSetLayoutManagerUniquePtr              m_descriptor_set_layout_manager_ptr;
+        Anvil::DescriptorSetGroupUniquePtr               m_dummy_dsg_ptr;
+        std::unique_ptr<Anvil::ExtensionInfo<bool> >     m_extension_enabled_info_ptr;
+        GraphicsPipelineManagerUniquePtr                 m_graphics_pipeline_manager_ptr;
+        const Anvil::Instance*                           m_parent_instance_ptr;
+        PipelineCacheUniquePtr                           m_pipeline_cache_ptr;
+        PipelineLayoutManagerUniquePtr                   m_pipeline_layout_manager_ptr;
+        Anvil::ShaderModuleCacheUniquePtr                m_shader_module_cache_ptr;
 
         std::vector<CommandPoolUniquePtr> m_command_pool_ptr_per_vk_queue_fam;
 
@@ -727,7 +736,7 @@ namespace Anvil
          *
          *  @return A new Device instance.
          **/
-        static SGPUDeviceUniquePtr create(const Anvil::PhysicalDevice*         in_physical_device_ptr,
+        static BaseDeviceUniquePtr create(const Anvil::PhysicalDevice*         in_physical_device_ptr,
                                           bool                                 in_enable_shader_module_cache,
                                           const DeviceExtensionConfiguration&  in_extensions,
                                           const std::vector<std::string>&      in_layers,
@@ -748,9 +757,9 @@ namespace Anvil
          **/
         Anvil::SwapchainUniquePtr create_swapchain(Anvil::RenderingSurface* in_parent_surface_ptr,
                                                    Anvil::Window*           in_window_ptr,
-                                                   VkFormat                 in_image_format,
+                                                   Anvil::Format            in_image_format,
                                                    VkPresentModeKHR         in_present_mode,
-                                                   VkImageUsageFlags        in_usage,
+                                                   ImageUsageFlags          in_usage,
                                                    uint32_t                 in_n_swapchain_images);
 
         /** Retrieves a PhysicalDevice instance, from which this device instance was created.
@@ -774,7 +783,7 @@ namespace Anvil
         bool get_physical_device_semaphore_properties(const SemaphorePropertiesQuery& in_query,
                                                       Anvil::SemaphoreProperties*     out_opt_result_ptr = nullptr) const override;
 
-        Anvil::FormatProperties get_physical_device_format_properties(VkFormat in_format) const override;
+        Anvil::FormatProperties get_physical_device_format_properties(Anvil::Format in_format) const override;
 
         bool get_physical_device_image_format_properties(const ImageFormatPropertiesQuery& in_query,
                                                          Anvil::ImageFormatProperties*     out_opt_result_ptr = nullptr) const override;
@@ -789,11 +798,11 @@ namespace Anvil
         const QueueFamilyInfoItems& get_physical_device_queue_families() const override;
 
         /** See documentation in BaseDevice for more details */
-        bool get_physical_device_sparse_image_format_properties(VkFormat                                    in_format,
-                                                                VkImageType                                 in_type,
-                                                                VkSampleCountFlagBits                       in_sample_count,
-                                                                VkImageUsageFlags                           in_usage,
-                                                                VkImageTiling                               in_tiling,
+        bool get_physical_device_sparse_image_format_properties(Anvil::Format                               in_format,
+                                                                Anvil::ImageType                            in_type,
+                                                                Anvil::SampleCountFlagBits                  in_sample_count,
+                                                                ImageUsageFlags                             in_usage,
+                                                                Anvil::ImageTiling                          in_tiling,
                                                                 std::vector<VkSparseImageFormatProperties>& out_result) const override;
 
         /** See documentation in BaseDevice for more details */
@@ -833,6 +842,189 @@ namespace Anvil
         const Anvil::PhysicalDevice* m_parent_physical_device_ptr;
     };
 
+    /* TODO */
+    class MGPUDevice : public BaseDevice
+    {
+    public:
+        /* Public functions */
+
+        virtual ~MGPUDevice();
+
+        /** TODO */
+        static Anvil::BaseDeviceUniquePtr create(std::vector<const Anvil::PhysicalDevice*> in_physical_device_ptrs,
+                                                 bool                                      in_enable_shader_module_cache,
+                                                 const DeviceExtensionConfiguration&       in_extensions,
+                                                 const std::vector<std::string>&           in_layers,
+                                                 bool                                      in_transient_command_buffer_allocs_only,
+                                                 bool                                      in_support_resettable_command_buffer_allocs,
+                                                 bool                                      in_mt_safe = false);
+
+        /** TODO */
+        Anvil::SwapchainUniquePtr create_swapchain(Anvil::RenderingSurface*         in_parent_surface_ptr,
+                                                   Anvil::Window*                   in_window_ptr,
+                                                   Anvil::Format                    in_image_format,
+                                                   VkPresentModeKHR                 in_present_mode,
+                                                   ImageUsageFlags                  in_usage,
+                                                   uint32_t                         in_n_swapchain_images,
+                                                   bool                             in_support_SFR,
+                                                   VkDeviceGroupPresentModeFlagsKHR in_presentation_modes_to_support = VK_DEVICE_GROUP_PRESENT_MODE_LOCAL_BIT_KHR);
+
+        /** TODO
+         *
+         *  This function does NOT call the driver to retrieve the requested information. Instead, it returns
+         *  information cached at mGPU device creation time.
+         */
+        bool get_peer_memory_features(const Anvil::PhysicalDevice* in_local_physical_device_ptr,
+                                      const Anvil::PhysicalDevice* in_remote_physical_device_ptr,
+                                      uint32_t                     in_memory_heap_index,
+                                      PeerMemoryFeatureFlags*      out_result_ptr) const;
+
+        /** TODO */
+        uint32_t get_n_physical_devices() const
+        {
+            return static_cast<uint32_t>(m_parent_physical_devices.size() );
+        }
+
+        /** TODO */
+        const Anvil::PhysicalDevice* get_physical_device(uint32_t in_n_physical_device) const;
+
+        bool get_physical_device_buffer_properties(const BufferPropertiesQuery& in_query,
+                                                   Anvil::BufferProperties*     out_opt_result_ptr = nullptr) const override;
+
+        /** TODO */
+        const Anvil::PhysicalDevice* const* get_physical_devices() const
+        {
+            return &m_parent_physical_devices_vec.at(0);
+        }
+
+        /** TODO */
+        const Anvil::PhysicalDeviceFeatures& get_physical_device_features() const override;
+
+        bool get_physical_device_fence_properties(const FencePropertiesQuery& in_query,
+                                                  Anvil::FenceProperties*     out_opt_result_ptr = nullptr) const override;
+
+        Anvil::FormatProperties get_physical_device_format_properties(Anvil::Format in_format) const override;
+
+        bool get_physical_device_image_format_properties(const ImageFormatPropertiesQuery& in_query,
+                                                         Anvil::ImageFormatProperties*     out_opt_result_ptr = nullptr) const override;
+
+        /** TODO */
+        const Anvil::MemoryProperties& get_physical_device_memory_properties() const override;
+
+        /** TODO */
+        const Anvil::PhysicalDeviceProperties& get_physical_device_properties() const override;
+
+        /** TODO */
+        const QueueFamilyInfoItems& get_physical_device_queue_families() const override;
+
+        bool get_physical_device_semaphore_properties(const SemaphorePropertiesQuery& in_query,
+                                                      Anvil::SemaphoreProperties*     out_opt_result_ptr = nullptr) const;
+
+        /** TODO */
+        bool get_physical_device_sparse_image_format_properties(Anvil::Format                               in_format,
+                                                                Anvil::ImageType                            in_type,
+                                                                Anvil::SampleCountFlagBits                  in_sample_count,
+                                                                ImageUsageFlags                             in_usage,
+                                                                Anvil::ImageTiling                          in_tiling,
+                                                                std::vector<VkSparseImageFormatProperties>& out_result) const override;
+
+        /** TODO */
+        bool get_physical_device_surface_capabilities(Anvil::RenderingSurface*  in_surface_ptr,
+                                                      VkSurfaceCapabilitiesKHR* out_result_ptr) const override;
+
+        /** Tells which physical devices can be parent to swapchain images that a physical device at device index @param in_device_index
+         *  can present.
+         *
+         *  By VK_KHR_device_group, *out_result_ptr is guaranteed to at least refer to the device with index @param in_device_index,
+         *  as long as the physical device has a presentation engine and can be used for presentation purposes.
+         *
+         *  This function is not a part of Anvil::PhysicalDevice, because the spec does not guarantee this data to be invariant between
+         *  device instances. In cases where the app creates a sGPU device and a mGPU device, where both share the same physical device,
+         *  the former device could be incorrectly assumed to be compatible with physical devices from an external device group.
+         *
+         *  @param in_device_index TODO
+         *  @param out_result_ptr  TODO. Must not be NULL.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool get_present_compatible_physical_devices(uint32_t                                                in_device_index,
+                                                     const std::vector<const Anvil::PhysicalDevice*>** out_result_ptr) const;
+
+        /** TODO
+         *
+         *  Note: The value returned by this function is NOT guaranteed to be invariant.
+         **/
+        bool get_present_rectangles(uint32_t                       in_device_index,
+                                    const Anvil::RenderingSurface* in_rendering_surface_ptr,
+                                    std::vector<VkRect2D>*         out_result_ptr) const;
+
+        /** TODO */
+        const Anvil::QueueFamilyInfo* get_queue_family_info(uint32_t in_queue_family_index) const override;
+
+        /** TODO */
+        VkDeviceGroupPresentModeFlagsKHR get_supported_present_modes() const
+        {
+            return m_supported_present_modes;
+        }
+
+        /** TODO
+         *
+         *  Note: The value returned by this function is NOT guaranteed to be invariant.
+         *
+         */
+        VkDeviceGroupPresentModeFlagsKHR get_supported_present_modes_for_surface(const Anvil::RenderingSurface* in_surface_ptr) const;
+
+        /* Tells what type this device instance is */
+        DeviceType get_type() const override
+        {
+            return DEVICE_TYPE_MULTI_GPU;
+        }
+
+        /* Tells whether this logical device is a part of a device group which supports subset allocations. */
+        bool supports_subset_allocations() const
+        {
+            return m_supports_subset_allocations;
+        }
+
+    protected:
+        /* Protected functions */
+        void create_device                         (const std::vector<const char*>& in_extensions,
+                                                    const std::vector<const char*>& in_layers,
+                                                    const VkPhysicalDeviceFeatures& in_features,
+                                                    DeviceQueueFamilyInfo*          out_queue_families_ptr) override;
+        void get_queue_family_indices              (DeviceQueueFamilyInfo*          out_device_queue_family_info_ptr) const;
+        void init_device                           () override;
+        bool is_layer_supported                    (const std::string&              in_layer_name)     const override;
+        bool is_physical_device_extension_supported(const std::string&              in_extension_name) const override;
+
+    private:
+        /* Private type definitions */
+
+        struct ParentPhysicalDeviceProperties
+        {
+            typedef uint32_t                                    HeapIndex;
+            typedef std::map<HeapIndex, PeerMemoryFeatureFlags> HeapIndexToPeerMemoryFeaturesMap;
+            typedef uint32_t                                    RemotePhysicalDeviceGroupIndex;
+
+            const Anvil::PhysicalDevice*                                               physical_device_ptr;
+            std::vector<const Anvil::PhysicalDevice*>                                  presentation_compatible_physical_devices; /* may be empty if the physical device does not have a presentation engine! */
+            std::map<RemotePhysicalDeviceGroupIndex, HeapIndexToPeerMemoryFeaturesMap> peer_memory_features;
+        };
+
+        /* Private functions */
+
+        /** Private constructor. Please use create() instead. */
+        MGPUDevice(std::vector<const Anvil::PhysicalDevice*> in_physical_device_ptrs,
+                   bool                                      in_mt_safe);
+
+        /* Private variables */
+        std::map<uint32_t, const ParentPhysicalDeviceProperties*> m_device_index_to_physical_device_props;
+        std::vector<ParentPhysicalDeviceProperties>               m_parent_physical_devices;
+        std::vector<const Anvil::PhysicalDevice*>                 m_parent_physical_devices_vec;
+        bool                                                      m_supports_subset_allocations;
+
+        VkDeviceGroupPresentModeFlagBitsKHRVariable(m_supported_present_modes);
+    };
 }; /* namespace Anvil */
 
 #endif /* WRAPPERS_DEVICE_H */

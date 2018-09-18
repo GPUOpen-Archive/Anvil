@@ -80,6 +80,7 @@ namespace Anvil
         COMMAND_TYPE_DEBUG_MARKER_END_EXT,
         COMMAND_TYPE_DEBUG_MARKER_INSERT_EXT,
         COMMAND_TYPE_DISPATCH,
+        COMMAND_TYPE_DISPATCH_BASE_KHR,
         COMMAND_TYPE_DISPATCH_INDIRECT,
         COMMAND_TYPE_DRAW,
         COMMAND_TYPE_DRAW_INDEXED,
@@ -102,6 +103,7 @@ namespace Anvil
         COMMAND_TYPE_SET_BLEND_CONSTANTS,
         COMMAND_TYPE_SET_DEPTH_BIAS,
         COMMAND_TYPE_SET_DEPTH_BOUNDS,
+        COMMAND_TYPE_SET_DEVICE_MASK_KHR,
         COMMAND_TYPE_SET_EVENT,
         COMMAND_TYPE_SET_LINE_WIDTH,
         COMMAND_TYPE_SET_SCISSOR,
@@ -112,7 +114,6 @@ namespace Anvil
         COMMAND_TYPE_UPDATE_BUFFER,
         COMMAND_TYPE_WAIT_EVENTS,
         COMMAND_TYPE_WRITE_TIMESTAMP,
-
     } CommandType;
 
     /** Base structure for a Vulkan command.
@@ -164,11 +165,12 @@ namespace Anvil
      */
     typedef struct BeginRenderPassCommand : public Command
     {
-        std::vector<VkClearValue> clear_values;
-        VkSubpassContents         contents;
-        Anvil::Framebuffer*       fbo_ptr;
-        VkRect2D                  render_area;
-        Anvil::RenderPass*        render_pass_ptr;
+        std::vector<VkClearValue>                 clear_values;
+        VkSubpassContents                         contents;
+        Anvil::Framebuffer*                       fbo_ptr;
+        std::vector<const Anvil::PhysicalDevice*> physical_devices;
+        std::vector<VkRect2D>                     render_areas;
+        Anvil::RenderPass*                        render_pass_ptr;
 
         /** Constructor.
          *
@@ -176,12 +178,14 @@ namespace Anvil
          *
          *  Arguments as per Vulkan API.
          **/
-        explicit BeginRenderPassCommand(uint32_t            in_n_clear_values,
-                                        const VkClearValue* in_clear_value_ptrs,
-                                        Anvil::Framebuffer* in_fbo_ptr,
-                                        const VkRect2D&     in_render_area,
-                                        Anvil::RenderPass*  in_render_pass_ptr,
-                                        VkSubpassContents   in_contents);
+        explicit BeginRenderPassCommand(uint32_t                            in_n_clear_values,
+                                        const VkClearValue*                 in_clear_value_ptrs,
+                                        Anvil::Framebuffer*                 in_fbo_ptr,
+                                        uint32_t                            in_n_physical_devices,
+                                        const Anvil::PhysicalDevice* const* in_physical_devices,
+                                        const VkRect2D*                     in_render_areas,
+                                        Anvil::RenderPass*                  in_render_pass_ptr,
+                                        VkSubpassContents                   in_contents);
 
         /** Destructor.
          *
@@ -197,7 +201,7 @@ namespace Anvil
         BeginRenderPassCommand           (const BeginRenderPassCommand&);
         BeginRenderPassCommand& operator=(const BeginRenderPassCommand&);
     } BeginRenderPassCommand;
-        
+
     /* Structure passed as a COMMAND_BUFFER_CALLBACK_ID_BEGIN_RENDER_PASS_COMMAND_RECORDED call-back argument */
     typedef struct BeginRenderPassCommandRecordedCallbackData
     {
@@ -212,7 +216,7 @@ namespace Anvil
         explicit BeginRenderPassCommandRecordedCallbackData(CommandBufferBase*            in_command_buffer_ptr,
                                                             const BeginRenderPassCommand* in_command_details_ptr)
             :command_buffer_ptr (in_command_buffer_ptr),
-             command_details_ptr(in_command_details_ptr) 
+             command_details_ptr(in_command_details_ptr)
         {
             /* Stub */
         }
@@ -244,7 +248,7 @@ namespace Anvil
         explicit EndRenderPassCommandRecordedCallbackData(CommandBufferBase*          in_command_buffer_ptr,
                                                           const EndRenderPassCommand* in_command_details_ptr)
             :command_buffer_ptr (in_command_buffer_ptr),
-             command_details_ptr(in_command_details_ptr) 
+             command_details_ptr(in_command_details_ptr)
         {
             /* Stub */
         }
@@ -445,9 +449,9 @@ namespace Anvil
          *  @return true if successful, false otherwise.
          **/
         bool record_blit_image(Anvil::Image*      in_src_image_ptr,
-                               VkImageLayout      in_src_image_layout,
+                               Anvil::ImageLayout in_src_image_layout,
                                Anvil::Image*      in_dst_image_ptr,
-                               VkImageLayout      in_dst_image_layout,
+                               Anvil::ImageLayout in_dst_image_layout,
                                uint32_t           in_region_count,
                                const VkImageBlit* in_region_ptrs,
                                VkFilter           in_filter);
@@ -492,7 +496,7 @@ namespace Anvil
          *  @return true if successful, false otherwise.
          **/
         bool record_clear_color_image(Anvil::Image*                  in_image_ptr,
-                                      VkImageLayout                  in_image_layout,
+                                      Anvil::ImageLayout             in_image_layout,
                                       const VkClearColorValue*       in_color_ptr,
                                       uint32_t                       in_range_count,
                                       const VkImageSubresourceRange* in_range_ptrs);
@@ -515,7 +519,7 @@ namespace Anvil
          *  @return true if successful, false otherwise.
          **/
         bool record_clear_depth_stencil_image(Anvil::Image*                   in_image_ptr,
-                                              VkImageLayout                   in_image_layout,
+                                              Anvil::ImageLayout              in_image_layout,
                                               const VkClearDepthStencilValue* in_depth_stencil_ptr,
                                               uint32_t                        in_range_count,
                                               const VkImageSubresourceRange*  in_range_ptrs);
@@ -561,7 +565,7 @@ namespace Anvil
          **/
         bool record_copy_buffer_to_image(Anvil::Buffer*           in_src_buffer_ptr,
                                          Anvil::Image*            in_dst_image_ptr,
-                                         VkImageLayout            in_dst_image_layout,
+                                         Anvil::ImageLayout       in_dst_image_layout,
                                          uint32_t                 in_region_count,
                                          const VkBufferImageCopy* in_region_ptrs);
 
@@ -583,9 +587,9 @@ namespace Anvil
          *  @return true if successful, false otherwise.
          **/
         bool record_copy_image(Anvil::Image*      in_src_image_ptr,
-                               VkImageLayout      in_src_image_layout,
+                               Anvil::ImageLayout in_src_image_layout,
                                Anvil::Image*      in_dst_image_ptr,
-                               VkImageLayout      in_dst_image_layout,
+                               Anvil::ImageLayout in_dst_image_layout,
                                uint32_t           in_region_count,
                                const VkImageCopy* in_region_ptrs);
 
@@ -607,7 +611,7 @@ namespace Anvil
          *  @return true if successful, false otherwise.
          **/
         bool record_copy_image_to_buffer(Anvil::Image*            in_src_image_ptr,
-                                         VkImageLayout            in_src_image_layout,
+                                         Anvil::ImageLayout       in_src_image_layout,
                                          Anvil::Buffer*           in_dst_buffer_ptr,
                                          uint32_t                 in_region_count,
                                          const VkBufferImageCopy* in_region_ptrs);
@@ -695,6 +699,29 @@ namespace Anvil
         bool record_dispatch(uint32_t in_x,
                              uint32_t in_y,
                              uint32_t in_z);
+
+        /** Issues a vkCmdDispatchBaseKHR() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  It is also illegal to call this function when recording renderpass commands. Doing so
+         *  will also result in an assertion failure.
+         *
+         *  This function can only be called for command buffers created for a mGPU device.
+         *
+         *  Argument meaning is as per Vulkan API specification.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_dispatch_base_KHR(uint32_t in_base_group_x,
+                                      uint32_t in_base_group_y,
+                                      uint32_t in_base_group_z,
+                                      uint32_t in_group_count_x,
+                                      uint32_t in_group_count_y,
+                                      uint32_t in_group_count_z);
 
         /** Issues a vkCmdDispatchIndirect() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -803,7 +830,7 @@ namespace Anvil
                                                     VkDeviceSize   in_count_offset,
                                                     uint32_t       in_max_draw_count,
                                                     uint32_t       in_stride);
-        
+
         /** Issues a vkCmdDrawIndexedIndirectCountKHR() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
          *  #define enabled).
@@ -1040,11 +1067,12 @@ namespace Anvil
          *  @return true if successful, false otherwise.
          **/
         bool record_resolve_image(Anvil::Image*         in_src_image_ptr,
-                                  VkImageLayout         in_src_image_layout,
+                                  Anvil::ImageLayout    in_src_image_layout,
                                   Anvil::Image*         in_dst_image_ptr,
-                                  VkImageLayout         in_dst_image_layout,
+                                  Anvil::ImageLayout    in_dst_image_layout,
                                   uint32_t              in_region_count,
                                   const VkImageResolve* in_region_ptrs);
+
 
         /** Issues a vkCmdSetBlendConstants() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -1087,6 +1115,21 @@ namespace Anvil
          **/
         bool record_set_depth_bounds(float in_min_depth_bounds,
                                      float in_max_depth_bounds);
+
+        /** Issues a vkCmdSetDeviceMaskKHR() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  This function can only be called for command buffers created for a mGPU device.
+         *
+         *  Argument meaning is as per Vulkan API specification.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_set_device_mask_KHR(uint32_t in_device_mask);
 
         /** Issues a vkCmdSetEvent() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -1473,21 +1516,21 @@ namespace Anvil
         /** Holds all arguments passed to a vkCmdBlitImage() command. */
         typedef struct BlitImageCommand : public Command
         {
-            VkImage       dst_image;
-            VkImageLayout dst_image_layout;
-            Anvil::Image* dst_image_ptr;
-            VkImage       src_image;
-            VkImageLayout src_image_layout;
-            Anvil::Image* src_image_ptr;
+            VkImage            dst_image;
+            Anvil::ImageLayout dst_image_layout;
+            Anvil::Image*      dst_image_ptr;
+            VkImage            src_image;
+            Anvil::ImageLayout src_image_layout;
+            Anvil::Image*      src_image_ptr;
 
             VkFilter                 filter;
             std::vector<VkImageBlit> regions;
 
             /** Constructor. */
             explicit BlitImageCommand(Anvil::Image*      in_src_image_ptr,
-                                      VkImageLayout      in_src_image_layout,
+                                      Anvil::ImageLayout in_src_image_layout,
                                       Anvil::Image*      in_dst_image_ptr,
-                                      VkImageLayout      in_dst_image_layout,
+                                      Anvil::ImageLayout in_dst_image_layout,
                                       uint32_t           in_region_count,
                                       const VkImageBlit* in_region_ptrs,
                                       VkFilter           in_filter);
@@ -1506,15 +1549,15 @@ namespace Anvil
         /* Holds a single attachment definition, as used by ClearAttachmentsCommand descriptor */
         typedef struct ClearAttachmentsCommandAttachment
         {
-            VkImageAspectFlagsVariable(aspect_mask);
+            Anvil::ImageAspectFlags aspect_mask;
 
             VkClearValue clear_value;
             uint32_t     color_attachment;
 
             /** Constructor. **/
-            ClearAttachmentsCommandAttachment(VkImageAspectFlags in_aspect_mask,
-                                              VkClearValue       in_clear_value,
-                                              uint32_t           in_color_attachment)
+            ClearAttachmentsCommandAttachment(Anvil::ImageAspectFlags in_aspect_mask,
+                                              VkClearValue            in_clear_value,
+                                              uint32_t                in_color_attachment)
             {
                 aspect_mask      = in_aspect_mask;
                 clear_value      = in_clear_value;
@@ -1553,13 +1596,13 @@ namespace Anvil
         {
             VkClearColorValue                    color;
             VkImage                              image;
-            VkImageLayout                        image_layout;
+            Anvil::ImageLayout                   image_layout;
             Anvil::Image*                        image_ptr;
             std::vector<VkImageSubresourceRange> ranges;
 
             /** Constructor. **/
             explicit ClearColorImageCommand(Anvil::Image*                  in_image_ptr,
-                                            VkImageLayout                  in_image_layout,
+                                            Anvil::ImageLayout             in_image_layout,
                                             const VkClearColorValue*       in_color_ptr,
                                             uint32_t                       in_range_count,
                                             const VkImageSubresourceRange* in_range_ptrs);
@@ -1580,13 +1623,13 @@ namespace Anvil
         {
             VkClearDepthStencilValue             depth_stencil;
             VkImage                              image;
-            VkImageLayout                        image_layout;
+            Anvil::ImageLayout                   image_layout;
             Anvil::Image*                        image_ptr;
             std::vector<VkImageSubresourceRange> ranges;
 
             /** Constructor. **/
             explicit ClearDepthStencilImageCommand(Anvil::Image*                   in_image_ptr,
-                                                   VkImageLayout                   in_image_layout,
+                                                   Anvil::ImageLayout              in_image_layout,
                                                    const VkClearDepthStencilValue* in_depth_stencil_ptr,
                                                    uint32_t                        in_range_count,
                                                    const VkImageSubresourceRange*  in_range_ptrs);
@@ -1631,7 +1674,7 @@ namespace Anvil
         typedef struct CopyBufferToImageCommand : public Command
         {
             VkImage                        dst_image;
-            VkImageLayout                  dst_image_layout;
+            Anvil::ImageLayout             dst_image_layout;
             Anvil::Image*                  dst_image_ptr;
             std::vector<VkBufferImageCopy> regions;
             VkBuffer                       src_buffer;
@@ -1640,7 +1683,7 @@ namespace Anvil
             /** Constructor. **/
             explicit CopyBufferToImageCommand(Anvil::Buffer*           in_src_buffer_ptr,
                                               Anvil::Image*            in_dst_image_ptr,
-                                              VkImageLayout            in_dst_image_layout,
+                                              Anvil::ImageLayout       in_dst_image_layout,
                                               uint32_t                 in_region_count,
                                               const VkBufferImageCopy* in_region_ptrs);
 
@@ -1661,17 +1704,17 @@ namespace Anvil
         {
             VkImage                  dst_image;
             Anvil::Image*            dst_image_ptr;
-            VkImageLayout            dst_image_layout;
+            Anvil::ImageLayout       dst_image_layout;
             std::vector<VkImageCopy> regions;
             VkImage                  src_image;
             Anvil::Image*            src_image_ptr;
-            VkImageLayout            src_image_layout;
+            Anvil::ImageLayout       src_image_layout;
 
             /** Constructor. **/
             explicit CopyImageCommand(Anvil::Image*      in_src_image_ptr,
-                                      VkImageLayout      in_src_image_layout,
+                                      Anvil::ImageLayout in_src_image_layout,
                                       Anvil::Image*      in_dst_image_ptr,
-                                      VkImageLayout      in_dst_image_layout,
+                                      Anvil::ImageLayout in_dst_image_layout,
                                       uint32_t           in_region_count,
                                       const VkImageCopy* in_region_ptrs);
 
@@ -1693,12 +1736,12 @@ namespace Anvil
             Anvil::Buffer*                 dst_buffer_ptr;
             std::vector<VkBufferImageCopy> regions;
             VkImage                        src_image;
-            VkImageLayout                  src_image_layout;
+            Anvil::ImageLayout             src_image_layout;
             Anvil::Image*                  src_image_ptr;
 
             /** Constructor. **/
             explicit CopyImageToBufferCommand(Anvil::Image*            in_src_image_ptr,
-                                              VkImageLayout            in_src_image_layout,
+                                              Anvil::ImageLayout       in_src_image_layout,
                                               Anvil::Buffer*           in_dst_buffer_ptr,
                                               uint32_t                 in_region_count,
                                               const VkBufferImageCopy* in_region_ptrs);
@@ -1745,7 +1788,6 @@ namespace Anvil
         private:
             CopyQueryPoolResultsCommand& operator=(const CopyQueryPoolResultsCommand&);
         } CopyQueryPoolResultsCommand;
-
 
         /** Holds all arguments passed to a vkCmdDebugMarkerBeginEXT() command. */
         typedef struct DebugMarkerBeginEXTCommand : public Command
@@ -1811,6 +1853,33 @@ namespace Anvil
                 /* Stub */
             }
         } DispatchCommand;
+
+
+        /** Holds all arguments passed to a vkCmdDispatchBaseKHR() command. */
+        typedef struct DispatchBaseKHRCommand : public Command
+        {
+            uint32_t base_group_x;
+            uint32_t base_group_y;
+            uint32_t base_group_z;
+            uint32_t group_count_x;
+            uint32_t group_count_y;
+            uint32_t group_count_z;
+
+            /** Constructor. **/
+            explicit DispatchBaseKHRCommand(uint32_t in_base_group_x,
+                                            uint32_t in_base_group_y,
+                                            uint32_t in_base_group_z,
+                                            uint32_t in_group_count_x,
+                                            uint32_t in_group_count_y,
+                                            uint32_t in_group_count_z);
+
+            /** Destructor. */
+            virtual ~DispatchBaseKHRCommand()
+            {
+                /* Stub */
+            }
+        } DispatchBaseKHRCommand;
+
 
         /** Holds all arguments passed to a vkCmdDispatchIndirect() command. */
         typedef struct DispatchIndirectCommand : public Command
@@ -2158,7 +2227,6 @@ namespace Anvil
             }
         } PushConstantsCommand;
 
-
         /** Holds all arguments passed to a vkCmdResetEvent() command. **/
         typedef struct ResetEventCommand : public Command
         {
@@ -2207,17 +2275,17 @@ namespace Anvil
         {
             VkImage                     dst_image;
             Anvil::Image*               dst_image_ptr;
-            VkImageLayout               dst_image_layout;
+            Anvil::ImageLayout          dst_image_layout;
             std::vector<VkImageResolve> regions;
             VkImage                     src_image;
             Anvil::Image*               src_image_ptr;
-            VkImageLayout               src_image_layout;
+            Anvil::ImageLayout          src_image_layout;
 
             /** Constructor. **/
             explicit ResolveImageCommand(Anvil::Image*         in_src_image_ptr,
-                                         VkImageLayout         in_src_image_layout,
+                                         Anvil::ImageLayout    in_src_image_layout,
                                          Anvil::Image*         in_dst_image_ptr,
-                                         VkImageLayout         in_dst_image_layout,
+                                         Anvil::ImageLayout    in_dst_image_layout,
                                          uint32_t              in_region_count,
                                          const VkImageResolve* in_region_ptrs);
 
@@ -2283,6 +2351,21 @@ namespace Anvil
                 /* Stub */
             }
         } SetDepthBoundsCommand;
+
+        /** Holds all arguments passed to a vkCmdSetDeviceMaskKHR() command. **/
+        typedef struct SetDeviceMaskKHRCommand : public Command
+        {
+            uint32_t device_mask;
+
+            /** Constructor. **/
+            SetDeviceMaskKHRCommand(uint32_t in_device_mask);
+
+            /** Destructor. */
+            virtual ~SetDeviceMaskKHRCommand()
+            {
+                /* Stub */
+            }
+        } SetDeviceMaskKHRCommand;
 
         /** Holds all arguments passed to a vkCmdSetEvent() command. **/
         typedef struct SetEventCommand : public Command
@@ -2442,7 +2525,6 @@ namespace Anvil
             UpdateBufferCommand& operator=(const UpdateBufferCommand&);
         } UpdateBufferCommand;
 
-
         /** Holds all arguments passed to a vkCmdWaitEvents() command. **/
         typedef struct WaitEventsCommand : public Command
         {
@@ -2521,10 +2603,12 @@ namespace Anvil
         #endif
 
         VkCommandBuffer          m_command_buffer;
+        uint32_t                 m_device_mask;
         const Anvil::BaseDevice* m_device_ptr;
         bool                     m_is_renderpass_active;
         Anvil::CommandPool*      m_parent_command_pool_ptr;
         bool                     m_recording_in_progress;
+        uint32_t                 m_renderpass_device_mask;
         CommandBufferType        m_type;
 
         static bool m_command_stashing_disabled;
@@ -2563,6 +2647,10 @@ namespace Anvil
          *  Any Vulkan object wrapper instances passed to this function are going to be retained,
          *  and will be released when the command buffer is released or resetted.
          *
+         *  This function prototype can be called for both single- and multi-GPU devices. In the latter case,
+         *  it will be assumed that all physical devices within the device group should be used for
+         *  the device mask and that they all should use the same render area.
+         *
          *  Argument meaning is as per Vulkan API specification.
          *
          *  @return true if successful, false otherwise.
@@ -2573,6 +2661,22 @@ namespace Anvil
                                       VkRect2D            in_render_area,
                                       Anvil::RenderPass*  in_render_pass_ptr,
                                       VkSubpassContents   in_contents);
+
+        /** See documentation for the other record_begin_render_pass() function prototype for general
+         *  information about this function.
+         *
+         *  This prototype can only be used for multi-GPU devices.
+         *
+         *  TODO
+         */
+        bool record_begin_render_pass(uint32_t                            in_n_clear_values,
+                                      const VkClearValue*                 in_clear_value_ptrs,
+                                      Anvil::Framebuffer*                 in_fbo_ptr,
+                                      uint32_t                            in_n_physical_devices,
+                                      const Anvil::PhysicalDevice* const* in_physical_devices,
+                                      const VkRect2D*                     in_render_areas,
+                                      Anvil::RenderPass*                  in_render_pass_ptr,
+                                      VkSubpassContents                   in_contents);
 
         /** Issues a vkCmdEndRenderPass() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -2622,17 +2726,22 @@ namespace Anvil
          *
          *  It is an error to invoke this function if recording is already in progress.
          *
+         *  The prototype without the @param in_device_mask argument can be used for both sGPU and mGPU devices.
+         *  In the latter case, all physical devices assigned to the logical device will be used for the device
+         *  mask.
+         *
          *  @param in_one_time_submit          true if the VK_CMD_BUFFER_OPTIMIZE_ONE_TIME_SUBMIT_BIT flag should
          *                                     be used for the Vulkan API call.
          *  @param in_simultaneous_use_allowed true if the VK_CMD_BUFFER_OPTIMIZE_NO_SIMULTANEOUS_USE_BIT flag should
          *                                     be used for the Vulkan API call.
-         *  @param in_n_physical_devices       Number of physical devices specified under @param in_physical_devices_ptr
-         *  @param in_physical_devices_ptr     Physical devices to allow for usage for the command buffer. Must not be nullptr.
+         *  @param in_opt_device_mask          Indices of physical devices to allow for usage for the command buffer. Must not be 0.
+         *                                     This is only used with mGPU devices.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool start_recording(bool in_one_time_submit,
-                             bool in_simultaneous_use_allowed);
+        bool start_recording(bool     in_one_time_submit,
+                             bool     in_simultaneous_use_allowed,
+                             uint32_t in_opt_device_mask = UINT32_MAX);
 
     protected:
         /** Constructor. Should be used to instantiate primary-level command buffers.
@@ -2693,7 +2802,8 @@ namespace Anvil
                              SubPassID                     in_subpass_id,
                              OcclusionQuerySupportScope    in_required_occlusion_query_support_scope,
                              bool                          in_occlusion_query_used_by_primary_command_buffer,
-                             VkQueryPipelineStatisticFlags in_required_pipeline_statistics_scope);
+                             VkQueryPipelineStatisticFlags in_required_pipeline_statistics_scope,
+                             uint32_t                      in_opt_device_mask = UINT32_MAX);
 
         /* Destructor */
         virtual ~SecondaryCommandBuffer()
