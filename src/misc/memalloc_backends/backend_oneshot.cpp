@@ -30,6 +30,7 @@
 #include "wrappers/image.h"
 #include "wrappers/memory_block.h"
 #include <algorithm>
+#include <unordered_map>
 
 /** Please see header for specification */
 Anvil::MemoryAllocatorBackends::OneShot::OneShot(const Anvil::BaseDevice* in_device_ptr)
@@ -74,11 +75,11 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
         }
     } DedicatedAllocationInfo;
 
-    std::vector<DedicatedAllocationInfo>                     dedicated_allocs;
-    const auto&                                              memory_props             (m_device_ptr->get_physical_device_memory_properties() );
-    const uint32_t                                           n_memory_types           (static_cast<uint32_t>(memory_props.types.size() ));
-    std::vector<std::vector<Anvil::MemoryAllocator::Item*> > per_mem_type_items_vector(n_memory_types);
-    bool                                                     result                   (true);
+    std::vector<DedicatedAllocationInfo>                                                    dedicated_allocs;
+    std::unordered_map<uint32_t, std::vector<std::vector<Anvil::MemoryAllocator::Item*> > > device_mask_to_mem_type_to_item_vec;
+    const auto&                                                                             memory_props                       (m_device_ptr->get_physical_device_memory_properties() );
+    const uint32_t                                                                          n_memory_types                     (static_cast<uint32_t>(memory_props.types.size() ));
+    bool                                                                                    result                             (true);
 
     /* Iterate over all block items and determine what memory types we can use.
      *
@@ -91,6 +92,9 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
      * Allocations which can be exported via external handles are tricky. Drivers do NOT need to request such allocations to be
      * dedicated. However, each exportable memory allocation comes with a set of parameters (NT handle details, as an example)
      * which make merging memory blocks tricky. Hence, for exportable allocs, just put each such alloc in its own memory block.
+     *
+     * Since we can only specify one device mask per memory allocation, allocation need to be further subdivided by device masks
+     * they have been associated with.
      *
      */
     for (auto item_iterator  = in_items.begin();
@@ -115,6 +119,51 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
                 continue;
             }
 
+            if ((*item_iterator)->alloc_mgpu_peer_memory_reqs.size() > 0)
+            {
+                /* Make sure current memory type supports all required peer memory requirements specified by the user */
+                bool can_continue    = true;
+                auto mgpu_device_ptr = dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr);
+
+                anvil_assert(m_device_ptr->get_type() == Anvil::DeviceType::DEVICE_TYPE_MULTI_GPU);
+                anvil_assert(mgpu_device_ptr          != nullptr);
+
+                for (const auto& current_req : (*item_iterator)->alloc_mgpu_peer_memory_reqs)
+                {
+                    Anvil::PeerMemoryFeatureFlags current_memory_type_peer_memory_features = 0;
+                    const auto&                   local_device_index                       = current_req.first.first;
+                    const auto                    local_device_ptr                         = mgpu_device_ptr->get_physical_device(local_device_index);
+                    const auto&                   remote_device_index                      = current_req.first.second;
+                    const auto                    remote_device_ptr                        = mgpu_device_ptr->get_physical_device(remote_device_index);
+                    const auto&                   required_peer_memory_features            = current_req.second;
+
+                    if (!mgpu_device_ptr->get_peer_memory_features(local_device_ptr,
+                                                                   remote_device_ptr,
+                                                                   memory_props.types.at(n_memory_type).heap_ptr->index,
+                                                                  &current_memory_type_peer_memory_features) )
+                    {
+                        anvil_assert_fail();
+
+                        can_continue = false;
+                        break;
+                    }
+
+                    if ((current_memory_type_peer_memory_features & required_peer_memory_features) != required_peer_memory_features)
+                    {
+                        can_continue = false;
+
+                        break;
+                    }
+                }
+
+                if (!can_continue)
+                {
+                    result = false;
+
+                    goto end;
+                }
+            }
+
             if ((*item_iterator)->alloc_is_dedicated_memory                   ||
                 (*item_iterator)->alloc_exportable_external_handle_types != 0)
             {
@@ -125,7 +174,14 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
             }
             else
             {
-                per_mem_type_items_vector.at(n_memory_type).push_back((item_iterator->get() ) );
+                const auto& device_mask = (*item_iterator)->alloc_device_mask;
+
+                if (device_mask_to_mem_type_to_item_vec.find(device_mask) == device_mask_to_mem_type_to_item_vec.end() )
+                {
+                    device_mask_to_mem_type_to_item_vec[device_mask].resize(n_memory_types);
+                }
+
+                device_mask_to_mem_type_to_item_vec.at(device_mask).at(n_memory_type).push_back((item_iterator->get() ) );
             }
 
             break;
@@ -147,7 +203,8 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
                                                                                 current_dedicated_alloc.item_ptr->alloc_size,
                                                                                 (memory_props.types[current_dedicated_alloc.n_memory_type].features) );
 
-            create_info_ptr->set_mt_safety(Anvil::Utils::convert_boolean_to_mt_safety_enum(m_device_ptr->is_mt_safe()) );
+            create_info_ptr->set_device_mask(current_dedicated_alloc.item_ptr->alloc_device_mask);
+            create_info_ptr->set_mt_safety  (Anvil::Utils::convert_boolean_to_mt_safety_enum(m_device_ptr->is_mt_safe()) );
 
             if (current_dedicated_alloc.item_ptr->alloc_is_dedicated_memory)
             {
@@ -203,78 +260,84 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
 
     /* For each memory type, for each there's at least one item, bake a memory block */
     {
-        std::map<Anvil::MemoryAllocator::Item*, VkDeviceSize> alloc_offset_map;
-        uint32_t                                              current_memory_type_index(0);
-
-        for (auto mem_type_to_item_vector_iterator  = per_mem_type_items_vector.begin();
-                  mem_type_to_item_vector_iterator != per_mem_type_items_vector.end();
-                ++mem_type_to_item_vector_iterator, ++current_memory_type_index)
+        for (auto device_mask_to_mem_type_to_item_vector_iterator  = device_mask_to_mem_type_to_item_vec.begin();
+                  device_mask_to_mem_type_to_item_vector_iterator != device_mask_to_mem_type_to_item_vec.end();
+                ++device_mask_to_mem_type_to_item_vector_iterator)
         {
-            auto& current_item_vector = *mem_type_to_item_vector_iterator;
+            std::map<Anvil::MemoryAllocator::Item*, VkDeviceSize> alloc_offset_map;
+            auto&                                                 current_device_mask_to_item_vector_data = *device_mask_to_mem_type_to_item_vector_iterator;
+            const auto&                                           current_device_mask                     = current_device_mask_to_item_vector_data.first;
+            uint32_t                                              current_memory_type_index               = 0;
 
-            if (current_item_vector.size() > 0)
+            for (const auto& current_items: current_device_mask_to_item_vector_data.second)
             {
-                Anvil::MemoryBlockUniquePtr new_memory_block_ptr(nullptr,
-                                                                 std::default_delete<Anvil::MemoryBlock>() );
-                VkDeviceSize                n_bytes_required    (0);
-
-                /* Go through the items, calculate offsets and the total amount of memory we're going
-                 * to need to alloc off the heap */
-                for (auto& current_item_ptr : current_item_vector)
+                if (current_items.size() > 0)
                 {
-                    anvil_assert(current_item_ptr->alloc_exportable_external_handle_types == 0);
-                    anvil_assert(current_item_ptr->alloc_external_nt_handle_info_ptr      == nullptr);
+                    Anvil::MemoryBlockUniquePtr new_memory_block_ptr(nullptr,
+                                                                     std::default_delete<Anvil::MemoryBlock>() );
+                    VkDeviceSize                n_bytes_required    (0);
 
-                    n_bytes_required = Anvil::Utils::round_up(n_bytes_required,
-                                                              current_item_ptr->alloc_memory_required_alignment);
-
-                    alloc_offset_map[current_item_ptr]  = n_bytes_required;
-                    n_bytes_required                   += current_item_ptr->alloc_size;
-                }
-
-                /* Bake the block and stash it */
-                {
-                    auto create_info_ptr = Anvil::MemoryBlockCreateInfo::create_regular(m_device_ptr,
-                                                                                        1u << current_memory_type_index,
-                                                                                        n_bytes_required,
-                                                                                        (memory_props.types[current_memory_type_index].features) );
-
-                    create_info_ptr->set_mt_safety(Anvil::Utils::convert_boolean_to_mt_safety_enum(m_device_ptr->is_mt_safe()) );
-
-                    new_memory_block_ptr = Anvil::MemoryBlock::create(std::move(create_info_ptr) );
-                }
-
-                if (new_memory_block_ptr == nullptr)
-                {
-                    anvil_assert(new_memory_block_ptr != nullptr);
-
-                    result = false;
-                    continue;
-                }
-
-                /* Go through the items again and assign the result memory block */
-                for (auto& current_item_ptr : current_item_vector)
-                {
+                    /* Go through the items, calculate offsets and the total amount of memory we're going
+                     * to need to alloc off the heap */
+                    for (auto& current_item_ptr : current_items)
                     {
-                        auto create_info_ptr = Anvil::MemoryBlockCreateInfo::create_derived(new_memory_block_ptr.get(),
-                                                                                            alloc_offset_map.at(current_item_ptr),
-                                                                                            current_item_ptr->alloc_size);
+                        anvil_assert(current_item_ptr->alloc_exportable_external_handle_types == 0);
+                        anvil_assert(current_item_ptr->alloc_external_nt_handle_info_ptr      == nullptr);
 
-                        current_item_ptr->alloc_memory_block_ptr = Anvil::MemoryBlock::create(std::move(create_info_ptr) );
+                        n_bytes_required = Anvil::Utils::round_up(n_bytes_required,
+                                                                  current_item_ptr->alloc_memory_required_alignment);
+
+                        alloc_offset_map[current_item_ptr]  = n_bytes_required;
+                        n_bytes_required                   += current_item_ptr->alloc_size;
                     }
 
-                    if (current_item_ptr->alloc_memory_block_ptr != nullptr)
+                    /* Bake the block and stash it */
                     {
-                        current_item_ptr->is_baked = true;
+                        auto create_info_ptr = Anvil::MemoryBlockCreateInfo::create_regular(m_device_ptr,
+                                                                                            1u << current_memory_type_index,
+                                                                                            n_bytes_required,
+                                                                                            (memory_props.types[current_memory_type_index].features) );
+
+                        create_info_ptr->set_device_mask(current_device_mask);
+                        create_info_ptr->set_mt_safety  (Anvil::Utils::convert_boolean_to_mt_safety_enum(m_device_ptr->is_mt_safe()) );
+
+                        new_memory_block_ptr = Anvil::MemoryBlock::create(std::move(create_info_ptr) );
                     }
 
-                    dynamic_cast<IMemoryBlockBackendSupport*>(current_item_ptr->alloc_memory_block_ptr.get() )->set_parent_memory_allocator_backend_ptr(shared_from_this(),
-                                                                                                                                                        reinterpret_cast<void*>(new_memory_block_ptr->get_memory() ));
+                    if (new_memory_block_ptr == nullptr)
+                    {
+                        anvil_assert(new_memory_block_ptr != nullptr);
+
+                        result = false;
+                        continue;
+                    }
+
+                    /* Go through the items again and assign the result memory block */
+                    for (auto& current_item_ptr : current_items)
+                    {
+                        {
+                            auto create_info_ptr = Anvil::MemoryBlockCreateInfo::create_derived(new_memory_block_ptr.get(),
+                                                                                                alloc_offset_map.at(current_item_ptr),
+                                                                                                current_item_ptr->alloc_size);
+
+                            current_item_ptr->alloc_memory_block_ptr = Anvil::MemoryBlock::create(std::move(create_info_ptr) );
+                        }
+
+                        if (current_item_ptr->alloc_memory_block_ptr != nullptr)
+                        {
+                            current_item_ptr->is_baked = true;
+                        }
+
+                        dynamic_cast<IMemoryBlockBackendSupport*>(current_item_ptr->alloc_memory_block_ptr.get() )->set_parent_memory_allocator_backend_ptr(shared_from_this(),
+                                                                                                                                                            reinterpret_cast<void*>(new_memory_block_ptr->get_memory() ));
+                    }
+
+                    m_memory_blocks.push_back(
+                        std::move(new_memory_block_ptr)
+                    );
                 }
 
-                m_memory_blocks.push_back(
-                    std::move(new_memory_block_ptr)
-                );
+                ++current_memory_type_index;
             }
         }
     }
@@ -286,6 +349,7 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
      */
     anvil_assert(result);
 
+end:
     return result;
 }
 
@@ -311,6 +375,11 @@ VkResult Anvil::MemoryAllocatorBackends::OneShot::map(void*        in_memory_obj
 bool Anvil::MemoryAllocatorBackends::OneShot::supports_baking() const
 {
     return !m_is_baked;
+}
+
+bool Anvil::MemoryAllocatorBackends::OneShot::supports_device_masks() const
+{
+    return true;
 }
 
 bool Anvil::MemoryAllocatorBackends::OneShot::supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeBits&) const

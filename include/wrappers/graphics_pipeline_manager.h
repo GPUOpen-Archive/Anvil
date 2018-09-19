@@ -66,6 +66,9 @@
  *  If VK_AMD_rasterization_order extension is supported, strict rasterization order is assumed
  *  for the pipeline by default.
  *
+ *  If VK_KHR_maintenance2 extension is supported, upper-left tessellation domain origin is assumed
+ *  by default (as per spec).
+ *
  **/
 #ifndef WRAPPERS_GRAPHICS_PIPELINE_MANAGER_H
 #define WRAPPERS_GRAPHICS_PIPELINE_MANAGER_H

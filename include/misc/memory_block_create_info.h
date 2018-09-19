@@ -77,6 +77,12 @@ namespace Anvil
 
         /** Spawns a create info instance which can be used to instantiate a new memory block.
          *
+         *  This function can be used for both single- and multi-GPU device instances. For the latter case,
+         *  the default behavior is to allocate a single instance of memory (deviceMask = 1) for memory heaps
+         *  that do NOT have the VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR bit on, or allocate as many instances
+         *  of memory as there are physical devices assigned to the logical device. This can be adjusted
+         *  by calling corresponding set_..() functions.
+         *
          *  NOTE: The following parameters take the following defautl values:
          *
          *  - Exportable external memory handle types: Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_NONE
@@ -125,6 +131,11 @@ namespace Anvil
         const Anvil::BaseDevice* get_device() const
         {
             return m_device_ptr;
+        }
+
+        const uint32_t& get_device_mask() const
+        {
+            return m_device_mask;
         }
 
         const Anvil::ExternalMemoryHandleTypeBits& get_exportable_external_memory_handle_types() const
@@ -224,6 +235,12 @@ namespace Anvil
         const Anvil::MemoryBlockType& get_type() const
         {
             return m_type;
+        }
+
+        /* Requires VK_KHR_device_group */
+        void set_device_mask(const uint32_t& in_device_mask)
+        {
+            m_device_mask = in_device_mask;
         }
 
         /* Requires VK_KHR_external_memory */
@@ -333,7 +350,14 @@ namespace Anvil
                               const VkDeviceSize&                                in_size,
                               const VkDeviceSize&                                in_start_offset);
 
+        /* NOTE: Only to be used by Anvil::MemoryBlock! */
+        void set_memory_type_index(const uint32_t& in_new_index)
+        {
+            m_memory_type_index = in_new_index;
+        }
+
         uint32_t                                    m_allowed_memory_bits;
+        uint32_t                                    m_device_mask;
         const Anvil::BaseDevice*                    m_device_ptr;
         Anvil::ExternalMemoryHandleTypeBits         m_exportable_external_memory_handle_types;
         Anvil::ExternalMemoryHandleTypeBit          m_imported_external_memory_handle_type;
@@ -362,6 +386,8 @@ namespace Anvil
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(MemoryBlockCreateInfo);
         ANVIL_DISABLE_COPY_CONSTRUCTOR(MemoryBlockCreateInfo);
+
+        friend class MemoryBlock;
     };
 } /* namespace Anvil */
 

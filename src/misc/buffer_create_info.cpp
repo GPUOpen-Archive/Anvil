@@ -27,8 +27,8 @@
 Anvil::BufferCreateInfoUniquePtr Anvil::BufferCreateInfo::create_nonsparse_alloc(const Anvil::BaseDevice*             in_device_ptr,
                                                                                  VkDeviceSize                         in_size,
                                                                                  QueueFamilyBits                      in_queue_families,
-                                                                                 VkSharingMode                        in_sharing_mode,
-                                                                                 VkBufferUsageFlags                   in_usage_flags,
+                                                                                 Anvil::SharingMode                   in_sharing_mode,
+                                                                                 Anvil::BufferUsageFlags              in_usage_flags,
                                                                                  Anvil::MemoryFeatureFlags            in_memory_features)
 {
     Anvil::BufferCreateInfoUniquePtr result_ptr(nullptr,
@@ -53,8 +53,8 @@ Anvil::BufferCreateInfoUniquePtr Anvil::BufferCreateInfo::create_nonsparse_alloc
 Anvil::BufferCreateInfoUniquePtr Anvil::BufferCreateInfo::create_nonsparse_no_alloc(const Anvil::BaseDevice* in_device_ptr,
                                                                                     VkDeviceSize             in_size,
                                                                                     QueueFamilyBits          in_queue_families,
-                                                                                    VkSharingMode            in_sharing_mode,
-                                                                                    VkBufferUsageFlags       in_usage_flags)
+                                                                                    Anvil::SharingMode       in_sharing_mode,
+                                                                                    Anvil::BufferUsageFlags  in_usage_flags)
 {
     Anvil::BufferCreateInfoUniquePtr result_ptr(nullptr,
                                                 std::default_delete<Anvil::BufferCreateInfo>() );
@@ -94,8 +94,8 @@ Anvil::BufferCreateInfoUniquePtr Anvil::BufferCreateInfo::create_nonsparse_no_al
 Anvil::BufferCreateInfoUniquePtr Anvil::BufferCreateInfo::create_sparse_no_alloc(const Anvil::BaseDevice*            in_device_ptr,
                                                                                  VkDeviceSize                        in_size,
                                                                                  QueueFamilyBits                     in_queue_families,
-                                                                                 VkSharingMode                       in_sharing_mode,
-                                                                                 VkBufferUsageFlags                  in_usage_flags,
+                                                                                 Anvil::SharingMode                  in_sharing_mode,
+                                                                                 Anvil::BufferUsageFlags             in_usage_flags,
                                                                                  Anvil::SparseResidencyScope         in_residency_scope,
                                                                                  MTSafety                            in_mt_safety,
                                                                                  Anvil::ExternalMemoryHandleTypeBits in_external_memory_handle_types)
@@ -120,8 +120,8 @@ Anvil::BufferCreateInfoUniquePtr Anvil::BufferCreateInfo::create_sparse_no_alloc
 Anvil::BufferCreateInfo::BufferCreateInfo(const Anvil::BaseDevice*            in_device_ptr,
                                           VkDeviceSize                        in_size,
                                           QueueFamilyBits                     in_queue_families,
-                                          VkSharingMode                       in_sharing_mode,
-                                          VkBufferUsageFlags                  in_usage_flags,
+                                          Anvil::SharingMode                  in_sharing_mode,
+                                          Anvil::BufferUsageFlags             in_usage_flags,
                                           Anvil::SparseResidencyScope         in_residency_scope,
                                           MTSafety                            in_mt_safety,
                                           Anvil::ExternalMemoryHandleTypeBits in_exportable_external_memory_handle_types)
@@ -168,8 +168,8 @@ Anvil::BufferCreateInfo::BufferCreateInfo(const Anvil::BufferType&            in
                                           const Anvil::BaseDevice*            in_device_ptr,
                                           VkDeviceSize                        in_size,
                                           QueueFamilyBits                     in_queue_families,
-                                          VkSharingMode                       in_sharing_mode,
-                                          VkBufferUsageFlags                  in_usage_flags,
+                                          Anvil::SharingMode                  in_sharing_mode,
+                                          Anvil::BufferUsageFlags             in_usage_flags,
                                           MemoryFeatureFlags                  in_memory_features,
                                           MTSafety                            in_mt_safety,
                                           Anvil::ExternalMemoryHandleTypeBits in_exportable_external_memory_handle_types,

@@ -35,6 +35,7 @@ namespace Anvil
          *
          * NOTE: By default, the following parameters take default values as below.
          *
+         * - MGPU present mode flags: VK_DEVICE_GROUP_PRESENT_MODE_LOCAL_BIT_KHR
          * - MT safety:               MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
          * - Swapchain create flags:  0
          *
@@ -43,9 +44,9 @@ namespace Anvil
         static SwapchainCreateInfoUniquePtr create(Anvil::BaseDevice*       in_device_ptr,
                                                    Anvil::RenderingSurface* in_parent_surface_ptr,
                                                    Anvil::Window*           in_window_ptr,
-                                                   VkFormat                 in_format,
+                                                   Anvil::Format            in_format,
                                                    VkPresentModeKHR         in_present_mode,
-                                                   VkImageUsageFlags        in_usage_flags,
+                                                   Anvil::ImageUsageFlags   in_usage_flags,
                                                    uint32_t                 in_n_images);
 
         /** Returns device instance which has been used to create the swapchain */
@@ -61,9 +62,14 @@ namespace Anvil
         }
 
         /** Returns format used by swapchain image and image views */
-        VkFormat get_format() const
+        Anvil::Format get_format() const
         {
             return m_format;
+        }
+
+        VkDeviceGroupPresentModeFlagsKHR get_mgpu_present_mode_flags() const
+        {
+            return m_mgpu_present_mode_flags;
         }
 
         const MTSafety& get_mt_safety() const
@@ -88,7 +94,7 @@ namespace Anvil
             return m_parent_surface_ptr;
         }
 
-        const VkImageUsageFlags& get_usage_flags() const
+        const Anvil::ImageUsageFlags& get_usage_flags() const
         {
             return m_usage_flags;
         }
@@ -110,9 +116,14 @@ namespace Anvil
             m_flags = in_flags;
         }
 
-        void set_format(const VkFormat& in_format)
+        void set_format(const Anvil::Format& in_format)
         {
             m_format = in_format;
+        }
+
+        void set_mgpu_present_mode_flags(const VkDeviceGroupPresentModeFlagsKHR& in_mgpu_present_mode_flags)
+        {
+            m_mgpu_present_mode_flags = in_mgpu_present_mode_flags;
         }
 
         void set_mt_safety(const MTSafety& in_mt_safety)
@@ -135,7 +146,7 @@ namespace Anvil
             m_parent_surface_ptr = in_rendering_surface_ptr;
         }
 
-        void set_usage_flags(VkImageUsageFlags in_new_usage_flags)
+        void set_usage_flags(Anvil::ImageUsageFlags in_new_usage_flags)
         {
             m_usage_flags = in_new_usage_flags;
         }
@@ -149,28 +160,30 @@ namespace Anvil
     private:
         /* Private functions */
 
-        SwapchainCreateInfo(Anvil::BaseDevice*        in_device_ptr,
-                            Anvil::RenderingSurface*  in_parent_surface_ptr,
-                            Anvil::Window*            in_window_ptr,
-                            VkFormat                  in_format,
-                            VkPresentModeKHR          in_present_mode,
-                            VkImageUsageFlags         in_usage_flags,
-                            uint32_t                  in_n_images,
-                            MTSafety                  in_mt_safety,
-                            VkSwapchainCreateFlagsKHR in_flags);
+        SwapchainCreateInfo(Anvil::BaseDevice*               in_device_ptr,
+                            Anvil::RenderingSurface*         in_parent_surface_ptr,
+                            Anvil::Window*                   in_window_ptr,
+                            Anvil::Format                    in_format,
+                            VkPresentModeKHR                 in_present_mode,
+                            Anvil::ImageUsageFlags           in_usage_flags,
+                            uint32_t                         in_n_images,
+                            MTSafety                         in_mt_safety,
+                            VkSwapchainCreateFlagsKHR        in_flags,
+                            VkDeviceGroupPresentModeFlagsKHR in_mgpu_present_mode_flags);
 
         /* Private variables */
 
-        const Anvil::BaseDevice*  m_device_ptr;
-        VkSwapchainCreateFlagsKHR m_flags;
-        VkFormat                  m_format;
-        Anvil::MTSafety           m_mt_safety;
-        uint32_t                  m_n_images;
-        Anvil::RenderingSurface*  m_parent_surface_ptr;
-        VkPresentModeKHR          m_present_mode;
-        Anvil::Window*            m_window_ptr;
+        const Anvil::BaseDevice*         m_device_ptr;
+        VkSwapchainCreateFlagsKHR        m_flags;
+        Anvil::Format                    m_format;
+        VkDeviceGroupPresentModeFlagsKHR m_mgpu_present_mode_flags;
+        Anvil::MTSafety                  m_mt_safety;
+        uint32_t                         m_n_images;
+        Anvil::RenderingSurface*         m_parent_surface_ptr;
+        VkPresentModeKHR                 m_present_mode;
+        Anvil::Window*                   m_window_ptr;
 
-        VkImageUsageFlagsVariable(m_usage_flags);
+        Anvil::ImageUsageFlags m_usage_flags;
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(SwapchainCreateInfo);
         ANVIL_DISABLE_COPY_CONSTRUCTOR(SwapchainCreateInfo);

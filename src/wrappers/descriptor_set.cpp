@@ -44,7 +44,7 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     buffer_ptr      = in_element.buffer_ptr;
     buffer_view_ptr = nullptr;
     dirty           = true;
-    image_layout    = VK_IMAGE_LAYOUT_UNDEFINED;
+    image_layout    = Anvil::ImageLayout::UNDEFINED;
     image_view_ptr  = nullptr;
     sampler_ptr     = nullptr;
     size            = in_element.size;
@@ -92,7 +92,7 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     buffer_ptr      = nullptr;
     buffer_view_ptr = nullptr;
     dirty           = true;
-    image_layout    = VK_IMAGE_LAYOUT_UNDEFINED;
+    image_layout    = Anvil::ImageLayout::UNDEFINED;
     image_view_ptr  = nullptr;
     sampler_ptr     = in_element.sampler_ptr;
     size            = UINT64_MAX;
@@ -108,7 +108,7 @@ Anvil::DescriptorSet::BindingItem& Anvil::DescriptorSet::BindingItem::operator=(
     buffer_ptr      = nullptr;
     buffer_view_ptr = in_element.buffer_view_ptr;
     dirty           = true;
-    image_layout    = VK_IMAGE_LAYOUT_UNDEFINED;
+    image_layout    = Anvil::ImageLayout::UNDEFINED;
     image_view_ptr  = nullptr;
     sampler_ptr     = nullptr;
     size            = UINT64_MAX;
@@ -166,9 +166,9 @@ Anvil::DescriptorSet::BufferBindingElement::BufferBindingElement(const BufferBin
 }
 
 /** Please see header for specification */
-Anvil::DescriptorSet::CombinedImageSamplerBindingElement::CombinedImageSamplerBindingElement(VkImageLayout     in_image_layout,
-                                                                                             Anvil::ImageView* in_image_view_ptr,
-                                                                                             Anvil::Sampler*   in_sampler_ptr)
+Anvil::DescriptorSet::CombinedImageSamplerBindingElement::CombinedImageSamplerBindingElement(Anvil::ImageLayout in_image_layout,
+                                                                                             Anvil::ImageView*  in_image_view_ptr,
+                                                                                             Anvil::Sampler*    in_sampler_ptr)
 {
     anvil_assert(in_image_view_ptr != nullptr);
 
@@ -193,8 +193,8 @@ Anvil::DescriptorSet::CombinedImageSamplerBindingElement::CombinedImageSamplerBi
 }
 
 /** Please see header for specification */
-Anvil::DescriptorSet::ImageBindingElement::ImageBindingElement(VkImageLayout     in_image_layout,
-                                                               Anvil::ImageView* in_image_view_ptr)
+Anvil::DescriptorSet::ImageBindingElement::ImageBindingElement(Anvil::ImageLayout in_image_layout,
+                                                               Anvil::ImageView*  in_image_view_ptr)
 {
     anvil_assert(in_image_view_ptr != nullptr);
 
@@ -384,7 +384,7 @@ void Anvil::DescriptorSet::fill_image_info_vk_descriptor(const Anvil::Descriptor
                                                          const bool&                              in_immutable_samplers_enabled,
                                                          VkDescriptorImageInfo*                   out_descriptor_ptr) const
 {
-    out_descriptor_ptr->imageLayout = in_binding_item.image_layout;
+    out_descriptor_ptr->imageLayout = static_cast<VkImageLayout>(in_binding_item.image_layout);
     out_descriptor_ptr->imageView   = (in_binding_item.image_view_ptr != nullptr) ? in_binding_item.image_view_ptr->get_image_view() : VK_NULL_HANDLE;
 
     if (false   == in_immutable_samplers_enabled       &&
@@ -399,11 +399,11 @@ void Anvil::DescriptorSet::fill_image_info_vk_descriptor(const Anvil::Descriptor
 }
 
 /* Please see header for specification */
-bool Anvil::DescriptorSet::get_combined_image_sampler_binding_properties(uint32_t           in_n_binding,
-                                                                         uint32_t           in_n_binding_array_item,
-                                                                         VkImageLayout*     out_opt_image_layout_ptr,
-                                                                         Anvil::ImageView** out_opt_image_view_ptr_ptr,
-                                                                         Anvil::Sampler**   out_opt_sampler_ptr_ptr)
+bool Anvil::DescriptorSet::get_combined_image_sampler_binding_properties(uint32_t            in_n_binding,
+                                                                         uint32_t            in_n_binding_array_item,
+                                                                         Anvil::ImageLayout* out_opt_image_layout_ptr,
+                                                                         Anvil::ImageView**  out_opt_image_view_ptr_ptr,
+                                                                         Anvil::Sampler**    out_opt_sampler_ptr_ptr)
 {
     decltype(m_bindings)::const_iterator binding_iterator = m_bindings.find(in_n_binding);
     bool                                 result           = true;
@@ -448,10 +448,10 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::DescriptorSet::get_input_attachment_binding_properties(uint32_t           in_n_binding,
-                                                                   uint32_t           in_n_binding_array_item,
-                                                                   VkImageLayout*     out_opt_image_layout_ptr,
-                                                                   Anvil::ImageView** out_opt_image_view_ptr_ptr) const
+bool Anvil::DescriptorSet::get_input_attachment_binding_properties(uint32_t            in_n_binding,
+                                                                   uint32_t            in_n_binding_array_item,
+                                                                   Anvil::ImageLayout* out_opt_image_layout_ptr,
+                                                                   Anvil::ImageView**  out_opt_image_view_ptr_ptr) const
 {
     decltype(m_bindings)::const_iterator binding_iterator = m_bindings.find(in_n_binding);
     bool                                 result           = true;

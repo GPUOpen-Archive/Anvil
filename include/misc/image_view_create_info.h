@@ -58,12 +58,12 @@ namespace Anvil
                                                              uint32_t                 in_n_base_layer,
                                                              uint32_t                 in_n_base_mipmap_level,
                                                              uint32_t                 in_n_mipmaps,
-                                                             VkImageAspectFlags       in_aspect_mask,
-                                                             VkFormat                 in_format,
-                                                             VkComponentSwizzle       in_swizzle_red,
-                                                             VkComponentSwizzle       in_swizzle_green,
-                                                             VkComponentSwizzle       in_swizzle_blue,
-                                                             VkComponentSwizzle       in_swizzle_alpha);
+                                                             Anvil::ImageAspectFlags  in_aspect_mask,
+                                                             Anvil::Format            in_format,
+                                                             Anvil::ComponentSwizzle  in_swizzle_red,
+                                                             Anvil::ComponentSwizzle  in_swizzle_green,
+                                                             Anvil::ComponentSwizzle  in_swizzle_blue,
+                                                             Anvil::ComponentSwizzle  in_swizzle_alpha);
 
         /** Use this function if you need to create a single-sample 1D array image view wrapper instance.
          *
@@ -93,12 +93,12 @@ namespace Anvil
                                                                    uint32_t                 in_n_layers,
                                                                    uint32_t                 in_n_base_mipmap_level,
                                                                    uint32_t                 in_n_mipmaps,
-                                                                   VkImageAspectFlags       in_aspect_mask,
-                                                                   VkFormat                 in_format,
-                                                                   VkComponentSwizzle       in_swizzle_red,
-                                                                   VkComponentSwizzle       in_swizzle_green,
-                                                                   VkComponentSwizzle       in_swizzle_blue,
-                                                                   VkComponentSwizzle       in_swizzle_alpha);
+                                                                   Anvil::ImageAspectFlags  in_aspect_mask,
+                                                                   Anvil::Format            in_format,
+                                                                   Anvil::ComponentSwizzle  in_swizzle_red,
+                                                                   Anvil::ComponentSwizzle  in_swizzle_green,
+                                                                   Anvil::ComponentSwizzle  in_swizzle_blue,
+                                                                   Anvil::ComponentSwizzle  in_swizzle_alpha);
 
 
         /** Use this function if you need to create a single-sample or a multi-sample 2D image view wrapper instance. The view will be
@@ -128,12 +128,12 @@ namespace Anvil
                                                              uint32_t                 in_n_base_layer,
                                                              uint32_t                 in_n_base_mipmap_level,
                                                              uint32_t                 in_n_mipmaps,
-                                                             VkImageAspectFlags       in_aspect_mask,
-                                                             VkFormat                 in_format,
-                                                             VkComponentSwizzle       in_swizzle_red,
-                                                             VkComponentSwizzle       in_swizzle_green,
-                                                             VkComponentSwizzle       in_swizzle_blue,
-                                                             VkComponentSwizzle       in_swizzle_alpha);
+                                                             Anvil::ImageAspectFlags  in_aspect_mask,
+                                                             Anvil::Format            in_format,
+                                                             Anvil::ComponentSwizzle  in_swizzle_red,
+                                                             Anvil::ComponentSwizzle  in_swizzle_green,
+                                                             Anvil::ComponentSwizzle  in_swizzle_blue,
+                                                             Anvil::ComponentSwizzle  in_swizzle_alpha);
 
         /** Use this function if you need to create a single-sample or a multi-sample 2D array image view wrapper instance. The view will be
          *  single-sample if @param in_image_ptr uses 1 sample per texel, and multi-sample otherwise.
@@ -164,12 +164,12 @@ namespace Anvil
                                                                    uint32_t                 in_n_layers,
                                                                    uint32_t                 in_n_base_mipmap_level,
                                                                    uint32_t                 in_n_mipmaps,
-                                                                   VkImageAspectFlags       in_aspect_mask,
-                                                                   VkFormat                 in_format,
-                                                                   VkComponentSwizzle       in_swizzle_red,
-                                                                   VkComponentSwizzle       in_swizzle_green,
-                                                                   VkComponentSwizzle       in_swizzle_blue,
-                                                                   VkComponentSwizzle       in_swizzle_alpha);
+                                                                   Anvil::ImageAspectFlags  in_aspect_mask,
+                                                                   Anvil::Format            in_format,
+                                                                   Anvil::ComponentSwizzle  in_swizzle_red,
+                                                                   Anvil::ComponentSwizzle  in_swizzle_green,
+                                                                   Anvil::ComponentSwizzle  in_swizzle_blue,
+                                                                   Anvil::ComponentSwizzle  in_swizzle_alpha);
 
         /** Use this function if you need to create a single-sample 3D image view wrapper instance.
          *
@@ -199,12 +199,12 @@ namespace Anvil
                                                              uint32_t                 in_n_slices,
                                                              uint32_t                 in_n_base_mipmap_level,
                                                              uint32_t                 in_n_mipmaps,
-                                                             VkImageAspectFlags       in_aspect_mask,
-                                                             VkFormat                 in_format,
-                                                             VkComponentSwizzle       in_swizzle_red,
-                                                             VkComponentSwizzle       in_swizzle_green,
-                                                             VkComponentSwizzle       in_swizzle_blue,
-                                                             VkComponentSwizzle       in_swizzle_alpha);
+                                                             Anvil::ImageAspectFlags  in_aspect_mask,
+                                                             Anvil::Format            in_format,
+                                                             Anvil::ComponentSwizzle  in_swizzle_red,
+                                                             Anvil::ComponentSwizzle  in_swizzle_green,
+                                                             Anvil::ComponentSwizzle  in_swizzle_blue,
+                                                             Anvil::ComponentSwizzle  in_swizzle_alpha);
 
         /** Use this function if you need to create a cube-map image view wrapper instance.
          *
@@ -232,12 +232,12 @@ namespace Anvil
                                                                    uint32_t                 in_n_base_layer,
                                                                    uint32_t                 in_n_base_mipmap_level,
                                                                    uint32_t                 in_n_mipmaps,
-                                                                   VkImageAspectFlags       in_aspect_mask,
-                                                                   VkFormat                 in_format,
-                                                                   VkComponentSwizzle       in_swizzle_red,
-                                                                   VkComponentSwizzle       in_swizzle_green,
-                                                                   VkComponentSwizzle       in_swizzle_blue,
-                                                                   VkComponentSwizzle       in_swizzle_alpha);
+                                                                   Anvil::ImageAspectFlags  in_aspect_mask,
+                                                                   Anvil::Format            in_format,
+                                                                   Anvil::ComponentSwizzle  in_swizzle_red,
+                                                                   Anvil::ComponentSwizzle  in_swizzle_green,
+                                                                   Anvil::ComponentSwizzle  in_swizzle_blue,
+                                                                   Anvil::ComponentSwizzle  in_swizzle_alpha);
 
         /** Use this function if you need to create a cube-map array image view wrapper instance.
          *
@@ -268,15 +268,15 @@ namespace Anvil
                                                                          uint32_t                 in_n_cube_maps,
                                                                          uint32_t                 in_n_base_mipmap_level,
                                                                          uint32_t                 in_n_mipmaps,
-                                                                         VkImageAspectFlags       in_aspect_mask,
-                                                                         VkFormat                 in_format,
-                                                                         VkComponentSwizzle       in_swizzle_red,
-                                                                         VkComponentSwizzle       in_swizzle_green,
-                                                                         VkComponentSwizzle       in_swizzle_blue,
-                                                                         VkComponentSwizzle       in_swizzle_alpha);
+                                                                         Anvil::ImageAspectFlags  in_aspect_mask,
+                                                                         Anvil::Format            in_format,
+                                                                         Anvil::ComponentSwizzle  in_swizzle_red,
+                                                                         Anvil::ComponentSwizzle  in_swizzle_green,
+                                                                         Anvil::ComponentSwizzle  in_swizzle_blue,
+                                                                         Anvil::ComponentSwizzle  in_swizzle_alpha);
 
         /* Returns the aspect assigned to the image view */
-        VkImageAspectFlags get_aspect() const
+        Anvil::ImageAspectFlags get_aspect() const
         {
             return m_aspect_mask;
         }
@@ -299,7 +299,7 @@ namespace Anvil
         }
 
         /** Returns image view's format */
-        const VkFormat get_format() const
+        const Anvil::Format get_format() const
         {
             return m_format;
         }
@@ -334,7 +334,7 @@ namespace Anvil
         }
 
         /** Returns swizzle array assigned to the image view */
-        const std::array<VkComponentSwizzle, 4>& get_swizzle_array() const
+        const std::array<Anvil::ComponentSwizzle, 4>& get_swizzle_array() const
         {
             return m_swizzle_array;
         }
@@ -345,7 +345,18 @@ namespace Anvil
             return m_type;
         }
 
-        void set_aspect(const VkImageAspectFlags& in_aspect)
+        /** Returns usage flags associated with the image view.
+         *
+         *  NOTE: If the function returns Anvil::IMAGE_USAGE_FLAG_UNKNOWN, the image view inherits usage bits
+         *        from the parent image.
+         *
+         */
+        const Anvil::ImageUsageFlags& get_usage() const
+        {
+            return m_usage;
+        }
+
+        void set_aspect(const Anvil::ImageAspectFlags& in_aspect)
         {
             m_aspect_mask = in_aspect;
         }
@@ -365,7 +376,7 @@ namespace Anvil
             m_device_ptr = in_device_ptr;
         }
 
-        void set_format(const VkFormat& in_format)
+        void set_format(const Anvil::Format& in_format)
         {
             m_format = in_format;
         }
@@ -395,42 +406,53 @@ namespace Anvil
             m_parent_image_ptr = in_parent_image_ptr;
         }
 
-        void set_swizzle_array(const std::array<VkComponentSwizzle, 4>& in_swizzle_array)
+        void set_swizzle_array(const std::array<Anvil::ComponentSwizzle, 4>& in_swizzle_array)
         {
             m_swizzle_array = in_swizzle_array;
+        }
+
+        /* By default, image views inherit usage flags from the parent image. You can use this setter function to override
+         * the default behavior with a subset of parent image's usage flags.
+         *
+         * Requires VK_KHR_maintenance2.
+         */
+        void set_usage(const Anvil::ImageUsageFlags& in_usage)
+        {
+            m_usage = in_usage;
         }
 
     private:
 
         /* Private functions */
-        ImageViewCreateInfo(const VkImageAspectFlags& in_aspect_mask,
-                            const Anvil::BaseDevice*  in_device_ptr,
-                            const VkFormat            in_format,
-                            const uint32_t            in_n_base_layer,
-                            const uint32_t            in_n_base_mipmap_level,
-                            const uint32_t            in_n_layers,
-                            const uint32_t            in_n_mipmaps,
-                            const uint32_t            in_n_slices,
-                            Anvil::Image*             in_parent_image_ptr,
-                            const VkComponentSwizzle* in_swizzle_array_ptr,
-                            const VkImageViewType     in_type,
-                            const Anvil::MTSafety&    in_mt_safety);
+        ImageViewCreateInfo(const Anvil::ImageAspectFlags& in_aspect_mask,
+                            const Anvil::BaseDevice*       in_device_ptr,
+                            const Anvil::Format            in_format,
+                            const uint32_t                 in_n_base_layer,
+                            const uint32_t                 in_n_base_mipmap_level,
+                            const uint32_t                 in_n_layers,
+                            const uint32_t                 in_n_mipmaps,
+                            const uint32_t                 in_n_slices,
+                            Anvil::Image*                  in_parent_image_ptr,
+                            const Anvil::ComponentSwizzle* in_swizzle_array_ptr,
+                            const VkImageViewType          in_type,
+                            const Anvil::MTSafety&         in_mt_safety);
 
         /* Private variables */
 
-        VkImageAspectFlagsVariable(m_aspect_mask);
+        Anvil::ImageAspectFlags m_aspect_mask;
 
-        const Anvil::BaseDevice*          m_device_ptr;
-        VkFormat                          m_format;
-        Anvil::MTSafety                   m_mt_safety;
-        uint32_t                          m_n_base_layer;
-        uint32_t                          m_n_base_mipmap_level;
-        uint32_t                          m_n_layers;
-        uint32_t                          m_n_mipmaps;
-        uint32_t                          m_n_slices;
-        Anvil::Image*                     m_parent_image_ptr;
-        std::array<VkComponentSwizzle, 4> m_swizzle_array;
-        const VkImageViewType             m_type;
+        const Anvil::BaseDevice*               m_device_ptr;
+        Anvil::Format                          m_format;
+        Anvil::MTSafety                        m_mt_safety;
+        uint32_t                               m_n_base_layer;
+        uint32_t                               m_n_base_mipmap_level;
+        uint32_t                               m_n_layers;
+        uint32_t                               m_n_mipmaps;
+        uint32_t                               m_n_slices;
+        Anvil::Image*                          m_parent_image_ptr;
+        std::array<Anvil::ComponentSwizzle, 4> m_swizzle_array;
+        const VkImageViewType                  m_type;
+        VkImageUsageFlags                      m_usage;
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(ImageViewCreateInfo);
         ANVIL_DISABLE_COPY_CONSTRUCTOR(ImageViewCreateInfo);

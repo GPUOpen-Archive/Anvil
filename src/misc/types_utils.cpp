@@ -20,6 +20,7 @@
 // THE SOFTWARE.
 //
 #include "misc/types.h"
+#include "wrappers/buffer.h"
 #include "wrappers/device.h"
 
 /** Please see header for specification */
@@ -27,8 +28,6 @@ Anvil::MemoryFeatureFlags Anvil::Utils::get_memory_feature_flags_from_vk_propert
                                                                                         VkMemoryHeapFlags     in_mem_heap_flags)
 {
     Anvil::MemoryFeatureFlags result = 0;
-
-    ANVIL_REDUNDANT_ARGUMENT(in_mem_heap_flags);
 
     if ((in_mem_type_flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)
     {
@@ -53,6 +52,11 @@ Anvil::MemoryFeatureFlags Anvil::Utils::get_memory_feature_flags_from_vk_propert
     if ((in_mem_type_flags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) != 0)
     {
         result |= MEMORY_FEATURE_FLAG_LAZILY_ALLOCATED;
+    }
+
+    if ((in_mem_heap_flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR) != 0)
+    {
+        result |= MEMORY_FEATURE_FLAG_MULTI_INSTANCE;
     }
 
     return result;
@@ -205,6 +209,42 @@ VkExternalSemaphoreHandleTypeFlagsKHR Anvil::Utils::convert_external_semaphore_h
     return result;
 }
 
+VkIndexType Anvil::Utils::convert_index_type_to_vk_index_type(const IndexType& in_index_type)
+{
+    VkIndexType result = VK_INDEX_TYPE_MAX_ENUM;
+
+    switch (in_index_type)
+    {
+        case Anvil::IndexType::UINT16: result = VK_INDEX_TYPE_UINT16; break;
+        case Anvil::IndexType::UINT32: result = VK_INDEX_TYPE_UINT32; break;
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
+
+    return result;
+}
+
+Anvil::IndexType Anvil::Utils::convert_vk_index_type_to_index_type(const VkIndexType& in_index_type)
+{
+    Anvil::IndexType result = Anvil::IndexType::UNKNOWN;
+
+    switch (in_index_type)
+    {
+        case VK_INDEX_TYPE_UINT16: result = Anvil::IndexType::UINT16; break;
+        case VK_INDEX_TYPE_UINT32: result = Anvil::IndexType::UINT32; break;
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
+
+    return result;
+}
+
 Anvil::ExternalSemaphoreHandleTypeBits Anvil::Utils::convert_vk_external_semaphore_handle_type_flags_to_external_semaphore_handle_type_bits(const VkExternalSemaphoreHandleTypeFlagsKHR& in_types)
 {
     Anvil::ExternalSemaphoreHandleTypeBits result = 0;
@@ -239,6 +279,33 @@ Anvil::ExternalSemaphoreHandleTypeBits Anvil::Utils::convert_vk_external_semapho
         }
     }
     #endif
+
+    return result;
+}
+
+Anvil::PeerMemoryFeatureFlags Anvil::Utils::convert_vk_peer_memory_feature_flags_to_peer_memory_feature_flags(const VkPeerMemoryFeatureFlags& in_value)
+{
+    Anvil::PeerMemoryFeatureFlags result = 0;
+
+    if (in_value & VK_PEER_MEMORY_FEATURE_COPY_DST_BIT)
+    {
+        result |= Anvil::PEER_MEMORY_FEATURE_COPY_DST_BIT;
+    }
+
+    if (in_value & VK_PEER_MEMORY_FEATURE_COPY_SRC_BIT)
+    {
+        result |= Anvil::PEER_MEMORY_FEATURE_COPY_SRC_BIT;
+    }
+
+    if (in_value & VK_PEER_MEMORY_FEATURE_GENERIC_DST_BIT)
+    {
+        result |= Anvil::PEER_MEMORY_FEATURE_GENERIC_DST_BIT;
+    }
+
+    if (in_value & VK_PEER_MEMORY_FEATURE_GENERIC_SRC_BIT)
+    {
+        result |= Anvil::PEER_MEMORY_FEATURE_GENERIC_SRC_BIT;
+    }
 
     return result;
 }
@@ -284,9 +351,9 @@ void Anvil::Utils::convert_queue_family_bits_to_family_indices(const Anvil::Base
         Anvil::QueueFamilyType queue_family_type;
     } queue_family_data[] =
     {
-        {Anvil::QUEUE_FAMILY_COMPUTE_BIT,  Anvil::QueueFamilyType::COMPUTE},
-        {Anvil::QUEUE_FAMILY_DMA_BIT,      Anvil::QueueFamilyType::TRANSFER},
-        {Anvil::QUEUE_FAMILY_GRAPHICS_BIT, Anvil::QueueFamilyType::UNIVERSAL},
+        {Anvil::QUEUE_FAMILY_COMPUTE_BIT,      Anvil::QueueFamilyType::COMPUTE},
+        {Anvil::QUEUE_FAMILY_DMA_BIT,          Anvil::QueueFamilyType::TRANSFER},
+        {Anvil::QUEUE_FAMILY_GRAPHICS_BIT,     Anvil::QueueFamilyType::UNIVERSAL},
     };
 
     for (const auto& current_queue_fam_data : queue_family_data)
@@ -323,21 +390,21 @@ void Anvil::Utils::convert_queue_family_bits_to_family_indices(const Anvil::Base
 }
 
 /** Please see header for specification */
-VkAccessFlags Anvil::Utils::get_access_mask_from_image_layout(VkImageLayout          in_layout,
+VkAccessFlags Anvil::Utils::get_access_mask_from_image_layout(Anvil::ImageLayout     in_layout,
                                                               Anvil::QueueFamilyType in_queue_family_type)
 {
     VkAccessFlags result = 0;
 
     switch (in_layout)
     {
-        case VK_IMAGE_LAYOUT_UNDEFINED:
+        case Anvil::ImageLayout::UNDEFINED:
         {
             result = 0;
 
             break;
         }
 
-        case VK_IMAGE_LAYOUT_GENERAL:
+        case Anvil::ImageLayout::GENERAL:
         {
             result = VK_ACCESS_INDIRECT_COMMAND_READ_BIT          |
                      VK_ACCESS_INDEX_READ_BIT                     |
@@ -360,7 +427,7 @@ VkAccessFlags Anvil::Utils::get_access_mask_from_image_layout(VkImageLayout     
             break;
         }
 
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+        case Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL:
         {
             result = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
                      VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
@@ -368,7 +435,7 @@ VkAccessFlags Anvil::Utils::get_access_mask_from_image_layout(VkImageLayout     
             break;
         }
 
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+        case Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
         {
             result = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT  |
                      VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
@@ -376,42 +443,42 @@ VkAccessFlags Anvil::Utils::get_access_mask_from_image_layout(VkImageLayout     
             break;
         }
 
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+        case Anvil::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL:
         {
             result = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
 
             break;
         }
 
-        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+        case Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL:
         {
             result = VK_ACCESS_SHADER_READ_BIT;
 
             break;
         }
 
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+        case Anvil::ImageLayout::TRANSFER_SRC_OPTIMAL:
         {
             result = VK_ACCESS_TRANSFER_READ_BIT;
 
             break;
         }
 
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+        case Anvil::ImageLayout::TRANSFER_DST_OPTIMAL:
         {
             result = VK_ACCESS_TRANSFER_WRITE_BIT;
 
             break;
         }
 
-        case VK_IMAGE_LAYOUT_PREINITIALIZED:
+        case Anvil::ImageLayout::PREINITIALIZED:
         {
             result = VK_ACCESS_SHADER_READ_BIT;
 
             break;
         }
 
-        case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+        case Anvil::ImageLayout::PRESENT_SRC_KHR:
         {
             result = VK_ACCESS_MEMORY_READ_BIT;
 
@@ -420,7 +487,7 @@ VkAccessFlags Anvil::Utils::get_access_mask_from_image_layout(VkImageLayout     
 
         default:
         {
-            /* Invalid VkImageLayout argument value */
+            /* Invalid Anvil::ImageLayout argument value */
             anvil_assert_fail();
         }
     }
@@ -735,16 +802,18 @@ const char* Anvil::Utils::get_raw_string(VkImageLayout in_image_layout)
     /* Note: we can't use an array-based solution here because of PRESENT_SRC_KHR */
     switch (in_image_layout)
     {
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:         result = "VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL";         break;
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL: result = "VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL"; break;
-        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:  result = "VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL";  break;
-        case VK_IMAGE_LAYOUT_GENERAL:                          result = "VK_IMAGE_LAYOUT_GENERAL";                          break;
-        case VK_IMAGE_LAYOUT_PREINITIALIZED:                   result = "VK_IMAGE_LAYOUT_PREINITIALIZED";                   break;
-        case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:                  result = "VK_IMAGE_LAYOUT_PRESENT_SRC_KHR";                  break;
-        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:         result = "VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL";         break;
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:             result = "VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL";             break;
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:             result = "VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL";             break;
-        case VK_IMAGE_LAYOUT_UNDEFINED:                        result = "VK_IMAGE_LAYOUT_UNDEFINED";                        break;
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:                       result = "VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL";                       break;
+        case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL_KHR: result = "VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL_KHR"; break;
+        case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL_KHR: result = "VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL_KHR"; break;
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:               result = "VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL";               break;
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:                result = "VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL";                break;
+        case VK_IMAGE_LAYOUT_GENERAL:                                        result = "VK_IMAGE_LAYOUT_GENERAL";                                        break;
+        case VK_IMAGE_LAYOUT_PREINITIALIZED:                                 result = "VK_IMAGE_LAYOUT_PREINITIALIZED";                                 break;
+        case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:                                result = "VK_IMAGE_LAYOUT_PRESENT_SRC_KHR";                                break;
+        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:                       result = "VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL";                       break;
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:                           result = "VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL";                           break;
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:                           result = "VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL";                           break;
+        case VK_IMAGE_LAYOUT_UNDEFINED:                                      result = "VK_IMAGE_LAYOUT_UNDEFINED";                                      break;
 
         default:
         {
@@ -1161,6 +1230,11 @@ void Anvil::Utils::get_vk_property_flags_from_memory_feature_flags(Anvil::Memory
     if ((in_mem_feature_flags & MEMORY_FEATURE_FLAG_LAZILY_ALLOCATED) != 0)
     {
         result_mem_type_flags |= VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
+    }
+
+    if ((in_mem_feature_flags & MEMORY_FEATURE_FLAG_MULTI_INSTANCE) != 0)
+    {
+        result_mem_heap_flags |= VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR;
     }
 
     *out_mem_heap_flags_ptr = result_mem_heap_flags;

@@ -42,14 +42,14 @@ Anvil::RenderPassCreateInfo::~RenderPassCreateInfo()
 }
 
 /* Please see haeder for specification */
-bool Anvil::RenderPassCreateInfo::add_color_attachment(VkFormat                in_format,
-                                                       VkSampleCountFlags      in_sample_count,
-                                                       VkAttachmentLoadOp      in_load_op,
-                                                       VkAttachmentStoreOp     in_store_op,
-                                                       VkImageLayout           in_initial_layout,
-                                                       VkImageLayout           in_final_layout,
-                                                       bool                    in_may_alias,
-                                                       RenderPassAttachmentID* out_attachment_id_ptr)
+bool Anvil::RenderPassCreateInfo::add_color_attachment(Anvil::Format              in_format,
+                                                       Anvil::SampleCountFlagBits in_sample_count,
+                                                       VkAttachmentLoadOp         in_load_op,
+                                                       VkAttachmentStoreOp        in_store_op,
+                                                       Anvil::ImageLayout         in_initial_layout,
+                                                       Anvil::ImageLayout         in_final_layout,
+                                                       bool                       in_may_alias,
+                                                       RenderPassAttachmentID*    out_attachment_id_ptr)
 {
     uint32_t new_attachment_index = UINT32_MAX;
     bool     result               = false;
@@ -121,16 +121,16 @@ bool Anvil::RenderPassCreateInfo::add_dependency(SubPass*             in_destina
 }
 
 /* Please see header for specification */
-bool Anvil::RenderPassCreateInfo::add_depth_stencil_attachment(VkFormat                in_format,
-                                                               VkSampleCountFlags      in_sample_count,
-                                                               VkAttachmentLoadOp      in_depth_load_op,
-                                                               VkAttachmentStoreOp     in_depth_store_op,
-                                                               VkAttachmentLoadOp      in_stencil_load_op,
-                                                               VkAttachmentStoreOp     in_stencil_store_op,
-                                                               VkImageLayout           in_initial_layout,
-                                                               VkImageLayout           in_final_layout,
-                                                               bool                    in_may_alias,
-                                                               RenderPassAttachmentID* out_attachment_id_ptr)
+bool Anvil::RenderPassCreateInfo::add_depth_stencil_attachment(Anvil::Format              in_format,
+                                                               Anvil::SampleCountFlagBits in_sample_count,
+                                                               VkAttachmentLoadOp         in_depth_load_op,
+                                                               VkAttachmentStoreOp        in_depth_store_op,
+                                                               VkAttachmentLoadOp         in_stencil_load_op,
+                                                               VkAttachmentStoreOp        in_stencil_store_op,
+                                                               Anvil::ImageLayout         in_initial_layout,
+                                                               Anvil::ImageLayout         in_final_layout,
+                                                               bool                       in_may_alias,
+                                                               RenderPassAttachmentID*    out_attachment_id_ptr)
 {
     uint32_t new_attachment_index = UINT32_MAX;
     bool     result               = false;
@@ -276,13 +276,14 @@ end:
  *  @return true if the function executed successfully, false otherwise.
  *
  **/
-bool Anvil::RenderPassCreateInfo::add_subpass_attachment(SubPassID              in_subpass_id,
-                                                         bool                   in_is_color_attachment,
-                                                         VkImageLayout          in_layout,
-                                                         RenderPassAttachmentID in_attachment_id,
-                                                         uint32_t               in_attachment_location,
-                                                         bool                   in_should_resolve,
-                                                         RenderPassAttachmentID in_resolve_attachment_id)
+bool Anvil::RenderPassCreateInfo::add_subpass_attachment(SubPassID                      in_subpass_id,
+                                                         bool                           in_is_color_attachment,
+                                                         Anvil::ImageLayout             in_layout,
+                                                         RenderPassAttachmentID         in_attachment_id,
+                                                         uint32_t                       in_attachment_location,
+                                                         bool                           in_should_resolve,
+                                                         RenderPassAttachmentID         in_resolve_attachment_id,
+                                                         const Anvil::ImageAspectFlags& in_opt_aspects_accessed)
 {
     bool                            result                    = false;
     LocationToSubPassAttachmentMap* subpass_attachments_ptr   = nullptr;
@@ -333,13 +334,15 @@ bool Anvil::RenderPassCreateInfo::add_subpass_attachment(SubPassID              
     /* Add the attachment */
     (*subpass_attachments_ptr)[in_attachment_location] = SubPassAttachment(in_attachment_id,
                                                                            in_layout,
-                                                                           in_resolve_attachment_id);
+                                                                           in_resolve_attachment_id,
+                                                                           in_opt_aspects_accessed);
 
     if (in_should_resolve)
     {
         subpass_ptr->resolved_attachments_map[in_attachment_location] = SubPassAttachment(in_resolve_attachment_id,
                                                                                           in_layout,
-                                                                                          UINT32_MAX);
+                                                                                          UINT32_MAX,
+                                                                                          in_opt_aspects_accessed);
     }
 
     m_update_preserved_attachments = true;
@@ -351,7 +354,7 @@ end:
 
 /* Please see header for specification */
 bool Anvil::RenderPassCreateInfo::add_subpass_color_attachment(SubPassID                     in_subpass_id,
-                                                               VkImageLayout                 in_input_layout,
+                                                               Anvil::ImageLayout            in_input_layout,
                                                                RenderPassAttachmentID        in_attachment_id,
                                                                uint32_t                      in_location,
                                                                const RenderPassAttachmentID* in_attachment_resolve_id_ptr)
@@ -367,9 +370,9 @@ bool Anvil::RenderPassCreateInfo::add_subpass_color_attachment(SubPassID        
 }
 
 /* Please see header for specification */
-bool Anvil::RenderPassCreateInfo::add_subpass_depth_stencil_attachment(SubPassID              in_subpass_id,
-                                                                       VkImageLayout          in_layout,
-                                                                       RenderPassAttachmentID in_attachment_id)
+bool Anvil::RenderPassCreateInfo::add_subpass_depth_stencil_attachment(SubPassID                     in_subpass_id,
+                                                                       Anvil::ImageLayout            in_layout,
+                                                                       RenderPassAttachmentID        in_attachment_id)
 {
     bool     result      = false;
     SubPass* subpass_ptr = nullptr;
@@ -404,7 +407,8 @@ bool Anvil::RenderPassCreateInfo::add_subpass_depth_stencil_attachment(SubPassID
 
     subpass_ptr->depth_stencil_attachment = SubPassAttachment(in_attachment_id,
                                                               in_layout,
-                                                              UINT32_MAX);
+                                                              UINT32_MAX,
+                                                              Anvil::ImageAspectFlagBits::IMAGE_ASPECT_UNKNOWN);
 
     m_update_preserved_attachments = true;
     result                         = true;
@@ -413,10 +417,11 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::RenderPassCreateInfo::add_subpass_input_attachment(SubPassID              in_subpass_id,
-                                                               VkImageLayout          in_layout,
-                                                               RenderPassAttachmentID in_attachment_id,
-                                                               uint32_t               in_attachment_index)
+bool Anvil::RenderPassCreateInfo::add_subpass_input_attachment(SubPassID                      in_subpass_id,
+                                                               Anvil::ImageLayout             in_layout,
+                                                               RenderPassAttachmentID         in_attachment_id,
+                                                               uint32_t                       in_attachment_index,
+                                                               const Anvil::ImageAspectFlags& in_opt_aspects_accessed)
 {
     return add_subpass_attachment(in_subpass_id,
                                   false, /* is_color_attachment */
@@ -424,7 +429,8 @@ bool Anvil::RenderPassCreateInfo::add_subpass_input_attachment(SubPassID        
                                   in_attachment_id,
                                   in_attachment_index,
                                   false,         /* should_resolve        */
-                                  UINT32_MAX);   /* resolve_attachment_id */
+                                  UINT32_MAX,    /* resolve_attachment_id */
+                                  in_opt_aspects_accessed);
 }
 
 /* Please see header for specification */
@@ -510,7 +516,7 @@ VkAttachmentReference Anvil::RenderPassCreateInfo::get_attachment_reference_from
     VkAttachmentReference attachment_vk;
 
     attachment_vk.attachment = in_renderpass_attachment.index;
-    attachment_vk.layout     = in_renderpass_attachment.initial_layout;
+    attachment_vk.layout     = static_cast<VkImageLayout>(in_renderpass_attachment.initial_layout);
 
     return attachment_vk;
 }
@@ -526,7 +532,7 @@ VkAttachmentReference Anvil::RenderPassCreateInfo::get_attachment_reference_from
     VkAttachmentReference attachment_vk;
 
     attachment_vk.attachment = m_attachments.at(in_subpass_attachment.attachment_index).index;
-    attachment_vk.layout     = in_subpass_attachment.layout;
+    attachment_vk.layout     = static_cast<VkImageLayout>(in_subpass_attachment.layout);
 
     return attachment_vk;
 }
@@ -546,7 +552,7 @@ VkAttachmentReference Anvil::RenderPassCreateInfo::get_attachment_reference_for_
     anvil_assert((*in_subpass_iterator)->resolved_attachments_map.find(in_location_to_subpass_att_map_iterator->first) != (*in_subpass_iterator)->resolved_attachments_map.end() );
 
     result.attachment = m_attachments.at(in_location_to_subpass_att_map_iterator->second.resolve_attachment_index).index;
-    result.layout     = (*in_subpass_iterator)->resolved_attachments_map.at(in_location_to_subpass_att_map_iterator->first).layout;
+    result.layout     = static_cast<VkImageLayout>((*in_subpass_iterator)->resolved_attachments_map.at(in_location_to_subpass_att_map_iterator->first).layout);
 
     return result;
 }
@@ -573,13 +579,13 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::RenderPassCreateInfo::get_color_attachment_properties(RenderPassAttachmentID in_attachment_id,
-                                                                  VkSampleCountFlagBits* out_opt_sample_count_ptr,
-                                                                  VkAttachmentLoadOp*    out_opt_load_op_ptr,
-                                                                  VkAttachmentStoreOp*   out_opt_store_op_ptr,
-                                                                  VkImageLayout*         out_opt_initial_layout_ptr,
-                                                                  VkImageLayout*         out_opt_final_layout_ptr,
-                                                                  bool*                  out_opt_may_alias_ptr) const
+bool Anvil::RenderPassCreateInfo::get_color_attachment_properties(RenderPassAttachmentID      in_attachment_id,
+                                                                  Anvil::SampleCountFlagBits* out_opt_sample_count_ptr,
+                                                                  VkAttachmentLoadOp*         out_opt_load_op_ptr,
+                                                                  VkAttachmentStoreOp*        out_opt_store_op_ptr,
+                                                                  Anvil::ImageLayout*         out_opt_initial_layout_ptr,
+                                                                  Anvil::ImageLayout*         out_opt_final_layout_ptr,
+                                                                  bool*                       out_opt_may_alias_ptr) const
 {
     bool result = false;
 
@@ -590,7 +596,7 @@ bool Anvil::RenderPassCreateInfo::get_color_attachment_properties(RenderPassAtta
 
     if (out_opt_sample_count_ptr != nullptr)
     {
-        *out_opt_sample_count_ptr = static_cast<VkSampleCountFlagBits>(m_attachments[in_attachment_id].sample_count);
+        *out_opt_sample_count_ptr = m_attachments[in_attachment_id].sample_count;
     }
 
     if (out_opt_load_op_ptr != nullptr)
@@ -631,7 +637,7 @@ bool Anvil::RenderPassCreateInfo::get_dependency_properties(uint32_t            
                                                             VkPipelineStageFlags* out_source_stage_mask_ptr,
                                                             VkAccessFlags*        out_destination_access_mask_ptr,
                                                             VkAccessFlags*        out_source_access_mask_ptr,
-                                                            bool*                 out_by_region_ptr) const
+                                                            DependencyFlags*      out_flags_ptr) const
 {
     const Anvil::RenderPassCreateInfo::SubPassDependency* dep_ptr = nullptr;
     bool                                                  result  = false;
@@ -647,13 +653,13 @@ bool Anvil::RenderPassCreateInfo::get_dependency_properties(uint32_t            
 
     *out_destination_subpass_id_ptr  = (dep_ptr->destination_subpass_ptr != nullptr) ? dep_ptr->destination_subpass_ptr->index
                                                                                      : UINT32_MAX;
+    *out_flags_ptr                   = dep_ptr->flags;
     *out_source_subpass_id_ptr       = (dep_ptr->source_subpass_ptr      != nullptr) ? dep_ptr->source_subpass_ptr->index
                                                                                      : UINT32_MAX;
     *out_destination_stage_mask_ptr  = dep_ptr->destination_stage_mask;
     *out_source_stage_mask_ptr       = dep_ptr->source_stage_mask;
     *out_destination_access_mask_ptr = dep_ptr->destination_access_mask;
     *out_source_access_mask_ptr      = dep_ptr->source_access_mask;
-    *out_by_region_ptr               = dep_ptr->by_region;
 
     /* All done */
     result = true;
@@ -667,8 +673,8 @@ bool Anvil::RenderPassCreateInfo::get_depth_stencil_attachment_properties(Render
                                                                           VkAttachmentStoreOp*   out_opt_depth_store_op_ptr,
                                                                           VkAttachmentLoadOp*    out_opt_stencil_load_op_ptr,
                                                                           VkAttachmentStoreOp*   out_opt_stencil_store_op_ptr,
-                                                                          VkImageLayout*         out_opt_initial_layout_ptr,
-                                                                          VkImageLayout*         out_opt_final_layout_ptr,
+                                                                          Anvil::ImageLayout*    out_opt_initial_layout_ptr,
+                                                                          Anvil::ImageLayout*    out_opt_final_layout_ptr,
                                                                           bool*                  out_opt_may_alias_ptr) const
 {
     bool result = false;
@@ -796,11 +802,12 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::RenderPassCreateInfo::get_subpass_attachment_properties(SubPassID               in_subpass_id,
-                                                                    AttachmentType          in_attachment_type,
-                                                                    uint32_t                in_n_subpass_attachment,
-                                                                    RenderPassAttachmentID* out_renderpass_attachment_id_ptr,
-                                                                    VkImageLayout*          out_layout_ptr) const
+bool Anvil::RenderPassCreateInfo::get_subpass_attachment_properties(SubPassID                in_subpass_id,
+                                                                    AttachmentType           in_attachment_type,
+                                                                    uint32_t                 in_n_subpass_attachment,
+                                                                    RenderPassAttachmentID*  out_renderpass_attachment_id_ptr,
+                                                                    Anvil::ImageLayout*      out_layout_ptr,
+                                                                    Anvil::ImageAspectFlags* out_opt_aspects_accessed_ptr) const
 {
     SubPassAttachment               attachment;
     bool                            result                  = false;
@@ -856,6 +863,11 @@ bool Anvil::RenderPassCreateInfo::get_subpass_attachment_properties(SubPassID   
                 goto end;
             }
 
+            if (out_opt_aspects_accessed_ptr != nullptr)
+            {
+                *out_opt_aspects_accessed_ptr = iterator->second.aspects_accessed;
+            }
+
             *out_layout_ptr                   = iterator->second.layout;
             *out_renderpass_attachment_id_ptr = m_attachments.at(iterator->second.attachment_index).index;
 
@@ -869,6 +881,11 @@ bool Anvil::RenderPassCreateInfo::get_subpass_attachment_properties(SubPassID   
                 anvil_assert(in_n_subpass_attachment == 0);
 
                 goto end;
+            }
+
+            if (out_opt_aspects_accessed_ptr != nullptr)
+            {
+                *out_opt_aspects_accessed_ptr = Anvil::ImageAspectFlagBits::IMAGE_ASPECT_UNKNOWN;
             }
 
             *out_layout_ptr                   = subpass_ptr->depth_stencil_attachment.layout;
@@ -889,6 +906,12 @@ bool Anvil::RenderPassCreateInfo::get_subpass_attachment_properties(SubPassID   
             const auto& attachment_props = subpass_ptr->preserved_attachments[in_n_subpass_attachment];
 
             *out_renderpass_attachment_id_ptr = m_attachments.at(attachment_props.attachment_index).index;
+
+            if (out_opt_aspects_accessed_ptr != nullptr)
+            {
+                *out_opt_aspects_accessed_ptr = Anvil::ImageAspectFlagBits::IMAGE_ASPECT_UNKNOWN;
+            }
+
             break;
         }
 
