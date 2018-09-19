@@ -103,11 +103,70 @@ Anvil::Swapchain::~Swapchain()
 uint32_t Anvil::Swapchain::acquire_image(Anvil::Semaphore* in_opt_semaphore_ptr,
                                          bool              in_should_block)
 {
-    uint32_t             result                        (UINT32_MAX);
-    VkResult             result_vk                     (VK_ERROR_INITIALIZATION_FAILED);
-    const WindowPlatform window_platform               (m_create_info_ptr->get_window()->get_platform() );
-    const bool           is_offscreen_rendering_enabled( (window_platform   == WINDOW_PLATFORM_DUMMY                     ||
-                                                          window_platform   == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS) );
+    uint32_t result(UINT32_MAX);
+
+    switch (m_device_ptr->get_type() )
+    {
+        case Anvil::DEVICE_TYPE_MULTI_GPU:
+        {
+            const Anvil::MGPUDevice*     mgpu_device_ptr   (dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr) );
+            const uint32_t               n_physical_devices(mgpu_device_ptr->get_n_physical_devices() );
+            const Anvil::PhysicalDevice* physical_devices[32];
+            
+            anvil_assert(n_physical_devices < sizeof(physical_devices) / sizeof(physical_devices[0]) );
+
+            for (uint32_t n_physical_device = 0;
+                          n_physical_device < n_physical_devices;
+                        ++n_physical_device)
+            {
+                physical_devices[n_physical_device] = mgpu_device_ptr->get_physical_device(n_physical_device);
+            }
+
+            result = acquire_image(in_opt_semaphore_ptr,
+                                   n_physical_devices,
+                                   physical_devices,
+                                   in_should_block);
+
+            break;
+        }
+
+        case Anvil::DEVICE_TYPE_SINGLE_GPU:
+        {
+            const Anvil::PhysicalDevice* physical_device_ptr(nullptr);
+            const Anvil::SGPUDevice*     sgpu_device_ptr    (dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr) );
+
+            physical_device_ptr = sgpu_device_ptr->get_physical_device();
+
+            result = acquire_image(in_opt_semaphore_ptr,
+                                   1, /* n_mgpu_physical_devices */
+                                   &physical_device_ptr,
+                                   in_should_block);
+
+            break;
+        }
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
+
+    return result;
+}
+
+/** Please see header for specification */
+uint32_t Anvil::Swapchain::acquire_image(Anvil::Semaphore*                   in_opt_semaphore_ptr,
+                                         uint32_t                            in_n_mgpu_physical_devices,
+                                         const Anvil::PhysicalDevice* const* in_mgpu_physical_device_ptrs,
+                                         bool                                in_should_block)
+{
+    const Anvil::DeviceType device_type                    = m_device_ptr->get_type();
+
+    uint32_t                result                         = UINT32_MAX;
+    VkResult                result_vk                      = VK_ERROR_INITIALIZATION_FAILED;
+    const WindowPlatform    window_platform                = m_create_info_ptr->get_window()->get_platform();
+    const bool              is_offscreen_rendering_enabled = (window_platform   == WINDOW_PLATFORM_DUMMY                     ||
+                                                              window_platform   == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS);
 
     ANVIL_REDUNDANT_VARIABLE(result_vk);
 
@@ -123,8 +182,6 @@ uint32_t Anvil::Swapchain::acquire_image(Anvil::Semaphore* in_opt_semaphore_ptr,
         m_image_available_fence_ptr->lock();
         lock();
         {
-            const auto& khr_swapchain_entrypoints = m_device_ptr->get_extension_khr_swapchain_entrypoints();
-
             if (in_should_block)
             {
                 m_image_available_fence_ptr->reset();
@@ -132,12 +189,49 @@ uint32_t Anvil::Swapchain::acquire_image(Anvil::Semaphore* in_opt_semaphore_ptr,
                 fence_handle = m_image_available_fence_ptr->get_fence();
             }
 
-            result_vk = khr_swapchain_entrypoints.vkAcquireNextImageKHR(m_device_ptr->get_device_vk(),
-                                                                        m_swapchain,
-                                                                        UINT64_MAX,
-                                                                        (in_opt_semaphore_ptr != nullptr) ? in_opt_semaphore_ptr->get_semaphore() : VK_NULL_HANDLE,
-                                                                        fence_handle,
-                                                                       &result);
+            if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
+            {
+                const auto& khr_swapchain_entrypoints = m_device_ptr->get_extension_khr_swapchain_entrypoints();
+
+                result_vk = khr_swapchain_entrypoints.vkAcquireNextImageKHR(m_device_ptr->get_device_vk(),
+                                                                            m_swapchain,
+                                                                            UINT64_MAX,
+                                                                            (in_opt_semaphore_ptr != nullptr) ? in_opt_semaphore_ptr->get_semaphore() : VK_NULL_HANDLE,
+                                                                            fence_handle,
+                                                                           &result);
+            }
+            else
+            {
+                VkAcquireNextImageInfoKHR info;
+                const auto&               khr_device_group_entrypoints(m_device_ptr->get_extension_khr_device_group_entrypoints() );
+                const Anvil::MGPUDevice*  mgpu_device_ptr             (dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr) );
+
+                anvil_assert(device_type == Anvil::DEVICE_TYPE_MULTI_GPU);
+
+                info.deviceMask = 0;
+                info.fence      = fence_handle;
+                info.pNext      = nullptr;
+                info.semaphore  = (in_opt_semaphore_ptr != nullptr) ? in_opt_semaphore_ptr->get_semaphore() : VK_NULL_HANDLE;
+                info.sType      = VK_STRUCTURE_TYPE_ACQUIRE_NEXT_IMAGE_INFO_KHR;
+                info.swapchain  = m_swapchain;
+                info.timeout    = UINT64_MAX;
+
+                for (uint32_t n_physical_device = 0;
+                              n_physical_device < in_n_mgpu_physical_devices;
+                            ++n_physical_device)
+                {
+                    const Anvil::PhysicalDevice* physical_device_ptr  (in_mgpu_physical_device_ptrs[n_physical_device]);
+                    const uint32_t               physical_device_index(physical_device_ptr->get_index() );
+
+                    anvil_assert((info.deviceMask & (1 << physical_device_index)) == 0);
+
+                    info.deviceMask |= (1 << physical_device_index);
+                }
+
+                result_vk = khr_device_group_entrypoints.vkAcquireNextImage2KHR(mgpu_device_ptr->get_device_vk(),
+                                                                               &info,
+                                                                               &result);
+            }
 
             if (fence_handle != VK_NULL_HANDLE)
             {
@@ -284,6 +378,7 @@ bool Anvil::Swapchain::init()
 
         #ifdef _DEBUG
         {
+            const Anvil::MGPUDevice* mgpu_device_ptr(dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr) );
             const Anvil::SGPUDevice* sgpu_device_ptr(dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr) );
 
             const Anvil::DeviceType    device_type                     = m_device_ptr->get_type();
@@ -309,7 +404,8 @@ bool Anvil::Swapchain::init()
 
             switch (device_type)
             {
-                case Anvil::DEVICE_TYPE_SINGLE_GPU: n_physical_devices = 1; break;
+                case Anvil::DEVICE_TYPE_MULTI_GPU:  n_physical_devices = mgpu_device_ptr->get_n_physical_devices(); break;
+                case Anvil::DEVICE_TYPE_SINGLE_GPU: n_physical_devices = 1;                                         break;
 
                 default:
                 {
@@ -325,7 +421,8 @@ bool Anvil::Swapchain::init()
 
                 switch (device_type)
                 {
-                    case Anvil::DEVICE_TYPE_SINGLE_GPU: current_physical_device_ptr = sgpu_device_ptr->get_physical_device(); break;
+                    case Anvil::DEVICE_TYPE_MULTI_GPU:  current_physical_device_ptr = mgpu_device_ptr->get_physical_device(n_physical_device); break;
+                    case Anvil::DEVICE_TYPE_SINGLE_GPU: current_physical_device_ptr = sgpu_device_ptr->get_physical_device();                  break;
 
                     default:
                     {
@@ -334,22 +431,26 @@ bool Anvil::Swapchain::init()
                 }
 
                 /* Ensure opaque composite alpha mode is supported */
-                anvil_assert(parent_surface_ptr->get_supported_composite_alpha_flags(&supported_composite_alpha_flags) );
+                anvil_assert(parent_surface_ptr->get_supported_composite_alpha_flags(current_physical_device_ptr,
+                                                                                    &supported_composite_alpha_flags) );
 
                 anvil_assert(supported_composite_alpha_flags & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR);
 
                 /* Ensure we can use the swapchain image format  */
-                anvil_assert(parent_surface_ptr->is_compatible_with_image_format(m_create_info_ptr->get_format(),
+                anvil_assert(parent_surface_ptr->is_compatible_with_image_format(current_physical_device_ptr,
+                                                                                 m_create_info_ptr->get_format(),
                                                                                 &result_bool) );
                 anvil_assert(result_bool);
 
                 /* Ensure the transformation we're about to request is supported by the rendering surface */
-                anvil_assert(parent_surface_ptr->get_supported_transformations(&supported_surface_transform_flags) );
+                anvil_assert(parent_surface_ptr->get_supported_transformations(current_physical_device_ptr,
+                                                                              &supported_surface_transform_flags) );
 
                 anvil_assert(supported_surface_transform_flags & swapchain_transformation);
 
                 /* Ensure the requested number of swapchain images is reasonable*/
-                anvil_assert(parent_surface_ptr->get_capabilities(&surface_caps) );
+                anvil_assert(parent_surface_ptr->get_capabilities(current_physical_device_ptr,
+                                                                 &surface_caps) );
 
                 anvil_assert(surface_caps.maxImageCount == 0                                 ||
                              surface_caps.maxImageCount >= m_create_info_ptr->get_n_images() );
@@ -367,10 +468,10 @@ bool Anvil::Swapchain::init()
             create_info.imageColorSpace       = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
             create_info.imageExtent.height    = parent_surface_ptr->get_height();
             create_info.imageExtent.width     = parent_surface_ptr->get_width ();
-            create_info.imageFormat           = m_create_info_ptr->get_format ();
+            create_info.imageFormat           = static_cast<VkFormat>(m_create_info_ptr->get_format() );
             create_info.imageSharingMode      = VK_SHARING_MODE_EXCLUSIVE;
-            create_info.imageUsage            = m_create_info_ptr->get_usage_flags();
-            create_info.minImageCount         = m_create_info_ptr->get_n_images   ();
+            create_info.imageUsage            = static_cast<VkImageUsageFlags> (m_create_info_ptr->get_usage_flags() );
+            create_info.minImageCount         = m_create_info_ptr->get_n_images();
             create_info.oldSwapchain          = VK_NULL_HANDLE;
             create_info.pNext                 = nullptr;
             create_info.pQueueFamilyIndices   = nullptr;
@@ -381,6 +482,21 @@ bool Anvil::Swapchain::init()
             create_info.surface               = parent_surface_ptr->get_surface();
 
             struct_chainer.append_struct(create_info);
+        }
+
+        /* If present mode flags specific to mGPU support (exposed via VK_KHR_device_group) have been requested,
+         * make sure to chain this information */
+        const auto mgpu_present_mode_flags = m_create_info_ptr->get_mgpu_present_mode_flags();
+
+        if (mgpu_present_mode_flags != VK_DEVICE_GROUP_PRESENT_MODE_LOCAL_BIT_KHR)
+        {
+            VkDeviceGroupSwapchainCreateInfoKHR mgpu_create_info;
+
+            mgpu_create_info.modes = mgpu_present_mode_flags;
+            mgpu_create_info.pNext = nullptr;
+            mgpu_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_GROUP_SWAPCHAIN_CREATE_INFO_KHR;
+
+            struct_chainer.append_struct(mgpu_create_info);
         }
 
         struct_chain_ptr = struct_chainer.create_chain();
@@ -420,7 +536,7 @@ bool Anvil::Swapchain::init()
     }
     else /* offscreen rendering */
     {
-        m_create_info_ptr->set_usage_flags(m_create_info_ptr->get_usage_flags() | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+        m_create_info_ptr->set_usage_flags(m_create_info_ptr->get_usage_flags() | Anvil::IMAGE_USAGE_FLAG_TRANSFER_SRC_BIT);
 
         n_swapchain_images = m_create_info_ptr->get_n_images();
     }
@@ -444,21 +560,21 @@ bool Anvil::Swapchain::init()
         else
         {
             auto create_info_ptr = Anvil::ImageCreateInfo::create_nonsparse_alloc(m_device_ptr,
-                                                                                  VK_IMAGE_TYPE_2D,
+                                                                                  Anvil::ImageType::_2D,
                                                                                   m_create_info_ptr->get_format(),
-                                                                                  VK_IMAGE_TILING_OPTIMAL,
+                                                                                  Anvil::ImageTiling::OPTIMAL,
                                                                                   m_create_info_ptr->get_usage_flags(),
                                                                                   m_size.width,
                                                                                   m_size.height,
                                                                                   1, /* base_mipmap_depth */
                                                                                   1,
-                                                                                  VK_SAMPLE_COUNT_1_BIT,
+                                                                                  Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_1_BIT,
                                                                                   QUEUE_FAMILY_GRAPHICS_BIT,
-                                                                                  VK_SHARING_MODE_EXCLUSIVE,
+                                                                                  Anvil::SharingMode::EXCLUSIVE,
                                                                                   false, /* in_use_full_mipmap_chain */
                                                                                   0,     /* in_memory_features       */
                                                                                   0,     /* in_create_flags          */
-                                                                                  VK_IMAGE_LAYOUT_GENERAL,
+                                                                                  Anvil::ImageLayout::GENERAL,
                                                                                   nullptr);
 
             create_info_ptr->set_mt_safety(Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe() ) );
@@ -473,12 +589,12 @@ bool Anvil::Swapchain::init()
                                                                          0, /* n_base_layer */
                                                                          0, /* n_base_mipmap_level */
                                                                          1, /* n_mipmaps           */
-                                                                         VK_IMAGE_ASPECT_COLOR_BIT,
+                                                                         Anvil::ImageAspectFlagBits::IMAGE_ASPECT_FLAG_COLOR_BIT,
                                                                          m_create_info_ptr->get_format(),
-                                                                         VK_COMPONENT_SWIZZLE_R,
-                                                                         VK_COMPONENT_SWIZZLE_G,
-                                                                         VK_COMPONENT_SWIZZLE_B,
-                                                                         VK_COMPONENT_SWIZZLE_A);
+                                                                         Anvil::ComponentSwizzle::R,
+                                                                         Anvil::ComponentSwizzle::G,
+                                                                         Anvil::ComponentSwizzle::B,
+                                                                         Anvil::ComponentSwizzle::A);
 
             create_info_ptr->set_mt_safety(Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe() ) );
 
@@ -496,13 +612,65 @@ bool Anvil::Swapchain::init()
 
         switch (m_device_ptr->get_type() )
         {
+            case Anvil::DEVICE_TYPE_MULTI_GPU:
+            {
+                const Anvil::MGPUDevice* mgpu_device_ptr   (dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr) );
+                const uint32_t           n_physical_devices(mgpu_device_ptr->get_n_physical_devices() );
+
+                for (uint32_t n_physical_device = 0;
+                              n_physical_device < n_physical_devices;
+                            ++n_physical_device)
+                {
+                    auto                         physical_device_ptr                (mgpu_device_ptr->get_physical_device(n_physical_device) );
+                    const std::vector<uint32_t>* queue_fams_with_present_support_ptr(nullptr);
+                    auto                         rendering_surface_ptr              (m_create_info_ptr->get_rendering_surface() );
+
+                    if (!rendering_surface_ptr->get_queue_families_with_present_support(physical_device_ptr,
+                                                                                       &queue_fams_with_present_support_ptr) )
+                    {
+                        break;
+                    }
+
+                    if (queue_fams_with_present_support_ptr == nullptr)
+                    {
+                        anvil_assert(queue_fams_with_present_support_ptr != nullptr);
+                    }
+                    else
+                    {
+                        for (const auto queue_fam : *queue_fams_with_present_support_ptr)
+                        {
+                            const uint32_t n_queues = mgpu_device_ptr->get_n_queues(queue_fam);
+
+                            for (uint32_t n_queue = 0;
+                                          n_queue < n_queues;
+                                        ++n_queue)
+                            {
+                                auto queue_ptr = mgpu_device_ptr->get_queue_for_queue_family_index(queue_fam,
+                                                                                                   n_queue);
+
+                                if (std::find(queues.begin(),
+                                              queues.end(),
+                                              queue_ptr) == queues.end() )
+                                {
+                                    queues.push_back(queue_ptr);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                break;
+            }
+
             case Anvil::DEVICE_TYPE_SINGLE_GPU:
             {
                 const std::vector<uint32_t>* queue_fams_with_present_support_ptr(nullptr);
                 const auto                   rendering_surface_ptr              (m_create_info_ptr->get_rendering_surface() );
                 const Anvil::SGPUDevice*     sgpu_device_ptr                    (dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr) );
+                auto                         physical_device_ptr                (sgpu_device_ptr->get_physical_device() );
 
-                if (!rendering_surface_ptr->get_queue_families_with_present_support(&queue_fams_with_present_support_ptr) )
+                if (!rendering_surface_ptr->get_queue_families_with_present_support(physical_device_ptr,
+                                                                                   &queue_fams_with_present_support_ptr) )
                 {
                     break;
                 }

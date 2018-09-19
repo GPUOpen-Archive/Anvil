@@ -200,9 +200,9 @@ namespace Anvil
          **/
         typedef struct CombinedImageSamplerBindingElement
         {
-            VkImageLayout     image_layout;
-            Anvil::ImageView* image_view_ptr; 
-            Anvil::Sampler*   sampler_ptr;
+            Anvil::ImageLayout image_layout;
+            Anvil::ImageView*  image_view_ptr; 
+            Anvil::Sampler*    sampler_ptr;
 
             /** Constructor.
              *
@@ -212,9 +212,9 @@ namespace Anvil
              *                           it will be assumed the element corresponds to an immutable
              *                           sampler.
              **/
-            CombinedImageSamplerBindingElement(VkImageLayout     in_image_layout,
-                                               Anvil::ImageView* in_image_view_ptr,
-                                               Anvil::Sampler*   in_sampler_ptr);
+            CombinedImageSamplerBindingElement(Anvil::ImageLayout in_image_layout,
+                                               Anvil::ImageView*  in_image_view_ptr,
+                                               Anvil::Sampler*    in_sampler_ptr);
 
             /** Destructor.
              *
@@ -241,15 +241,15 @@ namespace Anvil
         /** Holds a single image view, along with other metadata required bound it to a specific descriptor set slot */
         typedef struct ImageBindingElement
         {
-            VkImageLayout     image_layout;
-            Anvil::ImageView* image_view_ptr;
+            Anvil::ImageLayout image_layout;
+            Anvil::ImageView*  image_view_ptr;
 
             /** Constructor.
              *
              *  @param in_image_layout   Image layout to use for the binding.
              *  @param in_image_view_ptr Image view to use for the binding. Must not be nullptr.
              **/
-            ImageBindingElement(VkImageLayout     in_image_layout,
+            ImageBindingElement(Anvil::ImageLayout in_image_layout,
                                 Anvil::ImageView* in_image_view_ptr);
 
             /** Copy assignment operator.
@@ -278,8 +278,8 @@ namespace Anvil
         {
             InputAttachmentBindingElement() = delete;
 
-            InputAttachmentBindingElement(VkImageLayout     in_image_layout,
-                                          Anvil::ImageView* in_image_view_ptr)
+            InputAttachmentBindingElement(Anvil::ImageLayout in_image_layout,
+                                          Anvil::ImageView*  in_image_view_ptr)
                 :ImageBindingElement(in_image_layout,
                                      in_image_view_ptr)
             {
@@ -299,8 +299,8 @@ namespace Anvil
         {
             SampledImageBindingElement() = delete;
 
-            SampledImageBindingElement(VkImageLayout     in_image_layout,
-                                       Anvil::ImageView* in_image_view_ptr)
+            SampledImageBindingElement(Anvil::ImageLayout in_image_layout,
+                                       Anvil::ImageView*  in_image_view_ptr)
                 :ImageBindingElement(in_image_layout,
                                      in_image_view_ptr)
             {
@@ -320,8 +320,8 @@ namespace Anvil
         {
             StorageImageBindingElement() = delete;
 
-            StorageImageBindingElement(VkImageLayout     in_image_layout,
-                                       Anvil::ImageView* in_image_view_ptr)
+            StorageImageBindingElement(Anvil::ImageLayout in_image_layout,
+                                       Anvil::ImageView*  in_image_view_ptr)
                 :ImageBindingElement(in_image_layout,
                                      in_image_view_ptr)
             {
@@ -460,11 +460,11 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_combined_image_sampler_binding_properties(uint32_t           in_n_binding,
-                                                           uint32_t           in_n_binding_array_item,
-                                                           VkImageLayout*     out_opt_image_layout_ptr,
-                                                           Anvil::ImageView** out_opt_image_view_ptr_ptr,
-                                                           Anvil::Sampler**   out_opt_sampler_ptr_ptr);
+        bool get_combined_image_sampler_binding_properties(uint32_t            in_n_binding,
+                                                           uint32_t            in_n_binding_array_item,
+                                                           Anvil::ImageLayout* out_opt_image_layout_ptr,
+                                                           Anvil::ImageView**  out_opt_image_view_ptr_ptr,
+                                                           Anvil::Sampler**    out_opt_sampler_ptr_ptr);
 
         /** Retrieves raw Vulkan handle of the encapsulated descriptor set.
          *
@@ -503,10 +503,10 @@ namespace Anvil
          *  @return true if successful, false otherwise.
          *
          */
-        bool get_input_attachment_binding_properties(uint32_t           in_n_binding,
-                                                     uint32_t           in_n_binding_array_item,
-                                                     VkImageLayout*     out_opt_image_layout_ptr_ptr,
-                                                     Anvil::ImageView** out_opt_image_view_ptr_ptr) const;
+        bool get_input_attachment_binding_properties(uint32_t            in_n_binding,
+                                                     uint32_t            in_n_binding_array_item,
+                                                     Anvil::ImageLayout* out_opt_image_layout_ptr_ptr,
+                                                     Anvil::ImageView**  out_opt_image_view_ptr_ptr) const;
 
         /** Returns properties of a sampled image descriptor binding.
          *
@@ -519,10 +519,10 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          */
-        bool get_sampled_image_binding_properties(uint32_t           in_n_binding,
-                                                  uint32_t           in_n_binding_array_item,
-                                                  VkImageLayout*     out_opt_image_layout_ptr,
-                                                  Anvil::ImageView** out_opt_image_view_ptr_prt) const
+        bool get_sampled_image_binding_properties(uint32_t            in_n_binding,
+                                                  uint32_t            in_n_binding_array_item,
+                                                  Anvil::ImageLayout* out_opt_image_layout_ptr,
+                                                  Anvil::ImageView**  out_opt_image_view_ptr_prt) const
         {
             /* Re-use existing code */
             return get_input_attachment_binding_properties(in_n_binding,
@@ -575,10 +575,10 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          */
-        bool get_storage_image_binding_properties(uint32_t           in_n_binding,
-                                                  uint32_t           in_n_binding_array_item,
-                                                  VkImageLayout*     out_opt_image_layout_ptr,
-                                                  Anvil::ImageView** out_opt_image_view_ptr_ptr) const
+        bool get_storage_image_binding_properties(uint32_t            in_n_binding,
+                                                  uint32_t            in_n_binding_array_item,
+                                                  Anvil::ImageLayout* out_opt_image_layout_ptr,
+                                                  Anvil::ImageView**  out_opt_image_view_ptr_ptr) const
         {
             /* Re-use existing code */
             return get_input_attachment_binding_properties(in_n_binding,
@@ -756,7 +756,7 @@ namespace Anvil
         {
             Anvil::Buffer*     buffer_ptr;
             Anvil::BufferView* buffer_view_ptr;
-            VkImageLayout      image_layout;
+            Anvil::ImageLayout image_layout;
             Anvil::ImageView*  image_view_ptr;
             Anvil::Sampler*    sampler_ptr;
             VkDeviceSize       size;
@@ -829,7 +829,7 @@ namespace Anvil
             BindingItem()
             {
                 dirty        = false;
-                image_layout = VK_IMAGE_LAYOUT_MAX_ENUM;
+                image_layout = Anvil::ImageLayout::UNKNOWN;
                 size         = 0;
                 start_offset = 0;
 

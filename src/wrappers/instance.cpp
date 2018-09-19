@@ -128,6 +128,7 @@ void Anvil::Instance::destroy()
     }
 
     m_physical_devices.clear();
+    m_physical_device_groups.clear();
 
     #ifdef _DEBUG
     {
@@ -229,6 +230,72 @@ void Anvil::Instance::enumerate_layer_extensions(Anvil::Layer* in_layer_ptr)
                     ++n_extension)
         {
             in_layer_ptr->extensions.push_back(extension_props[n_extension].extensionName);
+        }
+    }
+}
+
+/** Enumerates and caches all available physical device groups. */
+void Anvil::Instance::enumerate_physical_device_groups()
+{
+    uint32_t n_physical_device_groups = 0;
+    VkResult result                   = VK_ERROR_INITIALIZATION_FAILED;
+
+    ANVIL_REDUNDANT_VARIABLE(result);
+
+    /* Enumerate available physical device groups and cache them for further use. */
+    result = m_khr_device_group_creation_entrypoints.vkEnumeratePhysicalDeviceGroupsKHR(m_instance,
+                                                                                        &n_physical_device_groups,
+                                                                                        nullptr); /* pPhysicalDeviceGroupProperties */
+
+    if (n_physical_device_groups > 0)
+    {
+        std::vector<VkPhysicalDeviceGroupPropertiesKHR> device_group_props(n_physical_device_groups);
+
+        for (uint32_t n_physical_device_group = 0;
+                      n_physical_device_group < n_physical_device_groups;
+                    ++n_physical_device_group)
+        {
+            auto& current_props = device_group_props.at(n_physical_device_group);
+
+            current_props.pNext = nullptr;
+            current_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GROUP_PROPERTIES_KHR;
+        }
+
+        result = m_khr_device_group_creation_entrypoints.vkEnumeratePhysicalDeviceGroupsKHR(m_instance,
+                                                                                            &n_physical_device_groups,
+                                                                                            &device_group_props[0]);
+        anvil_assert_vk_call_succeeded(result);
+
+        for (uint32_t n_group = 0;
+                      n_group < n_physical_device_groups;
+                    ++n_group)
+        {
+            Anvil::PhysicalDeviceGroup new_group;
+            const auto&                this_group_props = device_group_props.at(n_group);
+
+            anvil_assert(this_group_props.physicalDeviceCount > 0);
+
+            for (uint32_t n_physical_device = 0;
+                          n_physical_device < this_group_props.physicalDeviceCount;
+                        ++n_physical_device)
+            {
+                auto physical_device_iterator = std::find(m_physical_devices.begin(),
+                                                          m_physical_devices.end(),
+                                                          this_group_props.physicalDevices[n_physical_device]);
+
+                anvil_assert(physical_device_iterator != m_physical_devices.end() );
+                if (physical_device_iterator != m_physical_devices.end() )
+                {
+                    new_group.physical_device_ptrs.push_back(physical_device_iterator->get() );
+
+                    (*physical_device_iterator)->set_device_group_index       (n_group);
+                    (*physical_device_iterator)->set_device_group_device_index(n_physical_device);
+                }
+            }
+
+            new_group.supports_subset_allocations = (this_group_props.subsetAllocation == VK_TRUE);
+
+            m_physical_device_groups.push_back(new_group);
         }
     }
 }
@@ -342,6 +409,14 @@ const Anvil::ExtensionKHRSurfaceEntrypoints& Anvil::Instance::get_extension_khr_
     #endif
 #endif
 
+/** Please see header for specification */
+const Anvil::ExtensionKHRDeviceGroupCreationEntrypoints& Anvil::Instance::get_extension_khr_device_group_creation_entrypoints() const
+{
+    anvil_assert(m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_device_group_creation() );
+
+    return m_khr_device_group_creation_entrypoints;
+}
+
 /** Initializes the wrapper. */
 void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instance_level_extensions)
 {
@@ -349,8 +424,9 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
     VkInstanceCreateInfo        create_info;
     std::vector<const char*>    enabled_layers;
     std::map<std::string, bool> extension_enabled_status;
-    size_t                      n_instance_layers        = 0;
-    VkResult                    result                   = VK_ERROR_INITIALIZATION_FAILED;
+    bool                        is_device_group_creation_supported = true;
+    size_t                      n_instance_layers                  = 0;
+    VkResult                    result                             = VK_ERROR_INITIALIZATION_FAILED;
 
     ANVIL_REDUNDANT_VARIABLE(result);
 
@@ -446,12 +522,13 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
                 }
             }
         }
-
         /* Enable known instance-level extensions by default */
         if (is_instance_extension_supported(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) )
         {
             extension_enabled_status[VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME] = true;
         }
+
+        extension_enabled_status[VK_KHR_DEVICE_GROUP_CREATION_EXTENSION_NAME] = true;
 
         if (is_instance_extension_supported(VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME) )
         {
@@ -475,6 +552,11 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
 
             if (ext_iterator != extension_enabled_status.end() )
             {
+                if (current_extension_name == VK_KHR_DEVICE_GROUP_CREATION_EXTENSION_NAME)
+                {
+                    is_device_group_creation_supported = false;
+                }
+
                 extension_enabled_status.erase(ext_iterator);
             }
         }
@@ -515,6 +597,11 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
     }
 
     enumerate_physical_devices();
+
+    if (is_device_group_creation_supported)
+    {
+        enumerate_physical_device_groups();
+    }
 }
 
 /** Initializes debug callback support. */
@@ -616,6 +703,14 @@ void Anvil::Instance::init_func_pointers()
         anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceProperties2KHR                  != nullptr);
         anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceQueueFamilyProperties2KHR       != nullptr);
         anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceSparseImageFormatProperties2KHR != nullptr);
+    }
+
+    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_device_group_creation() )
+    {
+        m_khr_device_group_creation_entrypoints.vkEnumeratePhysicalDeviceGroupsKHR = reinterpret_cast<PFN_vkEnumeratePhysicalDeviceGroupsKHR>(vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                    "vkEnumeratePhysicalDeviceGroupsKHR") );
+
+        anvil_assert(m_khr_device_group_creation_entrypoints.vkEnumeratePhysicalDeviceGroupsKHR != nullptr);
     }
 
     if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_external_fence_capabilities() )

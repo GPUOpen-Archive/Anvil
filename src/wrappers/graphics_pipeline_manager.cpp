@@ -119,14 +119,14 @@ bool Anvil::GraphicsPipelineManager::bake()
     bool                                   result                                             = false;
     std::vector<VkPipeline>                result_graphics_pipelines;
     VkResult                               result_vk;
-    auto                                   scissor_boxes_vk_cache                             = std::vector<VkRect2D>                                                                   ();
-    auto                                   shader_stage_create_info_items_vk_cache            = std::vector<VkPipelineShaderStageCreateInfo>                                            ();
-    auto                                   specialization_info_vk_cache                       = std::vector<VkSpecializationInfo>                                                       ();
-    auto                                   specialization_map_entry_vk_cache                  = std::vector<VkSpecializationMapEntry>                                                   ();
-    auto                                   tessellation_state_create_info_items_vk_cache      = std::vector<VkPipelineTessellationStateCreateInfo>                                      ();
-    auto                                   vertex_input_binding_divisor_description_vk_cache  = std::vector<VkVertexInputBindingDivisorDescriptionEXT>                                  ();
-    auto                                   vertex_input_state_create_info_chain_cache         = std::vector<std::unique_ptr<Anvil::StructChain<VkPipelineVertexInputStateCreateInfo> > >();
-    auto                                   viewport_state_create_info_items_vk_cache          = std::vector<VkPipelineViewportStateCreateInfo>                                          ();
+    auto                                   scissor_boxes_vk_cache                             = std::vector<VkRect2D>                                                                    ();
+    auto                                   shader_stage_create_info_items_vk_cache            = std::vector<VkPipelineShaderStageCreateInfo>                                             ();
+    auto                                   specialization_info_vk_cache                       = std::vector<VkSpecializationInfo>                                                        ();
+    auto                                   specialization_map_entry_vk_cache                  = std::vector<VkSpecializationMapEntry>                                                    ();
+    auto                                   tessellation_state_create_info_chain_cache         = std::vector<std::unique_ptr<Anvil::StructChain<VkPipelineTessellationStateCreateInfo> > >();
+    auto                                   vertex_input_binding_divisor_description_vk_cache  = std::vector<VkVertexInputBindingDivisorDescriptionEXT>                                   ();
+    auto                                   vertex_input_state_create_info_chain_cache         = std::vector<std::unique_ptr<Anvil::StructChain<VkPipelineVertexInputStateCreateInfo> > > ();
+    auto                                   viewport_state_create_info_items_vk_cache          = std::vector<VkPipelineViewportStateCreateInfo>                                           ();
     std::vector<VkViewport>                viewports_vk_cache;
 
 
@@ -156,7 +156,7 @@ bool Anvil::GraphicsPipelineManager::bake()
     shader_stage_create_info_items_vk_cache.reserve          (N_CACHE_ITEMS);
     specialization_info_vk_cache.reserve                     (N_CACHE_ITEMS);
     specialization_map_entry_vk_cache.reserve                (N_CACHE_ITEMS);
-    tessellation_state_create_info_items_vk_cache.reserve    (N_CACHE_ITEMS);
+    tessellation_state_create_info_chain_cache.reserve       (N_CACHE_ITEMS);
     vertex_input_binding_divisor_description_vk_cache.reserve(N_CACHE_ITEMS);
     viewport_state_create_info_items_vk_cache.reserve        (N_CACHE_ITEMS);
     viewports_vk_cache.reserve                               (N_CACHE_ITEMS);
@@ -272,7 +272,7 @@ bool Anvil::GraphicsPipelineManager::bake()
                     color_blend_attachment_states_vk_cache.push_back(VkPipelineColorBlendAttachmentState() );
 
                     VkPipelineColorBlendAttachmentState* blend_attachment_state_ptr         = &color_blend_attachment_states_vk_cache.back();
-                    VkImageLayout                        dummy                              = VK_IMAGE_LAYOUT_MAX_ENUM;
+                    Anvil::ImageLayout                   dummy                              = Anvil::ImageLayout::UNKNOWN;
                     bool                                 is_blending_enabled_for_attachment = false;
                     Anvil::RenderPassAttachmentID        rp_attachment_id                   = UINT32_MAX;
 
@@ -491,7 +491,7 @@ bool Anvil::GraphicsPipelineManager::bake()
             {
                 const bool                           is_sample_mask_enabled        = current_pipeline_create_info_ptr->is_sample_mask_enabled();
                 VkPipelineMultisampleStateCreateInfo multisample_state_create_info;
-                VkSampleCountFlags                   sample_count                  = VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM;
+                Anvil::SampleCountFlagBits           sample_count                  = static_cast<Anvil::SampleCountFlagBits>(0);
                 VkSampleMask                         sample_mask;
 
                 current_pipeline_create_info_ptr->get_multisampling_properties(&sample_count,
@@ -674,16 +674,38 @@ bool Anvil::GraphicsPipelineManager::bake()
             if (tc_shader_stage_entry_point_ptr != nullptr &&
                 te_shader_stage_entry_point_ptr != nullptr)
             {
-                VkPipelineTessellationStateCreateInfo tessellation_state_create_info;
+                Anvil::StructChainer<VkPipelineTessellationStateCreateInfo> tessellation_state_create_info_chainer;
 
-                tessellation_state_create_info.flags              = 0;
-                tessellation_state_create_info.patchControlPoints = current_pipeline_create_info_ptr->get_n_patch_control_points();
-                tessellation_state_create_info.pNext              = nullptr;
-                tessellation_state_create_info.sType              = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
+                {
+                    VkPipelineTessellationStateCreateInfo tessellation_state_create_info;
+
+                    tessellation_state_create_info.flags              = 0;
+                    tessellation_state_create_info.patchControlPoints = current_pipeline_create_info_ptr->get_n_patch_control_points();
+                    tessellation_state_create_info.pNext              = nullptr;
+                    tessellation_state_create_info.sType              = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
+
+                    tessellation_state_create_info_chainer.append_struct(tessellation_state_create_info);
+                }
+
+                if (m_device_ptr->is_extension_enabled(VK_KHR_MAINTENANCE2_EXTENSION_NAME) )
+                {
+                    VkPipelineTessellationDomainOriginStateCreateInfoKHR domain_origin_state_create_info;
+
+                    domain_origin_state_create_info.domainOrigin = static_cast<VkTessellationDomainOriginKHR>(current_pipeline_create_info_ptr->get_tessellation_domain_origin() );
+                    domain_origin_state_create_info.pNext        = nullptr;
+                    domain_origin_state_create_info.sType        = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_DOMAIN_ORIGIN_STATE_CREATE_INFO_KHR;
+
+                    tessellation_state_create_info_chainer.append_struct(domain_origin_state_create_info);
+                }
+                else
+                {
+                    /* App wants to adjust the default tessellation domain origin value, even though KHR_maintenance2 is unsupported! */
+                    anvil_assert(current_pipeline_create_info_ptr->get_tessellation_domain_origin() == Anvil::TessellationDomainOrigin::UPPER_LEFT);
+                }
 
                 tessellation_state_used = true;
 
-                tessellation_state_create_info_items_vk_cache.push_back(tessellation_state_create_info);
+                tessellation_state_create_info_chain_cache.push_back(tessellation_state_create_info_chainer.create_chain() );
             }
             else
             {
@@ -965,7 +987,7 @@ bool Anvil::GraphicsPipelineManager::bake()
             graphics_pipeline_create_info.pRasterizationState = raster_state_create_info_chains_vk_cache.at(raster_state_create_info_chains_vk_cache.size() - 1)->root_struct_ptr;
             graphics_pipeline_create_info.pStages             = (shader_stage_start_offset < shader_stage_create_info_items_vk_cache.size() ) ? &shader_stage_create_info_items_vk_cache[shader_stage_start_offset]
                                                                                                                                               : nullptr;
-            graphics_pipeline_create_info.pTessellationState  = (tessellation_state_used)   ? &tessellation_state_create_info_items_vk_cache[tessellation_state_create_info_items_vk_cache.size() - 1]
+            graphics_pipeline_create_info.pTessellationState  = (tessellation_state_used)   ? tessellation_state_create_info_chain_cache.at(tessellation_state_create_info_chain_cache.size() - 1)->root_struct_ptr
                                                                                             : VK_NULL_HANDLE;
             graphics_pipeline_create_info.pVertexInputState   = vertex_input_state_create_info_chain_cache.at(vertex_input_state_create_info_chain_cache.size() - 1)->get_root_struct();
             graphics_pipeline_create_info.pViewportState      = (viewport_state_used)       ? &viewport_state_create_info_items_vk_cache[viewport_state_create_info_items_vk_cache.size() - 1]
@@ -1013,7 +1035,7 @@ bool Anvil::GraphicsPipelineManager::bake()
         anvil_assert(shader_stage_create_info_items_vk_cache.size()           <= N_CACHE_ITEMS);
         anvil_assert(specialization_info_vk_cache.size()                      <= N_CACHE_ITEMS);
         anvil_assert(specialization_map_entry_vk_cache.size()                 <= N_CACHE_ITEMS);
-        anvil_assert(tessellation_state_create_info_items_vk_cache.size()     <= N_CACHE_ITEMS);
+        anvil_assert(tessellation_state_create_info_chain_cache.size()        <= N_CACHE_ITEMS);
         anvil_assert(viewport_state_create_info_items_vk_cache.size()         <= N_CACHE_ITEMS);
         anvil_assert(viewports_vk_cache.size()                                <= N_CACHE_ITEMS);
     }
@@ -1123,7 +1145,7 @@ void Anvil::GraphicsPipelineManager::GraphicsPipelineData::bake_vk_attributes_an
         uint32_t                          current_attribute_divisor                       = 1;
         uint32_t                          current_attribute_explicit_vertex_binding_index = UINT32_MAX;
         uint32_t                          current_attribute_location                      = UINT32_MAX;
-        VkFormat                          current_attribute_format                        = VK_FORMAT_MAX_ENUM;
+        Anvil::Format                     current_attribute_format                        = Anvil::Format::UNKNOWN;
         uint32_t                          current_attribute_offset                        = UINT32_MAX;
         VkVertexInputRate                 current_attribute_rate                          = VK_VERTEX_INPUT_RATE_MAX_ENUM;
         uint32_t                          current_attribute_stride                        = UINT32_MAX;
@@ -1190,7 +1212,7 @@ void Anvil::GraphicsPipelineManager::GraphicsPipelineData::bake_vk_attributes_an
 
         /* Good to convert the internal attribute descriptor to the Vulkan's input attribute descriptor */
         current_attribute_vk.binding  = n_attribute_binding;
-        current_attribute_vk.format   = current_attribute_format;
+        current_attribute_vk.format   = static_cast<VkFormat>(current_attribute_format);
         current_attribute_vk.location = current_attribute_location;
         current_attribute_vk.offset   = current_attribute_offset;
 

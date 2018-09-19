@@ -26,16 +26,16 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_1D(const 
                                                                           uint32_t                 in_n_base_layer,
                                                                           uint32_t                 in_n_base_mipmap_level,
                                                                           uint32_t                 in_n_mipmaps,
-                                                                          VkImageAspectFlags       in_aspect_mask,
-                                                                          VkFormat                 in_format,
-                                                                          VkComponentSwizzle       in_swizzle_red,
-                                                                          VkComponentSwizzle       in_swizzle_green,
-                                                                          VkComponentSwizzle       in_swizzle_blue,
-                                                                          VkComponentSwizzle       in_swizzle_alpha)
+                                                                          Anvil::ImageAspectFlags  in_aspect_mask,
+                                                                          Anvil::Format            in_format,
+                                                                          Anvil::ComponentSwizzle  in_swizzle_red,
+                                                                          Anvil::ComponentSwizzle  in_swizzle_green,
+                                                                          Anvil::ComponentSwizzle  in_swizzle_blue,
+                                                                          Anvil::ComponentSwizzle  in_swizzle_alpha)
 {
     Anvil::ImageViewCreateInfoUniquePtr result_ptr    (nullptr,
                                                        std::default_delete<Anvil::ImageViewCreateInfo>() );
-    const VkComponentSwizzle            swizzle_rgba[] = 
+    const Anvil::ComponentSwizzle       swizzle_rgba[] = 
     {
         in_swizzle_red,
         in_swizzle_green,
@@ -67,16 +67,16 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_1D_array(
                                                                                 uint32_t                 in_n_layers,
                                                                                 uint32_t                 in_n_base_mipmap_level,
                                                                                 uint32_t                 in_n_mipmaps,
-                                                                                VkImageAspectFlags       in_aspect_mask,
-                                                                                VkFormat                 in_format,
-                                                                                VkComponentSwizzle       in_swizzle_red,
-                                                                                VkComponentSwizzle       in_swizzle_green,
-                                                                                VkComponentSwizzle       in_swizzle_blue,
-                                                                                VkComponentSwizzle       in_swizzle_alpha)
+                                                                                Anvil::ImageAspectFlags  in_aspect_mask,
+                                                                                Anvil::Format            in_format,
+                                                                                Anvil::ComponentSwizzle  in_swizzle_red,
+                                                                                Anvil::ComponentSwizzle  in_swizzle_green,
+                                                                                Anvil::ComponentSwizzle  in_swizzle_blue,
+                                                                                Anvil::ComponentSwizzle  in_swizzle_alpha)
 {
     Anvil::ImageViewCreateInfoUniquePtr result_ptr    (nullptr,
                                                        std::default_delete<Anvil::ImageViewCreateInfo>() );
-    const VkComponentSwizzle            swizzle_rgba[] = 
+    const Anvil::ComponentSwizzle       swizzle_rgba[] = 
     {
         in_swizzle_red,
         in_swizzle_green,
@@ -107,16 +107,16 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_2D(const 
                                                                           uint32_t                 in_n_base_layer,
                                                                           uint32_t                 in_n_base_mipmap_level,
                                                                           uint32_t                 in_n_mipmaps,
-                                                                          VkImageAspectFlags       in_aspect_mask,
-                                                                          VkFormat                 in_format,
-                                                                          VkComponentSwizzle       in_swizzle_red,
-                                                                          VkComponentSwizzle       in_swizzle_green,
-                                                                          VkComponentSwizzle       in_swizzle_blue,
-                                                                          VkComponentSwizzle       in_swizzle_alpha)
+                                                                          Anvil::ImageAspectFlags  in_aspect_mask,
+                                                                          Anvil::Format            in_format,
+                                                                          Anvil::ComponentSwizzle  in_swizzle_red,
+                                                                          Anvil::ComponentSwizzle  in_swizzle_green,
+                                                                          Anvil::ComponentSwizzle  in_swizzle_blue,
+                                                                          Anvil::ComponentSwizzle  in_swizzle_alpha)
 {
     Anvil::ImageViewCreateInfoUniquePtr result_ptr    (nullptr,
                                                        std::default_delete<Anvil::ImageViewCreateInfo>() );
-    const VkComponentSwizzle            swizzle_rgba[] = 
+    const Anvil::ComponentSwizzle       swizzle_rgba[] = 
     {
         in_swizzle_red,
         in_swizzle_green,
@@ -148,16 +148,16 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_2D_array(
                                                                                 uint32_t                 in_n_layers,
                                                                                 uint32_t                 in_n_base_mipmap_level,
                                                                                 uint32_t                 in_n_mipmaps,
-                                                                                VkImageAspectFlags       in_aspect_mask,
-                                                                                VkFormat                 in_format,
-                                                                                VkComponentSwizzle       in_swizzle_red,
-                                                                                VkComponentSwizzle       in_swizzle_green,
-                                                                                VkComponentSwizzle       in_swizzle_blue,
-                                                                                VkComponentSwizzle       in_swizzle_alpha)
+                                                                                Anvil::ImageAspectFlags  in_aspect_mask,
+                                                                                Anvil::Format            in_format,
+                                                                                Anvil::ComponentSwizzle  in_swizzle_red,
+                                                                                Anvil::ComponentSwizzle  in_swizzle_green,
+                                                                                Anvil::ComponentSwizzle  in_swizzle_blue,
+                                                                                Anvil::ComponentSwizzle  in_swizzle_alpha)
 {
     Anvil::ImageViewCreateInfoUniquePtr result_ptr    (nullptr,
                                                        std::default_delete<Anvil::ImageViewCreateInfo>() );
-    const VkComponentSwizzle            swizzle_rgba[] = 
+    const Anvil::ComponentSwizzle       swizzle_rgba[] = 
     {
         in_swizzle_red,
         in_swizzle_green,
@@ -189,16 +189,16 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_3D(const 
                                                                           uint32_t                 in_n_slices,
                                                                           uint32_t                 in_n_base_mipmap_level,
                                                                           uint32_t                 in_n_mipmaps,
-                                                                          VkImageAspectFlags       in_aspect_mask,
-                                                                          VkFormat                 in_format,
-                                                                          VkComponentSwizzle       in_swizzle_red,
-                                                                          VkComponentSwizzle       in_swizzle_green,
-                                                                          VkComponentSwizzle       in_swizzle_blue,
-                                                                          VkComponentSwizzle       in_swizzle_alpha)
+                                                                          Anvil::ImageAspectFlags  in_aspect_mask,
+                                                                          Anvil::Format            in_format,
+                                                                          Anvil::ComponentSwizzle  in_swizzle_red,
+                                                                          Anvil::ComponentSwizzle  in_swizzle_green,
+                                                                          Anvil::ComponentSwizzle  in_swizzle_blue,
+                                                                          Anvil::ComponentSwizzle  in_swizzle_alpha)
 {
     Anvil::ImageViewCreateInfoUniquePtr result_ptr    (nullptr,
                                                        std::default_delete<Anvil::ImageViewCreateInfo>() );
-    const VkComponentSwizzle            swizzle_rgba[] = 
+    const Anvil::ComponentSwizzle       swizzle_rgba[] = 
     {
         in_swizzle_red,
         in_swizzle_green,
@@ -229,16 +229,16 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_cube_map(
                                                                                 uint32_t                 in_n_base_layer,
                                                                                 uint32_t                 in_n_base_mipmap_level,
                                                                                 uint32_t                 in_n_mipmaps,
-                                                                                VkImageAspectFlags       in_aspect_mask,
-                                                                                VkFormat                 in_format,
-                                                                                VkComponentSwizzle       in_swizzle_red,
-                                                                                VkComponentSwizzle       in_swizzle_green,
-                                                                                VkComponentSwizzle       in_swizzle_blue,
-                                                                                VkComponentSwizzle       in_swizzle_alpha)
+                                                                                Anvil::ImageAspectFlags  in_aspect_mask,
+                                                                                Anvil::Format            in_format,
+                                                                                Anvil::ComponentSwizzle  in_swizzle_red,
+                                                                                Anvil::ComponentSwizzle  in_swizzle_green,
+                                                                                Anvil::ComponentSwizzle  in_swizzle_blue,
+                                                                                Anvil::ComponentSwizzle  in_swizzle_alpha)
 {
     Anvil::ImageViewCreateInfoUniquePtr result_ptr    (nullptr,
                                                        std::default_delete<Anvil::ImageViewCreateInfo>() );
-    const VkComponentSwizzle            swizzle_rgba[] = 
+    const Anvil::ComponentSwizzle       swizzle_rgba[] = 
     {
         in_swizzle_red,
         in_swizzle_green,
@@ -270,16 +270,16 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_cube_map_
                                                                                       uint32_t                 in_n_cube_maps,
                                                                                       uint32_t                 in_n_base_mipmap_level,
                                                                                       uint32_t                 in_n_mipmaps,
-                                                                                      VkImageAspectFlags       in_aspect_mask,
-                                                                                      VkFormat                 in_format,
-                                                                                      VkComponentSwizzle       in_swizzle_red,
-                                                                                      VkComponentSwizzle       in_swizzle_green,
-                                                                                      VkComponentSwizzle       in_swizzle_blue,
-                                                                                      VkComponentSwizzle       in_swizzle_alpha)
+                                                                                      Anvil::ImageAspectFlags  in_aspect_mask,
+                                                                                      Anvil::Format            in_format,
+                                                                                      Anvil::ComponentSwizzle  in_swizzle_red,
+                                                                                      Anvil::ComponentSwizzle  in_swizzle_green,
+                                                                                      Anvil::ComponentSwizzle  in_swizzle_blue,
+                                                                                      Anvil::ComponentSwizzle  in_swizzle_alpha)
 {
     Anvil::ImageViewCreateInfoUniquePtr result_ptr    (nullptr,
                                                        std::default_delete<Anvil::ImageViewCreateInfo>() );
-    const VkComponentSwizzle            swizzle_rgba[] = 
+    const Anvil::ComponentSwizzle       swizzle_rgba[] = 
     {
         in_swizzle_red,
         in_swizzle_green,
@@ -305,18 +305,18 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_cube_map_
     return result_ptr;
 }
 
-Anvil::ImageViewCreateInfo::ImageViewCreateInfo(const VkImageAspectFlags& in_aspect_mask,
-                                                const Anvil::BaseDevice*  in_device_ptr,
-                                                const VkFormat            in_format,
-                                                const uint32_t            in_n_base_layer,
-                                                const uint32_t            in_n_base_mipmap_level,
-                                                const uint32_t            in_n_layers,
-                                                const uint32_t            in_n_mipmaps,
-                                                const uint32_t            in_n_slices,
-                                                Anvil::Image*             in_parent_image_ptr,
-                                                const VkComponentSwizzle* in_swizzle_array_ptr,
-                                                const VkImageViewType     in_type,
-                                                const Anvil::MTSafety&    in_mt_safety)
+Anvil::ImageViewCreateInfo::ImageViewCreateInfo(const Anvil::ImageAspectFlags& in_aspect_mask,
+                                                const Anvil::BaseDevice*       in_device_ptr,
+                                                const Anvil::Format            in_format,
+                                                const uint32_t                 in_n_base_layer,
+                                                const uint32_t                 in_n_base_mipmap_level,
+                                                const uint32_t                 in_n_layers,
+                                                const uint32_t                 in_n_mipmaps,
+                                                const uint32_t                 in_n_slices,
+                                                Anvil::Image*                  in_parent_image_ptr,
+                                                const Anvil::ComponentSwizzle* in_swizzle_array_ptr,
+                                                const VkImageViewType          in_type,
+                                                const Anvil::MTSafety&         in_mt_safety)
     :m_aspect_mask        (in_aspect_mask),
      m_device_ptr         (in_device_ptr),
      m_format             (in_format),
@@ -328,7 +328,8 @@ Anvil::ImageViewCreateInfo::ImageViewCreateInfo(const VkImageAspectFlags& in_asp
      m_n_slices           (in_n_slices),
      m_parent_image_ptr   (in_parent_image_ptr),
      m_swizzle_array      ({in_swizzle_array_ptr[0], in_swizzle_array_ptr[1], in_swizzle_array_ptr[2], in_swizzle_array_ptr[3]}),
-     m_type               (in_type)
+     m_type               (in_type),
+     m_usage              (Anvil::IMAGE_USAGE_UNKNOWN)
 {
     anvil_assert(in_parent_image_ptr != nullptr);
 }

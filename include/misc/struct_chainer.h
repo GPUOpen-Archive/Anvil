@@ -195,6 +195,20 @@ namespace Anvil
             return result_ptr;
         }
 
+        StructType* get_last_struct()
+        {
+            anvil_assert(m_structs.size() > 0);
+
+            return reinterpret_cast<StructType*>(&m_structs.at(m_structs.size() - 1).at(0) );
+        }
+
+        const StructType* get_last_struct() const
+        {
+            anvil_assert(m_structs.size() > 0);
+
+            return reinterpret_cast<const StructType*>(&m_structs.at(m_structs.size() - 1).at(0) );
+        }
+
         const StructType* get_root_struct() const
         {
             anvil_assert(m_structs.size() > 0);

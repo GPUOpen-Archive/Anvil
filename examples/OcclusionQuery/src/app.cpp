@@ -355,8 +355,8 @@ void App::init_buffers()
         auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_alloc(m_device_ptr.get(),
                                                                                m_n_bytes_per_query * N_SWAPCHAIN_IMAGES,
                                                                                Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
-                                                                               VK_SHARING_MODE_EXCLUSIVE,
-                                                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                                               Anvil::SharingMode::EXCLUSIVE,
+                                                                               Anvil::BUFFER_USAGE_FLAG_UNIFORM_BUFFER_BIT | Anvil::BUFFER_USAGE_FLAG_TRANSFER_DST_BIT,
                                                                                0); /* in_memory_features */
 
         m_query_bo_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
@@ -366,8 +366,8 @@ void App::init_buffers()
         auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_alloc(m_device_ptr.get(),
                                                                                m_time_n_bytes_per_swapchain_image * N_SWAPCHAIN_IMAGES,
                                                                                Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
-                                                                               VK_SHARING_MODE_EXCLUSIVE,
-                                                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                                               Anvil::SharingMode::EXCLUSIVE,
+                                                                               Anvil::BUFFER_USAGE_FLAG_UNIFORM_BUFFER_BIT,
                                                                                Anvil::MEMORY_FEATURE_FLAG_MAPPABLE);
 
         m_time_bo_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
@@ -673,21 +673,21 @@ void App::init_images()
 {
     {
         auto create_info_ptr = Anvil::ImageCreateInfo::create_nonsparse_alloc(m_device_ptr.get(),
-                                                                              VK_IMAGE_TYPE_2D,
-                                                                              VK_FORMAT_D16_UNORM,
-                                                                              VK_IMAGE_TILING_OPTIMAL,
-                                                                              VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                                                              Anvil::ImageType::_2D,
+                                                                              Anvil::Format::D16_UNORM,
+                                                                              Anvil::ImageTiling::OPTIMAL,
+                                                                              Anvil::IMAGE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT_BIT,
                                                                               WINDOW_WIDTH,
                                                                               WINDOW_HEIGHT,
                                                                               1, /* base_mipmap_depth */
                                                                               1, /* n_layers          */
-                                                                              VK_SAMPLE_COUNT_1_BIT,
+                                                                              Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_1_BIT,
                                                                               Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
-                                                                              VK_SHARING_MODE_EXCLUSIVE,
+                                                                              Anvil::SharingMode::EXCLUSIVE,
                                                                               false, /* use_full_mipmap_chain */
                                                                               0,     /* in_memory_features    */
                                                                               false, /* is_mutable            */
-                                                                              VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                                              Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                                                                               nullptr);
 
         m_depth_image_ptr = Anvil::Image::create(std::move(create_info_ptr) );
@@ -699,12 +699,12 @@ void App::init_images()
                                                                      0, /* n_base_layer        */
                                                                      0, /* n_base_mipmap_level */
                                                                      1, /* n_mipmaps           */
-                                                                     VK_IMAGE_ASPECT_DEPTH_BIT,
+                                                                     Anvil::IMAGE_ASPECT_FLAG_DEPTH_BIT,
                                                                      m_depth_image_ptr->get_create_info_ptr()->get_format(),
-                                                                     VK_COMPONENT_SWIZZLE_IDENTITY,
-                                                                     VK_COMPONENT_SWIZZLE_IDENTITY,
-                                                                     VK_COMPONENT_SWIZZLE_IDENTITY,
-                                                                     VK_COMPONENT_SWIZZLE_IDENTITY);
+                                                                     Anvil::ComponentSwizzle::IDENTITY,
+                                                                     Anvil::ComponentSwizzle::IDENTITY,
+                                                                     Anvil::ComponentSwizzle::IDENTITY,
+                                                                     Anvil::ComponentSwizzle::IDENTITY);
 
         m_depth_image_view_ptr = Anvil::ImageView::create(std::move(create_info_ptr) );
     }
@@ -737,28 +737,28 @@ void App::init_renderpasses()
             );
 
             renderpass_info_ptr->add_color_attachment(m_swapchain_ptr->get_create_info_ptr()->get_format(),
-                                                      VK_SAMPLE_COUNT_1_BIT,
+                                                      Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_1_BIT,
                                                       (!is_2nd_renderpass) ? VK_ATTACHMENT_LOAD_OP_CLEAR
                                                                            : VK_ATTACHMENT_LOAD_OP_LOAD,
                                                       VK_ATTACHMENT_STORE_OP_STORE,
-                                                      VK_IMAGE_LAYOUT_UNDEFINED,
+                                                      Anvil::ImageLayout::UNDEFINED,
 #ifdef ENABLE_OFFSCREEN_RENDERING
-                                                      VK_IMAGE_LAYOUT_GENERAL,
+                                                      Anvil::ImageLayout::GENERAL,
 #else
-                                                      VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                                      Anvil::ImageLayout::PRESENT_SRC_KHR,
     #endif
                                                       false, /* may_alias */
                                                      &color_attachment_id);
 
             renderpass_info_ptr->add_depth_stencil_attachment(m_depth_image_ptr->get_create_info_ptr()->get_format(),
-                                                              VK_SAMPLE_COUNT_1_BIT,
+                                                              Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_1_BIT,
                                                               (!is_2nd_renderpass) ? VK_ATTACHMENT_LOAD_OP_CLEAR
                                                                                    : VK_ATTACHMENT_LOAD_OP_LOAD,
                                                               VK_ATTACHMENT_STORE_OP_STORE,
                                                               VK_ATTACHMENT_LOAD_OP_DONT_CARE,  /* stencil_load_op  */
                                                               VK_ATTACHMENT_STORE_OP_DONT_CARE, /* stencil_store_op */
-                                                              VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                                              VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                              Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                              Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                                                               false, /* may_alias */
                                                               &ds_attachment_id);
 
@@ -768,12 +768,12 @@ void App::init_renderpasses()
                 renderpass_info_ptr->add_subpass(&m_renderpass_2ndpass_depth_test_off_quad_subpass_id);
 
                 renderpass_info_ptr->add_subpass_color_attachment(m_renderpass_2ndpass_depth_test_off_tri_subpass_id,
-                                                                  VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                                  Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
                                                                   color_attachment_id,
                                                                   0, /* location */
                                                                   nullptr); /* opt_attachment_resolve_ptr */
                 renderpass_info_ptr->add_subpass_color_attachment(m_renderpass_2ndpass_depth_test_off_quad_subpass_id,
-                                                                  VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                                  Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
                                                                   color_attachment_id,
                                                                   0, /* location */
                                                                   nullptr); /* opt_attachment_resolve_ptr */
@@ -795,21 +795,21 @@ void App::init_renderpasses()
                 renderpass_info_ptr->add_subpass(&m_renderpass_1stpass_depth_test_equal_ot_subpass_id);
 
                 renderpass_info_ptr->add_subpass_color_attachment(m_renderpass_1stpass_depth_test_always_subpass_id,
-                                                                  VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                                  Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
                                                                   color_attachment_id,
                                                                   0, /* location */
                                                                   nullptr); /* opt_attachment_resolve_ptr */
                 renderpass_info_ptr->add_subpass_color_attachment(m_renderpass_1stpass_depth_test_equal_ot_subpass_id,
-                                                                  VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                                  Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
                                                                   color_attachment_id,
                                                                   0, /* location */
                                                                   nullptr); /* opt_attachment_resolve_ptr */
 
                 renderpass_info_ptr->add_subpass_depth_stencil_attachment(m_renderpass_1stpass_depth_test_always_subpass_id,
-                                                                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                                          Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                                                                           ds_attachment_id);
                 renderpass_info_ptr->add_subpass_depth_stencil_attachment(m_renderpass_1stpass_depth_test_equal_ot_subpass_id,
-                                                                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                                          Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                                                                           ds_attachment_id);
 
 
@@ -1017,19 +1017,20 @@ void App::init_swapchain()
     m_rendering_surface_ptr->set_name("Main rendering surface");
 
 
-    m_swapchain_ptr = m_device_ptr->create_swapchain(m_rendering_surface_ptr.get(),
-                                                     m_window_ptr.get           (),
-                                                     VK_FORMAT_B8G8R8A8_UNORM,
-                                                     VK_PRESENT_MODE_FIFO_KHR,
-                                                     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                                                     m_n_swapchain_images);
+    m_swapchain_ptr = reinterpret_cast<Anvil::SGPUDevice*>(m_device_ptr.get() )->create_swapchain(m_rendering_surface_ptr.get(),
+                                                                                                  m_window_ptr.get           (),
+                                                                                                  Anvil::Format::B8G8R8A8_UNORM,
+                                                                                                  VK_PRESENT_MODE_FIFO_KHR,
+                                                                                                  Anvil::IMAGE_USAGE_FLAG_COLOR_ATTACHMENT_BIT,
+                                                                                                  m_n_swapchain_images);
 
     m_swapchain_ptr->set_name("Main swapchain");
 
     /* Cache the queue we are going to use for presentation */
     const std::vector<uint32_t>* present_queue_fams_ptr = nullptr;
 
-    if (!m_rendering_surface_ptr->get_queue_families_with_present_support(&present_queue_fams_ptr) )
+    if (!m_rendering_surface_ptr->get_queue_families_with_present_support(reinterpret_cast<Anvil::SGPUDevice*>(m_device_ptr.get() )->get_physical_device(),
+                                                                         &present_queue_fams_ptr) )
     {
         anvil_assert_fail();
     }

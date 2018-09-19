@@ -22,6 +22,9 @@ endif()
 
 target_include_directories(Anvil PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/anvil/include")
 
+include_directories(${Anvil_SOURCE_DIR}/include
+                   ${OcclusionQuery_SOURCE_DIR}/include) 
+                   
 # Include the Vulkan header.
 if (WIN32)
     include_directories($ENV{VK_SDK_PATH}/Include

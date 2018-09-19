@@ -102,22 +102,22 @@
             const SampleCountToSamplesData& current_item = conversion_items[n_conversion_item];
             int32_t                         result       = 1;
 
-            if (current_item.sample_count & VK_SAMPLE_COUNT_16_BIT)
+            if (current_item.sample_count & Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_16_BIT)
             {
                 result = 16;
             }
             else
-            if (current_item.sample_count & VK_SAMPLE_COUNT_8_BIT)
+            if (current_item.sample_count & Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_8_BIT)
             {
                 result = 8;
             }
             else
-            if (current_item.sample_count & VK_SAMPLE_COUNT_4_BIT)
+            if (current_item.sample_count & Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_4_BIT)
             {
                 result = 4;
             }
             else
-            if (current_item.sample_count & VK_SAMPLE_COUNT_2_BIT)
+            if (current_item.sample_count & Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_2_BIT)
             {
                 result = 2;
             }

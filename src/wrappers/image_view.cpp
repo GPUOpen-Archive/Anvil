@@ -152,7 +152,6 @@ bool Anvil::ImageView::init()
     const auto                                  n_base_mip                = m_create_info_ptr->get_base_mipmap_level();
     const auto                                  n_layers                  = m_create_info_ptr->get_n_layers         ();
     const auto                                  n_mips                    = m_create_info_ptr->get_n_mipmaps        ();
-    VkFormat                                    parent_image_format       = VK_FORMAT_UNDEFINED;
     uint32_t                                    parent_image_n_layers     = 0;
     uint32_t                                    parent_image_n_mipmaps    = 0;
     auto                                        parent_image_ptr          = m_create_info_ptr->get_parent_image();
@@ -160,11 +159,11 @@ bool Anvil::ImageView::init()
     VkResult                                    result_vk;
     Anvil::StructChainer<VkImageViewCreateInfo> struct_chainer;
     const auto&                                 swizzle_array             = m_create_info_ptr->get_swizzle_array();
+    auto                                        usage                     = m_create_info_ptr->get_usage        ();
 
-    parent_image_format    = parent_image_ptr->get_create_info_ptr()->get_format();
-    parent_image_n_mipmaps = parent_image_ptr->get_n_mipmaps                    ();
+    parent_image_n_mipmaps = parent_image_ptr->get_n_mipmaps();
 
-    if (parent_image_ptr->get_create_info_ptr()->get_type_vk() != VK_IMAGE_TYPE_3D)
+    if (parent_image_ptr->get_create_info_ptr()->get_type() != Anvil::ImageType::_3D)
     {
         parent_image_n_layers = parent_image_ptr->get_create_info_ptr()->get_n_layers();
     }
@@ -190,15 +189,15 @@ bool Anvil::ImageView::init()
         goto end;
     }
 
-    if (((parent_image_ptr->get_create_info_ptr()->get_create_flags() & Anvil::IMAGE_CREATE_FLAG_MUTABLE_FORMAT_BIT) == 0)      &&
-         (parent_image_format                                                                                        != format))
+    if (usage != Anvil::ImageUsageFlagBits::IMAGE_USAGE_UNKNOWN                 &&
+        !m_device_ptr->is_extension_enabled(VK_KHR_MAINTENANCE2_EXTENSION_NAME) )
     {
-        anvil_assert(parent_image_format == format);
+        anvil_assert(m_device_ptr->is_extension_enabled(VK_KHR_MAINTENANCE2_EXTENSION_NAME) );
 
         goto end;
     }
 
-    if (parent_image_ptr->get_create_info_ptr()->get_type_vk() == VK_IMAGE_TYPE_3D)
+    if (parent_image_ptr->get_create_info_ptr()->get_type() == Anvil::ImageType::_3D)
     {
         if (image_view_type == VK_IMAGE_VIEW_TYPE_2D       ||
             image_view_type == VK_IMAGE_VIEW_TYPE_2D_ARRAY)
@@ -223,12 +222,12 @@ bool Anvil::ImageView::init()
     {
         VkImageViewCreateInfo image_view_create_info;
 
-        image_view_create_info.components.a                    = swizzle_array[3];
-        image_view_create_info.components.b                    = swizzle_array[2];
-        image_view_create_info.components.g                    = swizzle_array[1];
-        image_view_create_info.components.r                    = swizzle_array[0];
+        image_view_create_info.components.a                    = static_cast<VkComponentSwizzle>(swizzle_array[3]);
+        image_view_create_info.components.b                    = static_cast<VkComponentSwizzle>(swizzle_array[2]);
+        image_view_create_info.components.g                    = static_cast<VkComponentSwizzle>(swizzle_array[1]);
+        image_view_create_info.components.r                    = static_cast<VkComponentSwizzle>(swizzle_array[0]);
         image_view_create_info.flags                           = 0;
-        image_view_create_info.format                          = format;
+        image_view_create_info.format                          = static_cast<VkFormat>(format);
         image_view_create_info.image                           = parent_image_ptr->get_image();
         image_view_create_info.pNext                           = nullptr;
         image_view_create_info.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -240,6 +239,17 @@ bool Anvil::ImageView::init()
         image_view_create_info.viewType                        = image_view_type;
 
         struct_chainer.append_struct(image_view_create_info);
+    }
+
+    if (usage != Anvil::ImageUsageFlagBits::IMAGE_USAGE_UNKNOWN)
+    {
+        VkImageViewUsageCreateInfo usage_create_info;
+
+        usage_create_info.pNext = nullptr;
+        usage_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO_KHR;
+        usage_create_info.usage = static_cast<VkImageUsageFlags>(usage);
+
+        struct_chainer.append_struct(usage_create_info);
     }
 
     {

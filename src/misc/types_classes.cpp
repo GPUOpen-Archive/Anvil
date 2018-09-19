@@ -201,7 +201,8 @@ void Anvil::SparseMemoryBindingUpdateInfo::bake()
 
     if (n_bindings > 0)
     {
-        m_bindings_vk.resize(n_bindings);
+        m_bindings_vk.resize             (n_bindings);
+        m_device_group_bindings_vk.resize(n_bindings);
 
         m_buffer_bindings_vk.clear();
 
@@ -240,6 +241,19 @@ void Anvil::SparseMemoryBindingUpdateInfo::bake()
             vk_binding.signalSemaphoreCount = static_cast<uint32_t>(bind_info.signal_semaphores_vk.size() );
             vk_binding.sType                = VK_STRUCTURE_TYPE_BIND_SPARSE_INFO;
             vk_binding.waitSemaphoreCount   = static_cast<uint32_t>(bind_info.wait_semaphores_vk.size() );
+
+            if (bind_info.memory_device_index   != 0 ||
+                bind_info.resource_device_index != 0)
+            {
+                auto& device_group_binding_info = m_device_group_bindings_vk.at(n_binding);
+
+                device_group_binding_info.memoryDeviceIndex   = bind_info.memory_device_index;
+                device_group_binding_info.pNext               = nullptr;
+                device_group_binding_info.resourceDeviceIndex = bind_info.resource_device_index;
+                device_group_binding_info.sType               = VK_STRUCTURE_TYPE_DEVICE_GROUP_BIND_SPARSE_INFO_KHR;
+
+                vk_binding.pNext = &device_group_binding_info;
+            }
 
             n_buffer_bindings_start_index       = static_cast<uint32_t>(m_buffer_bindings_vk.size() );
             n_image_bindings_start_index        = static_cast<uint32_t>(m_image_bindings_vk.size() );
@@ -490,6 +504,39 @@ end:
 }
 
 /** Please see header for specification */
+bool Anvil::SparseMemoryBindingUpdateInfo::get_device_indices(SparseMemoryBindInfoID in_bind_info_id,
+                                                              uint32_t*              out_opt_resource_device_index_ptr,
+                                                              uint32_t*              out_opt_memory_device_index_ptr) const
+{
+    decltype(m_bindings)::const_iterator binding_iterator;
+    bool                                 result          (false);
+
+    if (m_bindings.size() <= in_bind_info_id)
+    {
+        anvil_assert(!(m_bindings.size() <= in_bind_info_id) );
+
+        goto end;
+    }
+
+    binding_iterator = m_bindings.cbegin() + static_cast<int>(in_bind_info_id);
+
+    if (out_opt_resource_device_index_ptr != nullptr)
+    {
+        *out_opt_resource_device_index_ptr = binding_iterator->resource_device_index;
+    }
+
+    if (out_opt_memory_device_index_ptr != nullptr)
+    {
+        *out_opt_memory_device_index_ptr = binding_iterator->memory_device_index;
+    }
+
+    /* All done */
+    result = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
 bool Anvil::SparseMemoryBindingUpdateInfo::get_image_memory_update_properties(SparseMemoryBindInfoID   in_bind_info_id,
                                                                               uint32_t                 in_n_update,
                                                                               Anvil::Image**           out_opt_image_ptr_ptr,
@@ -677,4 +724,85 @@ bool Anvil::SparseMemoryBindingUpdateInfo::get_image_opaque_memory_update_proper
     result = true;
 end:
     return result;
+}
+
+/** Please see header for specification */
+bool Anvil::SparseMemoryBindingUpdateInfo::is_device_group_support_required() const
+{
+    bool result(false);
+
+    for (const auto& binding_iterator : m_bindings)
+    {
+        if (binding_iterator.memory_device_index   != 0 ||
+            binding_iterator.resource_device_index != 0)
+        {
+            result = true;
+
+            break;
+        }
+    }
+
+    return result;
+}
+
+/* Updates memory device index, associated with this batch.
+ *
+ * Do not modify unless VK_KHR_device_group is supported
+ *
+ * @param in_memory_device_index New memory device index to use.
+ *
+ **/
+void Anvil::SparseMemoryBindingUpdateInfo::set_memory_device_index(SparseMemoryBindInfoID in_bind_info_id,
+                                                                   const uint32_t&        in_memory_device_index)
+{
+    decltype(m_bindings)::iterator binding_iterator;
+
+    if (m_bindings.size() <= in_bind_info_id)
+    {
+        anvil_assert(!(m_bindings.size() <= in_bind_info_id) );
+
+        goto end;
+    }
+
+    binding_iterator = m_bindings.begin() + static_cast<int>(in_bind_info_id);
+
+    if (binding_iterator->memory_device_index != in_memory_device_index)
+    {
+        m_dirty                               = true;
+        binding_iterator->memory_device_index = in_memory_device_index;
+    }
+
+end:
+    ;
+}
+
+/* Updates resource device index, associated with this batch.
+ *
+ * Do not modify unless VK_KHR_device_group is supported
+ *
+ * @param in_resource_device_index New resource device index to use.
+ *
+ **/
+void Anvil::SparseMemoryBindingUpdateInfo::set_resource_device_index(SparseMemoryBindInfoID in_bind_info_id,
+                                                                     const uint32_t&        in_resource_device_index)
+{
+    decltype(m_bindings)::iterator binding_iterator;
+
+    if (m_bindings.size() <= in_bind_info_id)
+    {
+        anvil_assert(!(m_bindings.size() <= in_bind_info_id) );
+
+        goto end;
+    }
+
+    binding_iterator = m_bindings.begin() + static_cast<int>(in_bind_info_id);
+
+    if (binding_iterator->resource_device_index != in_resource_device_index)
+    {
+        m_dirty                                 = true;
+        binding_iterator->resource_device_index = in_resource_device_index;
+    }
+
+end:
+    ;
 }

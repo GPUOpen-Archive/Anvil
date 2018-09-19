@@ -99,9 +99,9 @@ namespace Anvil
          */
         void change_image_layout(Anvil::Queue*                  in_queue_ptr,
                                  VkAccessFlags                  in_src_access_mask,
-                                 VkImageLayout                  in_src_layout,
+                                 Anvil::ImageLayout             in_src_layout,
                                  VkAccessFlags                  in_dst_access_mask,
-                                 VkImageLayout                  in_dst_layout,
+                                 Anvil::ImageLayout             in_dst_layout,
                                  const VkImageSubresourceRange& in_subresource_range,
                                  const uint32_t                 in_opt_n_wait_semaphores        = 0,
                                  const VkPipelineStageFlags*    in_opt_wait_dst_stage_mask_ptrs = nullptr,
@@ -120,10 +120,10 @@ namespace Anvil
          *  NOTE: This information is cached at image creation time, so the driver's impl will not be
          *        called.
          */
-        bool get_aspect_subresource_layout(VkImageAspectFlags   in_aspect,
-                                           uint32_t             in_n_layer,
-                                           uint32_t             in_n_mip,
-                                           VkSubresourceLayout* out_subresource_layout_ptr) const;
+        bool get_aspect_subresource_layout(Anvil::ImageAspectFlags in_aspect,
+                                           uint32_t                in_n_layer,
+                                           uint32_t                in_n_mip,
+                                           VkSubresourceLayout*    out_subresource_layout_ptr) const;
 
         const Anvil::ImageCreateInfo* get_create_info_ptr() const
         {
@@ -224,11 +224,23 @@ namespace Anvil
             return m_n_mipmaps;
         }
 
+        /** Returns SFR tile size for the image.
+         *
+         *  Can only be called if the following requirements are met:
+         *
+         *  1. Parent device is a mGPU device instance.
+         *  2. Image has been initialized with the VK_IMAGE_CREATE_BIND_SFR_BIT_KHR flag.
+         *
+         *  TODO.
+         *
+         */
+        bool get_SFR_tile_size(VkExtent2D* out_result_ptr) const;
+
         /** Returns a structure filled with details required to correctly bind tiles to a sparse image.
          *
          *  This function can only be called against sparse images with ALIASED or NONALIASED residency.
          **/
-        bool get_sparse_image_aspect_properties(const VkImageAspectFlagBits                in_aspect,
+        bool get_sparse_image_aspect_properties(const Anvil::ImageAspectFlagBits           in_aspect,
                                                 const Anvil::SparseImageAspectProperties** out_result_ptr_ptr) const;
 
         /** Returns a filled subresource range descriptor, covering all layers & mipmaps of the image */
@@ -240,7 +252,7 @@ namespace Anvil
          *
          *  @return true if data for all specified aspects is provided by the image, false otherwise.
          */
-        bool has_aspects(VkImageAspectFlags in_aspects) const;
+        bool has_aspects(Anvil::ImageAspectFlags in_aspects) const;
 
         /** Tells whether a physical memory page is assigned to the specified texel location.
          *
@@ -256,12 +268,12 @@ namespace Anvil
          *  @return true if physical memory is bound to the specified location, false otherwise.
          *
          */
-        bool is_memory_bound_for_texel(VkImageAspectFlagBits in_aspect,
-                                       uint32_t              in_n_layer,
-                                       uint32_t              in_n_mip,
-                                       uint32_t              in_x,
-                                       uint32_t              in_y,
-                                       uint32_t              in_z) const;
+        bool is_memory_bound_for_texel(Anvil::ImageAspectFlagBits in_aspect,
+                                       uint32_t                   in_n_layer,
+                                       uint32_t                   in_n_mip,
+                                       uint32_t                   in_x,
+                                       uint32_t                   in_y,
+                                       uint32_t                   in_z) const;
 
         bool prefers_dedicated_allocation() const
         {
@@ -276,6 +288,14 @@ namespace Anvil
         /** Binds the specified region of a Vulkan memory object to an Image and caches information
          *  about the new binding.
          *
+         *  NOTE: This function can be used for both single- and multi-GPU devices. In case of the latter:
+         *        1. The image must NOT have been created for a particular swapchain instance.
+         *        2. The image must NOT be sparse.
+         *        3. If @param in_memory_block_ptr uses memory taken from a heap without VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR
+         *           flag, each physical device attaches to its own instance of the memory.
+         *        4. If @param in_memory_block_ptr uses memory taken from a heap WITH the flag, each physical device attaches
+         *           to memory instance 0.
+         *
          *  NOTE: If used against sparse images, the assigned memory block's size must EXACTLY match
          *        the amount of memory required by the image. Otherwise, the function will fail.
          *
@@ -289,6 +309,67 @@ namespace Anvil
         bool set_memory(MemoryBlockUniquePtr in_memory_block_ptr);
         bool set_memory(Anvil::MemoryBlock*  in_memory_block_ptr);
 
+        /** Binds the image to instances of memory for physical devices specified by the caller.
+         *
+         *  NOTE: This function must NOT be used for sparse images.
+         *  NOTE: This function must NOT be used for images created for a single-GPU device.
+         *  NOTE: This function can only be used for images, whose memory comes off a heap with the
+         *        VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR flag.
+         *  NOTE: It is illegal to change the memory backing, after one has been associated with an Image instance.
+         *
+         *  TODO
+         **/
+        bool set_memory(MemoryBlockUniquePtr    in_memory_block_ptr,
+                        uint32_t                in_n_device_group_indices,
+                        const uint32_t*         in_device_group_indices_ptr);
+        bool set_memory(Anvil::MemoryBlock*     in_memory_block_ptr,
+                        uint32_t                in_n_device_group_indices,
+                        const uint32_t*         in_device_group_indices_ptr);
+
+        /** Binds the image to instances of memory, according to SFR rectangles specified by the caller.
+         *  For more information, please read VK_KHR_device_group extension specification.
+         *
+         *  NOTE: This function must NOT be used for sparse images.
+         *  NOTE: This function must NOT be used for images created for a single-GPU device.
+         *  NOTE: It is illegal to change the memory backing, after one has been associated with an Image instance.
+         *
+         *  TODO
+         **/
+        bool set_memory(MemoryBlockUniquePtr in_memory_block_ptr,
+                        uint32_t             in_n_SFR_rects,
+                        const VkRect2D*      in_SFRs_ptr);
+        bool set_memory(Anvil::MemoryBlock*  in_memory_block_ptr,
+                        uint32_t             in_n_SFR_rects,
+                        const VkRect2D*      in_SFRs_ptr);
+
+        /** See set_memory() for general documentation.
+         *
+         *  This static function can be used to set up image memory bindings using SFR rectangles
+         *  in a batched manner.
+         *
+         *  Can only be used for multi-GPU devices.
+         *
+         *  Requires VK_KHR_device_group to be supported by & enabled for the device.
+         *
+         *  TODO
+         **/
+        static bool set_memory_multi(uint32_t                     in_n_image_sfr_memory_binding_updates,
+                                     ImageSFRMemoryBindingUpdate* in_updates_ptr);
+
+        /** See set_memory() for general documentation.
+         *
+         *  This static function can be used to set up image memory bindings by specifying physical devices
+         *  in a batched manner.
+         *
+         *  Can only be used for multi-GPU devices.
+         *
+         *  Requires VK_KHR_device_group to be supported by & enabled for the device.
+         *
+         *  TODO
+         **/
+        static bool set_memory_multi(uint32_t                                in_n_image_physical_device_memory_binding_updates,
+                                     ImagePhysicalDeviceMemoryBindingUpdate* in_updates_ptr);
+
         /** Updates image with specified mip-map data. Blocks until the operation finishes executing.
          *
          *  Handles both linear and optimal images.
@@ -301,8 +382,8 @@ namespace Anvil
          *
          **/
         void upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_ptr,
-                            VkImageLayout                     in_current_image_layout,
-                            VkImageLayout*                    out_new_image_layout_ptr);
+                            Anvil::ImageLayout                in_current_image_layout,
+                            Anvil::ImageLayout*               out_new_image_layout_ptr);
 
     private:
         /** Defines dimensions of a single image mip-map */
@@ -350,7 +431,7 @@ namespace Anvil
                                                                   uint32_t in_y,
                                                                   uint32_t in_z) const
             {
-                const uint32_t tile_x = in_x / tile_width;  
+                const uint32_t tile_x = in_x / tile_width;
                 const uint32_t tile_y = in_y / tile_height;
                 const uint32_t tile_z = in_z / tile_depth;
 
@@ -445,12 +526,31 @@ namespace Anvil
 
         Image(Anvil::ImageCreateInfoUniquePtr in_create_info_ptr);
 
+        bool do_sanity_checks_for_physical_device_binding(const Anvil::MemoryBlock* in_memory_block_ptr,
+                                                          uint32_t                  in_n_physical_devices) const;
+        bool do_sanity_checks_for_sfr_binding            (uint32_t                  in_n_SFR_rects,
+                                                          const VkRect2D*           in_SFRs_ptr) const;
+
         bool init               ();
         void init_mipmap_props  ();
         void init_page_occupancy(const std::vector<VkSparseImageMemoryRequirements>& in_memory_reqs);
+        void init_sfr_tile_size ();
 
-        bool set_memory_internal(Anvil::MemoryBlock* in_memory_block_ptr,
-                                 bool                in_owned_by_image);
+        bool set_memory_internal(uint32_t               in_swapchain_image_index,
+                                 uint32_t               in_opt_n_SFR_rects,
+                                 const VkRect2D*        in_opt_SFRs_ptr,
+                                 uint32_t               in_opt_n_device_indices,
+                                 const uint32_t*        in_opt_device_indices);
+        bool set_memory_internal(Anvil::MemoryBlock*    in_memory_block_ptr,
+                                 bool                   in_owned_by_image);
+        bool set_memory_internal(Anvil::MemoryBlock*    in_memory_block_ptr,
+                                 bool                   in_owned_by_image,
+                                 uint32_t               in_n_device_group_indices,
+                                 const uint32_t*        in_device_group_indices_ptr);
+        bool set_memory_internal(Anvil::MemoryBlock*    in_memory_block_ptr,
+                                 bool                   in_owned_by_image,
+                                 uint32_t               in_n_SFR_rects,
+                                 const VkRect2D*        in_SFRs_ptr);
 
         void on_memory_backing_update       (const VkImageSubresource& in_subresource,
                                              VkOffset3D                in_offset,
@@ -464,8 +564,8 @@ namespace Anvil
                                              VkDeviceSize              in_memory_block_start_offset,
                                              bool                      in_memory_block_owned_by_image);
 
-        void transition_to_post_alloc_image_layout(VkAccessFlags in_src_access_mask,
-                                                   VkImageLayout in_src_layout);
+        void transition_to_post_alloc_image_layout(VkAccessFlags      in_src_access_mask,
+                                                   Anvil::ImageLayout in_src_layout);
 
         /** TODO.
          *
@@ -474,9 +574,9 @@ namespace Anvil
         static VkImageCreateInfo get_create_info_for_swapchain(const Anvil::Swapchain* in_swapchain_ptr);
 
         /* Private members */
-        typedef std::pair<uint32_t /* n_layer */, uint32_t /* n_mip */>         LayerMipKey;
-        typedef std::map<LayerMipKey, VkSubresourceLayout>                      LayerMipToSubresourceLayoutMap;
-        typedef std::map<VkImageAspectFlagBits, LayerMipToSubresourceLayoutMap> AspectToLayerMipToSubresourceLayoutMap;
+        typedef std::pair<uint32_t /* n_layer */, uint32_t /* n_mip */>              LayerMipKey;
+        typedef std::map<LayerMipKey, VkSubresourceLayout>                           LayerMipToSubresourceLayoutMap;
+        typedef std::map<Anvil::ImageAspectFlagBits, LayerMipToSubresourceLayoutMap> AspectToLayerMipToSubresourceLayoutMap;
 
         VkDeviceSize                           m_alignment;
         AspectToLayerMipToSubresourceLayoutMap m_aspects;                   /* only used for linear images */
@@ -494,13 +594,17 @@ namespace Anvil
         bool m_prefers_dedicated_allocation;
         bool m_requires_dedicated_allocation;
 
+        std::vector<uint32_t> m_peer_device_indices;
+        std::vector<VkRect2D> m_peer_sfr_rects;
+        VkExtent2D            m_sfr_tile_size;
+
         MemoryBlockUniquePtr              m_metadata_memory_block_ptr;
         std::vector<MemoryBlockUniquePtr> m_memory_blocks_owned;
 
-        std::unique_ptr<Anvil::PageTracker>                                 m_page_tracker_ptr; /* only used for sparse non-resident images */
-        std::map<VkImageAspectFlagBits, AspectPageOccupancyData*>           m_sparse_aspect_page_occupancy;
-        std::vector<std::unique_ptr<AspectPageOccupancyData> >              m_sparse_aspect_page_occupancy_data_items_owned;
-        std::map<VkImageAspectFlagBits, Anvil::SparseImageAspectProperties> m_sparse_aspect_props;
+        std::unique_ptr<Anvil::PageTracker>                                      m_page_tracker_ptr; /* only used for sparse non-resident images */
+        std::map<Anvil::ImageAspectFlagBits, AspectPageOccupancyData*>           m_sparse_aspect_page_occupancy;
+        std::vector<std::unique_ptr<AspectPageOccupancyData> >                   m_sparse_aspect_page_occupancy_data_items_owned;
+        std::map<Anvil::ImageAspectFlagBits, Anvil::SparseImageAspectProperties> m_sparse_aspect_props;
 
         friend class Anvil::Queue;
 

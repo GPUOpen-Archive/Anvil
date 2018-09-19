@@ -32,11 +32,11 @@ namespace Anvil
     class Formats
     {
     public:
-        static bool get_compressed_format_block_size(VkFormat  in_format,
-                                                     uint32_t* out_block_size_uvec2_ptr,
-                                                     uint32_t* out_n_bytes_per_block_ptr);
+        static bool get_compressed_format_block_size(Anvil::Format in_format,
+                                                     uint32_t*     out_block_size_uvec2_ptr,
+                                                     uint32_t*     out_n_bytes_per_block_ptr);
 
-        /** Returns a VkFormat which meets the user-specified criteria.
+        /** Returns an Anvil::Format which meets the user-specified criteria.
          *
          *  This function does not support block formats.
          *
@@ -53,15 +53,15 @@ namespace Anvil
          *  @param in_n_component3_bits Number of bits used by the third component. Pass 0 if the component
          *                              is irrelevant.
          *
-         *  @return A corresponding VkFormat value OR VK_FORMAT_UNKNOWN if no recognized Vulkan format
+         *  @return A corresponding Anvil::Format value OR Anvil::Format::UNKNOWN if no recognized Vulkan format
          *          meets the specified requirements.
          */
-        static VkFormat get_format(ComponentLayout in_component_layout,
-                                   FormatType      in_format_type,
-                                   uint32_t        in_n_component0_bits,
-                                   uint32_t        in_n_component1_bits,
-                                   uint32_t        in_n_component2_bits,
-                                   uint32_t        in_n_component3_bits);
+        static Anvil::Format get_format(ComponentLayout in_component_layout,
+                                        FormatType      in_format_type,
+                                        uint32_t        in_n_component0_bits,
+                                        uint32_t        in_n_component1_bits,
+                                        uint32_t        in_n_component2_bits,
+                                        uint32_t        in_n_component3_bits);
 
         /** Returns image aspects exposed by a given image format.
          *
@@ -70,8 +70,8 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        static bool get_format_aspects(VkFormat                         in_format,
-                                       std::vector<VkImageAspectFlags>* out_aspects_ptr);
+        static bool get_format_aspects(Anvil::Format                         in_format,
+                                       std::vector<Anvil::ImageAspectFlags>* out_aspects_ptr);
 
         /** Returns bit layout for the specified format.
          *
@@ -94,27 +94,27 @@ namespace Anvil
          *  @param out_opt_stencil_component_start_bit_index_ptr If not null, deref will be set to the bit index, from which stencil component data starts.
          *  @param out_opt_stencil_component_end_bit_index_ptr   If not null, deref will be set to the bit index, at which stencil component data ends. (data under the bit includes the data!)
          */
-        static void get_format_bit_layout(VkFormat  in_format,
-                                          uint32_t* out_opt_red_component_start_bit_index_ptr     = nullptr,
-                                          uint32_t* out_opt_red_component_end_bit_index_ptr       = nullptr,
-                                          uint32_t* out_opt_green_component_start_bit_index_ptr   = nullptr,
-                                          uint32_t* out_opt_green_component_end_bit_index_ptr     = nullptr,
-                                          uint32_t* out_opt_blue_component_start_bit_index_ptr    = nullptr,
-                                          uint32_t* out_opt_blue_component_end_bit_index_ptr      = nullptr,
-                                          uint32_t* out_opt_alpha_component_start_bit_index_ptr   = nullptr,
-                                          uint32_t* out_opt_alpha_component_end_bit_index_ptr     = nullptr,
-                                          uint32_t* out_opt_shared_component_start_bit_index_ptr  = nullptr,
-                                          uint32_t* out_opt_shared_component_end_bit_index_ptr    = nullptr,
-                                          uint32_t* out_opt_depth_component_start_bit_index_ptr   = nullptr,
-                                          uint32_t* out_opt_depth_component_end_bit_index_ptr     = nullptr,
-                                          uint32_t* out_opt_stencil_component_start_bit_index_ptr = nullptr,
-                                          uint32_t* out_opt_stencil_component_end_bit_index_ptr   = nullptr);
+        static void get_format_bit_layout(Anvil::Format in_format,
+                                          uint32_t*     out_opt_red_component_start_bit_index_ptr     = nullptr,
+                                          uint32_t*     out_opt_red_component_end_bit_index_ptr       = nullptr,
+                                          uint32_t*     out_opt_green_component_start_bit_index_ptr   = nullptr,
+                                          uint32_t*     out_opt_green_component_end_bit_index_ptr     = nullptr,
+                                          uint32_t*     out_opt_blue_component_start_bit_index_ptr    = nullptr,
+                                          uint32_t*     out_opt_blue_component_end_bit_index_ptr      = nullptr,
+                                          uint32_t*     out_opt_alpha_component_start_bit_index_ptr   = nullptr,
+                                          uint32_t*     out_opt_alpha_component_end_bit_index_ptr     = nullptr,
+                                          uint32_t*     out_opt_shared_component_start_bit_index_ptr  = nullptr,
+                                          uint32_t*     out_opt_shared_component_end_bit_index_ptr    = nullptr,
+                                          uint32_t*     out_opt_depth_component_start_bit_index_ptr   = nullptr,
+                                          uint32_t*     out_opt_depth_component_end_bit_index_ptr     = nullptr,
+                                          uint32_t*     out_opt_stencil_component_start_bit_index_ptr = nullptr,
+                                          uint32_t*     out_opt_stencil_component_end_bit_index_ptr   = nullptr);
 
         /** Tells what component layout is used by @param in_format. */
-        static ComponentLayout get_format_component_layout(VkFormat in_format);
+        static ComponentLayout get_format_component_layout(Anvil::Format in_format);
 
         /** Tells the number of components used by @param in_format */
-        static uint32_t get_format_n_components(VkFormat in_format);
+        static uint32_t get_format_n_components(Anvil::Format in_format);
 
         /* Tells the number of bits used for each component in case of Vulkan format specified
          * under @param in_format.
@@ -132,29 +132,29 @@ namespace Anvil
          * @param out_channel3_bits_ptr Deref will be set to the number of bits used for channel 3. Must
          *                              not be nullptr.
          */
-        static void get_format_n_component_bits(VkFormat  in_format,
-                                                uint32_t* out_channel0_bits_ptr,
-                                                uint32_t* out_channel1_bits_ptr,
-                                                uint32_t* out_channel2_bits_ptr,
-                                                uint32_t* out_channel3_bits_ptr);
+        static void get_format_n_component_bits(Anvil::Format in_format,
+                                                uint32_t*     out_channel0_bits_ptr,
+                                                uint32_t*     out_channel1_bits_ptr,
+                                                uint32_t*     out_channel2_bits_ptr,
+                                                uint32_t*     out_channel3_bits_ptr);
 
         /* Returns a raw C string for specified format, or NULL if the format is unknown. */
-        static const char* get_format_name(VkFormat in_format);
+        static const char* get_format_name(Anvil::Format in_format);
 
         /** Tells the format type used by @param in_format. */
-        static FormatType get_format_type(VkFormat in_format);
+        static FormatType get_format_type(Anvil::Format in_format);
 
         /** Tells whether @param in_format includes a depth aspect */
-        static bool has_depth_aspect(VkFormat in_format);
+        static bool has_depth_aspect(Anvil::Format in_format);
 
         /** Tells whether @param in_format includes a stencil aspect */
-        static bool has_stencil_aspect(VkFormat in_format);
+        static bool has_stencil_aspect(Anvil::Format in_format);
 
         /** Tells whether @param in_format format is a block format. */
-        static bool is_format_compressed(VkFormat in_format);
+        static bool is_format_compressed(Anvil::Format in_format);
 
         /** Tells whether @param in_format is a packed format */
-        static bool is_format_packed(VkFormat in_format);
+        static bool is_format_packed(Anvil::Format in_format);
     };
 };
 

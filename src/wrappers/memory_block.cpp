@@ -38,7 +38,6 @@ Anvil::MemoryBlock::MemoryBlock(Anvil::MemoryBlockCreateInfoUniquePtr in_create_
      m_gpu_data_map_count                 (0),
      m_gpu_data_ptr                       (nullptr),
      m_memory                             (VK_NULL_HANDLE),
-     m_memory_type_index                  (in_create_info_ptr->get_memory_type_index() ),
      m_parent_memory_allocator_backend_ptr(nullptr)
 {
     m_create_info_ptr = std::move(in_create_info_ptr);
@@ -157,9 +156,13 @@ Anvil::MemoryBlockUniquePtr Anvil::MemoryBlock::create(Anvil::MemoryBlockCreateI
             }
         }
         else
-        if (type == Anvil::MemoryBlockType::DERIVED_WITH_CUSTOM_DELETE_PROC)
         {
-            result_ptr->m_memory = result_ptr->m_create_info_ptr->get_memory();
+            result_ptr->m_memory_type_props_ptr = &result_ptr->m_create_info_ptr->get_device()->get_physical_device_memory_properties().types.at(result_ptr->m_create_info_ptr->get_memory_type_index() );
+
+            if (type == Anvil::MemoryBlockType::DERIVED_WITH_CUSTOM_DELETE_PROC)
+            {
+                result_ptr->m_memory = result_ptr->m_create_info_ptr->get_memory();
+            }
         }
     }
 
@@ -322,6 +325,7 @@ uint32_t Anvil::MemoryBlock::get_device_memory_type_index(uint32_t              
     const bool                is_host_cached_memory_required     ((in_memory_features & MEMORY_FEATURE_FLAG_HOST_CACHED)      != 0);
     const bool                is_lazily_allocated_memory_required((in_memory_features & MEMORY_FEATURE_FLAG_LAZILY_ALLOCATED) != 0);
     const bool                is_mappable_memory_required        ((in_memory_features & MEMORY_FEATURE_FLAG_MAPPABLE)         != 0);
+    const bool                is_multi_instance_memory_required  ((in_memory_features & MEMORY_FEATURE_FLAG_MULTI_INSTANCE)   != 0);
     const Anvil::MemoryTypes& memory_types                       (get_create_info_ptr()->get_device()->get_physical_device_memory_properties().types);
 
     if (!is_mappable_memory_required)
@@ -347,7 +351,9 @@ uint32_t Anvil::MemoryBlock::get_device_memory_type_index(uint32_t              
             ((is_lazily_allocated_memory_required  && (current_memory_type.flags           & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT)) ||
              !is_lazily_allocated_memory_required)                                                                                     &&
             ((is_mappable_memory_required          && (current_memory_type.flags           & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT))     ||
-             !is_mappable_memory_required) )
+             !is_mappable_memory_required)                                                                                             &&
+            (!is_multi_instance_memory_required                                                                                        ||
+             (is_multi_instance_memory_required    && (current_memory_type.heap_ptr->flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR))))
         {
             if ( (in_memory_type_bits & (1 << n_memory_type)) != 0)
             {
@@ -373,15 +379,19 @@ bool Anvil::MemoryBlock::init()
         VkMemoryAllocateInfo mem_alloc_info;
 
         mem_alloc_info.allocationSize  = m_create_info_ptr->get_size();
-        mem_alloc_info.memoryTypeIndex = (m_create_info_ptr->get_imported_external_memory_handle_type() != 0) ? m_create_info_ptr->get_memory_type_index()
-                                                                                                              : get_device_memory_type_index            (m_create_info_ptr->get_allowed_memory_bits(),
-                                                                                                                                                         m_create_info_ptr->get_memory_features    () );
+        mem_alloc_info.memoryTypeIndex = (m_create_info_ptr->get_imported_external_memory_handle_type() != 0)                               ? m_create_info_ptr->get_memory_type_index()
+                                       : (m_create_info_ptr->get_type                                () != Anvil::MemoryBlockType::REGULAR) ? m_create_info_ptr->get_memory_type_index()
+                                                                                                                                            : get_device_memory_type_index            (m_create_info_ptr->get_allowed_memory_bits(),
+                                                                                                                                                                                       m_create_info_ptr->get_memory_features    () );
         mem_alloc_info.pNext           = nullptr;
         mem_alloc_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 
-        m_memory_type_index = mem_alloc_info.memoryTypeIndex;
+        m_memory_type_props_ptr = &m_create_info_ptr->get_device()->get_physical_device_memory_properties().types.at(mem_alloc_info.memoryTypeIndex);
 
         struct_chainer.append_struct(mem_alloc_info);
+
+        /* Cache the memory type index in the create info struct. */
+        m_create_info_ptr->set_memory_type_index(mem_alloc_info.memoryTypeIndex);
     }
 
     {
@@ -463,6 +473,30 @@ bool Anvil::MemoryBlock::init()
 
             struct_chainer.append_struct(handle_info_khr);
         }
+    }
+
+    if (m_create_info_ptr->get_device_mask()        != 0                                         &&
+        m_create_info_ptr->get_device()->get_type() == Anvil::DeviceType::DEVICE_TYPE_MULTI_GPU)
+    {
+        VkMemoryAllocateFlagsInfoKHR alloc_info_khr;
+
+        alloc_info_khr.deviceMask = m_create_info_ptr->get_device_mask();
+
+        /* NOTE: Host-mappable memory must not be multi-instance heap and must exist on only one device. */
+        if (((m_create_info_ptr->get_memory_features() & Anvil::MEMORY_FEATURE_FLAG_MAPPABLE) != 0) &&
+            (Utils::count_set_bits(alloc_info_khr.deviceMask) > 1) )
+        {
+            alloc_info_khr.flags = 0;
+        }
+        else
+        {
+            alloc_info_khr.flags = VK_MEMORY_ALLOCATE_DEVICE_MASK_BIT;
+        }
+
+        alloc_info_khr.pNext      = nullptr;
+        alloc_info_khr.sType      = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR;
+
+        struct_chainer.append_struct(alloc_info_khr);
     }
 
     {

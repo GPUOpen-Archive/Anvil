@@ -20,35 +20,38 @@
 // THE SOFTWARE.
 //
 #include "misc/graphics_pipeline_create_info.h"
+#include "misc/render_pass_create_info.h"
+#include "wrappers/device.h"
+#include "wrappers/render_pass.h"
 
 Anvil::GraphicsPipelineCreateInfo::GraphicsPipelineCreateInfo(const RenderPass* in_renderpass_ptr,
                                                               SubPassID         in_subpass_id)
 {
-    m_alpha_to_coverage_enabled  = false;
-    m_alpha_to_one_enabled       = false;
-    m_depth_bias_clamp           = 0.0f;
-    m_depth_bias_constant_factor = 0.0f;
-    m_depth_bias_enabled         = false;
-    m_depth_bias_slope_factor    = 1.0f;
-    m_depth_bounds_test_enabled  = false;
-    m_depth_clamp_enabled        = false;
-    m_depth_test_compare_op      = VK_COMPARE_OP_ALWAYS;
-    m_depth_test_enabled         = false;
-    m_depth_writes_enabled       = false;
-    m_enabled_dynamic_states     = 0;
-    m_front_face                 = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    m_logic_op                   = VK_LOGIC_OP_NO_OP;
-    m_logic_op_enabled           = false;
-    m_max_depth_bounds           = 1.0f;
-    m_min_depth_bounds           = 0.0f;
-    m_n_dynamic_scissor_boxes    = 0;
-    m_n_dynamic_viewports        = 0;
-    m_n_patch_control_points     = 1;
-    m_primitive_restart_enabled  = false;
-    m_rasterizer_discard_enabled = false;
-    m_sample_mask_enabled        = false;
-    m_sample_shading_enabled     = false;
-    m_stencil_test_enabled       = false;
+    m_alpha_to_coverage_enabled            = false;
+    m_alpha_to_one_enabled                 = false;
+    m_depth_bias_clamp                     = 0.0f;
+    m_depth_bias_constant_factor           = 0.0f;
+    m_depth_bias_enabled                   = false;
+    m_depth_bias_slope_factor              = 1.0f;
+    m_depth_bounds_test_enabled            = false;
+    m_depth_clamp_enabled                  = false;
+    m_depth_test_compare_op                = VK_COMPARE_OP_ALWAYS;
+    m_depth_test_enabled                   = false;
+    m_depth_writes_enabled                 = false;
+    m_enabled_dynamic_states               = 0;
+    m_front_face                           = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    m_logic_op                             = VK_LOGIC_OP_NO_OP;
+    m_logic_op_enabled                     = false;
+    m_max_depth_bounds                     = 1.0f;
+    m_min_depth_bounds                     = 0.0f;
+    m_n_dynamic_scissor_boxes              = 0;
+    m_n_dynamic_viewports                  = 0;
+    m_n_patch_control_points               = 1;
+    m_primitive_restart_enabled            = false;
+    m_rasterizer_discard_enabled           = false;
+    m_sample_mask_enabled                  = false;
+    m_sample_shading_enabled               = false;
+    m_stencil_test_enabled                 = false;
 
     m_renderpass_ptr = in_renderpass_ptr;
     m_subpass_id     = in_subpass_id;
@@ -71,10 +74,12 @@ Anvil::GraphicsPipelineCreateInfo::GraphicsPipelineCreateInfo(const RenderPass* 
     m_cull_mode          = VK_CULL_MODE_BACK_BIT;
     m_line_width         = 1.0f;
     m_min_sample_shading = 1.0f;
-    m_sample_count       = VK_SAMPLE_COUNT_1_BIT;
+    m_sample_count       = Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_1_BIT;
     m_polygon_mode       = VK_POLYGON_MODE_FILL;
     m_primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     m_sample_mask        = ~0u;
+
+    m_tessellation_domain_origin = Anvil::TessellationDomainOrigin::UPPER_LEFT;
 }
 
 Anvil::GraphicsPipelineCreateInfo::~GraphicsPipelineCreateInfo()
@@ -83,7 +88,7 @@ Anvil::GraphicsPipelineCreateInfo::~GraphicsPipelineCreateInfo()
 }
 
 bool Anvil::GraphicsPipelineCreateInfo::add_vertex_attribute(uint32_t           in_location,
-                                                             VkFormat           in_format,
+                                                             Anvil::Format      in_format,
                                                              uint32_t           in_offset_in_bytes,
                                                              uint32_t           in_stride_in_bytes,
                                                              VkVertexInputRate  in_step_rate,
@@ -159,33 +164,37 @@ bool Anvil::GraphicsPipelineCreateInfo::copy_gfx_state_from(const Anvil::Graphic
     }
 
     /* GFX pipeline info-level data */
-    m_max_depth_bounds = in_src_pipeline_create_info_ptr->m_max_depth_bounds;
-    m_min_depth_bounds = in_src_pipeline_create_info_ptr->m_min_depth_bounds;
+    m_depth_bounds_test_enabled = in_src_pipeline_create_info_ptr->m_depth_bounds_test_enabled;
+    m_max_depth_bounds          = in_src_pipeline_create_info_ptr->m_max_depth_bounds;
+    m_min_depth_bounds          = in_src_pipeline_create_info_ptr->m_min_depth_bounds;
 
     m_depth_bias_enabled         = in_src_pipeline_create_info_ptr->m_depth_bias_enabled;
     m_depth_bias_clamp           = in_src_pipeline_create_info_ptr->m_depth_bias_clamp;
     m_depth_bias_constant_factor = in_src_pipeline_create_info_ptr->m_depth_bias_constant_factor;
     m_depth_bias_slope_factor    = in_src_pipeline_create_info_ptr->m_depth_bias_slope_factor;
+
     m_depth_test_enabled         = in_src_pipeline_create_info_ptr->m_depth_test_enabled;
     m_depth_test_compare_op      = in_src_pipeline_create_info_ptr->m_depth_test_compare_op;
 
     m_enabled_dynamic_states = in_src_pipeline_create_info_ptr->m_enabled_dynamic_states;
 
-    m_alpha_to_coverage_enabled  = in_src_pipeline_create_info_ptr->m_alpha_to_coverage_enabled;
-    m_alpha_to_one_enabled       = in_src_pipeline_create_info_ptr->m_alpha_to_one_enabled;
-    m_depth_clamp_enabled        = in_src_pipeline_create_info_ptr->m_depth_clamp_enabled;
-    m_depth_writes_enabled       = in_src_pipeline_create_info_ptr->m_depth_writes_enabled;
-    m_logic_op_enabled           = in_src_pipeline_create_info_ptr->m_logic_op_enabled;
-    m_primitive_restart_enabled  = in_src_pipeline_create_info_ptr->m_primitive_restart_enabled;
-    m_rasterizer_discard_enabled = in_src_pipeline_create_info_ptr->m_rasterizer_discard_enabled;
-    m_sample_mask_enabled        = in_src_pipeline_create_info_ptr->m_sample_mask_enabled;
-    m_sample_shading_enabled     = in_src_pipeline_create_info_ptr->m_sample_shading_enabled;
+    m_alpha_to_coverage_enabled            = in_src_pipeline_create_info_ptr->m_alpha_to_coverage_enabled;
+    m_alpha_to_one_enabled                 = in_src_pipeline_create_info_ptr->m_alpha_to_one_enabled;
+    m_depth_clamp_enabled                  = in_src_pipeline_create_info_ptr->m_depth_clamp_enabled;
+    m_depth_writes_enabled                 = in_src_pipeline_create_info_ptr->m_depth_writes_enabled;
+    m_logic_op_enabled                     = in_src_pipeline_create_info_ptr->m_logic_op_enabled;
+    m_primitive_restart_enabled            = in_src_pipeline_create_info_ptr->m_primitive_restart_enabled;
+    m_rasterizer_discard_enabled           = in_src_pipeline_create_info_ptr->m_rasterizer_discard_enabled;
+    m_sample_mask_enabled                  = in_src_pipeline_create_info_ptr->m_sample_mask_enabled;
+    m_sample_shading_enabled               = in_src_pipeline_create_info_ptr->m_sample_shading_enabled;
 
     m_stencil_test_enabled     = in_src_pipeline_create_info_ptr->m_stencil_test_enabled;
     m_stencil_state_back_face  = in_src_pipeline_create_info_ptr->m_stencil_state_back_face;
     m_stencil_state_front_face = in_src_pipeline_create_info_ptr->m_stencil_state_front_face;
 
     m_rasterization_order = in_src_pipeline_create_info_ptr->m_rasterization_order;
+
+    m_tessellation_domain_origin = in_src_pipeline_create_info_ptr->m_tessellation_domain_origin;
 
     m_attributes                             = in_src_pipeline_create_info_ptr->m_attributes;
     m_blend_constant[0]                      = in_src_pipeline_create_info_ptr->m_blend_constant[0];
@@ -201,13 +210,13 @@ bool Anvil::GraphicsPipelineCreateInfo::copy_gfx_state_from(const Anvil::Graphic
     m_n_dynamic_viewports                    = in_src_pipeline_create_info_ptr->m_n_dynamic_viewports;
     m_n_patch_control_points                 = in_src_pipeline_create_info_ptr->m_n_patch_control_points;
     m_primitive_topology                     = in_src_pipeline_create_info_ptr->m_primitive_topology;
+    m_sample_count = in_src_pipeline_create_info_ptr->m_sample_count;
     m_sample_mask                            = in_src_pipeline_create_info_ptr->m_sample_mask;
     m_scissor_boxes                          = in_src_pipeline_create_info_ptr->m_scissor_boxes;
     m_subpass_attachment_blending_properties = in_src_pipeline_create_info_ptr->m_subpass_attachment_blending_properties;
     m_viewports                              = in_src_pipeline_create_info_ptr->m_viewports;
 
-    m_cull_mode    = in_src_pipeline_create_info_ptr->m_cull_mode;
-    m_sample_count = in_src_pipeline_create_info_ptr->m_sample_count;
+    m_cull_mode = in_src_pipeline_create_info_ptr->m_cull_mode;
 
     BasePipelineCreateInfo::copy_state_from(in_src_pipeline_create_info_ptr);
 
@@ -514,8 +523,8 @@ void Anvil::GraphicsPipelineCreateInfo::get_logic_op_state(bool*      out_opt_is
     }
 }
 
-void Anvil::GraphicsPipelineCreateInfo::get_multisampling_properties(VkSampleCountFlags* out_opt_sample_count_ptr,
-                                                                     VkSampleMask*       out_opt_sample_mask_ptr) const
+void Anvil::GraphicsPipelineCreateInfo::get_multisampling_properties(SampleCountFlagBits* out_opt_sample_count_ptr,
+                                                                     VkSampleMask*        out_opt_sample_mask_ptr) const
 {
     if (out_opt_sample_count_ptr != nullptr)
     {
@@ -742,7 +751,7 @@ uint32_t Anvil::GraphicsPipelineCreateInfo::get_n_patch_control_points() const
 
 bool Anvil::GraphicsPipelineCreateInfo::get_vertex_attribute_properties(uint32_t           in_n_vertex_input_attribute,
                                                                         uint32_t*          out_opt_location_ptr,
-                                                                        VkFormat*          out_opt_format_ptr,
+                                                                        Anvil::Format*     out_opt_format_ptr,
                                                                         uint32_t*          out_opt_offset_ptr,
                                                                         uint32_t*          out_opt_explicit_vertex_binding_index_ptr,
                                                                         uint32_t*          out_opt_stride_ptr,
@@ -918,9 +927,9 @@ void Anvil::GraphicsPipelineCreateInfo::set_color_blend_attachment_properties(Su
     attachment_blending_props_ptr->src_color_blend_factor = in_src_color_blend_factor;
 }
 
-void Anvil::GraphicsPipelineCreateInfo::set_multisampling_properties(VkSampleCountFlagBits in_sample_count,
-                                                                     float                 in_min_sample_shading,
-                                                                     const VkSampleMask    in_sample_mask)
+void Anvil::GraphicsPipelineCreateInfo::set_multisampling_properties(Anvil::SampleCountFlagBits in_sample_count,
+                                                                     float                      in_min_sample_shading,
+                                                                     const VkSampleMask         in_sample_mask)
 {
     m_min_sample_shading = in_min_sample_shading;
     m_sample_count       = in_sample_count;
@@ -1010,6 +1019,11 @@ void Anvil::GraphicsPipelineCreateInfo::set_viewport_properties(uint32_t in_n_vi
                                                   in_height,
                                                   in_min_depth,
                                                   in_max_depth);
+}
+
+void Anvil::GraphicsPipelineCreateInfo::set_tessellation_domain_origin(const Anvil::TessellationDomainOrigin& in_new_origin)
+{
+    m_tessellation_domain_origin = in_new_origin;
 }
 
 void Anvil::GraphicsPipelineCreateInfo::toggle_alpha_to_coverage(bool in_should_enable)

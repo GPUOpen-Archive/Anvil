@@ -50,14 +50,14 @@ private:
     void init_window         ();
     void init_vulkan         ();
 
-    VkFormat                   get_mesh_color_data_format      ()                       const;
+    Anvil::Format              get_mesh_color_data_format      ()                       const;
     uint32_t                   get_mesh_color_data_n_components()                       const;
     uint32_t                   get_mesh_color_data_start_offset (uint32_t n_stream,
                                                                  uint32_t n_vertex = 0) const;
     std::unique_ptr<uint8_t[]> get_mesh_data                    ()                      const;
     uint32_t                   get_mesh_data_size               ()                      const;
     uint32_t                   get_mesh_n_vertices              ()                      const;
-    VkFormat                   get_mesh_vertex_data_format      ()                      const;
+    Anvil::Format              get_mesh_vertex_data_format      ()                      const;
     uint32_t                   get_mesh_vertex_data_n_components()                      const;
     uint32_t                   get_mesh_vertex_data_start_offset(uint32_t n_vertex = 0) const;
 
@@ -71,7 +71,7 @@ private:
                                     const char*                message);
 
     /* Private variables */
-    Anvil::SGPUDeviceUniquePtr       m_device_ptr;
+    Anvil::BaseDeviceUniquePtr       m_device_ptr;
     Anvil::InstanceUniquePtr         m_instance_ptr;
     const Anvil::PhysicalDevice*     m_physical_device_ptr;
     Anvil::Queue*                    m_present_queue_ptr;

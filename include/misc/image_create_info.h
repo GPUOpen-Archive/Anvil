@@ -72,26 +72,26 @@ namespace Anvil
          *  @param in_opt_mipmaps_ptr          If not nullptr, specified MipmapRawData items will be used to drive the mipmap contents
          *                                     initialization process. Ignored if nullptr.
          *                                     Specifying a non-NULL in_opt_mipmaps_ptr argument will make the function OR
-         *                                     @param in_usage with VK_IMAGE_USAGE_TRANSFER_DST_BIT.
+         *                                     @param in_usage with Anvil::IMAGE_USAGE_FLAG_TRANSFER_DST_BIT.
          *
          *  @return New image instance, if successful, or nullptr otherwise.
          **/
         static ImageCreateInfoUniquePtr create_nonsparse_alloc(const Anvil::BaseDevice*          in_device_ptr,
-                                                               VkImageType                       in_type,
-                                                               VkFormat                          in_format,
-                                                               VkImageTiling                     in_tiling,
-                                                               VkImageUsageFlags                 in_usage,
+                                                               Anvil::ImageType                  in_type,
+                                                               Anvil::Format                     in_format,
+                                                               Anvil::ImageTiling                in_tiling,
+                                                               Anvil::ImageUsageFlags            in_usage,
                                                                uint32_t                          in_base_mipmap_width,
                                                                uint32_t                          in_base_mipmap_height,
                                                                uint32_t                          in_base_mipmap_depth,
                                                                uint32_t                          in_n_layers,
-                                                               VkSampleCountFlagBits             in_sample_count,
+                                                               Anvil::SampleCountFlagBits        in_sample_count,
                                                                Anvil::QueueFamilyBits            in_queue_families,
-                                                               VkSharingMode                     in_sharing_mode,
+                                                               Anvil::SharingMode                in_sharing_mode,
                                                                bool                              in_use_full_mipmap_chain,
                                                                MemoryFeatureFlags                in_memory_features,
                                                                ImageCreateFlags                  in_create_flags,
-                                                               VkImageLayout                     in_post_alloc_image_layout,
+                                                               Anvil::ImageLayout                in_post_alloc_image_layout,
                                                                const std::vector<MipmapRawData>* in_opt_mipmaps_ptr = nullptr);
 
         /** Returns an instance of the "create info" item which can be used to instantiate a new non-sparse Image
@@ -104,7 +104,7 @@ namespace Anvil
          *
          *  If this constructor is used, the image can be transformed automatically to the right layout
          *  at set_memory() call time by setting @param in_final_image_layout argument to a value other
-         *  than VK_IMAGE_LAYOUT_UNDEFINED and VK_IMAGE_LAYOUT_PREINITIALIZED.
+         *  than Anvil::ImageLayout::UNDEFINED and Anvil::ImageLayout::PREINITIALIZED.
          *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
@@ -132,26 +132,48 @@ namespace Anvil
          *  @param in_opt_mipmaps_ptr          If not NULL, specified data will be used to initialize created image's mipmaps
          *                                     with content, as soon as the image is assigned a memory backing.
          *                                     Specifying a non-NULL @param in_opt_mipmaps_ptr argument will make the function OR
-         *                                     @param in_usage with VK_IMAGE_USAGE_TRANSFER_DST_BIT.
+         *                                     @param in_usage with Anvil::IMAGE_USAGE_FLAG_TRANSFER_DST_BIT.
          *
          *  @return New image instance, if successful, or nullptr otherwise.
          **/
         static ImageCreateInfoUniquePtr create_nonsparse_no_alloc(const Anvil::BaseDevice*          in_device_ptr,
-                                                                  VkImageType                       in_type,
-                                                                  VkFormat                          in_format,
-                                                                  VkImageTiling                     in_tiling,
-                                                                  VkImageUsageFlags                 in_usage,
+                                                                  Anvil::ImageType                  in_type,
+                                                                  Anvil::Format                     in_format,
+                                                                  Anvil::ImageTiling                in_tiling,
+                                                                  ImageUsageFlags                   in_usage,
                                                                   uint32_t                          in_base_mipmap_width,
                                                                   uint32_t                          in_base_mipmap_height,
                                                                   uint32_t                          in_base_mipmap_depth,
                                                                   uint32_t                          in_n_layers,
-                                                                  VkSampleCountFlagBits             in_sample_count,
+                                                                  Anvil::SampleCountFlagBits        in_sample_count,
                                                                   Anvil::QueueFamilyBits            in_queue_families,
-                                                                  VkSharingMode                     in_sharing_mode,
+                                                                  Anvil::SharingMode                in_sharing_mode,
                                                                   bool                              in_use_full_mipmap_chain,
                                                                   ImageCreateFlags                  in_create_flags,
-                                                                  VkImageLayout                     in_post_alloc_image_layout,
+                                                                  Anvil::ImageLayout                in_post_alloc_image_layout,
                                                                   const std::vector<MipmapRawData>* in_opt_mipmaps_ptr = nullptr);
+
+        /** Returns an instance of the "create info" item which can be used to instantiate a new non-sparse Image
+         *  instance, later to be bound to the user-specified swapchain memory.
+         *
+         *  This function prototype may only be called for sGPU or mGPU devices which support the VK_KHR_device_group
+         *  extension.
+         *
+         *  Requires VK_KHR_device_group support.
+         *
+         * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
+         *
+         * - External memory handle types: none
+         * - MT safety:                    MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         * - Physical devices:             none
+         * - SFR rectangles:               none
+         *
+         *  For argument discussion, see specification of the other create() functions.
+         **/
+        static ImageCreateInfoUniquePtr create_nonsparse_peer_no_alloc(const Anvil::BaseDevice* in_device_ptr,
+                                                                       const Anvil::Swapchain*  in_swapchain_ptr,
+                                                                       uint32_t                 in_n_swapchain_image);
+
 
         /** Returns an instance of the "create info" item which can be used to instantiate a new sparse Image
          *  instance *without* a physical memory backing.
@@ -170,7 +192,7 @@ namespace Anvil
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
          * - External memory handle types: none
-         * - Initial layout:               VK_IMAGE_LAYOUT_UNDEFINED
+         * - Initial layout:               Anvil::ImageLayout::UNDEFINED
          * - MT safety:                    MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
          *
          *  @param in_device_ptr             Device to use.
@@ -190,23 +212,23 @@ namespace Anvil
          *                                   only use one mip.
          *  @param in_create_flags           Optional image features that the created image should support.
          *  @param in_sparse_residency_scope Scope of sparse residency to request for the image.
-         *  @param in_initial_layout         Initial layout to use for the image. Must either be VK_IMAGE_LAYOUT_UNDEFINED or
-         *                                   VK_IMAGE_LAYOUT_PREINITIALIZED.
+         *  @param in_initial_layout         Initial layout to use for the image. Must either be Anvil::ImageLayout::UNDEFINED or
+         *                                   Anvil::ImageLayout::PREINITIALIZED.
          *
          *  @return New image instance, if successful, or nullptr otherwise.
          **/
         static ImageCreateInfoUniquePtr create_sparse_no_alloc(const Anvil::BaseDevice*    in_device_ptr,
-                                                               VkImageType                 in_type,
-                                                               VkFormat                    in_format,
-                                                               VkImageTiling               in_tiling,
-                                                               VkImageUsageFlags           in_usage,
+                                                               Anvil::ImageType            in_type,
+                                                               Anvil::Format               in_format,
+                                                               Anvil::ImageTiling          in_tiling,
+                                                               ImageUsageFlags             in_usage,
                                                                uint32_t                    in_base_mipmap_width,
                                                                uint32_t                    in_base_mipmap_height,
                                                                uint32_t                    in_base_mipmap_depth,
                                                                uint32_t                    in_n_layers,
-                                                               VkSampleCountFlagBits       in_sample_count,
+                                                               Anvil::SampleCountFlagBits  in_sample_count,
                                                                Anvil::QueueFamilyBits      in_queue_families,
-                                                               VkSharingMode               in_sharing_mode,
+                                                               Anvil::SharingMode          in_sharing_mode,
                                                                bool                        in_use_full_mipmap_chain,
                                                                ImageCreateFlags            in_create_flags,
                                                                Anvil::SparseResidencyScope in_residency_scope);
@@ -259,9 +281,14 @@ namespace Anvil
             return m_exportable_external_memory_handle_types;
         }
 
-        const VkFormat& get_format() const
+        const Anvil::Format& get_format() const
         {
             return m_format;
+        }
+
+        const Anvil::ImageInternalType& get_internal_type() const
+        {
+            return m_internal_type;
         }
 
         const Anvil::MemoryFeatureFlags& get_memory_features() const
@@ -285,12 +312,20 @@ namespace Anvil
             return m_n_layers;
         }
 
-        const VkImageLayout& get_post_alloc_image_layout() const
+        const std::vector<const Anvil::PhysicalDevice*> get_physical_devices() const
+        {
+            anvil_assert(m_internal_type == Anvil::ImageInternalType::NONSPARSE_PEER_NO_ALLOC ||
+                         m_internal_type == Anvil::ImageInternalType::SWAPCHAIN_WRAPPER);
+
+            return m_physical_devices;
+        }
+
+        const Anvil::ImageLayout& get_post_alloc_image_layout() const
         {
             return m_post_alloc_layout;
         }
 
-        const VkImageLayout& get_post_create_image_layout() const
+        const Anvil::ImageLayout& get_post_create_image_layout() const
         {
             return m_post_create_layout;
         }
@@ -301,9 +336,9 @@ namespace Anvil
             return m_queue_families;
         }
 
-        VkSampleCountFlagBits get_sample_count() const
+        Anvil::SampleCountFlagBits get_sample_count() const
         {
-            return static_cast<VkSampleCountFlagBits>(m_sample_count);
+            return m_sample_count;
         }
 
         const SparseResidencyScope& get_residency_scope() const
@@ -311,49 +346,55 @@ namespace Anvil
             return m_residency_scope;
         }
 
-        const VkSharingMode& get_sharing_mode() const
+        const std::vector<VkRect2D>& get_sfr_rects() const
+        {
+            anvil_assert(m_internal_type == Anvil::ImageInternalType::NONSPARSE_PEER_NO_ALLOC ||
+                         m_internal_type == Anvil::ImageInternalType::SWAPCHAIN_WRAPPER);
+
+            return m_sfr_rects;
+        }
+
+        const Anvil::SharingMode& get_sharing_mode() const
         {
             return m_sharing_mode;
         }
 
         const Anvil::Swapchain* get_swapchain() const
         {
-            anvil_assert(m_type == Anvil::ImageType::SWAPCHAIN_WRAPPER);
+            anvil_assert(m_internal_type == Anvil::ImageInternalType::NONSPARSE_PEER_NO_ALLOC ||
+                         m_internal_type == Anvil::ImageInternalType::SWAPCHAIN_WRAPPER);
 
             return m_swapchain_ptr;
         }
 
         const VkImage& get_swapchain_image() const
         {
-            anvil_assert(m_type == Anvil::ImageType::SWAPCHAIN_WRAPPER);
+            anvil_assert(m_internal_type == Anvil::ImageInternalType::NONSPARSE_PEER_NO_ALLOC ||
+                         m_internal_type == Anvil::ImageInternalType::SWAPCHAIN_WRAPPER);
 
             return m_swapchain_image;
         }
 
         const uint32_t& get_swapchain_image_index() const
         {
-            anvil_assert(m_type == Anvil::ImageType::SWAPCHAIN_WRAPPER);
+            anvil_assert(m_internal_type == Anvil::ImageInternalType::NONSPARSE_PEER_NO_ALLOC ||
+                         m_internal_type == Anvil::ImageInternalType::SWAPCHAIN_WRAPPER);
 
             return m_n_swapchain_image;
         }
 
         /** Returns image tiling */
-        const VkImageTiling& get_tiling() const
+        const Anvil::ImageTiling& get_tiling() const
         {
             return m_tiling;
         }
 
         const Anvil::ImageType& get_type() const
         {
-            return m_type;
-        }
-
-        const VkImageType& get_type_vk() const
-        {
             return m_type_vk;
         }
 
-        const VkImageUsageFlags& get_usage_flags() const
+        const ImageUsageFlags& get_usage_flags() const
         {
             return m_usage_flags;
         }
@@ -361,7 +402,7 @@ namespace Anvil
         /** Tells whether this Image wrapper instance holds a sparse image */
         bool is_sparse() const
         {
-            return (m_type == Anvil::ImageType::SPARSE_NO_ALLOC);
+            return (m_internal_type == Anvil::ImageInternalType::SPARSE_NO_ALLOC);
         }
 
         //-
@@ -380,7 +421,7 @@ namespace Anvil
             m_exportable_external_memory_handle_types = in_external_memory_handle_types;
         }
 
-        void set_format(const VkFormat& in_format)
+        void set_format(const Anvil::Format& in_format)
         {
             m_format = in_format;
         }
@@ -410,12 +451,12 @@ namespace Anvil
             m_n_layers = in_n_layers;
         }
 
-        void set_post_alloc_layout(const VkImageLayout& in_post_alloc_layout)
+        void set_post_alloc_layout(const Anvil::ImageLayout& in_post_alloc_layout)
         {
             m_post_alloc_layout = in_post_alloc_layout;
         }
 
-        void set_post_create_layout(const VkImageLayout& in_post_create_layout)
+        void set_post_create_layout(const Anvil::ImageLayout& in_post_create_layout)
         {
             m_post_create_layout = in_post_create_layout;
         }
@@ -430,22 +471,58 @@ namespace Anvil
             m_residency_scope = in_residency_scope;
         }
 
-        void set_sample_count(const VkSampleCountFlags& in_sample_count)
+        void set_sample_count(const Anvil::SampleCountFlagBits& in_sample_count)
         {
             m_sample_count = in_sample_count;
         }
 
-        void set_sharing_mode(const VkSharingMode& in_sharing_mode)
+        void set_physical_devices(const uint32_t&                     in_n_physical_devices,
+                                  const Anvil::PhysicalDevice* const* in_physical_devices_ptr)
+        {
+            m_physical_devices.clear();
+
+            for (uint32_t n_physical_device = 0;
+                          n_physical_device < in_n_physical_devices;
+                        ++n_physical_device)
+            {
+                m_physical_devices.push_back(in_physical_devices_ptr[n_physical_device]);
+            }
+        }
+
+        void set_SFR_rectangles(const uint32_t& in_n_SFR_rects,
+                                const VkRect2D* in_SFRs_ptr)
+        {
+            m_sfr_rects.clear();
+
+            for (uint32_t n_sfr_rect = 0;
+                          n_sfr_rect < in_n_SFR_rects;
+                        ++n_sfr_rect)
+            {
+                m_sfr_rects.push_back(in_SFRs_ptr[n_sfr_rect]);
+            }
+        }
+
+        void set_sharing_mode(const Anvil::SharingMode& in_sharing_mode)
         {
             m_sharing_mode = in_sharing_mode;
         }
 
-        void set_tiling(const VkImageTiling& in_tiling)
+        void set_swapchain(const Anvil::Swapchain* in_swapchain_ptr)
+        {
+            m_swapchain_ptr = in_swapchain_ptr;
+        }
+
+        void set_swapchain_image_index(const uint32_t& in_n_swapchain_image_index)
+        {
+            m_n_swapchain_image = in_n_swapchain_image_index;
+        }
+
+        void set_tiling(const Anvil::ImageTiling& in_tiling)
         {
             m_tiling = in_tiling;
         }
 
-        void set_usage_flags(const VkImageUsageFlags& in_usage_flags)
+        void set_usage_flags(const ImageUsageFlags& in_usage_flags)
         {
             m_usage_flags = in_usage_flags;
         }
@@ -468,23 +545,23 @@ namespace Anvil
     private:
         /* Private functions */
 
-        ImageCreateInfo(Anvil::ImageType                    in_type,
+        ImageCreateInfo(Anvil::ImageInternalType            in_type,
                         const Anvil::BaseDevice*            in_device_ptr,
-                        VkImageType                         in_type_vk,
-                        VkFormat                            in_format,
-                        VkImageTiling                       in_tiling,
-                        VkSharingMode                       in_sharing_mode, 
-                        VkImageUsageFlags                   in_usage,
+                        Anvil::ImageType                    in_type_vk,
+                        Anvil::Format                       in_format,
+                        Anvil::ImageTiling                  in_tiling,
+                        Anvil::SharingMode                  in_sharing_mode, 
+                        ImageUsageFlags                     in_usage,
                         uint32_t                            in_base_mipmap_width,
                         uint32_t                            in_base_mipmap_height,
                         uint32_t                            in_base_mipmap_depth,
                         uint32_t                            in_n_layers,
-                        VkSampleCountFlagBits               in_sample_count,
+                        Anvil::SampleCountFlagBits          in_sample_count,
                         bool                                in_use_full_mipmap_chain,
                         ImageCreateFlags                    in_create_flags,
                         Anvil::QueueFamilyBits              in_queue_families,
-                        VkImageLayout                       in_post_create_image_layout,
-                        const VkImageLayout&                in_post_alloc_image_layout,
+                        Anvil::ImageLayout                  in_post_create_image_layout,
+                        const Anvil::ImageLayout&           in_post_alloc_image_layout,
                         const std::vector<MipmapRawData>*   in_opt_mipmaps_ptr,
                         const Anvil::MTSafety&              in_mt_safety,
                         Anvil::ExternalMemoryHandleTypeBits in_exportable_external_memory_handle_types,
@@ -497,24 +574,28 @@ namespace Anvil
         uint32_t                            m_depth;
         const Anvil::BaseDevice*            m_device_ptr;
         Anvil::ExternalMemoryHandleTypeBits m_exportable_external_memory_handle_types;
-        VkFormat                            m_format;
+        Anvil::Format                       m_format;
         uint32_t                            m_height;
+        const Anvil::ImageInternalType      m_internal_type;
         Anvil::MemoryFeatureFlags           m_memory_features;
         std::vector<MipmapRawData>          m_mipmaps_to_upload;
         Anvil::MTSafety                     m_mt_safety;
         uint32_t                            m_n_layers;
-        VkImageLayout                       m_post_alloc_layout;
-        VkImageLayout                       m_post_create_layout;
+        Anvil::ImageLayout                  m_post_alloc_layout;
+        Anvil::ImageLayout                  m_post_create_layout;
         Anvil::QueueFamilyBits              m_queue_families;
         Anvil::SparseResidencyScope         m_residency_scope;
-        VkSampleCountFlags                  m_sample_count;
-        VkSharingMode                       m_sharing_mode;
-        VkImageTiling                       m_tiling;
-        const Anvil::ImageType              m_type;
-        const VkImageType                   m_type_vk;
-        VkImageUsageFlags                   m_usage_flags;
+        Anvil::SampleCountFlagBits          m_sample_count;
+        Anvil::SharingMode                  m_sharing_mode;
+        Anvil::ImageTiling                  m_tiling;
+        const Anvil::ImageType              m_type_vk;
+        ImageUsageFlags                     m_usage_flags;
         bool                                m_use_full_mipmap_chain;
         uint32_t                            m_width;
+
+        /* Only used for peer images */
+        std::vector<const Anvil::PhysicalDevice*> m_physical_devices;
+        std::vector<VkRect2D>                     m_sfr_rects;
 
         /* Only used for swapchain wrapper images */
         uint32_t                m_n_swapchain_image;
