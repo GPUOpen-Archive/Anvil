@@ -618,7 +618,7 @@ bool Anvil::Buffer::init_staging_buffer(const VkDeviceSize& in_size,
                                                                                          in_size,
                                                                                          staging_buffer_queue_fam_bits,
                                                                                          sharing_mode,
-                                                                                         Anvil::BUFFER_USAGE_FLAG_TRANSFER_SRC_BIT,
+                                                                                         Anvil::BUFFER_USAGE_FLAG_TRANSFER_SRC_BIT | Anvil::BUFFER_USAGE_FLAG_TRANSFER_DST_BIT,
                                                                                          Anvil::MEMORY_FEATURE_FLAG_MAPPABLE);
 
             create_info_ptr->set_mt_safety  (MT_SAFETY_DISABLED);
