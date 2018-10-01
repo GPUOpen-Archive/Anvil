@@ -114,7 +114,7 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
                 continue;
             }
 
-            if ((memory_props.types.at(n_memory_type).features & required_memory_features) != required_memory_features)
+            if ((memory_props.types.at(n_memory_type).features & static_cast<Anvil::MemoryFeatureFlagBits>(required_memory_features.get_vk() )) != required_memory_features)
             {
                 continue;
             }
@@ -125,12 +125,12 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
                 bool can_continue    = true;
                 auto mgpu_device_ptr = dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr);
 
-                anvil_assert(m_device_ptr->get_type() == Anvil::DeviceType::DEVICE_TYPE_MULTI_GPU);
+                anvil_assert(m_device_ptr->get_type() == Anvil::DeviceType::MULTI_GPU);
                 anvil_assert(mgpu_device_ptr          != nullptr);
 
                 for (const auto& current_req : (*item_iterator)->alloc_mgpu_peer_memory_reqs)
                 {
-                    Anvil::PeerMemoryFeatureFlags current_memory_type_peer_memory_features = 0;
+                    Anvil::PeerMemoryFeatureFlags current_memory_type_peer_memory_features;
                     const auto&                   local_device_index                       = current_req.first.first;
                     const auto                    local_device_ptr                         = mgpu_device_ptr->get_physical_device(local_device_index);
                     const auto&                   remote_device_index                      = current_req.first.second;
@@ -382,7 +382,7 @@ bool Anvil::MemoryAllocatorBackends::OneShot::supports_device_masks() const
     return true;
 }
 
-bool Anvil::MemoryAllocatorBackends::OneShot::supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeBits&) const
+bool Anvil::MemoryAllocatorBackends::OneShot::supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeFlags&) const
 {
     return true;
 }

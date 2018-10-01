@@ -422,7 +422,7 @@ bool Anvil::BasePipelineManager::get_shader_info(PipelineID                  in_
     Pipeline*                                pipeline_ptr      = nullptr;
     size_t                                   out_data_size     = out_data_ptr->size();
     bool                                     result            = false;
-    const VkShaderStageFlagBits              shader_stage_vk   = Anvil::Utils::get_shader_stage_flag_bits_from_shader_stage(in_shader_stage);
+    const auto                               shader_stage_vk   = Anvil::Utils::get_shader_stage_flag_bits_from_shader_stage(in_shader_stage);
     VkShaderInfoTypeAMD                      vk_info_type;
     VkResult                                 vk_result;
 
@@ -464,14 +464,14 @@ bool Anvil::BasePipelineManager::get_shader_info(PipelineID                  in_
 
     switch (in_info_type)
     {
-        case SHADER_INFO_TYPE_BINARY:
+        case ShaderInfoType::BINARY:
         {
             vk_info_type = VK_SHADER_INFO_TYPE_BINARY_AMD;
 
             break;
         }
 
-        case SHADER_INFO_TYPE_DISASSEMBLY:
+        case ShaderInfoType::DISASSEMBLY:
         {
             vk_info_type = VK_SHADER_INFO_TYPE_DISASSEMBLY_AMD;
 
@@ -490,7 +490,7 @@ bool Anvil::BasePipelineManager::get_shader_info(PipelineID                  in_
     {
         vk_result = entrypoints.vkGetShaderInfoAMD(m_device_ptr->get_device_vk(),
                                                    pipeline_ptr->baked_pipeline,
-                                                   shader_stage_vk,
+                                                   static_cast<VkShaderStageFlagBits>(shader_stage_vk),
                                                    vk_info_type,
                                                   &out_data_size,
                                                    nullptr);
@@ -511,7 +511,7 @@ bool Anvil::BasePipelineManager::get_shader_info(PipelineID                  in_
 
     vk_result = entrypoints.vkGetShaderInfoAMD(m_device_ptr->get_device_vk(),
                                                pipeline_ptr->baked_pipeline,
-                                               shader_stage_vk,
+                                               static_cast<VkShaderStageFlagBits>(shader_stage_vk),
                                                vk_info_type,
                                               &out_data_size,
                                               &(*out_data_ptr).at(0));
@@ -543,7 +543,7 @@ bool Anvil::BasePipelineManager::get_shader_statistics(PipelineID               
     Pipelines::const_iterator                pipeline_iterator;
     Pipeline*                                pipeline_ptr           = nullptr;
     bool                                     result                 = false;
-    const VkShaderStageFlagBits              shader_stage_vk        = Anvil::Utils::get_shader_stage_flag_bits_from_shader_stage(in_shader_stage);
+    const auto                               shader_stage_vk        = Anvil::Utils::get_shader_stage_flag_bits_from_shader_stage(in_shader_stage);
     size_t                                   shader_statistics_size = sizeof(VkShaderStatisticsInfoAMD);
     VkResult                                 vk_result;
 
@@ -585,7 +585,7 @@ bool Anvil::BasePipelineManager::get_shader_statistics(PipelineID               
 
     vk_result = entrypoints.vkGetShaderInfoAMD(m_device_ptr->get_device_vk(),
                                                pipeline_ptr->baked_pipeline,
-                                               shader_stage_vk,
+                                               static_cast<VkShaderStageFlagBits>(shader_stage_vk),
                                                VK_SHADER_INFO_TYPE_STATISTICS_AMD,
                                               &shader_statistics_size,
                                                out_shader_statistics_ptr);

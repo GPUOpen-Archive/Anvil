@@ -41,9 +41,9 @@ Anvil::DescriptorSetCreateInfo::~DescriptorSetCreateInfo()
 
 /** Please see header for specification */
 bool Anvil::DescriptorSetCreateInfo::add_binding(uint32_t                             in_binding_index,
-                                                 VkDescriptorType                     in_descriptor_type,
+                                                 Anvil::DescriptorType                in_descriptor_type,
                                                  uint32_t                             in_descriptor_array_size,
-                                                 VkShaderStageFlags                   in_stage_flags,
+                                                 Anvil::ShaderStageFlags              in_stage_flags,
                                                  const Anvil::DescriptorBindingFlags& in_flags,
                                                  const Anvil::Sampler* const*         in_immutable_sampler_ptrs)
 {
@@ -60,8 +60,8 @@ bool Anvil::DescriptorSetCreateInfo::add_binding(uint32_t                       
     /* Make sure the sampler array can actually be specified for this descriptor type. */
     if (in_immutable_sampler_ptrs != nullptr)
     {
-        if (in_descriptor_type != VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER &&
-            in_descriptor_type != VK_DESCRIPTOR_TYPE_SAMPLER)
+        if (in_descriptor_type != Anvil::DescriptorType::COMBINED_IMAGE_SAMPLER &&
+            in_descriptor_type != Anvil::DescriptorType::SAMPLER)
         {
             anvil_assert_fail();
 
@@ -69,7 +69,7 @@ bool Anvil::DescriptorSetCreateInfo::add_binding(uint32_t                       
         }
     }
 
-    if (in_flags & Anvil::DESCRIPTOR_BINDING_FLAG_VARIABLE_DESCRIPTOR_COUNT_BIT)
+    if ((in_flags & Anvil::DescriptorBindingFlagBits::VARIABLE_DESCRIPTOR_COUNT_BIT) != 0)
     {
         if (m_n_variable_descriptor_count_binding != UINT32_MAX)
         {
@@ -189,8 +189,8 @@ std::unique_ptr<Anvil::DescriptorSetLayoutCreateInfoContainer> Anvil::Descriptor
 
                 binding_vk.binding         = binding_index;
                 binding_vk.descriptorCount = binding_data.descriptor_array_size;
-                binding_vk.descriptorType  = binding_data.descriptor_type;
-                binding_vk.stageFlags      = binding_data.stage_flags;
+                binding_vk.descriptorType  = static_cast<VkDescriptorType>(binding_data.descriptor_type);
+                binding_vk.stageFlags      = binding_data.stage_flags.get_vk();
 
                 if (binding_data.immutable_samplers.size() > 0)
                 {
@@ -212,26 +212,26 @@ std::unique_ptr<Anvil::DescriptorSetLayoutCreateInfoContainer> Anvil::Descriptor
                     binding_vk.pImmutableSamplers = nullptr;
                 }
 
-                if (binding_iterator->second.flags & Anvil::DESCRIPTOR_BINDING_FLAG_UPDATE_AFTER_BIND_BIT)
+                if ((binding_iterator->second.flags & Anvil::DescriptorBindingFlagBits::UPDATE_AFTER_BIND_BIT) != 0)
                 {
                     binding_flags                     |= VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT;
                     create_info.flags                 |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT;
                     should_chain_binding_flags_struct  = true;
                 }
 
-                if (binding_iterator->second.flags & Anvil::DESCRIPTOR_BINDING_FLAG_UPDATE_UNUSED_WHILE_PENDING_BIT)
+                if ((binding_iterator->second.flags & Anvil::DescriptorBindingFlagBits::UPDATE_UNUSED_WHILE_PENDING_BIT) != 0)
                 {
                     binding_flags                     |= VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT_EXT;
                     should_chain_binding_flags_struct  = true;
                 }
 
-                if (binding_iterator->second.flags & Anvil::DESCRIPTOR_BINDING_FLAG_PARTIALLY_BOUND_BIT)
+                if ((binding_iterator->second.flags & Anvil::DescriptorBindingFlagBits::PARTIALLY_BOUND_BIT) != 0)
                 {
                     binding_flags                     |= VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT;
                     should_chain_binding_flags_struct  = true;
                 }
 
-                if (binding_iterator->second.flags & Anvil::DESCRIPTOR_BINDING_FLAG_VARIABLE_DESCRIPTOR_COUNT_BIT)
+                if ((binding_iterator->second.flags & Anvil::DescriptorBindingFlagBits::VARIABLE_DESCRIPTOR_COUNT_BIT) != 0)
                 {
                     binding_flags                     |= VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT;
                     should_chain_binding_flags_struct  = true;
@@ -287,9 +287,9 @@ end:
 
 /** Please see header for specification */
 bool Anvil::DescriptorSetCreateInfo::get_binding_properties_by_binding_index(uint32_t                       in_binding_index,
-                                                                             VkDescriptorType*              out_opt_descriptor_type_ptr,
+                                                                             Anvil::DescriptorType*         out_opt_descriptor_type_ptr,
                                                                              uint32_t*                      out_opt_descriptor_array_size_ptr,
-                                                                             VkShaderStageFlags*            out_opt_stage_flags_ptr,
+                                                                             Anvil::ShaderStageFlags*       out_opt_stage_flags_ptr,
                                                                              bool*                          out_opt_immutable_samplers_enabled_ptr,
                                                                              Anvil::DescriptorBindingFlags* out_opt_flags_ptr) const
 {
@@ -335,9 +335,9 @@ end:
 /** Please see header for specification */
 bool Anvil::DescriptorSetCreateInfo::get_binding_properties_by_index_number(uint32_t                       in_n_binding,
                                                                             uint32_t*                      out_opt_binding_index_ptr,
-                                                                            VkDescriptorType*              out_opt_descriptor_type_ptr,
+                                                                            Anvil::DescriptorType*         out_opt_descriptor_type_ptr,
                                                                             uint32_t*                      out_opt_descriptor_array_size_ptr,
-                                                                            VkShaderStageFlags*            out_opt_stage_flags_ptr,
+                                                                            Anvil::ShaderStageFlags*       out_opt_stage_flags_ptr,
                                                                             bool*                          out_opt_immutable_samplers_enabled_ptr,
                                                                             Anvil::DescriptorBindingFlags* out_opt_flags_ptr) const
 {

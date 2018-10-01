@@ -63,7 +63,7 @@ namespace Anvil
          **/
         static DescriptorSetLayoutUniquePtr create(DescriptorSetCreateInfoUniquePtr in_ds_create_info_ptr,
                                                    const Anvil::BaseDevice*         in_device_ptr,
-                                                   MTSafety                         in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+                                                   MTSafety                         in_mt_safety = Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE);
 
         const Anvil::DescriptorSetCreateInfo* get_create_info() const
         {

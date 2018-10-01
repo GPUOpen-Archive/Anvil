@@ -43,7 +43,7 @@ namespace Anvil
          *
          *  - Client data to fill the result bullfer with after mem alloc is bound to the buffer: none
          *  - External memory handle types:                                                       none
-         *  - MT safety:                                                                          MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         *  - MT safety:                                                                          MTSafety::INHERIT_FROM_PARENT_DEVICE
          *
          *  @param in_device_ptr       Device to use.
          *  @param in_size             Size of the buffer object to be initialized.
@@ -56,7 +56,7 @@ namespace Anvil
          **/
         static Anvil::BufferCreateInfoUniquePtr create_nonsparse_alloc(const Anvil::BaseDevice*  in_device_ptr,
                                                                        VkDeviceSize              in_size,
-                                                                       QueueFamilyBits           in_queue_families,
+                                                                       Anvil::QueueFamilyFlags   in_queue_families,
                                                                        Anvil::SharingMode        in_sharing_mode,
                                                                        Anvil::BufferUsageFlags   in_usage_flags,
                                                                        Anvil::MemoryFeatureFlags in_memory_features);
@@ -69,7 +69,7 @@ namespace Anvil
          *  The following default values are assumed, unless specified with separate set_..() invocations issued against the result instance:
          *
          *  - External memory handle types: none
-         *  - MT safety:                    MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         *  - MT safety:                    MTSafety::INHERIT_FROM_PARENT_DEVICE
          *
          *  @param in_device_ptr     Device to use.
          *  @param in_size           Size of the buffer object to be initialized.
@@ -81,7 +81,7 @@ namespace Anvil
          **/
         static Anvil::BufferCreateInfoUniquePtr create_nonsparse_no_alloc(const Anvil::BaseDevice* in_device_ptr,
                                                                           VkDeviceSize             in_size,
-                                                                          QueueFamilyBits          in_queue_families,
+                                                                          Anvil::QueueFamilyFlags  in_queue_families,
                                                                           Anvil::SharingMode       in_sharing_mode,
                                                                           Anvil::BufferUsageFlags  in_usage_flags);
 
@@ -118,14 +118,14 @@ namespace Anvil
          *                                         this field to specify which handle types the allocation needs to support. Please see
          *                                         documentation of Anvil::ExternalMemoryHandleTypeBits for more details.
          **/
-        static Anvil::BufferCreateInfoUniquePtr create_sparse_no_alloc(const Anvil::BaseDevice*            in_device_ptr,
-                                                                       VkDeviceSize                        in_size,
-                                                                       QueueFamilyBits                     in_queue_families,
-                                                                       Anvil::SharingMode                  in_sharing_mode,
-                                                                       Anvil::BufferUsageFlags             in_usage_flags,
-                                                                       Anvil::SparseResidencyScope         in_residency_scope,
-                                                                       MTSafety                            in_mt_safety                    = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE,
-                                                                       Anvil::ExternalMemoryHandleTypeBits in_external_memory_handle_types = 0);
+        static Anvil::BufferCreateInfoUniquePtr create_sparse_no_alloc(const Anvil::BaseDevice*             in_device_ptr,
+                                                                       VkDeviceSize                         in_size,
+                                                                       Anvil::QueueFamilyFlags              in_queue_families,
+                                                                       Anvil::SharingMode                   in_sharing_mode,
+                                                                       Anvil::BufferUsageFlags              in_usage_flags,
+                                                                       Anvil::SparseResidencyScope          in_residency_scope,
+                                                                       MTSafety                             in_mt_safety                    = MTSafety::INHERIT_FROM_PARENT_DEVICE,
+                                                                       Anvil::ExternalMemoryHandleTypeFlags in_external_memory_handle_types = Anvil::ExternalMemoryHandleTypeFlagBits::NONE);
 
         const void* const get_client_data() const
         {
@@ -137,7 +137,7 @@ namespace Anvil
             return m_device_ptr;
         }
 
-        const Anvil::ExternalMemoryHandleTypeBits& get_exportable_external_memory_handle_types() const
+        const Anvil::ExternalMemoryHandleTypeFlags& get_exportable_external_memory_handle_types() const
         {
             return m_exportable_external_memory_handle_types;
         }
@@ -159,7 +159,7 @@ namespace Anvil
         }
 
         /** Returns info about queue families this buffer has been created for */
-        QueueFamilyBits get_queue_families() const
+        Anvil::QueueFamilyFlags get_queue_families() const
         {
             return m_queue_families;
         }
@@ -228,7 +228,7 @@ namespace Anvil
             m_device_ptr = in_device_ptr;
         }
 
-        void set_exportable_external_memory_handle_types(const Anvil::ExternalMemoryHandleTypeBits& in_external_memory_handle_types)
+        void set_exportable_external_memory_handle_types(const Anvil::ExternalMemoryHandleTypeFlags& in_external_memory_handle_types)
         {
             m_exportable_external_memory_handle_types = in_external_memory_handle_types;
         }
@@ -243,7 +243,7 @@ namespace Anvil
             m_mt_safety = in_mt_safety;
         }
 
-        void get_queue_families(const QueueFamilyBits& in_queue_families)
+        void set_queue_families(const Anvil::QueueFamilyFlags& in_queue_families)
         {
             m_queue_families = in_queue_families;
         }
@@ -273,43 +273,43 @@ namespace Anvil
 
         /* Private functions */
 
-        BufferCreateInfo(const Anvil::BaseDevice*            in_device_ptr,
-                         VkDeviceSize                        in_size,
-                         QueueFamilyBits                     in_queue_families,
-                         Anvil::SharingMode                  in_sharing_mode,
-                         Anvil::BufferUsageFlags             in_usage_flags,
-                         Anvil::SparseResidencyScope         in_residency_scope,
-                         MTSafety                            in_mt_safety,
-                         Anvil::ExternalMemoryHandleTypeBits in_exportable_external_memory_handle_types);
-        BufferCreateInfo(const Anvil::BufferType&            in_buffer_type,
-                         const Anvil::BaseDevice*            in_device_ptr,
-                         VkDeviceSize                        in_size,
-                         QueueFamilyBits                     in_queue_families,
-                         Anvil::SharingMode                  in_sharing_mode,
-                         Anvil::BufferUsageFlags             in_usage_flags,
-                         MemoryFeatureFlags                  in_memory_features,
-                         MTSafety                            in_mt_safety,
-                         Anvil::ExternalMemoryHandleTypeBits in_exportable_external_memory_handle_types,
-                         const void*                         in_opt_client_data_ptr);
-        BufferCreateInfo(Anvil::Buffer*                      in_parent_buffer_ptr,
-                         VkDeviceSize                        in_start_offset,
-                         VkDeviceSize                        in_size);
+        BufferCreateInfo(const Anvil::BaseDevice*             in_device_ptr,
+                         VkDeviceSize                         in_size,
+                         Anvil::QueueFamilyFlags              in_queue_families,
+                         Anvil::SharingMode                   in_sharing_mode,
+                         Anvil::BufferUsageFlags              in_usage_flags,
+                         Anvil::SparseResidencyScope          in_residency_scope,
+                         MTSafety                             in_mt_safety,
+                         Anvil::ExternalMemoryHandleTypeFlags in_exportable_external_memory_handle_types);
+        BufferCreateInfo(const Anvil::BufferType&             in_buffer_type,
+                         const Anvil::BaseDevice*             in_device_ptr,
+                         VkDeviceSize                         in_size,
+                         Anvil::QueueFamilyFlags              in_queue_families,
+                         Anvil::SharingMode                   in_sharing_mode,
+                         Anvil::BufferUsageFlags              in_usage_flags,
+                         MemoryFeatureFlags                   in_memory_features,
+                         MTSafety                             in_mt_safety,
+                         Anvil::ExternalMemoryHandleTypeFlags in_exportable_external_memory_handle_types,
+                         const void*                          in_opt_client_data_ptr);
+        BufferCreateInfo(Anvil::Buffer*                       in_parent_buffer_ptr,
+                         VkDeviceSize                         in_start_offset,
+                         VkDeviceSize                         in_size);
 
 
         /* Private variables */
-        const void*                         m_client_data_ptr;
-        const Anvil::BaseDevice*            m_device_ptr;
-        Anvil::ExternalMemoryHandleTypeBits m_exportable_external_memory_handle_types;
-        Anvil::MemoryFeatureFlags           m_memory_features;
-        MTSafety                            m_mt_safety;
-        Anvil::Buffer* const                m_parent_buffer_ptr;
-        Anvil::QueueFamilyBits              m_queue_families;
-        const Anvil::SparseResidencyScope   m_residency_scope;
-        Anvil::SharingMode                  m_sharing_mode;
-        VkDeviceSize                        m_size;
-        VkDeviceSize                        m_start_offset;
-        const BufferType                    m_type;
-        Anvil::BufferUsageFlags             m_usage_flags;
+        const void*                          m_client_data_ptr;
+        const Anvil::BaseDevice*             m_device_ptr;
+        Anvil::ExternalMemoryHandleTypeFlags m_exportable_external_memory_handle_types;
+        Anvil::MemoryFeatureFlags            m_memory_features;
+        MTSafety                             m_mt_safety;
+        Anvil::Buffer* const                 m_parent_buffer_ptr;
+        Anvil::QueueFamilyFlags              m_queue_families;
+        const Anvil::SparseResidencyScope    m_residency_scope;
+        Anvil::SharingMode                   m_sharing_mode;
+        VkDeviceSize                         m_size;
+        VkDeviceSize                         m_start_offset;
+        const BufferType                     m_type;
+        Anvil::BufferUsageFlags              m_usage_flags;
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(BufferCreateInfo);
         ANVIL_DISABLE_COPY_CONSTRUCTOR(BufferCreateInfo);

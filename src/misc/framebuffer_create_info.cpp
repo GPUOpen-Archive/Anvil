@@ -127,7 +127,7 @@ Anvil::FramebufferCreateInfoUniquePtr Anvil::FramebufferCreateInfo::create(const
                                          in_width,
                                          in_height,
                                          in_n_layers,
-                                         MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+                                         Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE)
     );
 
     return result_ptr;

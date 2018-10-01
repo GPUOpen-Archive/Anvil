@@ -66,7 +66,7 @@ namespace Anvil
          * Requires VK_KHR_external_fence_fd    under Linux.
          * Requires VK_KHR_external_fence_win32 under Windows.
          */
-        ExternalHandleUniquePtr export_to_external_handle(const Anvil::ExternalFenceHandleTypeBit& in_fence_handle_type);
+        ExternalHandleUniquePtr export_to_external_handle(const Anvil::ExternalFenceHandleTypeFlagBits& in_fence_handle_type);
 
         const Anvil::FenceCreateInfo* get_create_info_ptr() const
         {
@@ -102,14 +102,14 @@ namespace Anvil
          * @param in_opt_name         (Windows): Name of the handle to use. Must not be null if @param in_opt_handle is null and vice versa.
          */
         #if defined(_WIN32)
-            bool import_from_external_handle(const bool&                              in_temporary_import,
-                                             const Anvil::ExternalFenceHandleTypeBit& in_handle_type,
-                                             const ExternalHandleType&                in_opt_handle,
-                                             const std::wstring&                      in_opt_name);
+            bool import_from_external_handle(const bool&                                   in_temporary_import,
+                                             const Anvil::ExternalFenceHandleTypeFlagBits& in_handle_type,
+                                             const ExternalHandleType&                     in_opt_handle,
+                                             const std::wstring&                           in_opt_name);
         #else
-            bool import_from_external_handle(const bool&                              in_temporary_import,
-                                             const Anvil::ExternalFenceHandleTypeBit& in_handle_type,
-                                             const ExternalHandleType&                in_handle);
+            bool import_from_external_handle(const bool&                                   in_temporary_import,
+                                             const Anvil::ExternalFenceHandleTypeFlagBits& in_handle_type,
+                                             const ExternalHandleType&                     in_handle);
         #endif
 
         /** Tells whether the fence is signalled at the time of the call.
@@ -154,9 +154,9 @@ namespace Anvil
         void release_fence();
 
         /* Private variables */
-        Anvil::FenceCreateInfoUniquePtr                   m_create_info_ptr;
-        std::map<Anvil::ExternalFenceHandleTypeBit, bool> m_external_fence_created_for_handle_type;
-        VkFence                                           m_fence;
+        Anvil::FenceCreateInfoUniquePtr                        m_create_info_ptr;
+        std::map<Anvil::ExternalFenceHandleTypeFlagBits, bool> m_external_fence_created_for_handle_type;
+        VkFence                                                m_fence;
     };
 }; /* namespace Anvil */
 

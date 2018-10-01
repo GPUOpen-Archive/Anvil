@@ -390,19 +390,19 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        virtual bool get_physical_device_sparse_image_format_properties(Anvil::Format                               in_format,
-                                                                        Anvil::ImageType                            in_type,
-                                                                        Anvil::SampleCountFlagBits                  in_sample_count,
-                                                                        ImageUsageFlags                             in_usage,
-                                                                        Anvil::ImageTiling                          in_tiling,
-                                                                        std::vector<VkSparseImageFormatProperties>& out_result) const = 0;
+        virtual bool get_physical_device_sparse_image_format_properties(Anvil::Format                                    in_format,
+                                                                        Anvil::ImageType                                 in_type,
+                                                                        Anvil::SampleCountFlagBits                       in_sample_count,
+                                                                        ImageUsageFlags                                  in_usage,
+                                                                        Anvil::ImageTiling                               in_tiling,
+                                                                        std::vector<Anvil::SparseImageFormatProperties>& out_result) const = 0;
 
 
         /** Returns surface capabilities, as reported for physical device(s) which have been used to instantiate
          *  this logical device instance.
          **/
-        virtual bool get_physical_device_surface_capabilities(Anvil::RenderingSurface*  in_surface_ptr,
-                                                              VkSurfaceCapabilitiesKHR* out_result_ptr) const = 0;
+        virtual bool get_physical_device_surface_capabilities(Anvil::RenderingSurface*    in_surface_ptr,
+                                                              Anvil::SurfaceCapabilities* out_result_ptr) const = 0;
 
         /** Returns a pipeline cache, created specifically for this device.
          *
@@ -500,8 +500,8 @@ namespace Anvil
          *
          *  @return As per description
          **/
-        Anvil::Queue* get_sparse_binding_queue(uint32_t     in_n_queue,
-                                               VkQueueFlags in_opt_required_queue_flags = 0) const;
+        Anvil::Queue* get_sparse_binding_queue(uint32_t          in_n_queue,
+                                               Anvil::QueueFlags in_opt_required_queue_flags = Anvil::QueueFlags() ) const;
 
         /* Tells which memory types can be specified when creating an external memory handle for a Win32 handle @param in_handle
          *
@@ -511,15 +511,15 @@ namespace Anvil
          * @return true if successful, false otherwise.
          *
          *
-         * @param in_external_handle_type            (Windows) must be either EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT or
-         *                                                     EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT.
-         *                                           (Linux)   must be EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT.
+         * @param in_external_handle_type            (Windows) must be either Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_WIN32_BIT or
+         *                                                     Anvil::ExternalMemoryHandleTypeFlagBits::WIN32_KMT_BIT.
+         *                                           (Linux)   must be Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_FD_BIT.
          * @param out_supported_memory_type_bits_ptr Deref will be set to a set of bits where each index corresponds to support status
          *                                           of a memory type with corresponding index. Must not be null.
          */
-        bool get_memory_types_supported_for_external_handle(const Anvil::ExternalMemoryHandleTypeBit& in_external_handle_type,
-                                                            ExternalHandleType                        in_handle,
-                                                            uint32_t*                                 out_supported_memory_type_bits) const;
+        bool get_memory_types_supported_for_external_handle(const Anvil::ExternalMemoryHandleTypeFlagBits& in_external_handle_type,
+                                                            ExternalHandleType                             in_handle,
+                                                            uint32_t*                                      out_supported_memory_type_bits) const;
 
         /** Returns a Queue instance, corresponding to a transfer queue at index @param in_n_queue
          *
@@ -758,7 +758,7 @@ namespace Anvil
         Anvil::SwapchainUniquePtr create_swapchain(Anvil::RenderingSurface* in_parent_surface_ptr,
                                                    Anvil::Window*           in_window_ptr,
                                                    Anvil::Format            in_image_format,
-                                                   VkPresentModeKHR         in_present_mode,
+                                                   Anvil::PresentModeKHR    in_present_mode,
                                                    ImageUsageFlags          in_usage,
                                                    uint32_t                 in_n_swapchain_images);
 
@@ -798,16 +798,16 @@ namespace Anvil
         const QueueFamilyInfoItems& get_physical_device_queue_families() const override;
 
         /** See documentation in BaseDevice for more details */
-        bool get_physical_device_sparse_image_format_properties(Anvil::Format                               in_format,
-                                                                Anvil::ImageType                            in_type,
-                                                                Anvil::SampleCountFlagBits                  in_sample_count,
-                                                                ImageUsageFlags                             in_usage,
-                                                                Anvil::ImageTiling                          in_tiling,
-                                                                std::vector<VkSparseImageFormatProperties>& out_result) const override;
+        bool get_physical_device_sparse_image_format_properties(Anvil::Format                                    in_format,
+                                                                Anvil::ImageType                                 in_type,
+                                                                Anvil::SampleCountFlagBits                       in_sample_count,
+                                                                ImageUsageFlags                                  in_usage,
+                                                                Anvil::ImageTiling                               in_tiling,
+                                                                std::vector<Anvil::SparseImageFormatProperties>& out_result) const override;
 
         /** See documentation in BaseDevice for more details */
-        bool get_physical_device_surface_capabilities(Anvil::RenderingSurface*  in_surface_ptr,
-                                                      VkSurfaceCapabilitiesKHR* out_result_ptr) const override;
+        bool get_physical_device_surface_capabilities(Anvil::RenderingSurface*    in_surface_ptr,
+                                                      Anvil::SurfaceCapabilities* out_result_ptr) const override;
 
         /** See documentation in BaseDevice for more details */
         const Anvil::QueueFamilyInfo* get_queue_family_info(uint32_t in_queue_family_index) const override;
@@ -815,7 +815,7 @@ namespace Anvil
         /* Tells what type this device instance is */
         DeviceType get_type() const override
         {
-            return DEVICE_TYPE_SINGLE_GPU;
+            return Anvil::DeviceType::SINGLE_GPU;
         }
 
     protected:
@@ -860,14 +860,14 @@ namespace Anvil
                                                  bool                                      in_mt_safe = false);
 
         /** TODO */
-        Anvil::SwapchainUniquePtr create_swapchain(Anvil::RenderingSurface*         in_parent_surface_ptr,
-                                                   Anvil::Window*                   in_window_ptr,
-                                                   Anvil::Format                    in_image_format,
-                                                   VkPresentModeKHR                 in_present_mode,
-                                                   ImageUsageFlags                  in_usage,
-                                                   uint32_t                         in_n_swapchain_images,
-                                                   bool                             in_support_SFR,
-                                                   VkDeviceGroupPresentModeFlagsKHR in_presentation_modes_to_support = VK_DEVICE_GROUP_PRESENT_MODE_LOCAL_BIT_KHR);
+        Anvil::SwapchainUniquePtr create_swapchain(Anvil::RenderingSurface*           in_parent_surface_ptr,
+                                                   Anvil::Window*                     in_window_ptr,
+                                                   Anvil::Format                      in_image_format,
+                                                   Anvil::PresentModeKHR              in_present_mode,
+                                                   ImageUsageFlags                    in_usage,
+                                                   uint32_t                           in_n_swapchain_images,
+                                                   bool                               in_support_SFR,
+                                                   Anvil::DeviceGroupPresentModeFlags in_presentation_modes_to_support = Anvil::DeviceGroupPresentModeFlagBits::LOCAL_BIT_KHR);
 
         /** TODO
          *
@@ -921,16 +921,16 @@ namespace Anvil
                                                       Anvil::SemaphoreProperties*     out_opt_result_ptr = nullptr) const;
 
         /** TODO */
-        bool get_physical_device_sparse_image_format_properties(Anvil::Format                               in_format,
-                                                                Anvil::ImageType                            in_type,
-                                                                Anvil::SampleCountFlagBits                  in_sample_count,
-                                                                ImageUsageFlags                             in_usage,
-                                                                Anvil::ImageTiling                          in_tiling,
-                                                                std::vector<VkSparseImageFormatProperties>& out_result) const override;
+        bool get_physical_device_sparse_image_format_properties(Anvil::Format                                    in_format,
+                                                                Anvil::ImageType                                 in_type,
+                                                                Anvil::SampleCountFlagBits                       in_sample_count,
+                                                                ImageUsageFlags                                  in_usage,
+                                                                Anvil::ImageTiling                               in_tiling,
+                                                                std::vector<Anvil::SparseImageFormatProperties>& out_result) const override;
 
         /** TODO */
-        bool get_physical_device_surface_capabilities(Anvil::RenderingSurface*  in_surface_ptr,
-                                                      VkSurfaceCapabilitiesKHR* out_result_ptr) const override;
+        bool get_physical_device_surface_capabilities(Anvil::RenderingSurface*    in_surface_ptr,
+                                                      Anvil::SurfaceCapabilities* out_result_ptr) const override;
 
         /** Tells which physical devices can be parent to swapchain images that a physical device at device index @param in_device_index
          *  can present.
@@ -962,7 +962,7 @@ namespace Anvil
         const Anvil::QueueFamilyInfo* get_queue_family_info(uint32_t in_queue_family_index) const override;
 
         /** TODO */
-        VkDeviceGroupPresentModeFlagsKHR get_supported_present_modes() const
+        Anvil::DeviceGroupPresentModeFlags get_supported_present_modes() const
         {
             return m_supported_present_modes;
         }
@@ -972,12 +972,12 @@ namespace Anvil
          *  Note: The value returned by this function is NOT guaranteed to be invariant.
          *
          */
-        VkDeviceGroupPresentModeFlagsKHR get_supported_present_modes_for_surface(const Anvil::RenderingSurface* in_surface_ptr) const;
+        Anvil::DeviceGroupPresentModeFlags get_supported_present_modes_for_surface(const Anvil::RenderingSurface* in_surface_ptr) const;
 
         /* Tells what type this device instance is */
         DeviceType get_type() const override
         {
-            return DEVICE_TYPE_MULTI_GPU;
+            return DeviceType::MULTI_GPU;
         }
 
         /* Tells whether this logical device is a part of a device group which supports subset allocations. */
@@ -1023,7 +1023,7 @@ namespace Anvil
         std::vector<const Anvil::PhysicalDevice*>                 m_parent_physical_devices_vec;
         bool                                                      m_supports_subset_allocations;
 
-        VkDeviceGroupPresentModeFlagBitsKHRVariable(m_supported_present_modes);
+        Anvil::DeviceGroupPresentModeFlags m_supported_present_modes;
     };
 }; /* namespace Anvil */
 

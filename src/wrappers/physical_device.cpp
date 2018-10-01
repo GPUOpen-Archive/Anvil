@@ -605,11 +605,11 @@ bool Anvil::PhysicalDevice::get_buffer_properties(const Anvil::BufferPropertiesQ
         emc_entrypoints_ptr = &m_instance_ptr->get_extension_khr_external_memory_capabilities_entrypoints();
     }
 
-    input_struct.flags      = Anvil::Utils::convert_buffer_create_flags_to_vk_buffer_create_flags(in_query.create_flags);
-    input_struct.handleType = static_cast<VkExternalMemoryHandleTypeFlagBitsKHR>(Anvil::Utils::convert_external_memory_handle_type_bits_to_vk_external_memory_handle_type_flags(in_query.external_memory_handle_type) );
+    input_struct.flags      = in_query.create_flags.get_vk();
+    input_struct.handleType = static_cast<VkExternalMemoryHandleTypeFlagBitsKHR>(in_query.external_memory_handle_type.get_vk() );
     input_struct.pNext      = nullptr;
     input_struct.sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_BUFFER_INFO_KHR;
-    input_struct.usage      = in_query.usage_flags;
+    input_struct.usage      = in_query.usage_flags.get_vk();
 
     result_struct.pNext = nullptr;
     result_struct.sType = VK_STRUCTURE_TYPE_EXTERNAL_BUFFER_PROPERTIES_KHR;
@@ -649,7 +649,7 @@ bool Anvil::PhysicalDevice::get_fence_properties(const Anvil::FencePropertiesQue
         entrypoints_ptr = &m_instance_ptr->get_extension_khr_external_fence_capabilities_entrypoints();
     }
 
-    input_struct.handleType = static_cast<VkExternalFenceHandleTypeFlagBitsKHR>(Anvil::Utils::convert_external_fence_handle_type_bits_to_vk_external_fence_handle_type_flags(in_query.external_fence_handle_type) );
+    input_struct.handleType = static_cast<VkExternalFenceHandleTypeFlagBitsKHR>(in_query.external_fence_handle_type);
     input_struct.pNext      = nullptr;
     input_struct.sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_FENCE_INFO_KHR;
 
@@ -708,8 +708,8 @@ bool Anvil::PhysicalDevice::get_image_format_properties(const ImageFormatPropert
                                                  static_cast<VkFormat>     (in_query.format),
                                                  static_cast<VkImageType>  (in_query.image_type),
                                                  static_cast<VkImageTiling>(in_query.tiling),
-                                                 in_query.usage_flags,
-                                                 in_query.create_flags,
+                                                 in_query.usage_flags.get_vk (),
+                                                 in_query.create_flags.get_vk(),
                                                 &core_vk10_image_format_properties) != VK_SUCCESS)
     {
         goto end;
@@ -728,13 +728,13 @@ bool Anvil::PhysicalDevice::get_image_format_properties(const ImageFormatPropert
         {
             VkPhysicalDeviceImageFormatInfo2KHR format_info;
 
-            format_info.flags  = in_query.create_flags;
+            format_info.flags  = in_query.create_flags.get_vk();
             format_info.format = static_cast<VkFormat>(in_query.format);
             format_info.pNext  = nullptr;
             format_info.sType  = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2_KHR;
             format_info.tiling = static_cast<VkImageTiling>(in_query.tiling);
             format_info.type   = static_cast<VkImageType>  (in_query.image_type);
-            format_info.usage  = in_query.usage_flags;
+            format_info.usage  = in_query.usage_flags.get_vk();
 
             input_struct_chainer.append_struct(format_info);
         }
@@ -758,14 +758,14 @@ bool Anvil::PhysicalDevice::get_image_format_properties(const ImageFormatPropert
             texture_lod_gather_support_struct_id = output_struct_chainer.append_struct(texture_lod_gather_support);
         }
 
-        if (in_query.external_memory_handle_type != EXTERNAL_MEMORY_HANDLE_TYPE_NONE)
+        if (in_query.external_memory_handle_type != Anvil::ExternalMemoryHandleTypeFlagBits::NONE)
         {
             anvil_assert(instance_extensions_ptr->khr_external_memory_capabilities() );
 
             VkPhysicalDeviceExternalImageFormatInfoKHR external_image_format_info;
             VkExternalImageFormatPropertiesKHR         external_image_format_props;
 
-            external_image_format_info.handleType = static_cast<VkExternalMemoryHandleTypeFlagBitsKHR>(Anvil::Utils::convert_external_memory_handle_type_bits_to_vk_external_memory_handle_type_flags(in_query.external_memory_handle_type) );
+            external_image_format_info.handleType = static_cast<VkExternalMemoryHandleTypeFlagBitsKHR>(in_query.external_memory_handle_type);
             external_image_format_info.pNext      = nullptr;
             external_image_format_info.sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO_KHR;
 
@@ -792,7 +792,7 @@ bool Anvil::PhysicalDevice::get_image_format_properties(const ImageFormatPropert
                 supports_amd_texture_gather_bias_lod = (texture_lod_gather_support_ptr->supportsTextureGatherLODBiasAMD == VK_TRUE);
             }
 
-            if (in_query.external_memory_handle_type != EXTERNAL_MEMORY_HANDLE_TYPE_NONE)
+            if (in_query.external_memory_handle_type != Anvil::ExternalMemoryHandleTypeFlagBits::NONE)
             {
                 auto image_format_props_ptr = output_struct_chain_ptr->get_struct_with_id<VkExternalImageFormatPropertiesKHR>(external_image_format_props_struct_id);
 
@@ -837,7 +837,7 @@ bool Anvil::PhysicalDevice::get_semaphore_properties(const Anvil::SemaphorePrope
         entrypoints_ptr = &m_instance_ptr->get_extension_khr_external_semaphore_capabilities_entrypoints();
     }
 
-    input_struct.handleType = static_cast<VkExternalSemaphoreHandleTypeFlagBitsKHR>(Anvil::Utils::convert_external_semaphore_handle_type_bits_to_vk_external_semaphore_handle_type_flags(in_query.external_semaphore_handle_type) );
+    input_struct.handleType = static_cast<VkExternalSemaphoreHandleTypeFlagBitsKHR>(in_query.external_semaphore_handle_type);
     input_struct.pNext      = nullptr;
     input_struct.sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_SEMAPHORE_INFO_KHR;
 
@@ -861,12 +861,12 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::PhysicalDevice::get_sparse_image_format_properties(Anvil::Format                               in_format,
-                                                               Anvil::ImageType                            in_type,
-                                                               Anvil::SampleCountFlagBits                  in_sample_count,
-                                                               Anvil::ImageUsageFlags                      in_usage,
-                                                               Anvil::ImageTiling                          in_tiling,
-                                                               std::vector<VkSparseImageFormatProperties>& out_result) const
+bool Anvil::PhysicalDevice::get_sparse_image_format_properties(Anvil::Format                                   in_format,
+                                                               Anvil::ImageType                                in_type,
+                                                               Anvil::SampleCountFlagBits                      in_sample_count,
+                                                               Anvil::ImageUsageFlags                          in_usage,
+                                                               Anvil::ImageTiling                              in_tiling,
+                                                               std::vector<Anvil::SparseImageFormatProperties>& out_result) const
 {
     /* TODO: It might be a good idea to cache the retrieved properties */
     uint32_t n_properties = 0;
@@ -877,7 +877,7 @@ bool Anvil::PhysicalDevice::get_sparse_image_format_properties(Anvil::Format    
                                                    static_cast<VkFormat>   (in_format),
                                                    static_cast<VkImageType>(in_type),
                                                    static_cast<VkSampleCountFlagBits>(in_sample_count),
-                                                   in_usage,
+                                                   in_usage.get_vk(),
                                                    static_cast<VkImageTiling>(in_tiling),
                                                   &n_properties,
                                                    nullptr); /* pProperties */
@@ -890,10 +890,10 @@ bool Anvil::PhysicalDevice::get_sparse_image_format_properties(Anvil::Format    
                                                        static_cast<VkFormat>             (in_format),
                                                        static_cast<VkImageType>          (in_type),
                                                        static_cast<VkSampleCountFlagBits>(in_sample_count),
-                                                       in_usage,
+                                                       in_usage.get_vk(),
                                                        static_cast<VkImageTiling>(in_tiling),
                                                       &n_properties,
-                                                      &out_result[0]);
+                                                       reinterpret_cast<VkSparseImageFormatProperties*>(&out_result[0]) );
     }
 
     return true;

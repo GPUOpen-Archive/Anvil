@@ -97,17 +97,17 @@ namespace Anvil
          * @param in_opt_set_semaphore_ptrs       A raw array of semaphores to set upon finished execution of the image layout transfer command buffer.
          *                                        May be null if @param in_opt_n_set_semaphores is 0.
          */
-        void change_image_layout(Anvil::Queue*                  in_queue_ptr,
-                                 VkAccessFlags                  in_src_access_mask,
-                                 Anvil::ImageLayout             in_src_layout,
-                                 VkAccessFlags                  in_dst_access_mask,
-                                 Anvil::ImageLayout             in_dst_layout,
-                                 const VkImageSubresourceRange& in_subresource_range,
-                                 const uint32_t                 in_opt_n_wait_semaphores        = 0,
-                                 const VkPipelineStageFlags*    in_opt_wait_dst_stage_mask_ptrs = nullptr,
-                                 Anvil::Semaphore* const*       in_opt_wait_semaphore_ptrs      = nullptr,
-                                 const uint32_t                 in_opt_n_set_semaphores         = 0,
-                                 Anvil::Semaphore* const*       in_opt_set_semaphore_ptrs       = nullptr);
+        void change_image_layout(Anvil::Queue*                       in_queue_ptr,
+                                 Anvil::AccessFlags                  in_src_access_mask,
+                                 Anvil::ImageLayout                  in_src_layout,
+                                 Anvil::AccessFlags                  in_dst_access_mask,
+                                 Anvil::ImageLayout                  in_dst_layout,
+                                 const Anvil::ImageSubresourceRange& in_subresource_range,
+                                 const uint32_t                      in_opt_n_wait_semaphores        = 0,
+                                 const Anvil::PipelineStageFlags*    in_opt_wait_dst_stage_mask_ptrs = nullptr,
+                                 Anvil::Semaphore* const*            in_opt_wait_semaphore_ptrs      = nullptr,
+                                 const uint32_t                      in_opt_n_set_semaphores         = 0,
+                                 Anvil::Semaphore* const*            in_opt_set_semaphore_ptrs       = nullptr);
 
 
         /** Destructor */
@@ -120,10 +120,10 @@ namespace Anvil
          *  NOTE: This information is cached at image creation time, so the driver's impl will not be
          *        called.
          */
-        bool get_aspect_subresource_layout(Anvil::ImageAspectFlags in_aspect,
-                                           uint32_t                in_n_layer,
-                                           uint32_t                in_n_mip,
-                                           VkSubresourceLayout*    out_subresource_layout_ptr) const;
+        bool get_aspect_subresource_layout(Anvil::ImageAspectFlagBits in_aspect,
+                                           uint32_t                   in_n_layer,
+                                           uint32_t                   in_n_mip,
+                                           Anvil::SubresourceLayout*  out_subresource_layout_ptr) const;
 
         const Anvil::ImageCreateInfo* get_create_info_ptr() const
         {
@@ -244,7 +244,7 @@ namespace Anvil
                                                 const Anvil::SparseImageAspectProperties** out_result_ptr_ptr) const;
 
         /** Returns a filled subresource range descriptor, covering all layers & mipmaps of the image */
-        VkImageSubresourceRange get_subresource_range() const;
+        Anvil::ImageSubresourceRange get_subresource_range() const;
 
         /** Tells whether this image provides data for the specified image aspects.
          *
@@ -252,7 +252,7 @@ namespace Anvil
          *
          *  @return true if data for all specified aspects is provided by the image, false otherwise.
          */
-        bool has_aspects(Anvil::ImageAspectFlags in_aspects) const;
+        bool has_aspects(const Anvil::ImageAspectFlags& in_aspects) const;
 
         /** Tells whether a physical memory page is assigned to the specified texel location.
          *
@@ -533,7 +533,7 @@ namespace Anvil
 
         bool init               ();
         void init_mipmap_props  ();
-        void init_page_occupancy(const std::vector<VkSparseImageMemoryRequirements>& in_memory_reqs);
+        void init_page_occupancy(const std::vector<Anvil::SparseImageMemoryRequirements>& in_memory_reqs);
         void init_sfr_tile_size ();
 
         bool set_memory_internal(uint32_t               in_swapchain_image_index,
@@ -552,19 +552,19 @@ namespace Anvil
                                  uint32_t               in_n_SFR_rects,
                                  const VkRect2D*        in_SFRs_ptr);
 
-        void on_memory_backing_update       (const VkImageSubresource& in_subresource,
-                                             VkOffset3D                in_offset,
-                                             VkExtent3D                in_extent,
-                                             Anvil::MemoryBlock*       in_memory_block_ptr,
-                                             VkDeviceSize              in_memory_block_start_offset,
-                                             bool                      in_memory_block_owned_by_image);
-        void on_memory_backing_opaque_update(VkDeviceSize              in_resource_offset,
-                                             VkDeviceSize              in_size,
-                                             Anvil::MemoryBlock*       in_memory_block_ptr,
-                                             VkDeviceSize              in_memory_block_start_offset,
-                                             bool                      in_memory_block_owned_by_image);
+        void on_memory_backing_update       (const Anvil::ImageSubresource& in_subresource,
+                                             VkOffset3D                     in_offset,
+                                             VkExtent3D                     in_extent,
+                                             Anvil::MemoryBlock*            in_memory_block_ptr,
+                                             VkDeviceSize                   in_memory_block_start_offset,
+                                             bool                           in_memory_block_owned_by_image);
+        void on_memory_backing_opaque_update(VkDeviceSize                   in_resource_offset,
+                                             VkDeviceSize                   in_size,
+                                             Anvil::MemoryBlock*            in_memory_block_ptr,
+                                             VkDeviceSize                   in_memory_block_start_offset,
+                                             bool                           in_memory_block_owned_by_image);
 
-        void transition_to_post_alloc_image_layout(VkAccessFlags      in_src_access_mask,
+        void transition_to_post_alloc_image_layout(Anvil::AccessFlags in_src_access_mask,
                                                    Anvil::ImageLayout in_src_layout);
 
         /** TODO.
@@ -575,7 +575,7 @@ namespace Anvil
 
         /* Private members */
         typedef std::pair<uint32_t /* n_layer */, uint32_t /* n_mip */>              LayerMipKey;
-        typedef std::map<LayerMipKey, VkSubresourceLayout>                           LayerMipToSubresourceLayoutMap;
+        typedef std::map<LayerMipKey, Anvil::SubresourceLayout>                      LayerMipToSubresourceLayoutMap;
         typedef std::map<Anvil::ImageAspectFlagBits, LayerMipToSubresourceLayoutMap> AspectToLayerMipToSubresourceLayoutMap;
 
         VkDeviceSize                           m_alignment;

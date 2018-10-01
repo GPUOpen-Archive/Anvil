@@ -74,20 +74,20 @@
     /* Constructor. */
     Anvil::GLSLangLimits::GLSLangLimits(const Anvil::BaseDevice* in_device_ptr)
     {
-        const auto&        limits                         = in_device_ptr->get_physical_device_properties().core_vk1_0_properties_ptr->limits;
-        VkSampleCountFlags max_sampled_image_sample_count;
-        int32_t            max_sampled_image_samples      = 0;
-        VkSampleCountFlags max_storage_image_sample_count = limits.storage_image_sample_counts;
-        int32_t            max_storage_image_samples      = 0;
+        const auto&             limits                         = in_device_ptr->get_physical_device_properties().core_vk1_0_properties_ptr->limits;
+        Anvil::SampleCountFlags max_sampled_image_sample_count;
+        int32_t                 max_sampled_image_samples      = 0;
+        auto                    max_storage_image_sample_count = limits.storage_image_sample_counts;
+        int32_t                 max_storage_image_samples      = 0;
 
-        max_sampled_image_sample_count = std::max<VkSampleCountFlags>(limits.sampled_image_color_sample_counts, limits.sampled_image_depth_sample_counts);
-        max_sampled_image_sample_count = std::max<VkSampleCountFlags>(max_sampled_image_sample_count,           limits.sampled_image_integer_sample_counts);
-        max_sampled_image_sample_count = std::max<VkSampleCountFlags>(max_sampled_image_sample_count,           limits.sampled_image_stencil_sample_counts);
+        max_sampled_image_sample_count = std::max<Anvil::SampleCountFlags>(limits.sampled_image_color_sample_counts, limits.sampled_image_depth_sample_counts);
+        max_sampled_image_sample_count = std::max<Anvil::SampleCountFlags>(max_sampled_image_sample_count,           limits.sampled_image_integer_sample_counts);
+        max_sampled_image_sample_count = std::max<Anvil::SampleCountFlags>(max_sampled_image_sample_count,           limits.sampled_image_stencil_sample_counts);
 
         const struct SampleCountToSamplesData
         {
-            VkSampleCountFlags sample_count;
-            int32_t*           out_result_ptr;
+            Anvil::SampleCountFlags sample_count;
+            int32_t*                out_result_ptr;
         } conversion_items[] =
         {
             {max_sampled_image_sample_count, &max_sampled_image_samples},
@@ -102,22 +102,22 @@
             const SampleCountToSamplesData& current_item = conversion_items[n_conversion_item];
             int32_t                         result       = 1;
 
-            if (current_item.sample_count & Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_16_BIT)
+            if ((current_item.sample_count & Anvil::SampleCountFlagBits::_16_BIT) != 0)
             {
                 result = 16;
             }
             else
-            if (current_item.sample_count & Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_8_BIT)
+            if ((current_item.sample_count & Anvil::SampleCountFlagBits::_8_BIT) != 0)
             {
                 result = 8;
             }
             else
-            if (current_item.sample_count & Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_4_BIT)
+            if ((current_item.sample_count & Anvil::SampleCountFlagBits::_4_BIT) != 0)
             {
                 result = 4;
             }
             else
-            if (current_item.sample_count & Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_2_BIT)
+            if ((current_item.sample_count & Anvil::SampleCountFlagBits::_2_BIT) != 0)
             {
                 result = 2;
             }
@@ -478,12 +478,12 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob() const
     {
         switch (m_shader_stage)
         {
-            case SHADER_STAGE_COMPUTE:                 glsl_filename_with_path = "temp.comp"; break;
-            case SHADER_STAGE_FRAGMENT:                glsl_filename_with_path = "temp.frag"; break;
-            case SHADER_STAGE_GEOMETRY:                glsl_filename_with_path = "temp.geom"; break;
-            case SHADER_STAGE_TESSELLATION_CONTROL:    glsl_filename_with_path = "temp.tesc"; break;
-            case SHADER_STAGE_TESSELLATION_EVALUATION: glsl_filename_with_path = "temp.tese"; break;
-            case SHADER_STAGE_VERTEX:                  glsl_filename_with_path = "temp.vert"; break;
+            case ShaderStage::COMPUTE:                 glsl_filename_with_path = "temp.comp"; break;
+            case ShaderStage::FRAGMENT:                glsl_filename_with_path = "temp.frag"; break;
+            case ShaderStage::GEOMETRY:                glsl_filename_with_path = "temp.geom"; break;
+            case ShaderStage::TESSELLATION_CONTROL:    glsl_filename_with_path = "temp.tesc"; break;
+            case ShaderStage::TESSELLATION_EVALUATION: glsl_filename_with_path = "temp.tese"; break;
+            case ShaderStage::VERTEX:                  glsl_filename_with_path = "temp.vert"; break;
 
             default:
             {
@@ -701,12 +701,12 @@ end:
 
         switch (m_shader_stage)
         {
-            case Anvil::SHADER_STAGE_COMPUTE:                 result = EShLangCompute;        break;
-            case Anvil::SHADER_STAGE_FRAGMENT:                result = EShLangFragment;       break;
-            case Anvil::SHADER_STAGE_GEOMETRY:                result = EShLangGeometry;       break;
-            case Anvil::SHADER_STAGE_TESSELLATION_CONTROL:    result = EShLangTessControl;    break;
-            case Anvil::SHADER_STAGE_TESSELLATION_EVALUATION: result = EShLangTessEvaluation; break;
-            case Anvil::SHADER_STAGE_VERTEX:                  result = EShLangVertex;         break;
+            case Anvil::ShaderStage::COMPUTE:                 result = EShLangCompute;        break;
+            case Anvil::ShaderStage::FRAGMENT:                result = EShLangFragment;       break;
+            case Anvil::ShaderStage::GEOMETRY:                result = EShLangGeometry;       break;
+            case Anvil::ShaderStage::TESSELLATION_CONTROL:    result = EShLangTessControl;    break;
+            case Anvil::ShaderStage::TESSELLATION_EVALUATION: result = EShLangTessEvaluation; break;
+            case Anvil::ShaderStage::VERTEX:                  result = EShLangVertex;         break;
 
             default:
             {

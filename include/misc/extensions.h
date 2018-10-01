@@ -809,7 +809,7 @@ namespace Anvil
 
                 for (const auto& current_extension_data : reference.values_by_extension_names)
                 {
-                    extension_status[current_extension_data.first] = EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE;
+                    extension_status[current_extension_data.first] = Anvil::ExtensionAvailability::ENABLE_IF_AVAILABLE;
                 }
             }
 
@@ -817,17 +817,17 @@ namespace Anvil
              * A few exceptions exist.
              *
              * 1. VK_AMD_negative_viewport_height interacts with KHR_maintenance1, apps will have to enable it manually. */
-            extension_status[VK_AMD_NEGATIVE_VIEWPORT_HEIGHT_EXTENSION_NAME] = EXTENSION_AVAILABILITY_IGNORE;
+            extension_status[VK_AMD_NEGATIVE_VIEWPORT_HEIGHT_EXTENSION_NAME] = Anvil::ExtensionAvailability::IGNORE;
 
             /* 2. VK_EXT_debug_marker is only useful for debugging. */
             #if !defined(_DEBUG)
             {
-                extension_status[VK_EXT_DEBUG_MARKER_EXTENSION_NAME] = EXTENSION_AVAILABILITY_IGNORE;
+                extension_status[VK_EXT_DEBUG_MARKER_EXTENSION_NAME] = Anvil::ExtensionAvailability::IGNORE;
             }
             #endif
 
             /* 3. Disable VK_AMD_shader_info by default. */
-            extension_status[VK_AMD_SHADER_INFO_EXTENSION_NAME] = EXTENSION_AVAILABILITY_IGNORE;
+            extension_status[VK_AMD_SHADER_INFO_EXTENSION_NAME] = Anvil::ExtensionAvailability::IGNORE;
         }
  
         std::map<std::string, ExtensionAvailability> extension_status;

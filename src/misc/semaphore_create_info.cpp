@@ -28,7 +28,7 @@ Anvil::SemaphoreCreateInfoUniquePtr Anvil::SemaphoreCreateInfo::create(const Anv
 
     result_ptr.reset(
         new Anvil::SemaphoreCreateInfo(in_device_ptr,
-                                       Anvil::MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+                                       Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE)
     );
 
     return result_ptr;
@@ -37,7 +37,7 @@ Anvil::SemaphoreCreateInfoUniquePtr Anvil::SemaphoreCreateInfo::create(const Anv
 Anvil::SemaphoreCreateInfo::SemaphoreCreateInfo(const Anvil::BaseDevice* in_device_ptr,
                                                 MTSafety                 in_mt_safety)
     :m_device_ptr                                             (in_device_ptr),
-     m_exportable_external_semaphore_handle_types             (Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_NONE),
+     m_exportable_external_semaphore_handle_types             (Anvil::ExternalSemaphoreHandleTypeFlagBits::NONE),
 #if defined(_WIN32)
      m_exportable_nt_handle_info_specified                    (false),
      m_exportable_nt_handle_info_security_attributes_specified(false),
