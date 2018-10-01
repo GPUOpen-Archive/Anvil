@@ -293,7 +293,7 @@ namespace Anvil
         Anvil::BufferUniquePtr               m_staging_buffer_ptr;
         Anvil::Queue*                        m_staging_buffer_queue_ptr;
 
-        VkBufferCreateFlagsVariable(m_create_flags);
+        Anvil::BufferCreateFlags m_create_flags;
 
         std::vector<MemoryBlockUniquePtr> m_owned_memory_blocks;
         bool                              m_prefers_dedicated_allocation;

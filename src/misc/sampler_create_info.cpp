@@ -22,22 +22,22 @@
 
 #include "misc/sampler_create_info.h"
 
-Anvil::SamplerCreateInfoUniquePtr Anvil::SamplerCreateInfo::create(const Anvil::BaseDevice* in_device_ptr,
-                                                                   VkFilter                 in_mag_filter,
-                                                                   VkFilter                 in_min_filter,
-                                                                   VkSamplerMipmapMode      in_mipmap_mode,
-                                                                   VkSamplerAddressMode     in_address_mode_u,
-                                                                   VkSamplerAddressMode     in_address_mode_v,
-                                                                   VkSamplerAddressMode     in_address_mode_w,
-                                                                   float                    in_lod_bias,
-                                                                   float                    in_max_anisotropy,
-                                                                   bool                     in_compare_enable,
-                                                                   VkCompareOp              in_compare_op,
-                                                                   float                    in_min_lod,
-                                                                   float                    in_max_lod,
-                                                                   VkBorderColor            in_border_color,
-                                                                   bool                     in_use_unnormalized_coordinates,
-                                                                   MTSafety                 in_mt_safety)
+Anvil::SamplerCreateInfoUniquePtr Anvil::SamplerCreateInfo::create(const Anvil::BaseDevice*    in_device_ptr,
+                                                                   Anvil::Filter               in_mag_filter,
+                                                                   Anvil::Filter               in_min_filter,
+                                                                   Anvil::SamplerMipmapMode    in_mipmap_mode,
+                                                                   Anvil::SamplerAddressMode   in_address_mode_u,
+                                                                   Anvil::SamplerAddressMode   in_address_mode_v,
+                                                                   Anvil::SamplerAddressMode   in_address_mode_w,
+                                                                   float                       in_lod_bias,
+                                                                   float                       in_max_anisotropy,
+                                                                   bool                        in_compare_enable,
+                                                                   Anvil::CompareOp            in_compare_op,
+                                                                   float                       in_min_lod,
+                                                                   float                       in_max_lod,
+                                                                   Anvil::BorderColor          in_border_color,
+                                                                   bool                        in_use_unnormalized_coordinates,
+                                                                   MTSafety                    in_mt_safety)
 {
     Anvil::SamplerCreateInfoUniquePtr result_ptr;
 
@@ -63,22 +63,22 @@ Anvil::SamplerCreateInfoUniquePtr Anvil::SamplerCreateInfo::create(const Anvil::
     return result_ptr;
 }
 
-Anvil::SamplerCreateInfo::SamplerCreateInfo(const Anvil::BaseDevice* in_device_ptr,
-                                            VkFilter                 in_mag_filter,
-                                            VkFilter                 in_min_filter,
-                                            VkSamplerMipmapMode      in_mipmap_mode,
-                                            VkSamplerAddressMode     in_address_mode_u,
-                                            VkSamplerAddressMode     in_address_mode_v,
-                                            VkSamplerAddressMode     in_address_mode_w,
-                                            float                    in_lod_bias,
-                                            float                    in_max_anisotropy,
-                                            bool                     in_compare_enable,
-                                            VkCompareOp              in_compare_op,
-                                            float                    in_min_lod,
-                                            float                    in_max_lod,
-                                            VkBorderColor            in_border_color,
-                                            bool                     in_use_unnormalized_coordinates,
-                                            MTSafety                 in_mt_safety)
+Anvil::SamplerCreateInfo::SamplerCreateInfo(const Anvil::BaseDevice*    in_device_ptr,
+                                            Anvil::Filter               in_mag_filter,
+                                            Anvil::Filter               in_min_filter,
+                                            Anvil::SamplerMipmapMode    in_mipmap_mode,
+                                            Anvil::SamplerAddressMode   in_address_mode_u,
+                                            Anvil::SamplerAddressMode   in_address_mode_v,
+                                            Anvil::SamplerAddressMode   in_address_mode_w,
+                                            float                       in_lod_bias,
+                                            float                       in_max_anisotropy,
+                                            bool                        in_compare_enable,
+                                            Anvil::CompareOp            in_compare_op,
+                                            float                       in_min_lod,
+                                            float                       in_max_lod,
+                                            Anvil::BorderColor          in_border_color,
+                                            bool                        in_use_unnormalized_coordinates,
+                                            MTSafety                    in_mt_safety)
     :m_address_mode_u              (in_address_mode_u),
      m_address_mode_v              (in_address_mode_v),
      m_address_mode_w              (in_address_mode_w),

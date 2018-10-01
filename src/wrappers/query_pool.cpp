@@ -43,7 +43,7 @@ Anvil::QueryPool::QueryPool(const Anvil::BaseDevice* in_device_ptr,
                  in_query_type == VK_QUERY_TYPE_TIMESTAMP);
 
     init(in_query_type,
-         0, /* in_flags - irrelevant */
+         Anvil::QueryPipelineStatisticFlagBits::NONE,
          in_n_max_concurrent_queries);
 
     /* Register the pool wrapper instance */
@@ -52,11 +52,11 @@ Anvil::QueryPool::QueryPool(const Anvil::BaseDevice* in_device_ptr,
 }
 
 /* Please see header for specification */
-Anvil::QueryPool::QueryPool(const Anvil::BaseDevice* in_device_ptr,
-                            VkQueryType              in_query_type,
-                            VkFlags                  in_query_flags,
-                            uint32_t                 in_n_max_concurrent_queries,
-                            bool                     in_mt_safe)
+Anvil::QueryPool::QueryPool(const Anvil::BaseDevice*           in_device_ptr,
+                            VkQueryType                        in_query_type,
+                            Anvil::QueryPipelineStatisticFlags in_pipeline_statistics,
+                            uint32_t                           in_n_max_concurrent_queries,
+                            bool                               in_mt_safe)
     :DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_QUERY_POOL_EXT),
      MTSafetySupportProvider   (in_mt_safe),
@@ -65,7 +65,7 @@ Anvil::QueryPool::QueryPool(const Anvil::BaseDevice* in_device_ptr,
      m_query_type              (in_query_type)
 {
     init(in_query_type,
-         in_query_flags,
+         in_pipeline_statistics,
          in_n_max_concurrent_queries);
 
     /* Register the pool wrapper instance */
@@ -117,10 +117,10 @@ Anvil::QueryPoolUniquePtr Anvil::QueryPool::create_non_ps_query_pool(const Anvil
 }
 
 /* Please see header for specification */
-Anvil::QueryPoolUniquePtr Anvil::QueryPool::create_ps_query_pool(const Anvil::BaseDevice*      in_device_ptr,
-                                                                 VkQueryPipelineStatisticFlags in_pipeline_statistics,
-                                                                 uint32_t                      in_n_max_concurrent_queries,
-                                                                 MTSafety                      in_mt_safety)
+Anvil::QueryPoolUniquePtr Anvil::QueryPool::create_ps_query_pool(const Anvil::BaseDevice*           in_device_ptr,
+                                                                 Anvil::QueryPipelineStatisticFlags in_pipeline_statistics,
+                                                                 uint32_t                           in_n_max_concurrent_queries,
+                                                                 MTSafety                           in_mt_safety)
 {
     const bool         mt_safe    = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
                                                                                     in_device_ptr);
@@ -138,12 +138,12 @@ Anvil::QueryPoolUniquePtr Anvil::QueryPool::create_ps_query_pool(const Anvil::Ba
     return result_ptr;
 }
 
-bool Anvil::QueryPool::get_query_pool_results_internal(const uint32_t&        in_first_query_index,
-                                                       const uint32_t&        in_n_queries,
-                                                       const QueryResultBits& in_query_props,
-                                                       const bool&            in_should_return_uint64,
-                                                       void*                  out_results_ptr,
-                                                       bool*                  out_all_query_results_retrieved_ptr)
+bool Anvil::QueryPool::get_query_pool_results_internal(const uint32_t&                in_first_query_index,
+                                                       const uint32_t&                in_n_queries,
+                                                       const Anvil::QueryResultFlags& in_query_props,
+                                                       const bool&                    in_should_return_uint64,
+                                                       void*                          out_results_ptr,
+                                                       bool*                          out_all_query_results_retrieved_ptr)
 {
     VkQueryResultFlags flags             = 0;
     uint32_t           result_query_size = 0;
@@ -167,7 +167,7 @@ bool Anvil::QueryPool::get_query_pool_results_internal(const uint32_t&        in
         result_query_size = sizeof(uint32_t);
     }
 
-    if (in_query_props & Anvil::QUERY_RESULT_PARTIAL_BIT)
+    if ((in_query_props & Anvil::QueryResultFlagBits::PARTIAL_BIT) != 0)
     {
         flags |= VK_QUERY_RESULT_PARTIAL_BIT;
 
@@ -179,12 +179,12 @@ bool Anvil::QueryPool::get_query_pool_results_internal(const uint32_t&        in
         }
     }
 
-    if (in_query_props & Anvil::QUERY_RESULT_WAIT_BIT)
+    if ((in_query_props & Anvil::QueryResultFlagBits::WAIT_BIT) != 0)
     {
         flags |= VK_QUERY_RESULT_WAIT_BIT;
     }
 
-    if (in_query_props & Anvil::QUERY_RESULT_WITH_AVAILABILITY_BIT)
+    if ((in_query_props & Anvil::QueryResultFlagBits::WITH_AVAILABILITY_BIT) != 0)
     {
         flags             |= VK_QUERY_RESULT_WITH_AVAILABILITY_BIT;
         result_query_size *= 2;
@@ -200,7 +200,7 @@ bool Anvil::QueryPool::get_query_pool_results_internal(const uint32_t&        in
                                       (in_should_return_uint64) ? sizeof(uint64_t) : sizeof(uint32_t),
                                       flags);
 
-    if (in_query_props & Anvil::QUERY_RESULT_PARTIAL_BIT)
+    if ((in_query_props & Anvil::QueryResultFlagBits::PARTIAL_BIT) != 0)
     {
         result                               = is_vk_call_successful(result_vk);
         *out_all_query_results_retrieved_ptr = (result_vk == VK_SUCCESS);
@@ -217,9 +217,9 @@ end:
 }
 
 /* Please see header for specification */
-void Anvil::QueryPool::init(VkQueryType in_query_type,
-                            VkFlags     in_query_flags,
-                            uint32_t    in_n_max_concurrent_queries)
+void Anvil::QueryPool::init(VkQueryType                        in_query_type,
+                            Anvil::QueryPipelineStatisticFlags in_pipeline_statistics,
+                            uint32_t                           in_n_max_concurrent_queries)
 {
     VkQueryPoolCreateInfo create_info;
     VkResult              result_vk   (VK_ERROR_INITIALIZATION_FAILED);
@@ -227,7 +227,8 @@ void Anvil::QueryPool::init(VkQueryType in_query_type,
     ANVIL_REDUNDANT_VARIABLE(result_vk);
 
     create_info.flags              = 0;
-    create_info.pipelineStatistics = (in_query_type == VK_QUERY_TYPE_PIPELINE_STATISTICS) ? in_query_flags : 0;
+    create_info.pipelineStatistics = (in_query_type == VK_QUERY_TYPE_PIPELINE_STATISTICS) ? in_pipeline_statistics.get_vk()
+                                                                                          : 0;
     create_info.pNext              = nullptr;
     create_info.queryCount         = in_n_max_concurrent_queries;
     create_info.queryType          = in_query_type;

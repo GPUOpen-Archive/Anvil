@@ -108,7 +108,6 @@ bool Anvil::GraphicsPipelineManager::bake()
     auto                                   color_blend_state_create_info_items_vk_cache       = std::vector<VkPipelineColorBlendStateCreateInfo>      ();
     auto                                   depth_stencil_state_create_info_items_vk_cache     = std::vector<VkPipelineDepthStencilStateCreateInfo>    ();
     auto                                   dynamic_state_create_info_items_vk_cache           = std::vector<VkPipelineDynamicStateCreateInfo>         ();
-    auto                                   enabled_dynamic_states_vk_cache                    = std::vector<VkDynamicState>                           ();
     auto                                   graphics_pipeline_create_info_chains               = Anvil::StructChainVector<VkGraphicsPipelineCreateInfo>();
     auto                                   input_assembly_state_create_info_items_vk_cache    = std::vector<VkPipelineInputAssemblyStateCreateInfo>   ();
     auto                                   multisample_state_create_info_items_vk_cache       = std::vector<VkPipelineMultisampleStateCreateInfo>     ();
@@ -148,7 +147,6 @@ bool Anvil::GraphicsPipelineManager::bake()
     color_blend_state_create_info_items_vk_cache.reserve     (N_CACHE_ITEMS);
     depth_stencil_state_create_info_items_vk_cache.reserve   (N_CACHE_ITEMS);
     dynamic_state_create_info_items_vk_cache.reserve         (N_CACHE_ITEMS);
-    enabled_dynamic_states_vk_cache.reserve                  (N_CACHE_ITEMS);
     input_assembly_state_create_info_items_vk_cache.reserve  (N_CACHE_ITEMS);
     multisample_state_create_info_items_vk_cache.reserve     (N_CACHE_ITEMS);
     raster_state_create_info_chains_vk_cache.reserve         (N_CACHE_ITEMS);
@@ -206,6 +204,8 @@ bool Anvil::GraphicsPipelineManager::bake()
         bool                                               dynamic_state_used                    = false;
         Anvil::StructChainer<VkGraphicsPipelineCreateInfo> graphics_pipeline_create_info_chainer;
         VkPipelineInputAssemblyStateCreateInfo             input_assembly_state_create_info;
+        bool                                               is_dynamic_scissor_state_enabled      = false;
+        bool                                               is_dynamic_viewport_state_enabled     = false;
         bool                                               multisample_state_used                = false;
         uint32_t                                           subpass_n_color_attachments           = 0;
         bool                                               tessellation_state_used               = false;
@@ -228,7 +228,7 @@ bool Anvil::GraphicsPipelineManager::bake()
 
         /* Extract subpass information */
         current_pipeline_renderpass_ptr->get_render_pass_create_info()->get_subpass_n_attachments(current_pipeline_subpass_id,
-                                                                                                  ATTACHMENT_TYPE_COLOR,
+                                                                                                  Anvil::AttachmentType::COLOR,
                                                                                                  &subpass_n_color_attachments);
 
         /* Form the color blend state create info descriptor, if needed */
@@ -238,7 +238,7 @@ bool Anvil::GraphicsPipelineManager::bake()
             {
                 const float*                        blend_constant_ptr            = nullptr;
                 VkPipelineColorBlendStateCreateInfo color_blend_state_create_info;
-                VkLogicOp                           logic_op;
+                Anvil::LogicOp                      logic_op                      = Anvil::LogicOp::UNKNOWN;
                 bool                                logic_op_enabled              = false;
                 uint32_t                            max_location_index            = UINT32_MAX;
                 const uint32_t                      start_offset                  = static_cast<uint32_t>(color_blend_attachment_states_vk_cache.size() );
@@ -253,7 +253,7 @@ bool Anvil::GraphicsPipelineManager::bake()
 
                 color_blend_state_create_info.attachmentCount       = max_location_index + 1;
                 color_blend_state_create_info.flags                 = 0;
-                color_blend_state_create_info.logicOp               = logic_op;
+                color_blend_state_create_info.logicOp               = static_cast<VkLogicOp>(logic_op);
                 color_blend_state_create_info.logicOpEnable         = (logic_op_enabled) ? VK_TRUE : VK_FALSE;
                 color_blend_state_create_info.pAttachments          = nullptr;
                 color_blend_state_create_info.pNext                 = nullptr;
@@ -276,20 +276,28 @@ bool Anvil::GraphicsPipelineManager::bake()
                     bool                                 is_blending_enabled_for_attachment = false;
                     Anvil::RenderPassAttachmentID        rp_attachment_id                   = UINT32_MAX;
 
+                    Anvil::BlendOp             alpha_blend_op         = Anvil::BlendOp::UNKNOWN;
+                    Anvil::BlendOp             color_blend_op         = Anvil::BlendOp::UNKNOWN;
+                    Anvil::ColorComponentFlags color_component_flags  = Anvil::ColorComponentFlagBits::NONE;
+                    Anvil::BlendFactor         dst_alpha_blend_factor = Anvil::BlendFactor::UNKNOWN;
+                    Anvil::BlendFactor         dst_color_blend_factor = Anvil::BlendFactor::UNKNOWN;
+                    Anvil::BlendFactor         src_alpha_blend_factor = Anvil::BlendFactor::UNKNOWN;
+                    Anvil::BlendFactor         src_color_blend_factor = Anvil::BlendFactor::UNKNOWN;
+
                     if (!current_pipeline_renderpass_ptr->get_render_pass_create_info()->get_subpass_attachment_properties(current_pipeline_subpass_id,
-                                                                                                                           Anvil::ATTACHMENT_TYPE_COLOR,
+                                                                                                                           Anvil::AttachmentType::COLOR,
                                                                                                                            n_subpass_color_attachment,
                                                                                                                           &rp_attachment_id,
                                                                                                                           &dummy) || /* out_layout_ptr */
                         !current_pipeline_create_info_ptr->get_color_blend_attachment_properties                          (rp_attachment_id,
                                                                                                                           &is_blending_enabled_for_attachment,
-                                                                                                                          &blend_attachment_state_ptr->colorBlendOp,
-                                                                                                                          &blend_attachment_state_ptr->alphaBlendOp,
-                                                                                                                          &blend_attachment_state_ptr->srcColorBlendFactor,
-                                                                                                                          &blend_attachment_state_ptr->dstColorBlendFactor,
-                                                                                                                          &blend_attachment_state_ptr->srcAlphaBlendFactor,
-                                                                                                                          &blend_attachment_state_ptr->dstAlphaBlendFactor,
-                                                                                                                          &blend_attachment_state_ptr->colorWriteMask) )
+                                                                                                                          &color_blend_op,
+                                                                                                                          &alpha_blend_op,
+                                                                                                                          &src_color_blend_factor,
+                                                                                                                          &dst_color_blend_factor,
+                                                                                                                          &src_alpha_blend_factor,
+                                                                                                                          &dst_alpha_blend_factor,
+                                                                                                                          &color_component_flags) )
                     {
                         /* The user has not defined blending properties for current color attachment. Use default state values .. */
                         blend_attachment_state_ptr->blendEnable         = VK_FALSE;
@@ -306,7 +314,14 @@ bool Anvil::GraphicsPipelineManager::bake()
                     }
                     else
                     {
-                        blend_attachment_state_ptr->blendEnable = (is_blending_enabled_for_attachment) ? VK_TRUE : VK_FALSE;
+                        blend_attachment_state_ptr->alphaBlendOp        = static_cast<VkBlendOp>(alpha_blend_op);
+                        blend_attachment_state_ptr->blendEnable         = (is_blending_enabled_for_attachment) ? VK_TRUE : VK_FALSE;
+                        blend_attachment_state_ptr->colorBlendOp        = static_cast<VkBlendOp>    (color_blend_op);
+                        blend_attachment_state_ptr->colorWriteMask      = color_component_flags.get_vk();
+                        blend_attachment_state_ptr->dstAlphaBlendFactor = static_cast<VkBlendFactor>(dst_alpha_blend_factor);
+                        blend_attachment_state_ptr->dstColorBlendFactor = static_cast<VkBlendFactor>(dst_color_blend_factor);
+                        blend_attachment_state_ptr->srcAlphaBlendFactor = static_cast<VkBlendFactor>(src_alpha_blend_factor);
+                        blend_attachment_state_ptr->srcColorBlendFactor = static_cast<VkBlendFactor>(src_color_blend_factor);
                     }
                 }
 
@@ -333,7 +348,7 @@ bool Anvil::GraphicsPipelineManager::bake()
         /* Form the depth stencil state create info descriptor, if needed */
         {
             VkPipelineDepthStencilStateCreateInfo depth_stencil_state_create_info;
-            VkCompareOp                           depth_test_compare_op            = VK_COMPARE_OP_MAX_ENUM;
+            auto                                  depth_test_compare_op            = Anvil::CompareOp::UNKNOWN;
             bool                                  is_depth_bounds_test_enabled     = false;
             bool                                  is_depth_test_enabled            = false;
             bool                                  is_stencil_test_enabled          = false;
@@ -348,30 +363,49 @@ bool Anvil::GraphicsPipelineManager::bake()
             current_pipeline_create_info_ptr->get_depth_test_state(&is_depth_test_enabled,
                                                                    &depth_test_compare_op);
 
-            current_pipeline_create_info_ptr->get_stencil_test_properties(&is_stencil_test_enabled,
-                                                                          &depth_stencil_state_create_info.front.failOp,
-                                                                          &depth_stencil_state_create_info.front.passOp,
-                                                                          &depth_stencil_state_create_info.front.depthFailOp,
-                                                                          &depth_stencil_state_create_info.front.compareOp,
-                                                                          &depth_stencil_state_create_info.front.compareMask,
-                                                                          &depth_stencil_state_create_info.front.writeMask,
-                                                                          &depth_stencil_state_create_info.front.reference,
-                                                                          &depth_stencil_state_create_info.back.failOp,
-                                                                          &depth_stencil_state_create_info.back.passOp,
-                                                                          &depth_stencil_state_create_info.back.depthFailOp,
-                                                                          &depth_stencil_state_create_info.back.compareOp,
-                                                                          &depth_stencil_state_create_info.back.compareMask,
-                                                                          &depth_stencil_state_create_info.back.writeMask,
-                                                                          &depth_stencil_state_create_info.back.reference);
+            {
+                Anvil::CompareOp back_compare_op     = Anvil::CompareOp::UNKNOWN;
+                Anvil::StencilOp back_depth_fail_op  = Anvil::StencilOp::UNKNOWN;
+                Anvil::StencilOp back_fail_op        = Anvil::StencilOp::UNKNOWN;
+                Anvil::StencilOp back_pass_op        = Anvil::StencilOp::UNKNOWN;
+                Anvil::CompareOp front_compare_op    = Anvil::CompareOp::UNKNOWN;
+                Anvil::StencilOp front_depth_fail_op = Anvil::StencilOp::UNKNOWN;
+                Anvil::StencilOp front_fail_op       = Anvil::StencilOp::UNKNOWN;
+                Anvil::StencilOp front_pass_op       = Anvil::StencilOp::UNKNOWN;
+
+                current_pipeline_create_info_ptr->get_stencil_test_properties(&is_stencil_test_enabled,
+                                                                              &front_fail_op,
+                                                                              &front_pass_op,
+                                                                              &front_depth_fail_op,
+                                                                              &front_compare_op,
+                                                                              &depth_stencil_state_create_info.front.compareMask,
+                                                                              &depth_stencil_state_create_info.front.writeMask,
+                                                                              &depth_stencil_state_create_info.front.reference,
+                                                                              &back_fail_op,
+                                                                              &back_pass_op,
+                                                                              &back_depth_fail_op,
+                                                                              &back_compare_op,
+                                                                              &depth_stencil_state_create_info.back.compareMask,
+                                                                              &depth_stencil_state_create_info.back.writeMask,
+                                                                              &depth_stencil_state_create_info.back.reference);\
+                depth_stencil_state_create_info.back.compareOp    = static_cast<VkCompareOp>(back_compare_op);
+                depth_stencil_state_create_info.back.depthFailOp  = static_cast<VkStencilOp>(back_depth_fail_op);
+                depth_stencil_state_create_info.back.failOp       = static_cast<VkStencilOp>(back_fail_op);
+                depth_stencil_state_create_info.back.passOp       = static_cast<VkStencilOp>(back_pass_op);
+                depth_stencil_state_create_info.front.compareOp   = static_cast<VkCompareOp>(front_compare_op);
+                depth_stencil_state_create_info.front.depthFailOp = static_cast<VkStencilOp>(front_depth_fail_op);
+                depth_stencil_state_create_info.front.failOp      = static_cast<VkStencilOp>(front_fail_op);
+                depth_stencil_state_create_info.front.passOp      = static_cast<VkStencilOp>(front_pass_op);
+            }
 
             current_pipeline_renderpass_ptr->get_render_pass_create_info()->get_subpass_n_attachments(current_pipeline_create_info_ptr->get_subpass_id(),
-                                                                                                      ATTACHMENT_TYPE_DEPTH_STENCIL,
+                                                                                                      Anvil::AttachmentType::DEPTH_STENCIL,
                                                                                                      &n_depth_stencil_attachments);
 
             if (n_depth_stencil_attachments)
             {
                 depth_stencil_state_create_info.depthBoundsTestEnable = is_depth_bounds_test_enabled ? VK_TRUE : VK_FALSE;
-                depth_stencil_state_create_info.depthCompareOp        = depth_test_compare_op;
+                depth_stencil_state_create_info.depthCompareOp        = static_cast<VkCompareOp>(depth_test_compare_op);
                 depth_stencil_state_create_info.depthTestEnable       = is_depth_test_enabled                                        ? VK_TRUE : VK_FALSE;
                 depth_stencil_state_create_info.depthWriteEnable      = current_pipeline_create_info_ptr->are_depth_writes_enabled() ? VK_TRUE : VK_FALSE;
                 depth_stencil_state_create_info.flags                 = 0;
@@ -399,61 +433,19 @@ bool Anvil::GraphicsPipelineManager::bake()
 
         /* Form the dynamic state create info descriptor, if needed */
         {
-            const auto& enabled_dynamic_states = current_pipeline_create_info_ptr->get_enabled_dynamic_states();
+            const Anvil::DynamicState* enabled_dynamic_states_ptr = nullptr;
+            uint32_t                   n_enabled_dynamic_states   = 0;
 
-            if (enabled_dynamic_states != 0)
+            current_pipeline_create_info_ptr->get_enabled_dynamic_states(&enabled_dynamic_states_ptr,
+                                                                         &n_enabled_dynamic_states);
+
+            if (n_enabled_dynamic_states != 0)
             {
                 VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
-                const uint32_t                   start_offset = static_cast<uint32_t>(enabled_dynamic_states_vk_cache.size() );
 
-                if ((enabled_dynamic_states & DYNAMIC_STATE_BLEND_CONSTANTS_BIT) != 0)
-                {
-                    enabled_dynamic_states_vk_cache.push_back(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
-                }
-
-                if ((enabled_dynamic_states & DYNAMIC_STATE_DEPTH_BIAS_BIT) != 0)
-                {
-                    enabled_dynamic_states_vk_cache.push_back(VK_DYNAMIC_STATE_DEPTH_BIAS);
-                }
-
-                if ((enabled_dynamic_states & DYNAMIC_STATE_DEPTH_BOUNDS_BIT) != 0)
-                {
-                    enabled_dynamic_states_vk_cache.push_back(VK_DYNAMIC_STATE_DEPTH_BOUNDS);
-                }
-
-                if ((enabled_dynamic_states & DYNAMIC_STATE_LINE_WIDTH_BIT) != 0)
-                {
-                    enabled_dynamic_states_vk_cache.push_back(VK_DYNAMIC_STATE_LINE_WIDTH);
-                }
-
-                if ((enabled_dynamic_states & DYNAMIC_STATE_SCISSOR_BIT) != 0)
-                {
-                    enabled_dynamic_states_vk_cache.push_back(VK_DYNAMIC_STATE_SCISSOR);
-                }
-
-                if ((enabled_dynamic_states & DYNAMIC_STATE_STENCIL_COMPARE_MASK_BIT) != 0)
-                {
-                    enabled_dynamic_states_vk_cache.push_back(VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
-                }
-
-                if ((enabled_dynamic_states & DYNAMIC_STATE_STENCIL_REFERENCE_BIT) != 0)
-                {
-                    enabled_dynamic_states_vk_cache.push_back(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
-                }
-
-                if ((enabled_dynamic_states & DYNAMIC_STATE_STENCIL_WRITE_MASK_BIT) != 0)
-                {
-                    enabled_dynamic_states_vk_cache.push_back(VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
-                }
-
-                if ((enabled_dynamic_states & DYNAMIC_STATE_VIEWPORT_BIT) != 0)
-                {
-                    enabled_dynamic_states_vk_cache.push_back(VK_DYNAMIC_STATE_VIEWPORT);
-                }
-
-                dynamic_state_create_info.dynamicStateCount = static_cast<uint32_t>(enabled_dynamic_states_vk_cache.size() - start_offset);
+                dynamic_state_create_info.dynamicStateCount = n_enabled_dynamic_states;
                 dynamic_state_create_info.flags             = 0;
-                dynamic_state_create_info.pDynamicStates    = (dynamic_state_create_info.dynamicStateCount > 0) ? &enabled_dynamic_states_vk_cache[start_offset]
+                dynamic_state_create_info.pDynamicStates    = (dynamic_state_create_info.dynamicStateCount > 0) ? reinterpret_cast<const VkDynamicState*>(enabled_dynamic_states_ptr)
                                                                                                                 : VK_NULL_HANDLE;
                 dynamic_state_create_info.pNext             = nullptr;
                 dynamic_state_create_info.sType             = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -461,6 +453,21 @@ bool Anvil::GraphicsPipelineManager::bake()
                 dynamic_state_used = true;
 
                 dynamic_state_create_info_items_vk_cache.push_back(dynamic_state_create_info);
+
+                for (uint32_t n_dynamic_state = 0;
+                              n_dynamic_state < n_enabled_dynamic_states;
+                            ++n_dynamic_state)
+                {
+                    if (enabled_dynamic_states_ptr[n_dynamic_state] == Anvil::DynamicState::SCISSOR)
+                    {
+                        is_dynamic_scissor_state_enabled = true;
+                    }
+
+                    if (enabled_dynamic_states_ptr[n_dynamic_state] == Anvil::DynamicState::VIEWPORT)
+                    {
+                        is_dynamic_viewport_state_enabled = true;
+                    }
+                }
             }
             else
             {
@@ -474,7 +481,7 @@ bool Anvil::GraphicsPipelineManager::bake()
             input_assembly_state_create_info.pNext                  = nullptr;
             input_assembly_state_create_info.primitiveRestartEnable = current_pipeline_create_info_ptr->is_primitive_restart_enabled() ? VK_TRUE : VK_FALSE;
             input_assembly_state_create_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-            input_assembly_state_create_info.topology               = current_pipeline_create_info_ptr->get_primitive_topology();
+            input_assembly_state_create_info.topology               = static_cast<VkPrimitiveTopology>(current_pipeline_create_info_ptr->get_primitive_topology() );
 
             input_assembly_state_create_info_items_vk_cache.push_back(input_assembly_state_create_info);
         }
@@ -532,14 +539,14 @@ bool Anvil::GraphicsPipelineManager::bake()
 
         /* Form the raster state create info chain */
         {
-            VkCullModeFlags                                              cull_mode                  = VK_CULL_MODE_FLAG_BITS_MAX_ENUM;
+            Anvil::CullModeFlags                                         cull_mode                  = Anvil::CullModeFlagBits::NONE;
             float                                                        depth_bias_clamp           = std::numeric_limits<float>::max();
             float                                                        depth_bias_constant_factor = std::numeric_limits<float>::max();
             float                                                        depth_bias_slope_factor    = std::numeric_limits<float>::max();
-            VkFrontFace                                                  front_face                 = VK_FRONT_FACE_MAX_ENUM;
+            Anvil::FrontFace                                             front_face                 = Anvil::FrontFace::UNKNOWN;
             bool                                                         is_depth_bias_enabled      = false;
             float                                                        line_width                 = std::numeric_limits<float>::max();
-            VkPolygonMode                                                polygon_mode               = VK_POLYGON_MODE_MAX_ENUM;
+            Anvil::PolygonMode                                           polygon_mode               = Anvil::PolygonMode::UNKNOWN;
             Anvil::StructChainer<VkPipelineRasterizationStateCreateInfo> raster_state_create_info_chainer;
 
             current_pipeline_create_info_ptr->get_depth_bias_state        (&is_depth_bias_enabled,
@@ -554,17 +561,17 @@ bool Anvil::GraphicsPipelineManager::bake()
             {
                 VkPipelineRasterizationStateCreateInfo raster_state_create_info;
 
-                raster_state_create_info.cullMode                = cull_mode;
+                raster_state_create_info.cullMode                = cull_mode.get_vk();
                 raster_state_create_info.depthBiasClamp          = depth_bias_clamp;
                 raster_state_create_info.depthBiasConstantFactor = depth_bias_constant_factor;
                 raster_state_create_info.depthBiasEnable         = is_depth_bias_enabled ? VK_TRUE : VK_FALSE;
                 raster_state_create_info.depthBiasSlopeFactor    = depth_bias_slope_factor;
                 raster_state_create_info.depthClampEnable        = current_pipeline_create_info_ptr->is_depth_clamp_enabled() ? VK_TRUE : VK_FALSE;
                 raster_state_create_info.flags                   = 0;
-                raster_state_create_info.frontFace               = front_face;
+                raster_state_create_info.frontFace               = static_cast<VkFrontFace>(front_face);
                 raster_state_create_info.lineWidth               = line_width;
                 raster_state_create_info.pNext                   = nullptr;
-                raster_state_create_info.polygonMode             = polygon_mode;
+                raster_state_create_info.polygonMode             = static_cast<VkPolygonMode>(polygon_mode);
                 raster_state_create_info.rasterizerDiscardEnable = current_pipeline_create_info_ptr->is_rasterizer_discard_enabled() ? VK_TRUE : VK_FALSE;
                 raster_state_create_info.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 
@@ -576,9 +583,9 @@ bool Anvil::GraphicsPipelineManager::bake()
                 /* Chain a predefined struct which will toggle the relaxed rasterization, as long as the device supports the
                  * VK_AMD_rasterization_order extension.
                  */
-                if (current_pipeline_create_info_ptr->get_rasterization_order() != VK_RASTERIZATION_ORDER_STRICT_AMD)
+                if (current_pipeline_create_info_ptr->get_rasterization_order() != Anvil::RasterizationOrderAMD::STRICT)
                 {
-                    anvil_assert(current_pipeline_create_info_ptr->get_rasterization_order() == relaxed_rasterization_order_item.rasterizationOrder);
+                    anvil_assert(current_pipeline_create_info_ptr->get_rasterization_order() == static_cast<Anvil::RasterizationOrderAMD>(relaxed_rasterization_order_item.rasterizationOrder) );
 
                     raster_state_create_info_chainer.append_struct(relaxed_rasterization_order_item);
                 }
@@ -588,7 +595,7 @@ bool Anvil::GraphicsPipelineManager::bake()
                 }
             }
             else
-            if (current_pipeline_create_info_ptr->get_rasterization_order() != VK_RASTERIZATION_ORDER_STRICT_AMD)
+            if (current_pipeline_create_info_ptr->get_rasterization_order() != Anvil::RasterizationOrderAMD::STRICT)
             {
                 fprintf(stderr,
                         "[!] Cannot enable out-of-order rasterization - VK_AMD_rasterization_order extension not enabled at device creation time\n");
@@ -604,11 +611,11 @@ bool Anvil::GraphicsPipelineManager::bake()
         {
             static const Anvil::ShaderStage graphics_shader_stages[] =
             {
-                Anvil::SHADER_STAGE_FRAGMENT,
-                Anvil::SHADER_STAGE_GEOMETRY,
-                Anvil::SHADER_STAGE_TESSELLATION_CONTROL,
-                Anvil::SHADER_STAGE_TESSELLATION_EVALUATION,
-                Anvil::SHADER_STAGE_VERTEX
+                Anvil::ShaderStage::FRAGMENT,
+                Anvil::ShaderStage::GEOMETRY,
+                Anvil::ShaderStage::TESSELLATION_CONTROL,
+                Anvil::ShaderStage::TESSELLATION_EVALUATION,
+                Anvil::ShaderStage::VERTEX
             };
 
             for (const auto& current_graphics_shader_stage : graphics_shader_stages)
@@ -642,18 +649,18 @@ bool Anvil::GraphicsPipelineManager::bake()
                     shader_module_ptr = shader_stage_entry_point_ptr->shader_module_ptr;
 
                     current_shader_stage_create_info.module = shader_module_ptr->get_module();
-                    current_shader_stage_create_info.pName  = (shader_stage_entry_point_ptr->stage == Anvil::SHADER_STAGE_FRAGMENT)                ? shader_module_ptr->get_fs_entrypoint_name().c_str()
-                                                            : (shader_stage_entry_point_ptr->stage == Anvil::SHADER_STAGE_GEOMETRY)                ? shader_module_ptr->get_gs_entrypoint_name().c_str()
-                                                            : (shader_stage_entry_point_ptr->stage == Anvil::SHADER_STAGE_TESSELLATION_CONTROL)    ? shader_module_ptr->get_tc_entrypoint_name().c_str()
-                                                            : (shader_stage_entry_point_ptr->stage == Anvil::SHADER_STAGE_TESSELLATION_EVALUATION) ? shader_module_ptr->get_te_entrypoint_name().c_str()
-                                                            : (shader_stage_entry_point_ptr->stage == Anvil::SHADER_STAGE_VERTEX)                  ? shader_module_ptr->get_vs_entrypoint_name().c_str()
+                    current_shader_stage_create_info.pName  = (shader_stage_entry_point_ptr->stage == Anvil::ShaderStage::FRAGMENT)                ? shader_module_ptr->get_fs_entrypoint_name().c_str()
+                                                            : (shader_stage_entry_point_ptr->stage == Anvil::ShaderStage::GEOMETRY)                ? shader_module_ptr->get_gs_entrypoint_name().c_str()
+                                                            : (shader_stage_entry_point_ptr->stage == Anvil::ShaderStage::TESSELLATION_CONTROL)    ? shader_module_ptr->get_tc_entrypoint_name().c_str()
+                                                            : (shader_stage_entry_point_ptr->stage == Anvil::ShaderStage::TESSELLATION_EVALUATION) ? shader_module_ptr->get_te_entrypoint_name().c_str()
+                                                            : (shader_stage_entry_point_ptr->stage == Anvil::ShaderStage::VERTEX)                  ? shader_module_ptr->get_vs_entrypoint_name().c_str()
                                                             : nullptr;
 
                     current_shader_stage_create_info.flags               = 0;
                     current_shader_stage_create_info.pNext               = nullptr;
                     current_shader_stage_create_info.pSpecializationInfo = (current_shader_stage_specialization_constants_ptr->size() > 0) ? &specialization_info_vk_cache.back()
                                                                                                                                            : VK_NULL_HANDLE;
-                    current_shader_stage_create_info.stage               = Anvil::Utils::get_shader_stage_flag_bits_from_shader_stage(shader_stage_entry_point_ptr->stage);
+                    current_shader_stage_create_info.stage               = static_cast<VkShaderStageFlagBits>(Anvil::Utils::get_shader_stage_flag_bits_from_shader_stage(shader_stage_entry_point_ptr->stage) );
                     current_shader_stage_create_info.sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 
                     shader_stage_create_info_items_vk_cache.push_back(current_shader_stage_create_info);
@@ -666,9 +673,9 @@ bool Anvil::GraphicsPipelineManager::bake()
             const Anvil::ShaderModuleStageEntryPoint* tc_shader_stage_entry_point_ptr = nullptr;
             const Anvil::ShaderModuleStageEntryPoint* te_shader_stage_entry_point_ptr = nullptr;
 
-            current_pipeline_create_info_ptr->get_shader_stage_properties(Anvil::SHADER_STAGE_TESSELLATION_CONTROL,
+            current_pipeline_create_info_ptr->get_shader_stage_properties(Anvil::ShaderStage::TESSELLATION_CONTROL,
                                                                          &tc_shader_stage_entry_point_ptr);
-            current_pipeline_create_info_ptr->get_shader_stage_properties(Anvil::SHADER_STAGE_TESSELLATION_EVALUATION,
+            current_pipeline_create_info_ptr->get_shader_stage_properties(Anvil::ShaderStage::TESSELLATION_EVALUATION,
                                                                          &te_shader_stage_entry_point_ptr);
 
             if (tc_shader_stage_entry_point_ptr != nullptr &&
@@ -788,11 +795,10 @@ bool Anvil::GraphicsPipelineManager::bake()
         /* Form the viewport state create info descriptor, if needed */
         if (!current_pipeline_create_info_ptr->is_rasterizer_discard_enabled() )
         {
-            const auto                        enabled_dynamic_states     = current_pipeline_create_info_ptr->get_enabled_dynamic_states();
-            uint32_t                          n_scissor_boxes            = (enabled_dynamic_states & DYNAMIC_STATE_SCISSOR_BIT)  ? current_pipeline_create_info_ptr->get_n_dynamic_scissor_boxes()
-                                                                                                                                 : current_pipeline_create_info_ptr->get_n_scissor_boxes        ();
-            uint32_t                          n_viewports                = (enabled_dynamic_states & DYNAMIC_STATE_VIEWPORT_BIT) ? current_pipeline_create_info_ptr->get_n_dynamic_viewports    ()
-                                                                                                                                 : current_pipeline_create_info_ptr->get_n_viewports            ();
+            uint32_t                          n_scissor_boxes            = (is_dynamic_scissor_state_enabled)  ? current_pipeline_create_info_ptr->get_n_dynamic_scissor_boxes()
+                                                                                                               : current_pipeline_create_info_ptr->get_n_scissor_boxes        ();
+            uint32_t                          n_viewports                = (is_dynamic_viewport_state_enabled) ? current_pipeline_create_info_ptr->get_n_dynamic_viewports    ()
+                                                                                                               : current_pipeline_create_info_ptr->get_n_viewports            ();
             const uint32_t                    scissor_boxes_start_offset = static_cast<uint32_t>(scissor_boxes_vk_cache.size() );
             const uint32_t                    viewports_start_offset     = static_cast<uint32_t>(viewports_vk_cache.size() );
             VkPipelineViewportStateCreateInfo viewport_state_create_info;
@@ -837,7 +843,7 @@ bool Anvil::GraphicsPipelineManager::bake()
             }
 
             /* Convert internal scissor box & viewport representations to Vulkan descriptors */
-            if ((enabled_dynamic_states & DYNAMIC_STATE_SCISSOR_BIT) == 0)
+            if (!is_dynamic_scissor_state_enabled)
             {
                 for (uint32_t n_scissor_box = 0;
                               n_scissor_box < n_scissor_boxes;
@@ -863,7 +869,7 @@ bool Anvil::GraphicsPipelineManager::bake()
                 }
             }
 
-            if ((enabled_dynamic_states & DYNAMIC_STATE_VIEWPORT_BIT) == 0)
+            if (!is_dynamic_viewport_state_enabled)
             {
                 for (uint32_t n_viewport = 0;
                               n_viewport < n_viewports;
@@ -899,10 +905,10 @@ bool Anvil::GraphicsPipelineManager::bake()
             /* Bake the descriptor */
             viewport_state_create_info.flags         = 0;
             viewport_state_create_info.pNext         = nullptr;
-            viewport_state_create_info.pScissors     = ((enabled_dynamic_states & DYNAMIC_STATE_SCISSOR_BIT)  != 0) ? VK_NULL_HANDLE
-                                                                                                                    : &scissor_boxes_vk_cache.at(scissor_boxes_start_offset);
-            viewport_state_create_info.pViewports    = ((enabled_dynamic_states & DYNAMIC_STATE_VIEWPORT_BIT) != 0) ? VK_NULL_HANDLE
-                                                                                                                    : &viewports_vk_cache.at(viewports_start_offset);
+            viewport_state_create_info.pScissors     = (is_dynamic_scissor_state_enabled)  ? VK_NULL_HANDLE
+                                                                                           : &scissor_boxes_vk_cache.at(scissor_boxes_start_offset);
+            viewport_state_create_info.pViewports    = (is_dynamic_viewport_state_enabled) ? VK_NULL_HANDLE
+                                                                                           : &viewports_vk_cache.at(viewports_start_offset);
             viewport_state_create_info.scissorCount  = n_scissor_boxes;
             viewport_state_create_info.sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
             viewport_state_create_info.viewportCount = n_viewports;
@@ -1027,7 +1033,6 @@ bool Anvil::GraphicsPipelineManager::bake()
         anvil_assert(color_blend_state_create_info_items_vk_cache.size()      <= N_CACHE_ITEMS);
         anvil_assert(depth_stencil_state_create_info_items_vk_cache.size()    <= N_CACHE_ITEMS);
         anvil_assert(dynamic_state_create_info_items_vk_cache.size()          <= N_CACHE_ITEMS);
-        anvil_assert(enabled_dynamic_states_vk_cache.size()                   <= N_CACHE_ITEMS);
         anvil_assert(input_assembly_state_create_info_items_vk_cache.size()   <= N_CACHE_ITEMS);
         anvil_assert(multisample_state_create_info_items_vk_cache.size()      <= N_CACHE_ITEMS);
         anvil_assert(raster_state_create_info_chains_vk_cache.size()          <= N_CACHE_ITEMS);
@@ -1147,7 +1152,7 @@ void Anvil::GraphicsPipelineManager::GraphicsPipelineData::bake_vk_attributes_an
         uint32_t                          current_attribute_location                      = UINT32_MAX;
         Anvil::Format                     current_attribute_format                        = Anvil::Format::UNKNOWN;
         uint32_t                          current_attribute_offset                        = UINT32_MAX;
-        VkVertexInputRate                 current_attribute_rate                          = VK_VERTEX_INPUT_RATE_MAX_ENUM;
+        Anvil::VertexInputRate            current_attribute_rate                          = Anvil::VertexInputRate::UNKNOWN;
         uint32_t                          current_attribute_stride                        = UINT32_MAX;
         VkVertexInputAttributeDescription current_attribute_vk;
         uint32_t                          n_attribute_binding                             = UINT32_MAX;
@@ -1198,7 +1203,7 @@ void Anvil::GraphicsPipelineManager::GraphicsPipelineData::bake_vk_attributes_an
 
             new_binding_vk.binding   = (current_attribute_explicit_vertex_binding_index == UINT32_MAX) ? static_cast<uint32_t>(vk_input_bindings.size() )
                                                                                                        : current_attribute_explicit_vertex_binding_index;
-            new_binding_vk.inputRate = current_attribute_rate;
+            new_binding_vk.inputRate = static_cast<VkVertexInputRate>(current_attribute_rate);
             new_binding_vk.stride    = current_attribute_stride;
 
             new_binding_anvil = VertexInputBinding(new_binding_vk,

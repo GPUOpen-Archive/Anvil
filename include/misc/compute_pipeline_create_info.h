@@ -54,7 +54,7 @@ namespace Anvil
                                          uint32_t    in_n_data_bytes,
                                          const void* in_data_ptr)
         {
-            return BasePipelineCreateInfo::add_specialization_constant(Anvil::SHADER_STAGE_COMPUTE,
+            return BasePipelineCreateInfo::add_specialization_constant(Anvil::ShaderStage::COMPUTE,
                                                                        in_constant_id,
                                                                        in_n_data_bytes,
                                                                        in_data_ptr);

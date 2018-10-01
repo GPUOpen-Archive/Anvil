@@ -74,7 +74,7 @@ Anvil::SemaphoreUniquePtr Anvil::Semaphore::create(Anvil::SemaphoreCreateInfoUni
 }
 
 /* Please see header for specification */
-Anvil::ExternalHandleUniquePtr Anvil::Semaphore::export_to_external_handle(const Anvil::ExternalSemaphoreHandleTypeBit& in_semaphore_handle_type)
+Anvil::ExternalHandleUniquePtr Anvil::Semaphore::export_to_external_handle(const Anvil::ExternalSemaphoreHandleTypeFlagBits& in_semaphore_handle_type)
 {
     #if defined(_WIN32)
         const auto invalid_handle                 = nullptr;
@@ -131,7 +131,7 @@ Anvil::ExternalHandleUniquePtr Anvil::Semaphore::export_to_external_handle(const
 
         anvil_assert(m_semaphore != VK_NULL_HANDLE);
 
-        info.handleType = static_cast<VkExternalSemaphoreHandleTypeFlagBits>(Anvil::Utils::convert_external_semaphore_handle_type_bits_to_vk_external_semaphore_handle_type_flags(in_semaphore_handle_type) );
+        info.handleType = static_cast<VkExternalSemaphoreHandleTypeFlagBits>(in_semaphore_handle_type);
         info.pNext      = nullptr;
         info.semaphore  = m_semaphore;
 
@@ -182,14 +182,14 @@ end:
 }
 
 #if defined(_WIN32)
-    bool Anvil::Semaphore::import_from_external_handle(const bool&                                  in_temporary_import,
-                                                       const Anvil::ExternalSemaphoreHandleTypeBit& in_handle_type,
-                                                       const ExternalHandleType&                    in_opt_handle,
-                                                       const std::wstring&                          in_opt_name)
+    bool Anvil::Semaphore::import_from_external_handle(const bool&                                       in_temporary_import,
+                                                       const Anvil::ExternalSemaphoreHandleTypeFlagBits& in_handle_type,
+                                                       const ExternalHandleType&                         in_opt_handle,
+                                                       const std::wstring&                               in_opt_name)
 #else
-    bool Anvil::Semaphore::import_from_external_handle(const bool&                                  in_temporary_import,
-                                                       const Anvil::ExternalSemaphoreHandleTypeBit& in_handle_type,
-                                                       const ExternalHandleType&                    in_handle)
+    bool Anvil::Semaphore::import_from_external_handle(const bool&                                       in_temporary_import,
+                                                       const Anvil::ExternalSemaphoreHandleTypeFlagBits& in_handle_type,
+                                                       const ExternalHandleType&                         in_handle)
 #endif
 {
     #if defined(_WIN32)
@@ -231,7 +231,7 @@ end:
 
         info_vk.flags      = (in_temporary_import) ? VK_SEMAPHORE_IMPORT_TEMPORARY_BIT_KHR
                                                    : 0;
-        info_vk.handleType = static_cast<VkExternalSemaphoreHandleTypeFlagBitsKHR>(Anvil::Utils::convert_external_semaphore_handle_type_bits_to_vk_external_semaphore_handle_type_flags(in_handle_type) );
+        info_vk.handleType = static_cast<VkExternalSemaphoreHandleTypeFlagBitsKHR>(in_handle_type);
         info_vk.pNext      = nullptr;
         info_vk.semaphore  = m_semaphore;
 
@@ -287,14 +287,14 @@ void Anvil::Semaphore::release_semaphore()
 /* Please see header for specification */
 bool Anvil::Semaphore::reset()
 {
-    VkResult                                           result               (VK_ERROR_INITIALIZATION_FAILED);
+    VkResult                                           result           (VK_ERROR_INITIALIZATION_FAILED);
     Anvil::StructChainer<VkSemaphoreCreateInfo>        struct_chainer;
     Anvil::StructChainUniquePtr<VkSemaphoreCreateInfo> struct_chain_ptr;
 
     release_semaphore();
 
     /* Sanity checks */
-    if (m_create_info_ptr->get_exportable_external_semaphore_handle_types() != Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_NONE)
+    if (m_create_info_ptr->get_exportable_external_semaphore_handle_types() != Anvil::ExternalSemaphoreHandleTypeFlagBits::NONE)
     {
         if (!m_device_ptr->get_extension_info()->khr_external_semaphore() )
         {
@@ -315,11 +315,11 @@ bool Anvil::Semaphore::reset()
         struct_chainer.append_struct(semaphore_create_info);
     }
 
-    if (m_create_info_ptr->get_exportable_external_semaphore_handle_types() != Anvil::EXTERNAL_FENCE_HANDLE_TYPE_NONE)
+    if (m_create_info_ptr->get_exportable_external_semaphore_handle_types() != Anvil::ExternalSemaphoreHandleTypeFlagBits::NONE)
     {
         VkExportSemaphoreCreateInfo create_info;
 
-        create_info.handleTypes = Anvil::Utils::convert_external_semaphore_handle_type_bits_to_vk_external_semaphore_handle_type_flags(m_create_info_ptr->get_exportable_external_semaphore_handle_types() );
+        create_info.handleTypes = m_create_info_ptr->get_exportable_external_semaphore_handle_types().get_vk();
         create_info.pNext       = nullptr;
         create_info.sType       = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO_KHR;
 
@@ -334,9 +334,9 @@ bool Anvil::Semaphore::reset()
         {
             VkExportSemaphoreWin32HandleInfoKHR handle_info;
 
-            anvil_assert( nt_handle_info_ptr                                                                                                            != nullptr);
-            anvil_assert((m_create_info_ptr->get_exportable_external_semaphore_handle_types() & Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT) ||
-                         (m_create_info_ptr->get_exportable_external_semaphore_handle_types() & Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT) );
+            anvil_assert( nt_handle_info_ptr                                                                                                                   != nullptr);
+            anvil_assert(((m_create_info_ptr->get_exportable_external_semaphore_handle_types() & Anvil::ExternalSemaphoreHandleTypeFlagBits::OPAQUE_WIN32_BIT) != 0)       ||
+                         ((m_create_info_ptr->get_exportable_external_semaphore_handle_types() & Anvil::ExternalSemaphoreHandleTypeFlagBits::D3D12_FENCE_BIT)  != 0));
 
             handle_info.dwAccess    = nt_handle_info_ptr->access;
             handle_info.name        = (nt_handle_info_ptr->name.size() > 0) ? &nt_handle_info_ptr->name.at(0)

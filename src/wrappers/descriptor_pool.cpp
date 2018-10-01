@@ -31,11 +31,11 @@
 
 
 /* Please see header for specification */
-Anvil::DescriptorPool::DescriptorPool(const Anvil::BaseDevice*          in_device_ptr,
-                                      uint32_t                          in_n_max_sets,
-                                      const Anvil::DescriptorPoolFlags& in_flags,
-                                      const uint32_t*                   in_descriptor_count_per_type_ptr,
-                                      bool                              in_mt_safe)
+Anvil::DescriptorPool::DescriptorPool(const Anvil::BaseDevice*                in_device_ptr,
+                                      uint32_t                                in_n_max_sets,
+                                      const Anvil::DescriptorPoolCreateFlags& in_flags,
+                                      const uint32_t*                         in_descriptor_count_per_type_ptr,
+                                      bool                                    in_mt_safe)
     :CallbacksSupportProvider  (DESCRIPTOR_POOL_CALLBACK_ID_COUNT),
      DebugMarkerSupportProvider(in_device_ptr,
                                 VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_POOL_EXT),
@@ -152,7 +152,7 @@ bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                      
 
                 if (ds_create_info_ptr->contains_variable_descriptor_count_binding() )
                 {
-                    if ((m_flags & Anvil::DESCRIPTOR_POOL_FLAG_CREATE_UPDATE_AFTER_BIND_BIT) != 0)
+                    if ((m_flags & Anvil::DescriptorPoolCreateFlagBits::UPDATE_AFTER_BIND_BIT) != 0)
                     {
                         anvil_assert_fail();
 
@@ -225,11 +225,11 @@ end:
 }
 
 /* Please see header for specification */
-Anvil::DescriptorPoolUniquePtr Anvil::DescriptorPool::create(const Anvil::BaseDevice*          in_device_ptr,
-                                                             uint32_t                          in_n_max_sets,
-                                                             const Anvil::DescriptorPoolFlags& in_flags,
-                                                             const uint32_t*                   in_descriptor_count_per_type_ptr,
-                                                             MTSafety                          in_mt_safety)
+Anvil::DescriptorPoolUniquePtr Anvil::DescriptorPool::create(const Anvil::BaseDevice*                in_device_ptr,
+                                                             uint32_t                                in_n_max_sets,
+                                                             const Anvil::DescriptorPoolCreateFlags& in_flags,
+                                                             const uint32_t*                         in_descriptor_count_per_type_ptr,
+                                                             MTSafety                                in_mt_safety)
 {
     const bool              is_mt_safe = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
                                                                                          in_device_ptr);
@@ -264,7 +264,7 @@ bool Anvil::DescriptorPool::init()
     bool                       result                                              (false);
     VkResult                   result_vk                                           (VK_ERROR_INITIALIZATION_FAILED);
 
-    if ((m_flags & Anvil::DESCRIPTOR_POOL_FLAG_CREATE_UPDATE_AFTER_BIND_BIT) != 0)
+    if ((m_flags & Anvil::DescriptorPoolCreateFlagBits::UPDATE_AFTER_BIND_BIT) != 0)
     {
         if (!m_device_ptr->get_extension_info()->ext_descriptor_indexing() )
         {
@@ -284,15 +284,14 @@ bool Anvil::DescriptorPool::init()
             uint32_t current_index = n_descriptor_types_used;
 
             descriptor_pool_sizes[current_index].descriptorCount = m_descriptor_count[n_descriptor_type];
-            descriptor_pool_sizes[current_index].type            = (VkDescriptorType) n_descriptor_type;
+            descriptor_pool_sizes[current_index].type            = static_cast<VkDescriptorType>(n_descriptor_type);
 
             n_descriptor_types_used++;
         }
     }
 
     /* Set up the descriptor pool instance */
-    descriptor_pool_create_info.flags         = ((m_flags & Anvil::DESCRIPTOR_POOL_FLAG_CREATE_FREE_DESCRIPTOR_SET_BIT) ? VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT   : 0u) |
-                                                ((m_flags & Anvil::DESCRIPTOR_POOL_FLAG_CREATE_UPDATE_AFTER_BIND_BIT)   ? VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT : 0u);
+    descriptor_pool_create_info.flags         = m_flags.get_vk();
     descriptor_pool_create_info.maxSets       = m_n_max_sets;
     descriptor_pool_create_info.pNext         = nullptr;
     descriptor_pool_create_info.poolSizeCount = n_descriptor_types_used;

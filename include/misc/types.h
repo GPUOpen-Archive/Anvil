@@ -24,6 +24,7 @@
 
 #include <array>
 #include <atomic>
+#include <climits>
 #include <cstdio>
 #include <forward_list>
 #include <mutex>
@@ -92,10 +93,6 @@
     #endif
 
     #include <string.h>
-
-    #ifndef nullptr
-        #define nullptr NULL
-    #endif
 #endif
 
 #include "vulkan/vulkan.h"

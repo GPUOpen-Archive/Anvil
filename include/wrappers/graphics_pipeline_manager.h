@@ -37,7 +37,7 @@
  *  Depth bias:                           0.0
  *  Depth bias clamp:                     0.0
  *  Depth bias slope factor:              1.0
- *  Depth test compare op:                VK_COMPARE_OP_ALWAYS
+ *  Depth test compare op:                Anvil::CompareOp::ALWAYS
  *  Depth writes:                         disabled
  *  Dynamic states:                       all disabled
  *  Fill mode:                            VK_FILL_MODE_SOLID
@@ -53,7 +53,7 @@
  *  Sample mask:                          0xFFFFFFFF
  *  Slope scaled depth bias:              0.0
  *  Stencil comparison mask (back/front): 0xFFFFFFFF
- *  Stencil comparison op   (back/front): VK_COMPARE_OP_ALWAYS
+ *  Stencil comparison op   (back/front): Anvil::CompareOp::ALWAYS
  *  Stencil depth fail op   (back/front): VK_STENCIL_OP_KEEP
  *  Stencil fail op         (back/front): VK_STENCIL_OP_KEEP
  *  Stencil pass op         (back/front): VK_STENCIL_OP_KEEP
@@ -121,16 +121,16 @@ namespace Anvil
 
         typedef struct VertexInputBinding
         {
-            uint32_t          binding;
-            uint32_t          divisor;
-            VkVertexInputRate input_rate;
-            uint32_t          stride;
+            uint32_t               binding;
+            uint32_t               divisor;
+            Anvil::VertexInputRate input_rate;
+            uint32_t               stride;
 
             VertexInputBinding()
             {
                 binding    = 0;
                 divisor    = 0;
-                input_rate = VK_VERTEX_INPUT_RATE_MAX_ENUM;
+                input_rate = Anvil::VertexInputRate::UNKNOWN;
                 stride     = 0;
             }
 
@@ -139,7 +139,7 @@ namespace Anvil
             {
                 binding    = in_binding_vk.binding;
                 divisor    = in_divisor;
-                input_rate = in_binding_vk.inputRate;
+                input_rate = static_cast<Anvil::VertexInputRate>(in_binding_vk.inputRate);
                 stride     = in_binding_vk.stride;
             }
         } VertexInputBinding;

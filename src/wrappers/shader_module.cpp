@@ -52,13 +52,13 @@ Anvil::ShaderModule::ShaderModule(const Anvil::BaseDevice*    in_device_ptr,
     anvil_assert(shader_spirv_blob      != nullptr);
     anvil_assert(shader_spirv_blob_size >  0);
 
-    m_cs_entrypoint_name = (shader_stage == SHADER_STAGE_COMPUTE)                 ? "main" : "";
-    m_fs_entrypoint_name = (shader_stage == SHADER_STAGE_FRAGMENT)                ? "main" : "";
+    m_cs_entrypoint_name = (shader_stage == ShaderStage::COMPUTE)                 ? "main" : "";
+    m_fs_entrypoint_name = (shader_stage == ShaderStage::FRAGMENT)                ? "main" : "";
     m_glsl_source_code   = in_spirv_generator_ptr->get_glsl_source_code();
-    m_gs_entrypoint_name = (shader_stage == SHADER_STAGE_GEOMETRY)                ? "main" : "";
-    m_tc_entrypoint_name = (shader_stage == SHADER_STAGE_TESSELLATION_CONTROL)    ? "main" : "";
-    m_te_entrypoint_name = (shader_stage == SHADER_STAGE_TESSELLATION_EVALUATION) ? "main" : "";
-    m_vs_entrypoint_name = (shader_stage == SHADER_STAGE_VERTEX)                  ? "main" : "";
+    m_gs_entrypoint_name = (shader_stage == ShaderStage::GEOMETRY)                ? "main" : "";
+    m_tc_entrypoint_name = (shader_stage == ShaderStage::TESSELLATION_CONTROL)    ? "main" : "";
+    m_te_entrypoint_name = (shader_stage == ShaderStage::TESSELLATION_EVALUATION) ? "main" : "";
+    m_vs_entrypoint_name = (shader_stage == ShaderStage::VERTEX)                  ? "main" : "";
 
     result = init_from_spirv_blob(shader_spirv_blob,
                                   shader_spirv_blob_size);
@@ -137,12 +137,12 @@ Anvil::ShaderModuleUniquePtr Anvil::ShaderModule::create_from_spirv_generator(co
             result_ptr = shader_module_cache_ptr->get_cached_shader_module(in_device_ptr,
                                                                            in_spirv_generator_ptr->get_spirv_blob(),
                                                                            in_spirv_generator_ptr->get_spirv_blob_size(),
-                                                                           (shader_stage == SHADER_STAGE_COMPUTE)                 ? "main" : "",
-                                                                           (shader_stage == SHADER_STAGE_FRAGMENT)                ? "main" : "",
-                                                                           (shader_stage == SHADER_STAGE_GEOMETRY)                ? "main" : "",
-                                                                           (shader_stage == SHADER_STAGE_TESSELLATION_CONTROL)    ? "main" : "",
-                                                                           (shader_stage == SHADER_STAGE_TESSELLATION_EVALUATION) ? "main" : "",
-                                                                           (shader_stage == SHADER_STAGE_VERTEX)                  ? "main" : "");
+                                                                           (shader_stage == ShaderStage::COMPUTE)                 ? "main" : "",
+                                                                           (shader_stage == ShaderStage::FRAGMENT)                ? "main" : "",
+                                                                           (shader_stage == ShaderStage::GEOMETRY)                ? "main" : "",
+                                                                           (shader_stage == ShaderStage::TESSELLATION_CONTROL)    ? "main" : "",
+                                                                           (shader_stage == ShaderStage::TESSELLATION_EVALUATION) ? "main" : "",
+                                                                           (shader_stage == ShaderStage::VERTEX)                  ? "main" : "");
 
             if (result_ptr == nullptr)
             {
