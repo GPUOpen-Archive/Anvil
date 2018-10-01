@@ -24,39 +24,39 @@
 #include "wrappers/device.h"
 
 /** Please see header for specification */
-Anvil::MemoryFeatureFlags Anvil::Utils::get_memory_feature_flags_from_vk_property_flags(VkMemoryPropertyFlags in_mem_type_flags,
-                                                                                        VkMemoryHeapFlags     in_mem_heap_flags)
+Anvil::MemoryFeatureFlags Anvil::Utils::get_memory_feature_flags_from_vk_property_flags(Anvil::MemoryPropertyFlags in_mem_type_flags,
+                                                                                        Anvil::MemoryHeapFlags     in_mem_heap_flags)
 {
-    Anvil::MemoryFeatureFlags result = 0;
+    Anvil::MemoryFeatureFlags result;
 
-    if ((in_mem_type_flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)
+    if ((in_mem_type_flags & Anvil::MemoryPropertyFlagBits::DEVICE_LOCAL_BIT) != 0)
     {
-        result |= MEMORY_FEATURE_FLAG_DEVICE_LOCAL;
+        result |= Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT;
     }
 
-    if ((in_mem_type_flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
+    if ((in_mem_type_flags & Anvil::MemoryPropertyFlagBits::HOST_VISIBLE_BIT) != 0)
     {
-        result |= MEMORY_FEATURE_FLAG_MAPPABLE;
+        result |= Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT;
     }
 
-    if ((in_mem_type_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0)
+    if ((in_mem_type_flags & Anvil::MemoryPropertyFlagBits::HOST_COHERENT_BIT) != 0)
     {
-        result |= MEMORY_FEATURE_FLAG_HOST_COHERENT;
+        result |= Anvil::MemoryFeatureFlagBits::HOST_COHERENT_BIT;
     }
 
-    if ((in_mem_type_flags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) != 0)
+    if ((in_mem_type_flags & Anvil::MemoryPropertyFlagBits::HOST_CACHED_BIT) != 0)
     {
-        result |= MEMORY_FEATURE_FLAG_HOST_CACHED;
+        result |= Anvil::MemoryFeatureFlagBits::HOST_CACHED_BIT;
     }
 
-    if ((in_mem_type_flags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) != 0)
+    if ((in_mem_type_flags & Anvil::MemoryPropertyFlagBits::LAZILY_ALLOCATED_BIT) != 0)
     {
-        result |= MEMORY_FEATURE_FLAG_LAZILY_ALLOCATED;
+        result |= Anvil::MemoryFeatureFlagBits::LAZILY_ALLOCATED_BIT;
     }
 
-    if ((in_mem_heap_flags & VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR) != 0)
+    if ((in_mem_heap_flags & Anvil::MemoryHeapFlagBits::MULTI_INSTANCE_BIT_KHR) != 0)
     {
-        result |= MEMORY_FEATURE_FLAG_MULTI_INSTANCE;
+        result |= Anvil::MemoryFeatureFlagBits::MULTI_INSTANCE_BIT;
     }
 
     return result;
@@ -64,250 +64,8 @@ Anvil::MemoryFeatureFlags Anvil::Utils::get_memory_feature_flags_from_vk_propert
 
 Anvil::MTSafety Anvil::Utils::convert_boolean_to_mt_safety_enum(bool in_mt_safe)
 {
-    return (in_mt_safe) ? MT_SAFETY_ENABLED
-                        : MT_SAFETY_DISABLED;
-}
-
-VkBufferCreateFlags Anvil::Utils::convert_buffer_create_flags_to_vk_buffer_create_flags(const Anvil::BufferCreateFlags& in_create_flags)
-{
-    VkBufferCreateFlags result = 0;
-
-    if (in_create_flags & Anvil::BUFFER_CREATE_FLAG_SPARSE_ALIASED_BIT)
-    {
-        result |= VK_BUFFER_CREATE_SPARSE_ALIASED_BIT;
-    }
-
-    if (in_create_flags & Anvil::BUFFER_CREATE_FLAG_SPARSE_BINDING_BIT)
-    {
-        result |= VK_BUFFER_CREATE_SPARSE_BINDING_BIT;
-    }
-
-    if (in_create_flags & Anvil::BUFFER_CREATE_FLAG_SPARSE_RESIDENCY_BIT)
-    {
-        result |= VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT;
-    }
-
-    return result;
-}
-
-VkExternalFenceHandleTypeFlagsKHR Anvil::Utils::convert_external_fence_handle_type_bits_to_vk_external_fence_handle_type_flags(const Anvil::ExternalFenceHandleTypeBits& in_types)
-{
-    VkExternalFenceHandleTypeFlagsKHR result = 0;
-
-    #if defined(_WIN32)
-    {
-        if (in_types & Anvil::EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT)
-        {
-            result |= VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR;
-        }
-
-        if (in_types & Anvil::EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT)
-        {
-            result |= VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR;
-        }
-    }
-    #else
-    {
-        if (in_types & Anvil::EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_FD_BIT)
-        {
-            result |= VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
-        }
-
-        if (in_types & Anvil::EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT)
-        {
-            result |= VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT_KHR;
-        }
-    }
-    #endif
-
-    return result;
-}
-
-VkExternalMemoryHandleTypeFlagsKHR Anvil::Utils::convert_external_memory_handle_type_bits_to_vk_external_memory_handle_type_flags(const Anvil::ExternalMemoryHandleTypeBits& in_types)
-{
-    VkExternalMemoryHandleTypeFlagsKHR result = 0;
-
-    #if defined(_WIN32)
-    {
-        if (in_types & Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT)
-        {
-            result |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR;
-        }
-
-        if (in_types & Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT)
-        {
-            result |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR;
-        }
-
-        if (in_types & Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT)
-        {
-            result |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT_KHR;
-        }
-
-        if (in_types & Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT)
-        {
-            result |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT_KHR;
-        }
-
-        if (in_types & Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT)
-        {
-            result |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT_KHR;
-        }
-
-        if (in_types & Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT)
-        {
-            result |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT_KHR;
-        }
-    }
-    #else
-    {
-        if (in_types & Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT)
-        {
-            result |= VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
-        }
-    }
-    #endif
-
-    return result;
-}
-
-VkExternalSemaphoreHandleTypeFlagsKHR Anvil::Utils::convert_external_semaphore_handle_type_bits_to_vk_external_semaphore_handle_type_flags(const Anvil::ExternalSemaphoreHandleTypeBits& in_types)
-{
-    VkExternalSemaphoreHandleTypeFlagsKHR result = 0;
-
-    #if defined(_WIN32)
-    {
-        if (in_types & Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT)
-        {
-            result |= VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT_KHR;
-        }
-
-        if (in_types & Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT)
-        {
-            result |= VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR;
-        }
-
-        if (in_types & Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT)
-        {
-            result |= VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR;
-        }
-    }
-    #else
-    {
-        if (in_types & Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT)
-        {
-            result |= VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
-        }
-
-        if (in_types & Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT)
-        {
-            result |= VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT_KHR;
-        }
-    }
-    #endif
-
-    return result;
-}
-
-VkIndexType Anvil::Utils::convert_index_type_to_vk_index_type(const IndexType& in_index_type)
-{
-    VkIndexType result = VK_INDEX_TYPE_MAX_ENUM;
-
-    switch (in_index_type)
-    {
-        case Anvil::IndexType::UINT16: result = VK_INDEX_TYPE_UINT16; break;
-        case Anvil::IndexType::UINT32: result = VK_INDEX_TYPE_UINT32; break;
-
-        default:
-        {
-            anvil_assert_fail();
-        }
-    }
-
-    return result;
-}
-
-Anvil::IndexType Anvil::Utils::convert_vk_index_type_to_index_type(const VkIndexType& in_index_type)
-{
-    Anvil::IndexType result = Anvil::IndexType::UNKNOWN;
-
-    switch (in_index_type)
-    {
-        case VK_INDEX_TYPE_UINT16: result = Anvil::IndexType::UINT16; break;
-        case VK_INDEX_TYPE_UINT32: result = Anvil::IndexType::UINT32; break;
-
-        default:
-        {
-            anvil_assert_fail();
-        }
-    }
-
-    return result;
-}
-
-Anvil::ExternalSemaphoreHandleTypeBits Anvil::Utils::convert_vk_external_semaphore_handle_type_flags_to_external_semaphore_handle_type_bits(const VkExternalSemaphoreHandleTypeFlagsKHR& in_types)
-{
-    Anvil::ExternalSemaphoreHandleTypeBits result = 0;
-
-    #if defined(_WIN32)
-    {
-        if (in_types & VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT_KHR)
-        {
-            result |= Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT;
-        }
-
-        if (in_types & VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR)
-        {
-            result |= Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
-        }
-
-        if (in_types & VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR)
-        {
-            result |= Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
-        }
-    }
-    #else
-    {
-        if (in_types & VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT_KHR)
-        {
-            result |= Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT;
-        }
-
-        if (in_types & VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT_KHR)
-        {
-            result |= Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT;
-        }
-    }
-    #endif
-
-    return result;
-}
-
-Anvil::PeerMemoryFeatureFlags Anvil::Utils::convert_vk_peer_memory_feature_flags_to_peer_memory_feature_flags(const VkPeerMemoryFeatureFlags& in_value)
-{
-    Anvil::PeerMemoryFeatureFlags result = 0;
-
-    if (in_value & VK_PEER_MEMORY_FEATURE_COPY_DST_BIT)
-    {
-        result |= Anvil::PEER_MEMORY_FEATURE_COPY_DST_BIT;
-    }
-
-    if (in_value & VK_PEER_MEMORY_FEATURE_COPY_SRC_BIT)
-    {
-        result |= Anvil::PEER_MEMORY_FEATURE_COPY_SRC_BIT;
-    }
-
-    if (in_value & VK_PEER_MEMORY_FEATURE_GENERIC_DST_BIT)
-    {
-        result |= Anvil::PEER_MEMORY_FEATURE_GENERIC_DST_BIT;
-    }
-
-    if (in_value & VK_PEER_MEMORY_FEATURE_GENERIC_SRC_BIT)
-    {
-        result |= Anvil::PEER_MEMORY_FEATURE_GENERIC_SRC_BIT;
-    }
-
-    return result;
+    return (in_mt_safe) ? Anvil::MTSafety::ENABLED
+                        : Anvil::MTSafety::DISABLED;
 }
 
 bool Anvil::Utils::convert_mt_safety_enum_to_boolean(Anvil::MTSafety          in_mt_safety,
@@ -317,10 +75,10 @@ bool Anvil::Utils::convert_mt_safety_enum_to_boolean(Anvil::MTSafety          in
 
     switch (in_mt_safety)
     {
-        case MT_SAFETY_DISABLED: result = false; break;
-        case MT_SAFETY_ENABLED:  result = true;  break;
+        case Anvil::MTSafety::DISABLED: result = false; break;
+        case Anvil::MTSafety::ENABLED:  result = true;  break;
 
-        case MT_SAFETY_INHERIT_FROM_PARENT_DEVICE:
+        case Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE:
         {
             anvil_assert(in_device_ptr != nullptr);
 
@@ -339,7 +97,7 @@ bool Anvil::Utils::convert_mt_safety_enum_to_boolean(Anvil::MTSafety          in
 
 /** Please see header for specification */
 void Anvil::Utils::convert_queue_family_bits_to_family_indices(const Anvil::BaseDevice* in_device_ptr,
-                                                               Anvil::QueueFamilyBits   in_queue_families,
+                                                               Anvil::QueueFamilyFlags  in_queue_families,
                                                                uint32_t*                out_opt_queue_family_indices_ptr,
                                                                uint32_t*                out_opt_n_queue_family_indices_ptr)
 {
@@ -347,13 +105,13 @@ void Anvil::Utils::convert_queue_family_bits_to_family_indices(const Anvil::Base
 
     static const struct
     {
-        Anvil::QueueFamily     queue_family;
-        Anvil::QueueFamilyType queue_family_type;
+        Anvil::QueueFamilyFlagBits queue_family;
+        Anvil::QueueFamilyType     queue_family_type;
     } queue_family_data[] =
     {
-        {Anvil::QUEUE_FAMILY_COMPUTE_BIT,      Anvil::QueueFamilyType::COMPUTE},
-        {Anvil::QUEUE_FAMILY_DMA_BIT,          Anvil::QueueFamilyType::TRANSFER},
-        {Anvil::QUEUE_FAMILY_GRAPHICS_BIT,     Anvil::QueueFamilyType::UNIVERSAL},
+        {Anvil::QueueFamilyFlagBits::COMPUTE_BIT,  Anvil::QueueFamilyType::COMPUTE},
+        {Anvil::QueueFamilyFlagBits::DMA_BIT,      Anvil::QueueFamilyType::TRANSFER},
+        {Anvil::QueueFamilyFlagBits::GRAPHICS_BIT, Anvil::QueueFamilyType::UNIVERSAL},
     };
 
     for (const auto& current_queue_fam_data : queue_family_data)
@@ -390,97 +148,95 @@ void Anvil::Utils::convert_queue_family_bits_to_family_indices(const Anvil::Base
 }
 
 /** Please see header for specification */
-VkAccessFlags Anvil::Utils::get_access_mask_from_image_layout(Anvil::ImageLayout     in_layout,
-                                                              Anvil::QueueFamilyType in_queue_family_type)
+Anvil::AccessFlags Anvil::Utils::get_access_mask_from_image_layout(Anvil::ImageLayout     in_layout,
+                                                                   Anvil::QueueFamilyType in_queue_family_type)
 {
-    VkAccessFlags result = 0;
+    Anvil::AccessFlags result;
 
     switch (in_layout)
     {
         case Anvil::ImageLayout::UNDEFINED:
         {
-            result = 0;
-
             break;
         }
 
         case Anvil::ImageLayout::GENERAL:
         {
-            result = VK_ACCESS_INDIRECT_COMMAND_READ_BIT          |
-                     VK_ACCESS_INDEX_READ_BIT                     |
-                     VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT          |
-                     VK_ACCESS_UNIFORM_READ_BIT                   |
-                     VK_ACCESS_INPUT_ATTACHMENT_READ_BIT          |
-                     VK_ACCESS_SHADER_READ_BIT                    |
-                     VK_ACCESS_SHADER_WRITE_BIT                   |
-                     VK_ACCESS_COLOR_ATTACHMENT_READ_BIT          |
-                     VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT         |
-                     VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT  |
-                     VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
-                     VK_ACCESS_TRANSFER_READ_BIT                  |
-                     VK_ACCESS_TRANSFER_WRITE_BIT                 |
-                     VK_ACCESS_HOST_READ_BIT                      |
-                     VK_ACCESS_HOST_WRITE_BIT                     |
-                     VK_ACCESS_MEMORY_READ_BIT                    |
-                     VK_ACCESS_MEMORY_WRITE_BIT;
+            result = Anvil::AccessFlagBits::INDIRECT_COMMAND_READ_BIT          |
+                     Anvil::AccessFlagBits::INDEX_READ_BIT                     |
+                     Anvil::AccessFlagBits::VERTEX_ATTRIBUTE_READ_BIT          |
+                     Anvil::AccessFlagBits::UNIFORM_READ_BIT                   |
+                     Anvil::AccessFlagBits::INPUT_ATTACHMENT_READ_BIT          |
+                     Anvil::AccessFlagBits::SHADER_READ_BIT                    |
+                     Anvil::AccessFlagBits::SHADER_WRITE_BIT                   |
+                     Anvil::AccessFlagBits::COLOR_ATTACHMENT_READ_BIT          |
+                     Anvil::AccessFlagBits::COLOR_ATTACHMENT_WRITE_BIT         |
+                     Anvil::AccessFlagBits::DEPTH_STENCIL_ATTACHMENT_READ_BIT  |
+                     Anvil::AccessFlagBits::DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
+                     Anvil::AccessFlagBits::TRANSFER_READ_BIT                  |
+                     Anvil::AccessFlagBits::TRANSFER_WRITE_BIT                 |
+                     Anvil::AccessFlagBits::HOST_READ_BIT                      |
+                     Anvil::AccessFlagBits::HOST_WRITE_BIT                     |
+                     Anvil::AccessFlagBits::MEMORY_READ_BIT                    |
+                     Anvil::AccessFlagBits::MEMORY_WRITE_BIT;
 
             break;
         }
 
         case Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL:
         {
-            result = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
-                     VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            result = Anvil::AccessFlagBits::COLOR_ATTACHMENT_READ_BIT |
+                     Anvil::AccessFlagBits::COLOR_ATTACHMENT_WRITE_BIT;
 
             break;
         }
 
         case Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
         {
-            result = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT  |
-                     VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            result = Anvil::AccessFlagBits::DEPTH_STENCIL_ATTACHMENT_READ_BIT  |
+                     Anvil::AccessFlagBits::DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
             break;
         }
 
         case Anvil::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL:
         {
-            result = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+            result = Anvil::AccessFlagBits::DEPTH_STENCIL_ATTACHMENT_READ_BIT;
 
             break;
         }
 
         case Anvil::ImageLayout::SHADER_READ_ONLY_OPTIMAL:
         {
-            result = VK_ACCESS_SHADER_READ_BIT;
+            result = Anvil::AccessFlagBits::SHADER_READ_BIT;
 
             break;
         }
 
         case Anvil::ImageLayout::TRANSFER_SRC_OPTIMAL:
         {
-            result = VK_ACCESS_TRANSFER_READ_BIT;
+            result = Anvil::AccessFlagBits::TRANSFER_READ_BIT;
 
             break;
         }
 
         case Anvil::ImageLayout::TRANSFER_DST_OPTIMAL:
         {
-            result = VK_ACCESS_TRANSFER_WRITE_BIT;
+            result = Anvil::AccessFlagBits::TRANSFER_WRITE_BIT;
 
             break;
         }
 
         case Anvil::ImageLayout::PREINITIALIZED:
         {
-            result = VK_ACCESS_SHADER_READ_BIT;
+            result = Anvil::AccessFlagBits::SHADER_READ_BIT;
 
             break;
         }
 
         case Anvil::ImageLayout::PRESENT_SRC_KHR:
         {
-            result = VK_ACCESS_MEMORY_READ_BIT;
+            result = Anvil::AccessFlagBits::MEMORY_READ_BIT;
 
             break;
         }
@@ -496,44 +252,44 @@ VkAccessFlags Anvil::Utils::get_access_mask_from_image_layout(Anvil::ImageLayout
     {
         case Anvil::QueueFamilyType::COMPUTE:
         {
-            result &= (VK_ACCESS_INDIRECT_COMMAND_READ_BIT |
-                       VK_ACCESS_MEMORY_READ_BIT           |
-                       VK_ACCESS_MEMORY_WRITE_BIT          |
-                       VK_ACCESS_SHADER_READ_BIT           |
-                       VK_ACCESS_SHADER_WRITE_BIT          |
-                       VK_ACCESS_TRANSFER_READ_BIT         |
-                       VK_ACCESS_TRANSFER_WRITE_BIT        |
-                       VK_ACCESS_UNIFORM_READ_BIT);
+            result &= (Anvil::AccessFlagBits::INDIRECT_COMMAND_READ_BIT |
+                       Anvil::AccessFlagBits::MEMORY_READ_BIT           |
+                       Anvil::AccessFlagBits::MEMORY_WRITE_BIT          |
+                       Anvil::AccessFlagBits::SHADER_READ_BIT           |
+                       Anvil::AccessFlagBits::SHADER_WRITE_BIT          |
+                       Anvil::AccessFlagBits::TRANSFER_READ_BIT         |
+                       Anvil::AccessFlagBits::TRANSFER_WRITE_BIT        |
+                       Anvil::AccessFlagBits::UNIFORM_READ_BIT);
 
             break;
         }
 
         case Anvil::QueueFamilyType::TRANSFER:
         {
-            result &= (VK_ACCESS_MEMORY_READ_BIT    |
-                       VK_ACCESS_MEMORY_WRITE_BIT   |
-                       VK_ACCESS_TRANSFER_READ_BIT  |
-                       VK_ACCESS_TRANSFER_WRITE_BIT);
+            result &= (Anvil::AccessFlagBits::MEMORY_READ_BIT    |
+                       Anvil::AccessFlagBits::MEMORY_WRITE_BIT   |
+                       Anvil::AccessFlagBits::TRANSFER_READ_BIT  |
+                       Anvil::AccessFlagBits::TRANSFER_WRITE_BIT);
 
             break;
         }
 
         case Anvil::QueueFamilyType::UNIVERSAL:
         {
-            result &= (VK_ACCESS_COLOR_ATTACHMENT_READ_BIT          |
-                       VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT         |
-                       VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT  |
-                       VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
-                       VK_ACCESS_INDIRECT_COMMAND_READ_BIT          |
-                       VK_ACCESS_INDEX_READ_BIT                     |
-                       VK_ACCESS_MEMORY_READ_BIT                    |
-                       VK_ACCESS_MEMORY_WRITE_BIT                   |
-                       VK_ACCESS_SHADER_READ_BIT                    |
-                       VK_ACCESS_SHADER_WRITE_BIT                   |
-                       VK_ACCESS_TRANSFER_READ_BIT                  |
-                       VK_ACCESS_TRANSFER_WRITE_BIT                 |
-                       VK_ACCESS_UNIFORM_READ_BIT                   |
-                       VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT);
+            result &= (Anvil::AccessFlagBits::COLOR_ATTACHMENT_READ_BIT          |
+                       Anvil::AccessFlagBits::COLOR_ATTACHMENT_WRITE_BIT         |
+                       Anvil::AccessFlagBits::DEPTH_STENCIL_ATTACHMENT_READ_BIT  |
+                       Anvil::AccessFlagBits::DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
+                       Anvil::AccessFlagBits::INDIRECT_COMMAND_READ_BIT          |
+                       Anvil::AccessFlagBits::INDEX_READ_BIT                     |
+                       Anvil::AccessFlagBits::MEMORY_READ_BIT                    |
+                       Anvil::AccessFlagBits::MEMORY_WRITE_BIT                   |
+                       Anvil::AccessFlagBits::SHADER_READ_BIT                    |
+                       Anvil::AccessFlagBits::SHADER_WRITE_BIT                   |
+                       Anvil::AccessFlagBits::TRANSFER_READ_BIT                  |
+                       Anvil::AccessFlagBits::TRANSFER_WRITE_BIT                 |
+                       Anvil::AccessFlagBits::UNIFORM_READ_BIT                   |
+                       Anvil::AccessFlagBits::VERTEX_ATTRIBUTE_READ_BIT);
 
             break;
         }
@@ -553,15 +309,15 @@ VkAccessFlags Anvil::Utils::get_access_mask_from_image_layout(Anvil::ImageLayout
 }
 
 /* Please see header for specification */
-Anvil::QueueFamilyBits Anvil::Utils::get_queue_family_bits_from_queue_family_type(Anvil::QueueFamilyType in_queue_family_type)
+Anvil::QueueFamilyFlags Anvil::Utils::get_queue_family_flags_from_queue_family_type(Anvil::QueueFamilyType in_queue_family_type)
 {
-    Anvil::QueueFamilyBits result = 0;
+    Anvil::QueueFamilyFlags result;
 
     switch (in_queue_family_type)
     {
-        case Anvil::QueueFamilyType::COMPUTE:   result = Anvil::QUEUE_FAMILY_COMPUTE_BIT;                                    break;
-        case Anvil::QueueFamilyType::TRANSFER:  result = Anvil::QUEUE_FAMILY_DMA_BIT;                                        break;
-        case Anvil::QueueFamilyType::UNIVERSAL: result = Anvil::QUEUE_FAMILY_COMPUTE_BIT | Anvil::QUEUE_FAMILY_GRAPHICS_BIT; break;
+        case Anvil::QueueFamilyType::COMPUTE:   result = Anvil::QueueFamilyFlagBits::COMPUTE_BIT;                                            break;
+        case Anvil::QueueFamilyType::TRANSFER:  result = Anvil::QueueFamilyFlagBits::DMA_BIT;                                                break;
+        case Anvil::QueueFamilyType::UNIVERSAL: result = Anvil::QueueFamilyFlagBits::COMPUTE_BIT | Anvil::QueueFamilyFlagBits::GRAPHICS_BIT; break;
 
         default:
         {
@@ -992,12 +748,12 @@ const char* Anvil::Utils::get_raw_string(Anvil::ShaderStage in_shader_stage)
 
     switch (in_shader_stage)
     {
-        case SHADER_STAGE_COMPUTE:                 result = "SHADER_STAGE_COMPUTE";                 break;
-        case SHADER_STAGE_FRAGMENT:                result = "SHADER_STAGE_FRAGMENT";                break;
-        case SHADER_STAGE_GEOMETRY:                result = "SHADER_STAGE_GEOMETRY";                break;
-        case SHADER_STAGE_TESSELLATION_CONTROL:    result = "SHADER_STAGE_TESSELLATION_CONTROL";    break;
-        case SHADER_STAGE_TESSELLATION_EVALUATION: result = "SHADER_STAGE_TESSELLATION_EVALUATION"; break;
-        case SHADER_STAGE_VERTEX:                  result = "SHADER_STAGE_VERTEX";                  break;
+        case ShaderStage::COMPUTE:                 result = "SHADER_STAGE_COMPUTE";                 break;
+        case ShaderStage::FRAGMENT:                result = "SHADER_STAGE_FRAGMENT";                break;
+        case ShaderStage::GEOMETRY:                result = "SHADER_STAGE_GEOMETRY";                break;
+        case ShaderStage::TESSELLATION_CONTROL:    result = "SHADER_STAGE_TESSELLATION_CONTROL";    break;
+        case ShaderStage::TESSELLATION_EVALUATION: result = "SHADER_STAGE_TESSELLATION_EVALUATION"; break;
+        case ShaderStage::VERTEX:                  result = "SHADER_STAGE_VERTEX";                  break;
 
         default:
         {
@@ -1074,18 +830,18 @@ const char* Anvil::Utils::get_raw_string(VkStencilOp in_stencil_op)
 }
 
 /* Please see header for specification */
-VkShaderStageFlagBits Anvil::Utils::get_shader_stage_flag_bits_from_shader_stage(Anvil::ShaderStage in_shader_stage)
+Anvil::ShaderStageFlagBits Anvil::Utils::get_shader_stage_flag_bits_from_shader_stage(Anvil::ShaderStage in_shader_stage)
 {
-    VkShaderStageFlagBits result = VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
+    Anvil::ShaderStageFlagBits result = static_cast<Anvil::ShaderStageFlagBits>(0);
 
     switch (in_shader_stage)
     {
-        case Anvil::ShaderStage::SHADER_STAGE_COMPUTE:                 result = VK_SHADER_STAGE_COMPUTE_BIT;                 break;
-        case Anvil::ShaderStage::SHADER_STAGE_FRAGMENT:                result = VK_SHADER_STAGE_FRAGMENT_BIT;                break;
-        case Anvil::ShaderStage::SHADER_STAGE_GEOMETRY:                result = VK_SHADER_STAGE_GEOMETRY_BIT;                break;
-        case Anvil::ShaderStage::SHADER_STAGE_TESSELLATION_CONTROL:    result = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;    break;
-        case Anvil::ShaderStage::SHADER_STAGE_TESSELLATION_EVALUATION: result = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT; break;
-        case Anvil::ShaderStage::SHADER_STAGE_VERTEX:                  result = VK_SHADER_STAGE_VERTEX_BIT;                  break;
+        case Anvil::ShaderStage::COMPUTE:                 result = Anvil::ShaderStageFlagBits::COMPUTE_BIT;                 break;
+        case Anvil::ShaderStage::FRAGMENT:                result = Anvil::ShaderStageFlagBits::FRAGMENT_BIT;                break;
+        case Anvil::ShaderStage::GEOMETRY:                result = Anvil::ShaderStageFlagBits::GEOMETRY_BIT;                break;
+        case Anvil::ShaderStage::TESSELLATION_CONTROL:    result = Anvil::ShaderStageFlagBits::TESSELLATION_CONTROL_BIT;    break;
+        case Anvil::ShaderStage::TESSELLATION_EVALUATION: result = Anvil::ShaderStageFlagBits::TESSELLATION_EVALUATION_BIT; break;
+        case Anvil::ShaderStage::VERTEX:                  result = Anvil::ShaderStageFlagBits::VERTEX_BIT;                  break;
 
         default:
         {
@@ -1096,145 +852,42 @@ VkShaderStageFlagBits Anvil::Utils::get_shader_stage_flag_bits_from_shader_stage
     return result;
 }
 
-Anvil::BufferCreateFlags Anvil::Utils::convert_vk_buffer_create_flags_to_buffer_create_flags(const VkBufferCreateFlags& in_create_flags)
-{
-    Anvil::BufferCreateFlags result = 0;
-
-    if (in_create_flags & VK_BUFFER_CREATE_SPARSE_ALIASED_BIT)
-    {
-        result |= Anvil::BUFFER_CREATE_FLAG_SPARSE_ALIASED_BIT;
-    }
-
-    if (in_create_flags & VK_BUFFER_CREATE_SPARSE_BINDING_BIT)
-    {
-        result |= Anvil::BUFFER_CREATE_FLAG_SPARSE_BINDING_BIT;
-    }
-
-    if (in_create_flags & VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT)
-    {
-        result |= Anvil::BUFFER_CREATE_FLAG_SPARSE_RESIDENCY_BIT;
-    }
-
-    return result;
-}
-
-Anvil::ExternalFenceHandleTypeBits Anvil::Utils::convert_vk_external_fence_handle_type_flags_to_external_fence_handle_type_bits(const VkExternalFenceHandleTypeFlagsKHR& in_types)
-{
-    Anvil::ExternalFenceHandleTypeBits result = 0;
-
-    #if defined(_WIN32)
-    {
-        if (in_types & VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR)
-        {
-            result |= Anvil::EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
-        }
-
-        if (in_types & VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR)
-        {
-            result |= Anvil::EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
-        }
-    }
-    #else
-    {
-        if (in_types & VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_FD_BIT_KHR)
-        {
-            result |= Anvil::EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_FD_BIT;
-        }
-
-        if (in_types & VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT_KHR)
-        {
-            result |= Anvil::EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT;
-        }
-    }
-    #endif
-
-    return result;
-}
-
-Anvil::ExternalMemoryHandleTypeBits Anvil::Utils::convert_vk_external_memory_handle_type_flags_to_external_memory_handle_type_bits(const VkExternalMemoryHandleTypeFlagsKHR& in_types)
-{
-    Anvil::ExternalMemoryHandleTypeBits result = 0;
-
-    #if defined(_WIN32)
-    {
-        if (in_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR)
-        {
-            result |= Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
-        }
-
-        if (in_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR)
-        {
-            result |= Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT;
-        }
-
-        if (in_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT_KHR)
-        {
-            result |= Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT;
-        }
-
-        if (in_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT_KHR)
-        {
-            result |= Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT;
-        }
-
-        if (in_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT_KHR)
-        {
-            result |= Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT;
-        }
-
-        if (in_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT_KHR)
-        {
-            result |= Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT;
-        }
-    }
-    #else
-    {
-        if (in_types & VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR)
-        {
-            result |= Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
-        }
-    }
-    #endif
-
-    return result;
-}
-
 /* Please see header for specification */
-void Anvil::Utils::get_vk_property_flags_from_memory_feature_flags(Anvil::MemoryFeatureFlags in_mem_feature_flags,
-                                                                   VkMemoryPropertyFlags*    out_mem_type_flags_ptr,
-                                                                   VkMemoryHeapFlags*        out_mem_heap_flags_ptr)
+void Anvil::Utils::get_vk_property_flags_from_memory_feature_flags(Anvil::MemoryFeatureFlags   in_mem_feature_flags,
+                                                                   Anvil::MemoryPropertyFlags* out_mem_type_flags_ptr,
+                                                                   Anvil::MemoryHeapFlags*     out_mem_heap_flags_ptr)
 {
-    VkMemoryHeapFlags     result_mem_heap_flags = 0;
-    VkMemoryPropertyFlags result_mem_type_flags = 0;
+    Anvil::MemoryHeapFlags     result_mem_heap_flags;
+    Anvil::MemoryPropertyFlags result_mem_type_flags;
 
-    if ((in_mem_feature_flags & MEMORY_FEATURE_FLAG_DEVICE_LOCAL) != 0)
+    if ((in_mem_feature_flags & Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT) != 0)
     {
-        result_mem_type_flags |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        result_mem_type_flags |= Anvil::MemoryPropertyFlagBits::DEVICE_LOCAL_BIT;
     }
 
-    if ((in_mem_feature_flags & MEMORY_FEATURE_FLAG_MAPPABLE) != 0)
+    if ((in_mem_feature_flags & Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT) != 0)
     {
-        result_mem_type_flags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        result_mem_type_flags |= Anvil::MemoryPropertyFlagBits::HOST_VISIBLE_BIT;
     }
 
-    if ((in_mem_feature_flags & MEMORY_FEATURE_FLAG_HOST_COHERENT) != 0)
+    if ((in_mem_feature_flags & Anvil::MemoryFeatureFlagBits::HOST_COHERENT_BIT) != 0)
     {
-        result_mem_type_flags |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        result_mem_type_flags |= Anvil::MemoryPropertyFlagBits::HOST_COHERENT_BIT;
     }
 
-    if ((in_mem_feature_flags & MEMORY_FEATURE_FLAG_HOST_CACHED) != 0)
+    if ((in_mem_feature_flags & Anvil::MemoryFeatureFlagBits::HOST_CACHED_BIT) != 0)
     {
-        result_mem_type_flags |= VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+        result_mem_type_flags |= Anvil::MemoryPropertyFlagBits::HOST_CACHED_BIT;
     }
 
-    if ((in_mem_feature_flags & MEMORY_FEATURE_FLAG_LAZILY_ALLOCATED) != 0)
+    if ((in_mem_feature_flags & Anvil::MemoryFeatureFlagBits::LAZILY_ALLOCATED_BIT) != 0)
     {
-        result_mem_type_flags |= VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
+        result_mem_type_flags |= Anvil::MemoryPropertyFlagBits::LAZILY_ALLOCATED_BIT;
     }
 
-    if ((in_mem_feature_flags & MEMORY_FEATURE_FLAG_MULTI_INSTANCE) != 0)
+    if ((in_mem_feature_flags & Anvil::MemoryFeatureFlagBits::MULTI_INSTANCE_BIT) != 0)
     {
-        result_mem_heap_flags |= VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR;
+        result_mem_heap_flags |= Anvil::MemoryHeapFlagBits::MULTI_INSTANCE_BIT_KHR;
     }
 
     *out_mem_heap_flags_ptr = result_mem_heap_flags;
@@ -1242,22 +895,22 @@ void Anvil::Utils::get_vk_property_flags_from_memory_feature_flags(Anvil::Memory
 }
 
 #ifdef _WIN32
-    bool Anvil::Utils::is_nt_handle(const Anvil::ExternalFenceHandleTypeBit& in_type)
+    bool Anvil::Utils::is_nt_handle(const Anvil::ExternalFenceHandleTypeFlagBits& in_type)
     {
-        return (in_type == Anvil::EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+        return (in_type == Anvil::ExternalFenceHandleTypeFlagBits::OPAQUE_WIN32_BIT);
     }
 
-    bool Anvil::Utils::is_nt_handle(const Anvil::ExternalMemoryHandleTypeBit& in_type)
+    bool Anvil::Utils::is_nt_handle(const Anvil::ExternalMemoryHandleTypeFlagBits& in_type)
     {
-        return (in_type == Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT  ||
-                in_type == Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT     ||
-                in_type == Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT ||
-                in_type == Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+        return (in_type == Anvil::ExternalMemoryHandleTypeFlagBits::D3D11_TEXTURE_BIT  ||
+                in_type == Anvil::ExternalMemoryHandleTypeFlagBits::D3D12_HEAP_BIT     ||
+                in_type == Anvil::ExternalMemoryHandleTypeFlagBits::D3D12_RESOURCE_BIT ||
+                in_type == Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_WIN32_BIT);
     }
 
-    bool Anvil::Utils::is_nt_handle(const Anvil::ExternalSemaphoreHandleTypeBit& in_type)
+    bool Anvil::Utils::is_nt_handle(const Anvil::ExternalSemaphoreHandleTypeFlagBits& in_type)
     {
-        return (in_type == Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT   ||
-                in_type == Anvil::EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+        return (in_type == Anvil::ExternalSemaphoreHandleTypeFlagBits::D3D12_FENCE_BIT   ||
+                in_type == Anvil::ExternalSemaphoreHandleTypeFlagBits::OPAQUE_WIN32_BIT);
     }
 #endif

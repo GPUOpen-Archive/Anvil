@@ -126,7 +126,7 @@ bool Anvil::ComputePipelineManager::bake()
             anvil_assert(current_pipeline_ptr->layout_ptr != nullptr);
         }
 
-        current_pipeline_create_info_ptr->get_specialization_constants(Anvil::SHADER_STAGE_COMPUTE,
+        current_pipeline_create_info_ptr->get_specialization_constants(Anvil::ShaderStage::COMPUTE,
                                                                       &specialization_constants_ptr,
                                                                       &specialization_constants_data_buffer_ptr);
 
@@ -187,7 +187,7 @@ bool Anvil::ComputePipelineManager::bake()
 
         anvil_assert(current_pipeline_ptr->layout_ptr != nullptr);
 
-        current_pipeline_create_info_ptr->get_shader_stage_properties(Anvil::SHADER_STAGE_COMPUTE,
+        current_pipeline_create_info_ptr->get_shader_stage_properties(Anvil::ShaderStage::COMPUTE,
                                                                      &shader_stage_entry_point_ptr);
 
         pipeline_create_info.flags                     = 0;
@@ -215,7 +215,7 @@ bool Anvil::ComputePipelineManager::bake()
         pipeline_create_info.flags |= ((current_pipeline_create_info_ptr->allows_derivatives        () ) ? VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT    : 0) |
                                       ((current_pipeline_create_info_ptr->has_optimizations_disabled() ) ? VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT : 0);
 
-        if (m_device_ptr->get_type() == Anvil::DEVICE_TYPE_MULTI_GPU)
+        if (m_device_ptr->get_type() == Anvil::DeviceType::MULTI_GPU)
         {
             pipeline_create_info.flags |= VK_PIPELINE_CREATE_DISPATCH_BASE_KHR;
         }

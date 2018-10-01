@@ -30,7 +30,7 @@ Anvil::FenceCreateInfoUniquePtr Anvil::FenceCreateInfo::create(const Anvil::Base
     result_ptr.reset(
         new Anvil::FenceCreateInfo(in_device_ptr,
                                    in_create_signalled,
-                                   Anvil::MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+                                   Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE)
     );
 
     return result_ptr;
@@ -45,7 +45,7 @@ Anvil::FenceCreateInfo::FenceCreateInfo(const Anvil::BaseDevice* in_device_ptr,
      m_exportable_nt_handle_info_specified                    (false),
      m_exportable_nt_handle_info_security_attributes_specified(false),
 #endif
-     m_exportable_external_fence_handle_types                 (Anvil::EXTERNAL_FENCE_HANDLE_TYPE_NONE),
+     m_exportable_external_fence_handle_types                 (Anvil::ExternalFenceHandleTypeFlagBits::NONE),
      m_mt_safety                                              (in_mt_safety)
 {
     /* Stub */

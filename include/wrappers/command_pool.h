@@ -77,7 +77,7 @@ namespace Anvil
                                            bool               in_transient_allocations_friendly,
                                            bool               in_support_per_cmdbuf_reset_ops,
                                            uint32_t           in_queue_family_index,
-                                           MTSafety           in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+                                           MTSafety           in_mt_safety = MTSafety::INHERIT_FROM_PARENT_DEVICE);
 
         /** Retrieves the raw Vulkan handle for the encapsulated command pool */
         VkCommandPool get_command_pool() const

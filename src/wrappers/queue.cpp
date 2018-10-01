@@ -63,7 +63,7 @@ Anvil::Queue::Queue(const Anvil::BaseDevice* in_device_ptr,
     anvil_assert(m_queue != VK_NULL_HANDLE);
 
     /* Determine whether the queue supports sparse bindings */
-    m_supports_sparse_bindings = !!(m_device_ptr->get_queue_family_info(in_queue_family_index)->flags & VK_QUEUE_SPARSE_BINDING_BIT);
+    m_supports_sparse_bindings = (m_device_ptr->get_queue_family_info(in_queue_family_index)->flags & Anvil::QueueFlagBits::SPARSE_BINDING_BIT) != 0;
 
     /* Cache a fence that may be optionally used for submissions */
     {
@@ -188,14 +188,14 @@ bool Anvil::Queue::bind_sparse_memory(Anvil::SparseMemoryBindingUpdateInfo& in_u
                       n_image_memory_update < n_image_memory_updates;
                     ++n_image_memory_update)
         {
-            Anvil::Image*           image_ptr                   = nullptr;
-            VkExtent3D              extent;
-            VkSparseMemoryBindFlags flags;
-            bool                    memory_block_owned_by_image = false;
-            Anvil::MemoryBlock*     memory_block_ptr            = nullptr;
-            VkDeviceSize            memory_block_start_offset;
-            VkOffset3D              offset;
-            VkImageSubresource      subresource;
+            Anvil::Image*                image_ptr                   = nullptr;
+            VkExtent3D                   extent;
+            Anvil::SparseMemoryBindFlags flags;
+            bool                         memory_block_owned_by_image = false;
+            Anvil::MemoryBlock*          memory_block_ptr            = nullptr;
+            VkDeviceSize                 memory_block_start_offset;
+            VkOffset3D                   offset;
+            Anvil::ImageSubresource      subresource;
 
             in_update.get_image_memory_update_properties(n_bind_info,
                                                          n_image_memory_update,
@@ -220,13 +220,13 @@ bool Anvil::Queue::bind_sparse_memory(Anvil::SparseMemoryBindingUpdateInfo& in_u
                       n_image_opaque_memory_update < n_image_opaque_memory_updates;
                     ++n_image_opaque_memory_update)
         {
-            VkSparseMemoryBindFlags flags;
-            Anvil::Image*           image_ptr                   = nullptr;
-            bool                    memory_block_owned_by_image = false;
-            Anvil::MemoryBlock*     memory_block_ptr            = nullptr;
-            VkDeviceSize            memory_block_start_offset;
-            VkDeviceSize            resource_offset;
-            VkDeviceSize            size;
+            Anvil::SparseMemoryBindFlags flags;
+            Anvil::Image*                image_ptr                   = nullptr;
+            bool                         memory_block_owned_by_image = false;
+            Anvil::MemoryBlock*          memory_block_ptr            = nullptr;
+            VkDeviceSize                 memory_block_start_offset;
+            VkDeviceSize                 resource_offset;
+            VkDeviceSize                 size;
 
             in_update.get_image_opaque_memory_update_properties(n_bind_info,
                                                                 n_image_opaque_memory_update,
@@ -437,7 +437,7 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
 {
     static const uint32_t device_mask = 0x1;
 
-    return present_internal(VK_DEVICE_GROUP_PRESENT_MODE_LOCAL_BIT_KHR,
+    return present_internal(Anvil::DeviceGroupPresentModeFlagBits::LOCAL_BIT_KHR,
                             1, /* n_swapchain_image_indices */
                            &in_swapchain_ptr,
                            &in_swapchain_image_index,
@@ -460,7 +460,7 @@ VkResult Anvil::Queue::present_in_local_presentation_mode(uint32_t              
     uint32_t                swapchain_image_indices[MAX_SWAPCHAINS];
     Anvil::Swapchain*       swapchains             [MAX_SWAPCHAINS];
 
-    if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
+    if (device_type == Anvil::DeviceType::SINGLE_GPU)
     {
         const Anvil::SGPUDevice* sgpu_device_ptr(dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr) );
 
@@ -476,7 +476,7 @@ VkResult Anvil::Queue::present_in_local_presentation_mode(uint32_t              
     }
     else
     {
-        anvil_assert(device_type                        == Anvil::DEVICE_TYPE_MULTI_GPU);
+        anvil_assert(device_type                        == Anvil::DeviceType::MULTI_GPU);
         anvil_assert(in_n_local_mode_presentation_items <  MAX_SWAPCHAINS);
 
         n_swapchains = in_n_local_mode_presentation_items;
@@ -493,7 +493,7 @@ VkResult Anvil::Queue::present_in_local_presentation_mode(uint32_t              
         }
     }
 
-    result = present_internal(VK_DEVICE_GROUP_PRESENT_MODE_LOCAL_BIT_KHR,
+    result = present_internal(Anvil::DeviceGroupPresentModeFlagBits::LOCAL_BIT_KHR,
                               n_swapchains,
                               swapchains,
                               swapchain_image_indices,
@@ -542,7 +542,7 @@ VkResult Anvil::Queue::present_in_local_multi_device_presentation_mode(uint32_t 
         swapchain_image_indices[n_item] = current_item_ptr->swapchain_image_index;
     }
 
-    result = present_internal(VK_DEVICE_GROUP_PRESENT_MODE_LOCAL_MULTI_DEVICE_BIT_KHR,
+    result = present_internal(Anvil::DeviceGroupPresentModeFlagBits::LOCAL_MULTI_DEVICE_BIT_KHR,
                               n_swapchains,
                               swapchains,
                               swapchain_image_indices,
@@ -596,7 +596,7 @@ VkResult Anvil::Queue::present_in_remote_presentation_mode(uint32_t             
         swapchain_image_indices[n_item] = current_item_ptr->swapchain_image_index;
     }
 
-    result = present_internal(VK_DEVICE_GROUP_PRESENT_MODE_REMOTE_BIT_KHR,
+    result = present_internal(Anvil::DeviceGroupPresentModeFlagBits::REMOTE_BIT_KHR,
                               n_swapchains,
                               swapchains,
                               swapchain_image_indices,
@@ -638,7 +638,7 @@ VkResult Anvil::Queue::present_in_sum_presentation_mode(uint32_t                
             const uint32_t n_physical_devices = mgpu_device_ptr->get_n_physical_devices();
             bool           request_supported  = false;
 
-            anvil_assert(mgpu_device_ptr->get_supported_present_modes_for_surface(current_item_ptr->swapchain_ptr->get_create_info_ptr()->get_rendering_surface() ));
+            anvil_assert(mgpu_device_ptr->get_supported_present_modes_for_surface(current_item_ptr->swapchain_ptr->get_create_info_ptr()->get_rendering_surface() ) != Anvil::DeviceGroupPresentModeFlagBits::NONE);
 
             /* Make sure at least one physical device supports SUM presentation mode for all the specified physical devices */
             for (uint32_t n_physical_device = 0;
@@ -697,7 +697,7 @@ VkResult Anvil::Queue::present_in_sum_presentation_mode(uint32_t                
         swapchain_image_indices[n_item] = current_item_ptr->swapchain_image_index;
     }
 
-    result = present_internal(VK_DEVICE_GROUP_PRESENT_MODE_SUM_BIT_KHR,
+    result = present_internal(Anvil::DeviceGroupPresentModeFlagBits::SUM_BIT_KHR,
                               n_swapchains,
                               swapchains,
                               swapchain_image_indices,
@@ -709,13 +709,13 @@ VkResult Anvil::Queue::present_in_sum_presentation_mode(uint32_t                
 }
 
 /** Please see header for specification */
-VkResult Anvil::Queue::present_internal(VkDeviceGroupPresentModeFlagBitsKHR in_presentation_mode,
-                                        uint32_t                            in_n_swapchains,
-                                        Anvil::Swapchain* const*            in_swapchains,
-                                        const uint32_t*                     in_swapchain_image_indices,
-                                        const uint32_t*                     in_device_masks,
-                                        uint32_t                            in_n_wait_semaphores,
-                                        Anvil::Semaphore* const*            in_wait_semaphore_ptrs)
+VkResult Anvil::Queue::present_internal(DeviceGroupPresentModeFlagBits in_presentation_mode,
+                                        uint32_t                       in_n_swapchains,
+                                        Anvil::Swapchain* const*       in_swapchains,
+                                        const uint32_t*                in_swapchain_image_indices,
+                                        const uint32_t*                in_device_masks,
+                                        uint32_t                       in_n_wait_semaphores,
+                                        Anvil::Semaphore* const*       in_wait_semaphore_ptrs)
 {
     const Anvil::DeviceType                 device_type            (m_device_ptr->get_type() );
     VkResult                                presentation_results   [MAX_SWAPCHAINS];
@@ -729,11 +729,11 @@ VkResult Anvil::Queue::present_internal(VkDeviceGroupPresentModeFlagBitsKHR in_p
     anvil_assert(in_n_swapchains      <  MAX_SWAPCHAINS);
     anvil_assert(in_swapchains        != nullptr);
 
-    if (device_type == Anvil::DEVICE_TYPE_SINGLE_GPU)
+    if (device_type == Anvil::DeviceType::SINGLE_GPU)
     {
         anvil_assert(*in_device_masks     == 1);
         anvil_assert(in_n_swapchains      == 1);
-        anvil_assert(in_presentation_mode == VK_DEVICE_GROUP_PRESENT_MODE_LOCAL_BIT_KHR);
+        anvil_assert(in_presentation_mode == Anvil::DeviceGroupPresentModeFlagBits::LOCAL_BIT_KHR);
     }
 
     /* If the application is only interested in off-screen rendering, do *not* post the present request,
@@ -752,7 +752,7 @@ VkResult Anvil::Queue::present_internal(VkDeviceGroupPresentModeFlagBitsKHR in_p
             if (window_platform == WINDOW_PLATFORM_DUMMY                    ||
                 window_platform == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS)
             {
-                static const VkPipelineStageFlags dst_stage_mask(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+                static const Anvil::PipelineStageFlags dst_stage_mask(Anvil::PipelineStageFlagBits::TOP_OF_PIPE_BIT);
 
                 m_device_ptr->get_universal_queue(0)->submit(
                     SubmitInfo::create(nullptr,
@@ -813,11 +813,11 @@ VkResult Anvil::Queue::present_internal(VkDeviceGroupPresentModeFlagBitsKHR in_p
     }
 
     /* For multi-GPU support, we're likely going to need to attach the VkDeviceGroupPresentInfoKHR struct */
-    if (device_type == Anvil::DEVICE_TYPE_MULTI_GPU)
+    if (device_type == Anvil::DeviceType::MULTI_GPU)
     {
         VkDeviceGroupPresentInfoKHR device_group_present_info;
 
-        device_group_present_info.mode           = in_presentation_mode;
+        device_group_present_info.mode           = static_cast<VkDeviceGroupPresentModeFlagBitsKHR>(in_presentation_mode);
         device_group_present_info.pDeviceMasks   = in_device_masks;
         device_group_present_info.pNext          = nullptr;
         device_group_present_info.sType          = VK_STRUCTURE_TYPE_DEVICE_GROUP_PRESENT_INFO_KHR;

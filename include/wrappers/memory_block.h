@@ -78,7 +78,7 @@ namespace Anvil
          * Requires VK_KHR_external_memory_fd    under Linux.
          * Requires VK_KHR_external_memory_win32 under Windows.
          */
-        ExternalHandleUniquePtr export_to_external_memory_handle(const Anvil::ExternalMemoryHandleTypeBit& in_memory_handle_type);
+        ExternalHandleUniquePtr export_to_external_memory_handle(const Anvil::ExternalMemoryHandleTypeFlagBits& in_memory_handle_type);
 
         /** Releases the Vulkan counterpart and unregisters the wrapper instance from the object tracker */
         virtual ~MemoryBlock();
@@ -248,7 +248,7 @@ namespace Anvil
         std::shared_ptr<Anvil::IMemoryAllocatorBackendBase> m_owned_parent_memory_allocator_backend_ptr;
         Anvil::IMemoryAllocatorBackendBase*                 m_parent_memory_allocator_backend_ptr;
 
-        std::map<Anvil::ExternalMemoryHandleTypeBit, Anvil::ExternalHandleUniquePtr> m_external_handle_type_to_external_handle;
+        std::map<Anvil::ExternalMemoryHandleTypeFlagBits, Anvil::ExternalHandleUniquePtr> m_external_handle_type_to_external_handle;
     };
 }; /* Vulkan namespace */
 

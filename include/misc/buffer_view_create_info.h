@@ -36,7 +36,7 @@ namespace Anvil
          *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
-         * - MT safety: MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         * - MT safety: MTSafety::INHERIT_FROM_PARENT_DEVICE
          */
         static Anvil::BufferViewCreateInfoUniquePtr create(const Anvil::BaseDevice* in_device_ptr,
                                                            Anvil::Buffer*           in_buffer_ptr,

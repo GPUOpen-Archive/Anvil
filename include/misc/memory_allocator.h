@@ -77,34 +77,34 @@ namespace Anvil
                 const Anvil::ExternalNTHandleInfo* alloc_external_nt_handle_info_ptr;
             #endif
 
-            uint32_t                            alloc_device_mask;
-            Anvil::ExternalMemoryHandleTypeBits alloc_exportable_external_handle_types;
-            bool                                alloc_is_dedicated_memory;
-            MemoryBlockUniquePtr                alloc_memory_block_ptr;
-            uint32_t                            alloc_memory_final_type;
-            VkDeviceSize                        alloc_memory_required_alignment;
-            MemoryFeatureFlags                  alloc_memory_required_features;
-            uint32_t                            alloc_memory_supported_memory_types;
-            uint32_t                            alloc_memory_types;
-            MGPUPeerMemoryRequirements          alloc_mgpu_peer_memory_reqs;
-            VkDeviceSize                        alloc_offset;
-            VkDeviceSize                        alloc_size;
+            uint32_t                             alloc_device_mask;
+            Anvil::ExternalMemoryHandleTypeFlags alloc_exportable_external_handle_types;
+            bool                                 alloc_is_dedicated_memory;
+            MemoryBlockUniquePtr                 alloc_memory_block_ptr;
+            uint32_t                             alloc_memory_final_type;
+            VkDeviceSize                         alloc_memory_required_alignment;
+            MemoryFeatureFlags                   alloc_memory_required_features;
+            uint32_t                             alloc_memory_supported_memory_types;
+            uint32_t                             alloc_memory_types;
+            MGPUPeerMemoryRequirements           alloc_mgpu_peer_memory_reqs;
+            VkDeviceSize                         alloc_offset;
+            VkDeviceSize                         alloc_size;
 
-            VkExtent3D         extent;
-            bool               is_baked;
-            VkDeviceSize       miptail_offset;
-            uint32_t           n_layer;
-            VkOffset3D         offset;
-            VkImageSubresource subresource;
+            VkExtent3D              extent;
+            bool                    is_baked;
+            VkDeviceSize            miptail_offset;
+            uint32_t                n_layer;
+            VkOffset3D              offset;
+            Anvil::ImageSubresource subresource;
 
-            Item(Anvil::MemoryAllocator*                    in_memory_allocator_ptr,
-                 Anvil::Buffer*                             in_buffer_ptr,
-                 VkDeviceSize                               in_alloc_size,
-                 uint32_t                                   in_alloc_memory_types,
-                 VkDeviceSize                               in_alloc_alignment,
-                 MemoryFeatureFlags                         in_alloc_required_memory_features,
-                 uint32_t                                   in_alloc_supported_memory_types,
-                 const Anvil::ExternalMemoryHandleTypeBits& in_opt_exportable_external_handle_types,
+            Item(Anvil::MemoryAllocator*                     in_memory_allocator_ptr,
+                 Anvil::Buffer*                              in_buffer_ptr,
+                 VkDeviceSize                                in_alloc_size,
+                 uint32_t                                    in_alloc_memory_types,
+                 VkDeviceSize                                in_alloc_alignment,
+                 MemoryFeatureFlags                          in_alloc_required_memory_features,
+                 uint32_t                                    in_alloc_supported_memory_types,
+                 const Anvil::ExternalMemoryHandleTypeFlags& in_opt_exportable_external_handle_types,
 
 #if defined(_WIN32)
                  const Anvil::ExternalNTHandleInfo*         in_alloc_external_nt_handle_info_ptr,
@@ -113,15 +113,15 @@ namespace Anvil
                  const uint32_t&                            in_device_mask,
                  const MGPUPeerMemoryRequirements&          in_mgpu_peer_memory_reqs);
 
-            Item(Anvil::MemoryAllocator*                    in_memory_allocator_ptr,
-                 Anvil::Buffer*                             in_buffer_ptr,
-                 VkDeviceSize                               in_alloc_offset,
-                 VkDeviceSize                               in_alloc_size,
-                 uint32_t                                   in_alloc_memory_types,
-                 VkDeviceSize                               in_alloc_alignment,
-                 MemoryFeatureFlags                         in_alloc_required_memory_features,
-                 uint32_t                                   in_alloc_supported_memory_types,
-                 const Anvil::ExternalMemoryHandleTypeBits& in_opt_exportable_external_handle_types,
+            Item(Anvil::MemoryAllocator*                     in_memory_allocator_ptr,
+                 Anvil::Buffer*                              in_buffer_ptr,
+                 VkDeviceSize                                in_alloc_offset,
+                 VkDeviceSize                                in_alloc_size,
+                 uint32_t                                    in_alloc_memory_types,
+                 VkDeviceSize                                in_alloc_alignment,
+                 MemoryFeatureFlags                          in_alloc_required_memory_features,
+                 uint32_t                                    in_alloc_supported_memory_types,
+                 const Anvil::ExternalMemoryHandleTypeFlags& in_opt_exportable_external_handle_types,
 #if defined(_WIN32)
                  const Anvil::ExternalNTHandleInfo*         in_alloc_external_nt_handle_info_ptr,
 #endif
@@ -129,55 +129,55 @@ namespace Anvil
                  const uint32_t&                            in_device_mask,
                  const MGPUPeerMemoryRequirements&          in_mgpu_peer_memory_reqs);
 
-            Item(Anvil::MemoryAllocator*                    in_memory_allocator_ptr,
-                 Anvil::Image*                              in_image_ptr,
-                 uint32_t                                   in_n_layer,
-                 VkDeviceSize                               in_alloc_size,
-                 uint32_t                                   in_alloc_memory_types,
-                 VkDeviceSize                               in_miptail_offset,
-                 VkDeviceSize                               in_alloc_alignment,
-                 MemoryFeatureFlags                         in_alloc_required_memory_features,
-                 uint32_t                                   in_alloc_supported_memory_types,
-                 const Anvil::ExternalMemoryHandleTypeBits& in_opt_exportable_external_handle_types,
+            Item(Anvil::MemoryAllocator*                     in_memory_allocator_ptr,
+                 Anvil::Image*                               in_image_ptr,
+                 uint32_t                                    in_n_layer,
+                 VkDeviceSize                                in_alloc_size,
+                 uint32_t                                    in_alloc_memory_types,
+                 VkDeviceSize                                in_miptail_offset,
+                 VkDeviceSize                                in_alloc_alignment,
+                 MemoryFeatureFlags                          in_alloc_required_memory_features,
+                 uint32_t                                    in_alloc_supported_memory_types,
+                 const Anvil::ExternalMemoryHandleTypeFlags& in_opt_exportable_external_handle_types,
 #if defined(_WIN32)
-                 const Anvil::ExternalNTHandleInfo*         in_alloc_external_nt_handle_info_ptr,
+                 const Anvil::ExternalNTHandleInfo*          in_alloc_external_nt_handle_info_ptr,
 #endif
-                 const bool&                                in_alloc_is_dedicated,
-                 const uint32_t&                            in_device_mask,
-                 const MGPUPeerMemoryRequirements&          in_mgpu_peer_memory_reqs);
+                 const bool&                                 in_alloc_is_dedicated,
+                 const uint32_t&                             in_device_mask,
+                 const MGPUPeerMemoryRequirements&           in_mgpu_peer_memory_reqs);
 
-            Item(Anvil::MemoryAllocator*                    in_memory_allocator_ptr,
-                 Anvil::Image*                              in_image_ptr,
-                 const VkImageSubresource&                  in_subresource,
-                 const VkOffset3D&                          in_offset,
-                 const VkExtent3D&                          in_extent,
-                 VkDeviceSize                               in_alloc_size,
-                 uint32_t                                   in_alloc_memory_types,
-                 VkDeviceSize                               in_alloc_alignment,
-                 MemoryFeatureFlags                         in_alloc_required_memory_features,
-                 uint32_t                                   in_alloc_supported_memory_types,
-                 const Anvil::ExternalMemoryHandleTypeBits& in_opt_exportable_external_handle_types,
+            Item(Anvil::MemoryAllocator*                     in_memory_allocator_ptr,
+                 Anvil::Image*                               in_image_ptr,
+                 const Anvil::ImageSubresource&              in_subresource,
+                 const VkOffset3D&                           in_offset,
+                 const VkExtent3D&                           in_extent,
+                 VkDeviceSize                                in_alloc_size,
+                 uint32_t                                    in_alloc_memory_types,
+                 VkDeviceSize                                in_alloc_alignment,
+                 MemoryFeatureFlags                          in_alloc_required_memory_features,
+                 uint32_t                                    in_alloc_supported_memory_types,
+                 const Anvil::ExternalMemoryHandleTypeFlags& in_opt_exportable_external_handle_types,
 #if defined(_WIN32)
-                 const Anvil::ExternalNTHandleInfo*         in_alloc_external_nt_handle_info_ptr,
+                 const Anvil::ExternalNTHandleInfo*          in_alloc_external_nt_handle_info_ptr,
 #endif
-                 const bool&                                in_alloc_is_dedicated,
-                 const uint32_t&                            in_device_mask,
-                 const MGPUPeerMemoryRequirements&          in_mgpu_peer_memory_reqs);
+                 const bool&                                 in_alloc_is_dedicated,
+                 const uint32_t&                             in_device_mask,
+                 const MGPUPeerMemoryRequirements&           in_mgpu_peer_memory_reqs);
 
-            Item(Anvil::MemoryAllocator*                    in_memory_allocator_ptr,
-                 Anvil::Image*                              in_image_ptr,
-                 VkDeviceSize                               in_alloc_size,
-                 uint32_t                                   in_alloc_memory_types,
-                 VkDeviceSize                               in_alloc_alignment,
-                 MemoryFeatureFlags                         in_alloc_required_memory_features,
-                 uint32_t                                   in_alloc_supported_memory_types,
-                 const Anvil::ExternalMemoryHandleTypeBits& in_opt_exportable_external_handle_types,
+            Item(Anvil::MemoryAllocator*                     in_memory_allocator_ptr,
+                 Anvil::Image*                               in_image_ptr,
+                 VkDeviceSize                                in_alloc_size,
+                 uint32_t                                    in_alloc_memory_types,
+                 VkDeviceSize                                in_alloc_alignment,
+                 MemoryFeatureFlags                          in_alloc_required_memory_features,
+                 uint32_t                                    in_alloc_supported_memory_types,
+                 const Anvil::ExternalMemoryHandleTypeFlags& in_opt_exportable_external_handle_types,
 #if defined(_WIN32)
-                 const Anvil::ExternalNTHandleInfo*         in_alloc_external_nt_handle_info_ptr,
+                 const Anvil::ExternalNTHandleInfo*          in_alloc_external_nt_handle_info_ptr,
 #endif
-                 const bool&                                in_alloc_is_dedicated,
-                 const uint32_t&                            in_device_mask,
-                 const MGPUPeerMemoryRequirements&          in_mgpu_peer_memory_reqs);
+                 const bool&                                 in_alloc_is_dedicated,
+                 const uint32_t&                             in_device_mask,
+                 const MGPUPeerMemoryRequirements&           in_mgpu_peer_memory_reqs);
 
             /** TODO */
             ~Item();
@@ -202,9 +202,9 @@ namespace Anvil
                 /* Stub */
             }
 
-            virtual bool bake                            (Items&                                     in_items)                              = 0;
-            virtual bool supports_device_masks           ()                                                                           const = 0;
-            virtual bool supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeBits& in_external_memory_handle_types) const = 0;
+            virtual bool bake                            (Items&                                      in_items)                              = 0;
+            virtual bool supports_device_masks           ()                                                                            const = 0;
+            virtual bool supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeFlags& in_external_memory_handle_types) const = 0;
         };
 
         /* Public functions */
@@ -232,7 +232,7 @@ namespace Anvil
          **/
         bool add_buffer                                            (Anvil::Buffer*                               in_buffer_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features,
-                                                                    const Anvil::ExternalMemoryHandleTypeBits&   in_opt_exportable_external_handle_types = 0,
+                                                                    const Anvil::ExternalMemoryHandleTypeFlags&  in_opt_exportable_external_handle_types = Anvil::ExternalMemoryHandleTypeFlagBits::NONE,
         #if defined(_WIN32)
                                                                     const Anvil::ExternalNTHandleInfo*           in_opt_external_nt_handle_info_ptr      = nullptr,
         #endif
@@ -241,7 +241,7 @@ namespace Anvil
         bool add_buffer_with_float_data_ptr_based_post_fill        (Anvil::Buffer*                               in_buffer_ptr,
                                                                     std::unique_ptr<float[]>                     in_data_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features,
-                                                                    const Anvil::ExternalMemoryHandleTypeBits&   in_opt_exportable_external_handle_types = 0,
+                                                                    const Anvil::ExternalMemoryHandleTypeFlags&  in_opt_exportable_external_handle_types = Anvil::ExternalMemoryHandleTypeFlagBits::NONE,
         #if defined(_WIN32)
                                                                     const Anvil::ExternalNTHandleInfo*           in_opt_external_nt_handle_info_ptr      = nullptr,
         #endif
@@ -250,7 +250,7 @@ namespace Anvil
         bool add_buffer_with_float_data_vector_ptr_based_post_fill (Anvil::Buffer*                               in_buffer_ptr,
                                                                     std::unique_ptr<std::vector<float> >         in_data_vector_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features,
-                                                                    const Anvil::ExternalMemoryHandleTypeBits&   in_opt_exportable_external_handle_types = 0,
+                                                                    const Anvil::ExternalMemoryHandleTypeFlags&  in_opt_exportable_external_handle_types = Anvil::ExternalMemoryHandleTypeFlagBits::NONE,
         #if defined(_WIN32)
                                                                     const Anvil::ExternalNTHandleInfo*           in_opt_external_nt_handle_info_ptr      = nullptr,
         #endif
@@ -259,7 +259,7 @@ namespace Anvil
         bool add_buffer_with_float_data_vector_ptr_based_post_fill (Anvil::Buffer*                               in_buffer_ptr,
                                                                     const std::vector<float>*                    in_data_vector_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features,
-                                                                    const Anvil::ExternalMemoryHandleTypeBits&   in_opt_exportable_external_handle_types = 0,
+                                                                    const Anvil::ExternalMemoryHandleTypeFlags&  in_opt_exportable_external_handle_types = Anvil::ExternalMemoryHandleTypeFlagBits::NONE,
         #if defined(_WIN32)
                                                                     const Anvil::ExternalNTHandleInfo*           in_opt_external_nt_handle_info_ptr      = nullptr,
         #endif
@@ -268,7 +268,7 @@ namespace Anvil
         bool add_buffer_with_uchar8_data_ptr_based_post_fill       (Anvil::Buffer*                               in_buffer_ptr,
                                                                     std::unique_ptr<uint8_t[]>                   in_data_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features,
-                                                                    const Anvil::ExternalMemoryHandleTypeBits&   in_opt_exportable_external_handle_types = 0,
+                                                                    const Anvil::ExternalMemoryHandleTypeFlags&  in_opt_exportable_external_handle_types = Anvil::ExternalMemoryHandleTypeFlagBits::NONE,
         #if defined(_WIN32)
                                                                     const Anvil::ExternalNTHandleInfo*           in_opt_external_nt_handle_info_ptr      = nullptr,
         #endif
@@ -277,7 +277,7 @@ namespace Anvil
         bool add_buffer_with_uchar8_data_vector_ptr_based_post_fill(Anvil::Buffer*                               in_buffer_ptr,
                                                                     std::unique_ptr<std::vector<unsigned char> > in_data_vector_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features,
-                                                                    const Anvil::ExternalMemoryHandleTypeBits&   in_opt_exportable_external_handle_types = 0,
+                                                                    const Anvil::ExternalMemoryHandleTypeFlags&  in_opt_exportable_external_handle_types = Anvil::ExternalMemoryHandleTypeFlagBits::NONE,
         #if defined(_WIN32)
                                                                     const Anvil::ExternalNTHandleInfo*           in_opt_external_nt_handle_info_ptr      = nullptr,
         #endif
@@ -286,7 +286,7 @@ namespace Anvil
         bool add_buffer_with_uint32_data_ptr_based_post_fill       (Anvil::Buffer*                               in_buffer_ptr,
                                                                     std::unique_ptr<uint32_t[]>                  in_data_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features,
-                                                                    const Anvil::ExternalMemoryHandleTypeBits&   in_opt_exportable_external_handle_types = 0,
+                                                                    const Anvil::ExternalMemoryHandleTypeFlags&  in_opt_exportable_external_handle_types = Anvil::ExternalMemoryHandleTypeFlagBits::NONE,
         #if defined(_WIN32)
                                                                     const Anvil::ExternalNTHandleInfo*           in_opt_external_nt_handle_info_ptr      = nullptr,
         #endif
@@ -295,7 +295,7 @@ namespace Anvil
         bool add_buffer_with_uint32_data_vector_ptr_based_post_fill(Anvil::Buffer*                               in_buffer_ptr,
                                                                     std::unique_ptr<std::vector<uint32_t> >      in_data_vector_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features,
-                                                                    const Anvil::ExternalMemoryHandleTypeBits&   in_opt_exportable_external_handle_types = 0,
+                                                                    const Anvil::ExternalMemoryHandleTypeFlags&  in_opt_exportable_external_handle_types = Anvil::ExternalMemoryHandleTypeFlagBits::NONE,
         #if defined(_WIN32)
                                                                     const Anvil::ExternalNTHandleInfo*           in_opt_external_nt_handle_info_ptr      = nullptr,
         #endif
@@ -304,7 +304,7 @@ namespace Anvil
         bool add_buffer_with_uint32_data_vector_ptr_based_post_fill(Anvil::Buffer*                               in_buffer_ptr,
                                                                     const std::vector<uint32_t>*                 in_data_vector_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features,
-                                                                    const Anvil::ExternalMemoryHandleTypeBits&   in_opt_exportable_external_handle_types = 0,
+                                                                    const Anvil::ExternalMemoryHandleTypeFlags&  in_opt_exportable_external_handle_types = Anvil::ExternalMemoryHandleTypeFlagBits::NONE,
         #if defined(_WIN32)
                                                                     const Anvil::ExternalNTHandleInfo*           in_opt_external_nt_handle_info_ptr      = nullptr,
         #endif
@@ -353,14 +353,14 @@ namespace Anvil
          *
          *  @return true if the image has been successfully scheduled for baking, false otherwise.
          **/
-        bool add_image_whole(Anvil::Image*                              in_image_ptr,
-                             MemoryFeatureFlags                         in_required_memory_features,
-                             const Anvil::ExternalMemoryHandleTypeBits& in_opt_exportable_external_handle_types = 0,
+        bool add_image_whole(Anvil::Image*                               in_image_ptr,
+                             MemoryFeatureFlags                          in_required_memory_features,
+                             const Anvil::ExternalMemoryHandleTypeFlags& in_opt_exportable_external_handle_types = Anvil::ExternalMemoryHandleTypeFlagBits::NONE,
 #if defined(_WIN32)
-                             const Anvil::ExternalNTHandleInfo*         in_opt_external_nt_handle_info_ptr      = nullptr,
+                             const Anvil::ExternalNTHandleInfo*          in_opt_external_nt_handle_info_ptr      = nullptr,
         #endif
-                             const uint32_t*                            in_opt_device_mask_ptr                  = nullptr,
-                             const MGPUPeerMemoryRequirements*          in_opt_mgpu_peer_memory_reqs_ptr        = nullptr);
+                             const uint32_t*                             in_opt_device_mask_ptr                  = nullptr,
+                             const MGPUPeerMemoryRequirements*           in_opt_mgpu_peer_memory_reqs_ptr        = nullptr);
 
 
         /** Adds a new Image object whose layer @param in_n_layer 's miptail for @param in_aspect
@@ -415,7 +415,7 @@ namespace Anvil
          *  @return true if the subresource has been successfully scheduled for baking, false otherwise.
          **/
         bool add_sparse_image_subresource(Anvil::Image*                     in_image_ptr,
-                                          const VkImageSubresource&         in_subresource,
+                                          const Anvil::ImageSubresource&    in_subresource,
                                           const VkOffset3D&                 in_offset,
                                           VkExtent3D                        in_extent,
                                           MemoryFeatureFlags                in_required_memory_features,
@@ -432,7 +432,7 @@ namespace Anvil
          *  @param in_device_ptr Device to use.
          **/
         static Anvil::MemoryAllocatorUniquePtr create_oneshot(const Anvil::BaseDevice* in_device_ptr,
-                                                              MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+                                                              MTSafety                 in_mt_safety = Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a new VMA memory allocator instance.
          *
@@ -443,7 +443,7 @@ namespace Anvil
          *  @param in_device_ptr Device to use.
          **/
         static Anvil::MemoryAllocatorUniquePtr create_vma(const Anvil::BaseDevice* in_device_ptr,
-                                                          MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+                                                          MTSafety                 in_mt_safety = Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE);
 
         /** By default, once memory regions are baked, memory allocator will bind them to objects specified
          *  at add_*() call time. Use cases exist where apps may prefer to handle this action on their own.
@@ -492,21 +492,21 @@ namespace Anvil
 
     private:
         /* Private functions */
-        bool add_buffer_internal(Anvil::Buffer*                             in_buffer_ptr,
-                                 MemoryFeatureFlags                         in_required_memory_features,
-                                 const Anvil::ExternalMemoryHandleTypeBits& in_opt_exportable_external_handle_types,
+        bool add_buffer_internal(Anvil::Buffer*                              in_buffer_ptr,
+                                 MemoryFeatureFlags                          in_required_memory_features,
+                                 const Anvil::ExternalMemoryHandleTypeFlags& in_opt_exportable_external_handle_types,
 #if defined(_WIN32)
-                                 const Anvil::ExternalNTHandleInfo*         in_opt_external_nt_handle_info_ptr,
+                                 const Anvil::ExternalNTHandleInfo*          in_opt_external_nt_handle_info_ptr,
 #endif
-                                 const uint32_t*                            in_opt_device_mask_ptr,
-                                 const MGPUPeerMemoryRequirements*          in_opt_mgpu_peer_memory_reqs_ptr);
+                                 const uint32_t*                             in_opt_device_mask_ptr,
+                                 const MGPUPeerMemoryRequirements*           in_opt_mgpu_peer_memory_reqs_ptr);
 
-        bool do_external_memory_handle_type_sanity_checks(const Anvil::ExternalMemoryHandleTypeBits& in_external_memory_handle_types) const;
-        bool do_mgpu_sanity_checks                       (const uint32_t*                            in_opt_device_mask_ptr,
-                                                          const MGPUPeerMemoryRequirements*          in_opt_peer_memory_reqs_ptr) const;
-        bool is_alloc_supported                          (uint32_t                                   in_memory_types,
-                                                          Anvil::MemoryFeatureFlags                  in_memory_features,
-                                                          uint32_t*                                  out_opt_filtered_memory_types_ptr) const;
+        bool do_external_memory_handle_type_sanity_checks(const Anvil::ExternalMemoryHandleTypeFlags& in_external_memory_handle_types) const;
+        bool do_mgpu_sanity_checks                       (const uint32_t*                             in_opt_device_mask_ptr,
+                                                          const MGPUPeerMemoryRequirements*           in_opt_peer_memory_reqs_ptr) const;
+        bool is_alloc_supported                          (uint32_t                                    in_memory_types,
+                                                          Anvil::MemoryFeatureFlags                   in_memory_features,
+                                                          uint32_t*                                   out_opt_filtered_memory_types_ptr) const;
 
         void on_is_alloc_pending_for_buffer_query(CallbackArgument* in_callback_arg_ptr);
         void on_is_alloc_pending_for_image_query (CallbackArgument* in_callback_arg_ptr);

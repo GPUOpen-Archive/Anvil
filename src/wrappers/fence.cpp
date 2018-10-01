@@ -76,7 +76,7 @@ Anvil::FenceUniquePtr Anvil::Fence::create(Anvil::FenceCreateInfoUniquePtr in_cr
 }
 
 /* Please see header for specification */
-Anvil::ExternalHandleUniquePtr Anvil::Fence::export_to_external_handle(const Anvil::ExternalFenceHandleTypeBit& in_fence_handle_type)
+Anvil::ExternalHandleUniquePtr Anvil::Fence::export_to_external_handle(const Anvil::ExternalFenceHandleTypeFlagBits& in_fence_handle_type)
 {
     #if defined(_WIN32)
         const auto invalid_handle                 = nullptr;
@@ -129,7 +129,7 @@ Anvil::ExternalHandleUniquePtr Anvil::Fence::export_to_external_handle(const Anv
         anvil_assert(m_fence != VK_NULL_HANDLE);
 
         info.fence      = m_fence;
-        info.handleType = static_cast<VkExternalFenceHandleTypeFlagBits>(Anvil::Utils::convert_external_fence_handle_type_bits_to_vk_external_fence_handle_type_flags(in_fence_handle_type) );
+        info.handleType = static_cast<VkExternalFenceHandleTypeFlagBitsKHR>(in_fence_handle_type);
         info.pNext      = nullptr;
         info.sType      = VK_STRUCTURE_TYPE_FENCE_GET_WIN32_HANDLE_INFO_KHR;
 
@@ -150,7 +150,7 @@ Anvil::ExternalHandleUniquePtr Anvil::Fence::export_to_external_handle(const Anv
         anvil_assert(m_fence != VK_NULL_HANDLE);
 
         info.fence      = m_fence;
-        info.handleType = static_cast<VkExternalFenceHandleTypeFlagBits>(Anvil::Utils::convert_external_fence_handle_type_bits_to_vk_external_fence_handle_type_flags(in_fence_handle_type) );
+        info.handleType = static_cast<VkExternalFenceHandleTypeFlagBits>(in_fence_handle_type);
         info.pNext      = nullptr;
         info.sType      = VK_STRUCTURE_TYPE_FENCE_GET_FD_INFO_KHR;
 
@@ -188,14 +188,14 @@ end:
 }
 
 #if defined(_WIN32)
-    bool Anvil::Fence::import_from_external_handle(const bool&                              in_temporary_import,
-                                                   const Anvil::ExternalFenceHandleTypeBit& in_handle_type,
-                                                   const ExternalHandleType&                in_opt_handle,
-                                                   const std::wstring&                      in_opt_name)
+    bool Anvil::Fence::import_from_external_handle(const bool&                                   in_temporary_import,
+                                                   const Anvil::ExternalFenceHandleTypeFlagBits& in_handle_type,
+                                                   const ExternalHandleType&                     in_opt_handle,
+                                                   const std::wstring&                           in_opt_name)
 #else
-    bool Anvil::Fence::import_from_external_handle(const bool&                              in_temporary_import,
-                                                   const Anvil::ExternalFenceHandleTypeBit& in_handle_type,
-                                                   const ExternalHandleType&                in_handle)
+    bool Anvil::Fence::import_from_external_handle(const bool&                                   in_temporary_import,
+                                                   const Anvil::ExternalFenceHandleTypeFlagBits& in_handle_type,
+                                                   const ExternalHandleType&                      in_handle)
 #endif
 {
     #if defined(_WIN32)
@@ -236,7 +236,7 @@ end:
         info_vk.flags      = (in_temporary_import) ? VK_FENCE_IMPORT_TEMPORARY_BIT_KHR
                                                    : 0;
         info_vk.handle     = in_opt_handle;
-        info_vk.handleType = static_cast<VkExternalFenceHandleTypeFlagBitsKHR>(Anvil::Utils::convert_external_fence_handle_type_bits_to_vk_external_fence_handle_type_flags(in_handle_type) );
+        info_vk.handleType = static_cast<VkExternalFenceHandleTypeFlagBitsKHR>(in_handle_type);
         info_vk.name       = (in_opt_name.size() > 0) ? &in_opt_name.at(0)
                                                       : nullptr;
         info_vk.pNext      = nullptr;
@@ -253,7 +253,7 @@ end:
         info_vk.fence      = m_fence;
         info_vk.flags      = (in_temporary_import) ? VK_FENCE_IMPORT_TEMPORARY_BIT_KHR
                                                    : 0;
-        info_vk.handleType = static_cast<VkExternalFenceHandleTypeFlagBitsKHR>(Anvil::Utils::convert_external_fence_handle_type_bits_to_vk_external_fence_handle_type_flags(in_handle_type) );
+        info_vk.handleType = static_cast<VkExternalFenceHandleTypeFlagBitsKHR>(in_handle_type);
         info_vk.pNext      = nullptr;
         info_vk.sType      = VK_STRUCTURE_TYPE_IMPORT_FENCE_FD_INFO_KHR;
 
@@ -273,7 +273,7 @@ bool Anvil::Fence::init()
     Anvil::StructChainUniquePtr<VkFenceCreateInfo> struct_chain_ptr;
 
     /* Sanity checks */
-    if (m_create_info_ptr->get_exportable_external_fence_handle_types() != Anvil::EXTERNAL_FENCE_HANDLE_TYPE_NONE)
+    if (m_create_info_ptr->get_exportable_external_fence_handle_types() != Anvil::ExternalFenceHandleTypeFlagBits::NONE)
     {
         if (!m_device_ptr->get_extension_info()->khr_external_fence() )
         {
@@ -293,11 +293,11 @@ bool Anvil::Fence::init()
         struct_chainer.append_struct(fence_create_info);
     }
 
-    if (m_create_info_ptr->get_exportable_external_fence_handle_types() != Anvil::EXTERNAL_FENCE_HANDLE_TYPE_NONE)
+    if (m_create_info_ptr->get_exportable_external_fence_handle_types() != Anvil::ExternalFenceHandleTypeFlagBits::NONE)
     {
         VkExportFenceCreateInfo create_info;
 
-        create_info.handleTypes = Anvil::Utils::convert_external_fence_handle_type_bits_to_vk_external_fence_handle_type_flags(m_create_info_ptr->get_exportable_external_fence_handle_types() );
+        create_info.handleTypes = m_create_info_ptr->get_exportable_external_fence_handle_types().get_vk();
         create_info.pNext       = nullptr;
         create_info.sType       = VK_STRUCTURE_TYPE_EXPORT_FENCE_CREATE_INFO_KHR;
 
@@ -312,8 +312,8 @@ bool Anvil::Fence::init()
         {
             VkExportFenceWin32HandleInfoKHR handle_info;
 
-            anvil_assert(nt_handle_info_ptr                                                                                                   != nullptr);
-            anvil_assert(m_create_info_ptr->get_exportable_external_fence_handle_types() & Anvil::EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+            anvil_assert(nt_handle_info_ptr                                                                                                           != nullptr);
+            anvil_assert((m_create_info_ptr->get_exportable_external_fence_handle_types() & Anvil::ExternalFenceHandleTypeFlagBits::OPAQUE_WIN32_BIT) != 0);
 
             handle_info.dwAccess    = nt_handle_info_ptr->access;
             handle_info.name        = (nt_handle_info_ptr->name.size() > 0) ? &nt_handle_info_ptr->name.at(0)

@@ -135,7 +135,7 @@ bool Anvil::PipelineLayout::bake(const std::vector<DescriptorSetCreateInfoUnique
 
         new_push_constant_range.offset     = push_constant_range_iterator->offset;
         new_push_constant_range.size       = push_constant_range_iterator->size;
-        new_push_constant_range.stageFlags = push_constant_range_iterator->stages;
+        new_push_constant_range.stageFlags = push_constant_range_iterator->stages.get_vk();
 
         push_constant_ranges_vk.push_back(new_push_constant_range);
     }

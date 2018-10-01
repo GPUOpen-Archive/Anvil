@@ -36,7 +36,7 @@ namespace Anvil
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
          * - Exportable external semaphore handle type: none
-         * - MT safety:                                 MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:                                 Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
          */
         static Anvil::SemaphoreCreateInfoUniquePtr create(const Anvil::BaseDevice* in_device_ptr);
 
@@ -45,7 +45,7 @@ namespace Anvil
             return m_device_ptr;
         }
 
-        const Anvil::ExternalSemaphoreHandleTypeBits& get_exportable_external_semaphore_handle_types() const
+        const Anvil::ExternalSemaphoreHandleTypeFlags& get_exportable_external_semaphore_handle_types() const
         {
             return m_exportable_external_semaphore_handle_types;
         }
@@ -84,7 +84,7 @@ namespace Anvil
          *
          * Requires VK_KHR_external_semaphore.
          */
-        void set_exportable_external_semaphore_handle_types(const Anvil::ExternalFenceHandleTypeBits& in_external_handle_types)
+        void set_exportable_external_semaphore_handle_types(const Anvil::ExternalSemaphoreHandleTypeFlags& in_external_handle_types)
         {
             m_exportable_external_semaphore_handle_types = in_external_handle_types;
         }
@@ -134,9 +134,9 @@ namespace Anvil
                             MTSafety                 in_mt_safety);
 
         /* Private variables */
-        const Anvil::BaseDevice*               m_device_ptr;
-        Anvil::ExternalSemaphoreHandleTypeBits m_exportable_external_semaphore_handle_types;
-        Anvil::MTSafety                        m_mt_safety;
+        const Anvil::BaseDevice*                m_device_ptr;
+        Anvil::ExternalSemaphoreHandleTypeFlags m_exportable_external_semaphore_handle_types;
+        Anvil::MTSafety                         m_mt_safety;
 
         #ifdef _WIN32
             ExternalNTHandleInfo m_exportable_nt_handle_info;

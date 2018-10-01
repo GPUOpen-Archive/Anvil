@@ -39,9 +39,9 @@ namespace Anvil
             return m_allow_derivatives;
         }
 
-        bool attach_push_constant_range(uint32_t           in_offset,
-                                        uint32_t           in_size,
-                                        VkShaderStageFlags in_stages);
+        bool attach_push_constant_range(uint32_t                in_offset,
+                                        uint32_t                in_size,
+                                        Anvil::ShaderStageFlags in_stages);
 
         /* Returns != UINT32_MAX if this pipeline is a derivative pipeline, or UINT32_MAX otherwise. */
         Anvil::PipelineID get_base_pipeline_id() const

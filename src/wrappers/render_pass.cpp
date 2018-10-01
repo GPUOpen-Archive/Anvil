@@ -149,13 +149,13 @@ bool Anvil::RenderPass::init()
         attachment_vk.finalLayout    = static_cast<VkImageLayout>(renderpass_attachment_iterator->final_layout);
         attachment_vk.flags          = (renderpass_attachment_iterator->may_alias) ? VK_ATTACHMENT_DESCRIPTION_MAY_ALIAS_BIT
                                                                                    : 0u;
-        attachment_vk.format         = static_cast<VkFormat>(renderpass_attachment_iterator->format);
-        attachment_vk.initialLayout  = static_cast<VkImageLayout>(renderpass_attachment_iterator->initial_layout);
-        attachment_vk.loadOp         = renderpass_attachment_iterator->color_depth_load_op;
+        attachment_vk.format         = static_cast<VkFormat>             (renderpass_attachment_iterator->format);
+        attachment_vk.initialLayout  = static_cast<VkImageLayout>        (renderpass_attachment_iterator->initial_layout);
+        attachment_vk.loadOp         = static_cast<VkAttachmentLoadOp>   (renderpass_attachment_iterator->color_depth_load_op);
         attachment_vk.samples        = static_cast<VkSampleCountFlagBits>(renderpass_attachment_iterator->sample_count);
-        attachment_vk.stencilLoadOp  = renderpass_attachment_iterator->stencil_load_op;
-        attachment_vk.stencilStoreOp = renderpass_attachment_iterator->stencil_store_op;
-        attachment_vk.storeOp        = renderpass_attachment_iterator->color_depth_store_op;
+        attachment_vk.stencilLoadOp  = static_cast<VkAttachmentLoadOp>   (renderpass_attachment_iterator->stencil_load_op);
+        attachment_vk.stencilStoreOp = static_cast<VkAttachmentStoreOp>  (renderpass_attachment_iterator->stencil_store_op);
+        attachment_vk.storeOp        = static_cast<VkAttachmentStoreOp>  (renderpass_attachment_iterator->color_depth_store_op);
 
         renderpass_attachments_vk.push_back(attachment_vk);
     }
@@ -166,13 +166,13 @@ bool Anvil::RenderPass::init()
     {
         VkSubpassDependency dependency_vk;
 
-        dependency_vk.dependencyFlags = subpass_dependency_iterator->flags;
-        dependency_vk.dstAccessMask   = subpass_dependency_iterator->destination_access_mask;
-        dependency_vk.dstStageMask    = subpass_dependency_iterator->destination_stage_mask;
+        dependency_vk.dependencyFlags = subpass_dependency_iterator->flags.get_vk();
+        dependency_vk.dstAccessMask   = subpass_dependency_iterator->destination_access_mask.get_vk();
+        dependency_vk.dstStageMask    = subpass_dependency_iterator->destination_stage_mask.get_vk ();
         dependency_vk.dstSubpass      = (subpass_dependency_iterator->destination_subpass_ptr != nullptr) ? subpass_dependency_iterator->destination_subpass_ptr->index
                                                                                                          : VK_SUBPASS_EXTERNAL;
-        dependency_vk.srcAccessMask   = subpass_dependency_iterator->source_access_mask;
-        dependency_vk.srcStageMask    = subpass_dependency_iterator->source_stage_mask;
+        dependency_vk.srcAccessMask   = subpass_dependency_iterator->source_access_mask.get_vk();
+        dependency_vk.srcStageMask    = subpass_dependency_iterator->source_stage_mask.get_vk ();
         dependency_vk.srcSubpass      = (subpass_dependency_iterator->source_subpass_ptr != nullptr) ? subpass_dependency_iterator->source_subpass_ptr->index
                                                                                                     : VK_SUBPASS_EXTERNAL;
 
@@ -370,11 +370,11 @@ bool Anvil::RenderPass::init()
                 const auto& current_attachment_accessed_aspects = subpass_input_attachment_iterator->second.aspects_accessed;
                 const auto& current_attachment_index            = subpass_input_attachment_iterator->first;
 
-                if (current_attachment_accessed_aspects != Anvil::ImageAspectFlagBits::IMAGE_ASPECT_UNKNOWN)
+                if (current_attachment_accessed_aspects != Anvil::ImageAspectFlagBits::NONE)
                 {
                     std::unique_ptr<VkInputAttachmentAspectReferenceKHR> attachment_aspect_reference_info_ptr(new VkInputAttachmentAspectReferenceKHR() );
 
-                    attachment_aspect_reference_info_ptr->aspectMask           = static_cast<VkImageAspectFlags>(current_attachment_accessed_aspects);
+                    attachment_aspect_reference_info_ptr->aspectMask           = current_attachment_accessed_aspects.get_vk();
                     attachment_aspect_reference_info_ptr->inputAttachmentIndex = current_attachment_index;
                     attachment_aspect_reference_info_ptr->subpass              = current_subpass_index;
 
