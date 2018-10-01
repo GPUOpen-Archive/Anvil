@@ -108,8 +108,8 @@ void Anvil::RenderingSurface::cache_surface_properties()
 
     switch (device_type)
     {
-        case Anvil::DEVICE_TYPE_MULTI_GPU:  n_physical_devices = mgpu_device_ptr->get_n_physical_devices(); break;
-        case Anvil::DEVICE_TYPE_SINGLE_GPU: n_physical_devices = 1;                                         break;
+        case Anvil::DeviceType::MULTI_GPU:  n_physical_devices = mgpu_device_ptr->get_n_physical_devices(); break;
+        case Anvil::DeviceType::SINGLE_GPU: n_physical_devices = 1;                                         break;
 
         default:
         {
@@ -132,8 +132,8 @@ void Anvil::RenderingSurface::cache_surface_properties()
 
         switch (device_type)
         {
-            case Anvil::DEVICE_TYPE_MULTI_GPU:  physical_device_ptr = mgpu_device_ptr->get_physical_device(n_physical_device); break;
-            case Anvil::DEVICE_TYPE_SINGLE_GPU: physical_device_ptr = sgpu_device_ptr->get_physical_device();                  break;
+            case Anvil::DeviceType::MULTI_GPU:  physical_device_ptr = mgpu_device_ptr->get_physical_device(n_physical_device); break;
+            case Anvil::DeviceType::SINGLE_GPU: physical_device_ptr = sgpu_device_ptr->get_physical_device();                  break;
 
             default:
             {
@@ -145,14 +145,14 @@ void Anvil::RenderingSurface::cache_surface_properties()
 
         if (m_surface == VK_NULL_HANDLE)
         {
-            result_caps.supported_composite_alpha_flags = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
-            result_caps.supported_transformations       = VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR;
-            result_caps.supported_usages                = static_cast<Anvil::ImageUsageFlags> (Anvil::IMAGE_USAGE_FLAG_COLOR_ATTACHMENT_BIT |
-                                                                                               Anvil::IMAGE_USAGE_FLAG_TRANSFER_SRC_BIT     |
-                                                                                               Anvil::IMAGE_USAGE_FLAG_TRANSFER_DST_BIT     |
-                                                                                               Anvil::IMAGE_USAGE_FLAG_STORAGE_BIT);
+            result_caps.supported_composite_alpha_flags = Anvil::CompositeAlphaFlagBits::INHERIT_BIT_KHR;
+            result_caps.supported_transformations       = Anvil::SurfaceTransformFlagBits::INHERIT_BIT_KHR;
+            result_caps.supported_usages                = static_cast<Anvil::ImageUsageFlags> (Anvil::ImageUsageFlagBits::COLOR_ATTACHMENT_BIT |
+                                                                                               Anvil::ImageUsageFlagBits::TRANSFER_SRC_BIT     |
+                                                                                               Anvil::ImageUsageFlagBits::TRANSFER_DST_BIT     |
+                                                                                               Anvil::ImageUsageFlagBits::STORAGE_BIT);
 
-            result_caps.supported_presentation_modes.push_back(VK_PRESENT_MODE_IMMEDIATE_KHR);
+            result_caps.supported_presentation_modes.push_back(Anvil::PresentModeKHR::IMMEDIATE_KHR);
 
             continue;
         }
@@ -161,24 +161,24 @@ void Anvil::RenderingSurface::cache_surface_properties()
 
         result = khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device_vk,
                                                                                    m_surface,
-                                                                                  &result_caps.capabilities);
+                                                                                   reinterpret_cast<VkSurfaceCapabilitiesKHR*>(&result_caps.capabilities) );
 
         anvil_assert_vk_call_succeeded(result);
 
         if (n_physical_device == 0)
         {
-            m_height = result_caps.capabilities.currentExtent.height;
-            m_width  = result_caps.capabilities.currentExtent.width;
+            m_height = result_caps.capabilities.current_extent.height;
+            m_width  = result_caps.capabilities.current_extent.width;
         }
         else
         {
-            anvil_assert(m_height == result_caps.capabilities.currentExtent.height);
-            anvil_assert(m_width  == result_caps.capabilities.currentExtent.width);
+            anvil_assert(m_height == result_caps.capabilities.current_extent.height);
+            anvil_assert(m_width  == result_caps.capabilities.current_extent.width);
         }
 
-        result_caps.supported_composite_alpha_flags = static_cast<VkCompositeAlphaFlagBitsKHR>  (result_caps.capabilities.supportedCompositeAlpha);
-        result_caps.supported_transformations       = static_cast<VkSurfaceTransformFlagBitsKHR>(result_caps.capabilities.supportedTransforms);
-        result_caps.supported_usages                = static_cast<Anvil::ImageUsageFlags>       (result_caps.capabilities.supportedUsageFlags);
+        result_caps.supported_composite_alpha_flags = result_caps.capabilities.supported_composite_alpha;
+        result_caps.supported_transformations       = result_caps.capabilities.supported_transforms;
+        result_caps.supported_usages                = result_caps.capabilities.supported_usage_flags;
 
         /* Retrieve a list of formats supported by the surface */
         result = khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device_vk,
@@ -217,13 +217,22 @@ void Anvil::RenderingSurface::cache_surface_properties()
 
         if (n_supported_presentation_modes > 0)
         {
+            std::vector<VkPresentModeKHR> temp_storage(n_supported_presentation_modes);
+
             result_caps.supported_presentation_modes.resize(n_supported_presentation_modes);
 
             result = khr_surface_entrypoints.vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device_vk,
                                                                                        m_surface,
                                                                                       &n_supported_presentation_modes,
-                                                                                      &result_caps.supported_presentation_modes.at(0));
+                                                                                      &temp_storage.at(0) );
             anvil_assert_vk_call_succeeded(result);
+
+            for (uint32_t n_presentation_mode = 0;
+                          n_presentation_mode < static_cast<uint32_t>(temp_storage.size() );
+                        ++n_presentation_mode)
+            {
+                result_caps.supported_presentation_modes.at(n_presentation_mode) = static_cast<Anvil::PresentModeKHR>(temp_storage.at(n_presentation_mode) );
+            }
         }
     }
 }
@@ -257,7 +266,7 @@ Anvil::RenderingSurfaceUniquePtr Anvil::RenderingSurface::create(Anvil::Instance
 
 /* Please see header for specification */
 bool Anvil::RenderingSurface::get_capabilities(const Anvil::PhysicalDevice* in_physical_device_ptr,
-                                               VkSurfaceCapabilitiesKHR*    out_surface_caps_ptr) const
+                                               Anvil::SurfaceCapabilities*  out_surface_caps_ptr) const
 {
     auto caps_iterator = m_physical_device_capabilities.find(in_physical_device_ptr->get_device_group_device_index());
     bool result        = false;
@@ -291,7 +300,7 @@ bool Anvil::RenderingSurface::get_queue_families_with_present_support(const Anvi
 
 /* Please see header for specification */
 bool Anvil::RenderingSurface::get_supported_composite_alpha_flags(const Anvil::PhysicalDevice* in_physical_device_ptr,
-                                                                  VkCompositeAlphaFlagsKHR*    out_result_ptr) const
+                                                                  Anvil::CompositeAlphaFlags*  out_result_ptr) const
 {
     auto caps_iterator = m_physical_device_capabilities.find(in_physical_device_ptr->get_device_group_device_index());
     bool result        = false;
@@ -307,8 +316,8 @@ bool Anvil::RenderingSurface::get_supported_composite_alpha_flags(const Anvil::P
 }
 
 /* Please see header for specification */
-bool Anvil::RenderingSurface::get_supported_transformations(const Anvil::PhysicalDevice* in_physical_device_ptr,
-                                                            VkSurfaceTransformFlagsKHR*  out_result_ptr) const
+bool Anvil::RenderingSurface::get_supported_transformations(const Anvil::PhysicalDevice*  in_physical_device_ptr,
+                                                            Anvil::SurfaceTransformFlags* out_result_ptr) const
 {
     auto caps_iterator = m_physical_device_capabilities.find(in_physical_device_ptr->get_device_group_device_index());
     bool result        = false;
@@ -355,7 +364,7 @@ bool Anvil::RenderingSurface::init()
 
     switch (device_type)
     {
-        case Anvil::DEVICE_TYPE_MULTI_GPU:
+        case Anvil::DeviceType::MULTI_GPU:
         {
             const Anvil::MGPUDevice* mgpu_device_ptr(dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr) );
 
@@ -364,7 +373,7 @@ bool Anvil::RenderingSurface::init()
             break;
         }
 
-        case Anvil::DEVICE_TYPE_SINGLE_GPU:
+        case Anvil::DeviceType::SINGLE_GPU:
         {
             n_physical_devices = 1;
 
@@ -440,7 +449,7 @@ bool Anvil::RenderingSurface::init()
 
             switch (device_type)
             {
-                case Anvil::DEVICE_TYPE_MULTI_GPU:
+                case Anvil::DeviceType::MULTI_GPU:
                 {
                     const Anvil::MGPUDevice* mgpu_device_ptr(dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr) );
 
@@ -450,7 +459,7 @@ bool Anvil::RenderingSurface::init()
                     break;
                 }
 
-                case Anvil::DEVICE_TYPE_SINGLE_GPU:
+                case Anvil::DeviceType::SINGLE_GPU:
                 {
                     const Anvil::SGPUDevice* sgpu_device_ptr(dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr) );
 
@@ -498,7 +507,7 @@ bool Anvil::RenderingSurface::init()
         {
             switch (device_type)
             {
-                case Anvil::DEVICE_TYPE_MULTI_GPU:
+                case Anvil::DeviceType::MULTI_GPU:
                 {
                     const Anvil::MGPUDevice* mgpu_device_ptr(dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr) );
 
@@ -513,7 +522,7 @@ bool Anvil::RenderingSurface::init()
                     break;
                 }
 
-                case Anvil::DEVICE_TYPE_SINGLE_GPU:
+                case Anvil::DeviceType::SINGLE_GPU:
                 {
                     const Anvil::SGPUDevice* sgpu_device_ptr(dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr) );
 
@@ -579,7 +588,7 @@ bool Anvil::RenderingSurface::is_compatible_with_image_format(const Anvil::Physi
 
 /* Please see header for specification */
 bool Anvil::RenderingSurface::supports_presentation_mode(const Anvil::PhysicalDevice* in_physical_device_ptr,
-                                                         VkPresentModeKHR             in_presentation_mode,
+                                                         Anvil::PresentModeKHR        in_presentation_mode,
                                                          bool*                        out_result_ptr) const
 {
     auto caps_iterator = m_physical_device_capabilities.find(in_physical_device_ptr->get_device_group_device_index());

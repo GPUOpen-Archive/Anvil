@@ -54,8 +54,8 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_1D(const 
                                        1, /* in_n_slices */
                                        in_image_ptr,
                                        swizzle_rgba,
-                                       VK_IMAGE_VIEW_TYPE_1D,
-                                       Anvil::MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+                                       Anvil::ImageViewType::_1D,
+                                       Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE)
     );
 
     return result_ptr;
@@ -95,8 +95,8 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_1D_array(
                                        1, /* in_n_slices */
                                        in_image_ptr,
                                        swizzle_rgba,
-                                       VK_IMAGE_VIEW_TYPE_1D_ARRAY,
-                                       Anvil::MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+                                       Anvil::ImageViewType::_1D_ARRAY,
+                                       Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE)
     );
 
     return result_ptr;
@@ -135,8 +135,8 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_2D(const 
                                        1, /* in_n_slices */
                                        in_image_ptr,
                                        swizzle_rgba,
-                                       VK_IMAGE_VIEW_TYPE_2D,
-                                       Anvil::MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+                                       Anvil::ImageViewType::_2D,
+                                       Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE)
     );
 
     return result_ptr;
@@ -176,8 +176,8 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_2D_array(
                                        1, /* in_n_slices */
                                        in_image_ptr,
                                        swizzle_rgba,
-                                       VK_IMAGE_VIEW_TYPE_2D_ARRAY,
-                                       Anvil::MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+                                       Anvil::ImageViewType::_2D_ARRAY,
+                                       Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE)
     );
 
     return result_ptr;
@@ -217,8 +217,8 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_3D(const 
                                        in_n_slices,
                                        in_image_ptr,
                                        swizzle_rgba,
-                                       VK_IMAGE_VIEW_TYPE_3D,
-                                       Anvil::MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+                                       Anvil::ImageViewType::_3D,
+                                       Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE)
     );
 
     return result_ptr;
@@ -257,8 +257,8 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_cube_map(
                                        1, /* in_n_slices */
                                        in_image_ptr,
                                        swizzle_rgba,
-                                       VK_IMAGE_VIEW_TYPE_CUBE,
-                                       Anvil::MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+                                       Anvil::ImageViewType::_CUBE,
+                                       Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE)
     );
 
     return result_ptr;
@@ -298,8 +298,8 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_cube_map_
                                        1, /* in_n_slices */
                                        in_image_ptr,
                                        swizzle_rgba,
-                                       VK_IMAGE_VIEW_TYPE_CUBE_ARRAY,
-                                       Anvil::MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+                                       Anvil::ImageViewType::_CUBE_ARRAY,
+                                       Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE)
     );
 
     return result_ptr;
@@ -315,7 +315,7 @@ Anvil::ImageViewCreateInfo::ImageViewCreateInfo(const Anvil::ImageAspectFlags& i
                                                 const uint32_t                 in_n_slices,
                                                 Anvil::Image*                  in_parent_image_ptr,
                                                 const Anvil::ComponentSwizzle* in_swizzle_array_ptr,
-                                                const VkImageViewType          in_type,
+                                                const Anvil::ImageViewType     in_type,
                                                 const Anvil::MTSafety&         in_mt_safety)
     :m_aspect_mask        (in_aspect_mask),
      m_device_ptr         (in_device_ptr),
@@ -328,8 +328,7 @@ Anvil::ImageViewCreateInfo::ImageViewCreateInfo(const Anvil::ImageAspectFlags& i
      m_n_slices           (in_n_slices),
      m_parent_image_ptr   (in_parent_image_ptr),
      m_swizzle_array      ({in_swizzle_array_ptr[0], in_swizzle_array_ptr[1], in_swizzle_array_ptr[2], in_swizzle_array_ptr[3]}),
-     m_type               (in_type),
-     m_usage              (Anvil::IMAGE_USAGE_UNKNOWN)
+     m_type               (in_type)
 {
     anvil_assert(in_parent_image_ptr != nullptr);
 }

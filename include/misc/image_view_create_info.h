@@ -49,7 +49,7 @@ namespace Anvil
          *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
-         * - MT safety:   MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:   Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
@@ -83,7 +83,7 @@ namespace Anvil
          *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
-         * - MT safety:   MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:   Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
@@ -119,7 +119,7 @@ namespace Anvil
          *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
-         * - MT safety:   MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:   Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
@@ -154,7 +154,7 @@ namespace Anvil
          *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
-         * - MT safety:   MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:   Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
@@ -189,7 +189,7 @@ namespace Anvil
          *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
-         * - MT safety:   MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:   Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
@@ -223,7 +223,7 @@ namespace Anvil
          *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
-         * - MT safety:   MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:   Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
@@ -258,7 +258,7 @@ namespace Anvil
          *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
-         * - MT safety:   MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:   Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
@@ -340,7 +340,7 @@ namespace Anvil
         }
 
         /** Returns image view type of the image view instance */
-        const VkImageViewType get_type() const
+        const Anvil::ImageViewType get_type() const
         {
             return m_type;
         }
@@ -434,7 +434,7 @@ namespace Anvil
                             const uint32_t                 in_n_slices,
                             Anvil::Image*                  in_parent_image_ptr,
                             const Anvil::ComponentSwizzle* in_swizzle_array_ptr,
-                            const VkImageViewType          in_type,
+                            const Anvil::ImageViewType     in_type,
                             const Anvil::MTSafety&         in_mt_safety);
 
         /* Private variables */
@@ -451,8 +451,8 @@ namespace Anvil
         uint32_t                               m_n_slices;
         Anvil::Image*                          m_parent_image_ptr;
         std::array<Anvil::ComponentSwizzle, 4> m_swizzle_array;
-        const VkImageViewType                  m_type;
-        VkImageUsageFlags                      m_usage;
+        Anvil::ImageViewType                   m_type;
+        Anvil::ImageUsageFlags                 m_usage;
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(ImageViewCreateInfo);
         ANVIL_DISABLE_COPY_CONSTRUCTOR(ImageViewCreateInfo);

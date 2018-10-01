@@ -57,7 +57,7 @@ namespace Anvil
          * Requires VK_KHR_external_semaphore_fd    under Linux.
          * Requires VK_KHR_external_semaphore_win32 under Windows.
          */
-        ExternalHandleUniquePtr export_to_external_handle(const Anvil::ExternalSemaphoreHandleTypeBit& in_semaphore_handle_type);
+        ExternalHandleUniquePtr export_to_external_handle(const Anvil::ExternalSemaphoreHandleTypeFlagBits& in_semaphore_handle_type);
 
         /** Destructor.
          *
@@ -99,14 +99,14 @@ namespace Anvil
          * @param in_opt_name         (Windows): Name of the handle to use. Must not be null if @param in_opt_handle is null and vice versa.
          */
         #if defined(_WIN32)
-            bool import_from_external_handle(const bool&                                  in_temporary_import,
-                                             const Anvil::ExternalSemaphoreHandleTypeBit& in_handle_type,
-                                             const ExternalHandleType&                    in_opt_handle,
-                                             const std::wstring&                          in_opt_name);
+            bool import_from_external_handle(const bool&                                       in_temporary_import,
+                                             const Anvil::ExternalSemaphoreHandleTypeFlagBits& in_handle_type,
+                                             const ExternalHandleType&                         in_opt_handle,
+                                             const std::wstring&                               in_opt_name);
         #else
-            bool import_from_external_handle(const bool&                                  in_temporary_import,
-                                             const Anvil::ExternalSemaphoreHandleTypeBit& in_handle_type,
-                                             const ExternalHandleType&                    in_handle);
+            bool import_from_external_handle(const bool&                                       in_temporary_import,
+                                             const Anvil::ExternalSemaphoreHandleTypeFlagBits& in_handle_type,
+                                             const ExternalHandleType&                         in_handle);
         #endif
 
         /** Releases the underlying Vulkan Semaphore instance and creates a new Vulkan object. */
@@ -122,9 +122,9 @@ namespace Anvil
         void release_semaphore();
 
         /* Private variables */
-        Anvil::SemaphoreCreateInfoUniquePtr                   m_create_info_ptr;
-        std::map<Anvil::ExternalSemaphoreHandleTypeBit, bool> m_external_semaphore_created_for_handle_type;
-        VkSemaphore                                           m_semaphore;
+        Anvil::SemaphoreCreateInfoUniquePtr                        m_create_info_ptr;
+        std::map<Anvil::ExternalSemaphoreHandleTypeFlagBits, bool> m_external_semaphore_created_for_handle_type;
+        VkSemaphore                                                m_semaphore;
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(Semaphore);
         ANVIL_DISABLE_COPY_CONSTRUCTOR(Semaphore);

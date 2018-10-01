@@ -56,7 +56,7 @@ namespace Anvil
          **/
         static ShaderModuleUniquePtr create_from_spirv_generator(const Anvil::BaseDevice*    in_device_ptr,
                                                                  GLSLShaderToSPIRVGenerator* in_spirv_generator_ptr,
-                                                                 MTSafety                    in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+                                                                 MTSafety                    in_mt_safety = Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a new shader module instance from a raw SPIR-V blob.
          *
@@ -88,7 +88,7 @@ namespace Anvil
                                                             const char*              in_opt_tc_entrypoint_name,
                                                             const char*              in_opt_te_entrypoint_name,
                                                             const char*              in_opt_vs_entrypoint_name,
-                                                            MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+                                                            MTSafety                 in_mt_safety = Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE);
         static ShaderModuleUniquePtr create_from_spirv_blob(const Anvil::BaseDevice* in_device_ptr,
                                                             const char*              in_spirv_blob,
                                                             uint32_t                 in_n_spirv_blob_bytes,
@@ -98,7 +98,7 @@ namespace Anvil
                                                             const std::string&       in_opt_tc_entrypoint_name,
                                                             const std::string&       in_opt_te_entrypoint_name,
                                                             const std::string&       in_opt_vs_entrypoint_name,
-                                                            MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+                                                            MTSafety                 in_mt_safety = Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE)
         {
             return create_from_spirv_blob(in_device_ptr,
                                           in_spirv_blob,
@@ -120,7 +120,7 @@ namespace Anvil
                                                             const std::string&       in_opt_tc_entrypoint_name,
                                                             const std::string&       in_opt_te_entrypoint_name,
                                                             const std::string&       in_opt_vs_entrypoint_name,
-                                                            MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+                                                            MTSafety                 in_mt_safety = Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE)
         {
             return create_from_spirv_blob(in_device_ptr,
                                           reinterpret_cast<const char*>(in_spirv_blob),

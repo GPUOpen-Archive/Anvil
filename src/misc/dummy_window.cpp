@@ -165,15 +165,15 @@ Anvil::DummyWindowWithPNGSnapshots::DummyWindowWithPNGSnapshots(const std::strin
 /** Please see header for specification */
 std::unique_ptr<uint8_t[]> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_image_raw_r8g8b8a8_unorm_data(Anvil::Image* in_swapchain_image_ptr)
 {
-    const Anvil::BaseDevice*       device_ptr                       (m_swapchain_ptr->get_create_info_ptr()->get_device() );
-    std::unique_ptr<uint8_t[]>     result_ptr;
-    Anvil::Format                  swapchain_image_format           (in_swapchain_image_ptr->get_create_info_ptr()->get_format() );
-    const VkImageSubresourceRange  swapchain_image_subresource_range(in_swapchain_image_ptr->get_subresource_range            () );
+    const Anvil::BaseDevice*           device_ptr                       (m_swapchain_ptr->get_create_info_ptr()->get_device() );
+    std::unique_ptr<uint8_t[]>         result_ptr;
+    Anvil::Format                      swapchain_image_format           (in_swapchain_image_ptr->get_create_info_ptr()->get_format() );
+    const Anvil::ImageSubresourceRange swapchain_image_subresource_range(in_swapchain_image_ptr->get_subresource_range            () );
 
     /* Sanity checks .. */
     ANVIL_REDUNDANT_VARIABLE(swapchain_image_format);
 
-    anvil_assert(swapchain_image_subresource_range.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
+    anvil_assert(swapchain_image_subresource_range.aspect_mask == Anvil::ImageAspectFlagBits::COLOR_BIT);
 
     /* Initialize storage for the raw R8G8B8A8 image data */
     Anvil::BufferUniquePtr raw_image_buffer_ptr;
@@ -193,39 +193,39 @@ std::unique_ptr<uint8_t[]> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_ima
     {
         auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_alloc(device_ptr,
                                                                                raw_image_size,
-                                                                               Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
+                                                                               Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
                                                                                Anvil::SharingMode::EXCLUSIVE,
-                                                                               Anvil::BUFFER_USAGE_FLAG_TRANSFER_DST_BIT,
-                                                                               Anvil::MEMORY_FEATURE_FLAG_MAPPABLE);
+                                                                               Anvil::BufferUsageFlagBits::TRANSFER_DST_BIT,
+                                                                               Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT);
 
-        create_info_ptr->set_mt_safety(MT_SAFETY_DISABLED);
+        create_info_ptr->set_mt_safety(Anvil::MTSafety::DISABLED);
 
         raw_image_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
     }
 
     /* 2. Create the intermediate image */
-    VkImageBlit    intermediate_image_blit;
-    ImageUniquePtr intermediate_image_ptr;
+    Anvil::ImageBlit intermediate_image_blit;
+    ImageUniquePtr   intermediate_image_ptr;
 
     {
         auto create_info_ptr = Anvil::ImageCreateInfo::create_nonsparse_alloc(device_ptr,
                                                                               Anvil::ImageType::_2D,
                                                                               Anvil::Format::R8G8B8A8_UNORM,
                                                                               Anvil::ImageTiling::OPTIMAL,
-                                                                              Anvil::IMAGE_USAGE_FLAG_TRANSFER_SRC_BIT | Anvil::IMAGE_USAGE_FLAG_TRANSFER_DST_BIT,
+                                                                              Anvil::ImageUsageFlagBits::TRANSFER_SRC_BIT | Anvil::ImageUsageFlagBits::TRANSFER_DST_BIT,
                                                                               swapchain_image_width,
                                                                               swapchain_image_height,
                                                                               1,      /* in_base_mipmap_depth */
                                                                               1,      /* in_n_layers          */
-                                                                              Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_1_BIT,
-                                                                              Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
+                                                                              Anvil::SampleCountFlagBits::_1_BIT,
+                                                                              Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
                                                                               Anvil::SharingMode::EXCLUSIVE,
                                                                               false,  /* in_use_full_mipmap_chain */
-                                                                              0,      /* in_memory_features       */
-                                                                              0,      /* in_create_flags          */
+                                                                              Anvil::MemoryFeatureFlagBits::NONE,
+                                                                              Anvil::ImageCreateFlagBits::NONE,
                                                                               Anvil::ImageLayout::TRANSFER_DST_OPTIMAL);
 
-        create_info_ptr->set_mt_safety(MT_SAFETY_DISABLED);
+        create_info_ptr->set_mt_safety(Anvil::MTSafety::DISABLED);
 
         intermediate_image_ptr = Anvil::Image::create(std::move(create_info_ptr) );
     }
@@ -242,12 +242,11 @@ std::unique_ptr<uint8_t[]> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_ima
     command_buffer_ptr->start_recording(true,   /* one_time_submit          */
                                         false); /* simultaneous_use_allowed */
     {
-        VkBufferImageCopy   buffer_image_copy_region;
+        Anvil::BufferImageCopy buffer_image_copy_region;
 
         Anvil::ImageBarrier general_to_transfer_src_image_barrier(
-            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT, /* source_access_mask      */
-            VK_ACCESS_TRANSFER_READ_BIT,                                                                     /* destination_access_mask */
-            false,
+            Anvil::AccessFlagBits::COLOR_ATTACHMENT_WRITE_BIT | Anvil::AccessFlagBits::TRANSFER_WRITE_BIT | Anvil::AccessFlagBits::MEMORY_READ_BIT, /* source_access_mask      */
+            Anvil::AccessFlagBits::TRANSFER_READ_BIT,                                                                                               /* destination_access_mask */
             Anvil::ImageLayout::GENERAL,
             Anvil::ImageLayout::TRANSFER_SRC_OPTIMAL,
             universal_queue_family_index,
@@ -257,9 +256,8 @@ std::unique_ptr<uint8_t[]> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_ima
         );
 
         Anvil::ImageBarrier transfer_dst_to_transfer_src_image_barrier(
-            VK_ACCESS_TRANSFER_WRITE_BIT, /* source_access_mask      */
-            VK_ACCESS_TRANSFER_READ_BIT,  /* desitnation_access_mask */
-            false,
+            Anvil::AccessFlagBits::TRANSFER_WRITE_BIT, /* source_access_mask      */
+            Anvil::AccessFlagBits::TRANSFER_READ_BIT,  /* desitnation_access_mask */
             Anvil::ImageLayout::TRANSFER_DST_OPTIMAL,
             Anvil::ImageLayout::TRANSFER_SRC_OPTIMAL,
             universal_queue_family_index,
@@ -268,9 +266,8 @@ std::unique_ptr<uint8_t[]> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_ima
             swapchain_image_subresource_range);
 
         Anvil::ImageBarrier transfer_src_to_general_image_barrier(
-            VK_ACCESS_TRANSFER_READ_BIT, /* source_access_mask      */
-            0,                           /* destination_access_mask */
-            false,
+            Anvil::AccessFlagBits::TRANSFER_READ_BIT, /* source_access_mask      */
+            Anvil::AccessFlags(),                     /* destination_access_mask */
             Anvil::ImageLayout::TRANSFER_SRC_OPTIMAL,
             Anvil::ImageLayout::GENERAL,
             universal_queue_family_index,
@@ -278,29 +275,29 @@ std::unique_ptr<uint8_t[]> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_ima
             in_swapchain_image_ptr,
             swapchain_image_subresource_range);
 
-        command_buffer_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT, /* src_stage_mask                 */
-                                                    VK_PIPELINE_STAGE_TRANSFER_BIT,                                                 /* dst_stage_mask                 */
-                                                    false,                                                                          /* in_by_region                   */
-                                                    0,                                                                              /* in_memory_barrier_count        */
-                                                    nullptr,                                                                        /* in_memory_barrier_ptrs         */
-                                                    0,                                                                              /* in_buffer_memory_barrier_count */
-                                                    nullptr,                                                                        /* in_buffer_memory_barrier_ptrs  */
-                                                    1,                                                                              /* in_image_memory_barrier_count  */
+        command_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::COLOR_ATTACHMENT_OUTPUT_BIT | Anvil::PipelineStageFlagBits::TRANSFER_BIT, /* src_stage_mask                 */
+                                                    Anvil::PipelineStageFlagBits::TRANSFER_BIT,                                                             /* dst_stage_mask                 */
+                                                    Anvil::DependencyFlagBits::NONE,
+                                                    0,                                                                                                      /* in_memory_barrier_count        */
+                                                    nullptr,                                                                                                /* in_memory_barrier_ptrs         */
+                                                    0,                                                                                                      /* in_buffer_memory_barrier_count */
+                                                    nullptr,                                                                                                /* in_buffer_memory_barrier_ptrs  */
+                                                    1,                                                                                                      /* in_image_memory_barrier_count  */
                                                    &general_to_transfer_src_image_barrier);
 
-        intermediate_image_blit.dstOffsets[0].x               = 0;
-        intermediate_image_blit.dstOffsets[0].y               = 0;
-        intermediate_image_blit.dstOffsets[0].z               = 0;
-        intermediate_image_blit.dstOffsets[1].x               = static_cast<int32_t>(swapchain_image_width);
-        intermediate_image_blit.dstOffsets[1].y               = static_cast<int32_t>(swapchain_image_height);
-        intermediate_image_blit.dstOffsets[1].z               = 1;
-        intermediate_image_blit.dstSubresource.baseArrayLayer = 0;
-        intermediate_image_blit.dstSubresource.layerCount     = 1;
-        intermediate_image_blit.dstSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-        intermediate_image_blit.dstSubresource.mipLevel       = 0;
-        intermediate_image_blit.srcOffsets[0]                 = intermediate_image_blit.dstOffsets[0];
-        intermediate_image_blit.srcOffsets[1]                 = intermediate_image_blit.dstOffsets[1];
-        intermediate_image_blit.srcSubresource                = intermediate_image_blit.dstSubresource;
+        intermediate_image_blit.dst_offsets[0].x                 = 0;
+        intermediate_image_blit.dst_offsets[0].y                 = 0;
+        intermediate_image_blit.dst_offsets[0].z                 = 0;
+        intermediate_image_blit.dst_offsets[1].x                 = static_cast<int32_t>(swapchain_image_width);
+        intermediate_image_blit.dst_offsets[1].y                 = static_cast<int32_t>(swapchain_image_height);
+        intermediate_image_blit.dst_offsets[1].z                 = 1;
+        intermediate_image_blit.dst_subresource.base_array_layer = 0;
+        intermediate_image_blit.dst_subresource.layer_count      = 1;
+        intermediate_image_blit.dst_subresource.aspect_mask      = Anvil::ImageAspectFlagBits::COLOR_BIT;
+        intermediate_image_blit.dst_subresource.mip_level        = 0;
+        intermediate_image_blit.src_offsets[0]                   = intermediate_image_blit.dst_offsets[0];
+        intermediate_image_blit.src_offsets[1]                   = intermediate_image_blit.dst_offsets[1];
+        intermediate_image_blit.src_subresource                  = intermediate_image_blit.dst_subresource;
 
         command_buffer_ptr->record_blit_image(in_swapchain_image_ptr,
                                               Anvil::ImageLayout::TRANSFER_SRC_OPTIMAL,
@@ -308,31 +305,31 @@ std::unique_ptr<uint8_t[]> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_ima
                                               Anvil::ImageLayout::TRANSFER_DST_OPTIMAL,
                                               1, /* regionCount */
                                              &intermediate_image_blit,
-                                              VK_FILTER_NEAREST);
+                                              Anvil::Filter::NEAREST);
 
-        command_buffer_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_TRANSFER_BIT, /* src_stage_mask */
-                                                    VK_PIPELINE_STAGE_TRANSFER_BIT, /* dst_stage_mask */
-                                                    VK_FALSE,       /* in_by_region                   */
-                                                    0,              /* in_memory_barrier_count        */
-                                                    nullptr,        /* in_memory_barrier_ptrs         */
-                                                    0,              /* in_buffer_memory_barrier_count */
-                                                    nullptr,        /* in_buffer_memory_barrier_ptrs  */
-                                                    1,              /* in_image_memory_barrier_count  */
+        command_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::TRANSFER_BIT, /* src_stage_mask                 */
+                                                    Anvil::PipelineStageFlagBits::TRANSFER_BIT, /* dst_stage_mask                 */
+                                                    Anvil::DependencyFlagBits::NONE,
+                                                    0,                                          /* in_memory_barrier_count        */
+                                                    nullptr,                                    /* in_memory_barrier_ptrs         */
+                                                    0,                                          /* in_buffer_memory_barrier_count */
+                                                    nullptr,                                    /* in_buffer_memory_barrier_ptrs  */
+                                                    1,                                          /* in_image_memory_barrier_count  */
                                                    &transfer_dst_to_transfer_src_image_barrier);
 
-        buffer_image_copy_region.bufferImageHeight               = 0; /* assume tight packing */
-        buffer_image_copy_region.bufferOffset                    = 0;
-        buffer_image_copy_region.bufferRowLength                 = 0; /* assume tight packing */
-        buffer_image_copy_region.imageExtent.depth               = 1;
-        buffer_image_copy_region.imageExtent.height              = swapchain_image_height;
-        buffer_image_copy_region.imageExtent.width               = swapchain_image_width;
-        buffer_image_copy_region.imageOffset.x                   = 0;
-        buffer_image_copy_region.imageOffset.y                   = 0;
-        buffer_image_copy_region.imageOffset.z                   = 0;
-        buffer_image_copy_region.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-        buffer_image_copy_region.imageSubresource.baseArrayLayer = 0;
-        buffer_image_copy_region.imageSubresource.layerCount     = 1;
-        buffer_image_copy_region.imageSubresource.mipLevel       = 0;
+        buffer_image_copy_region.buffer_image_height                = 0; /* assume tight packing */
+        buffer_image_copy_region.buffer_offset                      = 0;
+        buffer_image_copy_region.buffer_row_length                  = 0; /* assume tight packing */
+        buffer_image_copy_region.image_extent.depth                 = 1;
+        buffer_image_copy_region.image_extent.height                = swapchain_image_height;
+        buffer_image_copy_region.image_extent.width                 = swapchain_image_width;
+        buffer_image_copy_region.image_offset.x                     = 0;
+        buffer_image_copy_region.image_offset.y                     = 0;
+        buffer_image_copy_region.image_offset.z                     = 0;
+        buffer_image_copy_region.image_subresource.aspect_mask      = Anvil::ImageAspectFlagBits::COLOR_BIT;
+        buffer_image_copy_region.image_subresource.base_array_layer = 0;
+        buffer_image_copy_region.image_subresource.layer_count      = 1;
+        buffer_image_copy_region.image_subresource.mip_level        = 0;
 
         command_buffer_ptr->record_copy_image_to_buffer(intermediate_image_ptr.get(),
                                                         Anvil::ImageLayout::TRANSFER_SRC_OPTIMAL,
@@ -340,14 +337,14 @@ std::unique_ptr<uint8_t[]> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_ima
                                                         1, /* regionCount */
                                                        &buffer_image_copy_region);
 
-        command_buffer_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_TRANSFER_BIT,    /* src_stage_mask */
-                                                    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, /* dst_stage_mask */
-                                                    VK_FALSE,       /* in_by_region                   */
-                                                    0,              /* in_memory_barrier_count        */
-                                                    nullptr,        /* in_memory_barrier_ptrs         */
-                                                    0,              /* in_buffer_memory_barrier_count */
-                                                    nullptr,        /* in_buffer_memory_barrier_ptrs  */
-                                                    1,              /* in_image_memory_barrier_count  */
+        command_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::TRANSFER_BIT,    /* src_stage_mask */
+                                                    Anvil::PipelineStageFlagBits::TOP_OF_PIPE_BIT, /* dst_stage_mask */
+                                                    Anvil::DependencyFlagBits::NONE,
+                                                    0,                                             /* in_memory_barrier_count        */
+                                                    nullptr,                                       /* in_memory_barrier_ptrs         */
+                                                    0,                                             /* in_buffer_memory_barrier_count */
+                                                    nullptr,                                       /* in_buffer_memory_barrier_ptrs  */
+                                                    1,                                             /* in_image_memory_barrier_count  */
                                                    &transfer_src_to_general_image_barrier);
     }
     command_buffer_ptr->stop_recording();

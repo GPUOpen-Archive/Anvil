@@ -70,10 +70,9 @@ namespace Anvil
             return m_image_view;
         }
 
-        /** Returns a VkImageSubresourceRange struct that describes the range of subresources covered
-         *  by this image view.
+        /** Returns a struct that describes the range of subresources covered by this image view.
          */
-        VkImageSubresourceRange get_subresource_range() const;
+        Anvil::ImageSubresourceRange get_subresource_range() const;
 
         /** Tells whether the subresource range described by this image view intersects
          *  with another image view's subres range.

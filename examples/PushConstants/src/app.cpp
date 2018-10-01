@@ -259,13 +259,13 @@ void App::deinit()
 
 void App::draw_frame()
 {
-    Anvil::Semaphore*          curr_frame_signal_semaphore_ptr = nullptr;
-    Anvil::Semaphore*          curr_frame_wait_semaphore_ptr   = nullptr;
-    static uint32_t            n_frames_rendered               = 0;
-    uint32_t                   n_swapchain_image;
-    Anvil::Queue*              present_queue_ptr               = m_device_ptr->get_universal_queue(0);
-    Anvil::Semaphore*          present_wait_semaphore_ptr      = nullptr;
-    const VkPipelineStageFlags wait_stage_mask                 = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    Anvil::Semaphore*               curr_frame_signal_semaphore_ptr = nullptr;
+    Anvil::Semaphore*               curr_frame_wait_semaphore_ptr   = nullptr;
+    static uint32_t                 n_frames_rendered               = 0;
+    uint32_t                        n_swapchain_image;
+    Anvil::Queue*                   present_queue_ptr               = m_device_ptr->get_universal_queue(0);
+    Anvil::Semaphore*               present_wait_semaphore_ptr      = nullptr;
+    const Anvil::PipelineStageFlags wait_stage_mask                 = Anvil::PipelineStageFlagBits::ALL_COMMANDS_BIT;
 
     /* Determine the signal + wait semaphores to use for drawing this frame */
     m_n_last_semaphore_used = (m_n_last_semaphore_used + 1) % m_n_swapchain_images;
@@ -418,9 +418,9 @@ void App::init_buffers()
     {
         auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_no_alloc(m_device_ptr.get(),
                                                                                   ub_data_size_total,
-                                                                                  Anvil::QUEUE_FAMILY_COMPUTE_BIT | Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
+                                                                                  Anvil::QueueFamilyFlagBits::COMPUTE_BIT | Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
                                                                                   Anvil::SharingMode::EXCLUSIVE,
-                                                                                  Anvil::BUFFER_USAGE_FLAG_UNIFORM_BUFFER_BIT);
+                                                                                  Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT);
 
         m_data_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
     }
@@ -428,23 +428,23 @@ void App::init_buffers()
     m_data_buffer_ptr->set_name("Data buffer");
 
     allocator_ptr->add_buffer(m_data_buffer_ptr.get(),
-                              0); /* in_required_memory_features */
+                              Anvil::MemoryFeatureFlagBits::NONE); /* in_required_memory_features */
 
     /* Set up a buffer to hold mesh data */
     {
         auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_no_alloc(m_device_ptr.get(),
                                                                                   get_mesh_data_size(),
-                                                                                  Anvil::QUEUE_FAMILY_GRAPHICS_BIT,
+                                                                                  Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
                                                                                   Anvil::SharingMode::EXCLUSIVE,
-                                                                                  Anvil::BUFFER_USAGE_FLAG_VERTEX_BUFFER_BIT);
+                                                                                  Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
 
         m_mesh_data_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
     }
 
-    m_mesh_data_buffer_ptr->set_name("Mesh vertexdata buffer");
+    m_mesh_data_buffer_ptr->set_name("Mesh vertex data buffer");
 
     allocator_ptr->add_buffer(m_mesh_data_buffer_ptr.get(),
-                              0); /* in_required_memory_features */
+                              Anvil::MemoryFeatureFlagBits::NONE); /* in_required_memory_features */
 
     /* Allocate memory blocks and copy data where applicable */
     m_mesh_data_buffer_ptr->write(0, /* start_offset */
@@ -454,17 +454,17 @@ void App::init_buffers()
 
 void App::init_command_buffers()
 {
-    auto                     gfx_pipeline_manager_ptr(m_device_ptr->get_graphics_pipeline_manager() );
-    VkImageSubresourceRange  image_subresource_range;
-    std::unique_ptr<float[]> luminance_data_ptr;
-    uint32_t                 luminance_data_size;
-    Anvil::Queue*            universal_queue_ptr     (m_device_ptr->get_universal_queue(0) );
+    auto                          gfx_pipeline_manager_ptr(m_device_ptr->get_graphics_pipeline_manager() );
+    Anvil::ImageSubresourceRange  image_subresource_range;
+    std::unique_ptr<float[]>      luminance_data_ptr;
+    uint32_t                      luminance_data_size;
+    Anvil::Queue*                 universal_queue_ptr     (m_device_ptr->get_universal_queue(0) );
 
-    image_subresource_range.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-    image_subresource_range.baseArrayLayer = 0;
-    image_subresource_range.baseMipLevel   = 0;
-    image_subresource_range.layerCount     = 1;
-    image_subresource_range.levelCount     = 1;
+    image_subresource_range.aspect_mask      = Anvil::ImageAspectFlagBits::COLOR_BIT;
+    image_subresource_range.base_array_layer = 0;
+    image_subresource_range.base_mip_level   = 0;
+    image_subresource_range.layer_count      = 1;
+    image_subresource_range.level_count      = 1;
 
     get_luminance_data(&luminance_data_ptr,
                        &luminance_data_size);
@@ -483,9 +483,8 @@ void App::init_command_buffers()
 
         /* Switch the swap-chain image to the color_attachment_optimal image layout */
         {
-            Anvil::ImageBarrier image_barrier(0,                                              /* source_access_mask       */
-                                              VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,           /* destination_access_mask  */
-                                              false,
+            Anvil::ImageBarrier image_barrier(Anvil::AccessFlagBits::NONE,                       /* source_access_mask       */
+                                              Anvil::AccessFlagBits::COLOR_ATTACHMENT_WRITE_BIT, /* destination_access_mask  */
                                               Anvil::ImageLayout::UNDEFINED,                  /* old_image_layout */
                                               Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,   /* new_image_layout */
                                               universal_queue_ptr->get_queue_family_index(),
@@ -493,29 +492,29 @@ void App::init_command_buffers()
                                               m_swapchain_ptr->get_image(n_command_buffer),
                                               image_subresource_range);
 
-            cmd_buffer_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,            /* src_stage_mask                 */
-                                                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,/* dst_stage_mask                 */
-                                                    VK_FALSE,                                     /* in_by_region                   */
-                                                    0,                                            /* in_memory_barrier_count        */
-                                                    nullptr,                                      /* in_memory_barrier_ptrs         */
-                                                    0,                                            /* in_buffer_memory_barrier_count */
-                                                    nullptr,                                      /* in_buffer_memory_barrier_ptrs  */
-                                                    1,                                            /* in_image_memory_barrier_count  */
+            cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::TOP_OF_PIPE_BIT,            /* src_stage_mask                 */
+                                                    Anvil::PipelineStageFlagBits::COLOR_ATTACHMENT_OUTPUT_BIT,/* dst_stage_mask                 */
+                                                    Anvil::DependencyFlagBits::NONE,
+                                                    0,                                                        /* in_memory_barrier_count        */
+                                                    nullptr,                                                  /* in_memory_barrier_ptrs         */
+                                                    0,                                                        /* in_buffer_memory_barrier_count */
+                                                    nullptr,                                                  /* in_buffer_memory_barrier_ptrs  */
+                                                    1,                                                        /* in_image_memory_barrier_count  */
                                                    &image_barrier);
         }
 
         /* Make sure CPU-written data is flushed before we start rendering */
-        Anvil::BufferBarrier buffer_barrier(VK_ACCESS_HOST_WRITE_BIT,                              /* in_source_access_mask      */
-                                            VK_ACCESS_UNIFORM_READ_BIT,                            /* in_destination_access_mask */
+        Anvil::BufferBarrier buffer_barrier(Anvil::AccessFlagBits::HOST_WRITE_BIT,                 /* in_source_access_mask      */
+                                            Anvil::AccessFlagBits::UNIFORM_READ_BIT,               /* in_destination_access_mask */
                                             universal_queue_ptr->get_queue_family_index(),         /* in_src_queue_family_index  */
                                             universal_queue_ptr->get_queue_family_index(),         /* in_dst_queue_family_index  */
                                             m_data_buffer_ptr.get(),
                                             m_ub_data_size_per_swapchain_image * n_command_buffer, /* in_offset                  */
                                             m_ub_data_size_per_swapchain_image);
 
-        cmd_buffer_ptr->record_pipeline_barrier(VK_PIPELINE_STAGE_HOST_BIT,
-                                                VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
-                                                VK_FALSE,        /* in_by_region                   */
+        cmd_buffer_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::HOST_BIT,
+                                                Anvil::PipelineStageFlagBits::VERTEX_SHADER_BIT,
+                                                Anvil::DependencyFlagBits::NONE,
                                                 0,               /* in_memory_barrier_count        */
                                                 nullptr,         /* in_memory_barriers_ptr         */
                                                 1,               /* in_buffer_memory_barrier_count */
@@ -543,7 +542,7 @@ void App::init_command_buffers()
                                                  m_fbos[n_command_buffer].get(),
                                                  render_area,
                                                  m_renderpass_ptr.get(),
-                                                 VK_SUBPASS_CONTENTS_INLINE);
+                                                 Anvil::SubpassContents::INLINE);
         {
             const uint32_t     data_ub_offset           = static_cast<uint32_t>(m_ub_data_size_per_swapchain_image * n_command_buffer);
             auto               ds_ptr                   = m_dsg_ptr->get_descriptor_set                         (0 /* n_set */);
@@ -551,16 +550,16 @@ void App::init_command_buffers()
             auto               mesh_data_buffer_raw_ptr = m_mesh_data_buffer_ptr.get();
             auto               pipeline_layout_ptr      = gfx_pipeline_manager_ptr->get_pipeline_layout(m_pipeline_id);
 
-            cmd_buffer_ptr->record_bind_pipeline(VK_PIPELINE_BIND_POINT_GRAPHICS,
+            cmd_buffer_ptr->record_bind_pipeline(Anvil::PipelineBindPoint::GRAPHICS,
                                                  m_pipeline_id);
 
             cmd_buffer_ptr->record_push_constants(pipeline_layout_ptr,
-                                                  VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT,
+                                                  Anvil::ShaderStageFlagBits::FRAGMENT_BIT | Anvil::ShaderStageFlagBits::VERTEX_BIT,
                                                   0, /* in_offset */
                                                   luminance_data_size,
                                                   luminance_data_ptr.get() );
 
-            cmd_buffer_ptr->record_bind_descriptor_sets(VK_PIPELINE_BIND_POINT_GRAPHICS,
+            cmd_buffer_ptr->record_bind_descriptor_sets(Anvil::PipelineBindPoint::GRAPHICS,
                                                         pipeline_layout_ptr,
                                                         0, /* firstSet */
                                                         1, /* setCount */
@@ -595,9 +594,9 @@ void App::init_dsgs()
         dsg_create_info_ptrs[0] = Anvil::DescriptorSetCreateInfo::create();
 
         dsg_create_info_ptrs[0]->add_binding(0, /* n_binding */
-                                             VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+                                             Anvil::DescriptorType::UNIFORM_BUFFER_DYNAMIC,
                                              1, /* n_elements */
-                                             VK_SHADER_STAGE_VERTEX_BIT);
+                                             Anvil::ShaderStageFlagBits::VERTEX_BIT);
 
         m_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr.get(),
                                                       dsg_create_info_ptrs,
@@ -661,9 +660,9 @@ void App::init_gfx_pipelines()
         Anvil::RenderPassCreateInfoUniquePtr render_pass_create_info_ptr(new Anvil::RenderPassCreateInfo(m_device_ptr.get() ) );
 
         render_pass_create_info_ptr->add_color_attachment(m_swapchain_ptr->get_create_info_ptr()->get_format(),
-                                                          Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_1_BIT,
-                                                          VK_ATTACHMENT_LOAD_OP_CLEAR,
-                                                          VK_ATTACHMENT_STORE_OP_STORE,
+                                                          Anvil::SampleCountFlagBits::_1_BIT,
+                                                          Anvil::AttachmentLoadOp::CLEAR,
+                                                          Anvil::AttachmentStoreOp::STORE,
                                                           Anvil::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
 #ifdef ENABLE_OFFSCREEN_RENDERING
                                                           Anvil::ImageLayout::GENERAL,
@@ -703,31 +702,31 @@ void App::init_gfx_pipelines()
     gfx_pipeline_create_info_ptr->set_descriptor_set_create_info       (m_dsg_ptr->get_descriptor_set_create_info() );
     gfx_pipeline_create_info_ptr->attach_push_constant_range           (0, /* in_offset */
                                                                         sizeof(float) * 4 /* vec4 */ * 4 /* vec4 values */,
-                                                                        VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_VERTEX_BIT);
-    gfx_pipeline_create_info_ptr->set_rasterization_properties         (VK_POLYGON_MODE_FILL,
-                                                                        VK_CULL_MODE_NONE,
-                                                                        VK_FRONT_FACE_COUNTER_CLOCKWISE,
+                                                                        Anvil::ShaderStageFlagBits::FRAGMENT_BIT | Anvil::ShaderStageFlagBits::VERTEX_BIT);
+    gfx_pipeline_create_info_ptr->set_rasterization_properties         (Anvil::PolygonMode::FILL,
+                                                                        Anvil::CullModeFlagBits::NONE,
+                                                                        Anvil::FrontFace::COUNTER_CLOCKWISE,
                                                                         1.0f); /* in_line_width       */
     gfx_pipeline_create_info_ptr->set_color_blend_attachment_properties(0,     /* in_attachment_id    */
                                                                         true,  /* in_blending_enabled */
-                                                                        VK_BLEND_OP_ADD,
-                                                                        VK_BLEND_OP_ADD,
-                                                                        VK_BLEND_FACTOR_SRC_ALPHA,
-                                                                        VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-                                                                        VK_BLEND_FACTOR_SRC_ALPHA,
-                                                                        VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-                                                                        VK_COLOR_COMPONENT_A_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_R_BIT);
+                                                                        Anvil::BlendOp::ADD,
+                                                                        Anvil::BlendOp::ADD,
+                                                                        Anvil::BlendFactor::SRC_ALPHA,
+                                                                        Anvil::BlendFactor::ONE_MINUS_SRC_ALPHA,
+                                                                        Anvil::BlendFactor::SRC_ALPHA,
+                                                                        Anvil::BlendFactor::ONE_MINUS_SRC_ALPHA,
+                                                                        Anvil::ColorComponentFlagBits::A_BIT | Anvil::ColorComponentFlagBits::B_BIT | Anvil::ColorComponentFlagBits::G_BIT | Anvil::ColorComponentFlagBits::R_BIT);
 
     gfx_pipeline_create_info_ptr->add_vertex_attribute(0, /* in_location */
                                                        get_mesh_data_position_format(),
                                                        get_mesh_data_position_start_offset(),
                                                        get_mesh_data_position_stride(),
-                                                       VK_VERTEX_INPUT_RATE_VERTEX);
+                                                       Anvil::VertexInputRate::VERTEX);
     gfx_pipeline_create_info_ptr->add_vertex_attribute(1, /* location */
                                                        get_mesh_data_color_format      (),
                                                        get_mesh_data_color_start_offset(),
                                                        get_mesh_data_color_stride      (),
-                                                       VK_VERTEX_INPUT_RATE_VERTEX);
+                                                       Anvil::VertexInputRate::VERTEX);
 
 
     gfx_pipeline_manager_ptr->add_pipeline(std::move(gfx_pipeline_create_info_ptr),
@@ -780,11 +779,11 @@ void App::init_shaders()
     fragment_shader_ptr = Anvil::GLSLShaderToSPIRVGenerator::create(m_device_ptr.get(),
                                                                     Anvil::GLSLShaderToSPIRVGenerator::MODE_USE_SPECIFIED_SOURCE,
                                                                     g_glsl_frag,
-                                                                    Anvil::SHADER_STAGE_FRAGMENT);
+                                                                    Anvil::ShaderStage::FRAGMENT);
     vertex_shader_ptr   = Anvil::GLSLShaderToSPIRVGenerator::create(m_device_ptr.get(),
                                                                     Anvil::GLSLShaderToSPIRVGenerator::MODE_USE_SPECIFIED_SOURCE,
                                                                     g_glsl_vert,
-                                                                    Anvil::SHADER_STAGE_VERTEX);
+                                                                    Anvil::ShaderStage::VERTEX);
 
     fragment_shader_ptr->add_definition_value_pair("N_TRIANGLES",
                                                    N_TRIANGLES);
@@ -803,12 +802,12 @@ void App::init_shaders()
     m_fs_ptr.reset(
         new Anvil::ShaderModuleStageEntryPoint("main",
                                                std::move(fragment_shader_module_ptr),
-                                               Anvil::SHADER_STAGE_FRAGMENT)
+                                               Anvil::ShaderStage::FRAGMENT)
     );
     m_vs_ptr.reset(
         new Anvil::ShaderModuleStageEntryPoint("main",
                                                std::move(vertex_shader_module_ptr),
-                                               Anvil::SHADER_STAGE_VERTEX)
+                                               Anvil::ShaderStage::VERTEX)
     );
 }
 
@@ -826,8 +825,8 @@ void App::init_swapchain()
     m_swapchain_ptr = device_ptr->create_swapchain(m_rendering_surface_ptr.get(),
                                                    m_window_ptr.get           (),
                                                    Anvil::Format::B8G8R8A8_UNORM,
-                                                   VK_PRESENT_MODE_FIFO_KHR,
-                                                   Anvil::IMAGE_USAGE_FLAG_COLOR_ATTACHMENT_BIT,
+                                                   Anvil::PresentModeKHR::FIFO_KHR,
+                                                   Anvil::ImageUsageFlagBits::COLOR_ATTACHMENT_BIT,
                                                    m_n_swapchain_images);
 
     m_swapchain_ptr->set_name("Main swapchain");

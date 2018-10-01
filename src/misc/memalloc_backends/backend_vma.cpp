@@ -102,7 +102,7 @@ bool Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::init()
 
     switch (m_device_ptr->get_type() )
     {
-        case Anvil::DEVICE_TYPE_MULTI_GPU:
+        case Anvil::DeviceType::MULTI_GPU:
         {
             /* VMA library takes a physical device handle to extract info regarding supported
              * memory types and the like. As VK_KHR_device_group provide explicit mGPU support,
@@ -116,7 +116,7 @@ bool Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::init()
             break;
         }
 
-        case Anvil::DEVICE_TYPE_SINGLE_GPU:
+        case Anvil::DeviceType::SINGLE_GPU:
         {
             const Anvil::SGPUDevice* sgpu_device_ptr(dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr) );
 
@@ -186,15 +186,15 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
         bool                                        is_dedicated_alloc          = false;
         VkMemoryRequirements                        memory_requirements_vk;
         Anvil::OnMemoryBlockReleaseCallbackFunction release_callback_function;
-        VkMemoryHeapFlags                           required_mem_heap_flags     = 0;
-        VkMemoryPropertyFlags                       required_mem_property_flags = 0;
+        Anvil::MemoryHeapFlags                      required_mem_heap_flags;
+        Anvil::MemoryPropertyFlags                  required_mem_property_flags;
 
         Anvil::Utils::get_vk_property_flags_from_memory_feature_flags(current_item_ptr->alloc_memory_required_features,
                                                                      &required_mem_property_flags,
                                                                      &required_mem_heap_flags);
 
         /* NOTE: VMA does not take required memory heap flags at the moment. Adding this is on their radar. */
-        anvil_assert(required_mem_heap_flags == 0);
+        anvil_assert(required_mem_heap_flags == Anvil::MemoryHeapFlagBits::NONE);
 
         memory_requirements_vk.alignment      = current_item_ptr->alloc_memory_required_alignment;
         memory_requirements_vk.memoryTypeBits = current_item_ptr->alloc_memory_supported_memory_types;
@@ -202,7 +202,7 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
 
         allocation_create_info.flags         = (current_item_ptr->alloc_is_dedicated_memory) ? VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT
                                                                                              : 0;
-        allocation_create_info.requiredFlags = required_mem_property_flags;
+        allocation_create_info.requiredFlags = required_mem_property_flags.get_vk();
 
         result_vk = vmaAllocateMemory(m_vma_allocator_ptr->get_handle(),
                                      &memory_requirements_vk,
@@ -378,7 +378,7 @@ bool Anvil::MemoryAllocatorBackends::VMA::supports_device_masks() const
     return false;
 }
 
-bool Anvil::MemoryAllocatorBackends::VMA::supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeBits& in_external_memory_handle_types) const
+bool Anvil::MemoryAllocatorBackends::VMA::supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeFlags& in_external_memory_handle_types) const
 {
     /* Vulkan Memory Allocator does NOT support external memory handles */
     ANVIL_REDUNDANT_VARIABLE_CONST(in_external_memory_handle_types);

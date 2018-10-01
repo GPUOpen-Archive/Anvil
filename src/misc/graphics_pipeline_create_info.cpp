@@ -35,12 +35,11 @@ Anvil::GraphicsPipelineCreateInfo::GraphicsPipelineCreateInfo(const RenderPass* 
     m_depth_bias_slope_factor              = 1.0f;
     m_depth_bounds_test_enabled            = false;
     m_depth_clamp_enabled                  = false;
-    m_depth_test_compare_op                = VK_COMPARE_OP_ALWAYS;
+    m_depth_test_compare_op                = Anvil::CompareOp::ALWAYS;
     m_depth_test_enabled                   = false;
     m_depth_writes_enabled                 = false;
-    m_enabled_dynamic_states               = 0;
-    m_front_face                           = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    m_logic_op                             = VK_LOGIC_OP_NO_OP;
+    m_front_face                           = Anvil::FrontFace::COUNTER_CLOCKWISE;
+    m_logic_op                             = Anvil::LogicOp::NO_OP;
     m_logic_op_enabled                     = false;
     m_max_depth_bounds                     = 1.0f;
     m_min_depth_bounds                     = 0.0f;
@@ -65,18 +64,18 @@ Anvil::GraphicsPipelineCreateInfo::GraphicsPipelineCreateInfo(const RenderPass* 
     m_stencil_state_back_face.writeMask   = ~0u;
     m_stencil_state_front_face            = m_stencil_state_back_face;
 
-    m_rasterization_order = VK_RASTERIZATION_ORDER_STRICT_AMD;
+    m_rasterization_order = Anvil::RasterizationOrderAMD::STRICT;
 
     memset(m_blend_constant,
            0,
            sizeof(m_blend_constant) );
 
-    m_cull_mode          = VK_CULL_MODE_BACK_BIT;
+    m_cull_mode          = Anvil::CullModeFlagBits::CULL_MODE_BACK_BIT;
     m_line_width         = 1.0f;
     m_min_sample_shading = 1.0f;
-    m_sample_count       = Anvil::SampleCountFlagBits::SAMPLE_COUNT_FLAG_1_BIT;
-    m_polygon_mode       = VK_POLYGON_MODE_FILL;
-    m_primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    m_sample_count       = Anvil::SampleCountFlagBits::_1_BIT;
+    m_polygon_mode       = Anvil::PolygonMode::FILL;
+    m_primitive_topology = Anvil::PrimitiveTopology::TRIANGLE_LIST;
     m_sample_mask        = ~0u;
 
     m_tessellation_domain_origin = Anvil::TessellationDomainOrigin::UPPER_LEFT;
@@ -87,13 +86,13 @@ Anvil::GraphicsPipelineCreateInfo::~GraphicsPipelineCreateInfo()
     /* Stub */
 }
 
-bool Anvil::GraphicsPipelineCreateInfo::add_vertex_attribute(uint32_t           in_location,
-                                                             Anvil::Format      in_format,
-                                                             uint32_t           in_offset_in_bytes,
-                                                             uint32_t           in_stride_in_bytes,
-                                                             VkVertexInputRate  in_step_rate,
-                                                             uint32_t           in_explicit_binding_index,
-                                                             uint32_t           in_divisor)
+bool Anvil::GraphicsPipelineCreateInfo::add_vertex_attribute(uint32_t               in_location,
+                                                             Anvil::Format          in_format,
+                                                             uint32_t               in_offset_in_bytes,
+                                                             uint32_t               in_stride_in_bytes,
+                                                             Anvil::VertexInputRate in_step_rate,
+                                                             uint32_t               in_explicit_binding_index,
+                                                             uint32_t               in_divisor)
 {
     bool result = false;
 
@@ -346,15 +345,15 @@ void Anvil::GraphicsPipelineCreateInfo::get_blending_properties(const float** ou
     }
 }
 
-bool Anvil::GraphicsPipelineCreateInfo::get_color_blend_attachment_properties(SubPassAttachmentID    in_attachment_id,
-                                                                              bool*                  out_opt_blending_enabled_ptr,
-                                                                              VkBlendOp*             out_opt_blend_op_color_ptr,
-                                                                              VkBlendOp*             out_opt_blend_op_alpha_ptr,
-                                                                              VkBlendFactor*         out_opt_src_color_blend_factor_ptr,
-                                                                              VkBlendFactor*         out_opt_dst_color_blend_factor_ptr,
-                                                                              VkBlendFactor*         out_opt_src_alpha_blend_factor_ptr,
-                                                                              VkBlendFactor*         out_opt_dst_alpha_blend_factor_ptr,
-                                                                              VkColorComponentFlags* out_opt_channel_write_mask_ptr) const
+bool Anvil::GraphicsPipelineCreateInfo::get_color_blend_attachment_properties(SubPassAttachmentID         in_attachment_id,
+                                                                              bool*                       out_opt_blending_enabled_ptr,
+                                                                              Anvil::BlendOp*             out_opt_blend_op_color_ptr,
+                                                                              Anvil::BlendOp*             out_opt_blend_op_alpha_ptr,
+                                                                              Anvil::BlendFactor*         out_opt_src_color_blend_factor_ptr,
+                                                                              Anvil::BlendFactor*         out_opt_dst_color_blend_factor_ptr,
+                                                                              Anvil::BlendFactor*         out_opt_src_alpha_blend_factor_ptr,
+                                                                              Anvil::BlendFactor*         out_opt_dst_alpha_blend_factor_ptr,
+                                                                              Anvil::ColorComponentFlags* out_opt_channel_write_mask_ptr) const
 {
     SubPassAttachmentToBlendingPropertiesMap::const_iterator props_iterator;
     bool                                                     result         = false;
@@ -458,8 +457,8 @@ void Anvil::GraphicsPipelineCreateInfo::get_depth_bounds_state(bool*  out_opt_is
     }
 }
 
-void Anvil::GraphicsPipelineCreateInfo::get_depth_test_state(bool*        out_opt_is_enabled_ptr,
-                                                             VkCompareOp* out_opt_compare_op_ptr) const
+void Anvil::GraphicsPipelineCreateInfo::get_depth_test_state(bool*             out_opt_is_enabled_ptr,
+                                                             Anvil::CompareOp* out_opt_compare_op_ptr) const
 {
     if (out_opt_is_enabled_ptr != nullptr)
     {
@@ -472,9 +471,12 @@ void Anvil::GraphicsPipelineCreateInfo::get_depth_test_state(bool*        out_op
     }
 }
 
-Anvil::DynamicStateBitfield Anvil::GraphicsPipelineCreateInfo::get_enabled_dynamic_states() const
+void Anvil::GraphicsPipelineCreateInfo::get_enabled_dynamic_states(const Anvil::DynamicState** out_dynamic_states_ptr_ptr,
+                                                                   uint32_t*                   out_n_dynamic_states_ptr) const
 {
-    return m_enabled_dynamic_states;
+    *out_n_dynamic_states_ptr   = static_cast<uint32_t>(m_enabled_dynamic_states.size() );
+    *out_dynamic_states_ptr_ptr = ((m_enabled_dynamic_states.size() > 0) ? &m_enabled_dynamic_states.at(0)
+                                                                         : nullptr);
 }
 
 void Anvil::GraphicsPipelineCreateInfo::get_graphics_pipeline_properties(uint32_t*          out_opt_n_scissors_ptr,
@@ -509,8 +511,8 @@ void Anvil::GraphicsPipelineCreateInfo::get_graphics_pipeline_properties(uint32_
     }
 }
 
-void Anvil::GraphicsPipelineCreateInfo::get_logic_op_state(bool*      out_opt_is_enabled_ptr,
-                                                           VkLogicOp* out_opt_logic_op_ptr) const
+void Anvil::GraphicsPipelineCreateInfo::get_logic_op_state(bool*           out_opt_is_enabled_ptr,
+                                                           Anvil::LogicOp* out_opt_logic_op_ptr) const
 {
     if (out_opt_is_enabled_ptr != nullptr)
     {
@@ -557,20 +559,20 @@ uint32_t Anvil::GraphicsPipelineCreateInfo::get_n_viewports() const
     return static_cast<uint32_t>(m_viewports.size() );
 }
 
-VkPrimitiveTopology Anvil::GraphicsPipelineCreateInfo::get_primitive_topology() const
+Anvil::PrimitiveTopology Anvil::GraphicsPipelineCreateInfo::get_primitive_topology() const
 {
     return m_primitive_topology;
 }
 
-VkRasterizationOrderAMD Anvil::GraphicsPipelineCreateInfo::get_rasterization_order() const
+Anvil::RasterizationOrderAMD Anvil::GraphicsPipelineCreateInfo::get_rasterization_order() const
 {
     return m_rasterization_order;
 }
 
-void Anvil::GraphicsPipelineCreateInfo::get_rasterization_properties(VkPolygonMode*   out_opt_polygon_mode_ptr,
-                                                                     VkCullModeFlags* out_opt_cull_mode_ptr,
-                                                                     VkFrontFace*     out_opt_front_face_ptr,
-                                                                     float*           out_opt_line_width_ptr) const
+void Anvil::GraphicsPipelineCreateInfo::get_rasterization_properties(Anvil::PolygonMode*   out_opt_polygon_mode_ptr,
+                                                                     Anvil::CullModeFlags* out_opt_cull_mode_ptr,
+                                                                     Anvil::FrontFace*     out_opt_front_face_ptr,
+                                                                     float*                out_opt_line_width_ptr) const
 {
     if (out_opt_polygon_mode_ptr != nullptr)
     {
@@ -652,21 +654,21 @@ end:
     return result;
 }
 
-void Anvil::GraphicsPipelineCreateInfo::get_stencil_test_properties(bool*        out_opt_is_enabled_ptr,
-                                                                    VkStencilOp* out_opt_front_stencil_fail_op_ptr,
-                                                                    VkStencilOp* out_opt_front_stencil_pass_op_ptr,
-                                                                    VkStencilOp* out_opt_front_stencil_depth_fail_op_ptr,
-                                                                    VkCompareOp* out_opt_front_stencil_compare_op_ptr,
-                                                                    uint32_t*    out_opt_front_stencil_compare_mask_ptr,
-                                                                    uint32_t*    out_opt_front_stencil_write_mask_ptr,
-                                                                    uint32_t*    out_opt_front_stencil_reference_ptr,
-                                                                    VkStencilOp* out_opt_back_stencil_fail_op_ptr,
-                                                                    VkStencilOp* out_opt_back_stencil_pass_op_ptr,
-                                                                    VkStencilOp* out_opt_back_stencil_depth_fail_op_ptr,
-                                                                    VkCompareOp* out_opt_back_stencil_compare_op_ptr,
-                                                                    uint32_t*    out_opt_back_stencil_compare_mask_ptr,
-                                                                    uint32_t*    out_opt_back_stencil_write_mask_ptr,
-                                                                    uint32_t*    out_opt_back_stencil_reference_ptr) const
+void Anvil::GraphicsPipelineCreateInfo::get_stencil_test_properties(bool*             out_opt_is_enabled_ptr,
+                                                                    Anvil::StencilOp* out_opt_front_stencil_fail_op_ptr,
+                                                                    Anvil::StencilOp* out_opt_front_stencil_pass_op_ptr,
+                                                                    Anvil::StencilOp* out_opt_front_stencil_depth_fail_op_ptr,
+                                                                    Anvil::CompareOp* out_opt_front_stencil_compare_op_ptr,
+                                                                    uint32_t*         out_opt_front_stencil_compare_mask_ptr,
+                                                                    uint32_t*         out_opt_front_stencil_write_mask_ptr,
+                                                                    uint32_t*         out_opt_front_stencil_reference_ptr,
+                                                                    Anvil::StencilOp* out_opt_back_stencil_fail_op_ptr,
+                                                                    Anvil::StencilOp* out_opt_back_stencil_pass_op_ptr,
+                                                                    Anvil::StencilOp* out_opt_back_stencil_depth_fail_op_ptr,
+                                                                    Anvil::CompareOp* out_opt_back_stencil_compare_op_ptr,
+                                                                    uint32_t*         out_opt_back_stencil_compare_mask_ptr,
+                                                                    uint32_t*         out_opt_back_stencil_write_mask_ptr,
+                                                                    uint32_t*         out_opt_back_stencil_reference_ptr) const
 {
     if (out_opt_is_enabled_ptr != nullptr)
     {
@@ -675,22 +677,22 @@ void Anvil::GraphicsPipelineCreateInfo::get_stencil_test_properties(bool*       
 
     if (out_opt_front_stencil_fail_op_ptr != nullptr)
     {
-        *out_opt_front_stencil_fail_op_ptr = m_stencil_state_front_face.failOp;
+        *out_opt_front_stencil_fail_op_ptr = static_cast<Anvil::StencilOp>(m_stencil_state_front_face.failOp);
     }
 
     if (out_opt_front_stencil_pass_op_ptr != nullptr)
     {
-        *out_opt_front_stencil_pass_op_ptr = m_stencil_state_front_face.passOp;
+        *out_opt_front_stencil_pass_op_ptr = static_cast<Anvil::StencilOp>(m_stencil_state_front_face.passOp);
     }
 
     if (out_opt_front_stencil_depth_fail_op_ptr != nullptr)
     {
-        *out_opt_front_stencil_depth_fail_op_ptr = m_stencil_state_front_face.depthFailOp;
+        *out_opt_front_stencil_depth_fail_op_ptr = static_cast<Anvil::StencilOp>(m_stencil_state_front_face.depthFailOp);
     }
 
     if (out_opt_front_stencil_compare_op_ptr != nullptr)
     {
-        *out_opt_front_stencil_compare_op_ptr = m_stencil_state_front_face.compareOp;
+        *out_opt_front_stencil_compare_op_ptr = static_cast<Anvil::CompareOp>(m_stencil_state_front_face.compareOp);
     }
 
     if (out_opt_front_stencil_compare_mask_ptr != nullptr)
@@ -710,22 +712,22 @@ void Anvil::GraphicsPipelineCreateInfo::get_stencil_test_properties(bool*       
 
     if (out_opt_back_stencil_fail_op_ptr != nullptr)
     {
-        *out_opt_back_stencil_fail_op_ptr = m_stencil_state_back_face.failOp;
+        *out_opt_back_stencil_fail_op_ptr = static_cast<Anvil::StencilOp>(m_stencil_state_back_face.failOp);
     }
 
     if (out_opt_back_stencil_pass_op_ptr != nullptr)
     {
-        *out_opt_back_stencil_pass_op_ptr = m_stencil_state_back_face.passOp;
+        *out_opt_back_stencil_pass_op_ptr = static_cast<Anvil::StencilOp>(m_stencil_state_back_face.passOp);
     }
 
     if (out_opt_back_stencil_depth_fail_op_ptr != nullptr)
     {
-        *out_opt_back_stencil_depth_fail_op_ptr = m_stencil_state_back_face.depthFailOp;
+        *out_opt_back_stencil_depth_fail_op_ptr = static_cast<Anvil::StencilOp>(m_stencil_state_back_face.depthFailOp);
     }
 
     if (out_opt_back_stencil_compare_op_ptr != nullptr)
     {
-        *out_opt_back_stencil_compare_op_ptr = m_stencil_state_back_face.compareOp;
+        *out_opt_back_stencil_compare_op_ptr = static_cast<Anvil::CompareOp>(m_stencil_state_back_face.compareOp);
     }
 
     if (out_opt_back_stencil_compare_mask_ptr != nullptr)
@@ -749,14 +751,14 @@ uint32_t Anvil::GraphicsPipelineCreateInfo::get_n_patch_control_points() const
     return m_n_patch_control_points;
 }
 
-bool Anvil::GraphicsPipelineCreateInfo::get_vertex_attribute_properties(uint32_t           in_n_vertex_input_attribute,
-                                                                        uint32_t*          out_opt_location_ptr,
-                                                                        Anvil::Format*     out_opt_format_ptr,
-                                                                        uint32_t*          out_opt_offset_ptr,
-                                                                        uint32_t*          out_opt_explicit_vertex_binding_index_ptr,
-                                                                        uint32_t*          out_opt_stride_ptr,
-                                                                        VkVertexInputRate* out_opt_rate_ptr,
-                                                                        uint32_t*          out_opt_divisor_ptr) const
+bool Anvil::GraphicsPipelineCreateInfo::get_vertex_attribute_properties(uint32_t                in_n_vertex_input_attribute,
+                                                                        uint32_t*               out_opt_location_ptr,
+                                                                        Anvil::Format*          out_opt_format_ptr,
+                                                                        uint32_t*               out_opt_offset_ptr,
+                                                                        uint32_t*               out_opt_explicit_vertex_binding_index_ptr,
+                                                                        uint32_t*               out_opt_stride_ptr,
+                                                                        Anvil::VertexInputRate* out_opt_rate_ptr,
+                                                                        uint32_t*               out_opt_divisor_ptr) const
 {
     const InternalVertexAttribute* attribute_ptr = nullptr;
     bool                           result        = false;
@@ -905,15 +907,15 @@ void Anvil::GraphicsPipelineCreateInfo::set_blending_properties(const float* in_
            sizeof(m_blend_constant) );
 }
 
-void Anvil::GraphicsPipelineCreateInfo::set_color_blend_attachment_properties(SubPassAttachmentID   in_attachment_id,
-                                                                              bool                  in_blending_enabled,
-                                                                              VkBlendOp             in_blend_op_color,
-                                                                              VkBlendOp             in_blend_op_alpha,
-                                                                              VkBlendFactor         in_src_color_blend_factor,
-                                                                              VkBlendFactor         in_dst_color_blend_factor,
-                                                                              VkBlendFactor         in_src_alpha_blend_factor,
-                                                                              VkBlendFactor         in_dst_alpha_blend_factor,
-                                                                              VkColorComponentFlags in_channel_write_mask)
+void Anvil::GraphicsPipelineCreateInfo::set_color_blend_attachment_properties(SubPassAttachmentID        in_attachment_id,
+                                                                              bool                       in_blending_enabled,
+                                                                              Anvil::BlendOp             in_blend_op_color,
+                                                                              Anvil::BlendOp             in_blend_op_alpha,
+                                                                              Anvil::BlendFactor         in_src_color_blend_factor,
+                                                                              Anvil::BlendFactor         in_dst_color_blend_factor,
+                                                                              Anvil::BlendFactor         in_src_alpha_blend_factor,
+                                                                              Anvil::BlendFactor         in_dst_alpha_blend_factor,
+                                                                              Anvil::ColorComponentFlags in_channel_write_mask)
 {
     BlendingProperties* attachment_blending_props_ptr = &m_subpass_attachment_blending_properties[in_attachment_id];
 
@@ -951,20 +953,20 @@ void Anvil::GraphicsPipelineCreateInfo::set_n_patch_control_points(uint32_t in_n
     m_n_patch_control_points = in_n_patch_control_points;
 }
 
-void Anvil::GraphicsPipelineCreateInfo::set_primitive_topology(VkPrimitiveTopology in_primitive_topology)
+void Anvil::GraphicsPipelineCreateInfo::set_primitive_topology(Anvil::PrimitiveTopology in_primitive_topology)
 {
     m_primitive_topology = in_primitive_topology;
 }
 
-void Anvil::GraphicsPipelineCreateInfo::set_rasterization_order(VkRasterizationOrderAMD in_rasterization_order)
+void Anvil::GraphicsPipelineCreateInfo::set_rasterization_order(Anvil::RasterizationOrderAMD in_rasterization_order)
 {
     m_rasterization_order = in_rasterization_order;
 }
 
-void Anvil::GraphicsPipelineCreateInfo::set_rasterization_properties(VkPolygonMode   in_polygon_mode,
-                                                                     VkCullModeFlags in_cull_mode,
-                                                                     VkFrontFace     in_front_face,
-                                                                     float           in_line_width)
+void Anvil::GraphicsPipelineCreateInfo::set_rasterization_properties(Anvil::PolygonMode   in_polygon_mode,
+                                                                     Anvil::CullModeFlags in_cull_mode,
+                                                                     Anvil::FrontFace     in_front_face,
+                                                                     float                in_line_width)
 {
     m_cull_mode    = in_cull_mode;
     m_front_face   = in_front_face;
@@ -984,23 +986,23 @@ void Anvil::GraphicsPipelineCreateInfo::set_scissor_box_properties(uint32_t in_n
                                                            in_height);
 }
 
-void Anvil::GraphicsPipelineCreateInfo::set_stencil_test_properties(bool        in_update_front_face_state,
-                                                                    VkStencilOp in_stencil_fail_op,
-                                                                    VkStencilOp in_stencil_pass_op,
-                                                                    VkStencilOp in_stencil_depth_fail_op,
-                                                                    VkCompareOp in_stencil_compare_op,
-                                                                    uint32_t    in_stencil_compare_mask,
-                                                                    uint32_t    in_stencil_write_mask,
-                                                                    uint32_t    in_stencil_reference)
+void Anvil::GraphicsPipelineCreateInfo::set_stencil_test_properties(bool             in_update_front_face_state,
+                                                                    Anvil::StencilOp in_stencil_fail_op,
+                                                                    Anvil::StencilOp in_stencil_pass_op,
+                                                                    Anvil::StencilOp in_stencil_depth_fail_op,
+                                                                    Anvil::CompareOp in_stencil_compare_op,
+                                                                    uint32_t         in_stencil_compare_mask,
+                                                                    uint32_t         in_stencil_write_mask,
+                                                                    uint32_t         in_stencil_reference)
 {
     VkStencilOpState* const stencil_op_state_ptr = (in_update_front_face_state) ? &m_stencil_state_front_face
                                                                                 : &m_stencil_state_back_face;
 
     stencil_op_state_ptr->compareMask = in_stencil_compare_mask;
-    stencil_op_state_ptr->compareOp   = in_stencil_compare_op;
-    stencil_op_state_ptr->depthFailOp = in_stencil_depth_fail_op;
-    stencil_op_state_ptr->failOp      = in_stencil_fail_op;
-    stencil_op_state_ptr->passOp      = in_stencil_pass_op;
+    stencil_op_state_ptr->compareOp   = static_cast<VkCompareOp>(in_stencil_compare_op);
+    stencil_op_state_ptr->depthFailOp = static_cast<VkStencilOp>(in_stencil_depth_fail_op);
+    stencil_op_state_ptr->failOp      = static_cast<VkStencilOp>(in_stencil_fail_op);
+    stencil_op_state_ptr->passOp      = static_cast<VkStencilOp>(in_stencil_pass_op);
     stencil_op_state_ptr->reference   = in_stencil_reference;
     stencil_op_state_ptr->writeMask   = in_stencil_write_mask;
 }
@@ -1061,8 +1063,8 @@ void Anvil::GraphicsPipelineCreateInfo::toggle_depth_clamp(bool in_should_enable
     m_depth_clamp_enabled = in_should_enable;
 }
 
-void Anvil::GraphicsPipelineCreateInfo::toggle_depth_test(bool        in_should_enable,
-                                                          VkCompareOp in_compare_op)
+void Anvil::GraphicsPipelineCreateInfo::toggle_depth_test(bool             in_should_enable,
+                                                          Anvil::CompareOp in_compare_op)
 {
     m_depth_test_enabled    = in_should_enable;
     m_depth_test_compare_op = in_compare_op;
@@ -1073,21 +1075,58 @@ void Anvil::GraphicsPipelineCreateInfo::toggle_depth_writes(bool in_should_enabl
     m_depth_writes_enabled = in_should_enable;
 }
 
-void Anvil::GraphicsPipelineCreateInfo::toggle_dynamic_states(bool                 in_should_enable,
-                                                              DynamicStateBitfield in_dynamic_state_bits)
+void Anvil::GraphicsPipelineCreateInfo::toggle_dynamic_state(bool                       in_should_enable,
+                                                             const Anvil::DynamicState& in_dynamic_state)
 {
     if (in_should_enable)
     {
-        m_enabled_dynamic_states |= in_dynamic_state_bits;
+        if (std::find(m_enabled_dynamic_states.begin(),
+                      m_enabled_dynamic_states.end  (),
+                      in_dynamic_state) == m_enabled_dynamic_states.end() )
+        {
+            m_enabled_dynamic_states.push_back(in_dynamic_state);
+        }
     }
     else
     {
-        m_enabled_dynamic_states &= ~in_dynamic_state_bits;
+        auto iterator = std::find(m_enabled_dynamic_states.begin(),
+                                  m_enabled_dynamic_states.end  (),
+                                  in_dynamic_state);
+
+        if (iterator != m_enabled_dynamic_states.end() )
+        {
+            m_enabled_dynamic_states.erase(iterator);
+        }
     }
 }
 
-void Anvil::GraphicsPipelineCreateInfo::toggle_logic_op(bool      in_should_enable,
-                                                        VkLogicOp in_logic_op)
+void Anvil::GraphicsPipelineCreateInfo::toggle_dynamic_states(bool                       in_should_enable,
+                                                              const Anvil::DynamicState* in_dynamic_states_ptr,
+                                                              const uint32_t&            in_n_dynamic_states)
+{
+    for (uint32_t n_dynamic_state = 0;
+                  n_dynamic_state < in_n_dynamic_states;
+                ++n_dynamic_state)
+    {
+        const auto current_state = in_dynamic_states_ptr[n_dynamic_state];
+
+        toggle_dynamic_state(in_should_enable,
+                             current_state);
+    }
+}
+
+void Anvil::GraphicsPipelineCreateInfo::toggle_dynamic_states(bool                                    in_should_enable,
+                                                              const std::vector<Anvil::DynamicState>& in_dynamic_states)
+{
+    for (const auto& current_state : in_dynamic_states)
+    {
+        toggle_dynamic_state(in_should_enable,
+                             current_state);
+    }
+}
+
+void Anvil::GraphicsPipelineCreateInfo::toggle_logic_op(bool           in_should_enable,
+                                                        Anvil::LogicOp in_logic_op)
 {
     m_logic_op         = in_logic_op;
     m_logic_op_enabled = in_should_enable;

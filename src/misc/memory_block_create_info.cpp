@@ -66,7 +66,7 @@ Anvil::MemoryBlockCreateInfoUniquePtr Anvil::MemoryBlockCreateInfo::create_deriv
     auto result_ptr = Anvil::MemoryBlockCreateInfoUniquePtr(nullptr,
                                                             std::default_delete<Anvil::MemoryBlockCreateInfo>() );
 
-    anvil_assert(in_device_ptr->get_type() == Anvil::DEVICE_TYPE_SINGLE_GPU); /* todo: pass physical device array below accordingly */
+    anvil_assert(in_device_ptr->get_type() == Anvil::DeviceType::SINGLE_GPU); /* todo: pass physical device array below accordingly */
 
     result_ptr.reset(
         new Anvil::MemoryBlockCreateInfo(Anvil::MemoryBlockType::DERIVED_WITH_CUSTOM_DELETE_PROC,
@@ -95,7 +95,7 @@ Anvil::MemoryBlockCreateInfoUniquePtr Anvil::MemoryBlockCreateInfo::create_regul
     auto                                      result_ptr        = Anvil::MemoryBlockCreateInfoUniquePtr(nullptr,
                                                                                                         std::default_delete<Anvil::MemoryBlockCreateInfo>() );
 
-    if (in_device_ptr->get_type() == Anvil::DEVICE_TYPE_MULTI_GPU)
+    if (in_device_ptr->get_type() == Anvil::DeviceType::MULTI_GPU)
     {
         const auto     device_mgpu_ptr    = dynamic_cast<const Anvil::MGPUDevice*>(in_device_ptr);
         const uint32_t n_physical_devices = device_mgpu_ptr->get_n_physical_devices();
@@ -152,16 +152,16 @@ Anvil::MemoryBlockCreateInfo::MemoryBlockCreateInfo(const Anvil::MemoryBlockType
      m_dedicated_allocation_image_ptr          (nullptr),
      m_device_mask                             (0),
      m_device_ptr                              (in_device_ptr),
-     m_exportable_external_memory_handle_types (Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_NONE),
+     m_exportable_external_memory_handle_types (Anvil::ExternalMemoryHandleTypeFlagBits::NONE),
 #ifdef _WIN32
      m_exportable_nt_handle_info_specified     (false),
 #endif
      m_external_handle_import_info_specified   (false),
-     m_imported_external_memory_handle_type    (Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_NONE),
+     m_imported_external_memory_handle_type    (Anvil::ExternalMemoryHandleTypeFlagBits::NONE),
      m_memory                                  (in_memory),
      m_memory_features                         (in_memory_features),
      m_memory_type_index                       (in_memory_type_index),
-     m_mt_safety                               (Anvil::MT_SAFETY_INHERIT_FROM_PARENT_DEVICE),
+     m_mt_safety                               (Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE),
      m_on_release_callback_function            (in_on_release_callback_function),
      m_parent_memory_block_ptr                 (in_parent_memory_block_ptr),
      m_size                                    (in_size),
@@ -192,7 +192,7 @@ Anvil::MemoryBlockCreateInfo::MemoryBlockCreateInfo(const Anvil::MemoryBlockType
     }
     else
     {
-        if (m_device_ptr->get_type() == Anvil::DeviceType::DEVICE_TYPE_MULTI_GPU)
+        if (m_device_ptr->get_type() == Anvil::DeviceType::MULTI_GPU)
         {
             const auto     device_mgpu_ptr    = dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr);
             const uint32_t n_physical_devices = device_mgpu_ptr->get_n_physical_devices();

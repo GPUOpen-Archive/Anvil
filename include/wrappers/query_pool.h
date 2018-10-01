@@ -55,7 +55,7 @@ namespace Anvil
         static Anvil::QueryPoolUniquePtr create_non_ps_query_pool(const Anvil::BaseDevice* in_device_ptr,
                                                                   VkQueryType              in_query_type,
                                                                   uint32_t                 in_n_max_concurrent_queries,
-                                                                  MTSafety                 in_mt_safety                = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+                                                                  MTSafety                 in_mt_safety                = Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE);
 
         /** Creates a new pipeline statistics query pool.
          *
@@ -67,10 +67,10 @@ namespace Anvil
          *  @param in_n_max_concurrent_queries Number of queries to preallocate in the pool.
          *
          **/
-        static Anvil::QueryPoolUniquePtr create_ps_query_pool(const Anvil::BaseDevice*      in_device_ptr,
-                                                              VkQueryPipelineStatisticFlags in_pipeline_statistics,
-                                                              uint32_t                      in_n_max_concurrent_queries,
-                                                              MTSafety                      in_mt_safety                = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::QueryPoolUniquePtr create_ps_query_pool(const Anvil::BaseDevice*           in_device_ptr,
+                                                              Anvil::QueryPipelineStatisticFlags in_pipeline_statistics,
+                                                              uint32_t                           in_n_max_concurrent_queries,
+                                                              MTSafety                           in_mt_safety                = Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE);
 
         /** Destructor */
         virtual ~QueryPool();
@@ -97,11 +97,11 @@ namespace Anvil
          *       the results returned by this entrypoint are correct.
          *
          **/
-        bool get_query_pool_results(const uint32_t&        in_first_query_index,
-                                    const uint32_t&        in_n_queries,
-                                    const QueryResultBits& in_query_props,
-                                    uint32_t*              out_results_ptr,
-                                    bool*                  out_all_query_results_retrieved_ptr)
+        bool get_query_pool_results(const uint32_t&                in_first_query_index,
+                                    const uint32_t&                in_n_queries,
+                                    const Anvil::QueryResultFlags& in_query_props,
+                                    uint32_t*                      out_results_ptr,
+                                    bool*                          out_all_query_results_retrieved_ptr)
         {
             return get_query_pool_results_internal(in_first_query_index,
                                                    in_n_queries,
@@ -111,11 +111,11 @@ namespace Anvil
                                                    out_all_query_results_retrieved_ptr);
         }
 
-        bool get_query_pool_results(const uint32_t&        in_first_query_index,
-                                    const uint32_t&        in_n_queries,
-                                    const QueryResultBits& in_query_props,
-                                    uint64_t*              out_results_ptr,
-                                    bool*                  out_all_query_results_retrieved_ptr)
+        bool get_query_pool_results(const uint32_t&                in_first_query_index,
+                                    const uint32_t&                in_n_queries,
+                                    const Anvil::QueryResultFlags& in_query_props,
+                                    uint64_t*                      out_results_ptr,
+                                    bool*                          out_all_query_results_retrieved_ptr)
         {
             return get_query_pool_results_internal(in_first_query_index,
                                                    in_n_queries,
@@ -133,18 +133,18 @@ namespace Anvil
                            bool                     in_mt_safe);
 
         /* Constructor. Please see corresponding create() for specification */
-        explicit QueryPool(const Anvil::BaseDevice* in_device_ptr,
-                           VkQueryType              in_query_type,
-                           VkFlags                  in_query_flags,
-                           uint32_t                 in_n_max_concurrent_queries,
-                           bool                     in_mt_safe);
+        explicit QueryPool(const Anvil::BaseDevice*           in_device_ptr,
+                           VkQueryType                        in_query_type,
+                           Anvil::QueryPipelineStatisticFlags in_pipeline_statistics,
+                           uint32_t                           in_n_max_concurrent_queries,
+                           bool                               in_mt_safe);
 
-        bool get_query_pool_results_internal(const uint32_t&        in_first_query_index,
-                                             const uint32_t&        in_n_queries,
-                                             const QueryResultBits& in_query_props,
-                                             const bool&            in_should_return_uint64,
-                                             void*                  out_results_ptr,
-                                             bool*                  out_all_query_results_retrieved_ptr);
+        bool get_query_pool_results_internal(const uint32_t&                in_first_query_index,
+                                             const uint32_t&                in_n_queries,
+                                             const Anvil::QueryResultFlags& in_query_props,
+                                             const bool&                    in_should_return_uint64,
+                                             void*                          out_results_ptr,
+                                             bool*                          out_all_query_results_retrieved_ptr);
 
         /** Initializes the Vulkan counterpart.
          *
@@ -153,9 +153,9 @@ namespace Anvil
          *  @param in_n_max_concurrent_queries Maximum number of queries which can be used concurrently with
          *                                     the query pool.
          **/
-        void init(VkQueryType in_query_type,
-                  VkFlags     in_flags,
-                  uint32_t    in_n_max_concurrent_queries);
+        void init(VkQueryType                        in_query_type,
+                  Anvil::QueryPipelineStatisticFlags in_pipeline_statistics,
+                  uint32_t                           in_n_max_concurrent_queries);
 
         /* Private variables */
         const Anvil::BaseDevice* m_device_ptr;

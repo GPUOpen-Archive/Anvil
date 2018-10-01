@@ -22,59 +22,394 @@
 #ifndef TYPES_ENUMS_H
 #define TYPES_ENUMS_H
 
+#ifdef IGNORE
+    #undef IGNORE
+#endif
+
+#ifdef STRICT
+    #undef STRICT
+#endif
+
 namespace Anvil
 {
+    template<typename IndividualBitEnumType, typename VKFlagsType>
+    class Bitfield
+    {
+    public:
+        Bitfield()
+            :m_value(static_cast<VKFlagsType>(0) )
+        {
+            /* Stub */
+        }
+
+        Bitfield(const IndividualBitEnumType& in_bit)
+            :m_value(static_cast<VKFlagsType>(in_bit) )
+        {
+            /* Stub */
+        }
+
+        Bitfield(const Bitfield<IndividualBitEnumType, VKFlagsType>& in_bits)
+            :m_value(in_bits.m_value)
+        {
+            /* Stub */
+        }
+
+        inline Bitfield<IndividualBitEnumType, VKFlagsType> operator&(const IndividualBitEnumType& in_bit) const
+        {
+            auto result = Bitfield<IndividualBitEnumType, VKFlagsType>(static_cast<IndividualBitEnumType>(m_value & static_cast<VKFlagsType>(in_bit) ));
+
+            return result;
+        }
+
+        inline Bitfield<IndividualBitEnumType, VKFlagsType> operator&(const IndividualBitEnumType& in_bit)
+        {
+            auto result = Bitfield<IndividualBitEnumType, VKFlagsType>(static_cast<IndividualBitEnumType>(m_value & static_cast<VKFlagsType>(in_bit)));
+
+            return result;
+        }
+
+#if 0
+        inline Bitfield<IndividualBitEnumType, VKFlagsType> operator&(const Bitfield<IndividualBitEnumType, VKFlagsType>& in_bits) const
+        {
+            auto result = Bitfield<IndividualBitEnumType, VKFlagsType>(static_cast<IndividualBitEnumType>(static_cast<uint32_t>(m_value) & static_cast<uint32_t>(in_bits.m_value) ));
+
+            return result;
+        }
+
+
+        inline Bitfield<IndividualBitEnumType, VKFlagsType> operator&(const Bitfield<IndividualBitEnumType, VKFlagsType>& in_bits)
+        {
+            auto result = Bitfield<IndividualBitEnumType, VKFlagsType>(static_cast<IndividualBitEnumType>(static_cast<uint32_t>(m_value) & static_cast<uint32_t>(in_bits.m_value) ));
+
+            return result;
+        }
+#endif
+
+        inline Bitfield<IndividualBitEnumType, VKFlagsType>& operator|=(const IndividualBitEnumType& in_bit)
+        {
+            m_value |= static_cast<VKFlagsType>(in_bit);
+
+            return *this;
+        }
+
+        inline Bitfield<IndividualBitEnumType, VKFlagsType>& operator|=(const Bitfield<IndividualBitEnumType, VKFlagsType>& in_bits)
+        {
+            m_value |= static_cast<VKFlagsType>(in_bits.m_value);
+
+            return *this;
+        }
+
+        inline Bitfield<IndividualBitEnumType, VKFlagsType>& operator&=(const IndividualBitEnumType& in_bit)
+        {
+            m_value &= static_cast<VKFlagsType>(in_bit);
+
+            return *this;
+        }
+
+        inline Bitfield<IndividualBitEnumType, VKFlagsType>& operator&=(const Bitfield<IndividualBitEnumType, VKFlagsType>& in_bits)
+        {
+            m_value &= static_cast<VKFlagsType>(in_bits.m_value);
+
+            return *this;
+        }
+
+        inline Bitfield<IndividualBitEnumType, VKFlagsType>& operator=(const IndividualBitEnumType& in_bit)
+        {
+            m_value = static_cast<VKFlagsType>(in_bit);
+
+            return *this;
+        }
+
+        inline Bitfield<IndividualBitEnumType, VKFlagsType>& operator=(const Bitfield<IndividualBitEnumType, VKFlagsType>& in_bits)
+        {
+            m_value = static_cast<VKFlagsType>(in_bits.m_value);
+
+            return *this;
+        }
+
+        inline bool operator!=(const int& in_value) const
+        {
+            return m_value != static_cast<VKFlagsType>(in_value);
+        }
+
+        inline bool operator!=(const Bitfield<IndividualBitEnumType, VKFlagsType>& in_bitfield) const
+        {
+            return (m_value != in_bitfield.m_value);
+        }
+
+        inline bool operator!=(const IndividualBitEnumType& in_bit) const
+        {
+            return (m_value != static_cast<VKFlagsType>(in_bit) );
+        }
+
+        inline bool operator==(const int& in_value) const
+        {
+            return m_value == static_cast<VKFlagsType>(in_value);
+        }
+
+        inline bool operator==(const Bitfield<IndividualBitEnumType, VKFlagsType>& in_bitfield) const
+        {
+            return (m_value == in_bitfield.m_value);
+        }
+
+        inline bool operator==(const IndividualBitEnumType& in_bit) const
+        {
+            return (m_value == static_cast<VKFlagsType>(in_bit) );
+        }
+
+        inline bool operator<(const Bitfield<IndividualBitEnumType, VKFlagsType>& in_bitfield) const
+        {
+            return (m_value < in_bitfield.m_value);
+        }
+
+        inline bool operator<(const IndividualBitEnumType& in_bit) const
+        {
+            return (m_value < static_cast<VKFlagsType>(in_bit) );
+        }
+
+        inline bool operator<=(const Bitfield<IndividualBitEnumType, VKFlagsType>& in_bitfield) const
+        {
+            return (m_value <= in_bitfield.m_value);
+        }
+
+        inline bool operator<=(const IndividualBitEnumType& in_bit) const
+        {
+            return (m_value <= static_cast<VKFlagsType>(in_bit) );
+        }
+
+        inline bool operator>=(const Bitfield<IndividualBitEnumType, VKFlagsType>& in_bitfield) const
+        {
+            return (m_value >= in_bitfield.m_value);
+        }
+
+        inline bool operator>=(const IndividualBitEnumType& in_bit) const
+        {
+            return (m_value >= static_cast<VKFlagsType>(in_bit) );
+        }
+
+        inline const VKFlagsType& get_vk() const
+        {
+            return m_value;
+        }
+
+        inline const VKFlagsType* get_vk_ptr() const
+        {
+            return &m_value;
+        }
+
+    private:
+        VKFlagsType m_value;
+    };
+
+    #define INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(BitfieldType, VKFlagsType, IndividualBitEnumType)                 \
+        IndividualBitEnumType operator&(const IndividualBitEnumType& in_val1, const IndividualBitEnumType& in_val2); \
+        BitfieldType          operator&(const BitfieldType&          in_val1, const BitfieldType&          in_val2); \
+        IndividualBitEnumType operator|(const IndividualBitEnumType& in_val1, const IndividualBitEnumType& in_val2); \
+        BitfieldType          operator|(const BitfieldType&          in_val1, const BitfieldType&          in_val2); \
+        IndividualBitEnumType operator~(const IndividualBitEnumType& in_val1);                                       \
+        BitfieldType          operator~(const BitfieldType&          in_val1);
+
+    #define INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(BitfieldType, VKFlagsType, IndividualBitEnumType)                                                                  \
+        IndividualBitEnumType Anvil::operator&(const IndividualBitEnumType& in_val1, const IndividualBitEnumType& in_val2)                                                \
+        {                                                                                                                                                                 \
+            IndividualBitEnumType result = static_cast<IndividualBitEnumType>(static_cast<uint32_t>(in_val1) & static_cast<uint32_t>(in_val2) );                          \
+                                                                                                                                                                          \
+            return result;                                                                                                                                                \
+        }                                                                                                                                                                 \
+        BitfieldType Anvil::operator&(const BitfieldType& in_val1, const BitfieldType& in_val2)                                                                           \
+        {                                                                                                                                                                 \
+            BitfieldType result = BitfieldType(static_cast<IndividualBitEnumType>(static_cast<uint32_t>(in_val1.get_vk() ) & static_cast<uint32_t>(in_val2.get_vk() )) ); \
+                                                                                                                                                                          \
+            return result;                                                                                                                                                \
+        }                                                                                                                                                                 \
+        IndividualBitEnumType Anvil::operator|(const IndividualBitEnumType& in_val1, const IndividualBitEnumType& in_val2)                                                \
+        {                                                                                                                                                                 \
+            IndividualBitEnumType result = static_cast<IndividualBitEnumType>(static_cast<uint32_t>(in_val1) | static_cast<uint32_t>(in_val2) );                          \
+                                                                                                                                                                          \
+            return result;                                                                                                                                                \
+        }                                                                                                                                                                 \
+        BitfieldType Anvil::operator|(const BitfieldType& in_val1, const BitfieldType& in_val2)                                                                           \
+        {                                                                                                                                                                 \
+            BitfieldType result = BitfieldType(static_cast<IndividualBitEnumType>(static_cast<uint32_t>(in_val1.get_vk() ) | static_cast<uint32_t>(in_val2.get_vk() )) ); \
+                                                                                                                                                                          \
+            return result;                                                                                                                                                \
+        }                                                                                                                                                                 \
+        IndividualBitEnumType Anvil::operator~(const IndividualBitEnumType& in_val1)                                                                                      \
+        {                                                                                                                                                                 \
+            IndividualBitEnumType result = static_cast<IndividualBitEnumType>(~static_cast<uint32_t>(in_val1) );                                                          \
+                                                                                                                                                                          \
+            return result;                                                                                                                                                \
+        }
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class AccessFlagBits
+    {
+        COLOR_ATTACHMENT_READ_BIT          = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
+        COLOR_ATTACHMENT_WRITE_BIT         = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        DEPTH_STENCIL_ATTACHMENT_READ_BIT  = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
+        DEPTH_STENCIL_ATTACHMENT_WRITE_BIT = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        HOST_READ_BIT                      = VK_ACCESS_HOST_READ_BIT,
+        HOST_WRITE_BIT                     = VK_ACCESS_HOST_WRITE_BIT,
+        INDEX_READ_BIT                     = VK_ACCESS_INDEX_READ_BIT,
+        INDIRECT_COMMAND_READ_BIT          = VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+        INPUT_ATTACHMENT_READ_BIT          = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT,
+        MEMORY_READ_BIT                    = VK_ACCESS_MEMORY_READ_BIT,
+        MEMORY_WRITE_BIT                   = VK_ACCESS_MEMORY_WRITE_BIT,
+        SHADER_READ_BIT                    = VK_ACCESS_SHADER_READ_BIT,
+        SHADER_WRITE_BIT                   = VK_ACCESS_SHADER_WRITE_BIT,
+        TRANSFER_READ_BIT                  = VK_ACCESS_TRANSFER_READ_BIT,
+        TRANSFER_WRITE_BIT                 = VK_ACCESS_TRANSFER_WRITE_BIT,
+        UNIFORM_READ_BIT                   = VK_ACCESS_UNIFORM_READ_BIT,
+        VERTEX_ATTRIBUTE_READ_BIT          = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::AccessFlagBits, VkAccessFlags> AccessFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(AccessFlags, VkAccessFlags, AccessFlagBits)
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class AttachmentLoadOp
+    {
+        CLEAR     = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        DONT_CARE = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        LOAD      = VK_ATTACHMENT_LOAD_OP_LOAD,
+
+        UNKNOWN = VK_ATTACHMENT_LOAD_OP_MAX_ENUM
+    };
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class AttachmentStoreOp
+    {
+        DONT_CARE = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        STORE     = VK_ATTACHMENT_STORE_OP_STORE,
+
+        UNKNOWN = VK_ATTACHMENT_STORE_OP_MAX_ENUM
+    };
+
     /* Describes recognized subpass attachment types */
-    enum AttachmentType
+    enum class AttachmentType
     {
         ATTACHMENT_TYPE_FIRST,
 
-        ATTACHMENT_TYPE_COLOR = ATTACHMENT_TYPE_FIRST,
-        ATTACHMENT_TYPE_DEPTH_STENCIL,
-        ATTACHMENT_TYPE_INPUT,
-        ATTACHMENT_TYPE_PRESERVE,
-        ATTACHMENT_TYPE_RESOLVE,
+        COLOR = ATTACHMENT_TYPE_FIRST,
+        DEPTH_STENCIL,
+        INPUT,
+        PRESERVE,
+        RESOLVE,
 
-        ATTACHMENT_TYPE_COUNT,
-        ATTACHMENT_TYPE_UNKNOWN = ATTACHMENT_TYPE_COUNT
+        COUNT,
+        UNKNOWN = COUNT
     };
 
-    enum BufferCreateFlagBits
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class BlendFactor
     {
-        BUFFER_CREATE_FLAG_SPARSE_BINDING_BIT   = 1 << 0,
-        BUFFER_CREATE_FLAG_SPARSE_RESIDENCY_BIT = 1 << 1,
-        BUFFER_CREATE_FLAG_SPARSE_ALIASED_BIT   = 1 << 2,
-    };
-    typedef uint32_t BufferCreateFlags;
+        CONSTANT_ALPHA           = VK_BLEND_FACTOR_CONSTANT_ALPHA,
+        CONSTANT_COLOR           = VK_BLEND_FACTOR_CONSTANT_COLOR,
+        DST_ALPHA                = VK_BLEND_FACTOR_DST_ALPHA,
+        DST_COLOR                = VK_BLEND_FACTOR_DST_COLOR,
+        ONE                      = VK_BLEND_FACTOR_ONE,
+        ONE_MINUS_CONSTANT_ALPHA = VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA,
+        ONE_MINUS_CONSTANT_COLOR = VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR,
+        ONE_MINUS_DST_ALPHA      = VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA,
+        ONE_MINUS_DST_COLOR      = VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR,
+        ONE_MINUS_SRC_ALPHA      = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+        ONE_MINUS_SRC_COLOR      = VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR,
+        ONE_MINUS_SRC1_COLOR     = VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR,
+        ONE_MINUS_SRC1_ALPHA     = VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA,
+        SRC_ALPHA                = VK_BLEND_FACTOR_SRC_ALPHA,
+        SRC_ALPHA_SATURATE       = VK_BLEND_FACTOR_SRC_ALPHA_SATURATE,
+        SRC1_ALPHA               = VK_BLEND_FACTOR_SRC1_ALPHA,
+        SRC1_COLOR               = VK_BLEND_FACTOR_SRC1_COLOR,
+        SRC_COLOR                = VK_BLEND_FACTOR_SRC_COLOR,
+        ZERO                     = VK_BLEND_FACTOR_ZERO,
 
-    typedef enum class BufferType
+        UNKNOWN = VK_BLEND_FACTOR_MAX_ENUM
+    };
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class BlendOp
+    {
+        ADD              = VK_BLEND_OP_ADD,
+        MAX              = VK_BLEND_OP_MAX,
+        MIN              = VK_BLEND_OP_MIN,
+        REVERSE_SUBTRACT = VK_BLEND_OP_REVERSE_SUBTRACT,
+        SUBTRACT         = VK_BLEND_OP_SUBTRACT,
+
+        UNKNOWN = VK_BLEND_OP_MAX_ENUM
+    };
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class BorderColor
+    {
+        FLOAT_OPAQUE_BLACK      = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
+        FLOAT_OPAQUE_WHITE      = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
+        FLOAT_TRANSPARENT_BLACK = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
+        INT_OPAQUE_BLACK        = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+        INT_OPAQUE_WHITE        = VK_BORDER_COLOR_INT_OPAQUE_WHITE,
+        INT_TRANSPARENT_BLACK   = VK_BORDER_COLOR_INT_TRANSPARENT_BLACK,
+
+        UNKNOWN = VK_BORDER_COLOR_MAX_ENUM
+    };
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class BufferCreateFlagBits
+    {
+        SPARSE_BINDING_BIT   = VK_BUFFER_CREATE_SPARSE_BINDING_BIT,
+        SPARSE_RESIDENCY_BIT = VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT,
+        SPARSE_ALIASED_BIT   = VK_BUFFER_CREATE_SPARSE_ALIASED_BIT,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::BufferCreateFlagBits, VkBufferCreateFlags> BufferCreateFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(BufferCreateFlags, VkBufferCreateFlags, BufferCreateFlagBits)
+
+    enum class BufferType
     {
         NONSPARSE_ALLOC,
         NONSPARSE_NO_ALLOC,
         NONSPARSE_NO_ALLOC_CHILD,
         SPARSE_NO_ALLOC,
-    } BufferType;
+    };
 
     /* NOTE: These map 1:1 to Vulkan equialents */
-    enum BufferUsageFlagBits
+    enum class BufferUsageFlagBits
     {
         /* Core VK 1.0 */
-        BUFFER_USAGE_FLAG_INDEX_BUFFER_BIT         = VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-        BUFFER_USAGE_FLAG_INDIRECT_BUFFER_BIT      = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
-        BUFFER_USAGE_FLAG_STORAGE_BUFFER_BIT       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        BUFFER_USAGE_FLAG_STORAGE_TEXEL_BUFFER_BIT = VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT,
-        BUFFER_USAGE_FLAG_TRANSFER_DST_BIT         = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        BUFFER_USAGE_FLAG_TRANSFER_SRC_BIT         = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        BUFFER_USAGE_FLAG_UNIFORM_BUFFER_BIT       = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        BUFFER_USAGE_FLAG_UNIFORM_TEXEL_BUFFER_BIT = VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT,
-        BUFFER_USAGE_FLAG_VERTEX_BUFFER_BIT        = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        INDEX_BUFFER_BIT         = VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+        INDIRECT_BUFFER_BIT      = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+        STORAGE_BUFFER_BIT       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        STORAGE_TEXEL_BUFFER_BIT = VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT,
+        TRANSFER_DST_BIT         = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        TRANSFER_SRC_BIT         = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        UNIFORM_BUFFER_BIT       = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        UNIFORM_TEXEL_BUFFER_BIT = VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT,
+        VERTEX_BUFFER_BIT        = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 
-        BUFFER_USAGE_UNKNOWN = 0
+        NONE = 0
     };
-    typedef uint32_t BufferUsageFlags;
+    typedef Anvil::Bitfield<Anvil::BufferUsageFlagBits, VkBufferUsageFlags> BufferUsageFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(BufferUsageFlags, VkBufferUsageFlags, BufferUsageFlagBits)
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class ColorComponentFlagBits
+    {
+        A_BIT = VK_COLOR_COMPONENT_A_BIT,
+        B_BIT = VK_COLOR_COMPONENT_B_BIT,
+        G_BIT = VK_COLOR_COMPONENT_G_BIT,
+        R_BIT = VK_COLOR_COMPONENT_R_BIT,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::ColorComponentFlagBits, VkColorComponentFlags> ColorComponentFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(ColorComponentFlags, VkColorComponentFlags, ColorComponentFlagBits)
 
     /* Note: These map 1:1 to VK equivalents. */
-    typedef enum class ComponentSwizzle
+    enum class ComponentSwizzle
     {
         A        = VK_COMPONENT_SWIZZLE_A,
         B        = VK_COMPONENT_SWIZZLE_B,
@@ -83,116 +418,209 @@ namespace Anvil
         ONE      = VK_COMPONENT_SWIZZLE_ONE,
         R        = VK_COMPONENT_SWIZZLE_R,
         ZERO     = VK_COMPONENT_SWIZZLE_ZERO,
+    };
 
-    } ComponentSwizzle;
-
-    typedef enum
+    /* Note: These map 1:1 to VK equivalents. */
+    enum class CompositeAlphaFlagBits
     {
-        DEPENDENCY_BY_REGION_BIT    = VK_DEPENDENCY_BY_REGION_BIT,
-        DEPENDENCY_DEVICE_GROUP_BIT = VK_DEPENDENCY_DEVICE_GROUP_BIT_KHR,
-    } DependencyBits;
-    typedef uint32_t DependencyFlags;
+        OPAQUE_BIT_KHR          = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        PRE_MULTIPLIED_BIT_KHR  = VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+        POST_MULTIPLIED_BIT_KHR = VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+        INHERIT_BIT_KHR         = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
 
-    typedef enum
+        NONE = 0,
+    };
+    typedef Anvil::Bitfield<Anvil::CompositeAlphaFlagBits, VkCompositeAlphaFlagsKHR> CompositeAlphaFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(CompositeAlphaFlags, VkCompositeAlphaFlagsKHR, CompositeAlphaFlagBits)
+
+    /* Note: These map 1:1 to VK equivalents. */
+    enum class DependencyFlagBits
     {
-        DYNAMIC_STATE_BLEND_CONSTANTS_BIT                  = 1 << 0,
-        DYNAMIC_STATE_DEPTH_BIAS_BIT                       = 1 << 1,
-        DYNAMIC_STATE_DEPTH_BOUNDS_BIT                     = 1 << 2,
-        DYNAMIC_STATE_LINE_WIDTH_BIT                       = 1 << 3,
-        DYNAMIC_STATE_SCISSOR_BIT                          = 1 << 4,
-        DYNAMIC_STATE_STENCIL_COMPARE_MASK_BIT             = 1 << 5,
-        DYNAMIC_STATE_STENCIL_REFERENCE_BIT                = 1 << 6,
-        DYNAMIC_STATE_STENCIL_WRITE_MASK_BIT               = 1 << 7,
-        DYNAMIC_STATE_VIEWPORT_BIT                         = 1 << 8,
-    } DynamicStateBits;
-    typedef uint32_t DynamicStateBitfield;
+        /* Core VK 1.0 */
+        BY_REGION_BIT = VK_DEPENDENCY_BY_REGION_BIT,
 
-    typedef enum
+        /* KHR_device_group */
+        DEVICE_GROUP_BIT = VK_DEPENDENCY_DEVICE_GROUP_BIT_KHR,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::DependencyFlagBits, VkDependencyFlags> DependencyFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(DependencyFlags, VkDependencyFlags, DependencyFlagBits)
+
+    enum class DeviceGroupPresentModeFlagBits
     {
-        EXTERNAL_FENCE_HANDLE_TYPE_NONE = 0,
+        LOCAL_BIT_KHR              = VK_DEVICE_GROUP_PRESENT_MODE_LOCAL_BIT_KHR,
+        LOCAL_MULTI_DEVICE_BIT_KHR = VK_DEVICE_GROUP_PRESENT_MODE_LOCAL_MULTI_DEVICE_BIT_KHR,
+        REMOTE_BIT_KHR             = VK_DEVICE_GROUP_PRESENT_MODE_REMOTE_BIT_KHR,
+        SUM_BIT_KHR                = VK_DEVICE_GROUP_PRESENT_MODE_SUM_BIT_KHR,
 
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::DeviceGroupPresentModeFlagBits, VkDeviceGroupPresentModeFlagsKHR> DeviceGroupPresentModeFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(DeviceGroupPresentModeFlags, VkDeviceGroupPresentModeFlagsKHR, DeviceGroupPresentModeFlagBits)
+
+    enum class DynamicState
+    {
+        /* Core VK 1.0 */
+        BLEND_CONSTANTS      = VK_DYNAMIC_STATE_BLEND_CONSTANTS,
+        DEPTH_BIAS           = VK_DYNAMIC_STATE_DEPTH_BIAS,
+        DEPTH_BOUNDS         = VK_DYNAMIC_STATE_DEPTH_BOUNDS,
+        LINE_WIDTH           = VK_DYNAMIC_STATE_LINE_WIDTH,
+        SCISSOR              = VK_DYNAMIC_STATE_SCISSOR,
+        STENCIL_COMPARE_MASK = VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK,
+        STENCIL_REFERENCE    = VK_DYNAMIC_STATE_STENCIL_REFERENCE,
+        STENCIL_WRITE_MASK   = VK_DYNAMIC_STATE_STENCIL_WRITE_MASK,
+        VIEWPORT             = VK_DYNAMIC_STATE_VIEWPORT,
+    };
+
+    enum class ExternalFenceHandleTypeFlagBits
+    {
         #if defined(_WIN32)
-            EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT     = 1 << 0,
-            EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT = 1 << 1,
+            OPAQUE_WIN32_BIT     = VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR,
+            OPAQUE_WIN32_KMT_BIT = VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR,
         #else
-            EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_FD_BIT = 1 << 0,
-            EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT   = 1 << 1,
+            OPAQUE_FD_BIT = VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_FD_BIT_KHR,
+            SYNC_FD_BIT   = VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT_KHR,
         #endif
 
-        /* Always last */
-        EXTERNAL_FENCE_HANDLE_TYPE_COUNT
-    } ExternalFenceHandleTypeBit;
-    typedef uint32_t ExternalFenceHandleTypeBits;
+        NONE = 0,
+    };
+    typedef Anvil::Bitfield<Anvil::ExternalFenceHandleTypeFlagBits, VkExternalFenceHandleTypeFlagsKHR> ExternalFenceHandleTypeFlags;
 
-    typedef enum
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(ExternalFenceHandleTypeFlags, VkExternalFenceHandleTypeFlagsKHR, ExternalFenceHandleTypeFlagBits)
+
+    enum class ExternalMemoryHandleTypeFlagBits
     {
-        EXTERNAL_MEMORY_HANDLE_TYPE_NONE = 0,
-
         #if defined(_WIN32)
-            EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT      = 1 << 0,
-            EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT  = 1 << 1,
-            EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT     = 1 << 2,
-            EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT = 1 << 3,
-            EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT        = 1 << 4,
-            EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT    = 1 << 5,
+            OPAQUE_WIN32_BIT      = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR,
+            OPAQUE_WIN32_KMT_BIT  = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR,
+            D3D11_TEXTURE_BIT     = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT_KHR,
+            D3D11_TEXTURE_KMT_BIT = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT_KHR,
+            D3D12_HEAP_BIT        = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT_KHR,
+            D3D12_RESOURCE_BIT    = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT_KHR,
         #else
-            EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT = 1 << 0,
+            OPAQUE_FD_BIT = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR,
         #endif
 
-        /* Always last */
-        EXTERNAL_MEMORY_HANDLE_TYPE_COUNT
-    } ExternalMemoryHandleTypeBit;
-    typedef uint32_t ExternalMemoryHandleTypeBits;
+        NONE = 0,
+    };
+    typedef Anvil::Bitfield<Anvil::ExternalMemoryHandleTypeFlagBits, VkExternalMemoryHandleTypeFlagsKHR> ExternalMemoryHandleTypeFlags;
 
-    typedef enum
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(ExternalMemoryHandleTypeFlags, VkExternalMemoryHandleTypeFlagsKHR, ExternalMemoryHandleTypeFlagBits)
+
+    enum class ExternalSemaphoreHandleTypeFlagBits
     {
-        EXTERNAL_SEMAPHORE_HANDLE_TYPE_NONE = 0,
-
         #if defined(_WIN32)
-            EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT     = 1 << 0,
-            EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT = 1 << 1,
-            EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT      = 1 << 2,
+            OPAQUE_WIN32_BIT     = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR,
+            OPAQUE_WIN32_KMT_BIT = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR,
+            D3D12_FENCE_BIT      = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT_KHR,
         #else
-            EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT = 1 << 0,
-            EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT   = 1 << 1,
+            OPAQUE_FD_BIT = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT_KHR,
+            SYNC_FD_BIT   = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT_KHR,
         #endif
 
-        /* Always last */
-        EXTERNAL_SEMAPHORE_HANDLE_TYPE_COUNT
-    } ExternalSemaphoreHandleTypeBit;
-    typedef uint32_t ExternalSemaphoreHandleTypeBits;
+        NONE = 0,
+    };
+    typedef Anvil::Bitfield<Anvil::ExternalSemaphoreHandleTypeFlagBits, VkExternalSemaphoreHandleTypeFlagsKHR> ExternalSemaphoreHandleTypeFlags;
 
-    typedef enum
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(ExternalSemaphoreHandleTypeFlags, VkExternalSemaphoreHandleTypeFlagsKHR, ExternalSemaphoreHandleTypeFlagBits)
+
+    enum class FormatFeatureFlagBits
     {
-        PEER_MEMORY_FEATURE_COPY_DST_BIT    = 1 << 0,
-        PEER_MEMORY_FEATURE_COPY_SRC_BIT    = 1 << 1,
-        PEER_MEMORY_FEATURE_GENERIC_DST_BIT = 1 << 2,
-        PEER_MEMORY_FEATURE_GENERIC_SRC_BIT = 1 << 3,
-    } PeerMemoryFeatureBit;
-    typedef uint32_t PeerMemoryFeatureFlags;
+        /* Core VK 1.0 */
+        BLIT_DST_BIT                    = VK_FORMAT_FEATURE_BLIT_DST_BIT,
+        BLIT_SRC_BIT                    = VK_FORMAT_FEATURE_BLIT_SRC_BIT,
+        COLOR_ATTACHMENT_BIT            = VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT,
+        COLOR_ATTACHMENT_BLEND_BIT      = VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT,
+        DEPTH_STENCIL_ATTACHMENT_BIT    = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        SAMPLED_IMAGE_BIT               = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT,
+        SAMPLED_IMAGE_FILTER_LINEAR_BIT = VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT,
+        STORAGE_IMAGE_ATOMIC_BIT        = VK_FORMAT_FEATURE_STORAGE_IMAGE_ATOMIC_BIT,
+        STORAGE_IMAGE_BIT               = VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT,
+        STORAGE_TEXEL_BUFFER_ATOMIC_BIT = VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_ATOMIC_BIT,
+        STORAGE_TEXEL_BUFFER_BIT        = VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT,
+        UNIFORM_TEXEL_BUFFER_BIT        = VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT,
+        VERTEX_BUFFER_BIT               = VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
+
+        /* KHR_maintenance1 */
+        TRANSFER_DST_BIT_KHR = VK_FORMAT_FEATURE_TRANSFER_DST_BIT_KHR,
+        TRANSFER_SRC_BIT_KHR = VK_FORMAT_FEATURE_TRANSFER_SRC_BIT_KHR,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::FormatFeatureFlagBits, VkFormatFeatureFlags> FormatFeatureFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(FormatFeatureFlags, VkFormatFeatureFlags, FormatFeatureFlagBits)
+
+    enum class PeerMemoryFeatureFlagBits
+    {
+        COPY_DST_BIT    = VK_PEER_MEMORY_FEATURE_COPY_DST_BIT_KHR,
+        COPY_SRC_BIT    = VK_PEER_MEMORY_FEATURE_COPY_SRC_BIT_KHR,
+        GENERIC_DST_BIT = VK_PEER_MEMORY_FEATURE_GENERIC_DST_BIT_KHR,
+        GENERIC_SRC_BIT = VK_PEER_MEMORY_FEATURE_GENERIC_SRC_BIT_KHR,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::PeerMemoryFeatureFlagBits, VkPeerMemoryFeatureFlagBitsKHR> PeerMemoryFeatureFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(PeerMemoryFeatureFlags, VkPeerMemoryFeatureFlags, PeerMemoryFeatureFlagBits)
+
+    /* NOTE: Maps 1:1 to VK equivalents */
+    enum class CompareOp
+    {
+        NEVER            = VK_COMPARE_OP_NEVER,
+        LESS             = VK_COMPARE_OP_LESS,
+        EQUAL            = VK_COMPARE_OP_EQUAL,
+        LESS_OR_EQUAL    = VK_COMPARE_OP_LESS_OR_EQUAL,
+        GREATER          = VK_COMPARE_OP_GREATER,
+        NOT_EQUAL        = VK_COMPARE_OP_NOT_EQUAL,
+        GREATER_OR_EQUAL = VK_COMPARE_OP_GREATER_OR_EQUAL,
+        ALWAYS           = VK_COMPARE_OP_ALWAYS,
+
+        UNKNOWN = VK_COMPARE_OP_MAX_ENUM
+    };
 
     /** Describes component layout of a format */
-    typedef enum
+    enum class ComponentLayout
     {
         /* NOTE: If the ordering used below needs to be changed, make sure to also update formats.cpp::layout_to_n_components */
-        COMPONENT_LAYOUT_ABGR,
-        COMPONENT_LAYOUT_ARGB,
-        COMPONENT_LAYOUT_BGR,
-        COMPONENT_LAYOUT_BGRA,
-        COMPONENT_LAYOUT_D,
-        COMPONENT_LAYOUT_DS,
-        COMPONENT_LAYOUT_EBGR,
-        COMPONENT_LAYOUT_R,
-        COMPONENT_LAYOUT_RG,
-        COMPONENT_LAYOUT_RGB,
-        COMPONENT_LAYOUT_RGBA,
-        COMPONENT_LAYOUT_S,
-        COMPONENT_LAYOUT_XD,
+        ABGR,
+        ARGB,
+        BGR,
+        BGRA,
+        D,
+        DS,
+        EBGR,
+        R,
+        RG,
+        RGB,
+        RGBA,
+        S,
+        XD,
 
-        COMPONENT_LAYOUT_UNKNOWN
-    } ComponentLayout;
+        UNKNOWN
+    };
 
-    typedef enum
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class CullModeFlagBits
+    {
+        CULL_MODE_BACK_BIT  = VK_CULL_MODE_BACK_BIT,
+        CULL_MODE_FRONT_BIT = VK_CULL_MODE_FRONT_BIT,
+        CULL_MODE_NONE      = VK_CULL_MODE_NONE,
+
+        CULL_MODE_FRONT_AND_BACK = VK_CULL_MODE_FRONT_AND_BACK,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::CullModeFlagBits, VkCullModeFlags> CullModeFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(CullModeFlags, VkCullModeFlags, CullModeFlagBits)
+
+    /* Note: These map 1:1 to VK equivalents */
+    enum class DescriptorBindingFlagBits
     {
         /* When specified for a binding, the binding can be modified after having been bound to a pipeline
          * in a command buffer, without invalidating that command buffer.
@@ -200,7 +628,7 @@ namespace Anvil
          *
          * Requires VK_EXT_descriptor_indexing.
          */
-        DESCRIPTOR_BINDING_FLAG_UPDATE_AFTER_BIND_BIT = 1 << 0,
+        UPDATE_AFTER_BIND_BIT = VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT,
 
         /* When specified for a binding, the binding can be modified after having been bound to a pipeline
          * in a command buffer, as long as it is NOT used by the command buffer. Doing so no longer invalidyates
@@ -208,14 +636,14 @@ namespace Anvil
          *
          * Requires VK_EXT_descriptor_indexing.
          */
-        DESCRIPTOR_BINDING_FLAG_UPDATE_UNUSED_WHILE_PENDING_BIT = 1 << 1,
+        UPDATE_UNUSED_WHILE_PENDING_BIT = VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT_EXT,
 
         /* When specified for a binding, the binding needs not be assigned valid descriptor(s), as long as none of
          * the shader invocations execute an instruction that performs any memory access using the descriptor.
          *
          * Requires VK_EXT_descriptor_indexing.
          */
-        DESCRIPTOR_BINDING_FLAG_PARTIALLY_BOUND_BIT = 1 << 2,
+        PARTIALLY_BOUND_BIT = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT,
 
         /* When specified for a binding, the binding gets a variable size which is specified each time a descriptor
          * set is allocated using this layout. The in_descriptor_array_size field specified at DescriptorSetCreateInfo::add_binding()
@@ -225,29 +653,36 @@ namespace Anvil
          *
          * Requires VK_EXT_descriptor_indexing.
          */
-        DESCRIPTOR_BINDING_FLAG_VARIABLE_DESCRIPTOR_COUNT_BIT = 1 << 3,
+        VARIABLE_DESCRIPTOR_COUNT_BIT = VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT,
 
-    } DescriptorBindingFlagBits;
-    typedef uint32_t DescriptorBindingFlags;
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::DescriptorBindingFlagBits, VkDescriptorBindingFlagsEXT> DescriptorBindingFlags;
 
-    typedef enum
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(DescriptorBindingFlags, VkDescriptorBindingFlagsEXT, DescriptorBindingFlagBits)
+
+    /* NOTE: Maps 1:1 to VK equivalents */
+    enum class DescriptorPoolCreateFlagBits
     {
         /* When set, descriptor set allocations will return back to the pool at release time.*/
-        DESCRIPTOR_POOL_FLAG_CREATE_FREE_DESCRIPTOR_SET_BIT = 1 << 0,
+        FREE_DESCRIPTOR_SET_BIT = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
 
         /* When set, descriptor sets allocated from this pool can be created with the DESCRIPTOR_BINDING_FLAG_UPDATE_AFTER_BIND_BIT flag.
          *
          * Requires VK_EXT_descriptor_indexing.
          **/
-        DESCRIPTOR_POOL_FLAG_CREATE_UPDATE_AFTER_BIND_BIT = 1 << 1,
+        UPDATE_AFTER_BIND_BIT = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT,
 
-    } DescriptorPoolFlagBits;
-    typedef uint32_t DescriptorPoolFlags;
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::DescriptorPoolCreateFlagBits, VkDescriptorPoolCreateFlags> DescriptorPoolCreateFlags;
 
-    typedef enum
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(DescriptorPoolCreateFlags, VkDescriptorPoolCreateFlags, DescriptorPoolCreateFlagBits)
+
+    enum class DescriptorSetUpdateMethod
     {
         /* Updates dirty DS bindings using vkUpdateDescriptorSet() which is available on all Vulkan implementations. */
-        DESCRIPTOR_SET_UPDATE_METHOD_CORE,
+        CORE,
 
         /* Updates dirty DS bindings using vkUpdateDescriptorSetWithTemplateKHR(). Templates are cached across update operations,
          * and are release at DescriptorSet release time.
@@ -256,28 +691,58 @@ namespace Anvil
          *
          * Only available on devices supporting VK_KHR_descriptor_update_template extension.
          */
-        DESCRIPTOR_SET_UPDATE_METHOD_TEMPLATE,
-    } DescriptorSetUpdateMethod;
+        TEMPLATE,
+    };
 
-    typedef enum
+    enum class ExtensionAvailability
     {
-        EXTENSION_AVAILABILITY_ENABLE_IF_AVAILABLE,
-        EXTENSION_AVAILABILITY_IGNORE,
-        EXTENSION_AVAILABILITY_REQUIRE,
-    } ExtensionAvailability;
-
-    /** Tells the type of an Anvil::BaseDevice instance */
-    typedef enum
-    {
-        /* BaseDevice is implemented by SGPUDevice class */
-        DEVICE_TYPE_SINGLE_GPU,
-
-        /* BaseDevice is implemented by MGPUDevice class */
-        DEVICE_TYPE_MULTI_GPU
-    } DeviceType;
+        ENABLE_IF_AVAILABLE,
+        IGNORE,
+        REQUIRE,
+    };
 
     /* NOTE: These map 1:1 to VK equivalents */
-    typedef enum class Format
+    enum class DescriptorType
+    {
+        COMBINED_IMAGE_SAMPLER = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        INPUT_ATTACHMENT       = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+        SAMPLED_IMAGE          = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+        SAMPLER                = VK_DESCRIPTOR_TYPE_SAMPLER,
+        STORAGE_BUFFER         = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        STORAGE_BUFFER_DYNAMIC = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,
+        STORAGE_IMAGE          = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+        STORAGE_TEXEL_BUFFER   = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,
+        UNIFORM_BUFFER         = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        UNIFORM_BUFFER_DYNAMIC = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+        UNIFORM_TEXEL_BUFFER   = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,
+
+        UNKNOWN = VK_DESCRIPTOR_TYPE_MAX_ENUM
+    };
+
+    /** Tells the type of an Anvil::BaseDevice instance */
+    enum class DeviceType
+    {
+        /* BaseDevice is implemented by SGPUDevice class */
+        SINGLE_GPU,
+
+        /* BaseDevice is implemented by MGPUDevice class */
+        MULTI_GPU,
+
+        UNKNOWN
+    };
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class Filter
+    {
+        /* Core VK 1.0 functionality */
+        LINEAR  = VK_FILTER_LINEAR,
+        NEAREST = VK_FILTER_NEAREST,
+
+        UNKNOWN = VK_FILTER_MAX_ENUM
+    };
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class Format
     {
         R4G4_UNORM_PACK8                    = VK_FORMAT_R4G4_UNORM_PACK8,
         R4G4B4A4_UNORM_PACK16               = VK_FORMAT_R4G4B4A4_UNORM_PACK16,
@@ -466,57 +931,71 @@ namespace Anvil
 
         /* Other .. */
         UNKNOWN = VK_FORMAT_UNDEFINED,
-    } Format;
+    };
 
-    typedef enum
+
+    enum class FormatType
     {
-        FORMAT_TYPE_SFLOAT,
-        FORMAT_TYPE_SFLOAT_UINT,
-        FORMAT_TYPE_SINT,
-        FORMAT_TYPE_SNORM,
-        FORMAT_TYPE_SRGB,
-        FORMAT_TYPE_SSCALED,
-        FORMAT_TYPE_UFLOAT,
-        FORMAT_TYPE_UINT,
-        FORMAT_TYPE_UNORM,
-        FORMAT_TYPE_UNORM_UINT,
-        FORMAT_TYPE_USCALED,
+        SFLOAT,
+        SFLOAT_UINT,
+        SINT,
+        SNORM,
+        SRGB,
+        SSCALED,
+        UFLOAT,
+        UINT,
+        UNORM,
+        UNORM_UINT,
+        USCALED,
 
-        FORMAT_TYPE_UNKNOWN,
-    } FormatType;
+        UNKNOWN,
+    } ;
+
+    enum class FrontFace
+    {
+        CLOCKWISE         = VK_FRONT_FACE_CLOCKWISE,
+        COUNTER_CLOCKWISE = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+
+        UNKNOWN = VK_FRONT_FACE_MAX_ENUM
+    };
 
     /* NOTE: These map 1:1 to VK equivalents */
-    enum ImageAspectFlagBits
+    enum class ImageAspectFlagBits
     {
         /* Core VK 1.0 aspects */
-        IMAGE_ASPECT_FLAG_COLOR_BIT    = VK_IMAGE_ASPECT_COLOR_BIT,
-        IMAGE_ASPECT_FLAG_DEPTH_BIT    = VK_IMAGE_ASPECT_DEPTH_BIT,
-        IMAGE_ASPECT_FLAG_METADATA_BIT = VK_IMAGE_ASPECT_METADATA_BIT,
-        IMAGE_ASPECT_FLAG_STENCIL_BIT  = VK_IMAGE_ASPECT_STENCIL_BIT,
+        COLOR_BIT    = VK_IMAGE_ASPECT_COLOR_BIT,
+        DEPTH_BIT    = VK_IMAGE_ASPECT_DEPTH_BIT,
+        METADATA_BIT = VK_IMAGE_ASPECT_METADATA_BIT,
+        STENCIL_BIT  = VK_IMAGE_ASPECT_STENCIL_BIT,
 
-        IMAGE_ASPECT_UNKNOWN = 0
+        NONE = 0
     };
-    typedef uint32_t ImageAspectFlags;
+    typedef Anvil::Bitfield<Anvil::ImageAspectFlagBits, VkImageAspectFlags> ImageAspectFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(ImageAspectFlags, VkImageAspectFlags, ImageAspectFlagBits)
 
     /* NOTE: These map 1:1 to VK equivalents */
-    enum ImageCreateFlagBits
+    enum class ImageCreateFlagBits
     {
-        IMAGE_CREATE_FLAG_MUTABLE_FORMAT_BIT      = VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT,
-        IMAGE_CREATE_FLAG_CUBE_COMPATIBLE_BIT     = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
+        MUTABLE_FORMAT_BIT      = VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT,
+        CUBE_COMPATIBLE_BIT     = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
 
         /* NOTE: Requires VK_KHR_bind_memory2 */
-        IMAGE_CREATE_FLAG_SPLIT_INSTANCE_BIND_REGIONS_BIT = VK_IMAGE_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT_KHR,
-        IMAGE_CREATE_FLAG_ALIAS_BIT                       = VK_IMAGE_CREATE_ALIAS_BIT_KHR,
+        SPLIT_INSTANCE_BIND_REGIONS_BIT = VK_IMAGE_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT_KHR,
+        ALIAS_BIT                       = VK_IMAGE_CREATE_ALIAS_BIT_KHR,
 
         /* NOTE: Requires VK_KHR_maintenance1 */
-        IMAGE_CREATE_FLAG_2D_ARRAY_COMPATIBLE_BIT = VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT_KHR,
+        _2D_ARRAY_COMPATIBLE_BIT = VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT_KHR,
 
         /* NOTE: Requires VK_KHR_maintenance2 */
-        IMAGE_CREATE_FLAG_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT = VK_IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT_KHR,
-        IMAGE_CREATE_FLAG_EXTENDED_USAGE_BIT              = VK_IMAGE_CREATE_EXTENDED_USAGE_BIT_KHR,
-    };
+        BLOCK_TEXEL_VIEW_COMPATIBLE_BIT = VK_IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT_KHR,
+        EXTENDED_USAGE_BIT              = VK_IMAGE_CREATE_EXTENDED_USAGE_BIT_KHR,
 
-    typedef uint32_t ImageCreateFlags;
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::ImageCreateFlagBits, VkImageCreateFlags> ImageCreateFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(ImageCreateFlags, VkImageCreateFlags, ImageCreateFlagBits)
 
     /* NOTE: These map 1:1 to VK equivalents */
     enum class ImageLayout
@@ -539,60 +1018,99 @@ namespace Anvil
         /* Requires VK_KHR_swapchain */
         PRESENT_SRC_KHR = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
 
-        UNKNOWN,
+        UNKNOWN = VK_IMAGE_LAYOUT_MAX_ENUM,
     };
 
     /* NOTE: These map 1:1 to VK equivalents */
-    enum ImageUsageFlagBits
+    enum class ImageUsageFlagBits
     {
         /* Core VK 1.0 usages */
-        IMAGE_USAGE_FLAG_TRANSFER_DST_BIT             = VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-        IMAGE_USAGE_FLAG_TRANSFER_SRC_BIT             = VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-        IMAGE_USAGE_FLAG_SAMPLED_BIT                  = VK_IMAGE_USAGE_SAMPLED_BIT,
-        IMAGE_USAGE_FLAG_STORAGE_BIT                  = VK_IMAGE_USAGE_STORAGE_BIT,
-        IMAGE_USAGE_FLAG_COLOR_ATTACHMENT_BIT         = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-        IMAGE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT_BIT = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-        IMAGE_USAGE_FLAG_TRANSIENT_ATTACHMENT_BIT     = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT,
-        IMAGE_USAGE_FLAG_INPUT_ATTACHMENT_BIT         = VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
+        TRANSFER_DST_BIT             = VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+        TRANSFER_SRC_BIT             = VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+        SAMPLED_BIT                  = VK_IMAGE_USAGE_SAMPLED_BIT,
+        STORAGE_BIT                  = VK_IMAGE_USAGE_STORAGE_BIT,
+        COLOR_ATTACHMENT_BIT         = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        DEPTH_STENCIL_ATTACHMENT_BIT = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        TRANSIENT_ATTACHMENT_BIT     = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT,
+        INPUT_ATTACHMENT_BIT         = VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
 
-        IMAGE_USAGE_UNKNOWN                           = 0
+        NONE = 0
     };
-    typedef uint32_t ImageUsageFlags;
+    typedef Anvil::Bitfield<Anvil::ImageUsageFlagBits, VkImageUsageFlags> ImageUsageFlags;
 
-    typedef enum class ImageInternalType
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(ImageUsageFlags, VkImageUsageFlags, ImageUsageFlagBits)
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class ImageViewType
+    {
+        _1D         = VK_IMAGE_VIEW_TYPE_1D,
+        _1D_ARRAY   = VK_IMAGE_VIEW_TYPE_1D_ARRAY,
+        _2D         = VK_IMAGE_VIEW_TYPE_2D,
+        _2D_ARRAY   = VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+        _3D         = VK_IMAGE_VIEW_TYPE_3D,
+        _CUBE       = VK_IMAGE_VIEW_TYPE_CUBE,
+        _CUBE_ARRAY = VK_IMAGE_VIEW_TYPE_CUBE_ARRAY,
+
+        UNKNOWN = VK_IMAGE_VIEW_TYPE_MAX_ENUM
+    };
+
+    enum class ImageInternalType
     {
         NONSPARSE_ALLOC,
         NONSPARSE_NO_ALLOC,
         NONSPARSE_PEER_NO_ALLOC,
         SPARSE_NO_ALLOC,
         SWAPCHAIN_WRAPPER
-    } ImageInternalType;
+    };
 
     /* NOTE: These correspond 1:1 to VK equivalents */
-    typedef enum class ImageTiling
+    enum class ImageTiling
     {
         LINEAR  = VK_IMAGE_TILING_LINEAR,
         OPTIMAL = VK_IMAGE_TILING_OPTIMAL,
 
-        UNKNOWN
-    } ImageTiling;
+        UNKNOWN = VK_IMAGE_TILING_MAX_ENUM
+    };
 
     /* NOTE: These correspond 1:1 to VK equivalents */
-    typedef enum class ImageType
+    enum class ImageType
     {
         _1D = VK_IMAGE_TYPE_1D,
         _2D = VK_IMAGE_TYPE_2D,
         _3D = VK_IMAGE_TYPE_3D,
 
-        UNKNOWN
-    } ImageType;
+        UNKNOWN = VK_IMAGE_TYPE_MAX_ENUM
+    };
 
+    /* NOTE: These map 1:1 to VK equivalents */
     enum class IndexType
     {
-        UINT16,
-        UINT32,
+        UINT16 = VK_INDEX_TYPE_UINT16,
+        UINT32 = VK_INDEX_TYPE_UINT32,
 
-        UNKNOWN
+        UNKNOWN = VK_INDEX_TYPE_MAX_ENUM
+    };
+
+    enum class LogicOp
+    {
+        AND           = VK_LOGIC_OP_AND,
+        AND_INVERTED  = VK_LOGIC_OP_AND_INVERTED,
+        AND_REVERSE   = VK_LOGIC_OP_AND_REVERSE,
+        CLEAR         = VK_LOGIC_OP_CLEAR,
+        COPY          = VK_LOGIC_OP_COPY,
+        COPY_INVERTED = VK_LOGIC_OP_COPY_INVERTED,
+        EQUIVALENT    = VK_LOGIC_OP_EQUIVALENT,
+        INVERT        = VK_LOGIC_OP_INVERT,
+        NAND          = VK_LOGIC_OP_NAND,
+        NO_OP         = VK_LOGIC_OP_NO_OP,
+        NOR           = VK_LOGIC_OP_NOR,
+        OR            = VK_LOGIC_OP_OR,
+        OR_INVERTED   = VK_LOGIC_OP_OR_INVERTED,
+        OR_REVERSE    = VK_LOGIC_OP_OR_REVERSE,
+        SET           = VK_LOGIC_OP_SET,
+        XOR           = VK_LOGIC_OP_XOR,
+
+        UNKNOWN = VK_LOGIC_OP_MAX_ENUM
     };
 
     enum class MemoryBlockType
@@ -602,27 +1120,63 @@ namespace Anvil
         REGULAR
     };
 
-    enum MemoryFeatureFlagBits
+    enum class MemoryFeatureFlagBits
     {
         /* NOTE: If more memory feature flags are added here, make sure to also update Anvil::Utils::get_vk_property_flags_from_memory_feature_flags()
          *       and Anvil::Utils::get_memory_feature_flags_from_vk_property_flags()
          */
 
-        MEMORY_FEATURE_FLAG_DEVICE_LOCAL     = 1 << 0,
-        MEMORY_FEATURE_FLAG_HOST_CACHED      = 1 << 1,
-        MEMORY_FEATURE_FLAG_HOST_COHERENT    = 1 << 2,
-        MEMORY_FEATURE_FLAG_LAZILY_ALLOCATED = 1 << 3,
-        MEMORY_FEATURE_FLAG_MAPPABLE         = 1 << 4,
-        MEMORY_FEATURE_FLAG_MULTI_INSTANCE   = 1 << 5,
-    };
-    typedef uint32_t MemoryFeatureFlags;
+        DEVICE_LOCAL_BIT     = 1 << 0,
+        HOST_CACHED_BIT      = 1 << 1,
+        HOST_COHERENT_BIT    = 1 << 2,
+        LAZILY_ALLOCATED_BIT = 1 << 3,
+        MAPPABLE_BIT         = 1 << 4,
+        MULTI_INSTANCE_BIT   = 1 << 5,
 
-    typedef enum
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::MemoryFeatureFlagBits, uint32_t> MemoryFeatureFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(MemoryFeatureFlags, uint32_t, MemoryFeatureFlagBits)
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class MemoryHeapFlagBits
     {
-        MT_SAFETY_INHERIT_FROM_PARENT_DEVICE,
-        MT_SAFETY_ENABLED,
-        MT_SAFETY_DISABLED
-    } MTSafety;
+        /* Core VK 1.0 */
+        DEVICE_LOCAL_BIT = VK_MEMORY_HEAP_DEVICE_LOCAL_BIT,
+
+        /* VK_KHR_device_group */
+        MULTI_INSTANCE_BIT_KHR = VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR,
+
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::MemoryHeapFlagBits, VkMemoryHeapFlags> MemoryHeapFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(MemoryHeapFlags, VkMemoryHeapFlags, MemoryHeapFlagBits)
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class MemoryPropertyFlagBits
+    {
+        /* Core VK 1.0 */
+        DEVICE_LOCAL_BIT     = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        HOST_CACHED_BIT      = VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+        HOST_COHERENT_BIT    = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        HOST_VISIBLE_BIT     = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+        LAZILY_ALLOCATED_BIT = VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::MemoryPropertyFlagBits, VkMemoryPropertyFlags> MemoryPropertyFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(MemoryPropertyFlags, VkMemoryPropertyFlags, MemoryPropertyFlagBits)
+
+    enum class MTSafety
+    {
+        INHERIT_FROM_PARENT_DEVICE,
+        ENABLED,
+        DISABLED
+    };
 
     typedef enum
     {
@@ -676,38 +1230,120 @@ namespace Anvil
      *
      *  Only used for second-level command buffer recording policy declaration.
      **/
-    typedef enum
+    enum class OcclusionQuerySupportScope
     {
         /** Occlusion queries are not going to be used */
-        OCCLUSION_QUERY_SUPPORT_SCOPE_NOT_REQUIRED,
+        NOT_REQUIRED,
 
         /** Non-precise occlusion queries may be used */
-        OCCLUSION_QUERY_SUPPORT_SCOPE_REQUIRED_NONPRECISE,
+        REQUIRED_NONPRECISE,
 
         /** Pprecise occlusion queries may be used */
-        OCCLUSION_QUERY_SUPPORT_SCOPE_REQUIRED_PRECISE,
-    } OcclusionQuerySupportScope;
+        REQUIRED_PRECISE,
+    };
 
     /* NOTE: These map 1:1 to VK equivalents */
-    typedef enum class PointClippingBehavior
+    enum class PipelineBindPoint
+    {
+        /* Core VK 1.0 */
+        COMPUTE  = VK_PIPELINE_BIND_POINT_COMPUTE,
+        GRAPHICS = VK_PIPELINE_BIND_POINT_GRAPHICS,
+
+        UNKNOWN = VK_PIPELINE_BIND_POINT_MAX_ENUM
+    };
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class PipelineStageFlagBits
+    {
+        /* Core VK 1.0 */
+        ALL_COMMANDS_BIT                   = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        ALL_GRAPHICS_BIT                   = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+        BOTTOM_OF_PIPE_BIT                 = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+        COLOR_ATTACHMENT_OUTPUT_BIT        = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        COMPUTE_SHADER_BIT                 = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        DRAW_INDIRECT_BIT                  = VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+        EARLY_FRAGMENT_TESTS_BIT           = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+        FRAGMENT_SHADER_BIT                = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        GEOMETRY_SHADER_BIT                = VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT,
+        HOST_BIT                           = VK_PIPELINE_STAGE_HOST_BIT,
+        LATE_FRAGMENT_TESTS_BIT            = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+        TESSELLATION_CONTROL_SHADER_BIT    = VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT,
+        TESSELLATION_EVALUATION_SHADER_BIT = VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT,
+        TOP_OF_PIPE_BIT                    = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        TRANSFER_BIT                       = VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VERTEX_INPUT_BIT                   = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+        VERTEX_SHADER_BIT                  = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::PipelineStageFlagBits, VkPipelineStageFlags> PipelineStageFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(PipelineStageFlags, VkPipelineStageFlags, PipelineStageFlagBits)
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class PointClippingBehavior
     {
         ALL_CLIP_PLANES       = VK_POINT_CLIPPING_BEHAVIOR_ALL_CLIP_PLANES_KHR,
         USER_CLIP_PLANES_ONLY = VK_POINT_CLIPPING_BEHAVIOR_USER_CLIP_PLANES_ONLY_KHR,
 
         UNKNOWN = VK_POINT_CLIPPING_BEHAVIOR_MAX_ENUM
-    } PointClippingBehavior;
+    };
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class PolygonMode
+    {
+        FILL  = VK_POLYGON_MODE_FILL,
+        LINE  = VK_POLYGON_MODE_LINE,
+        POINT = VK_POLYGON_MODE_POINT,
+
+        UNKNOWN = VK_POLYGON_MODE_MAX_ENUM
+    };
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class PresentModeKHR
+    {
+        /* VK_KHR_surface */
+        IMMEDIATE_KHR    = VK_PRESENT_MODE_IMMEDIATE_KHR,
+        MAILBOX_KHR      = VK_PRESENT_MODE_MAILBOX_KHR,
+        FIFO_KHR         = VK_PRESENT_MODE_FIFO_KHR,
+        FIFO_RELAXED_KHR = VK_PRESENT_MODE_FIFO_RELAXED_KHR,
+
+        UNKNOWN = VK_PRESENT_MODE_MAX_ENUM_KHR
+    };
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class PrimitiveTopology
+    {
+        LINE_LIST                     = VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
+        LINE_LIST_WITH_ADJACENCY      = VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY,
+        LINE_STRIP                    = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP,
+        LINE_STRIP_WITH_ADJACENCY     = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY,
+        PATCH_LIST                    = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST,
+        POINT_LIST                    = VK_PRIMITIVE_TOPOLOGY_POINT_LIST,
+        TRIANGLE_FAN                  = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN,
+        TRIANGLE_LIST                 = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+        TRIANGLE_LIST_WITH_ADJACENCY  = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY,
+        TRIANGLE_STRIP                = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+        TRIANGLE_STRIP_WITH_ADJACENCY = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY,
+
+        UNKNOWN = VK_PRIMITIVE_TOPOLOGY_MAX_ENUM
+    };
 
     /** A bitmask defining one or more queue family usage.*/
-    typedef enum
+    enum class QueueFamilyFlagBits
     {
-        QUEUE_FAMILY_COMPUTE_BIT      = 1 << 0,
-        QUEUE_FAMILY_DMA_BIT          = 1 << 1,
-        QUEUE_FAMILY_GRAPHICS_BIT     = 1 << 2,
+        COMPUTE_BIT                          = 1 << 0,
+        DMA_BIT                              = 1 << 1,
+        GRAPHICS_BIT                         = 1 << 2,
 
-        QUEUE_FAMILY_FIRST_BIT = QUEUE_FAMILY_COMPUTE_BIT,
-        QUEUE_FAMILY_LAST_BIT  = QUEUE_FAMILY_GRAPHICS_BIT
-    } QueueFamily;
-    typedef int QueueFamilyBits;
+        FIRST_BIT = COMPUTE_BIT,
+        LAST_BIT  = GRAPHICS_BIT,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::QueueFamilyFlagBits, uint32_t> QueueFamilyFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(QueueFamilyFlags, uint32_t, QueueFamilyFlagBits)
 
     /** Enumerates all available queue family types */
     enum class QueueFamilyType
@@ -729,124 +1365,304 @@ namespace Anvil
         UNDEFINED = COUNT
     };
 
-    typedef enum
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class QueueFlagBits
     {
+        /* Core VK 1.0 */
+        COMPUTE_BIT        = VK_QUEUE_COMPUTE_BIT,
+        GRAPHICS_BIT       = VK_QUEUE_GRAPHICS_BIT,
+        SPARSE_BINDING_BIT = VK_QUEUE_SPARSE_BINDING_BIT,
+        TRANSFER_BIT       = VK_QUEUE_TRANSFER_BIT,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::QueueFlagBits, VkQueueFlagBits> QueueFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(QueueFlags, VkQueueFlags, QueueFlagBits)
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class QueryControlFlagBits
+    {
+        PRECISE_BIT = VK_QUERY_CONTROL_PRECISE_BIT,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::QueryControlFlagBits, VkQueryControlFlagBits> QueryControlFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(QueryControlFlags, VkQueryControlFlags, QueryControlFlagBits)
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class QueryPipelineStatisticFlagBits
+    {
+        CLIPPING_INVOCATIONS_BIT                       = VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT,
+        CLIPPING_PRIMITIVES_BIT                        = VK_QUERY_PIPELINE_STATISTIC_CLIPPING_PRIMITIVES_BIT,
+        COMPUTE_SHADER_INVOCATIONS_BIT                 = VK_QUERY_PIPELINE_STATISTIC_COMPUTE_SHADER_INVOCATIONS_BIT,
+        FRAGMENT_SHADER_INVOCATIONS_BIT                = VK_QUERY_PIPELINE_STATISTIC_FRAGMENT_SHADER_INVOCATIONS_BIT,
+        GEOMETRY_SHADER_INVOCATIONS_BIT                = VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_INVOCATIONS_BIT,
+        GEOMETRY_SHADER_PRIMITIVES_BIT                 = VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT,
+        INPUT_ASSEMBLY_VERTICES_BIT                    = VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT,
+        INPUT_ASSEMBLY_PRIMITIVES_BIT                  = VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT,
+        TESSELLATION_CONTROL_SHADER_PATCHES_BIT        = VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_CONTROL_SHADER_PATCHES_BIT,
+        TESSELLATION_EVALUATION_SHADER_INVOCATIONS_BIT = VK_QUERY_PIPELINE_STATISTIC_TESSELLATION_EVALUATION_SHADER_INVOCATIONS_BIT,
+        VERTEX_SHADER_INVOCATIONS_BIT                  = VK_QUERY_PIPELINE_STATISTIC_VERTEX_SHADER_INVOCATIONS_BIT,
+
+        NONE = 0,
+    };
+    typedef Anvil::Bitfield<Anvil::QueryPipelineStatisticFlagBits, VkQueryPipelineStatisticFlagBits> QueryPipelineStatisticFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(QueryPipelineStatisticFlags, VkQueryPipelineStatisticFlags, QueryPipelineStatisticFlagBits)
+
+    enum class QueryResultFlagBits
+    {
+        _64_BIT = VK_QUERY_RESULT_64_BIT,
+
         /* Implementation should wait for each query's status to become available before retrieving its results
          *
          * Core VK 1.0 functionality
          */
-        QUERY_RESULT_WAIT_BIT = 1 << 0,
+        WAIT_BIT = VK_QUERY_RESULT_WAIT_BIT,
 
         /* Each query result value is going to be followed by a status value. Non-zero values indicate result is
          * available.
          *
          * Core VK 1.0 functionality
          */
-        QUERY_RESULT_WITH_AVAILABILITY_BIT = 1 << 1,
+        WITH_AVAILABILITY_BIT = VK_QUERY_RESULT_WITH_AVAILABILITY_BIT,
 
         /* Indicates it is OK for the function to return result values for a sub-range of the requested query range.
          *
          * Core VK 1.0 frunctionality
          */
-        QUERY_RESULT_PARTIAL_BIT = 1 << 2,
+        PARTIAL_BIT = VK_QUERY_RESULT_PARTIAL_BIT,
 
-    } QueryResultBit;
-    typedef uint32_t QueryResultBits;
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::QueryResultFlagBits, VkQueryResultFlagBits> QueryResultFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(QueryResultFlags, VkQueryResultFlags, QueryResultFlagBits)
+
+    enum class RasterizationOrderAMD
+    {
+        RELAXED = VK_RASTERIZATION_ORDER_RELAXED_AMD,
+        STRICT  = VK_RASTERIZATION_ORDER_STRICT_AMD,
+
+        UNKNOWN = VK_RASTERIZATION_ORDER_MAX_ENUM_AMD
+    };
 
     /* NOTE: These map 1:1 to VK equivalents */
-    enum SampleCountFlagBits
+    enum class SampleCountFlagBits
     {
-        SAMPLE_COUNT_FLAG_1_BIT  = VK_SAMPLE_COUNT_1_BIT,
-        SAMPLE_COUNT_FLAG_2_BIT  = VK_SAMPLE_COUNT_2_BIT,
-        SAMPLE_COUNT_FLAG_4_BIT  = VK_SAMPLE_COUNT_4_BIT,
-        SAMPLE_COUNT_FLAG_8_BIT  = VK_SAMPLE_COUNT_8_BIT,
-        SAMPLE_COUNT_FLAG_16_BIT = VK_SAMPLE_COUNT_16_BIT,
-        SAMPLE_COUNT_FLAG_32_BIT = VK_SAMPLE_COUNT_32_BIT,
-        SAMPLE_COUNT_FLAG_64_BIT = VK_SAMPLE_COUNT_64_BIT,
+        _1_BIT  = VK_SAMPLE_COUNT_1_BIT,
+        _2_BIT  = VK_SAMPLE_COUNT_2_BIT,
+        _4_BIT  = VK_SAMPLE_COUNT_4_BIT,
+        _8_BIT  = VK_SAMPLE_COUNT_8_BIT,
+        _16_BIT = VK_SAMPLE_COUNT_16_BIT,
+        _32_BIT = VK_SAMPLE_COUNT_32_BIT,
+        _64_BIT = VK_SAMPLE_COUNT_64_BIT,
 
-        SAMPLE_COUNT_UNKNOWN = 0
+        NONE = 0
     };
-    typedef uint32_t SampleCountFlags;
+    typedef Anvil::Bitfield<Anvil::SampleCountFlagBits, VkSampleCountFlagBits> SampleCountFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(SampleCountFlags, VkSampleCountFlags, SampleCountFlagBits)
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class SamplerAddressMode
+    {
+        CLAMP_TO_BORDER      = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+        CLAMP_TO_EDGE        = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        MIRROR_CLAMP_TO_EDGE = VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE,
+        MIRRORED_REPEAT      = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
+        REPEAT               = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+
+        UNKNOWN = VK_SAMPLER_ADDRESS_MODE_MAX_ENUM
+    };
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class SamplerMipmapMode
+    {
+        LINEAR  = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+        NEAREST = VK_SAMPLER_MIPMAP_MODE_NEAREST,
+
+        UNKNOWN = VK_SAMPLER_MIPMAP_MODE_MAX_ENUM
+    };
 
     /* Specifies one of the compute / rendering pipeline stages. */
-    typedef enum
+    enum class ShaderStage
     {
-        SHADER_STAGE_FIRST,
+        FIRST,
 
-        SHADER_STAGE_COMPUTE = SHADER_STAGE_FIRST,
-        SHADER_STAGE_FRAGMENT,
-        SHADER_STAGE_GEOMETRY,
-        SHADER_STAGE_TESSELLATION_CONTROL,
-        SHADER_STAGE_TESSELLATION_EVALUATION,
-        SHADER_STAGE_VERTEX,
+        COMPUTE = FIRST,
+        FRAGMENT,
+        GEOMETRY,
+        TESSELLATION_CONTROL,
+        TESSELLATION_EVALUATION,
+        VERTEX,
 
-        SHADER_STAGE_COUNT,
-        SHADER_STAGE_UNKNOWN = SHADER_STAGE_COUNT
-    } ShaderStage;
+        COUNT,
+        UNKNOWN = COUNT
+    };
+
+    /* NOTE: Maps 1:1 to VK equivalents */
+    enum class ShaderStageFlagBits
+    {
+        COMPUTE_BIT                 = VK_SHADER_STAGE_COMPUTE_BIT,
+        FRAGMENT_BIT                = VK_SHADER_STAGE_FRAGMENT_BIT,
+        GEOMETRY_BIT                = VK_SHADER_STAGE_GEOMETRY_BIT,
+        TESSELLATION_CONTROL_BIT    = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
+        TESSELLATION_EVALUATION_BIT = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+        VERTEX_BIT                  = VK_SHADER_STAGE_VERTEX_BIT,
+
+        ALL          = VK_SHADER_STAGE_ALL,
+        ALL_GRAPHICS = VK_SHADER_STAGE_ALL_GRAPHICS,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::ShaderStageFlagBits, VkShaderStageFlags> ShaderStageFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(ShaderStageFlags, VkShaderStageFlags, ShaderStageFlagBits)
 
     /* Specifies the type of query for post-compile information about pipeline shaders */
-    typedef enum
+    enum class ShaderInfoType
     {
-        SHADER_INFO_FIRST,
+        FIRST,
 
-        SHADER_INFO_TYPE_BINARY = SHADER_INFO_FIRST,
-        SHADER_INFO_TYPE_DISASSEMBLY,
-        SHADER_INFO_COUNT,
-        SHADER_INFO_UNKNOWN = SHADER_INFO_COUNT
-    } ShaderInfoType;
+        BINARY      = FIRST,
+        DISASSEMBLY,
+
+        COUNT,
+        UNKNOWN = COUNT
+    };
 
     /* NOTE: These map 1:1 to VK equivalents */
-    typedef enum class SharingMode
+    enum class SharingMode
     {
         CONCURRENT = VK_SHARING_MODE_CONCURRENT,
         EXCLUSIVE  = VK_SHARING_MODE_EXCLUSIVE,
 
         UNKNOWN
-    } SharingMode;
+    };
 
-    typedef enum
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class SparseImageFormatFlagBits
+    {
+        /* Core VK 1.0 */
+        ALIGNED_MIP_SIZE_BIT        = VK_SPARSE_IMAGE_FORMAT_ALIGNED_MIP_SIZE_BIT,
+        NONNSTANDARD_BLOCK_SIZE_BIT = VK_SPARSE_IMAGE_FORMAT_NONSTANDARD_BLOCK_SIZE_BIT,
+        SINGLE_MIPTAIL_BIT          = VK_SPARSE_IMAGE_FORMAT_SINGLE_MIPTAIL_BIT,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::SparseImageFormatFlagBits, VkSparseImageFormatFlags> SparseImageFormatFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(SparseImageFormatFlags, VkSparseImageFormatFlags, SparseImageFormatFlagBits)
+
+    enum class SparseMemoryBindFlagBits
+    {
+        /* Core VK 1.0 */
+        BIND_METADATA_BIT = VK_SPARSE_MEMORY_BIND_METADATA_BIT,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::SparseMemoryBindFlagBits, VkSparseMemoryBindFlags> SparseMemoryBindFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(SparseMemoryBindFlags, VkSparseMemoryBindFlags, SparseMemoryBindFlagBits)
+
+    enum class SparseResidencyScope
     {
         /* Support sparse binding only */
-        SPARSE_RESIDENCY_SCOPE_NONE,
+        NONE,
 
         /* Support sparse residency, do not support sparse aliased residency */
-        SPARSE_RESIDENCY_SCOPE_NONALIASED,
+        NONALIASED,
 
         /* Support sparse aliased residency */
-        SPARSE_RESIDENCY_SCOPE_ALIASED,
+        ALIASED,
 
-        SPARSE_RESIDENCY_SCOPE_UNDEFINED
-    } SparseResidencyScope;
+        UNKNOWN
+    };
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class StencilFaceFlagBits
+    {
+        BACK_BIT  = VK_STENCIL_FACE_BACK_BIT,
+        FRONT_BIT = VK_STENCIL_FACE_FRONT_BIT,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::StencilFaceFlagBits, VkStencilFaceFlags> StencilFaceFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(StencilFaceFlags, VkStencilFaceFlags, StencilFaceFlagBits)
+
+    enum class StencilOp
+    {
+        DECREMENT_AND_CLAMP = VK_STENCIL_OP_DECREMENT_AND_CLAMP,
+        DECREMENT_AND_WRAP  = VK_STENCIL_OP_DECREMENT_AND_WRAP,
+        INCREMENT_AND_CLAMP = VK_STENCIL_OP_INCREMENT_AND_CLAMP,
+        INCREMENT_AND_WRAP  = VK_STENCIL_OP_INCREMENT_AND_WRAP,
+        INVERT              = VK_STENCIL_OP_INVERT,
+        KEEP                = VK_STENCIL_OP_KEEP,
+        REPLACE             = VK_STENCIL_OP_REPLACE,
+        ZERO                = VK_STENCIL_OP_ZERO,
+
+        UNKNOWN = VK_STENCIL_OP_MAX_ENUM
+    };
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class SubpassContents
+    {
+        INLINE                    = VK_SUBPASS_CONTENTS_INLINE,
+        SECONDARY_COMMAND_BUFFERS = VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS,
+
+        UNKNOWN = VK_SUBPASS_CONTENTS_MAX_ENUM
+    };
+
+    enum class SurfaceTransformFlagBits
+    {
+        HORIZONTAL_MIRROR_BIT_KHR            = VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR,
+        HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR = VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR,
+        HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR = VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR,
+        HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR  = VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR,
+        IDENTITY_BIT_KHR                     = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
+        INHERIT_BIT_KHR                      = VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR,
+        ROTATE_180_BIT_KHR                   = VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR,
+        ROTATE_270_BIT_KHR                   = VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR,
+        ROTATE_90_BIT_KHR                    = VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::SurfaceTransformFlagBits, VkSurfaceTransformFlagsKHR> SurfaceTransformFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(SurfaceTransformFlags, VkSurfaceTransformFlagsKHR, SurfaceTransformFlagBits)
 
     /* NOTE: Enums map 1:1 to their VK equivalents */
-    typedef enum class TessellationDomainOrigin
+    enum class SwapchainCreateFlagBits
+    {
+        /* Requires VK_KHR_device_group */
+        SPLIT_INSTANCE_BIND_REGIONS_BIT = VK_SWAPCHAIN_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT_KHR,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::SwapchainCreateFlagBits, VkSwapchainCreateFlagsKHR> SwapchainCreateFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(SwapchainCreateFlags, VkSwapchainCreateFlagsKHR, SwapchainCreateFlagBits)
+
+    /* NOTE: Enums map 1:1 to their VK equivalents */
+    enum class TessellationDomainOrigin
     {
         LOWER_LEFT = VK_TESSELLATION_DOMAIN_ORIGIN_LOWER_LEFT_KHR,
         UPPER_LEFT = VK_TESSELLATION_DOMAIN_ORIGIN_UPPER_LEFT_KHR,
 
         UNKNOWN = VK_TESSELLATION_DOMAIN_ORIGIN_MAX_ENUM
-    } TessellationDomainOrigin;
+    };
 
-    /** Defines supported timestamp capture modes. */
-    typedef enum
+    enum class VertexInputRate
     {
-        /* No timestamps should be captured */
-        TIMESTAMP_CAPTURE_MODE_DISABLED,
+        INSTANCE = VK_VERTEX_INPUT_RATE_INSTANCE,
+        VERTEX   = VK_VERTEX_INPUT_RATE_VERTEX,
 
-        /* Two timestamps should be captured:
-         *
-         * 1. top-of-pipe timestamp, preceding actual commands.
-         * 2. tof-of-pipe timestamp, after all commands are recorded.
-         */
-        TIMESTAMP_CAPTURE_MODE_ENABLED_COMMAND_SUBMISSION_TIME,
-
-        /* Two timestamps should be captured:
-        *
-        * 1. top-of-pipe timestamp, preceding actual commands.
-        * 2. bottom-of-pipe timestamp, after all commands are recorded.
-        */
-        TIMESTAMP_CAPTURE_MODE_ENABLED_COMMAND_EXECUTION_TIME
-    } TimestampCaptureMode;
+        UNKNOWN = VK_VERTEX_INPUT_RATE_MAX_ENUM
+    };
 }; /* namespace Anvil */
 
 #endif /* TYPES_ENUMS_H */
