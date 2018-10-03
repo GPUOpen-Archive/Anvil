@@ -632,6 +632,7 @@ end:
 
             link_result        = new_program_ptr->link      (EShMsgDefault);
             m_program_info_log = new_program_ptr->getInfoLog();
+			m_program_debug_info_log = new_program_ptr->getInfoDebugLog();
 
             if (!link_result)
             {
