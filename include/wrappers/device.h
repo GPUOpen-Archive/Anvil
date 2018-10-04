@@ -625,7 +625,9 @@ namespace Anvil
 
         std::unique_ptr<Anvil::StructChain<VkPhysicalDeviceFeatures2KHR > > get_physical_device_features_chain(const VkPhysicalDeviceFeatures* in_opt_features_ptr) const;
 
-        std::vector<float> get_queue_priorities(const QueueFamilyInfo*              in_queue_family_info_ptr) const;
+		std::unique_ptr<Anvil::StructChain<VkPhysicalDeviceDescriptorIndexingFeaturesEXT > > get_physical_device_features_chain() const;
+
+		std::vector<float> get_queue_priorities(const QueueFamilyInfo*              in_queue_family_info_ptr) const;
         void               init                (const DeviceExtensionConfiguration& in_extensions,
                                                 const std::vector<std::string>&     in_layers,
                                                 bool                                in_transient_command_buffer_allocs_only,
