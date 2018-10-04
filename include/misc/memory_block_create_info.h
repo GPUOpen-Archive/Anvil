@@ -57,8 +57,8 @@ namespace Anvil
          *
          *  NOTE: The following parameters take the following default values:
          *
-         *  - Exportable external memory handle types: Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_NONE
-         *  - Importable external memory handle type:  Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_NONE
+         *  - Exportable external memory handle types: Anvil::ExternalMemoryHandleTypeFlagBits::NONE
+         *  - Importable external memory handle type:  Anvil::ExternalMemoryHandleTypeFlagBits::NONE
          *  - Use a dedicated allocation?:             No.
          *
          *  These can be further adjusted by callingt corresponding set_..() functions prior to passing the CreateInfo instance
@@ -87,7 +87,7 @@ namespace Anvil
          *
          *  - Exportable external memory handle types: Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_NONE
          *  - Importable external memory handle type:  Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_NONE
-         *  - MT safety:                               MT_SAFETY_INHERIT_FROM_PARENT_DEVICE.
+         *  - MT safety:                               Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE.
          *  - Use a dedicated allocation?:             No.
          *
          *  These can be further adjusted by callingt corresponding set_..() functions prior to passing the CreateInfo instance
@@ -138,7 +138,7 @@ namespace Anvil
             return m_device_mask;
         }
 
-        const Anvil::ExternalMemoryHandleTypeBits& get_exportable_external_memory_handle_types() const
+        const Anvil::ExternalMemoryHandleTypeFlags& get_exportable_external_memory_handle_types() const
         {
             return m_exportable_external_memory_handle_types;
         }
@@ -181,7 +181,7 @@ namespace Anvil
             }
         #endif
 
-        const Anvil::ExternalMemoryHandleTypeBit& get_imported_external_memory_handle_type() const
+        const Anvil::ExternalMemoryHandleTypeFlagBits& get_imported_external_memory_handle_type() const
         {
             return m_imported_external_memory_handle_type;
         }
@@ -244,7 +244,7 @@ namespace Anvil
         }
 
         /* Requires VK_KHR_external_memory */
-        void set_exportable_external_memory_handle_types(const Anvil::ExternalMemoryHandleTypeBits& in_external_memory_handle_types)
+        void set_exportable_external_memory_handle_types(const Anvil::ExternalMemoryHandleTypeFlags& in_external_memory_handle_types)
         {
             m_exportable_external_memory_handle_types = in_external_memory_handle_types;
         }
@@ -301,7 +301,7 @@ namespace Anvil
             }
         #endif
 
-        void set_imported_external_memory_handle_type(const Anvil::ExternalMemoryHandleTypeBit& in_memory_handle_type)
+        void set_imported_external_memory_handle_type(const Anvil::ExternalMemoryHandleTypeFlagBits& in_memory_handle_type)
         {
             m_imported_external_memory_handle_type = in_memory_handle_type;
         }
@@ -359,8 +359,8 @@ namespace Anvil
         uint32_t                                    m_allowed_memory_bits;
         uint32_t                                    m_device_mask;
         const Anvil::BaseDevice*                    m_device_ptr;
-        Anvil::ExternalMemoryHandleTypeBits         m_exportable_external_memory_handle_types;
-        Anvil::ExternalMemoryHandleTypeBit          m_imported_external_memory_handle_type;
+        Anvil::ExternalMemoryHandleTypeFlags        m_exportable_external_memory_handle_types;
+        Anvil::ExternalMemoryHandleTypeFlagBits     m_imported_external_memory_handle_type;
         VkDeviceMemory                              m_memory;
         Anvil::MemoryFeatureFlags                   m_memory_features;
         uint32_t                                    m_memory_type_index;

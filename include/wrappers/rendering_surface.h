@@ -78,7 +78,7 @@ namespace Anvil
         static Anvil::RenderingSurfaceUniquePtr create(Anvil::Instance*         in_instance_ptr,
                                                        const Anvil::BaseDevice* in_device_ptr,
                                                        const Anvil::Window*     in_window_ptr,
-                                                       MTSafety                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+                                                       MTSafety                 in_mt_safety = Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE);
 
         /** Destructor
          *
@@ -89,7 +89,7 @@ namespace Anvil
 
         /** Returns rendering surface capabilities */
         bool get_capabilities(const Anvil::PhysicalDevice* in_physical_device_ptr,
-                              VkSurfaceCapabilitiesKHR*    out_surface_caps_ptr) const;
+                              Anvil::SurfaceCapabilities*  out_surface_caps_ptr) const;
 
         /** Returns rendering surface's height */
         uint32_t get_height() const
@@ -111,11 +111,11 @@ namespace Anvil
 
         /** Returns composite alpha modes supported by the rendering surface */
         bool get_supported_composite_alpha_flags(const Anvil::PhysicalDevice* in_physical_device_ptr,
-                                                 VkCompositeAlphaFlagsKHR*    out_result_ptr) const;
+                                                 Anvil::CompositeAlphaFlags*  out_result_ptr) const;
 
         /** Returns transformations supported by the rendering surface */
-        bool get_supported_transformations(const Anvil::PhysicalDevice* in_physical_device_ptr,
-                                           VkSurfaceTransformFlagsKHR*  out_result_ptr) const;
+        bool get_supported_transformations(const Anvil::PhysicalDevice*  in_physical_device_ptr,
+                                           Anvil::SurfaceTransformFlags* out_result_ptr) const;
 
         /** Returns flags corresponding to image usage supported by the rendering surface */
         bool get_supported_usages(const Anvil::PhysicalDevice* in_physical_device_ptr,
@@ -149,7 +149,7 @@ namespace Anvil
 
         /* Tells whether the specified presentation mode is supported by the rendering surface */
         bool supports_presentation_mode(const Anvil::PhysicalDevice* in_physical_device_ptr,
-                                        VkPresentModeKHR             in_presentation_mode,
+                                        Anvil::PresentModeKHR        in_presentation_mode,
                                         bool*                        out_result_ptr) const;
 
     private:
@@ -158,15 +158,15 @@ namespace Anvil
 
         typedef struct PhysicalDeviceCapabilities
         {
-            VkSurfaceCapabilitiesKHR            capabilities;
+            Anvil::SurfaceCapabilities          capabilities;
             std::vector<RenderingSurfaceFormat> supported_formats;
-            std::vector<VkPresentModeKHR>       supported_presentation_modes;
+            std::vector<Anvil::PresentModeKHR>  supported_presentation_modes;
+            Anvil::SurfaceTransformFlags        supported_transformations;
             ImageUsageFlags                     supported_usages;
 
             std::vector<uint32_t>               present_capable_queue_fams;
 
-            VkCompositeAlphaFlagsKHRVariable  (supported_composite_alpha_flags);
-            VkSurfaceTransformFlagsKHRVariable(supported_transformations);
+            Anvil::CompositeAlphaFlags          supported_composite_alpha_flags;
 
             PhysicalDeviceCapabilities()
             {

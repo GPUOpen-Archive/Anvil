@@ -633,14 +633,14 @@ bool Anvil::DescriptorSet::update(const DescriptorSetUpdateMethod& in_update_met
     {
         switch (in_update_method)
         {
-            case Anvil::DESCRIPTOR_SET_UPDATE_METHOD_CORE:
+            case Anvil::DescriptorSetUpdateMethod::CORE:
             {
                 result = update_using_core_method();
 
                 break;
             }
 
-            case Anvil::DESCRIPTOR_SET_UPDATE_METHOD_TEMPLATE:
+            case Anvil::DescriptorSetUpdateMethod::TEMPLATE:
             {
                 result = update_using_template_method();
 
@@ -699,9 +699,9 @@ bool Anvil::DescriptorSet::update_using_core_method() const
                       n_binding < n_bindings;
                     ++n_binding)
         {
-            Anvil::DescriptorBindingFlags current_binding_flags                         = 0;
+            Anvil::DescriptorBindingFlags current_binding_flags;
             uint32_t                      current_binding_index;
-            VkDescriptorType              descriptor_type;
+            Anvil::DescriptorType         descriptor_type;
             bool                          immutable_samplers_enabled                    = false;
             uint32_t                      start_ds_buffer_info_items_array_offset       = cached_ds_buffer_info_items_array_offset;
             uint32_t                      start_ds_image_info_items_array_offset        = cached_ds_image_info_items_array_offset;
@@ -774,7 +774,7 @@ bool Anvil::DescriptorSet::update_using_core_method() const
                 else
                 {
                     /* Arrayed bindings are only permitted if the binding has been created with the PARTIALLY_BOUND flag */
-                    if ((current_binding_flags & Anvil::DESCRIPTOR_BINDING_FLAG_PARTIALLY_BOUND_BIT) == 0)
+                    if ((current_binding_flags & Anvil::DescriptorBindingFlagBits::PARTIALLY_BOUND_BIT) == 0)
                     {
                         anvil_assert_fail();
 
@@ -794,7 +794,7 @@ bool Anvil::DescriptorSet::update_using_core_method() const
                     if (n_descriptors > 0)
                     {
                         write_ds_vk.descriptorCount  = n_descriptors;
-                        write_ds_vk.descriptorType   = descriptor_type;
+                        write_ds_vk.descriptorType   = static_cast<VkDescriptorType>(descriptor_type);
                         write_ds_vk.dstArrayElement  = n_last_binding_item + 1;
                         write_ds_vk.dstBinding       = current_binding_index;
                         write_ds_vk.dstSet           = m_descriptor_set;
@@ -874,7 +874,7 @@ bool Anvil::DescriptorSet::update_using_template_method() const
         {
             const std::vector<BindingItem>* binding_element_vec_ptr    = nullptr;
             uint32_t                        current_binding_index      = UINT32_MAX;
-            VkDescriptorType                descriptor_type;
+            Anvil::DescriptorType           descriptor_type            = Anvil::DescriptorType::UNKNOWN;
             bool                            immutable_samplers_enabled = false;
             uint32_t                        n_binding_elements         = 0;
 
@@ -972,7 +972,7 @@ bool Anvil::DescriptorSet::update_using_template_method() const
                 Anvil::DescriptorUpdateTemplate::create_for_descriptor_set_updates(m_device_ptr,
                                                                                    m_layout_ptr,
                                                                                    m_template_entries,
-                                                                                   Anvil::MT_SAFETY_DISABLED) );
+                                                                                   Anvil::MTSafety::DISABLED) );
 
             /* Update the iterator */
             template_object_iterator = m_template_object_map.find(m_template_entries);

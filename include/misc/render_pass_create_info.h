@@ -50,8 +50,8 @@ namespace Anvil
          **/
         bool add_color_attachment(Anvil::Format              in_format,
                                   Anvil::SampleCountFlagBits in_sample_count,
-                                  VkAttachmentLoadOp         in_load_op,
-                                  VkAttachmentStoreOp        in_store_op,
+                                  Anvil::AttachmentLoadOp    in_load_op,
+                                  Anvil::AttachmentStoreOp   in_store_op,
                                   Anvil::ImageLayout         in_initial_layout,
                                   Anvil::ImageLayout         in_final_layout,
                                   bool                       in_may_alias,
@@ -77,10 +77,10 @@ namespace Anvil
          **/
         bool add_depth_stencil_attachment(Anvil::Format              in_format,
                                           Anvil::SampleCountFlagBits in_sample_count,
-                                          VkAttachmentLoadOp         in_depth_load_op,
-                                          VkAttachmentStoreOp        in_depth_store_op,
-                                          VkAttachmentLoadOp         in_stencil_load_op,
-                                          VkAttachmentStoreOp        in_stencil_store_op,
+                                          Anvil::AttachmentLoadOp    in_depth_load_op,
+                                          Anvil::AttachmentStoreOp   in_depth_store_op,
+                                          Anvil::AttachmentLoadOp    in_stencil_load_op,
+                                          Anvil::AttachmentStoreOp   in_stencil_store_op,
                                           Anvil::ImageLayout         in_initial_layout,
                                           Anvil::ImageLayout         in_final_layout,
                                           bool                       in_may_alias,
@@ -157,7 +157,7 @@ namespace Anvil
                                           Anvil::ImageLayout             in_layout,
                                           RenderPassAttachmentID         in_attachment_id,
                                           uint32_t                       in_attachment_index,
-                                          const Anvil::ImageAspectFlags& in_opt_aspects_accessed = Anvil::ImageAspectFlagBits::IMAGE_ASPECT_UNKNOWN);
+                                          const Anvil::ImageAspectFlags& in_opt_aspects_accessed = Anvil::ImageAspectFlagBits::NONE);
 
         /** Adds a new external->subpass dependency to the internal data model.
          *
@@ -167,17 +167,17 @@ namespace Anvil
          *  @param in_destination_stage_mask  Destination pipeline stage mask.
          *  @param in_source_access_mask      Source access mask.
          *  @param in_destination_access_mask Destination access mask.
-         *  @param in_by_region               true if a "by-region" dependency is requested; false otherwise.
+         *  @param in_dependency_flags        Flags to use for the dependency.
          *
          *  @return true if the dependency was added successfully; false otherwise.
          *
          **/
-        bool add_external_to_subpass_dependency(SubPassID            in_destination_subpass_id,
-                                                VkPipelineStageFlags in_source_stage_mask,
-                                                VkPipelineStageFlags in_destination_stage_mask,
-                                                VkAccessFlags        in_source_access_mask,
-                                                VkAccessFlags        in_destination_access_mask,
-                                                bool                 in_by_region);
+        bool add_external_to_subpass_dependency(SubPassID                 in_destination_subpass_id,
+                                                Anvil::PipelineStageFlags in_source_stage_mask,
+                                                Anvil::PipelineStageFlags in_destination_stage_mask,
+                                                Anvil::AccessFlags        in_source_access_mask,
+                                                Anvil::AccessFlags        in_destination_access_mask,
+                                                Anvil::DependencyFlags    in_dependency_flags);
 
         /** Adds a new self-subpass dependency to the internal data model.
          *
@@ -187,17 +187,17 @@ namespace Anvil
          *  @param in_destination_stage_mask  Destination pipeline stage mask.
          *  @param in_source_access_mask      Source access mask.
          *  @param in_destination_access_mask Destination access mask.
-         *  @param in_by_region               true if a "by-region" dependency is requested; false otherwise.
+         *  @param in_dependency_flags        Flags to use for the dependency.
          *
          *  @return true if the dependency was added successfully; false otherwise.
          *
          **/
-        bool add_self_subpass_dependency(SubPassID            in_destination_subpass_id,
-                                         VkPipelineStageFlags in_source_stage_mask,
-                                         VkPipelineStageFlags in_destination_stage_mask,
-                                         VkAccessFlags        in_source_access_mask,
-                                         VkAccessFlags        in_destination_access_mask,
-                                         bool                 in_by_region);
+        bool add_self_subpass_dependency(SubPassID                 in_destination_subpass_id,
+                                         Anvil::PipelineStageFlags in_source_stage_mask,
+                                         Anvil::PipelineStageFlags in_destination_stage_mask,
+                                         Anvil::AccessFlags        in_source_access_mask,
+                                         Anvil::AccessFlags        in_destination_access_mask,
+                                         Anvil::DependencyFlags    in_dependency_flags);
 
         /** Adds a new subpass->external dependency to the internal data model.
          *
@@ -207,16 +207,16 @@ namespace Anvil
          *  @param in_destination_stage_mask  Destination pipeline stage mask.
          *  @param in_source_access_mask      Source access mask.
          *  @param in_destination_access_mask Destination access mask.
-         *  @param in_by_region               true if a "by-region" dependency is requested; false otherwise.
+         *  @param in_dependency_flags        Flags to use for the dependency.
          *
          *  @return true if the dependency was added successfully; false otherwise.
          **/
-        bool add_subpass_to_external_dependency(SubPassID            in_source_subpass_id,
-                                                VkPipelineStageFlags in_source_stage_mask,
-                                                VkPipelineStageFlags in_destination_stage_mask,
-                                                VkAccessFlags        in_source_access_mask,
-                                                VkAccessFlags        in_destination_access_mask,
-                                                bool                 in_by_region);
+        bool add_subpass_to_external_dependency(SubPassID                 in_source_subpass_id,
+                                                Anvil::PipelineStageFlags in_source_stage_mask,
+                                                Anvil::PipelineStageFlags in_destination_stage_mask,
+                                                Anvil::AccessFlags        in_source_access_mask,
+                                                Anvil::AccessFlags        in_destination_access_mask,
+                                                Anvil::DependencyFlags    in_dependency_flags);
 
         /** Adds a new subpass->subpass dependency to the internal data model.
          *
@@ -228,17 +228,17 @@ namespace Anvil
          *  @param in_destination_stage_mask  Destination pipeline stage mask.
          *  @param in_source_access_mask      Source access mask.
          *  @param in_destination_access_mask Destination access mask.
-         *  @param in_by_region               true if a "by-region" dependency is requested; false otherwise.
+         *  @param in_dependency_flags        Flags to use for the dependency.
          *
          *  @return true if the dependency was added successfully; false otherwise.
          **/
-        bool add_subpass_to_subpass_dependency(SubPassID            in_source_subpass_id,
-                                               SubPassID            in_destination_subpass_id,
-                                               VkPipelineStageFlags in_source_stage_mask,
-                                               VkPipelineStageFlags in_destination_stage_mask,
-                                               VkAccessFlags        in_source_access_mask,
-                                               VkAccessFlags        in_destination_access_mask,
-                                               bool                 in_by_region);
+        bool add_subpass_to_subpass_dependency(SubPassID                 in_source_subpass_id,
+                                               SubPassID                 in_destination_subpass_id,
+                                               Anvil::PipelineStageFlags in_source_stage_mask,
+                                               Anvil::PipelineStageFlags in_destination_stage_mask,
+                                               Anvil::AccessFlags        in_source_access_mask,
+                                               Anvil::AccessFlags        in_destination_access_mask,
+                                               Anvil::DependencyFlags    in_dependency_flags);
 
         /** Tells what type an attachment with user-specified ID has.
          *
@@ -268,8 +268,8 @@ namespace Anvil
          **/
         bool get_color_attachment_properties(RenderPassAttachmentID      in_attachment_id,
                                              Anvil::SampleCountFlagBits* out_opt_sample_count_ptr   = nullptr,
-                                             VkAttachmentLoadOp*         out_opt_load_op_ptr        = nullptr,
-                                             VkAttachmentStoreOp*        out_opt_store_op_ptr       = nullptr,
+                                             Anvil::AttachmentLoadOp*    out_opt_load_op_ptr        = nullptr,
+                                             Anvil::AttachmentStoreOp*   out_opt_store_op_ptr       = nullptr,
                                              Anvil::ImageLayout*         out_opt_initial_layout_ptr = nullptr,
                                              Anvil::ImageLayout*         out_opt_final_layout_ptr   = nullptr,
                                              bool*                       out_opt_may_alias_ptr      = nullptr) const;
@@ -295,14 +295,14 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise
          */
-        bool get_dependency_properties(uint32_t              in_n_dependency,
-                                       SubPassID*            out_destination_subpass_id_ptr,
-                                       SubPassID*            out_source_subpass_id_ptr,
-                                       VkPipelineStageFlags* out_destination_stage_mask_ptr,
-                                       VkPipelineStageFlags* out_source_stage_mask_ptr,
-                                       VkAccessFlags*        out_destination_access_mask_ptr,
-                                       VkAccessFlags*        out_source_access_mask_ptr,
-                                       DependencyFlags*      out_flags_ptr) const;
+        bool get_dependency_properties(uint32_t                   in_n_dependency,
+                                       SubPassID*                 out_destination_subpass_id_ptr,
+                                       SubPassID*                 out_source_subpass_id_ptr,
+                                       Anvil::PipelineStageFlags* out_destination_stage_mask_ptr,
+                                       Anvil::PipelineStageFlags* out_source_stage_mask_ptr,
+                                       Anvil::AccessFlags*        out_destination_access_mask_ptr,
+                                       Anvil::AccessFlags*        out_source_access_mask_ptr,
+                                       DependencyFlags*           out_flags_ptr) const;
 
         /** Retrieves properties of the render pass color attachment with the user-specified ID
          *
@@ -325,14 +325,14 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_depth_stencil_attachment_properties(RenderPassAttachmentID in_attachment_id,
-                                                     VkAttachmentLoadOp*    out_opt_depth_load_op_ptr    = nullptr,
-                                                     VkAttachmentStoreOp*   out_opt_depth_store_op_ptr   = nullptr,
-                                                     VkAttachmentLoadOp*    out_opt_stencil_load_op_ptr  = nullptr,
-                                                     VkAttachmentStoreOp*   out_opt_stencil_store_op_ptr = nullptr,
-                                                     Anvil::ImageLayout*    out_opt_initial_layout_ptr   = nullptr,
-                                                     Anvil::ImageLayout*    out_opt_final_layout_ptr     = nullptr,
-                                                     bool*                  out_opt_may_alias_ptr        = nullptr) const;
+        bool get_depth_stencil_attachment_properties(RenderPassAttachmentID    in_attachment_id,
+                                                     Anvil::AttachmentLoadOp*  out_opt_depth_load_op_ptr    = nullptr,
+                                                     Anvil::AttachmentStoreOp* out_opt_depth_store_op_ptr   = nullptr,
+                                                     Anvil::AttachmentLoadOp*  out_opt_stencil_load_op_ptr  = nullptr,
+                                                     Anvil::AttachmentStoreOp* out_opt_stencil_store_op_ptr = nullptr,
+                                                     Anvil::ImageLayout*       out_opt_initial_layout_ptr   = nullptr,
+                                                     Anvil::ImageLayout*       out_opt_final_layout_ptr     = nullptr,
+                                                     bool*                     out_opt_may_alias_ptr        = nullptr) const;
 
         const Anvil::BaseDevice* get_device() const
         {
@@ -410,16 +410,16 @@ namespace Anvil
         /** Holds properties of a single render-pass attachment. **/
         typedef struct RenderPassAttachment
         {
-            VkAttachmentLoadOp         color_depth_load_op;
-            VkAttachmentStoreOp        color_depth_store_op;
+            Anvil::AttachmentLoadOp    color_depth_load_op;
+            Anvil::AttachmentStoreOp   color_depth_store_op;
             Anvil::ImageLayout         final_layout;
             Anvil::Format              format;
             uint32_t                   index;
             Anvil::ImageLayout         initial_layout;
             bool                       may_alias;
             Anvil::SampleCountFlagBits sample_count;
-            VkAttachmentLoadOp         stencil_load_op;
-            VkAttachmentStoreOp        stencil_store_op;
+            Anvil::AttachmentLoadOp    stencil_load_op;
+            Anvil::AttachmentStoreOp   stencil_store_op;
             AttachmentType             type;
 
             /** Constructor. Should only be used for color attachments.
@@ -437,8 +437,8 @@ namespace Anvil
              ***/
             RenderPassAttachment(Anvil::Format              in_format,
                                  Anvil::SampleCountFlagBits in_sample_count,
-                                 VkAttachmentLoadOp         in_load_op,
-                                 VkAttachmentStoreOp        in_store_op,
+                                 Anvil::AttachmentLoadOp    in_load_op,
+                                 Anvil::AttachmentStoreOp   in_store_op,
                                  Anvil::ImageLayout         in_initial_layout,
                                  Anvil::ImageLayout         in_final_layout,
                                  bool                       in_may_alias,
@@ -452,9 +452,9 @@ namespace Anvil
                 initial_layout       = in_initial_layout;
                 may_alias            = in_may_alias;
                 sample_count         = in_sample_count;
-                stencil_load_op      = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                stencil_store_op     = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                type                 = ATTACHMENT_TYPE_COLOR;
+                stencil_load_op      = Anvil::AttachmentLoadOp::DONT_CARE;
+                stencil_store_op     = Anvil::AttachmentStoreOp::DONT_CARE;
+                type                 = Anvil::AttachmentType::COLOR;
             }
 
             /** Constructor. Should only be used for depth/stencil attachments
@@ -474,10 +474,10 @@ namespace Anvil
              **/
             RenderPassAttachment(Anvil::Format              in_format,
                                  Anvil::SampleCountFlagBits in_sample_count,
-                                 VkAttachmentLoadOp         in_depth_load_op,
-                                 VkAttachmentStoreOp        in_depth_store_op,
-                                 VkAttachmentLoadOp         in_stencil_load_op,
-                                 VkAttachmentStoreOp        in_stencil_store_op,
+                                 Anvil::AttachmentLoadOp    in_depth_load_op,
+                                 Anvil::AttachmentStoreOp   in_depth_store_op,
+                                 Anvil::AttachmentLoadOp    in_stencil_load_op,
+                                 Anvil::AttachmentStoreOp   in_stencil_store_op,
                                  Anvil::ImageLayout         in_initial_layout,
                                  Anvil::ImageLayout         in_final_layout,
                                  bool                       in_may_alias,
@@ -493,23 +493,23 @@ namespace Anvil
                 sample_count         = in_sample_count;
                 stencil_load_op      = in_stencil_load_op;
                 stencil_store_op     = in_stencil_store_op;
-                type                 = ATTACHMENT_TYPE_DEPTH_STENCIL;
+                type                 = Anvil::AttachmentType::DEPTH_STENCIL;
             }
 
             /** Dummy constructor. This should only be used by STL containers. */
             RenderPassAttachment()
             {
-                color_depth_load_op  = VK_ATTACHMENT_LOAD_OP_MAX_ENUM;
-                color_depth_store_op = VK_ATTACHMENT_STORE_OP_MAX_ENUM;
+                color_depth_load_op  = Anvil::AttachmentLoadOp::UNKNOWN;
+                color_depth_store_op = Anvil::AttachmentStoreOp::UNKNOWN;
                 final_layout         = Anvil::ImageLayout::UNKNOWN;
                 format               = Anvil::Format::UNKNOWN;
                 index                = UINT32_MAX;
                 initial_layout       = Anvil::ImageLayout::UNKNOWN;
                 may_alias            = false;
                 sample_count         = static_cast<Anvil::SampleCountFlagBits>(0);
-                stencil_load_op      = VK_ATTACHMENT_LOAD_OP_MAX_ENUM;
-                stencil_store_op     = VK_ATTACHMENT_STORE_OP_MAX_ENUM;
-                type                 = ATTACHMENT_TYPE_UNKNOWN;
+                stencil_load_op      = Anvil::AttachmentLoadOp::UNKNOWN;
+                stencil_store_op     = Anvil::AttachmentStoreOp::UNKNOWN;
+                type                 = Anvil::AttachmentType::UNKNOWN;
             }
         } RenderPassAttachment;
 
@@ -529,7 +529,7 @@ namespace Anvil
             /* Dummy constructor. Should only be used by STL containers */
             SubPassAttachment()
             {
-                aspects_accessed         = Anvil::ImageAspectFlagBits::IMAGE_ASPECT_UNKNOWN;
+                aspects_accessed         = Anvil::ImageAspectFlagBits::NONE;
                 attachment_index         = UINT32_MAX;
                 highest_subpass_index    = UINT32_MAX;
                 layout                   = Anvil::ImageLayout::UNKNOWN;
@@ -648,10 +648,10 @@ namespace Anvil
         /** Holds properties of a single subpass<->subpass dependency. */
         typedef struct SubPassDependency
         {
-            VkAccessFlagsVariable       (destination_access_mask);
-            VkPipelineStageFlagsVariable(destination_stage_mask);
-            VkAccessFlagsVariable       (source_access_mask);
-            VkPipelineStageFlagsVariable(source_stage_mask);
+            Anvil::AccessFlags           destination_access_mask;
+            Anvil::PipelineStageFlags    destination_stage_mask;
+            Anvil::AccessFlags           source_access_mask;
+            Anvil::PipelineStageFlags    source_stage_mask;
 
             DependencyFlags flags;
             const SubPass*  destination_subpass_ptr;
@@ -669,32 +669,27 @@ namespace Anvil
              *  @param in_destination_access_mask Destination access mask.
              *  @param in_dependency_flags        Flags to use for the dependency.
              **/
-            SubPassDependency(VkPipelineStageFlags   in_destination_stage_mask,
-                              const SubPass*         in_destination_subpass_ptr,
-                              VkPipelineStageFlags   in_source_stage_mask,
-                              const SubPass*         in_source_subpass_ptr,
-                              VkAccessFlags          in_source_access_mask,
-                              VkAccessFlags          in_destination_access_mask,
-                              const DependencyFlags& in_flags)
+            SubPassDependency(Anvil::PipelineStageFlags in_destination_stage_mask,
+                              const SubPass*            in_destination_subpass_ptr,
+                              Anvil::PipelineStageFlags in_source_stage_mask,
+                              const SubPass*            in_source_subpass_ptr,
+                              Anvil::AccessFlags        in_source_access_mask,
+                              Anvil::AccessFlags        in_destination_access_mask,
+                              const DependencyFlags&    in_flags)
             {
                 flags                   = in_flags;
-                destination_stage_mask  = static_cast<VkPipelineStageFlagBits>(in_destination_stage_mask);
+                destination_stage_mask  = in_destination_stage_mask;
                 destination_subpass_ptr = in_destination_subpass_ptr;
-                destination_access_mask = static_cast<VkAccessFlagBits>       (in_destination_access_mask);
-                source_access_mask      = static_cast<VkAccessFlagBits>       (in_source_access_mask);
-                source_stage_mask       = static_cast<VkPipelineStageFlagBits>(in_source_stage_mask);
+                destination_access_mask = in_destination_access_mask;
+                source_access_mask      = in_source_access_mask;
+                source_stage_mask       = in_source_stage_mask;
                 source_subpass_ptr      = in_source_subpass_ptr;
             }
 
             /** Dummy constructor. Should only be used by STL containers */
             SubPassDependency()
             {
-                destination_access_mask = static_cast<VkAccessFlagBits>       (0);
-                destination_stage_mask  = static_cast<VkPipelineStageFlagBits>(0);
                 destination_subpass_ptr = nullptr;
-                flags                   = 0;
-                source_access_mask      = static_cast<VkAccessFlagBits>       (0);
-                source_stage_mask       = static_cast<VkPipelineStageFlagBits>(0);
                 source_subpass_ptr      = nullptr;
             }
 
@@ -718,11 +713,11 @@ namespace Anvil
 
         bool add_dependency        (SubPass*                       in_destination_subpass_ptr,
                                     SubPass*                       in_source_subpass_ptr,
-                                    VkPipelineStageFlags           in_source_stage_mask,
-                                    VkPipelineStageFlags           in_destination_stage_mask,
-                                    VkAccessFlags                  in_source_access_mask,
-                                    VkAccessFlags                  in_destination_access_mask,
-                                    bool                           in_by_region);
+                                    Anvil::PipelineStageFlags      in_source_stage_mask,
+                                    Anvil::PipelineStageFlags      in_destination_stage_mask,
+                                    Anvil::AccessFlags             in_source_access_mask,
+                                    Anvil::AccessFlags             in_destination_access_mask,
+                                    Anvil::DependencyFlags         in_dependency_flags);
         bool add_subpass_attachment(SubPassID                      in_subpass_id,
                                     bool                           in_is_color_attachment,
                                     Anvil::ImageLayout             in_input_layout,
@@ -730,7 +725,7 @@ namespace Anvil
                                     uint32_t                       in_attachment_location,
                                     bool                           in_should_resolve,
                                     RenderPassAttachmentID         in_resolve_attachment_id,
-                                    const Anvil::ImageAspectFlags& in_opt_aspects_accessed = Anvil::ImageAspectFlagBits::IMAGE_ASPECT_UNKNOWN);
+                                    const Anvil::ImageAspectFlags& in_opt_aspects_accessed = Anvil::ImageAspectFlagBits::NONE);
 
         VkAttachmentReference get_attachment_reference_from_renderpass_attachment(const RenderPassAttachment&                        in_renderpass_attachment)                const;
         VkAttachmentReference get_attachment_reference_from_subpass_attachment   (const SubPassAttachment&                           in_subpass_attachment)                   const;

@@ -177,12 +177,12 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise
          **/
-        bool get_sparse_image_format_properties(Anvil::Format                               in_format,
-                                                Anvil::ImageType                            in_type,
-                                                Anvil::SampleCountFlagBits                  in_sample_count,
-                                                Anvil::ImageUsageFlags                      in_usage,
-                                                Anvil::ImageTiling                          in_tiling,
-                                                std::vector<VkSparseImageFormatProperties>& out_result) const;
+        bool get_sparse_image_format_properties(Anvil::Format                                    in_format,
+                                                Anvil::ImageType                                 in_type,
+                                                Anvil::SampleCountFlagBits                       in_sample_count,
+                                                Anvil::ImageUsageFlags                           in_usage,
+                                                Anvil::ImageTiling                               in_tiling,
+                                                std::vector<Anvil::SparseImageFormatProperties>& out_result) const;
 
         /** Tells whether user-specified extension is supported by the physical device.
          *

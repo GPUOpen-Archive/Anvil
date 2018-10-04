@@ -24,10 +24,192 @@
 
 namespace Anvil
 {
+    /* NOTE: Maps 1:1 to VkImageSubresource */
+    typedef struct
+    {
+        uint32_t                         min_image_count;
+        uint32_t                         max_image_count;
+        VkExtent2D                       current_extent;
+        VkExtent2D                       min_image_extent;
+        VkExtent2D                       max_image_extent;
+        uint32_t                         max_image_array_layers;
+        Anvil::SurfaceTransformFlags     supported_transforms;
+        Anvil::SurfaceTransformFlagBits  current_transform;
+        Anvil::CompositeAlphaFlags       supported_composite_alpha;
+        Anvil::ImageUsageFlags           supported_usage_flags;
+    } SurfaceCapabilities;
+
+    static_assert(sizeof(SurfaceCapabilities)                              == sizeof(VkSurfaceCapabilitiesKHR),                            "Struct sizes much match");
+    static_assert(offsetof(SurfaceCapabilities, min_image_count)           == offsetof(VkSurfaceCapabilitiesKHR, minImageCount),           "Member offsets must match");
+    static_assert(offsetof(SurfaceCapabilities, max_image_count)           == offsetof(VkSurfaceCapabilitiesKHR, maxImageCount),           "Member offsets must match");
+    static_assert(offsetof(SurfaceCapabilities, current_extent)            == offsetof(VkSurfaceCapabilitiesKHR, currentExtent),           "Member offsets must match");
+    static_assert(offsetof(SurfaceCapabilities, min_image_extent)          == offsetof(VkSurfaceCapabilitiesKHR, minImageExtent),          "Member offsets must match");
+    static_assert(offsetof(SurfaceCapabilities, max_image_extent)          == offsetof(VkSurfaceCapabilitiesKHR, maxImageExtent),          "Member offsets must match");
+    static_assert(offsetof(SurfaceCapabilities, max_image_array_layers)    == offsetof(VkSurfaceCapabilitiesKHR, maxImageArrayLayers),     "Member offsets must match");
+    static_assert(offsetof(SurfaceCapabilities, supported_transforms)      == offsetof(VkSurfaceCapabilitiesKHR, supportedTransforms),     "Member offsets must match");
+    static_assert(offsetof(SurfaceCapabilities, current_transform)         == offsetof(VkSurfaceCapabilitiesKHR, currentTransform),        "Member offsets must match");
+    static_assert(offsetof(SurfaceCapabilities, supported_composite_alpha) == offsetof(VkSurfaceCapabilitiesKHR, supportedCompositeAlpha), "Member offsets must match");
+    static_assert(offsetof(SurfaceCapabilities, supported_usage_flags)     == offsetof(VkSurfaceCapabilitiesKHR, supportedUsageFlags),     "Member offsets must match");
+
+    /* NOTE: Maps 1:1 to VkImageSubresource */
+    typedef struct
+    {
+        Anvil::ImageAspectFlags aspect_mask;
+        uint32_t                mip_level;
+        uint32_t                array_layer;
+
+        VkImageSubresource get_vk() const
+        {
+            VkImageSubresource result;
+
+            result.arrayLayer = array_layer;
+            result.aspectMask = aspect_mask.get_vk();
+            result.mipLevel   = mip_level;
+
+            return result;
+        }
+    } ImageSubresource;
+
+    static_assert(sizeof(ImageSubresource)                == sizeof(VkImageSubresource),               "Struct sizes much match");
+    static_assert(offsetof(ImageSubresource, aspect_mask) == offsetof(VkImageSubresource, aspectMask), "Member offsets must match");
+    static_assert(offsetof(ImageSubresource, mip_level)   == offsetof(VkImageSubresource, mipLevel),   "Member offsets must match");
+    static_assert(offsetof(ImageSubresource, array_layer) == offsetof(VkImageSubresource, arrayLayer), "Member offsets must match");
+
+    /* NOTE: Maps 1:1 to VkImageSubresourceRange */
+    typedef struct
+    {
+        Anvil::ImageAspectFlags aspect_mask;
+        uint32_t                base_mip_level;
+        uint32_t                level_count;
+        uint32_t                base_array_layer;
+        uint32_t                layer_count;
+
+        VkImageSubresourceRange get_vk() const
+        {
+            VkImageSubresourceRange result;
+
+            result.aspectMask     = aspect_mask.get_vk();
+            result.baseMipLevel   = base_mip_level;
+            result.levelCount     = level_count;
+            result.baseArrayLayer = base_array_layer;
+            result.layerCount     = layer_count;
+
+            return result;
+        }
+    } ImageSubresourceRange;
+
+    static_assert(sizeof(ImageSubresourceRange)                     == sizeof(VkImageSubresourceRange),                   "Struct sizes much match");
+    static_assert(offsetof(ImageSubresourceRange, aspect_mask)      == offsetof(VkImageSubresourceRange, aspectMask),     "Member offsets must match");
+    static_assert(offsetof(ImageSubresourceRange, base_mip_level)   == offsetof(VkImageSubresourceRange, baseMipLevel),   "Member offsets must match");
+    static_assert(offsetof(ImageSubresourceRange, level_count)      == offsetof(VkImageSubresourceRange, levelCount),     "Member offsets must match");
+    static_assert(offsetof(ImageSubresourceRange, base_array_layer) == offsetof(VkImageSubresourceRange, baseArrayLayer), "Member offsets must match");
+    static_assert(offsetof(ImageSubresourceRange, layer_count)      == offsetof(VkImageSubresourceRange, layerCount),     "Member offsets must match");
+
+    /* NOTE: Maps 1:1 to VkImageSubresourceLayers */
+    typedef struct
+    {
+        Anvil::ImageAspectFlags aspect_mask;
+        uint32_t                mip_level;
+        uint32_t                base_array_layer;
+        uint32_t                layer_count;
+    } ImageSubresourceLayers;
+
+    static_assert(sizeof(ImageSubresourceLayers)                     == sizeof(VkImageSubresourceLayers),                   "Struct sizes much match");
+    static_assert(offsetof(ImageSubresourceLayers, aspect_mask)      == offsetof(VkImageSubresourceLayers, aspectMask),     "Member offsets must match");
+    static_assert(offsetof(ImageSubresourceLayers, mip_level)        == offsetof(VkImageSubresourceLayers, mipLevel),       "Member offsets must match");
+    static_assert(offsetof(ImageSubresourceLayers, base_array_layer) == offsetof(VkImageSubresourceLayers, baseArrayLayer), "Member offsets must match");
+    static_assert(offsetof(ImageSubresourceLayers, layer_count)      == offsetof(VkImageSubresourceLayers, layerCount),     "Member offsets must match");
+
+    /* NOTE: Maps 1:1 to VkSubresourceLayout */
+    typedef struct
+    {
+        VkDeviceSize offset;
+        VkDeviceSize size;
+        VkDeviceSize row_pitch;
+        VkDeviceSize array_pitch;
+        VkDeviceSize depth_pitch;
+    } SubresourceLayout;
+
+    static_assert(sizeof(SubresourceLayout)                == sizeof(VkSubresourceLayout),               "Struct sizes much match");
+    static_assert(offsetof(SubresourceLayout, offset)      == offsetof(VkSubresourceLayout, offset),     "Member offsets must match");
+    static_assert(offsetof(SubresourceLayout, size)        == offsetof(VkSubresourceLayout, size),       "Member offsets must match");
+    static_assert(offsetof(SubresourceLayout, row_pitch)   == offsetof(VkSubresourceLayout, rowPitch),   "Member offsets must match");
+    static_assert(offsetof(SubresourceLayout, array_pitch) == offsetof(VkSubresourceLayout, arrayPitch), "Member offsets must match");
+    static_assert(offsetof(SubresourceLayout, depth_pitch) == offsetof(VkSubresourceLayout, depthPitch), "Member offsets must match");
+
+    typedef struct
+    {
+        Anvil::ImageSubresourceLayers    src_subresource;
+        VkOffset3D                       src_offsets[2];
+        Anvil::ImageSubresourceLayers    dst_subresource;
+        VkOffset3D                       dst_offsets[2];
+    } ImageBlit;
+
+    static_assert(sizeof(ImageBlit)                    == sizeof(VkImageBlit),                   "Struct sizes much match");
+    static_assert(offsetof(ImageBlit, src_subresource) == offsetof(VkImageBlit, srcSubresource), "Member offsets must match");
+    static_assert(offsetof(ImageBlit, src_offsets)     == offsetof(VkImageBlit, srcOffsets),     "Member offsets must match");
+    static_assert(offsetof(ImageBlit, dst_subresource) == offsetof(VkImageBlit, dstSubresource), "Member offsets must match");
+    static_assert(offsetof(ImageBlit, dst_offsets)     == offsetof(VkImageBlit, dstOffsets),     "Member offsets must match");
+
+    /* NOTE: Maps 1:1 to VkBufferCopy */
+    typedef struct
+    {
+        VkDeviceSize src_offset;
+        VkDeviceSize dst_offset;
+        VkDeviceSize size;
+    } BufferCopy;
+
+    static_assert(sizeof(BufferCopy)               == sizeof(VkBufferCopy),              "Struct sizes much match");
+    static_assert(offsetof(BufferCopy, src_offset) == offsetof(VkBufferCopy, srcOffset), "Member offsets must match");
+    static_assert(offsetof(BufferCopy, dst_offset) == offsetof(VkBufferCopy, dstOffset), "Member offsets must match");
+    static_assert(offsetof(BufferCopy, size)       == offsetof(VkBufferCopy, size),      "Member offsets must match");
+
+    /* NOTE: Maps 1:1 to VkBufferImageCopy */
+    typedef struct
+    {
+        VkDeviceSize                  buffer_offset;
+        uint32_t                      buffer_row_length;
+        uint32_t                      buffer_image_height;
+        Anvil::ImageSubresourceLayers image_subresource;
+        VkOffset3D                    image_offset;
+        VkExtent3D                    image_extent;
+    } BufferImageCopy;
+
+    static_assert(sizeof(BufferImageCopy)                        == sizeof(VkBufferImageCopy),                      "Struct sizes much match");
+    static_assert(offsetof(BufferImageCopy, buffer_offset)       == offsetof(VkBufferImageCopy, bufferOffset),      "Member offsets must match");
+    static_assert(offsetof(BufferImageCopy, buffer_row_length)   == offsetof(VkBufferImageCopy, bufferRowLength),   "Member offsets must match");
+    static_assert(offsetof(BufferImageCopy, buffer_image_height) == offsetof(VkBufferImageCopy, bufferImageHeight), "Member offsets must match");
+    static_assert(offsetof(BufferImageCopy, image_subresource)   == offsetof(VkBufferImageCopy, imageSubresource),  "Member offsets must match");
+    static_assert(offsetof(BufferImageCopy, image_offset)        == offsetof(VkBufferImageCopy, imageOffset),       "Member offsets must match");
+    static_assert(offsetof(BufferImageCopy, image_extent)        == offsetof(VkBufferImageCopy, imageExtent),       "Member offsets must match");
+
+    /* NOTE: Maps 1:1 to VkClearAttachment */
+    typedef struct
+    {
+        Anvil::ImageAspectFlags aspect_mask;
+        uint32_t                color_attachment;
+        VkClearValue            clear_value;
+    } ClearAttachment;
+
+    static_assert(sizeof(ClearAttachment)                     == sizeof(VkClearAttachment),                   "Struct sizes much match");
+    static_assert(offsetof(ClearAttachment, aspect_mask)      == offsetof(VkClearAttachment, aspectMask),     "Member offsets must match");
+    static_assert(offsetof(ClearAttachment, color_attachment) == offsetof(VkClearAttachment, colorAttachment), "Member offsets must match");
+    static_assert(offsetof(ClearAttachment, clear_value)      == offsetof(VkClearAttachment, clearValue),      "Member offsets must match");
+
+    /* NOTE: Maps 1:1 to VkImageCopy */
+    typedef struct
+    {
+        Anvil::ImageSubresourceLayers src_subresource;
+        VkOffset3D                    src_offset;
+        Anvil::ImageSubresourceLayers dst_subresource;
+        VkOffset3D                    dst_offset;
+        VkExtent3D                    extent;
+    } ImageCopy;
+
     typedef struct ExternalFenceProperties
     {
-        Anvil::ExternalFenceHandleTypeBits compatible_external_handle_types;
-        Anvil::ExternalFenceHandleTypeBits export_from_imported_external_handle_types;
+        Anvil::ExternalFenceHandleTypeFlags compatible_external_handle_types;
+        Anvil::ExternalFenceHandleTypeFlags export_from_imported_external_handle_types;
 
         bool is_exportable;
         bool is_importable;
@@ -40,8 +222,8 @@ namespace Anvil
 
     typedef struct ExternalMemoryProperties
     {
-        Anvil::ExternalMemoryHandleTypeBits compatible_external_handle_types;
-        Anvil::ExternalMemoryHandleTypeBits export_from_imported_external_handle_types;
+        Anvil::ExternalMemoryHandleTypeFlags compatible_external_handle_types;
+        Anvil::ExternalMemoryHandleTypeFlags export_from_imported_external_handle_types;
 
         bool is_exportable;
         bool is_importable;
@@ -54,8 +236,8 @@ namespace Anvil
 
     typedef struct ExternalSemaphoreProperties
     {
-        Anvil::ExternalSemaphoreHandleTypeBits compatible_external_handle_types;
-        Anvil::ExternalSemaphoreHandleTypeBits export_from_imported_external_handle_types;
+        Anvil::ExternalSemaphoreHandleTypeFlags compatible_external_handle_types;
+        Anvil::ExternalSemaphoreHandleTypeFlags export_from_imported_external_handle_types;
 
         bool is_exportable;
         bool is_importable;
@@ -97,8 +279,8 @@ namespace Anvil
     /** Describes a buffer memory barrier. */
     typedef struct BufferBarrier
     {
-        VkAccessFlagsVariable(dst_access_mask);
-        VkAccessFlagsVariable(src_access_mask);
+        Anvil::AccessFlags dst_access_mask;
+        Anvil::AccessFlags src_access_mask;
 
         VkBuffer              buffer;
         VkBufferMemoryBarrier buffer_barrier_vk;
@@ -121,13 +303,13 @@ namespace Anvil
          *  @param in_offset                  Start offset of the region described by the barrier.
          *  @param in_size                    Size of the region described by the barrier.
          **/
-        explicit BufferBarrier(VkAccessFlags  in_source_access_mask,
-                               VkAccessFlags  in_destination_access_mask,
-                               uint32_t       in_src_queue_family_index,
-                               uint32_t       in_dst_queue_family_index,
-                               Anvil::Buffer* in_buffer_ptr,
-                               VkDeviceSize   in_offset,
-                               VkDeviceSize   in_size);
+        explicit BufferBarrier(Anvil::AccessFlags in_source_access_mask,
+                               Anvil::AccessFlags in_destination_access_mask,
+                               uint32_t           in_src_queue_family_index,
+                               uint32_t           in_dst_queue_family_index,
+                               Anvil::Buffer*     in_buffer_ptr,
+                               VkDeviceSize       in_offset,
+                               VkDeviceSize       in_size);
 
         /** Destructor.
          *
@@ -179,13 +361,13 @@ namespace Anvil
 
     typedef struct BufferPropertiesQuery
     {
-        const Anvil::BufferCreateFlags           create_flags;
-        const Anvil::ExternalMemoryHandleTypeBit external_memory_handle_type;
-        const Anvil::BufferUsageFlags            usage_flags;
+        const Anvil::BufferCreateFlags             create_flags;
+        const Anvil::ExternalMemoryHandleTypeFlags external_memory_handle_type;
+        const Anvil::BufferUsageFlags              usage_flags;
 
-        explicit BufferPropertiesQuery(const Anvil::BufferCreateFlags            in_create_flags,
-                                       const Anvil::ExternalMemoryHandleTypeBit& in_external_memory_handle_type,
-                                       const Anvil::BufferUsageFlags&            in_usage_flags)
+        explicit BufferPropertiesQuery(const Anvil::BufferCreateFlags              in_create_flags,
+                                       const Anvil::ExternalMemoryHandleTypeFlags& in_external_memory_handle_type,
+                                       const Anvil::BufferUsageFlags&              in_usage_flags)
             :create_flags               (in_create_flags),
              external_memory_handle_type(in_external_memory_handle_type),
              usage_flags                (in_usage_flags)
@@ -377,20 +559,20 @@ namespace Anvil
 
     typedef struct DescriptorUpdateTemplateEntry
     {
-        VkDescriptorType descriptor_type;
-        uint32_t         n_descriptors;
-        uint32_t         n_destination_array_element;
-        uint32_t         n_destination_binding;
-        size_t           offset;
-        size_t           stride;
+        Anvil::DescriptorType descriptor_type;
+        uint32_t              n_descriptors;
+        uint32_t              n_destination_array_element;
+        uint32_t              n_destination_binding;
+        size_t                offset;
+        size_t                stride;
 
         DescriptorUpdateTemplateEntry();
-        DescriptorUpdateTemplateEntry(const VkDescriptorType& in_descriptor_type,
-                                      const uint32_t&         in_n_destination_array_element,
-                                      const uint32_t&         in_n_destination_binding,
-                                      const uint32_t&         in_n_descriptors,
-                                      const size_t&           in_offset,
-                                      const size_t&           in_stride);
+        DescriptorUpdateTemplateEntry(const Anvil::DescriptorType& in_descriptor_type,
+                                      const uint32_t&              in_n_destination_array_element,
+                                      const uint32_t&              in_n_destination_binding,
+                                      const uint32_t&              in_n_descriptors,
+                                      const size_t&                in_offset,
+                                      const size_t&                in_stride);
 
         VkDescriptorUpdateTemplateEntryKHR get_vk_descriptor_update_template_entry_khr() const;
 
@@ -639,9 +821,9 @@ namespace Anvil
 
     typedef struct FencePropertiesQuery
     {
-        const Anvil::ExternalFenceHandleTypeBit external_fence_handle_type;
+        const Anvil::ExternalFenceHandleTypeFlagBits external_fence_handle_type;
 
-        explicit FencePropertiesQuery(const Anvil::ExternalFenceHandleTypeBit& in_external_fence_handle_type)
+        explicit FencePropertiesQuery(const Anvil::ExternalFenceHandleTypeFlagBits& in_external_fence_handle_type)
             :external_fence_handle_type(in_external_fence_handle_type)
         {
             /* Stub */
@@ -653,9 +835,9 @@ namespace Anvil
 
     typedef struct FormatProperties
     {
-        VkFormatFeatureFlagsVariable(buffer_capabilities);
-        VkFormatFeatureFlagsVariable(linear_tiling_capabilities);
-        VkFormatFeatureFlagsVariable(optimal_tiling_capabilities);
+        FormatFeatureFlags buffer_capabilities;
+        FormatFeatureFlags linear_tiling_capabilities;
+        FormatFeatureFlags optimal_tiling_capabilities;
 
         FormatProperties();
         FormatProperties(const VkFormatProperties& in_format_props);
@@ -701,7 +883,7 @@ namespace Anvil
                                             const Anvil::ImageUsageFlags&  in_usage_flags,
                                             const Anvil::ImageCreateFlags& in_create_flags)
             :create_flags               (in_create_flags),
-             external_memory_handle_type(EXTERNAL_MEMORY_HANDLE_TYPE_NONE),
+             external_memory_handle_type(Anvil::ExternalMemoryHandleTypeFlagBits::NONE),
              format                     (in_format),
              image_type                 (in_image_type),
              tiling                     (in_tiling),
@@ -710,37 +892,53 @@ namespace Anvil
             /* Stub */
         }
 
-        void set_external_memory_handle_type(const Anvil::ExternalMemoryHandleTypeBit& in_external_memory_handle_type)
+        void set_external_memory_handle_type(const Anvil::ExternalMemoryHandleTypeFlagBits& in_external_memory_handle_type)
         {
             external_memory_handle_type = in_external_memory_handle_type;
         }
 
-        const ImageCreateFlags             create_flags;
-        Anvil::ExternalMemoryHandleTypeBit external_memory_handle_type;
-        const Anvil::Format                format;
-        const Anvil::ImageType             image_type;
-        const Anvil::ImageTiling           tiling;
-        const Anvil::ImageUsageFlags       usage_flags;
+        const Anvil::ImageCreateFlags           create_flags;
+        Anvil::ExternalMemoryHandleTypeFlagBits external_memory_handle_type;
+        const Anvil::Format                     format;
+        const Anvil::ImageType                  image_type;
+        const Anvil::ImageTiling                tiling;
+        const Anvil::ImageUsageFlags            usage_flags;
 
         ImageFormatPropertiesQuery           (const ImageFormatPropertiesQuery& in_query) = default;
         ImageFormatPropertiesQuery& operator=(const ImageFormatPropertiesQuery& in_query) = delete;
     } ImageFormatPropertiesQuery;
 
+    /* NOTE: Maps 1:1 to VkImageResolve */
+    typedef struct
+    {
+        Anvil::ImageSubresourceLayers src_subresource;
+        VkOffset3D                    src_offset;
+        Anvil::ImageSubresourceLayers dst_subresource;
+        VkOffset3D                    dst_offset;
+        VkExtent3D                    extent;
+    } ImageResolve;
+
+    static_assert(sizeof(ImageResolve)                    == sizeof(VkImageResolve),                   "Struct sizes must match");
+    static_assert(offsetof(ImageResolve, src_subresource) == offsetof(VkImageResolve, srcSubresource), "Member offsets must match");
+    static_assert(offsetof(ImageResolve, src_offset)      == offsetof(VkImageResolve, srcOffset),      "Member offsets must match");
+    static_assert(offsetof(ImageResolve, dst_subresource) == offsetof(VkImageResolve, dstSubresource), "Member offsets must match");
+    static_assert(offsetof(ImageResolve, dst_offset)      == offsetof(VkImageResolve, dstOffset),      "Member offsets must match");
+    static_assert(offsetof(ImageResolve, extent)          == offsetof(VkImageResolve, extent),         "Member offsets must match");
+
     /** Describes an image memory barrier. */
     typedef struct ImageBarrier
     {
-        VkAccessFlagsVariable(dst_access_mask);
-        VkAccessFlagsVariable(src_access_mask);
+        Anvil::AccessFlags dst_access_mask;
+        Anvil::AccessFlags src_access_mask;
 
-        bool                    by_region;
-        uint32_t                dst_queue_family_index;
-        VkImage                 image;
-        VkImageMemoryBarrier    image_barrier_vk;
-        Anvil::Image*           image_ptr;
-        Anvil::ImageLayout      new_layout;
-        Anvil::ImageLayout      old_layout;
-        uint32_t                src_queue_family_index;
-        VkImageSubresourceRange subresource_range;
+        uint32_t                     dst_queue_family_index;
+        VkImage                      image;
+        VkImageMemoryBarrier         image_barrier_vk;
+        Anvil::Image*                image_ptr;
+        Anvil::ImageLayout           new_layout;
+        Anvil::ImageLayout           old_layout;
+        uint32_t                     src_queue_family_index;
+        Anvil::ImageSubresourceRange subresource_range;
 
         /** Constructor.
          *
@@ -748,7 +946,6 @@ namespace Anvil
          *
          *  @param in_source_access_mask      Source access mask to use for the barrier.
          *  @param in_destination_access_mask Destination access mask to use for the barrier.
-         *  @param in_by_region_barrier       true if this is a by-region barrier.
          *  @param in_old_layout              Old layout of @param in_image_ptr to use for the barrier.
          *  @param in_new_layout              New layout of @param in_image_ptr to use for the barrier.
          *  @param in_src_queue_family_index  Source queue family index to use for the barrier.
@@ -759,15 +956,14 @@ namespace Anvil
          *  @param in_image_subresource_range Subresource range to use for the barrier.
          *
          **/
-        ImageBarrier(VkAccessFlags           in_source_access_mask,
-                     VkAccessFlags           in_destination_access_mask,
-                     bool                    in_by_region_barrier,
-                     Anvil::ImageLayout     in_old_layout,
-                     Anvil::ImageLayout     in_new_layout,
-                     uint32_t                in_src_queue_family_index,
-                     uint32_t                in_dst_queue_family_index,
-                     Anvil::Image*           in_image_ptr,
-                     VkImageSubresourceRange in_image_subresource_range);
+        ImageBarrier(Anvil::AccessFlags           in_source_access_mask,
+                     Anvil::AccessFlags           in_destination_access_mask,
+                     Anvil::ImageLayout           in_old_layout,
+                     Anvil::ImageLayout           in_new_layout,
+                     uint32_t                     in_src_queue_family_index,
+                     uint32_t                     in_dst_queue_family_index,
+                     Anvil::Image*                in_image_ptr,
+                     Anvil::ImageSubresourceRange in_image_subresource_range);
 
         /** Destructor.
          *
@@ -909,8 +1105,8 @@ namespace Anvil
     /** Describes a Vulkan memory barrier. */
     typedef struct MemoryBarrier
     {
-        VkAccessFlagsVariable(destination_access_mask);
-        VkAccessFlagsVariable(source_access_mask);
+        Anvil::AccessFlags destination_access_mask;
+        Anvil::AccessFlags source_access_mask;
 
         VkMemoryBarrier memory_barrier_vk;
 
@@ -920,8 +1116,8 @@ namespace Anvil
          *  @param in_destination_access_mask Destination access mask of the Vulkan memory barrier.
          *
          **/
-        explicit MemoryBarrier(VkAccessFlags in_destination_access_mask,
-                               VkAccessFlags in_source_access_mask);
+        explicit MemoryBarrier(Anvil::AccessFlags in_destination_access_mask,
+                               Anvil::AccessFlags in_source_access_mask);
 
         /** Destructor. */
         virtual ~MemoryBarrier()
@@ -952,7 +1148,7 @@ namespace Anvil
     /** Holds properties of a single Vulkan Memory Heap. */
     typedef struct MemoryHeap
     {
-        VkMemoryHeapFlagsVariable(flags);
+        Anvil::MemoryHeapFlags flags;
 
         uint32_t     index;
         VkDeviceSize size;
@@ -972,7 +1168,7 @@ namespace Anvil
         MemoryFeatureFlags features;
         MemoryHeap*        heap_ptr;
 
-        VkMemoryPropertyFlagsVariable(flags);
+        Anvil::MemoryPropertyFlags flags;
 
         /** Constructor. Initializes the instance using data provided by the driver.
          *
@@ -1617,9 +1813,9 @@ namespace Anvil
     /* A single push constant range descriptor */
     typedef struct PushConstantRange
     {
-        uint32_t              offset;
-        uint32_t              size;
-        VkShaderStageFlagBits stages;
+        uint32_t                offset;
+        uint32_t                size;
+        Anvil::ShaderStageFlags stages;
 
         /** Constructor
          *
@@ -1627,9 +1823,9 @@ namespace Anvil
          *  @param in_size   Size of the range.
          *  @param in_stages Valid pipeline stages for the range.
          */
-        PushConstantRange(uint32_t           in_offset,
-                          uint32_t           in_size,
-                          VkShaderStageFlags in_stages);
+        PushConstantRange(uint32_t                in_offset,
+                          uint32_t                in_size,
+                          Anvil::ShaderStageFlags in_stages);
 
         /** Comparison operator. Used internally. */
         bool operator==(const PushConstantRange& in) const;
@@ -1640,7 +1836,7 @@ namespace Anvil
     /** Holds information about a single Vulkan Queue Family. */
     typedef struct QueueFamilyInfo
     {
-        VkQueueFlagsVariable(flags);
+        Anvil::QueueFlags flags;
 
         VkExtent3D min_image_transfer_granularity;
         uint32_t   n_queues;
@@ -1692,9 +1888,9 @@ namespace Anvil
 
     typedef struct SemaphorePropertiesQuery
     {
-        const Anvil::ExternalSemaphoreHandleTypeBit external_semaphore_handle_type;
+        const Anvil::ExternalSemaphoreHandleTypeFlagBits external_semaphore_handle_type;
 
-        explicit SemaphorePropertiesQuery(const Anvil::ExternalSemaphoreHandleTypeBit& in_external_semaphore_handle_type)
+        explicit SemaphorePropertiesQuery(const Anvil::ExternalSemaphoreHandleTypeFlagBits& in_external_semaphore_handle_type)
             :external_semaphore_handle_type(in_external_semaphore_handle_type)
         {
             /* Stub */
@@ -1737,12 +1933,73 @@ namespace Anvil
         ShaderModuleStageEntryPoint& operator=(const ShaderModuleStageEntryPoint&);
     } ShaderModuleStageEntryPoint;
 
+    typedef struct SparseImageFormatProperties
+    {
+        Anvil::ImageAspectFlags       aspect_mask;
+        VkExtent3D                    image_granularity;
+        Anvil::SparseImageFormatFlags flags;
+
+        SparseImageFormatProperties()
+        {
+            aspect_mask              = Anvil::ImageAspectFlagBits::NONE;
+            image_granularity.depth  = 0;
+            image_granularity.height = 0;
+            image_granularity.width  = 0;
+            flags                    = Anvil::SparseImageFormatFlagBits::NONE;
+        }
+
+        SparseImageFormatProperties(const VkSparseImageFormatProperties& in_props)
+        {
+            aspect_mask       = static_cast<Anvil::ImageAspectFlagBits>(in_props.aspectMask);
+            image_granularity = in_props.imageGranularity;
+            flags             = static_cast<Anvil::SparseImageFormatFlagBits>(in_props.flags);
+        }
+    } SparseImageFormatProperties;
+
+    static_assert(sizeof(SparseImageFormatProperties)                      == sizeof(VkSparseImageFormatProperties),                     "Struct sizes must match");
+    static_assert(offsetof(SparseImageFormatProperties, aspect_mask)       == offsetof(VkSparseImageFormatProperties, aspectMask),       "Member offsets must match");
+    static_assert(offsetof(SparseImageFormatProperties, image_granularity) == offsetof(VkSparseImageFormatProperties, imageGranularity), "Member offsets must match");
+    static_assert(offsetof(SparseImageFormatProperties, flags)             == offsetof(VkSparseImageFormatProperties, flags),            "Member offsets must match");
+
+    typedef struct SparseImageMemoryRequirements
+    {
+        Anvil::SparseImageFormatProperties format_properties;
+        uint32_t                           image_mip_tail_first_lod;
+        VkDeviceSize                       image_mip_tail_size;
+        VkDeviceSize                       image_mip_tail_offset;
+        VkDeviceSize                       image_mip_tail_stride;
+
+        SparseImageMemoryRequirements()
+        {
+            image_mip_tail_first_lod = 0;
+            image_mip_tail_size      = 0;
+            image_mip_tail_offset    = 0;
+            image_mip_tail_stride    = 0;
+        }
+
+        SparseImageMemoryRequirements(const VkSparseImageMemoryRequirements& in_reqs)
+        {
+            format_properties        = in_reqs.formatProperties;
+            image_mip_tail_first_lod = in_reqs.imageMipTailFirstLod;
+            image_mip_tail_size      = in_reqs.imageMipTailSize;
+            image_mip_tail_offset    = in_reqs.imageMipTailOffset;
+            image_mip_tail_stride    = in_reqs.imageMipTailStride;
+        }
+    } SparseImageMemoryRequirements;
+
+    static_assert(sizeof(SparseImageMemoryRequirements)                             == sizeof(VkSparseImageMemoryRequirements),                         "Struct sizes must match");
+    static_assert(offsetof(SparseImageMemoryRequirements, format_properties)        == offsetof(VkSparseImageMemoryRequirements, formatProperties),     "Member offsets must match");
+    static_assert(offsetof(SparseImageMemoryRequirements, image_mip_tail_first_lod) == offsetof(VkSparseImageMemoryRequirements, imageMipTailFirstLod), "Member offsets must match");
+    static_assert(offsetof(SparseImageMemoryRequirements, image_mip_tail_size)      == offsetof(VkSparseImageMemoryRequirements, imageMipTailSize),     "Member offsets must match");
+    static_assert(offsetof(SparseImageMemoryRequirements, image_mip_tail_offset)    == offsetof(VkSparseImageMemoryRequirements, imageMipTailOffset),   "Member offsets must match");
+    static_assert(offsetof(SparseImageMemoryRequirements, image_mip_tail_stride)    == offsetof(VkSparseImageMemoryRequirements, imageMipTailStride),   "Member offsets must match");
+
     /* Describes sparse properties for an image format */
     typedef struct SparseImageAspectProperties
     {
         Anvil::ImageAspectFlags aspect_mask;
 
-        VkSparseImageFormatFlagsVariable(flags);
+        SparseImageFormatFlags flags;
 
         VkExtent3D   granularity;
         uint32_t     mip_tail_first_lod;
@@ -1751,7 +2008,7 @@ namespace Anvil
         VkDeviceSize mip_tail_stride;
 
         SparseImageAspectProperties();
-        SparseImageAspectProperties(const VkSparseImageMemoryRequirements& in_req);
+        SparseImageAspectProperties(const Anvil::SparseImageMemoryRequirements& in_req);
     } SparseImageAspectProperties;
 
     typedef struct SpecializationConstant
@@ -1837,7 +2094,7 @@ namespace Anvil
                                  Anvil::Semaphore* const*         in_opt_semaphore_to_signal_ptrs_ptr,
                                  uint32_t                         in_n_semaphores_to_wait_on,
                                  Anvil::Semaphore* const*         in_opt_semaphore_to_wait_on_ptrs_ptr,
-                                 const VkPipelineStageFlags*      in_opt_dst_stage_masks_to_wait_on_ptrs,
+                                 const Anvil::PipelineStageFlags* in_opt_dst_stage_masks_to_wait_on_ptrs,
                                  bool                             in_should_block,
                                  Anvil::Fence*                    in_opt_fence_ptr = nullptr);
         static SubmitInfo create(uint32_t                         in_n_cmd_buffers,
@@ -1846,7 +2103,7 @@ namespace Anvil
                                  Anvil::Semaphore* const*         in_opt_semaphore_to_signal_ptrs_ptr,
                                  uint32_t                         in_n_semaphores_to_wait_on,
                                  Anvil::Semaphore* const*         in_opt_semaphore_to_wait_on_ptrs_ptr,
-                                 const VkPipelineStageFlags*      in_opt_dst_stage_masks_to_wait_on_ptrs,
+                                 const Anvil::PipelineStageFlags* in_opt_dst_stage_masks_to_wait_on_ptrs,
                                  bool                             in_should_block,
                                  Anvil::Fence*                    in_opt_fence_ptr = nullptr);
 
@@ -1888,13 +2145,13 @@ namespace Anvil
                                         Anvil::Semaphore* const* in_semaphore_to_signal_ptrs_ptr,
                                         Anvil::Fence*            in_opt_fence_ptr = nullptr);
 
-        static SubmitInfo create_signal_wait(uint32_t                    in_n_semaphores_to_signal,
-                                             Anvil::Semaphore* const*    in_semaphore_to_signal_ptrs_ptr,
-                                             uint32_t                    in_n_semaphores_to_wait_on,
-                                             Anvil::Semaphore* const*    in_semaphore_to_wait_on_ptrs_ptr,
-                                             const VkPipelineStageFlags* in_dst_stage_masks_to_wait_on_ptrs,
-                                             bool                        in_should_block,
-                                             Anvil::Fence*               in_opt_fence_ptr = nullptr);
+        static SubmitInfo create_signal_wait(uint32_t                         in_n_semaphores_to_signal,
+                                             Anvil::Semaphore* const*         in_semaphore_to_signal_ptrs_ptr,
+                                             uint32_t                         in_n_semaphores_to_wait_on,
+                                             Anvil::Semaphore* const*         in_semaphore_to_wait_on_ptrs_ptr,
+                                             const Anvil::PipelineStageFlags* in_dst_stage_masks_to_wait_on_ptrs,
+                                             bool                             in_should_block,
+                                             Anvil::Fence*                    in_opt_fence_ptr = nullptr);
 
         /** TODO
          *
@@ -1902,27 +2159,27 @@ namespace Anvil
          */
         static SubmitInfo create_wait(uint32_t                         in_n_semaphores_to_wait_on,
                                       Anvil::Semaphore* const*         in_semaphore_to_wait_on_ptrs_ptr,
-                                      const VkPipelineStageFlags*      in_dst_stage_masks_to_wait_on_ptrs,
+                                      const Anvil::PipelineStageFlags* in_dst_stage_masks_to_wait_on_ptrs,
                                       Anvil::Fence*                    in_opt_fence_ptr = nullptr);
 
         static SubmitInfo create_wait_execute(Anvil::CommandBufferBase*        in_cmd_buffer_ptr,
                                               uint32_t                         in_n_semaphores_to_wait_on,
                                               Anvil::Semaphore* const*         in_semaphore_to_wait_on_ptrs_ptr,
-                                              const VkPipelineStageFlags*      in_dst_stage_masks_to_wait_on_ptrs,
+                                              const Anvil::PipelineStageFlags* in_dst_stage_masks_to_wait_on_ptrs,
                                               bool                             in_should_block,
                                               Anvil::Fence*                    in_opt_fence_ptr = nullptr);
         static SubmitInfo create_wait_execute(Anvil::CommandBufferBase* const* in_cmd_buffer_ptrs_ptr,
                                               uint32_t                         in_n_cmd_buffers,
                                               uint32_t                         in_n_semaphores_to_wait_on,
                                               Anvil::Semaphore* const*         in_semaphore_to_wait_on_ptrs_ptr,
-                                              const VkPipelineStageFlags*      in_dst_stage_masks_to_wait_on_ptrs,
+                                              const Anvil::PipelineStageFlags* in_dst_stage_masks_to_wait_on_ptrs,
                                               bool                             in_should_block,
                                               Anvil::Fence*                    in_opt_fence_ptr = nullptr);
 
         static SubmitInfo create_wait_execute(const CommandBufferMGPUSubmission* in_cmd_buffer_submission_ptr,
                                               uint32_t                           in_n_wait_semaphore_submissions,
                                               const SemaphoreMGPUSubmission*     in_wait_semaphore_submissions_ptr,
-                                              const VkPipelineStageFlags*        in_dst_stage_masks_to_wait_on_ptrs,
+                                              const Anvil::PipelineStageFlags*   in_dst_stage_masks_to_wait_on_ptrs,
                                               bool                               in_should_block,
                                               Anvil::Fence*                      in_opt_fence_ptr = nullptr);
 
@@ -1931,7 +2188,7 @@ namespace Anvil
                                                      Anvil::Semaphore* const*         in_semaphore_to_signal_ptrs_ptr,
                                                      uint32_t                         in_n_semaphores_to_wait_on,
                                                      Anvil::Semaphore* const*         in_semaphore_to_wait_on_ptrs_ptr,
-                                                     const VkPipelineStageFlags*      in_dst_stage_masks_to_wait_on_ptrs,
+                                                     const Anvil::PipelineStageFlags* in_dst_stage_masks_to_wait_on_ptrs,
                                                      bool                             in_should_block,
                                                      Anvil::Fence*                    in_opt_fence_ptr = nullptr);
         static SubmitInfo create_wait_execute_signal(Anvil::CommandBufferBase* const* in_cmd_buffer_ptrs_ptr,
@@ -1940,7 +2197,7 @@ namespace Anvil
                                                      Anvil::Semaphore* const*         in_semaphore_to_signal_ptrs_ptr,
                                                      uint32_t                         in_n_semaphores_to_wait_on,
                                                      Anvil::Semaphore* const*         in_semaphore_to_wait_on_ptrs_ptr,
-                                                     const VkPipelineStageFlags*      in_dst_stage_masks_to_wait_on_ptrs,
+                                                     const Anvil::PipelineStageFlags* in_dst_stage_masks_to_wait_on_ptrs,
                                                      bool                             in_should_block,
                                                      Anvil::Fence*                    in_opt_fence_ptr = nullptr);
 
@@ -1949,7 +2206,7 @@ namespace Anvil
                                                      const SemaphoreMGPUSubmission*     in_signal_semaphore_submissions_ptr,
                                                      uint32_t                           in_n_wait_semaphore_submissions,
                                                      const SemaphoreMGPUSubmission*     in_wait_semaphore_submissions_ptr,
-                                                     const VkPipelineStageFlags*        in_dst_stage_masks_to_wait_on_ptrs,
+                                                     const Anvil::PipelineStageFlags*   in_dst_stage_masks_to_wait_on_ptrs,
                                                      bool                               in_should_block,
                                                      Anvil::Fence*                      in_opt_fence_ptr = nullptr);
 
@@ -1979,7 +2236,7 @@ namespace Anvil
 
         const VkPipelineStageFlags* get_destination_stage_wait_masks() const
         {
-            return dst_stage_wait_masks_ptr;
+            return (dst_stage_wait_masks.size() > 0) ? &dst_stage_wait_masks.at(0) : nullptr;
         }
 
         Anvil::Fence* get_fence() const
@@ -2082,14 +2339,14 @@ namespace Anvil
             timeout = in_timeout;
         }
     private:
-        SubmitInfo(Anvil::CommandBufferBase*   in_cmd_buffer_ptr,
-                   uint32_t                    in_n_semaphores_to_signal,
-                   Anvil::Semaphore* const*    in_opt_semaphore_to_signal_ptrs_ptr,
-                   uint32_t                    in_n_semaphores_to_wait_on,
-                   Anvil::Semaphore* const*    in_opt_semaphore_to_wait_on_ptrs_ptr,
-                   const VkPipelineStageFlags* in_opt_dst_stage_masks_to_wait_on_ptrs,
-                   bool                        in_should_block,
-                   Anvil::Fence*               in_opt_fence_ptr);
+        SubmitInfo(Anvil::CommandBufferBase*        in_cmd_buffer_ptr,
+                   uint32_t                         in_n_semaphores_to_signal,
+                   Anvil::Semaphore* const*         in_opt_semaphore_to_signal_ptrs_ptr,
+                   uint32_t                         in_n_semaphores_to_wait_on,
+                   Anvil::Semaphore* const*         in_opt_semaphore_to_wait_on_ptrs_ptr,
+                   const Anvil::PipelineStageFlags* in_opt_dst_stage_masks_to_wait_on_ptrs,
+                   bool                             in_should_block,
+                   Anvil::Fence*                    in_opt_fence_ptr);
 
         SubmitInfo(uint32_t                         in_n_command_buffers,
                    Anvil::CommandBufferBase* const* in_opt_cmd_buffer_ptrs_ptr,
@@ -2097,7 +2354,7 @@ namespace Anvil
                    Anvil::Semaphore* const*         in_opt_semaphore_to_signal_ptrs_ptr,
                    uint32_t                         in_n_semaphores_to_wait_on,
                    Anvil::Semaphore* const*         in_opt_semaphore_to_wait_on_ptrs_ptr,
-                   const VkPipelineStageFlags*      in_opt_dst_stage_masks_to_wait_on_ptrs,
+                   const Anvil::PipelineStageFlags* in_opt_dst_stage_masks_to_wait_on_ptrs,
                    bool                             in_should_block,
                    Anvil::Fence*                    in_opt_fence_ptr);
 
@@ -2107,7 +2364,7 @@ namespace Anvil
                    const SemaphoreMGPUSubmission*     in_opt_signal_semaphore_submissions_ptr,
                    uint32_t                           in_n_wait_semaphore_submissions,
                    const SemaphoreMGPUSubmission*     in_opt_wait_semaphore_submissions_ptr,
-                   const VkPipelineStageFlags*        in_opt_dst_stage_masks_to_wait_on_ptr,
+                   const Anvil::PipelineStageFlags*   in_opt_dst_stage_masks_to_wait_on_ptr,
                    bool                               in_should_block,
                    Anvil::Fence*                      in_opt_fence_ptr);
 
@@ -2121,10 +2378,10 @@ namespace Anvil
         Anvil::Semaphore* const*       signal_semaphores_sgpu_ptr;
         uint32_t                       n_signal_semaphores;
 
-        const VkPipelineStageFlags*    dst_stage_wait_masks_ptr;
-        const SemaphoreMGPUSubmission* wait_semaphores_mgpu_ptr;
-        Anvil::Semaphore* const*       wait_semaphores_sgpu_ptr;
-        uint32_t                       n_wait_semaphores;
+        std::vector<VkPipelineStageFlags> dst_stage_wait_masks;
+        const SemaphoreMGPUSubmission*    wait_semaphores_mgpu_ptr;
+        Anvil::Semaphore* const*          wait_semaphores_sgpu_ptr;
+        uint32_t                          n_wait_semaphores;
 
         Anvil::Fence* fence_ptr;
 

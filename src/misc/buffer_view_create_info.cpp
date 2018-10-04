@@ -36,7 +36,7 @@ Anvil::BufferViewCreateInfoUniquePtr Anvil::BufferViewCreateInfo::create(const A
                                         in_format,
                                         in_start_offset,
                                         in_size,
-                                        Anvil::MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+                                        Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE)
     );
 
     return result_ptr;

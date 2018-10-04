@@ -73,7 +73,7 @@ namespace Anvil
             BufferBindingElement(const BufferBindingElement& in);
 
             /* Returns Vulkan descriptor type for this structure */
-            virtual VkDescriptorType get_type() const = 0;
+            virtual Anvil::DescriptorType get_type() const = 0;
 
         private:
             BufferBindingElement& operator=(const BufferBindingElement& in);
@@ -102,9 +102,9 @@ namespace Anvil
                 /* Stub */
             }
 
-            VkDescriptorType get_type() const
+            Anvil::DescriptorType get_type() const
             {
-                return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+                return Anvil::DescriptorType::STORAGE_BUFFER_DYNAMIC;
             }
         };
 
@@ -131,9 +131,9 @@ namespace Anvil
                 /* Stub */
             }
 
-            VkDescriptorType get_type() const
+            Anvil::DescriptorType get_type() const
             {
-                return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+                return Anvil::DescriptorType::UNIFORM_BUFFER_DYNAMIC;
             }
         };
 
@@ -160,9 +160,9 @@ namespace Anvil
                 /* Stub */
             }
 
-            VkDescriptorType get_type() const
+            Anvil::DescriptorType get_type() const
             {
-                return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                return Anvil::DescriptorType::STORAGE_BUFFER;
             }
         };
 
@@ -189,9 +189,9 @@ namespace Anvil
                 /* Stub */
             }
 
-            VkDescriptorType get_type() const
+            Anvil::DescriptorType get_type() const
             {
-                return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                return Anvil::DescriptorType::UNIFORM_BUFFER;
             }
         };
 
@@ -229,9 +229,9 @@ namespace Anvil
             CombinedImageSamplerBindingElement(const CombinedImageSamplerBindingElement& in);
 
             /* Returns Vulkan descriptor type for this structure */
-            VkDescriptorType get_type() const
+            Anvil::DescriptorType get_type() const
             {
-                return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                return Anvil::DescriptorType::COMBINED_IMAGE_SAMPLER;
             }
 
         private:
@@ -265,7 +265,7 @@ namespace Anvil
             ~ImageBindingElement();
 
             /* Returns Vulkan descriptor type for this structure */
-            virtual VkDescriptorType get_type() const = 0;
+            virtual Anvil::DescriptorType get_type() const = 0;
 
         private:
             ImageBindingElement& operator=(const ImageBindingElement&);
@@ -286,9 +286,9 @@ namespace Anvil
                 /* Stub */
             }
 
-            VkDescriptorType get_type() const
+            Anvil::DescriptorType get_type() const
             {
-                return VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+                return Anvil::DescriptorType::INPUT_ATTACHMENT;
             }
         };
 
@@ -307,9 +307,9 @@ namespace Anvil
                 /* Stub */
             }
 
-            VkDescriptorType get_type() const
+            Anvil::DescriptorType get_type() const
             {
-                return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+                return Anvil::DescriptorType::SAMPLED_IMAGE;
             }
         };
 
@@ -328,9 +328,9 @@ namespace Anvil
                 /* Stub */
             }
 
-            VkDescriptorType get_type() const
+            Anvil::DescriptorType get_type() const
             {
-                return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                return Anvil::DescriptorType::STORAGE_IMAGE;
             }
         };
 
@@ -360,9 +360,9 @@ namespace Anvil
             SamplerBindingElement(const SamplerBindingElement& in);
 
             /* Returns Vulkan descriptor type for this structure */
-            VkDescriptorType get_type() const
+            Anvil::DescriptorType get_type() const
             {
-                return VK_DESCRIPTOR_TYPE_SAMPLER;
+                return Anvil::DescriptorType::SAMPLER;
             }
 
         private:
@@ -394,7 +394,7 @@ namespace Anvil
             TexelBufferBindingElement(const TexelBufferBindingElement& in);
 
             /* Returns Vulkan descriptor type for this structure */
-            virtual VkDescriptorType get_type() const = 0;
+            virtual Anvil::DescriptorType get_type() const = 0;
 
         private:
             TexelBufferBindingElement& operator=(const TexelBufferBindingElement&);
@@ -413,9 +413,9 @@ namespace Anvil
                 /* Stub */
             }
 
-            VkDescriptorType get_type() const
+            Anvil::DescriptorType get_type() const
             {
-                return VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
+                return Anvil::DescriptorType::STORAGE_TEXEL_BUFFER;
             }
         };
 
@@ -432,9 +432,9 @@ namespace Anvil
                 /* Stub */
             }
 
-            VkDescriptorType get_type() const
+            Anvil::DescriptorType get_type() const
             {
-                return VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+                return Anvil::DescriptorType::UNIFORM_TEXEL_BUFFER;
             }
         };
 
@@ -742,7 +742,7 @@ namespace Anvil
          *
          *  @return true if the function executed successfully, false otherwise.
          **/
-        bool update(const DescriptorSetUpdateMethod& in_update_method = DESCRIPTOR_SET_UPDATE_METHOD_CORE) const;
+        bool update(const DescriptorSetUpdateMethod& in_update_method = Anvil::DescriptorSetUpdateMethod::CORE) const;
 
     private:
         /* Private type declarations */
@@ -754,14 +754,14 @@ namespace Anvil
          **/
         typedef struct BindingItem
         {
-            Anvil::Buffer*     buffer_ptr;
-            Anvil::BufferView* buffer_view_ptr;
-            Anvil::ImageLayout image_layout;
-            Anvil::ImageView*  image_view_ptr;
-            Anvil::Sampler*    sampler_ptr;
-            VkDeviceSize       size;
-            VkDeviceSize       start_offset;
-            VkDescriptorType   type_vk;
+            Anvil::Buffer*        buffer_ptr;
+            Anvil::BufferView*    buffer_view_ptr;
+            Anvil::ImageLayout    image_layout;
+            Anvil::ImageView*     image_view_ptr;
+            Anvil::Sampler*       sampler_ptr;
+            VkDeviceSize          size;
+            VkDeviceSize          start_offset;
+            Anvil::DescriptorType type_vk;
 
             bool dirty;
 
@@ -869,7 +869,7 @@ namespace Anvil
                                              Anvil::DescriptorPool*            in_parent_pool_ptr,
                                              const Anvil::DescriptorSetLayout* in_layout_ptr,
                                              VkDescriptorSet                   in_descriptor_set,
-                                             MTSafety                          in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+                                             MTSafety                          in_mt_safety = Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE);
 
         DescriptorSet           (const DescriptorSet&);
         DescriptorSet& operator=(const DescriptorSet&);

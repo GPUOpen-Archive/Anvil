@@ -54,7 +54,7 @@ namespace Anvil
         static Anvil::DescriptorUpdateTemplateUniquePtr create_for_descriptor_set_updates(const Anvil::BaseDevice*                                 in_device_ptr,
                                                                                           const Anvil::DescriptorSetLayout*                        in_descriptor_set_layout_ptr,
                                                                                           const std::vector<Anvil::DescriptorUpdateTemplateEntry>& in_update_entries,
-                                                                                          MTSafety                                                 in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+                                                                                          MTSafety                                                 in_mt_safety = Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE)
         {
             return create_for_descriptor_set_updates(in_device_ptr,
                                                      in_descriptor_set_layout_ptr,
@@ -67,7 +67,7 @@ namespace Anvil
                                                                                           const Anvil::DescriptorSetLayout*           in_descriptor_set_layout_ptr,
                                                                                           const Anvil::DescriptorUpdateTemplateEntry* in_update_entries_ptr,
                                                                                           const uint32_t&                             in_n_update_entries,
-                                                                                          MTSafety                                    in_mt_safety = MT_SAFETY_INHERIT_FROM_PARENT_DEVICE);
+                                                                                          MTSafety                                    in_mt_safety = Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE);
 
         /* Issues a MT-safe (if needed) vkUpdateDescriptorSetWithTeeplateKHR() call against the specified descriptor set. */
         void update_descriptor_set(const Anvil::DescriptorSet* inout_ds_ptr,

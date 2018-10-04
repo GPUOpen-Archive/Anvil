@@ -247,18 +247,18 @@ namespace Anvil
 
     private:
         /* Private functions */
-        VkResult present_internal   (VkDeviceGroupPresentModeFlagBitsKHR in_presentation_mode,
-                                     uint32_t                            in_n_swapchains,
-                                     Anvil::Swapchain* const*            in_swapchains,
-                                     const uint32_t*                     in_swapchain_image_indices,
-                                     const uint32_t*                     in_device_masks,
-                                     uint32_t                            in_n_wait_semaphores,
-                                     Anvil::Semaphore* const*            in_wait_semaphore_ptrs);
-        void     present_lock_unlock(uint32_t                            in_n_swapchains,
-                                     const Anvil::Swapchain* const*      in_swapchains,
-                                     uint32_t                            in_n_wait_semaphores,
-                                     Anvil::Semaphore* const*            in_wait_semaphore_ptrs,
-                                     bool                                in_should_lock);
+        VkResult present_internal   (Anvil::DeviceGroupPresentModeFlagBits in_presentation_mode,
+                                     uint32_t                              in_n_swapchains,
+                                     Anvil::Swapchain* const*              in_swapchains,
+                                     const uint32_t*                       in_swapchain_image_indices,
+                                     const uint32_t*                       in_device_masks,
+                                     uint32_t                              in_n_wait_semaphores,
+                                     Anvil::Semaphore* const*              in_wait_semaphore_ptrs);
+        void     present_lock_unlock(uint32_t                              in_n_swapchains,
+                                     const Anvil::Swapchain* const*        in_swapchains,
+                                     uint32_t                              in_n_wait_semaphores,
+                                     Anvil::Semaphore* const*              in_wait_semaphore_ptrs,
+                                     bool                                  in_should_lock);
 
         void bind_sparse_memory_lock_unlock    (Anvil::SparseMemoryBindingUpdateInfo& in_update,
                                                 bool                                  in_should_lock);

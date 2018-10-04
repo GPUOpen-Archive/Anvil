@@ -71,17 +71,17 @@ namespace Anvil
                                          uint32_t           in_n_data_bytes,
                                          const void*        in_data_ptr) final
         {
-            if (in_shader_stage != Anvil::SHADER_STAGE_FRAGMENT                &&
-                in_shader_stage != Anvil::SHADER_STAGE_GEOMETRY                &&
-                in_shader_stage != Anvil::SHADER_STAGE_TESSELLATION_CONTROL    &&
-                in_shader_stage != Anvil::SHADER_STAGE_TESSELLATION_EVALUATION &&
-                in_shader_stage != Anvil::SHADER_STAGE_VERTEX)
+            if (in_shader_stage != Anvil::ShaderStage::FRAGMENT                &&
+                in_shader_stage != Anvil::ShaderStage::GEOMETRY                &&
+                in_shader_stage != Anvil::ShaderStage::TESSELLATION_CONTROL    &&
+                in_shader_stage != Anvil::ShaderStage::TESSELLATION_EVALUATION &&
+                in_shader_stage != Anvil::ShaderStage::VERTEX)
             {
-                anvil_assert(in_shader_stage == Anvil::SHADER_STAGE_FRAGMENT                ||
-                             in_shader_stage == Anvil::SHADER_STAGE_GEOMETRY                ||
-                             in_shader_stage == Anvil::SHADER_STAGE_TESSELLATION_CONTROL    ||
-                             in_shader_stage == Anvil::SHADER_STAGE_TESSELLATION_EVALUATION ||
-                             in_shader_stage == Anvil::SHADER_STAGE_VERTEX);
+                anvil_assert(in_shader_stage == Anvil::ShaderStage::FRAGMENT                ||
+                             in_shader_stage == Anvil::ShaderStage::GEOMETRY                ||
+                             in_shader_stage == Anvil::ShaderStage::TESSELLATION_CONTROL    ||
+                             in_shader_stage == Anvil::ShaderStage::TESSELLATION_EVALUATION ||
+                             in_shader_stage == Anvil::ShaderStage::VERTEX);
 
                 return false;
             }
@@ -116,13 +116,13 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool add_vertex_attribute(uint32_t           in_location,
-                                  Anvil::Format      in_format,
-                                  uint32_t           in_offset_in_bytes,
-                                  uint32_t           in_stride_in_bytes,
-                                  VkVertexInputRate  in_step_rate,
-                                  uint32_t           in_explicit_binding_index = UINT32_MAX,
-                                  uint32_t           in_divisor                = 1);
+        bool add_vertex_attribute(uint32_t               in_location,
+                                  Anvil::Format          in_format,
+                                  uint32_t               in_offset_in_bytes,
+                                  uint32_t               in_stride_in_bytes,
+                                  Anvil::VertexInputRate in_step_rate,
+                                  uint32_t               in_explicit_binding_index = UINT32_MAX,
+                                  uint32_t               in_divisor                = 1);
 
         /** Tells whether depth writes have been enabled. **/
         bool are_depth_writes_enabled() const;
@@ -159,15 +159,15 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          */
-        bool get_color_blend_attachment_properties(SubPassAttachmentID    in_attachment_id,
-                                                   bool*                  out_opt_blending_enabled_ptr,
-                                                   VkBlendOp*             out_opt_blend_op_color_ptr,
-                                                   VkBlendOp*             out_opt_blend_op_alpha_ptr,
-                                                   VkBlendFactor*         out_opt_src_color_blend_factor_ptr,
-                                                   VkBlendFactor*         out_opt_dst_color_blend_factor_ptr,
-                                                   VkBlendFactor*         out_opt_src_alpha_blend_factor_ptr,
-                                                   VkBlendFactor*         out_opt_dst_alpha_blend_factor_ptr,
-                                                   VkColorComponentFlags* out_opt_channel_write_mask_ptr) const;
+        bool get_color_blend_attachment_properties(SubPassAttachmentID         in_attachment_id,
+                                                   bool*                       out_opt_blending_enabled_ptr,
+                                                   Anvil::BlendOp*             out_opt_blend_op_color_ptr,
+                                                   Anvil::BlendOp*             out_opt_blend_op_alpha_ptr,
+                                                   Anvil::BlendFactor*         out_opt_src_color_blend_factor_ptr,
+                                                   Anvil::BlendFactor*         out_opt_dst_color_blend_factor_ptr,
+                                                   Anvil::BlendFactor*         out_opt_src_alpha_blend_factor_ptr,
+                                                   Anvil::BlendFactor*         out_opt_dst_alpha_blend_factor_ptr,
+                                                   Anvil::ColorComponentFlags* out_opt_channel_write_mask_ptr) const;
 
         /** Retrieves depth bias-related state configuration.
          *
@@ -205,11 +205,12 @@ namespace Anvil
          *  @param out_opt_compare_op_ptr  If not null, deref will be set to the depth compare op assigned
          *                                 to the pipeline.
          **/
-        void get_depth_test_state(bool*        out_opt_is_enabled_ptr,
-                                  VkCompareOp* out_opt_compare_op_ptr) const;
+        void get_depth_test_state(bool*             out_opt_is_enabled_ptr,
+                                  Anvil::CompareOp* out_opt_compare_op_ptr) const;
 
         /** Tells what dynamic states have been enabled. **/
-        DynamicStateBitfield get_enabled_dynamic_states() const;
+        void get_enabled_dynamic_states(const Anvil::DynamicState** out_dynamic_states_ptr_ptr,
+                                        uint32_t*                   out_n_dynamic_states_ptr) const;
 
         /** Retrieves general properties.
          *
@@ -239,8 +240,8 @@ namespace Anvil
          *  @param out_opt_logic_op_ptr    If not null, deref will be set to the logic op enum, specified
          *                                 at creation time.
          **/
-        void get_logic_op_state(bool*      out_opt_is_enabled_ptr,
-                                VkLogicOp* out_opt_logic_op_ptr) const;
+        void get_logic_op_state(bool*           out_opt_is_enabled_ptr,
+                                Anvil::LogicOp* out_opt_logic_op_ptr) const;
 
         /** Retrieves multisampling-related state configuration.
          *
@@ -263,10 +264,10 @@ namespace Anvil
         uint32_t get_n_viewports() const;
 
         /** Tells what primitive topology has been specified for this instance. **/
-        VkPrimitiveTopology get_primitive_topology() const;
+        Anvil::PrimitiveTopology get_primitive_topology() const;
 
         /** Tells what rasterization order has been specified for this instance. **/
-        VkRasterizationOrderAMD get_rasterization_order() const;
+        Anvil::RasterizationOrderAMD get_rasterization_order() const;
 
         /** Retrieves various rasterization properties of the graphics pipeline.
          *
@@ -281,10 +282,10 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        void get_rasterization_properties(VkPolygonMode*   out_opt_polygon_mode_ptr,
-                                          VkCullModeFlags* out_opt_cull_mode_ptr,
-                                          VkFrontFace*     out_opt_front_face_ptr,
-                                          float*           out_opt_line_width_ptr) const;
+        void get_rasterization_properties(Anvil::PolygonMode*   out_opt_polygon_mode_ptr,
+                                          Anvil::CullModeFlags* out_opt_cull_mode_ptr,
+                                          Anvil::FrontFace*     out_opt_front_face_ptr,
+                                          float*                out_opt_line_width_ptr) const;
 
         const RenderPass* get_renderpass() const
         {
@@ -354,21 +355,21 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        void get_stencil_test_properties(bool*        out_opt_is_enabled_ptr,
-                                         VkStencilOp* out_opt_front_stencil_fail_op_ptr,
-                                         VkStencilOp* out_opt_front_stencil_pass_op_ptr,
-                                         VkStencilOp* out_opt_front_stencil_depth_fail_op_ptr,
-                                         VkCompareOp* out_opt_front_stencil_compare_op_ptr,
-                                         uint32_t*    out_opt_front_stencil_compare_mask_ptr,
-                                         uint32_t*    out_opt_front_stencil_write_mask_ptr,
-                                         uint32_t*    out_opt_front_stencil_reference_ptr,
-                                         VkStencilOp* out_opt_back_stencil_fail_op_ptr,
-                                         VkStencilOp* out_opt_back_stencil_pass_op_ptr,
-                                         VkStencilOp* out_opt_back_stencil_depth_fail_op_ptr,
-                                         VkCompareOp* out_opt_back_stencil_compare_op_ptr,
-                                         uint32_t*    out_opt_back_stencil_compare_mask_ptr,
-                                         uint32_t*    out_opt_back_stencil_write_mask_ptr,
-                                         uint32_t*    out_opt_back_stencil_reference_ptr) const;
+        void get_stencil_test_properties(bool*             out_opt_is_enabled_ptr,
+                                         Anvil::StencilOp* out_opt_front_stencil_fail_op_ptr,
+                                         Anvil::StencilOp* out_opt_front_stencil_pass_op_ptr,
+                                         Anvil::StencilOp* out_opt_front_stencil_depth_fail_op_ptr,
+                                         Anvil::CompareOp* out_opt_front_stencil_compare_op_ptr,
+                                         uint32_t*         out_opt_front_stencil_compare_mask_ptr,
+                                         uint32_t*         out_opt_front_stencil_write_mask_ptr,
+                                         uint32_t*         out_opt_front_stencil_reference_ptr,
+                                         Anvil::StencilOp* out_opt_back_stencil_fail_op_ptr,
+                                         Anvil::StencilOp* out_opt_back_stencil_pass_op_ptr,
+                                         Anvil::StencilOp* out_opt_back_stencil_depth_fail_op_ptr,
+                                         Anvil::CompareOp* out_opt_back_stencil_compare_op_ptr,
+                                         uint32_t*         out_opt_back_stencil_compare_mask_ptr,
+                                         uint32_t*         out_opt_back_stencil_write_mask_ptr,
+                                         uint32_t*         out_opt_back_stencil_reference_ptr) const;
 
         const SubPassID& get_subpass_id() const
         {
@@ -403,14 +404,14 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_vertex_attribute_properties(uint32_t           in_n_vertex_input_attribute,
-                                             uint32_t*          out_opt_location_ptr                      = nullptr,
-                                             Anvil::Format*     out_opt_format_ptr                        = nullptr,
-                                             uint32_t*          out_opt_offset_ptr                        = nullptr,
-                                             uint32_t*          out_opt_explicit_vertex_binding_index_ptr = nullptr,
-                                             uint32_t*          out_opt_stride_ptr                        = nullptr,
-                                             VkVertexInputRate* out_opt_rate_ptr                          = nullptr,
-                                             uint32_t*          out_opt_divisor_ptr                       = nullptr) const;
+        bool get_vertex_attribute_properties(uint32_t                in_n_vertex_input_attribute,
+                                             uint32_t*               out_opt_location_ptr                      = nullptr,
+                                             Anvil::Format*          out_opt_format_ptr                        = nullptr,
+                                             uint32_t*               out_opt_offset_ptr                        = nullptr,
+                                             uint32_t*               out_opt_explicit_vertex_binding_index_ptr = nullptr,
+                                             uint32_t*               out_opt_stride_ptr                        = nullptr,
+                                             Anvil::VertexInputRate* out_opt_rate_ptr                          = nullptr,
+                                             uint32_t*               out_opt_divisor_ptr                       = nullptr) const;
 
         /** Retrieves properties of a viewport at a given index.
          *
@@ -470,15 +471,15 @@ namespace Anvil
          *  @param in_channel_write_mask      Component write mask to use for the attachment.
          *
          **/
-        void set_color_blend_attachment_properties(SubPassAttachmentID   in_attachment_id,
-                                                   bool                  in_blending_enabled,
-                                                   VkBlendOp             in_blend_op_color,
-                                                   VkBlendOp             in_blend_op_alpha,
-                                                   VkBlendFactor         in_src_color_blend_factor,
-                                                   VkBlendFactor         in_dst_color_blend_factor,
-                                                   VkBlendFactor         in_src_alpha_blend_factor,
-                                                   VkBlendFactor         in_dst_alpha_blend_factor,
-                                                   VkColorComponentFlags in_channel_write_mask);
+        void set_color_blend_attachment_properties(SubPassAttachmentID        in_attachment_id,
+                                                   bool                       in_blending_enabled,
+                                                   Anvil::BlendOp             in_blend_op_color,
+                                                   Anvil::BlendOp             in_blend_op_alpha,
+                                                   Anvil::BlendFactor         in_src_color_blend_factor,
+                                                   Anvil::BlendFactor         in_dst_color_blend_factor,
+                                                   Anvil::BlendFactor         in_src_alpha_blend_factor,
+                                                   Anvil::BlendFactor         in_dst_alpha_blend_factor,
+                                                   Anvil::ColorComponentFlags in_channel_write_mask);
 
         /** Updates multisampling properties.
          *
@@ -509,7 +510,7 @@ namespace Anvil
         void set_n_patch_control_points(uint32_t in_n_patch_control_points);
 
         /** Sets primitive topology. */
-        void set_primitive_topology(VkPrimitiveTopology in_primitive_topology);
+        void set_primitive_topology(Anvil::PrimitiveTopology in_primitive_topology);
 
         /** Configures the rasterization order for the pipeline if the VK_AMD_rasterization_order extension
          *  is supported by the device, for which the pipeline has been created.
@@ -518,7 +519,7 @@ namespace Anvil
          *
          *  @param in_rasterization_order  Rasterization order to use.
          **/
-        void set_rasterization_order(VkRasterizationOrderAMD in_rasterization_order);
+        void set_rasterization_order(Anvil::RasterizationOrderAMD in_rasterization_order);
 
         /** Sets a number of rasterization properties to be used for the pipeline.
          *
@@ -527,10 +528,10 @@ namespace Anvil
          *  @param in_front_face   Front face to use.
          *  @param in_line_width   Line width to use.
          **/
-        void set_rasterization_properties(VkPolygonMode   in_polygon_mode,
-                                          VkCullModeFlags in_cull_mode,
-                                          VkFrontFace     in_front_face,
-                                          float           in_line_width);
+        void set_rasterization_properties(Anvil::PolygonMode   in_polygon_mode,
+                                          Anvil::CullModeFlags in_cull_mode,
+                                          Anvil::FrontFace     in_front_face,
+                                          float                in_line_width);
 
         /** Sets properties of a scissor box at the specified index.
          *
@@ -562,14 +563,14 @@ namespace Anvil
          *  @param in_stencil_write_mask      Stencil write mask to use.
          *  @param in_stencil_reference       Stencil reference value to use.
          **/
-        void set_stencil_test_properties(bool        in_update_front_face_state,
-                                         VkStencilOp in_stencil_fail_op,
-                                         VkStencilOp in_stencil_pass_op,
-                                         VkStencilOp in_stencil_depth_fail_op,
-                                         VkCompareOp in_stencil_compare_op,
-                                         uint32_t    in_stencil_compare_mask,
-                                         uint32_t    in_stencil_write_mask,
-                                         uint32_t    in_stencil_reference);
+        void set_stencil_test_properties(bool             in_update_front_face_state,
+                                         Anvil::StencilOp in_stencil_fail_op,
+                                         Anvil::StencilOp in_stencil_pass_op,
+                                         Anvil::StencilOp in_stencil_depth_fail_op,
+                                         Anvil::CompareOp in_stencil_compare_op,
+                                         uint32_t         in_stencil_compare_mask,
+                                         uint32_t         in_stencil_write_mask,
+                                         uint32_t         in_stencil_reference);
 
         /* TODO
          *
@@ -644,8 +645,8 @@ namespace Anvil
          *  @param in_should_enable true to enable the mode; false to disable it.
          *  @param in_compare_op    Compare operation to use for the test.
          */
-        void toggle_depth_test(bool        in_should_enable,
-                               VkCompareOp in_compare_op);
+        void toggle_depth_test(bool             in_should_enable,
+                               Anvil::CompareOp in_compare_op);
 
         /** Enables or disables depth writes.
          *
@@ -655,21 +656,26 @@ namespace Anvil
 
         /** Enables or disables the specified dynamic states.
          *
-         *  @param in_should_enable        true to enable the dynamic state(s) specified by @param in_dynamic_state_bits, false
-         *                                 disable them if already enabled.
-         *  @param in_dynamic_state_bits   An integer whose individual bits correspond to dynamic states which should either
-         *                                 be enabled or disabled.
+         *  @param in_should_enable      true to enable the dynamic state(s) specified by @param in_dynamic_state_bits, false
+         *                               disable them if already enabled.
+         *  @param in_dynamic_states_ptr Pointer to an array of dynamic states to disable or enable. Must not be nullptr.
+         *  @param in_n_dynamic_states   Number of array items available for reading under @param in_dynamic_states_ptr
          **/
-        void toggle_dynamic_states(bool                 in_should_enable,
-                                   DynamicStateBitfield in_dynamic_state_bits);
+        void toggle_dynamic_state (bool                                    in_should_enable,
+                                   const Anvil::DynamicState&              in_dynamic_state);
+        void toggle_dynamic_states(bool                                    in_should_enable,
+                                   const Anvil::DynamicState*              in_dynamic_states_ptr,
+                                   const uint32_t&                         in_n_dynamic_states);
+        void toggle_dynamic_states(bool                                    in_should_enable,
+                                   const std::vector<Anvil::DynamicState>& in_dynamic_states);
 
         /** Enables or disables logic ops and specifies which logic op should be used.
          *
          *  @param in_should_enable true to enable the mode; false to disable it.
          *  @param in_logic_op      Logic operation type to use.
          */
-        void toggle_logic_op(bool      in_should_enable,
-                             VkLogicOp in_logic_op);
+        void toggle_logic_op(bool           in_should_enable,
+                             Anvil::LogicOp in_logic_op);
 
         /** Enables or disables the "primitive restart" mode.
          *
@@ -712,30 +718,30 @@ namespace Anvil
         /* Defines blending properties for a single subpass attachment. */
         typedef struct BlendingProperties
         {
-            VkColorComponentFlagsVariable(channel_write_mask);
+            Anvil::ColorComponentFlags channel_write_mask;
 
-            bool          blend_enabled;
-            VkBlendOp     blend_op_alpha;
-            VkBlendOp     blend_op_color;
-            VkBlendFactor dst_alpha_blend_factor;
-            VkBlendFactor dst_color_blend_factor;
-            VkBlendFactor src_alpha_blend_factor;
-            VkBlendFactor src_color_blend_factor;
+            bool               blend_enabled;
+            Anvil::BlendOp     blend_op_alpha;
+            Anvil::BlendOp     blend_op_color;
+            Anvil::BlendFactor dst_alpha_blend_factor;
+            Anvil::BlendFactor dst_color_blend_factor;
+            Anvil::BlendFactor src_alpha_blend_factor;
+            Anvil::BlendFactor src_color_blend_factor;
 
             /** Constructor. */
             BlendingProperties()
             {
                 blend_enabled           = false;
-                blend_op_alpha          = VK_BLEND_OP_ADD;
-                blend_op_color          = VK_BLEND_OP_ADD;
-                channel_write_mask      = VK_COLOR_COMPONENT_A_BIT |
-                                          VK_COLOR_COMPONENT_B_BIT |
-                                          VK_COLOR_COMPONENT_G_BIT |
-                                          VK_COLOR_COMPONENT_R_BIT;
-                dst_alpha_blend_factor  = VK_BLEND_FACTOR_ONE;
-                dst_color_blend_factor  = VK_BLEND_FACTOR_ONE;
-                src_alpha_blend_factor  = VK_BLEND_FACTOR_ONE;
-                src_color_blend_factor  = VK_BLEND_FACTOR_ONE;
+                blend_op_alpha          = Anvil::BlendOp::ADD;
+                blend_op_color          = Anvil::BlendOp::ADD;
+                channel_write_mask      = Anvil::ColorComponentFlagBits::A_BIT |
+                                          Anvil::ColorComponentFlagBits::B_BIT |
+                                          Anvil::ColorComponentFlagBits::G_BIT |
+                                          Anvil::ColorComponentFlagBits::R_BIT;
+                dst_alpha_blend_factor  = Anvil::BlendFactor::ONE;
+                dst_color_blend_factor  = Anvil::BlendFactor::ONE;
+                src_alpha_blend_factor  = Anvil::BlendFactor::ONE;
+                src_color_blend_factor  = Anvil::BlendFactor::ONE;
             }
 
             /** Comparison operator
@@ -854,13 +860,13 @@ namespace Anvil
          */
         typedef struct InternalVertexAttribute
         {
-            uint32_t          divisor;
-            uint32_t          explicit_binding_index;
-            Anvil::Format     format;
-            uint32_t          location;
-            uint32_t          offset_in_bytes;
-            VkVertexInputRate rate;
-            uint32_t          stride_in_bytes;
+            uint32_t               divisor;
+            uint32_t               explicit_binding_index;
+            Anvil::Format          format;
+            uint32_t               location;
+            uint32_t               offset_in_bytes;
+            Anvil::VertexInputRate rate;
+            uint32_t               stride_in_bytes;
 
             /** Dummy constructor. Should only be used by STL. */
             InternalVertexAttribute()
@@ -870,7 +876,7 @@ namespace Anvil
                 format                 = Anvil::Format::UNKNOWN;
                 location               = UINT32_MAX;
                 offset_in_bytes        = UINT32_MAX;
-                rate                   = VK_VERTEX_INPUT_RATE_MAX_ENUM;
+                rate                   = Anvil::VertexInputRate::UNKNOWN;
                 stride_in_bytes        = UINT32_MAX;
             }
 
@@ -883,13 +889,13 @@ namespace Anvil
              *  @param in_rate            Step rate.
              *  @param in_stride_in_bytes Stride in bytes.
              **/
-            InternalVertexAttribute(uint32_t          in_divisor,
-                                    uint32_t          in_explicit_binding_index,
-                                    Anvil::Format     in_format,
-                                    uint32_t          in_location,
-                                    uint32_t          in_offset_in_bytes,
-                                    VkVertexInputRate in_rate,
-                                    uint32_t          in_stride_in_bytes)
+            InternalVertexAttribute(uint32_t               in_divisor,
+                                    uint32_t               in_explicit_binding_index,
+                                    Anvil::Format          in_format,
+                                    uint32_t               in_location,
+                                    uint32_t               in_offset_in_bytes,
+                                    Anvil::VertexInputRate in_rate,
+                                    uint32_t               in_stride_in_bytes)
             {
                 divisor                = in_divisor;
                 explicit_binding_index = in_explicit_binding_index;
@@ -921,10 +927,10 @@ namespace Anvil
         float m_depth_bias_constant_factor;
         float m_depth_bias_slope_factor;
 
-        bool        m_depth_test_enabled;
-        VkCompareOp m_depth_test_compare_op;
+        bool             m_depth_test_enabled;
+        Anvil::CompareOp m_depth_test_compare_op;
 
-        DynamicStateBitfield m_enabled_dynamic_states;
+        std::vector<DynamicState> m_enabled_dynamic_states;
 
         bool m_alpha_to_coverage_enabled;
         bool m_alpha_to_one_enabled;
@@ -940,28 +946,27 @@ namespace Anvil
         VkStencilOpState m_stencil_state_back_face;
         VkStencilOpState m_stencil_state_front_face;
 
-        VkRasterizationOrderAMD m_rasterization_order;
+        Anvil::RasterizationOrderAMD m_rasterization_order;
 
         TessellationDomainOrigin m_tessellation_domain_origin;
 
         InternalVertexAttributes                 m_attributes;
         float                                    m_blend_constant[4];
-        VkPolygonMode                            m_polygon_mode;
-        VkFrontFace                              m_front_face;
+        Anvil::CullModeFlags                     m_cull_mode;
+        Anvil::PolygonMode                       m_polygon_mode;
+        Anvil::FrontFace                         m_front_face;
         float                                    m_line_width;
-        VkLogicOp                                m_logic_op;
+        Anvil::LogicOp                           m_logic_op;
         float                                    m_min_sample_shading;
         uint32_t                                 m_n_dynamic_scissor_boxes;
         uint32_t                                 m_n_dynamic_viewports;
         uint32_t                                 m_n_patch_control_points;
-        VkPrimitiveTopology                      m_primitive_topology;
+        Anvil::PrimitiveTopology                 m_primitive_topology;
         Anvil::SampleCountFlagBits               m_sample_count;
         VkSampleMask                             m_sample_mask;
         InternalScissorBoxes                     m_scissor_boxes;
         SubPassAttachmentToBlendingPropertiesMap m_subpass_attachment_blending_properties;
         InternalViewports                        m_viewports;
-
-        VkCullModeFlagsVariable   (m_cull_mode);
 
         const RenderPass* m_renderpass_ptr;
         SubPassID         m_subpass_id;

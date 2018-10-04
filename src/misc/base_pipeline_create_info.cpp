@@ -84,9 +84,9 @@ end:
 }
 
 /* Please see header for specification */
-bool Anvil::BasePipelineCreateInfo::attach_push_constant_range(uint32_t           in_offset,
-                                                               uint32_t           in_size,
-                                                               VkShaderStageFlags in_stages)
+bool Anvil::BasePipelineCreateInfo::attach_push_constant_range(uint32_t                in_offset,
+                                                               uint32_t                in_size,
+                                                               Anvil::ShaderStageFlags in_stages)
 {
     bool result = false;
 
@@ -239,7 +239,7 @@ void Anvil::BasePipelineCreateInfo::init_shader_modules(uint32_t                
     {
         const auto& shader_module_stage_entrypoint = in_shader_module_stage_entrypoint_ptrs[n_shader_module_stage_entrypoint];
 
-        if (shader_module_stage_entrypoint.stage == Anvil::SHADER_STAGE_UNKNOWN)
+        if (shader_module_stage_entrypoint.stage == Anvil::ShaderStage::UNKNOWN)
         {
             continue;
         }

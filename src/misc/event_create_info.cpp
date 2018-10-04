@@ -28,7 +28,7 @@ Anvil::EventCreateInfoUniquePtr Anvil::EventCreateInfo::create(const Anvil::Base
 
     result_ptr.reset(
         new Anvil::EventCreateInfo(in_device_ptr,
-                                   Anvil::MT_SAFETY_INHERIT_FROM_PARENT_DEVICE)
+                                   Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE)
     );
 
     return result_ptr;

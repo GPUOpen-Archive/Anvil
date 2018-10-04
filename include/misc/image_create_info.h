@@ -48,7 +48,7 @@ namespace Anvil
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
          * - External memory handle types: none
-         * - MT safety:                    MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:                    Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
          *
          *  @param in_device_ptr               Device to use.
          *  @param in_type                     Vulkan image type to use.
@@ -60,7 +60,7 @@ namespace Anvil
          *  @param in_base_mipmap_depth        Depth of the base mip-map. Must be at least 1 for all image types.
          *  @param in_n_layers                 Number of layers to use. Must be at least 1 for all image types.
          *  @param in_sample_count             Sample count to use.
-         *  @param in_queue_families           A combination of Anvil::QUEUE_FAMILY_* bits, indicating which device queues
+         *  @param in_queue_families           A combination of Anvil::QueueFamilyFlagBits::* bits, indicating which device queues
          *                                     the image is going to be accessed by.
          *  @param in_sharing_mode             Vulkan sharing mode to use.
          *  @param in_use_full_mipmap_chain    true if all mipmaps should be created for the image. False to only allocate
@@ -86,7 +86,7 @@ namespace Anvil
                                                                uint32_t                          in_base_mipmap_depth,
                                                                uint32_t                          in_n_layers,
                                                                Anvil::SampleCountFlagBits        in_sample_count,
-                                                               Anvil::QueueFamilyBits            in_queue_families,
+                                                               Anvil::QueueFamilyFlags           in_queue_families,
                                                                Anvil::SharingMode                in_sharing_mode,
                                                                bool                              in_use_full_mipmap_chain,
                                                                MemoryFeatureFlags                in_memory_features,
@@ -109,7 +109,7 @@ namespace Anvil
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
          * - External memory handle types: none
-         * - MT safety:                    MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:                    Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
          *
          *  @param in_device_ptr               Device to use.
          *  @param in_type                     Vulkan image type to use.
@@ -121,7 +121,7 @@ namespace Anvil
          *  @param in_base_mipmap_depth        Depth of the base mip-map. Must be at least 1 for all image types.
          *  @param in_n_layers                 Number of layers to use. Must be at least 1 for all image types.
          *  @param in_sample_count             Sample count to use.
-         *  @param in_queue_families           A combination of Anvil::QUEUE_FAMILY_* bits, indicating which device queues
+         *  @param in_queue_families           A combination of Anvil::QueueFamilyFlagBits::* bits, indicating which device queues
          *                                     the image is going to be accessed by.
          *  @param in_sharing_mode             Vulkan sharing mode to use.
          *  @param in_use_full_mipmap_chain    true, if all mipmaps should be created for the image. False to only allocate
@@ -146,7 +146,7 @@ namespace Anvil
                                                                   uint32_t                          in_base_mipmap_depth,
                                                                   uint32_t                          in_n_layers,
                                                                   Anvil::SampleCountFlagBits        in_sample_count,
-                                                                  Anvil::QueueFamilyBits            in_queue_families,
+                                                                  Anvil::QueueFamilyFlags           in_queue_families,
                                                                   Anvil::SharingMode                in_sharing_mode,
                                                                   bool                              in_use_full_mipmap_chain,
                                                                   ImageCreateFlags                  in_create_flags,
@@ -164,7 +164,7 @@ namespace Anvil
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
          * - External memory handle types: none
-         * - MT safety:                    MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:                    Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
          * - Physical devices:             none
          * - SFR rectangles:               none
          *
@@ -193,7 +193,7 @@ namespace Anvil
          *
          * - External memory handle types: none
          * - Initial layout:               Anvil::ImageLayout::UNDEFINED
-         * - MT safety:                    MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:                    Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
          *
          *  @param in_device_ptr             Device to use.
          *  @param in_type                   Vulkan image type to use.
@@ -205,7 +205,7 @@ namespace Anvil
          *  @param in_base_mipmap_depth      Depth of the base mip-map. Must be at least 1 for all image types.
          *  @param in_n_layers               Number of layers to use. Must be at least 1 for all image types.
          *  @param in_sample_count           Sample count to use.
-         *  @param in_queue_families         A combination of Anvil::QUEUE_FAMILY_* bits, indicating which device queues
+         *  @param in_queue_families         A combination of Anvil::QueueFamilyFlagBits::* bits, indicating which device queues
          *                                   the image is going to be accessed by.
          *  @param in_sharing_mode           Vulkan sharing mode to use.
          *  @param in_use_full_mipmap_chain  true, if all mipmaps should be created for the image. False to make the image
@@ -227,7 +227,7 @@ namespace Anvil
                                                                uint32_t                    in_base_mipmap_depth,
                                                                uint32_t                    in_n_layers,
                                                                Anvil::SampleCountFlagBits  in_sample_count,
-                                                               Anvil::QueueFamilyBits      in_queue_families,
+                                                               Anvil::QueueFamilyFlags     in_queue_families,
                                                                Anvil::SharingMode          in_sharing_mode,
                                                                bool                        in_use_full_mipmap_chain,
                                                                ImageCreateFlags            in_create_flags,
@@ -244,7 +244,7 @@ namespace Anvil
          *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
-         * - MT safety: MT_SAFETY_INHERIT_FROM_PARENT_DEVICE
+         * - MT safety: Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
          **/
         static ImageCreateInfoUniquePtr create_swapchain_wrapper(const Anvil::BaseDevice* in_device_ptr,
                                                                  const Anvil::Swapchain*  in_swapchain_ptr,
@@ -276,7 +276,7 @@ namespace Anvil
             return m_device_ptr;
         }
 
-        const Anvil::ExternalMemoryHandleTypeBits& get_external_memory_handle_types() const
+        const Anvil::ExternalMemoryHandleTypeFlags& get_external_memory_handle_types() const
         {
             return m_exportable_external_memory_handle_types;
         }
@@ -331,7 +331,7 @@ namespace Anvil
         }
 
         /** Returns queue families compatible with the image */
-        const Anvil::QueueFamilyBits& get_queue_families() const
+        const Anvil::QueueFamilyFlags& get_queue_families() const
         {
             return m_queue_families;
         }
@@ -416,7 +416,7 @@ namespace Anvil
             m_depth = in_depth;
         }
 
-        void set_exportable_external_memory_handle_types(const ExternalMemoryHandleTypeBits& in_external_memory_handle_types)
+        void set_exportable_external_memory_handle_types(const ExternalMemoryHandleTypeFlags& in_external_memory_handle_types)
         {
             m_exportable_external_memory_handle_types = in_external_memory_handle_types;
         }
@@ -461,7 +461,7 @@ namespace Anvil
             m_post_create_layout = in_post_create_layout;
         }
 
-        void set_queue_families(const Anvil::QueueFamilyBits& in_queue_families)
+        void set_queue_families(const Anvil::QueueFamilyFlags& in_queue_families)
         {
             m_queue_families = in_queue_families;
         }
@@ -545,53 +545,53 @@ namespace Anvil
     private:
         /* Private functions */
 
-        ImageCreateInfo(Anvil::ImageInternalType            in_type,
-                        const Anvil::BaseDevice*            in_device_ptr,
-                        Anvil::ImageType                    in_type_vk,
-                        Anvil::Format                       in_format,
-                        Anvil::ImageTiling                  in_tiling,
-                        Anvil::SharingMode                  in_sharing_mode, 
-                        ImageUsageFlags                     in_usage,
-                        uint32_t                            in_base_mipmap_width,
-                        uint32_t                            in_base_mipmap_height,
-                        uint32_t                            in_base_mipmap_depth,
-                        uint32_t                            in_n_layers,
-                        Anvil::SampleCountFlagBits          in_sample_count,
-                        bool                                in_use_full_mipmap_chain,
-                        ImageCreateFlags                    in_create_flags,
-                        Anvil::QueueFamilyBits              in_queue_families,
-                        Anvil::ImageLayout                  in_post_create_image_layout,
-                        const Anvil::ImageLayout&           in_post_alloc_image_layout,
-                        const std::vector<MipmapRawData>*   in_opt_mipmaps_ptr,
-                        const Anvil::MTSafety&              in_mt_safety,
-                        Anvil::ExternalMemoryHandleTypeBits in_exportable_external_memory_handle_types,
-                        const Anvil::MemoryFeatureFlags&    in_memory_features,
-                        const Anvil::SparseResidencyScope&  in_residency_scope);
+        ImageCreateInfo(Anvil::ImageInternalType             in_type,
+                        const Anvil::BaseDevice*             in_device_ptr,
+                        Anvil::ImageType                     in_type_vk,
+                        Anvil::Format                        in_format,
+                        Anvil::ImageTiling                   in_tiling,
+                        Anvil::SharingMode                   in_sharing_mode, 
+                        ImageUsageFlags                      in_usage,
+                        uint32_t                             in_base_mipmap_width,
+                        uint32_t                             in_base_mipmap_height,
+                        uint32_t                             in_base_mipmap_depth,
+                        uint32_t                             in_n_layers,
+                        Anvil::SampleCountFlagBits           in_sample_count,
+                        bool                                 in_use_full_mipmap_chain,
+                        ImageCreateFlags                     in_create_flags,
+                        Anvil::QueueFamilyFlags              in_queue_families,
+                        Anvil::ImageLayout                   in_post_create_image_layout,
+                        const Anvil::ImageLayout&            in_post_alloc_image_layout,
+                        const std::vector<MipmapRawData>*    in_opt_mipmaps_ptr,
+                        const Anvil::MTSafety&               in_mt_safety,
+                        Anvil::ExternalMemoryHandleTypeFlags in_exportable_external_memory_handle_types,
+                        const Anvil::MemoryFeatureFlags&     in_memory_features,
+                        const Anvil::SparseResidencyScope&   in_residency_scope);
 
         /* Private variables */
 
-        Anvil::ImageCreateFlags             m_create_flags;
-        uint32_t                            m_depth;
-        const Anvil::BaseDevice*            m_device_ptr;
-        Anvil::ExternalMemoryHandleTypeBits m_exportable_external_memory_handle_types;
-        Anvil::Format                       m_format;
-        uint32_t                            m_height;
-        const Anvil::ImageInternalType      m_internal_type;
-        Anvil::MemoryFeatureFlags           m_memory_features;
-        std::vector<MipmapRawData>          m_mipmaps_to_upload;
-        Anvil::MTSafety                     m_mt_safety;
-        uint32_t                            m_n_layers;
-        Anvil::ImageLayout                  m_post_alloc_layout;
-        Anvil::ImageLayout                  m_post_create_layout;
-        Anvil::QueueFamilyBits              m_queue_families;
-        Anvil::SparseResidencyScope         m_residency_scope;
-        Anvil::SampleCountFlagBits          m_sample_count;
-        Anvil::SharingMode                  m_sharing_mode;
-        Anvil::ImageTiling                  m_tiling;
-        const Anvil::ImageType              m_type_vk;
-        ImageUsageFlags                     m_usage_flags;
-        bool                                m_use_full_mipmap_chain;
-        uint32_t                            m_width;
+        Anvil::ImageCreateFlags              m_create_flags;
+        uint32_t                             m_depth;
+        const Anvil::BaseDevice*             m_device_ptr;
+        Anvil::ExternalMemoryHandleTypeFlags m_exportable_external_memory_handle_types;
+        Anvil::Format                        m_format;
+        uint32_t                             m_height;
+        const Anvil::ImageInternalType       m_internal_type;
+        Anvil::MemoryFeatureFlags            m_memory_features;
+        std::vector<MipmapRawData>           m_mipmaps_to_upload;
+        Anvil::MTSafety                      m_mt_safety;
+        uint32_t                             m_n_layers;
+        Anvil::ImageLayout                   m_post_alloc_layout;
+        Anvil::ImageLayout                   m_post_create_layout;
+        Anvil::QueueFamilyFlags              m_queue_families;
+        Anvil::SparseResidencyScope          m_residency_scope;
+        Anvil::SampleCountFlagBits           m_sample_count;
+        Anvil::SharingMode                   m_sharing_mode;
+        Anvil::ImageTiling                   m_tiling;
+        const Anvil::ImageType               m_type_vk;
+        ImageUsageFlags                      m_usage_flags;
+        bool                                 m_use_full_mipmap_chain;
+        uint32_t                             m_width;
 
         /* Only used for peer images */
         std::vector<const Anvil::PhysicalDevice*> m_physical_devices;

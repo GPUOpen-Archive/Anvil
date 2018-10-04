@@ -103,13 +103,13 @@ void Anvil::ImageView::get_base_mipmap_size(uint32_t* out_opt_base_mipmap_width_
 
     switch (m_create_info_ptr->get_type() )
     {
-        case VK_IMAGE_VIEW_TYPE_1D:         result_depth = 1;                                 break;
-        case VK_IMAGE_VIEW_TYPE_1D_ARRAY:   result_depth = m_create_info_ptr->get_n_layers(); break;
-        case VK_IMAGE_VIEW_TYPE_2D:         result_depth = 1;                                 break;
-        case VK_IMAGE_VIEW_TYPE_2D_ARRAY:   result_depth = m_create_info_ptr->get_n_layers(); break;
-        case VK_IMAGE_VIEW_TYPE_3D:         result_depth = m_create_info_ptr->get_n_slices(); break;
-        case VK_IMAGE_VIEW_TYPE_CUBE:       result_depth = m_create_info_ptr->get_n_layers(); break;
-        case VK_IMAGE_VIEW_TYPE_CUBE_ARRAY: result_depth = m_create_info_ptr->get_n_layers(); break;
+        case Anvil::ImageViewType::_1D:         result_depth = 1;                                 break;
+        case Anvil::ImageViewType::_1D_ARRAY:   result_depth = m_create_info_ptr->get_n_layers(); break;
+        case Anvil::ImageViewType::_2D:         result_depth = 1;                                 break;
+        case Anvil::ImageViewType::_2D_ARRAY:   result_depth = m_create_info_ptr->get_n_layers(); break;
+        case Anvil::ImageViewType::_3D:         result_depth = m_create_info_ptr->get_n_slices(); break;
+        case Anvil::ImageViewType::_CUBE:       result_depth = m_create_info_ptr->get_n_layers(); break;
+        case Anvil::ImageViewType::_CUBE_ARRAY: result_depth = m_create_info_ptr->get_n_layers(); break;
 
         default:
         {
@@ -123,15 +123,15 @@ void Anvil::ImageView::get_base_mipmap_size(uint32_t* out_opt_base_mipmap_width_
     }
 }
 
-VkImageSubresourceRange Anvil::ImageView::get_subresource_range() const
+Anvil::ImageSubresourceRange Anvil::ImageView::get_subresource_range() const
 {
-    VkImageSubresourceRange result;
+    Anvil::ImageSubresourceRange result;
 
-    result.aspectMask     = m_create_info_ptr->get_aspect           ();
-    result.baseArrayLayer = m_create_info_ptr->get_base_layer       ();
-    result.baseMipLevel   = m_create_info_ptr->get_base_mipmap_level();
-    result.layerCount     = m_create_info_ptr->get_n_layers         ();
-    result.levelCount     = m_create_info_ptr->get_n_mipmaps        ();
+    result.aspect_mask      = m_create_info_ptr->get_aspect           ();
+    result.base_array_layer = m_create_info_ptr->get_base_layer       ();
+    result.base_mip_level   = m_create_info_ptr->get_base_mipmap_level();
+    result.layer_count      = m_create_info_ptr->get_n_layers         ();
+    result.level_count      = m_create_info_ptr->get_n_mipmaps        ();
 
     return result;
 }
@@ -189,7 +189,7 @@ bool Anvil::ImageView::init()
         goto end;
     }
 
-    if (usage != Anvil::ImageUsageFlagBits::IMAGE_USAGE_UNKNOWN                 &&
+    if (usage != Anvil::ImageUsageFlagBits::NONE                                &&
         !m_device_ptr->is_extension_enabled(VK_KHR_MAINTENANCE2_EXTENSION_NAME) )
     {
         anvil_assert(m_device_ptr->is_extension_enabled(VK_KHR_MAINTENANCE2_EXTENSION_NAME) );
@@ -199,8 +199,8 @@ bool Anvil::ImageView::init()
 
     if (parent_image_ptr->get_create_info_ptr()->get_type() == Anvil::ImageType::_3D)
     {
-        if (image_view_type == VK_IMAGE_VIEW_TYPE_2D       ||
-            image_view_type == VK_IMAGE_VIEW_TYPE_2D_ARRAY)
+        if (image_view_type == Anvil::ImageViewType::_2D       ||
+            image_view_type == Anvil::ImageViewType::_2D_ARRAY)
         {
             if (!m_device_ptr->get_extension_info()->khr_maintenance1() )
             {
@@ -209,9 +209,9 @@ bool Anvil::ImageView::init()
                 goto end;
             }
 
-            if ((parent_image_ptr->get_create_info_ptr()->get_create_flags() & Anvil::IMAGE_CREATE_FLAG_2D_ARRAY_COMPATIBLE_BIT) == 0)
+            if ((parent_image_ptr->get_create_info_ptr()->get_create_flags() & Anvil::ImageCreateFlagBits::_2D_ARRAY_COMPATIBLE_BIT) == 0)
             {
-                anvil_assert((parent_image_ptr->get_create_info_ptr()->get_create_flags() & Anvil::IMAGE_CREATE_FLAG_2D_ARRAY_COMPATIBLE_BIT) != 0);
+                anvil_assert((parent_image_ptr->get_create_info_ptr()->get_create_flags() & Anvil::ImageCreateFlagBits::_2D_ARRAY_COMPATIBLE_BIT) != 0);
 
                 goto end;
             }
@@ -231,23 +231,23 @@ bool Anvil::ImageView::init()
         image_view_create_info.image                           = parent_image_ptr->get_image();
         image_view_create_info.pNext                           = nullptr;
         image_view_create_info.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        image_view_create_info.subresourceRange.aspectMask     = aspect_mask;
+        image_view_create_info.subresourceRange.aspectMask     = aspect_mask.get_vk();
         image_view_create_info.subresourceRange.baseArrayLayer = n_base_layer;
         image_view_create_info.subresourceRange.baseMipLevel   = n_base_mip;
         image_view_create_info.subresourceRange.layerCount     = n_layers;
         image_view_create_info.subresourceRange.levelCount     = n_mips;
-        image_view_create_info.viewType                        = image_view_type;
+        image_view_create_info.viewType                        = static_cast<VkImageViewType>(image_view_type);
 
         struct_chainer.append_struct(image_view_create_info);
     }
 
-    if (usage != Anvil::ImageUsageFlagBits::IMAGE_USAGE_UNKNOWN)
+    if (usage != Anvil::ImageUsageFlagBits::NONE)
     {
         VkImageViewUsageCreateInfo usage_create_info;
 
         usage_create_info.pNext = nullptr;
         usage_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO_KHR;
-        usage_create_info.usage = static_cast<VkImageUsageFlags>(usage);
+        usage_create_info.usage = usage.get_vk();
 
         struct_chainer.append_struct(usage_create_info);
     }
@@ -290,18 +290,18 @@ bool Anvil::ImageView::intersects(const Anvil::ImageView* in_image_view_ptr) con
         auto this_subresource_range = get_subresource_range();
 
         /* Aspect mask */
-        if ((this_subresource_range.aspectMask & in_subresource_range.aspectMask) != 0)
+        if ((this_subresource_range.aspect_mask & in_subresource_range.aspect_mask) != 0)
         {
             /* Layers + mips */
-            if (!((this_subresource_range.baseArrayLayer                                     < in_subresource_range.baseArrayLayer    &&
-                   this_subresource_range.baseArrayLayer + this_subresource_range.layerCount < in_subresource_range.baseArrayLayer)   ||
-                  (in_subresource_range.baseArrayLayer                                       < this_subresource_range.baseArrayLayer  &&
-                   in_subresource_range.baseArrayLayer   + in_subresource_range.layerCount   < this_subresource_range.baseArrayLayer) ))
+            if (!((this_subresource_range.base_array_layer                                      < in_subresource_range.base_array_layer    &&
+                   this_subresource_range.base_array_layer + this_subresource_range.layer_count < in_subresource_range.base_array_layer)   ||
+                  (in_subresource_range.base_array_layer                                        < this_subresource_range.base_array_layer  &&
+                   in_subresource_range.base_array_layer   + in_subresource_range.layer_count   < this_subresource_range.base_array_layer) ))
             {
-                if (!((this_subresource_range.baseMipLevel                                     < in_subresource_range.baseMipLevel    &&
-                       this_subresource_range.baseMipLevel + this_subresource_range.levelCount < in_subresource_range.baseMipLevel)   ||
-                      (in_subresource_range.baseMipLevel                                       < this_subresource_range.baseMipLevel  &&
-                       in_subresource_range.baseMipLevel   + in_subresource_range.levelCount   < this_subresource_range.baseMipLevel) ))
+                if (!((this_subresource_range.base_mip_level                                      < in_subresource_range.base_mip_level    &&
+                       this_subresource_range.base_mip_level + this_subresource_range.level_count < in_subresource_range.base_mip_level)   ||
+                      (in_subresource_range.base_mip_level                                        < this_subresource_range.base_mip_level  &&
+                       in_subresource_range.base_mip_level   + in_subresource_range.level_count   < this_subresource_range.base_mip_level) ))
                 {
                     result = true;
                 }
