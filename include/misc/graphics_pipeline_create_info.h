@@ -31,27 +31,17 @@ namespace Anvil
     {
     public:
         /* Public functions */
-        static Anvil::GraphicsPipelineCreateInfoUniquePtr create_derivative(bool                               in_disable_optimizations,
-                                                                            bool                               in_allow_derivatives,
-                                                                            const RenderPass*                  in_renderpass_ptr,
-                                                                            SubPassID                          in_subpass_id,
-                                                                            const ShaderModuleStageEntryPoint& in_fragment_shader_stage_entrypoint_info,
-                                                                            const ShaderModuleStageEntryPoint& in_geometry_shader_stage_entrypoint_info,
-                                                                            const ShaderModuleStageEntryPoint& in_tess_control_shader_stage_entrypoint_info,
-                                                                            const ShaderModuleStageEntryPoint& in_tess_evaluation_shader_stage_entrypoint_info,
-                                                                            const ShaderModuleStageEntryPoint& in_vertex_shader_shader_stage_entrypoint_info,
-                                                                            Anvil::PipelineID                  in_base_pipeline_id);
+        static Anvil::GraphicsPipelineCreateInfoUniquePtr create      (const Anvil::PipelineCreateFlagBits&     in_create_flags,
+                                                                       const RenderPass*                        in_renderpass_ptr,
+                                                                       SubPassID                                in_subpass_id,
+                                                                       const ShaderModuleStageEntryPoint&       in_fragment_shader_stage_entrypoint_info,
+                                                                       const ShaderModuleStageEntryPoint&       in_geometry_shader_stage_entrypoint_info,
+                                                                       const ShaderModuleStageEntryPoint&       in_tess_control_shader_stage_entrypoint_info,
+                                                                       const ShaderModuleStageEntryPoint&       in_tess_evaluation_shader_stage_entrypoint_info,
+                                                                       const ShaderModuleStageEntryPoint&       in_vertex_shader_shader_stage_entrypoint_info,
+                                                                       const Anvil::GraphicsPipelineCreateInfo* in_opt_reference_pipeline_info_ptr = nullptr,
+                                                                       const Anvil::PipelineID*                 in_opt_base_pipeline_id_ptr        = nullptr);
         static Anvil::GraphicsPipelineCreateInfoUniquePtr create_proxy();
-        static Anvil::GraphicsPipelineCreateInfoUniquePtr create_regular(bool                                     in_disable_optimizations,
-                                                                         bool                                     in_allow_derivatives,
-                                                                         const RenderPass*                        in_renderpass_ptr,
-                                                                         SubPassID                                in_subpass_id,
-                                                                         const ShaderModuleStageEntryPoint&       in_fragment_shader_stage_entrypoint_info,
-                                                                         const ShaderModuleStageEntryPoint&       in_geometry_shader_stage_entrypoint_info,
-                                                                         const ShaderModuleStageEntryPoint&       in_tess_control_shader_stage_entrypoint_info,
-                                                                         const ShaderModuleStageEntryPoint&       in_tess_evaluation_shader_stage_entrypoint_info,
-                                                                         const ShaderModuleStageEntryPoint&       in_vertex_shader_shader_stage_entrypoint_info,
-                                                                         const Anvil::GraphicsPipelineCreateInfo* in_opt_reference_pipeline_create_info_ptr = nullptr);
 
         ~GraphicsPipelineCreateInfo();
 
@@ -292,6 +282,25 @@ namespace Anvil
             return m_renderpass_ptr;
         }
 
+        /** Retrieves state configuration related to custom sample locations.
+         *
+         *  @param out_opt_is_enabled_ptr                 If not null, deref will be set to true if custom sample locations have been
+         *                                                enabled for the pipeline.
+         *  @param out_opt_sample_locations_per_pixel_ptr If not null, deref will be set to the number of sample locations to be used
+         *                                                per pixel.
+         *  @param out_opt_sample_location_grid_size_ptr  If not null, deref will be set to sample location grid size.
+         *  @param out_opt_n_sample_locations_ptr         If not null, deref will be set to the number of sample locations available
+         *                                                for reading under *out_opt_sample_locations_ptr
+         *  @param out_opt_sample_locations_ptr_ptr       If not null, deref will be set to a ptr to an array holding custom sample
+         *                                                locations.
+         *
+         **/
+        void get_sample_location_state(bool*                         out_opt_is_enabled_ptr,
+                                       Anvil::SampleCountFlagBits*   out_opt_sample_locations_per_pixel_ptr,
+                                       VkExtent2D*                   out_opt_sample_location_grid_size_ptr,
+                                       uint32_t*                     out_opt_n_sample_locations_ptr,
+                                       const Anvil::SampleLocation** out_opt_sample_locations_ptr_ptr);
+
         /** Retrieves state configuration related to per-sample shading.
          *
          *  @param out_opt_is_enabled_ptr         If not null, deref will be set to true if per-sample shading
@@ -299,7 +308,6 @@ namespace Anvil
          *  @param out_opt_min_sample_shading_ptr If not null, deref will be set to the minimum sample shading value,
          *                                        as specified at creation time.
          *
-         *  @return true if successful, false otherwise.
          **/
         void get_sample_shading_state(bool*  out_opt_is_enabled_ptr,
                                       float* out_opt_min_sample_shading_ptr) const;
@@ -533,6 +541,23 @@ namespace Anvil
                                           Anvil::FrontFace     in_front_face,
                                           float                in_line_width);
 
+        /** Sets all state related to custom sample locations support.
+         *
+         *  This information is only used if custom sample locations is enabled (which can be done by calling
+         *  toggle_sample_locations().
+         *
+         *  @param in_sample_locations_per_pixel Number of sample locations to use per pixel.
+         *  @param in_sample_location_grid_size  Size of the sample location grid to select custom sample locations for.
+         *  @param in_n_sample_locations         Number of sample locations defined under @param in_sample_locations_ptr.
+         *                                       Must not be 0.
+         *  @param in_sample_locations_ptr       Array of sample locations to use. Must not be nullptr. Must hold at least
+         *                                       @param in_n_sample_locations items.
+         */
+        void set_sample_location_properties(const Anvil::SampleCountFlagBits& in_sample_locations_per_pixel,
+                                            const VkExtent2D&                 in_sample_location_grid_size,
+                                            const uint32_t&                   in_n_sample_locations,
+                                            const Anvil::SampleLocation*      in_sample_locations_ptr);
+
         /** Sets properties of a scissor box at the specified index.
          *
          *  If @param n_scissor_box is larger than 1, all previous scissor boxes must also be defined
@@ -688,6 +713,17 @@ namespace Anvil
          *  @param in_should_enable true to enable the test; false to disable it.
          */
         void toggle_rasterizer_discard(bool in_should_enable);
+
+        /** Enables or disables custom sample locations.
+         *
+         *  NOTE: If you enable the functionality, also make sure to call set_sample_locations_properties()
+         *        to configure additional state required at pipeline creation time.
+         *
+         *  Requires VK_EXT_sample_locations.
+         *
+         *  @param in_should_enable True to enable custom sample locations, false to disable the functionality.
+         */
+        void toggle_sample_locations(bool in_should_enable);
 
         /** Enables or disables the sample mask.
          *
@@ -939,12 +975,17 @@ namespace Anvil
         bool m_logic_op_enabled;
         bool m_primitive_restart_enabled;
         bool m_rasterizer_discard_enabled;
+        bool m_sample_locations_enabled;
         bool m_sample_mask_enabled;
         bool m_sample_shading_enabled;
 
         bool             m_stencil_test_enabled;
         VkStencilOpState m_stencil_state_back_face;
         VkStencilOpState m_stencil_state_front_face;
+
+        VkExtent2D                         m_sample_location_grid_size;
+        std::vector<Anvil::SampleLocation> m_sample_locations;
+        Anvil::SampleCountFlagBits         m_sample_locations_per_pixel;
 
         Anvil::RasterizationOrderAMD m_rasterization_order;
 

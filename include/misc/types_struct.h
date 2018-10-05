@@ -24,6 +24,105 @@
 
 namespace Anvil
 {
+    /* Note: Matches VkSampleLocationEXT in terms of the layout and size.
+     */
+    typedef struct SampleLocation
+    {
+        float x;
+        float y;
+
+        SampleLocation()
+            :x(0.0f),
+             y(0.0f)
+        {
+            /* Stub */
+        }
+
+        SampleLocation(const float& in_x,
+                       const float& in_y)
+            :x(in_x),
+             y(in_y)
+        {
+            /* Stub */
+        }
+    } SampleLocation;
+
+    static_assert(sizeof(SampleLocation)      == sizeof(VkSampleLocationEXT),      "Struct sizes must match");
+    static_assert(offsetof(SampleLocation, x) == offsetof(VkSampleLocationEXT, x), "Member offsets much match");
+    static_assert(offsetof(SampleLocation, y) == offsetof(VkSampleLocationEXT, y), "Member offsets much match");
+
+    typedef struct SampleLocationsInfo
+    {
+        Anvil::SampleCountFlagBits         sample_locations_per_pixel;
+        VkExtent2D                         sample_location_grid_size;
+        std::vector<Anvil::SampleLocation> sample_locations;
+
+        SampleLocationsInfo()
+        {
+            sample_locations_per_pixel       = Anvil::SampleCountFlagBits::NONE;
+            sample_location_grid_size.height = 0;
+            sample_location_grid_size.width  = 0;
+        }
+
+        VkSampleLocationsInfoEXT get_vk() const
+        {
+            VkSampleLocationsInfoEXT result;
+
+            result.pNext                   = nullptr;
+            result.pSampleLocations        = (sample_locations.size() != 0) ? reinterpret_cast<const VkSampleLocationEXT*>(&sample_locations.at(0) )
+                                                                            : nullptr;
+            result.sampleLocationGridSize  = sample_location_grid_size;
+            result.sampleLocationsCount    = static_cast<uint32_t>             (sample_locations.size() );
+            result.sampleLocationsPerPixel = static_cast<VkSampleCountFlagBits>(sample_locations_per_pixel);
+            result.sType                   = VK_STRUCTURE_TYPE_SAMPLE_LOCATIONS_INFO_EXT;
+
+            return result;
+        }
+
+    } SampleLocationsInfo;
+
+    typedef struct AttachmentSampleLocations
+    {
+        uint32_t                   n_attachment;
+        Anvil::SampleLocationsInfo sample_locations_info;
+
+        AttachmentSampleLocations()
+        {
+            n_attachment = UINT32_MAX;
+        }
+
+        VkAttachmentSampleLocationsEXT get_vk() const
+        {
+            VkAttachmentSampleLocationsEXT result;
+
+            result.attachmentIndex     = n_attachment;
+            result.sampleLocationsInfo = sample_locations_info.get_vk();
+
+            return result;
+        }
+    } AttachmentSampleLocations;
+
+    typedef struct SubpassSampleLocations
+    {
+        uint32_t                   n_subpass;
+        Anvil::SampleLocationsInfo sample_locations_info;
+
+        SubpassSampleLocations()
+        {
+            n_subpass = UINT32_MAX;
+        }
+
+        VkSubpassSampleLocationsEXT get_vk() const
+        {
+            VkSubpassSampleLocationsEXT result;
+
+            result.subpassIndex        = n_subpass;
+            result.sampleLocationsInfo = sample_locations_info.get_vk();
+
+            return result;
+        }
+    } SubpassSampleLocations;
+
     /* NOTE: Maps 1:1 to VkImageSubresource */
     typedef struct
     {
@@ -76,7 +175,7 @@ namespace Anvil
     static_assert(offsetof(ImageSubresource, array_layer) == offsetof(VkImageSubresource, arrayLayer), "Member offsets must match");
 
     /* NOTE: Maps 1:1 to VkImageSubresourceRange */
-    typedef struct
+    typedef struct ImageSubresourceRange
     {
         Anvil::ImageAspectFlags aspect_mask;
         uint32_t                base_mip_level;
@@ -96,6 +195,8 @@ namespace Anvil
 
             return result;
         }
+
+        bool operator==(const ImageSubresourceRange&) const;
     } ImageSubresourceRange;
 
     static_assert(sizeof(ImageSubresourceRange)                     == sizeof(VkImageSubresourceRange),                   "Struct sizes much match");
@@ -344,6 +445,7 @@ namespace Anvil
             return &buffer_barrier_vk;
         }
 
+        bool operator==(const BufferBarrier&) const;
     private:
         BufferBarrier& operator=(const BufferBarrier&);
     } BufferBarrier;
@@ -491,12 +593,38 @@ namespace Anvil
         bool operator==(const EXTDescriptorIndexingProperties& in_props) const;
     } EXTDescriptorIndexingProperties;
 
+    typedef struct EXTExternalMemoryHostProperties
+    {
+        VkDeviceSize min_imported_host_pointer_alignment;
+
+        EXTExternalMemoryHostProperties();
+        EXTExternalMemoryHostProperties(const VkPhysicalDeviceExternalMemoryHostPropertiesEXT& in_props);
+
+        bool operator==(const EXTExternalMemoryHostProperties& in_props) const;
+    } EXTExternalMemoryHostProperties;
+
+    typedef struct EXTSampleLocationsProperties
+    {
+        VkExtent2D              max_sample_location_grid_size;
+        float                   sample_location_coordinate_range[2];
+        Anvil::SampleCountFlags sample_location_sample_counts;
+        uint32_t                sample_location_sub_pixel_bits;
+        bool                    variable_sample_locations;
+
+        EXTSampleLocationsProperties();
+        EXTSampleLocationsProperties(const VkPhysicalDeviceSampleLocationsPropertiesEXT& in_props);
+
+        bool operator==(const EXTSampleLocationsProperties& in_props) const;
+    } EXTSampleLocationsProperties;
+
     typedef struct EXTVertexAttributeDivisorProperties
     {
         uint32_t max_vertex_attribute_divisor;
 
         EXTVertexAttributeDivisorProperties();
         EXTVertexAttributeDivisorProperties(const VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT& in_props);
+
+        bool operator==(const EXTVertexAttributeDivisorProperties& in_props) const;
     } EXTVertexAttributeDivisorProperties;
 
     /* Used by Image::set_memory_multi(). Requires VK_KHR_device_group support. */
@@ -580,6 +708,13 @@ namespace Anvil
         bool operator< (const DescriptorUpdateTemplateEntry& in_entry) const;
     } DescriptorUpdateTemplateEntry;
 
+    typedef struct ExtensionAMDBufferMarkerEntrypoints
+    {
+        PFN_vkCmdWriteBufferMarkerAMD vkCmdWriteBufferMarkerAMD;
+
+        ExtensionAMDBufferMarkerEntrypoints();
+    } ExtensionAMDBufferMarkerEntrypoints;
+
     typedef struct ExtensionAMDDrawIndirectCountEntrypoints
     {
         PFN_vkCmdDrawIndexedIndirectCountAMD vkCmdDrawIndexedIndirectCountAMD;
@@ -613,6 +748,28 @@ namespace Anvil
 
         ExtensionEXTDebugReportEntrypoints();
     } ExtensionEXTDebugReportEntrypoints;
+
+    typedef struct ExtensionEXTExternalMemoryHostEntrypoints
+    {
+        PFN_vkGetMemoryHostPointerPropertiesEXT vkGetMemoryHostPointerPropertiesEXT;
+
+        ExtensionEXTExternalMemoryHostEntrypoints();
+    } ExtensionEXTExternalMemoryHostEntrypoints;
+
+    typedef struct ExtensionEXTHdrMetadataEntrypoints
+    {
+        PFN_vkSetHdrMetadataEXT vkSetHdrMetadataEXT;
+
+        ExtensionEXTHdrMetadataEntrypoints();
+    } ExtensionEXTHdrMetadataEntrypoints;
+
+    typedef struct ExtensionEXTSampleLocationsEntrypoints
+    {
+        PFN_vkCmdSetSampleLocationsEXT                  vkCmdSetSampleLocationsEXT;
+        PFN_vkGetPhysicalDeviceMultisamplePropertiesEXT vkGetPhysicalDeviceMultisamplePropertiesEXT;
+
+        ExtensionEXTSampleLocationsEntrypoints();
+    } ExtensionEXTSampleLocationsEntrypoints;
 
     typedef struct ExtensionKHRDeviceGroupEntrypoints
     {
@@ -809,6 +966,18 @@ namespace Anvil
         ExtensionKHRDeviceGroupCreationEntrypoints();
     } ExtensionKHRDeviceGroupCreationEntrypoints;
 
+    typedef struct EXTSamplerFilterMinmaxProperties
+    {
+        bool filter_minmax_single_component_formats;
+        bool filter_minmax_image_component_mapping;
+
+        EXTSamplerFilterMinmaxProperties();
+        EXTSamplerFilterMinmaxProperties(const VkPhysicalDeviceSamplerFilterMinmaxPropertiesEXT& in_props);
+
+        bool operator==(const EXTSamplerFilterMinmaxProperties&) const;
+
+    } EXTSamplerFilterMinmaxProperties;
+
     typedef struct FenceProperties
     {
         ExternalFenceProperties external_fence_properties;
@@ -842,6 +1011,67 @@ namespace Anvil
         FormatProperties();
         FormatProperties(const VkFormatProperties& in_format_props);
     } FormatProperties;
+
+    typedef struct XYColorEXT
+    {
+        float x;
+        float y;
+
+        XYColorEXT()
+            :x(0.0f),
+             y(0.0f)
+        {
+            /* Stub */
+        }
+
+        VkXYColorEXT get_vk() const
+        {
+            VkXYColorEXT result;
+
+            result.x = x;
+            result.y = y;
+
+            return result;
+        }
+    } XYColorEXT;
+
+    typedef struct HdrMetadataEXT
+    {
+        Anvil::XYColorEXT  display_primary_red;
+        Anvil::XYColorEXT  display_primary_green;
+        Anvil::XYColorEXT  display_primary_blue;
+        float              max_content_light_level;
+        float              max_frame_average_light_level;
+        float              max_luminance;
+        float              min_luminance;
+        Anvil::XYColorEXT  white_point;
+
+        HdrMetadataEXT()
+        {
+            max_content_light_level       = 0.0f;
+            max_frame_average_light_level = 0.0f;
+            max_luminance                 = 0.0f;
+            min_luminance                 = 0.0f;
+        }
+
+        VkHdrMetadataEXT get_vk() const
+        {
+            VkHdrMetadataEXT result;
+
+            result.displayPrimaryBlue        = display_primary_blue.get_vk ();
+            result.displayPrimaryGreen       = display_primary_green.get_vk();
+            result.displayPrimaryRed         = display_primary_red.get_vk  ();
+            result.maxContentLightLevel      = max_content_light_level;
+            result.maxFrameAverageLightLevel = max_frame_average_light_level;
+            result.maxLuminance              = max_luminance;
+            result.minLuminance              = min_luminance;
+            result.pNext                     = nullptr;
+            result.sType                     = VK_STRUCTURE_TYPE_HDR_METADATA_EXT;
+            result.whitePoint                = white_point.get_vk();
+
+            return result;
+        }
+    } HdrMetadataEXT;
 
     typedef struct ImageFormatProperties
     {
@@ -1006,7 +1236,8 @@ namespace Anvil
 
     typedef struct ExternalMemoryHandleImportInfo
     {
-        ExternalHandleType handle;
+        ExternalHandleType handle;   /* Used for non-host pointer import ops */
+        void*              host_ptr; /* Used for host pointer import ops     */
 
         #if defined(_WIN32)
             std::wstring name;
@@ -1019,10 +1250,11 @@ namespace Anvil
             #else
                 handle = -1;
             #endif
+
+            host_ptr = nullptr;
         }
     } ExternalMemoryHandleImportInfo;
 
-    /* Holds 16-bit storage features */
     typedef struct KHR16BitStorageFeatures
     {
         bool is_input_output_storage_supported;
@@ -1038,6 +1270,20 @@ namespace Anvil
         bool operator==(const KHR16BitStorageFeatures& in_features) const;
     } KHR16BitStorageFeatures;
 
+    typedef struct KHR8BitStorageFeatures
+    {
+        bool storage_buffer_8_bit_access;
+        bool storage_push_constant_8;
+        bool uniform_and_storage_buffer_8_bit_access;
+
+        KHR8BitStorageFeatures();
+        KHR8BitStorageFeatures(const VkPhysicalDevice8BitStorageFeaturesKHR& in_features);
+
+        VkPhysicalDevice8BitStorageFeaturesKHR get_vk_physical_device_8_bit_storage_features() const;
+
+        bool operator==(const KHR8BitStorageFeatures& in_features) const;
+    } KHR8BitStorageFeatures;
+
     typedef struct KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties
     {
         uint8_t  device_luid[VK_LUID_SIZE];
@@ -1050,6 +1296,9 @@ namespace Anvil
 
         KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties();
         KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties(const VkPhysicalDeviceIDPropertiesKHR& in_properties);
+
+        bool operator==(const KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties& in_props) const;
+
     } KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties;
 
     typedef struct KHRMaintenance2PhysicalDevicePointClippingProperties
@@ -1074,6 +1323,45 @@ namespace Anvil
         bool operator==(const KHRMaintenance3Properties&) const;
 
     } KHRMaintenance3Properties;
+
+    typedef struct KHRMultiviewFeatures
+    {
+        bool multiview;
+        bool multiview_geometry_shader;
+        bool multiview_tessellation_shader;
+
+        KHRMultiviewFeatures();
+        KHRMultiviewFeatures(const VkPhysicalDeviceMultiviewFeatures& in_features);
+
+        VkPhysicalDeviceMultiviewFeatures get_vk_physical_device_multiview_features() const;
+
+        bool operator==(const KHRMultiviewFeatures& in_features) const;
+    } KHRMultiviewFeatures;
+
+    typedef struct KHRMultiviewProperties
+    {
+        uint32_t max_multiview_view_count;
+        uint32_t max_multiview_instance_index;
+
+        KHRMultiviewProperties();
+        KHRMultiviewProperties(const VkPhysicalDeviceMultiviewPropertiesKHR& in_props);
+
+        bool operator==(const KHRMultiviewProperties&) const;
+
+    } KHRMultiviewProperties;
+
+    typedef struct KHRVariablePointerFeatures
+    {
+        bool variable_pointers;
+        bool variable_pointers_storage_buffer;
+
+        KHRVariablePointerFeatures();
+        KHRVariablePointerFeatures(const VkPhysicalDeviceVariablePointerFeatures& in_features);
+
+        VkPhysicalDeviceVariablePointerFeaturesKHR get_vk_physical_device_variable_pointer_features() const;
+
+        bool operator==(const KHRVariablePointerFeatures& in_features) const;
+    } KHRVariablePointerFeatures;
 
     /** Holds properties of a single Vulkan Layer. */
     typedef struct Layer
@@ -1209,6 +1497,22 @@ namespace Anvil
 
     extern bool operator==(const MemoryProperties& in1,
                            const MemoryProperties& in2);
+
+    typedef struct MultisamplePropertiesEXT
+    {
+        VkExtent2D max_sample_location_grid_size;
+
+        MultisamplePropertiesEXT()
+        {
+            max_sample_location_grid_size.height = 0;
+            max_sample_location_grid_size.width  = 0;
+        }
+
+        MultisamplePropertiesEXT(const VkMultisamplePropertiesEXT& in_multisample_props_vk)
+        {
+            max_sample_location_grid_size = in_multisample_props_vk.maxSampleLocationGridSize;
+        }
+    } MultisamplePropertiesEXT;
 
     /** Defines data for a single image mip-map.
      *
@@ -1631,11 +1935,17 @@ namespace Anvil
         const PhysicalDeviceFeaturesCoreVK10* core_vk1_0_features_ptr;
         const EXTDescriptorIndexingFeatures*  ext_descriptor_indexing_features_ptr;
         const KHR16BitStorageFeatures*        khr_16bit_storage_features_ptr;
+        const KHR8BitStorageFeatures*         khr_8bit_storage_features_ptr;
+        const KHRMultiviewFeatures*           khr_multiview_features_ptr;
+        const KHRVariablePointerFeatures*     khr_variable_pointer_features_ptr;
 
         PhysicalDeviceFeatures();
         PhysicalDeviceFeatures(const PhysicalDeviceFeaturesCoreVK10* in_core_vk1_0_features_ptr,
                                const EXTDescriptorIndexingFeatures*  in_ext_descriptor_indexing_features_ptr,
-                               const KHR16BitStorageFeatures*        in_khr_16_bit_storage_features_ptr);
+                               const KHR16BitStorageFeatures*        in_khr_16_bit_storage_features_ptr,
+                               const KHR8BitStorageFeatures*         in_khr_8_bit_storage_features_ptr,
+                               const KHRMultiviewFeatures*           in_khr_multiview_features_ptr,
+                               const KHRVariablePointerFeatures*     in_khr_variable_pointer_features_ptr);
 
         bool operator==(const PhysicalDeviceFeatures& in_physical_device_features) const;
     } PhysicalDeviceFeatures;
@@ -1793,19 +2103,27 @@ namespace Anvil
         const AMDShaderCoreProperties*                                 amd_shader_core_properties_ptr;
         const PhysicalDevicePropertiesCoreVK10*                        core_vk1_0_properties_ptr;
         const EXTDescriptorIndexingProperties*                         ext_descriptor_indexing_properties_ptr;
+        const EXTExternalMemoryHostProperties*                         ext_external_memory_host_properties_ptr;
+        const EXTSampleLocationsProperties*                            ext_sample_locations_properties_ptr;
+        const EXTSamplerFilterMinmaxProperties*                        ext_sampler_filter_minmax_properties_ptr;
         const EXTVertexAttributeDivisorProperties*                     ext_vertex_attribute_divisor_properties_ptr;
         const KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties* khr_external_memory_capabilities_physical_device_id_properties_ptr;
         const KHRMaintenance2PhysicalDevicePointClippingProperties*    khr_maintenance2_point_clipping_properties_ptr;
         const KHRMaintenance3Properties*                               khr_maintenance3_properties_ptr;
+        const KHRMultiviewProperties*                                  khr_multiview_properties_ptr;
 
         PhysicalDeviceProperties();
         PhysicalDeviceProperties(const AMDShaderCoreProperties*                                 in_amd_shader_core_properties_ptr,
                                  const PhysicalDevicePropertiesCoreVK10*                        in_core_vk1_0_properties_ptr,
                                  const EXTDescriptorIndexingProperties*                         in_ext_descriptor_indexing_properties_ptr,
+                                 const EXTExternalMemoryHostProperties*                         in_ext_external_memory_host_properties_ptr,
+                                 const EXTSampleLocationsProperties*                            in_ext_sample_locations_properties_ptr,
+                                 const EXTSamplerFilterMinmaxProperties*                        in_ext_sampler_filter_minmax_properties_ptr,
                                  const EXTVertexAttributeDivisorProperties*                     in_ext_vertex_attribute_divisor_properties_ptr,
                                  const KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties* in_khr_external_memory_caps_physical_device_id_props_ptr,
                                  const KHRMaintenance3Properties*                               in_khr_maintenance3_properties_ptr,
-                                 const KHRMaintenance2PhysicalDevicePointClippingProperties*    in_khr_maintenance2_point_clipping_properties_ptr);
+                                 const KHRMaintenance2PhysicalDevicePointClippingProperties*    in_khr_maintenance2_point_clipping_properties_ptr,
+                                 const KHRMultiviewProperties*                                  in_khr_multiview_properties_ptr);
 
         bool operator==(const PhysicalDeviceProperties& in_props) const;
     } PhysicalDeviceProperties;
@@ -1866,13 +2184,13 @@ namespace Anvil
     /** TODO */
     typedef struct SemaphoreMGPUSubmission
     {
-        const Anvil::PhysicalDevice* physical_device_ptr;
-        Anvil::Semaphore*            semaphore_ptr;
+        uint32_t            device_index; //< device index in the device group
+        Anvil::Semaphore*   semaphore_ptr;
 
         SemaphoreMGPUSubmission()
         {
-            physical_device_ptr = nullptr;
-            semaphore_ptr       = nullptr;
+            device_index    = UINT32_MAX;
+            semaphore_ptr   = nullptr;
         }
     } SemaphoreMGPUSubmission;
 
@@ -2115,7 +2433,8 @@ namespace Anvil
                                          bool                             in_should_block,
                                          Anvil::Fence*                    in_opt_fence_ptr = nullptr);
 
-        static SubmitInfo create_execute(const CommandBufferMGPUSubmission* in_cmd_buffer_submission_ptr,
+        static SubmitInfo create_execute(const CommandBufferMGPUSubmission* in_cmd_buffer_submissions_ptr,
+                                         uint32_t                           in_n_command_buffer_submissions,
                                          bool                               in_should_block,
                                          Anvil::Fence*                      in_opt_fence_ptr = nullptr);
 
@@ -2131,7 +2450,8 @@ namespace Anvil
                                                 bool                             in_should_block,
                                                 Anvil::Fence*                    in_opt_fence_ptr = nullptr);
 
-        static SubmitInfo create_execute_signal(const CommandBufferMGPUSubmission* in_cmd_buffer_submission_ptr,
+        static SubmitInfo create_execute_signal(const CommandBufferMGPUSubmission* in_cmd_buffer_submissions_ptr,
+                                                uint32_t                           in_n_command_buffer_submissions,
                                                 uint32_t                           in_n_signal_semaphore_submissions,
                                                 const SemaphoreMGPUSubmission*     in_signal_semaphore_submissions_ptr,
                                                 bool                               in_should_block,
@@ -2176,7 +2496,8 @@ namespace Anvil
                                               bool                             in_should_block,
                                               Anvil::Fence*                    in_opt_fence_ptr = nullptr);
 
-        static SubmitInfo create_wait_execute(const CommandBufferMGPUSubmission* in_cmd_buffer_submission_ptr,
+        static SubmitInfo create_wait_execute(const CommandBufferMGPUSubmission* in_cmd_buffer_submissions_ptr,
+                                              uint32_t                           in_n_command_buffer_submissions,
                                               uint32_t                           in_n_wait_semaphore_submissions,
                                               const SemaphoreMGPUSubmission*     in_wait_semaphore_submissions_ptr,
                                               const Anvil::PipelineStageFlags*   in_dst_stage_masks_to_wait_on_ptrs,
@@ -2201,7 +2522,8 @@ namespace Anvil
                                                      bool                             in_should_block,
                                                      Anvil::Fence*                    in_opt_fence_ptr = nullptr);
 
-        static SubmitInfo create_wait_execute_signal(const CommandBufferMGPUSubmission* in_cmd_buffer_submission_ptr,
+        static SubmitInfo create_wait_execute_signal(const CommandBufferMGPUSubmission* in_cmd_buffer_submissions_ptr,
+                                                     uint32_t                           in_n_command_buffer_submissions,
                                                      uint32_t                           in_n_signal_semaphore_submissions,
                                                      const SemaphoreMGPUSubmission*     in_signal_semaphore_submissions_ptr,
                                                      uint32_t                           in_n_wait_semaphore_submissions,
@@ -2339,16 +2661,8 @@ namespace Anvil
             timeout = in_timeout;
         }
     private:
-        SubmitInfo(Anvil::CommandBufferBase*        in_cmd_buffer_ptr,
-                   uint32_t                         in_n_semaphores_to_signal,
-                   Anvil::Semaphore* const*         in_opt_semaphore_to_signal_ptrs_ptr,
-                   uint32_t                         in_n_semaphores_to_wait_on,
-                   Anvil::Semaphore* const*         in_opt_semaphore_to_wait_on_ptrs_ptr,
-                   const Anvil::PipelineStageFlags* in_opt_dst_stage_masks_to_wait_on_ptrs,
-                   bool                             in_should_block,
-                   Anvil::Fence*                    in_opt_fence_ptr);
-
         SubmitInfo(uint32_t                         in_n_command_buffers,
+                   Anvil::CommandBufferBase*        in_opt_single_cmd_buffer_ptr, /* to support n=1 helper functions */
                    Anvil::CommandBufferBase* const* in_opt_cmd_buffer_ptrs_ptr,
                    uint32_t                         in_n_semaphores_to_signal,
                    Anvil::Semaphore* const*         in_opt_semaphore_to_signal_ptrs_ptr,
@@ -2396,6 +2710,23 @@ namespace Anvil
 
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(SubmitInfo);
     } SubmitInfo;
+
+    /* NOTE: Maps 1:1 to VkSurfaceFormatKHR */
+    typedef struct SurfaceFormatKHR
+    {
+        Anvil::Format        format;
+        Anvil::ColorSpaceKHR color_space;
+
+        SurfaceFormatKHR()
+        {
+            color_space = Anvil::ColorSpaceKHR::UNKNOWN;
+            format      = Anvil::Format::UNKNOWN;
+        }
+    } SurfaceFormatKHR;
+
+    static_assert(sizeof  (SurfaceFormatKHR)              == sizeof  (VkSurfaceFormatKHR),             "Struct sizes must match");
+    static_assert(offsetof(SurfaceFormatKHR, format)      == offsetof(VkSurfaceFormatKHR, format),     "Member offsets must match");
+    static_assert(offsetof(SurfaceFormatKHR, color_space) == offsetof(VkSurfaceFormatKHR, colorSpace), "Member offsets must match");
 
     /* Represents a Vulkan structure header */
     typedef struct

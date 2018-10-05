@@ -100,6 +100,45 @@ bool Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::init()
     const bool             khr_dedicated_allocation_supported = m_device_ptr->get_extension_info()->khr_dedicated_allocation();
     VkResult               result                             = VK_ERROR_DEVICE_LOST;
 
+    /* Prepare VK func ptr array */
+    m_vma_func_ptrs.reset(
+        new VmaVulkanFunctions()
+    );
+
+    if (m_vma_func_ptrs == nullptr)
+    {
+        anvil_assert(m_vma_func_ptrs != nullptr);
+
+        goto end;
+    }
+
+    m_vma_func_ptrs->vkAllocateMemory                    = Vulkan::vkAllocateMemory;
+    m_vma_func_ptrs->vkBindBufferMemory                  = Vulkan::vkBindBufferMemory;
+    m_vma_func_ptrs->vkBindImageMemory                   = Vulkan::vkBindImageMemory;
+    m_vma_func_ptrs->vkCreateBuffer                      = Vulkan::vkCreateBuffer;
+    m_vma_func_ptrs->vkCreateImage                       = Vulkan::vkCreateImage;
+    m_vma_func_ptrs->vkDestroyBuffer                     = Vulkan::vkDestroyBuffer;
+    m_vma_func_ptrs->vkDestroyImage                      = Vulkan::vkDestroyImage;
+    m_vma_func_ptrs->vkFreeMemory                        = Vulkan::vkFreeMemory;
+    m_vma_func_ptrs->vkGetBufferMemoryRequirements       = Vulkan::vkGetBufferMemoryRequirements;
+    m_vma_func_ptrs->vkGetImageMemoryRequirements        = Vulkan::vkGetImageMemoryRequirements;
+    m_vma_func_ptrs->vkGetPhysicalDeviceMemoryProperties = Vulkan::vkGetPhysicalDeviceMemoryProperties;
+    m_vma_func_ptrs->vkGetPhysicalDeviceProperties       = Vulkan::vkGetPhysicalDeviceProperties;
+    m_vma_func_ptrs->vkMapMemory                         = Vulkan::vkMapMemory;
+    m_vma_func_ptrs->vkUnmapMemory                       = Vulkan::vkUnmapMemory;
+
+    if (m_device_ptr->get_extension_info()->khr_get_memory_requirements2() )
+    {
+        m_vma_func_ptrs->vkGetBufferMemoryRequirements2KHR = m_device_ptr->get_extension_khr_get_memory_requirements2_entrypoints().vkGetBufferMemoryRequirements2KHR;
+        m_vma_func_ptrs->vkGetImageMemoryRequirements2KHR  = m_device_ptr->get_extension_khr_get_memory_requirements2_entrypoints().vkGetImageMemoryRequirements2KHR;
+    }
+    else
+    {
+        m_vma_func_ptrs->vkGetBufferMemoryRequirements2KHR = nullptr;
+        m_vma_func_ptrs->vkGetImageMemoryRequirements2KHR  = nullptr;
+    }
+
+    /* Prepare VMA create info struct */
     switch (m_device_ptr->get_type() )
     {
         case Anvil::DeviceType::MULTI_GPU:
@@ -134,11 +173,13 @@ bool Anvil::MemoryAllocatorBackends::VMA::VMAAllocator::init()
     create_info.device                      = m_device_ptr->get_device_vk();
     create_info.pAllocationCallbacks        = nullptr;
     create_info.preferredLargeHeapBlockSize = 0;
+    create_info.pVulkanFunctions            = m_vma_func_ptrs.get();
 
     result = vmaCreateAllocator(&create_info,
                                 &m_allocator);
 
     anvil_assert_vk_call_succeeded(result);
+end:
     return is_vk_call_successful(result);
 }
 

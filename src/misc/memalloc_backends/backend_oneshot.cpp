@@ -23,6 +23,7 @@
 #include "misc/memalloc_backends/backend_oneshot.h"
 #include "misc/debug.h"
 #include "misc/formats.h"
+#include "misc/image_create_info.h"
 #include "misc/memory_allocator.h"
 #include "misc/memory_block_create_info.h"
 #include "wrappers/buffer.h"
@@ -269,7 +270,7 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
             const auto&                                           current_device_mask                     = current_device_mask_to_item_vector_data.first;
             uint32_t                                              current_memory_type_index               = 0;
 
-            for (const auto& current_items: current_device_mask_to_item_vector_data.second)
+            for (const auto& current_items : current_device_mask_to_item_vector_data.second)
             {
                 if (current_items.size() > 0)
                 {
@@ -279,16 +280,42 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
 
                     /* Go through the items, calculate offsets and the total amount of memory we're going
                      * to need to alloc off the heap */
-                    for (auto& current_item_ptr : current_items)
                     {
-                        anvil_assert(current_item_ptr->alloc_exportable_external_handle_types == 0);
-                        anvil_assert(current_item_ptr->alloc_external_nt_handle_info_ptr      == nullptr);
+                        bool                          is_prev_item_linear = false;
+                        Anvil::MemoryAllocator::Item* prev_item_ptr       = nullptr;
 
-                        n_bytes_required = Anvil::Utils::round_up(n_bytes_required,
-                                                                  current_item_ptr->alloc_memory_required_alignment);
+                        for (auto& current_item_ptr : current_items)
+                        {
+                            const bool is_current_item_buffer  = (current_item_ptr->type == Anvil::MemoryAllocator::ITEM_TYPE_BUFFER                   ||
+                                                                  current_item_ptr->type == Anvil::MemoryAllocator::ITEM_TYPE_SPARSE_BUFFER_REGION);
+                            const bool is_current_item_image   = (current_item_ptr->type == Anvil::MemoryAllocator::ITEM_TYPE_IMAGE_WHOLE              ||
+                                                                  current_item_ptr->type == Anvil::MemoryAllocator::ITEM_TYPE_SPARSE_IMAGE_MIPTAIL     ||
+                                                                  current_item_ptr->type == Anvil::MemoryAllocator::ITEM_TYPE_SPARSE_IMAGE_SUBRESOURCE);
+                            const bool is_current_item_linear = (is_current_item_buffer)                                                                                                  ||
+                                                                (is_current_item_image && current_item_ptr->image_ptr->get_create_info_ptr()->get_tiling() == Anvil::ImageTiling::LINEAR);
 
-                        alloc_offset_map[current_item_ptr]  = n_bytes_required;
-                        n_bytes_required                   += current_item_ptr->alloc_size;
+                            anvil_assert(current_item_ptr->alloc_exportable_external_handle_types == 0);
+                            anvil_assert(current_item_ptr->alloc_external_nt_handle_info_ptr      == nullptr);
+
+                            n_bytes_required = Anvil::Utils::round_up(n_bytes_required,
+                                                                      current_item_ptr->alloc_memory_required_alignment);
+
+                            if (prev_item_ptr != nullptr)
+                            {
+                                /* Make sure to adhere to the buffer-image granularity requirement */
+                                if (is_prev_item_linear != is_current_item_linear)
+                                {
+                                    n_bytes_required = Anvil::Utils::round_up(n_bytes_required,
+                                                                              m_device_ptr->get_physical_device_properties().core_vk1_0_properties_ptr->limits.buffer_image_granularity);
+                                }
+                            }
+
+                            alloc_offset_map[current_item_ptr]  = n_bytes_required;
+                            n_bytes_required                   += current_item_ptr->alloc_size;
+
+                            is_prev_item_linear = is_current_item_linear;
+                            prev_item_ptr       = current_item_ptr;
+                        }
                     }
 
                     /* Bake the block and stash it */
@@ -358,12 +385,12 @@ VkResult Anvil::MemoryAllocatorBackends::OneShot::map(void*        in_memory_obj
                                                       VkDeviceSize in_size,
                                                       void**       out_result_ptr)
 {
-    return vkMapMemory(m_device_ptr->get_device_vk(),
-                       reinterpret_cast<VkDeviceMemory>(in_memory_object),
-                       in_start_offset,
-                       in_size,
-                       0, /* flags */
-                       out_result_ptr);
+    return Anvil::Vulkan::vkMapMemory(m_device_ptr->get_device_vk(),
+                                      reinterpret_cast<VkDeviceMemory>(in_memory_object),
+                                      in_start_offset,
+                                      in_size,
+                                      0, /* flags */
+                                      out_result_ptr);
 }
 
 /** Tells whether or not the backend is ready to handle allocation request.
@@ -389,6 +416,6 @@ bool Anvil::MemoryAllocatorBackends::OneShot::supports_external_memory_handles(c
 
 void Anvil::MemoryAllocatorBackends::OneShot::unmap(void* in_memory_object)
 {
-    vkUnmapMemory(m_device_ptr->get_device_vk(),
-                  reinterpret_cast<VkDeviceMemory>(in_memory_object) );
+    Anvil::Vulkan::vkUnmapMemory(m_device_ptr->get_device_vk(),
+                                 reinterpret_cast<VkDeviceMemory>(in_memory_object) );
 }

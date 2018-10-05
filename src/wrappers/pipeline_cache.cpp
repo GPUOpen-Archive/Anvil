@@ -48,10 +48,10 @@ Anvil::PipelineCache::PipelineCache(const Anvil::BaseDevice* in_device_ptr,
     cache_create_info.pNext           = nullptr;
     cache_create_info.sType           = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
 
-    result_vk = vkCreatePipelineCache(m_device_ptr->get_device_vk(),
-                                     &cache_create_info,
-                                      nullptr, /* pAllocator */
-                                     &m_pipeline_cache);
+    result_vk = Anvil::Vulkan::vkCreatePipelineCache(m_device_ptr->get_device_vk(),
+                                                    &cache_create_info,
+                                                     nullptr, /* pAllocator */
+                                                    &m_pipeline_cache);
 
     anvil_assert_vk_call_succeeded(result_vk);
     if (is_vk_call_successful(result_vk) )
@@ -77,9 +77,9 @@ Anvil::PipelineCache::~PipelineCache()
     {
         lock();
         {
-            vkDestroyPipelineCache(m_device_ptr->get_device_vk(),
-                                   m_pipeline_cache,
-                                   nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroyPipelineCache(m_device_ptr->get_device_vk(),
+                                                  m_pipeline_cache,
+                                                  nullptr /* pAllocator */);
         }
         unlock();
 
@@ -107,17 +107,15 @@ Anvil::PipelineCacheUniquePtr Anvil::PipelineCache::create(const Anvil::BaseDevi
 }
 
 /** Please see header for specification */
-bool Anvil::PipelineCache::get_data(size_t*      out_n_data_bytes_ptr,
-                                    const void** out_data_ptr)
+bool Anvil::PipelineCache::get_data(size_t* out_n_data_bytes_ptr,
+                                    void*   out_data_ptr)
 {
     VkResult result_vk;
 
-    result_vk = vkGetPipelineCacheData(m_device_ptr->get_device_vk(),
-                                       m_pipeline_cache,
-                                       out_n_data_bytes_ptr,
-                                       out_data_ptr);
-
-    anvil_assert(result_vk);
+    result_vk = Anvil::Vulkan::vkGetPipelineCacheData(m_device_ptr->get_device_vk(),
+                                                      m_pipeline_cache,
+                                                      out_n_data_bytes_ptr,
+                                                      out_data_ptr);
 
     return is_vk_call_successful(result_vk);
 }
@@ -141,10 +139,10 @@ bool Anvil::PipelineCache::merge(uint32_t                           in_n_pipelin
 
     lock();
     {
-        result_vk = vkMergePipelineCaches(m_device_ptr->get_device_vk(),
-                                          m_pipeline_cache,
-                                          in_n_pipeline_caches,
-                                         &src_pipeline_caches.at(0) );
+        result_vk = Anvil::Vulkan::vkMergePipelineCaches(m_device_ptr->get_device_vk(),
+                                                         m_pipeline_cache,
+                                                         in_n_pipeline_caches,
+                                                        &src_pipeline_caches.at(0) );
     }
     unlock();
 

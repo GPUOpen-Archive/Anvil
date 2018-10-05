@@ -85,10 +85,10 @@ bool Anvil::Event::init()
     event_create_info.pNext = nullptr;
     event_create_info.sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO;
 
-    result = vkCreateEvent(m_device_ptr->get_device_vk(),
-                          &event_create_info,
-                           nullptr, /* pAllocator */
-                          &m_event);
+    result = Anvil::Vulkan::vkCreateEvent(m_device_ptr->get_device_vk(),
+                                         &event_create_info,
+                                          nullptr, /* pAllocator */
+                                         &m_event);
 
     anvil_assert_vk_call_succeeded(result);
     if (is_vk_call_successful(result) )
@@ -104,8 +104,8 @@ bool Anvil::Event::is_set() const
 {
     VkResult result;
 
-    result = vkGetEventStatus(m_device_ptr->get_device_vk(),
-                              m_event);
+    result = Anvil::Vulkan::vkGetEventStatus(m_device_ptr->get_device_vk(),
+                                             m_event);
 
     anvil_assert(result == VK_EVENT_RESET ||
                  result == VK_EVENT_SET);
@@ -120,9 +120,9 @@ void Anvil::Event::release_event()
     {
         lock();
         {
-            vkDestroyEvent(m_device_ptr->get_device_vk(),
-                           m_event,
-                           nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroyEvent(m_device_ptr->get_device_vk(),
+                                          m_event,
+                                          nullptr /* pAllocator */);
         }
         unlock();
 
@@ -137,8 +137,8 @@ bool Anvil::Event::reset()
 
     lock();
     {
-        result = vkResetEvent(m_device_ptr->get_device_vk(),
-                              m_event);
+        result = Anvil::Vulkan::vkResetEvent(m_device_ptr->get_device_vk(),
+                                             m_event);
     }
     unlock();
 
@@ -154,8 +154,8 @@ bool Anvil::Event::set()
 
     lock();
     {
-        result = vkSetEvent(m_device_ptr->get_device_vk(),
-                            m_event);
+        result = Anvil::Vulkan::vkSetEvent(m_device_ptr->get_device_vk(),
+                                           m_event);
     }
     unlock();
 

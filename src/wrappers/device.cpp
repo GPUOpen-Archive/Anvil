@@ -85,8 +85,8 @@ Anvil::BaseDevice::~BaseDevice()
     {
         lock();
         {
-            vkDestroyDevice(m_device,
-                            nullptr); /* pAllocator */
+            Anvil::Vulkan::vkDestroyDevice(m_device,
+                                           nullptr); /* pAllocator */
         }
         unlock();
 
@@ -106,80 +106,119 @@ Anvil::DescriptorSetLayout* Anvil::BaseDevice::get_dummy_descriptor_set_layout()
     return m_dummy_dsg_ptr->get_descriptor_set_layout(0);
 }
 
+const Anvil::ExtensionEXTSampleLocationsEntrypoints& Anvil::BaseDevice::get_extension_ext_sample_locations_entrypoints() const
+{
+    anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->ext_sample_locations() );
+
+    return m_ext_sample_locations_extension_entrypoints;
+}
+
 bool Anvil::BaseDevice::get_memory_types_supported_for_external_handle(const Anvil::ExternalMemoryHandleTypeFlagBits& in_external_handle_type,
                                                                        ExternalHandleType                             in_handle,
                                                                        uint32_t*                                      out_supported_memory_type_bits) const
 {
     bool result = false;
 
-    /* Sanity checks */
-    #if defined(_WIN32)
+    if (in_external_handle_type != Anvil::ExternalMemoryHandleTypeFlagBits::HOST_ALLOCATION_BIT_EXT             &&
+        in_external_handle_type != Anvil::ExternalMemoryHandleTypeFlagBits::HOST_MAPPED_FOREIGN_MEMORY_BIT_EXT)
     {
-        if (!m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_memory_win32() )
+        /* Sanity checks */
+        #if defined(_WIN32)
         {
-            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_memory_win32() );
+            if (!m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_memory_win32() )
+            {
+                anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_memory_win32() );
+
+                goto end;
+            }
+
+            if (in_external_handle_type != Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_WIN32_BIT     &&
+                in_external_handle_type != Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_WIN32_KMT_BIT)
+            {
+                anvil_assert(in_external_handle_type == Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_WIN32_BIT        ||
+                             in_external_handle_type == Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_WIN32_KMT_BIT);
+
+                goto end;
+            }
+        }
+        #else
+        {
+            if (!m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_memory_fd() )
+            {
+                anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_memory_fd() );
+
+                goto end;
+            }
+
+            if (in_external_handle_type != Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_FD_BIT)
+            {
+                anvil_assert(in_external_handle_type == Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_FD_BIT);
+
+                goto end;
+            }
+        }
+        #endif
+
+        /* Go ahead with the query */
+        #if defined(_WIN32)
+            VkMemoryWin32HandlePropertiesKHR result_props;
+
+            result_props.pNext = nullptr;
+            result_props.sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR;
+        #else
+            VkMemoryFdPropertiesKHR result_props;
+
+            result_props.pNext = nullptr;
+            result_props.sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR;
+        #endif
+
+        #if defined(_WIN32)
+            if (m_khr_external_memory_win32_extension_entrypoints.vkGetMemoryWin32HandlePropertiesKHR(m_device,
+                                                                                                      static_cast<VkExternalMemoryHandleTypeFlagBits>(in_external_handle_type),
+                                                                                                      in_handle,
+                                                                                                     &result_props) != VK_SUCCESS)
+        #else
+            if (m_khr_external_memory_fd_extension_entrypoints.vkGetMemoryFdPropertiesKHR(m_device,
+                                                                                          static_cast<VkExternalMemoryHandleTypeFlagBits>(in_external_handle_type),
+                                                                                          in_handle,
+                                                                                         &result_props) != VK_SUCCESS)
+        #endif
+        {
+            anvil_assert_fail();
 
             goto end;
         }
 
-        if (in_external_handle_type != Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_WIN32_BIT     &&
-            in_external_handle_type != Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_WIN32_KMT_BIT)
-        {
-            anvil_assert(in_external_handle_type == Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_WIN32_BIT        ||
-                         in_external_handle_type == Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_WIN32_KMT_BIT);
-
-            goto end;
-        }
+        *out_supported_memory_type_bits = result_props.memoryTypeBits;
     }
-    #else
+    else
     {
-        if (!m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_memory_fd() )
+        /* Sanity checks */
+        if (!m_extension_enabled_info_ptr->get_device_extension_info()->ext_external_memory_host() )
         {
-            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_memory_fd() );
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->ext_external_memory_host() );
 
             goto end;
         }
 
-        if (in_external_handle_type != Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_FD_BIT)
-        {
-            anvil_assert(in_external_handle_type == Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_FD_BIT);
-
-            goto end;
-        }
-    }
-    #endif
-
-    /* Go ahead with the query */
-    #if defined(_WIN32)
-        VkMemoryWin32HandlePropertiesKHR result_props;
+        /* Go ahead with the query */
+        VkMemoryHostPointerPropertiesEXT result_props;
 
         result_props.pNext = nullptr;
-        result_props.sType = VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR;
-    #else
-        VkMemoryFdPropertiesKHR result_props;
+        result_props.sType = VK_STRUCTURE_TYPE_MEMORY_HOST_POINTER_PROPERTIES_EXT;
 
-        result_props.pNext = nullptr;
-        result_props.sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR;
-    #endif
+        if (m_ext_external_memory_host_extension_entrypoints.vkGetMemoryHostPointerPropertiesEXT(m_device,
+                                                                                                 static_cast<VkExternalMemoryHandleTypeFlagBits>(in_external_handle_type),
+                                                                                                 reinterpret_cast<const void*>(in_handle),
+                                                                                                &result_props) != VK_SUCCESS)
+        {
+            anvil_assert_fail();
 
-    #if defined(_WIN32)
-        if (m_khr_external_memory_win32_extension_entrypoints.vkGetMemoryWin32HandlePropertiesKHR(m_device,
-                                                                                                  static_cast<VkExternalMemoryHandleTypeFlagBits>(in_external_handle_type),
-                                                                                                  in_handle,
-                                                                                                 &result_props) != VK_SUCCESS)
-    #else
-        if (m_khr_external_memory_fd_extension_entrypoints.vkGetMemoryFdPropertiesKHR(m_device,
-                                                                                      static_cast<VkExternalMemoryHandleTypeFlagBits>(in_external_handle_type),
-                                                                                      in_handle,
-                                                                                     &result_props) != VK_SUCCESS)
-    #endif
-    {
-        anvil_assert_fail();
+            goto end;
+        }
 
-        goto end;
+        *out_supported_memory_type_bits = result_props.memoryTypeBits;
     }
-
-    *out_supported_memory_type_bits = result_props.memoryTypeBits;
 
     /* All done */
     result = true;
@@ -696,6 +735,13 @@ void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
     }
     anvil_assert(m_device != VK_NULL_HANDLE);
 
+    if (m_extension_enabled_info_ptr->get_device_extension_info()->amd_buffer_marker() )
+    {
+        m_amd_buffer_marker_extension_entrypoints.vkCmdWriteBufferMarkerAMD = reinterpret_cast<PFN_vkCmdWriteBufferMarkerAMD>(get_proc_address("vkCmdWriteBufferMarkerAMD") );
+
+        anvil_assert(m_amd_buffer_marker_extension_entrypoints.vkCmdWriteBufferMarkerAMD != nullptr);
+    }
+
     if (m_extension_enabled_info_ptr->get_device_extension_info()->amd_draw_indirect_count() )
     {
         m_amd_draw_indirect_count_extension_entrypoints.vkCmdDrawIndexedIndirectCountAMD = reinterpret_cast<PFN_vkCmdDrawIndexedIndirectCountAMD>(get_proc_address("vkCmdDrawIndexedIndirectCountAMD") );
@@ -725,6 +771,29 @@ void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
         anvil_assert(m_ext_debug_marker_extension_entrypoints.vkCmdDebugMarkerInsertEXT     != nullptr);
         anvil_assert(m_ext_debug_marker_extension_entrypoints.vkDebugMarkerSetObjectNameEXT != nullptr);
         anvil_assert(m_ext_debug_marker_extension_entrypoints.vkDebugMarkerSetObjectTagEXT  != nullptr);
+    }
+
+    if (m_extension_enabled_info_ptr->get_device_extension_info()->ext_external_memory_host() )
+    {
+        m_ext_external_memory_host_extension_entrypoints.vkGetMemoryHostPointerPropertiesEXT = reinterpret_cast<PFN_vkGetMemoryHostPointerPropertiesEXT>(get_proc_address("vkGetMemoryHostPointerPropertiesEXT") );
+
+        anvil_assert(m_ext_external_memory_host_extension_entrypoints.vkGetMemoryHostPointerPropertiesEXT != nullptr);
+    }
+
+    if (m_extension_enabled_info_ptr->get_device_extension_info()->ext_hdr_metadata() )
+    {
+        m_ext_hdr_metadata_extension_entrypoints.vkSetHdrMetadataEXT = reinterpret_cast<PFN_vkSetHdrMetadataEXT>(get_proc_address("vkSetHdrMetadataEXT") );
+
+        anvil_assert(m_ext_hdr_metadata_extension_entrypoints.vkSetHdrMetadataEXT != nullptr);
+    }
+
+    if (m_extension_enabled_info_ptr->get_device_extension_info()->ext_sample_locations() )
+    {
+        m_ext_sample_locations_extension_entrypoints.vkCmdSetSampleLocationsEXT                  = reinterpret_cast<PFN_vkCmdSetSampleLocationsEXT>                 (get_proc_address("vkCmdSetSampleLocationsEXT") );
+        m_ext_sample_locations_extension_entrypoints.vkGetPhysicalDeviceMultisamplePropertiesEXT = reinterpret_cast<PFN_vkGetPhysicalDeviceMultisamplePropertiesEXT>(get_proc_address("vkGetPhysicalDeviceMultisamplePropertiesEXT") );
+
+        anvil_assert(m_ext_sample_locations_extension_entrypoints.vkCmdSetSampleLocationsEXT                  != nullptr);
+        anvil_assert(m_ext_sample_locations_extension_entrypoints.vkGetPhysicalDeviceMultisamplePropertiesEXT != nullptr);
     }
 
     if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_descriptor_update_template() )
@@ -1078,7 +1147,7 @@ bool Anvil::BaseDevice::wait_idle() const
         }
     }
 
-    result_vk = vkDeviceWaitIdle(m_device);
+    result_vk = Anvil::Vulkan::vkDeviceWaitIdle(m_device);
 
     if (mt_safe)
     {
@@ -1304,10 +1373,10 @@ void Anvil::MGPUDevice::create_device(const std::vector<const char*>& in_extensi
     {
         auto struct_chain_ptr = struct_chainer.create_chain();
 
-        result = vkCreateDevice(m_parent_physical_devices.at(0).physical_device_ptr->get_physical_device(),
-                                struct_chain_ptr->get_root_struct(),
-                                nullptr, /* pAllocator */
-                               &m_device);
+        result = Anvil::Vulkan::vkCreateDevice(m_parent_physical_devices.at(0).physical_device_ptr->get_physical_device(),
+                                               struct_chain_ptr->get_root_struct(),
+                                               nullptr, /* pAllocator */
+                                              &m_device);
         anvil_assert_vk_call_succeeded(result);
     }
 
@@ -1319,6 +1388,7 @@ void Anvil::MGPUDevice::create_device(const std::vector<const char*>& in_extensi
 Anvil::SwapchainUniquePtr Anvil::MGPUDevice::create_swapchain(Anvil::RenderingSurface*           in_parent_surface_ptr,
                                                               Anvil::Window*                     in_window_ptr,
                                                               Anvil::Format                      in_image_format,
+                                                              Anvil::ColorSpaceKHR               in_color_space,
                                                               Anvil::PresentModeKHR              in_present_mode,
                                                               Anvil::ImageUsageFlags             in_usage,
                                                               uint32_t                           in_n_swapchain_images,
@@ -1333,6 +1403,7 @@ Anvil::SwapchainUniquePtr Anvil::MGPUDevice::create_swapchain(Anvil::RenderingSu
                                                                             in_parent_surface_ptr,
                                                                             in_window_ptr,
                                                                             in_image_format,
+                                                                            in_color_space,
                                                                             in_present_mode,
                                                                             in_usage,
                                                                             in_n_swapchain_images);
@@ -1473,6 +1544,25 @@ const Anvil::MemoryProperties& Anvil::MGPUDevice::get_physical_device_memory_pro
     return m_parent_physical_devices.at(0).physical_device_ptr->get_memory_properties();
 }
 
+Anvil::MultisamplePropertiesEXT Anvil::MGPUDevice::get_physical_device_multisample_properties(const Anvil::SampleCountFlagBits& in_samples) const
+{
+    /* NOTE: We're assuming here all physical devices within a device group have the same memory caps. */
+    VkMultisamplePropertiesEXT result_vk;
+
+    anvil_assert(is_extension_enabled(VK_EXT_SAMPLE_LOCATIONS_EXTENSION_NAME) );
+
+    result_vk.maxSampleLocationGridSize.height = 0;
+    result_vk.maxSampleLocationGridSize.width  = 0;
+    result_vk.pNext                            = nullptr;
+    result_vk.sType                            = VK_STRUCTURE_TYPE_MULTISAMPLE_PROPERTIES_EXT;
+
+    m_ext_sample_locations_extension_entrypoints.vkGetPhysicalDeviceMultisamplePropertiesEXT(m_parent_physical_devices.at(0).physical_device_ptr->get_physical_device(),
+                                                                                             static_cast<VkSampleCountFlagBits>(in_samples),
+                                                                                            &result_vk);
+
+    return Anvil::MultisamplePropertiesEXT(result_vk);
+}
+
 /* Please see header for specification */
 const Anvil::PhysicalDeviceProperties& Anvil::MGPUDevice::get_physical_device_properties() const
 {
@@ -1512,27 +1602,27 @@ bool Anvil::MGPUDevice::get_physical_device_sparse_image_format_properties(Anvil
     /* NOTE: All physical devices within a device group are assumed to report the same sparse image format properties */
     uint32_t n_props = 0;
 
-    vkGetPhysicalDeviceSparseImageFormatProperties(m_parent_physical_devices.at(0).physical_device_ptr->get_physical_device(),
-                                                   static_cast<VkFormat>             (in_format),
-                                                   static_cast<VkImageType>          (in_type),
-                                                   static_cast<VkSampleCountFlagBits>(in_sample_count),
-                                                   in_usage.get_vk(),
-                                                   static_cast<VkImageTiling>(in_tiling),
-                                                  &n_props,
-                                                   nullptr); /* pProperties */
+    Anvil::Vulkan::vkGetPhysicalDeviceSparseImageFormatProperties(m_parent_physical_devices.at(0).physical_device_ptr->get_physical_device(),
+                                                                  static_cast<VkFormat>             (in_format),
+                                                                  static_cast<VkImageType>          (in_type),
+                                                                  static_cast<VkSampleCountFlagBits>(in_sample_count),
+                                                                  in_usage.get_vk(),
+                                                                  static_cast<VkImageTiling>(in_tiling),
+                                                                 &n_props,
+                                                                  nullptr); /* pProperties */
 
     if (n_props > 0)
     {
         out_result.resize(n_props);
 
-        vkGetPhysicalDeviceSparseImageFormatProperties(m_parent_physical_devices.at(0).physical_device_ptr->get_physical_device(),
-                                                       static_cast<VkFormat>             (in_format),
-                                                       static_cast<VkImageType>          (in_type),
-                                                       static_cast<VkSampleCountFlagBits>(in_sample_count),
-                                                       in_usage.get_vk(),
-                                                       static_cast<VkImageTiling>(in_tiling),
-                                                      &n_props,
-                                                       reinterpret_cast<VkSparseImageFormatProperties*>(&out_result[0] ));
+        Anvil::Vulkan::vkGetPhysicalDeviceSparseImageFormatProperties(m_parent_physical_devices.at(0).physical_device_ptr->get_physical_device(),
+                                                                      static_cast<VkFormat>             (in_format),
+                                                                      static_cast<VkImageType>          (in_type),
+                                                                      static_cast<VkSampleCountFlagBits>(in_sample_count),
+                                                                      in_usage.get_vk(),
+                                                                      static_cast<VkImageTiling>(in_tiling),
+                                                                     &n_props,
+                                                                      reinterpret_cast<VkSparseImageFormatProperties*>(&out_result[0] ));
     }
 
     return true;
@@ -1543,9 +1633,9 @@ bool Anvil::MGPUDevice::get_physical_device_surface_capabilities(Anvil::Renderin
                                                                  Anvil::SurfaceCapabilities* out_result_ptr) const
 {
     /* NOTE: All physical devices within a device group are assumed to report the same sparse image format properties */
-    return (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_parent_physical_devices.at(0).physical_device_ptr->get_physical_device(),
-                                                      in_surface_ptr->get_surface(),
-                                                      reinterpret_cast<VkSurfaceCapabilitiesKHR*>(out_result_ptr) ) == VK_SUCCESS);
+    return (m_khr_surface_extension_entrypoints.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_parent_physical_devices.at(0).physical_device_ptr->get_physical_device(),
+                                                                                          in_surface_ptr->get_surface(),
+                                                                                          reinterpret_cast<VkSurfaceCapabilitiesKHR*>(out_result_ptr) ) == VK_SUCCESS);
 }
 
 /* Please see header for specification */
@@ -1886,10 +1976,10 @@ void Anvil::SGPUDevice::create_device(const std::vector<const char*>& in_extensi
     create_info.queueCreateInfoCount    = static_cast<uint32_t>(device_queue_create_info_items.size() );
     create_info.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
-    result = vkCreateDevice(m_parent_physical_device_ptr->get_physical_device(),
-                           &create_info,
-                            nullptr, /* pAllocator */
-                           &m_device);
+    result = Anvil::Vulkan::vkCreateDevice(m_parent_physical_device_ptr->get_physical_device(),
+                                          &create_info,
+                                           nullptr, /* pAllocator */
+                                          &m_device);
     anvil_assert_vk_call_succeeded(result);
 
     /* Now that all queues are available, assign them to queue families Anvil recognizes. */
@@ -1900,6 +1990,7 @@ void Anvil::SGPUDevice::create_device(const std::vector<const char*>& in_extensi
 Anvil::SwapchainUniquePtr Anvil::SGPUDevice::create_swapchain(Anvil::RenderingSurface* in_parent_surface_ptr,
                                                               Anvil::Window*           in_window_ptr,
                                                               Anvil::Format            in_image_format,
+                                                              Anvil::ColorSpaceKHR     in_color_space,
                                                               Anvil::PresentModeKHR    in_present_mode,
                                                               Anvil::ImageUsageFlags   in_usage,
                                                               uint32_t                 in_n_swapchain_images)
@@ -1912,6 +2003,7 @@ Anvil::SwapchainUniquePtr Anvil::SGPUDevice::create_swapchain(Anvil::RenderingSu
                                                                   in_parent_surface_ptr,
                                                                   in_window_ptr,
                                                                   in_image_format,
+                                                                  in_color_space,
                                                                   in_present_mode,
                                                                   in_usage,
                                                                   in_n_swapchain_images);
@@ -1960,6 +2052,25 @@ bool Anvil::SGPUDevice::get_physical_device_image_format_properties(const ImageF
 }
 
 /** Please see header for specification */
+Anvil::MultisamplePropertiesEXT Anvil::SGPUDevice::get_physical_device_multisample_properties(const Anvil::SampleCountFlagBits& in_samples) const
+{
+    VkMultisamplePropertiesEXT result_vk;
+
+    anvil_assert(is_extension_enabled(VK_EXT_SAMPLE_LOCATIONS_EXTENSION_NAME) );
+
+    result_vk.maxSampleLocationGridSize.height = 0;
+    result_vk.maxSampleLocationGridSize.width  = 0;
+    result_vk.pNext                            = nullptr;
+    result_vk.sType                            = VK_STRUCTURE_TYPE_MULTISAMPLE_PROPERTIES_EXT;
+
+    m_ext_sample_locations_extension_entrypoints.vkGetPhysicalDeviceMultisamplePropertiesEXT(m_parent_physical_device_ptr->get_physical_device(),
+                                                                                             static_cast<VkSampleCountFlagBits>(in_samples),
+                                                                                            &result_vk);
+
+    return Anvil::MultisamplePropertiesEXT(result_vk);
+}
+
+/** Please see header for specification */
 const Anvil::MemoryProperties& Anvil::SGPUDevice::get_physical_device_memory_properties() const
 {
     return m_parent_physical_device_ptr->get_memory_properties();
@@ -1995,27 +2106,27 @@ bool Anvil::SGPUDevice::get_physical_device_sparse_image_format_properties(Anvil
 {
     uint32_t n_props = 0;
 
-    vkGetPhysicalDeviceSparseImageFormatProperties(m_parent_physical_device_ptr->get_physical_device(),
-                                                   static_cast<VkFormat>             (in_format),
-                                                   static_cast<VkImageType>          (in_type),
-                                                   static_cast<VkSampleCountFlagBits>(in_sample_count),
-                                                   in_usage.get_vk(),
-                                                   static_cast<VkImageTiling>(in_tiling),
-                                                  &n_props,
-                                                   nullptr); /* pProperties */
+    Anvil::Vulkan::vkGetPhysicalDeviceSparseImageFormatProperties(m_parent_physical_device_ptr->get_physical_device(),
+                                                                  static_cast<VkFormat>             (in_format),
+                                                                  static_cast<VkImageType>          (in_type),
+                                                                  static_cast<VkSampleCountFlagBits>(in_sample_count),
+                                                                  in_usage.get_vk(),
+                                                                  static_cast<VkImageTiling>(in_tiling),
+                                                                 &n_props,
+                                                                  nullptr); /* pProperties */
 
     if (n_props > 0)
     {
         out_result.resize(n_props);
 
-        vkGetPhysicalDeviceSparseImageFormatProperties(m_parent_physical_device_ptr->get_physical_device(),
-                                                       static_cast<VkFormat>             (in_format),
-                                                       static_cast<VkImageType>          (in_type),
-                                                       static_cast<VkSampleCountFlagBits>(in_sample_count),
-                                                       in_usage.get_vk(),
-                                                       static_cast<VkImageTiling>(in_tiling),
-                                                      &n_props,
-                                                       reinterpret_cast<VkSparseImageFormatProperties*>(&out_result[0]) );
+        Anvil::Vulkan::vkGetPhysicalDeviceSparseImageFormatProperties(m_parent_physical_device_ptr->get_physical_device(),
+                                                                      static_cast<VkFormat>             (in_format),
+                                                                      static_cast<VkImageType>          (in_type),
+                                                                      static_cast<VkSampleCountFlagBits>(in_sample_count),
+                                                                      in_usage.get_vk(),
+                                                                      static_cast<VkImageTiling>(in_tiling),
+                                                                     &n_props,
+                                                                      reinterpret_cast<VkSparseImageFormatProperties*>(&out_result[0]) );
     }
 
     return true;
@@ -2025,9 +2136,9 @@ bool Anvil::SGPUDevice::get_physical_device_sparse_image_format_properties(Anvil
 bool Anvil::SGPUDevice::get_physical_device_surface_capabilities(Anvil::RenderingSurface*    in_surface_ptr,
                                                                  Anvil::SurfaceCapabilities* out_result_ptr) const
 {
-    return (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_parent_physical_device_ptr->get_physical_device(),
-                                                      in_surface_ptr->get_surface(),
-                                                      reinterpret_cast<VkSurfaceCapabilitiesKHR*>(out_result_ptr) ) == VK_SUCCESS);
+    return (m_khr_surface_extension_entrypoints.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_parent_physical_device_ptr->get_physical_device(),
+                                                                                          in_surface_ptr->get_surface(),
+                                                                                          reinterpret_cast<VkSurfaceCapabilitiesKHR*>(out_result_ptr) ) == VK_SUCCESS);
 }
 
 /* Please see header for specification */

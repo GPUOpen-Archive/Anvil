@@ -54,9 +54,9 @@ namespace Anvil
          *                              May be nullptr if @param in_initial_data_size is 0.
          **/
         static Anvil::PipelineCacheUniquePtr create(const Anvil::BaseDevice* in_device_ptr,
-                                                    bool                    in_mt_safe,
-                                                    size_t                  in_initial_data_size = 0,
-                                                    const void*             in_initial_data      = nullptr);
+                                                    bool                     in_mt_safe,
+                                                    size_t                   in_initial_data_size = 0,
+                                                    const void*              in_initial_data      = nullptr);
 
         /** Destroys the Vulkan counterpart and unregisters the wrapper instance from the object tracker. */
         virtual ~PipelineCache();
@@ -69,8 +69,8 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_data(size_t*      out_n_data_bytes_ptr,
-                      const void** out_data_ptr);
+        bool get_data(size_t* out_n_data_bytes_ptr,
+                      void*   out_data_ptr);
 
         /** Retrieves raw Vulkan pipeline cache handle.
          *

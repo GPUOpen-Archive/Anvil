@@ -825,11 +825,11 @@ bool Anvil::DescriptorSet::update_using_core_method() const
         /* Issue the Vulkan call */
         if (m_cached_ds_write_items_vk.size() > 0)
         {
-            vkUpdateDescriptorSets(m_device_ptr->get_device_vk(),
-                                   static_cast<uint32_t>(m_cached_ds_write_items_vk.size() ),
-                                  &m_cached_ds_write_items_vk[0],
-                                   0,        /* copyCount         */
-                                   nullptr); /* pDescriptorCopies */
+            Anvil::Vulkan::vkUpdateDescriptorSets(m_device_ptr->get_device_vk(),
+                                                  static_cast<uint32_t>(m_cached_ds_write_items_vk.size() ),
+                                                 &m_cached_ds_write_items_vk[0],
+                                                  0,        /* copyCount         */
+                                                  nullptr); /* pDescriptorCopies */
         }
 
         m_dirty = false;

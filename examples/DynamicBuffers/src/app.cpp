@@ -206,7 +206,7 @@ void App::deinit()
     auto compute_pipeline_manager_ptr = m_device_ptr->get_compute_pipeline_manager ();
     auto gfx_pipeline_manager_ptr     = m_device_ptr->get_graphics_pipeline_manager();
 
-    vkDeviceWaitIdle(m_device_ptr->get_device_vk() );
+    Anvil::Vulkan::vkDeviceWaitIdle(m_device_ptr->get_device_vk() );
 
     if (m_consumer_pipeline_id != UINT32_MAX)
     {
@@ -811,9 +811,8 @@ void App::init_compute_pipelines()
     bool result;
 
     /* Create & configure the compute pipeline */
-    auto producer_pipeline_info_ptr = Anvil::ComputePipelineCreateInfo::create_regular(false, /* in_disable_optimizations */
-                                                                                       false, /* in_allow_derivatives     */
-                                                                                      *m_producer_cs_ptr);
+    auto producer_pipeline_info_ptr = Anvil::ComputePipelineCreateInfo::create(Anvil::PipelineCreateFlagBits::NONE,
+                                                                               *m_producer_cs_ptr);
 
     producer_pipeline_info_ptr->attach_push_constant_range    (0,  /* offset */
                                                                4,  /* size   */
@@ -992,15 +991,14 @@ void App::init_gfx_pipelines()
 
 
     /* Set up the graphics pipeline for the main subpass */
-    auto consumer_pipeline_info_ptr = Anvil::GraphicsPipelineCreateInfo::create_regular(false, /* in_disable_optimizations */
-                                                                                        false, /* in_allow_derivatives */
-                                                                                        m_consumer_render_pass_ptr.get(),
-                                                                                        render_pass_subpass_id,
-                                                                                       *m_consumer_fs_ptr,
-                                                                                        Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader        */
-                                                                                        Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader    */
-                                                                                        Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader */
-                                                                                       *m_consumer_vs_ptr);
+    auto consumer_pipeline_info_ptr = Anvil::GraphicsPipelineCreateInfo::create(Anvil::PipelineCreateFlagBits::NONE,
+                                                                                m_consumer_render_pass_ptr.get(),
+                                                                                render_pass_subpass_id,
+                                                                               *m_consumer_fs_ptr,
+                                                                                Anvil::ShaderModuleStageEntryPoint(), /* geometry_shader        */
+                                                                                Anvil::ShaderModuleStageEntryPoint(), /* tess_control_shader    */
+                                                                                Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader */
+                                                                               *m_consumer_vs_ptr);
 
     consumer_pipeline_info_ptr->add_vertex_attribute          (0, /* location */
                                                                Anvil::Format::R8G8_UNORM,
@@ -1179,6 +1177,7 @@ void App::init_swapchain()
     m_swapchain_ptr = reinterpret_cast<Anvil::SGPUDevice*>(m_device_ptr.get())->create_swapchain(m_rendering_surface_ptr.get(),
                                                                                                  m_window_ptr.get           (),
                                                                                                  Anvil::Format::B8G8R8A8_UNORM,
+                                                                                                 Anvil::ColorSpaceKHR::SRGB_NONLINEAR_KHR,
                                                                                                  Anvil::PresentModeKHR::FIFO_KHR,
                                                                                                  Anvil::ImageUsageFlagBits::COLOR_ATTACHMENT_BIT,
                                                                                                  m_n_swapchain_images);

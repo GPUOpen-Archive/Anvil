@@ -32,10 +32,12 @@ namespace Anvil
         template<typename ValueType>
         struct DeviceExtensions
         {
+            ValueType amd_buffer_marker;
             ValueType amd_draw_indirect_count;
             ValueType amd_gcn_shader;
             ValueType amd_gpu_shader_half_float;
             ValueType amd_gpu_shader_int16;
+            ValueType amd_mixed_attachment_samples;
             ValueType amd_negative_viewport_height;
             ValueType amd_rasterization_order;
             ValueType amd_shader_ballot;
@@ -47,12 +49,20 @@ namespace Anvil
             ValueType amd_shader_trinary_minmax;
             ValueType amd_texture_gather_bias_lod;
             ValueType ext_debug_marker;
+            ValueType ext_depth_range_unrestricted;
             ValueType ext_descriptor_indexing;
+            ValueType ext_external_memory_host;
+            ValueType ext_hdr_metadata;
+            ValueType ext_sample_locations;
+            ValueType ext_sampler_filter_minmax;
             ValueType ext_shader_stencil_export;
             ValueType ext_shader_subgroup_ballot;
             ValueType ext_shader_subgroup_vote;
+            ValueType ext_shader_viewport_index_layer;
+            ValueType ext_swapchain_colorspace;
             ValueType ext_vertex_attribute_divisor;
             ValueType khr_16bit_storage;
+            ValueType khr_8bit_storage;
             ValueType khr_bind_memory2;
             ValueType khr_dedicated_allocation;
             ValueType khr_descriptor_update_template;
@@ -61,13 +71,6 @@ namespace Anvil
             ValueType khr_external_fence;
             ValueType khr_external_memory;
             ValueType khr_external_semaphore;
-            ValueType khr_get_memory_requirements2;
-            ValueType khr_maintenance1;
-            ValueType khr_maintenance2;
-            ValueType khr_maintenance3;
-            ValueType khr_shader_draw_parameters;
-            ValueType khr_storage_buffer_storage_class;
-            ValueType khr_swapchain;
 
             #if defined(_WIN32)
                 ValueType khr_external_fence_win32;
@@ -78,6 +81,19 @@ namespace Anvil
                 ValueType khr_external_memory_fd;
                 ValueType khr_external_semaphore_fd;
             #endif
+
+            ValueType khr_get_memory_requirements2;
+            ValueType khr_image_format_list;
+            ValueType khr_maintenance1;
+            ValueType khr_maintenance2;
+            ValueType khr_maintenance3;
+            ValueType khr_multiview;
+            ValueType khr_relaxed_block_layout;
+            ValueType khr_sampler_mirror_clamp_to_edge;
+            ValueType khr_shader_draw_parameters;
+            ValueType khr_storage_buffer_storage_class;
+            ValueType khr_swapchain;
+            ValueType khr_variable_pointers;
 
             std::map<std::string, ValueType> values_by_extension_names;
 
@@ -101,14 +117,16 @@ namespace Anvil
 
                 std::vector<ExtensionData> recognized_extensions =
                 {
+                    {ExtensionData(VK_AMD_BUFFER_MARKER_EXTENSION_NAME,                    &amd_buffer_marker)},
                     {ExtensionData(VK_AMD_DRAW_INDIRECT_COUNT_EXTENSION_NAME,              &amd_draw_indirect_count)},
                     {ExtensionData(VK_AMD_GCN_SHADER_EXTENSION_NAME,                       &amd_gcn_shader)},
                     {ExtensionData(VK_AMD_GPU_SHADER_HALF_FLOAT_EXTENSION_NAME,            &amd_gpu_shader_half_float)},
                     {ExtensionData(VK_AMD_GPU_SHADER_INT16_EXTENSION_NAME,                 &amd_gpu_shader_int16)},
+                    {ExtensionData(VK_AMD_MIXED_ATTACHMENT_SAMPLES_EXTENSION_NAME,         &amd_mixed_attachment_samples)},
                     {ExtensionData(VK_AMD_NEGATIVE_VIEWPORT_HEIGHT_EXTENSION_NAME,         &amd_negative_viewport_height)},
                     {ExtensionData(VK_AMD_RASTERIZATION_ORDER_EXTENSION_NAME,              &amd_rasterization_order)},
                     {ExtensionData(VK_AMD_SHADER_BALLOT_EXTENSION_NAME,                    &amd_shader_ballot)},
-                    {ExtensionData("VK_AMD_shader_core_properties",                        &amd_shader_core_properties)},
+                    {ExtensionData(VK_AMD_SHADER_CORE_PROPERTIES_EXTENSION_NAME,           &amd_shader_core_properties)},
                     {ExtensionData(VK_AMD_SHADER_EXPLICIT_VERTEX_PARAMETER_EXTENSION_NAME, &amd_shader_explicit_vertex_parameter)},
                     {ExtensionData(VK_AMD_SHADER_FRAGMENT_MASK_EXTENSION_NAME,             &amd_shader_fragment_mask)},
                     {ExtensionData(VK_AMD_SHADER_IMAGE_LOAD_STORE_LOD_EXTENSION_NAME,      &amd_shader_image_load_store_lod)},
@@ -116,14 +134,24 @@ namespace Anvil
                     {ExtensionData(VK_AMD_SHADER_TRINARY_MINMAX_EXTENSION_NAME,            &amd_shader_trinary_minmax)},
                     {ExtensionData(VK_AMD_TEXTURE_GATHER_BIAS_LOD_EXTENSION_NAME,          &amd_texture_gather_bias_lod)},
                     {ExtensionData(VK_EXT_DEBUG_MARKER_EXTENSION_NAME,                     &ext_debug_marker)},
+                    {ExtensionData(VK_EXT_DEPTH_RANGE_UNRESTRICTED_EXTENSION_NAME,         &ext_depth_range_unrestricted)},
                     {ExtensionData(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,              &ext_descriptor_indexing)},
+                    {ExtensionData(VK_EXT_EXTERNAL_MEMORY_HOST_EXTENSION_NAME,             &ext_external_memory_host)},
+                    {ExtensionData(VK_EXT_HDR_METADATA_EXTENSION_NAME,                     &ext_hdr_metadata)},
+                    {ExtensionData(VK_EXT_SAMPLE_LOCATIONS_EXTENSION_NAME,                 &ext_sample_locations)},
+                    {ExtensionData(VK_EXT_SAMPLER_FILTER_MINMAX_EXTENSION_NAME,            &ext_sampler_filter_minmax)},
                     {ExtensionData(VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME,            &ext_shader_stencil_export)},
                     {ExtensionData(VK_EXT_SHADER_SUBGROUP_BALLOT_EXTENSION_NAME,           &ext_shader_subgroup_ballot)},
                     {ExtensionData(VK_EXT_SHADER_SUBGROUP_VOTE_EXTENSION_NAME,             &ext_shader_subgroup_vote)},
+                    {ExtensionData(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME,      &ext_shader_viewport_index_layer)},
+                    {ExtensionData(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,            &ext_swapchain_colorspace)},
                     {ExtensionData(VK_EXT_VERTEX_ATTRIBUTE_DIVISOR_EXTENSION_NAME,         &ext_vertex_attribute_divisor)},
                     {ExtensionData(VK_KHR_16BIT_STORAGE_EXTENSION_NAME,                    &khr_16bit_storage)},
+                    {ExtensionData(VK_KHR_8BIT_STORAGE_EXTENSION_NAME,                     &khr_8bit_storage)},
+                    {ExtensionData(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,                    &khr_bind_memory2)},
                     {ExtensionData(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,             &khr_dedicated_allocation)},
                     {ExtensionData(VK_KHR_DESCRIPTOR_UPDATE_TEMPLATE_EXTENSION_NAME,       &khr_descriptor_update_template)},
+                    {ExtensionData(VK_KHR_DEVICE_GROUP_EXTENSION_NAME,                     &khr_device_group)},
                     {ExtensionData(VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME,              &khr_draw_indirect_count)},
                     {ExtensionData(VK_KHR_EXTERNAL_FENCE_EXTENSION_NAME,                   &khr_external_fence)},
                     {ExtensionData(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,                  &khr_external_memory)},
@@ -138,14 +166,17 @@ namespace Anvil
                         {ExtensionData(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME, &khr_external_semaphore_fd)},
                     #endif
                     {ExtensionData(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,        &khr_get_memory_requirements2)},
+                    {ExtensionData(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,                &khr_image_format_list)},
                     {ExtensionData(VK_KHR_MAINTENANCE1_EXTENSION_NAME,                     &khr_maintenance1)},
                     {ExtensionData(VK_KHR_MAINTENANCE2_EXTENSION_NAME,                     &khr_maintenance2)},
                     {ExtensionData(VK_KHR_MAINTENANCE3_EXTENSION_NAME,                     &khr_maintenance3)},
-                    {ExtensionData(VK_KHR_DEVICE_GROUP_EXTENSION_NAME,                     &khr_device_group)},
-                    {ExtensionData(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,                    &khr_bind_memory2)},
+                    {ExtensionData(VK_KHR_MULTIVIEW_EXTENSION_NAME,                        &khr_multiview)},
+                    {ExtensionData(VK_KHR_RELAXED_BLOCK_LAYOUT_EXTENSION_NAME,             &khr_relaxed_block_layout)},
+                    {ExtensionData(VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_EXTENSION_NAME,     &khr_sampler_mirror_clamp_to_edge)},
                     {ExtensionData(VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,           &khr_shader_draw_parameters)},
                     {ExtensionData(VK_KHR_STORAGE_BUFFER_STORAGE_CLASS_EXTENSION_NAME,     &khr_storage_buffer_storage_class)},
                     {ExtensionData(VK_KHR_SWAPCHAIN_EXTENSION_NAME,                        &khr_swapchain)},
+                    {ExtensionData(VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,                &khr_variable_pointers)},
                 };
 
                 values_by_extension_names = in_values_by_extension_names;
@@ -257,10 +288,12 @@ namespace Anvil
             /* Stub */
         }
 
+        virtual ValueType amd_buffer_marker                   () const = 0;
         virtual ValueType amd_draw_indirect_count             () const = 0;
         virtual ValueType amd_gcn_shader                      () const = 0;
         virtual ValueType amd_gpu_shader_half_float           () const = 0;
         virtual ValueType amd_gpu_shader_int16                () const = 0;
+        virtual ValueType amd_mixed_attachment_samples        () const = 0;
         virtual ValueType amd_negative_viewport_height        () const = 0;
         virtual ValueType amd_rasterization_order             () const = 0;
         virtual ValueType amd_shader_ballot                   () const = 0;
@@ -272,12 +305,20 @@ namespace Anvil
         virtual ValueType amd_shader_trinary_minmax           () const = 0;
         virtual ValueType amd_texture_gather_bias_lod         () const = 0;
         virtual ValueType ext_debug_marker                    () const = 0;
+        virtual ValueType ext_depth_range_unrestricted        () const = 0;
         virtual ValueType ext_descriptor_indexing             () const = 0;
+        virtual ValueType ext_external_memory_host            () const = 0;
+        virtual ValueType ext_hdr_metadata                    () const = 0;
+        virtual ValueType ext_sample_locations                () const = 0;
+        virtual ValueType ext_sampler_filter_minmax           () const = 0;
         virtual ValueType ext_shader_stencil_export           () const = 0;
         virtual ValueType ext_shader_subgroup_ballot          () const = 0;
         virtual ValueType ext_shader_subgroup_vote            () const = 0;
+        virtual ValueType ext_shader_viewport_index_layer     () const = 0;
+        virtual ValueType ext_swapchain_colorspace            () const = 0;
         virtual ValueType ext_vertex_attribute_divisor        () const = 0;
         virtual ValueType khr_16bit_storage                   () const = 0;
+        virtual ValueType khr_8bit_storage                    () const = 0;
         virtual ValueType khr_bind_memory2                    () const = 0;
         virtual ValueType khr_dedicated_allocation            () const = 0;
         virtual ValueType khr_descriptor_update_template      () const = 0;
@@ -296,12 +337,18 @@ namespace Anvil
             virtual ValueType khr_external_semaphore_fd() const = 0;
         #endif
         virtual ValueType khr_get_memory_requirements2        () const = 0;
+        virtual ValueType khr_image_format_list               () const = 0;
         virtual ValueType khr_maintenance1                    () const = 0;
         virtual ValueType khr_maintenance2                    () const = 0;
         virtual ValueType khr_maintenance3                    () const = 0;
+        virtual ValueType khr_multiview                       () const = 0;
+        virtual ValueType khr_relaxed_block_layout            () const = 0;
+        virtual ValueType khr_sampler_mirror_clamp_to_edge    () const = 0;
         virtual ValueType khr_shader_draw_parameters          () const = 0;
         virtual ValueType khr_storage_buffer_storage_class    () const = 0;
         virtual ValueType khr_swapchain                       () const = 0;
+        virtual ValueType khr_variable_pointers               () const = 0;
+
 
         virtual ValueType by_name(const std::string& in_name) const = 0;
     };
@@ -421,6 +468,13 @@ namespace Anvil
         }
 
         /* IExtensionInfoDevice */
+        ValueType amd_buffer_marker() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->amd_buffer_marker;
+        }
+
         ValueType amd_draw_indirect_count() const final
         {
             anvil_assert(m_expose_device_extensions);
@@ -447,6 +501,13 @@ namespace Anvil
             anvil_assert(m_expose_device_extensions);
 
             return m_device_extensions_ptr->amd_gpu_shader_int16;
+        }
+
+        ValueType amd_mixed_attachment_samples() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->amd_mixed_attachment_samples;
         }
 
         ValueType amd_negative_viewport_height() const final
@@ -526,6 +587,13 @@ namespace Anvil
             return m_device_extensions_ptr->ext_debug_marker;
         }
 
+        ValueType ext_depth_range_unrestricted() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->ext_depth_range_unrestricted;
+        }
+
         ValueType ext_descriptor_indexing() const final
         {
             anvil_assert(m_expose_device_extensions);
@@ -533,11 +601,40 @@ namespace Anvil
             return m_device_extensions_ptr->ext_descriptor_indexing;
         }
 
+        ValueType ext_external_memory_host() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->ext_external_memory_host;
+        }
+
+        ValueType ext_hdr_metadata() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->ext_hdr_metadata;
+        }
+
+        ValueType ext_sampler_filter_minmax() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->ext_sampler_filter_minmax;
+        }
+
         ValueType ext_vertex_attribute_divisor() const final
         {
             anvil_assert(m_expose_device_extensions);
 
             return m_device_extensions_ptr->ext_vertex_attribute_divisor;
+        }
+
+        ValueType ext_sample_locations() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->ext_sample_locations;
+
         }
 
         ValueType ext_shader_stencil_export() const final
@@ -561,11 +658,32 @@ namespace Anvil
             return m_device_extensions_ptr->ext_shader_subgroup_vote;
         }
 
+        ValueType ext_shader_viewport_index_layer() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->ext_shader_viewport_index_layer;
+        }
+
+        ValueType ext_swapchain_colorspace() const
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->ext_swapchain_colorspace;
+        }
+
         ValueType khr_16bit_storage() const final
         {
             anvil_assert(m_expose_device_extensions);
 
             return m_device_extensions_ptr->khr_16bit_storage;
+        }
+
+        ValueType khr_8bit_storage() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->khr_8bit_storage;
         }
 
         ValueType khr_bind_memory2() const final
@@ -679,6 +797,13 @@ namespace Anvil
             return m_device_extensions_ptr->khr_get_memory_requirements2;
         }
 
+        ValueType khr_image_format_list() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->khr_image_format_list;
+        }
+
         ValueType khr_maintenance1() const final
         {
             anvil_assert(m_expose_device_extensions);
@@ -700,6 +825,27 @@ namespace Anvil
             return m_device_extensions_ptr->khr_maintenance3;
         }
 
+        ValueType khr_multiview() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->khr_multiview;
+        }
+
+        ValueType khr_relaxed_block_layout() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->khr_relaxed_block_layout;
+        }
+
+        ValueType khr_sampler_mirror_clamp_to_edge() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->khr_sampler_mirror_clamp_to_edge;
+        }
+
         ValueType khr_storage_buffer_storage_class() const final
         {
             anvil_assert(m_expose_device_extensions);
@@ -719,6 +865,13 @@ namespace Anvil
             anvil_assert(m_expose_device_extensions);
 
             return m_device_extensions_ptr->khr_swapchain;
+        }
+
+        ValueType khr_variable_pointers() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->khr_variable_pointers;
         }
 
         /* IExtensionInfoInstance */

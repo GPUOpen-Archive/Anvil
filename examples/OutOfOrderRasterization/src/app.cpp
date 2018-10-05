@@ -212,8 +212,7 @@ void App::clear_console_line()
 
 void App::deinit()
 {
-
-    vkDeviceWaitIdle(m_device_ptr->get_device_vk() );
+    Anvil::Vulkan::vkDeviceWaitIdle(m_device_ptr->get_device_vk() );
 
     const Anvil::PipelineID gfx_pipeline_ids[] =
     {
@@ -318,13 +317,13 @@ void App::draw_frame()
                   n_signal_sem < n_physical_devices;
                 ++n_signal_sem)
     {
-        frame_ready_for_present_submissions[n_signal_sem].physical_device_ptr = physical_devices_ptr                        [n_signal_sem];
-        frame_ready_for_present_submissions[n_signal_sem].semaphore_ptr       = curr_frame_signal_semaphores_ptr->semaphores[n_signal_sem].get();
+        frame_ready_for_present_submissions[n_signal_sem].device_index  = n_signal_sem;
+        frame_ready_for_present_submissions[n_signal_sem].semaphore_ptr = curr_frame_signal_semaphores_ptr->semaphores[n_signal_sem].get();
 
-        frame_ready_for_present_semaphores [n_signal_sem]                     = frame_ready_for_present_submissions [n_signal_sem].semaphore_ptr;
+        frame_ready_for_present_semaphores[n_signal_sem]                = frame_ready_for_present_submissions[n_signal_sem].semaphore_ptr;
 
-        frame_ready_to_render_submissions[n_signal_sem].physical_device_ptr   = physical_devices_ptr                      [n_signal_sem];
-        frame_ready_to_render_submissions[n_signal_sem].semaphore_ptr         = curr_frame_wait_semaphores_ptr->semaphores[n_signal_sem].get();
+        frame_ready_to_render_submissions[n_signal_sem].device_index    = n_signal_sem;
+        frame_ready_to_render_submissions[n_signal_sem].semaphore_ptr   = curr_frame_wait_semaphores_ptr->semaphores[n_signal_sem].get();
     }
 
     /* if the frame has already been rendered to in the past, then given the fact we use FIFO presentation mode,
@@ -335,7 +334,7 @@ void App::draw_frame()
         uint64_t timestamps[2]; /* top of pipe, bottom of pipe */
 
         /* TODO: Do better than this. */
-        vkDeviceWaitIdle(m_device_ptr->get_device_vk() );
+        Anvil::Vulkan::vkDeviceWaitIdle(m_device_ptr->get_device_vk() );
 
         {
             m_query_results_buffer_ptr->read(n_swapchain_image * sizeof(uint64_t) * 2, /* top of pipe, bottom of pipe */
@@ -739,15 +738,14 @@ void App::init_gfx_pipelines()
                                                                : &m_ooo_enabled_pipeline_id;
 
         {
-            auto pipeline_create_info_ptr = Anvil::GraphicsPipelineCreateInfo::create_regular(false, /* in_disable_optimizations */
-                                                                                              false, /* in_allow_derivatives     */
-                                                                                              m_renderpasses[0].get(),
-                                                                                              0, /* in_subpass_id */
-                                                                                             *m_fs_entrypoint_ptr,
-                                                                                              Anvil::ShaderModuleStageEntryPoint(), /* in_gs_entrypoint */
-                                                                                              Anvil::ShaderModuleStageEntryPoint(), /* in_tc_entrypoint */
-                                                                                              Anvil::ShaderModuleStageEntryPoint(), /* in_te_entrypoint */
-                                                                                             *m_vs_entrypoint_ptr);
+            auto pipeline_create_info_ptr = Anvil::GraphicsPipelineCreateInfo::create(Anvil::PipelineCreateFlagBits::NONE,
+                                                                                      m_renderpasses[0].get(),
+                                                                                      0, /* in_subpass_id */
+                                                                                     *m_fs_entrypoint_ptr,
+                                                                                      Anvil::ShaderModuleStageEntryPoint(), /* in_gs_entrypoint */
+                                                                                      Anvil::ShaderModuleStageEntryPoint(), /* in_tc_entrypoint */
+                                                                                      Anvil::ShaderModuleStageEntryPoint(), /* in_te_entrypoint */
+                                                                                     *m_vs_entrypoint_ptr);
 
             pipeline_create_info_ptr->add_vertex_attribute(0, /* location */
                                                            Anvil::Format::R32G32B32_SFLOAT,
@@ -898,16 +896,15 @@ void App::init_renderpasses()
          **/
         if (m_general_pipeline_id == -1)
         {
-            auto gfx_manager_ptr              = m_device_ptr->get_graphics_pipeline_manager      ();
-            auto gfx_pipeline_create_info_ptr = Anvil::GraphicsPipelineCreateInfo::create_regular(false,                                /* in_disable_optimizations */
-                                                                                                  false,                                /* in_allow_derivatives     */
-                                                                                                  renderpass_ptr.get(),
-                                                                                                  subpass_id,
-                                                                                                 *m_fs_entrypoint_ptr,
-                                                                                                  Anvil::ShaderModuleStageEntryPoint(), /* in_gs_entrypoint */
-                                                                                                  Anvil::ShaderModuleStageEntryPoint(), /* in_tc_entrypoint */
-                                                                                                  Anvil::ShaderModuleStageEntryPoint(), /* in_te_entrypoint */
-                                                                                                 *m_vs_entrypoint_ptr);
+            auto gfx_manager_ptr              = m_device_ptr->get_graphics_pipeline_manager();
+            auto gfx_pipeline_create_info_ptr = Anvil::GraphicsPipelineCreateInfo::create  (Anvil::PipelineCreateFlagBits::NONE,
+                                                                                            renderpass_ptr.get(),
+                                                                                            subpass_id,
+                                                                                           *m_fs_entrypoint_ptr,
+                                                                                            Anvil::ShaderModuleStageEntryPoint(), /* in_gs_entrypoint */
+                                                                                            Anvil::ShaderModuleStageEntryPoint(), /* in_tc_entrypoint */
+                                                                                            Anvil::ShaderModuleStageEntryPoint(), /* in_te_entrypoint */
+                                                                                           *m_vs_entrypoint_ptr);
 
             gfx_pipeline_create_info_ptr->add_vertex_attribute          (0, /* location */
                                                                          Anvil::Format::R32G32B32_SFLOAT,
@@ -1084,6 +1081,7 @@ void App::init_swapchain()
             m_swapchain_ptr = sgpu_device_ptr->create_swapchain(m_rendering_surface_ptr.get(),
                                                                 m_window_ptr.get           (),
                                                                 swapchain_format,
+                                                                Anvil::ColorSpaceKHR::SRGB_NONLINEAR_KHR,
                                                                 swapchain_present_mode,
                                                                 swapchain_usage,
                                                                 m_n_swapchain_images);

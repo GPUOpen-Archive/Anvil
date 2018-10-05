@@ -187,12 +187,8 @@ namespace Anvil
                 m_available_pool_item_containers.pop_back();
             }
 
-            if (m_worker_ptr != nullptr)
-            {
-                delete m_worker_ptr;
-
-                m_worker_ptr = nullptr;
-            }
+            delete m_worker_ptr;
+            m_worker_ptr = nullptr;
         }
 
         /** Returns pool capacity */

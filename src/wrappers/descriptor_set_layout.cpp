@@ -53,9 +53,9 @@ Anvil::DescriptorSetLayout::~DescriptorSetLayout()
     {
         lock();
         {
-            vkDestroyDescriptorSetLayout(m_device_ptr->get_device_vk(),
-                                         m_layout,
-                                         nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroyDescriptorSetLayout(m_device_ptr->get_device_vk(),
+                                                        m_layout,
+                                                        nullptr /* pAllocator */);
         }
         unlock();
 
@@ -207,10 +207,10 @@ bool Anvil::DescriptorSetLayout::init()
         goto end;
     }
 
-    result_vk = vkCreateDescriptorSetLayout(m_device_ptr->get_device_vk(),
-                                            create_info_ptr->struct_chain_ptr->get_root_struct(),
-                                            nullptr, /* pAllocator */
-                                           &m_layout);
+    result_vk = Anvil::Vulkan::vkCreateDescriptorSetLayout(m_device_ptr->get_device_vk(),
+                                                           create_info_ptr->struct_chain_ptr->get_root_struct(),
+                                                           nullptr, /* pAllocator */
+                                                          &m_layout);
 
     anvil_assert_vk_call_succeeded(result_vk);
     if (is_vk_call_successful(result_vk) )
