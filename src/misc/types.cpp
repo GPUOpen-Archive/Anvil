@@ -42,6 +42,7 @@ INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::MemoryFeatureFlags,           
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::MemoryHeapFlags,                  VkMemoryHeapFlags,                     Anvil::MemoryHeapFlagBits);
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::MemoryPropertyFlags,              VkMemoryPropertyFlags,                 Anvil::MemoryPropertyFlagBits);
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::PeerMemoryFeatureFlags,           VkPeerMemoryFeatureFlagsKHR,           Anvil::PeerMemoryFeatureFlagBits);
+INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::PipelineCreateFlags,              VkPipelineCreateFlags,                 Anvil::PipelineCreateFlagBits);
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::PipelineStageFlags,               VkPipelineStageFlags,                  Anvil::PipelineStageFlagBits);
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::QueueFamilyFlags,                 uint32_t,                              Anvil::QueueFamilyFlagBits);
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::QueueFlags,                       VkQueueFlags,                          Anvil::QueueFlagBits);

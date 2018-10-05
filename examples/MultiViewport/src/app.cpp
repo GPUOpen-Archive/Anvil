@@ -190,7 +190,7 @@ App::~App()
 
 void App::deinit()
 {
-    vkDeviceWaitIdle(m_device_ptr->get_device_vk() );
+    Anvil::Vulkan::vkDeviceWaitIdle(m_device_ptr->get_device_vk() );
 
     m_frame_signal_semaphores.clear();
     m_frame_wait_semaphores.clear();
@@ -700,15 +700,14 @@ void App::init_gfx_pipelines()
     m_renderpass_ptr->set_name("Main renderpass");
 
     /* Configure the graphics pipeline */
-    gfx_pipeline_create_info_ptr = Anvil::GraphicsPipelineCreateInfo::create_regular(false, /* in_disable_optimizations */
-                                                                                     false, /* in_allow_derivatives     */
-                                                                                     m_renderpass_ptr.get(),
-                                                                                     render_pass_subpass_id,
-                                                                                    *m_fs_ptr,
-                                                                                    *m_gs_ptr,
-                                                                                     Anvil::ShaderModuleStageEntryPoint(),
-                                                                                     Anvil::ShaderModuleStageEntryPoint(),
-                                                                                    *m_vs_ptr);
+    gfx_pipeline_create_info_ptr = Anvil::GraphicsPipelineCreateInfo::create(Anvil::PipelineCreateFlagBits::NONE,
+                                                                             m_renderpass_ptr.get(),
+                                                                             render_pass_subpass_id,
+                                                                            *m_fs_ptr,
+                                                                            *m_gs_ptr,
+                                                                             Anvil::ShaderModuleStageEntryPoint(),
+                                                                             Anvil::ShaderModuleStageEntryPoint(),
+                                                                            *m_vs_ptr);
 
     gfx_pipeline_create_info_ptr->set_n_dynamic_viewports     (sizeof(scissors) / sizeof(scissors[0]) );
     gfx_pipeline_create_info_ptr->set_primitive_topology      (Anvil::PrimitiveTopology::TRIANGLE_FAN);
@@ -862,6 +861,7 @@ void App::init_swapchain()
     m_swapchain_ptr = dynamic_cast<Anvil::SGPUDevice*>(m_device_ptr.get() )->create_swapchain(m_rendering_surface_ptr.get(),
                                                                                               m_window_ptr.get           (),
                                                                                               Anvil::Format::B8G8R8A8_UNORM,
+                                                                                              Anvil::ColorSpaceKHR::SRGB_NONLINEAR_KHR,
                                                                                               Anvil::PresentModeKHR::FIFO_KHR,
                                                                                               Anvil::ImageUsageFlagBits::COLOR_ATTACHMENT_BIT,
                                                                                               m_n_swapchain_images);

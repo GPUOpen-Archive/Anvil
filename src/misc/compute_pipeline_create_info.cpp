@@ -31,10 +31,9 @@ Anvil::ComputePipelineCreateInfo::~ComputePipelineCreateInfo()
     /* Stub */
 }
 
-Anvil::ComputePipelineCreateInfoUniquePtr Anvil::ComputePipelineCreateInfo::create_derivative(bool                               in_disable_optimizations,
-                                                                                              bool                               in_allow_derivatives,
-                                                                                              const ShaderModuleStageEntryPoint& in_compute_shader_stage_entrypoint_info,
-                                                                                              Anvil::PipelineID                  in_base_pipeline_id)
+Anvil::ComputePipelineCreateInfoUniquePtr Anvil::ComputePipelineCreateInfo::create(const Anvil::PipelineCreateFlags&  in_create_flags,
+                                                                                   const ShaderModuleStageEntryPoint& in_compute_shader_stage_entrypoint_info,
+                                                                                   const Anvil::PipelineID*           in_opt_base_pipeline_id_ptr)
 {
     Anvil::ComputePipelineCreateInfoUniquePtr result_ptr(nullptr,
                                                          std::default_delete<Anvil::ComputePipelineCreateInfo>() );
@@ -45,11 +44,10 @@ Anvil::ComputePipelineCreateInfoUniquePtr Anvil::ComputePipelineCreateInfo::crea
 
     if (result_ptr != nullptr)
     {
-        result_ptr->init_derivative(in_disable_optimizations,
-                                    in_allow_derivatives,
-                                    1, /* in_n_shader_module_stage_entrypoints */
-                                   &in_compute_shader_stage_entrypoint_info,
-                                    in_base_pipeline_id);
+        result_ptr->init(in_create_flags,
+                         1, /* in_n_shader_module_stage_entrypoints */
+                        &in_compute_shader_stage_entrypoint_info,
+                         in_opt_base_pipeline_id_ptr);
     }
 
     return result_ptr;
@@ -67,28 +65,6 @@ Anvil::ComputePipelineCreateInfoUniquePtr Anvil::ComputePipelineCreateInfo::crea
     if (result_ptr != nullptr)
     {
         result_ptr->init_proxy();
-    }
-
-    return result_ptr;
-}
-
-Anvil::ComputePipelineCreateInfoUniquePtr Anvil::ComputePipelineCreateInfo::create_regular(bool                               in_disable_optimizations,
-                                                                                           bool                               in_allow_derivatives,
-                                                                                           const ShaderModuleStageEntryPoint& in_compute_shader_stage_entrypoint_info)
-{
-    Anvil::ComputePipelineCreateInfoUniquePtr result_ptr(nullptr,
-                                                         std::default_delete<Anvil::ComputePipelineCreateInfo>() );
-
-    result_ptr.reset(
-        new ComputePipelineCreateInfo()
-    );
-
-    if (result_ptr != nullptr)
-    {
-        result_ptr->init_regular(in_disable_optimizations,
-                                 in_allow_derivatives,
-                                 1, /* in_n_shader_module_stage_entrypoints */
-                                &in_compute_shader_stage_entrypoint_info);
     }
 
     return result_ptr;

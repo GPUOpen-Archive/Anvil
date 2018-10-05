@@ -141,6 +141,28 @@ namespace Anvil
             return m_size.width;
         }
 
+        /* Associates HDR metadata with one or more swapchains.
+         *
+         * Requires VK_EXT_hdr_metadata.
+         *
+         * @param in_n_swapchains     Number of swapchains to update.
+         * @param in_swapchains_ptr   At least @param in_n_swapchains swapchains to set HDR metadata for. All defined swapchains must have
+         *                            been created for the same Anvil::BaseDevice instance.
+         * @param in_hdr_metadata_ptr An array of @param in_n_swapchains HDR metadata descriptors to use. Must not be nullptr.
+         */
+        static void set_hdr_metadata(const uint32_t&              in_n_swapchains,
+                                     Anvil::Swapchain**           in_swapchains_ptr_ptr,
+                                     const Anvil::HdrMetadataEXT* in_metadata_items_ptr);
+
+        void set_hdr_metadata(const Anvil::HdrMetadataEXT* in_metadata_ptr)
+        {
+            Anvil::Swapchain* this_ptr = this;
+
+            return Anvil::Swapchain::set_hdr_metadata(1, /* in_n_swapchains */
+                                                     &this_ptr,
+                                                      in_metadata_ptr);
+        }
+
         /* By default, swapchain instance will transparently destroy the underlying Vulkan swapchain handle, right before
          * the window is closed.
          *

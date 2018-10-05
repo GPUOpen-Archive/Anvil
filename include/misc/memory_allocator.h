@@ -502,8 +502,6 @@ namespace Anvil
                                  const MGPUPeerMemoryRequirements*           in_opt_mgpu_peer_memory_reqs_ptr);
 
         bool do_external_memory_handle_type_sanity_checks(const Anvil::ExternalMemoryHandleTypeFlags& in_external_memory_handle_types) const;
-        bool do_mgpu_sanity_checks                       (const uint32_t*                             in_opt_device_mask_ptr,
-                                                          const MGPUPeerMemoryRequirements*           in_opt_peer_memory_reqs_ptr) const;
         bool is_alloc_supported                          (uint32_t                                    in_memory_types,
                                                           Anvil::MemoryFeatureFlags                   in_memory_features,
                                                           uint32_t*                                   out_opt_filtered_memory_types_ptr) const;

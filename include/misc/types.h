@@ -95,7 +95,7 @@
     #include <string.h>
 #endif
 
-#include "vulkan/vulkan.h"
+#include "misc/vulkan.h"
 #include "vulkan/vk_platform.h"
 
 #include <map>
@@ -253,9 +253,6 @@ namespace Anvil
 
     /* Unique ID of a render-pass attachment within scope of a RenderPass instance. */
     typedef uint32_t RenderPassAttachmentID;
-
-    /* A pair of 32-bit FP values which describes a sample location */
-    typedef std::pair<float, float> SampleLocation;
 
     /* Unique ID of a sparse memory bind update */
     typedef uint32_t SparseMemoryBindInfoID;

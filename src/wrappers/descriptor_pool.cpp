@@ -65,9 +65,9 @@ Anvil::DescriptorPool::~DescriptorPool()
     {
         lock();
         {
-            vkDestroyDescriptorPool(m_device_ptr->get_device_vk(),
-                                    m_pool,
-                                    nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroyDescriptorPool(m_device_ptr->get_device_vk(),
+                                                   m_pool,
+                                                   nullptr /* pAllocator */);
         }
         unlock();
 
@@ -207,9 +207,9 @@ bool Anvil::DescriptorPool::alloc_descriptor_sets(uint32_t                      
         {
             auto chain_ptr = struct_chainer.create_chain();
 
-            result_vk = vkAllocateDescriptorSets(m_device_ptr->get_device_vk(),
-                                                 chain_ptr->get_root_struct(),
-                                                 out_descriptor_sets_vk_ptr);
+            result_vk = Anvil::Vulkan::vkAllocateDescriptorSets(m_device_ptr->get_device_vk(),
+                                                                chain_ptr->get_root_struct(),
+                                                                out_descriptor_sets_vk_ptr);
         }
     }
     unlock();
@@ -298,10 +298,10 @@ bool Anvil::DescriptorPool::init()
     descriptor_pool_create_info.pPoolSizes    = descriptor_pool_sizes;
     descriptor_pool_create_info.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 
-    result_vk = vkCreateDescriptorPool(m_device_ptr->get_device_vk(),
-                                      &descriptor_pool_create_info,
-                                       nullptr, /* pAllocator */
-                                      &m_pool);
+    result_vk = Anvil::Vulkan::vkCreateDescriptorPool(m_device_ptr->get_device_vk(),
+                                                     &descriptor_pool_create_info,
+                                                      nullptr, /* pAllocator */
+                                                     &m_pool);
 
     anvil_assert_vk_call_succeeded(result_vk);
     if (is_vk_call_successful(result_vk) )
@@ -330,9 +330,9 @@ bool Anvil::DescriptorPool::reset()
         /* TODO: Host synchronization to VkDescriptorSetObjects alloc'ed from the pool. */
         lock();
         {
-            result_vk = vkResetDescriptorPool(m_device_ptr->get_device_vk(),
-                                              m_pool,
-                                              0 /* flags */);
+            result_vk = Anvil::Vulkan::vkResetDescriptorPool(m_device_ptr->get_device_vk(),
+                                                             m_pool,
+                                                             0 /* flags */);
         }
         unlock();
 

@@ -22,22 +22,22 @@
 
 #include "misc/sampler_create_info.h"
 
-Anvil::SamplerCreateInfoUniquePtr Anvil::SamplerCreateInfo::create(const Anvil::BaseDevice*    in_device_ptr,
-                                                                   Anvil::Filter               in_mag_filter,
-                                                                   Anvil::Filter               in_min_filter,
-                                                                   Anvil::SamplerMipmapMode    in_mipmap_mode,
-                                                                   Anvil::SamplerAddressMode   in_address_mode_u,
-                                                                   Anvil::SamplerAddressMode   in_address_mode_v,
-                                                                   Anvil::SamplerAddressMode   in_address_mode_w,
-                                                                   float                       in_lod_bias,
-                                                                   float                       in_max_anisotropy,
-                                                                   bool                        in_compare_enable,
-                                                                   Anvil::CompareOp            in_compare_op,
-                                                                   float                       in_min_lod,
-                                                                   float                       in_max_lod,
-                                                                   Anvil::BorderColor          in_border_color,
-                                                                   bool                        in_use_unnormalized_coordinates,
-                                                                   MTSafety                    in_mt_safety)
+Anvil::SamplerCreateInfoUniquePtr Anvil::SamplerCreateInfo::create(const Anvil::BaseDevice*  in_device_ptr,
+                                                                   Anvil::Filter             in_mag_filter,
+                                                                   Anvil::Filter             in_min_filter,
+                                                                   Anvil::SamplerMipmapMode  in_mipmap_mode,
+                                                                   Anvil::SamplerAddressMode in_address_mode_u,
+                                                                   Anvil::SamplerAddressMode in_address_mode_v,
+                                                                   Anvil::SamplerAddressMode in_address_mode_w,
+                                                                   float                     in_lod_bias,
+                                                                   float                     in_max_anisotropy,
+                                                                   bool                      in_compare_enable,
+                                                                   Anvil::CompareOp          in_compare_op,
+                                                                   float                     in_min_lod,
+                                                                   float                     in_max_lod,
+                                                                   Anvil::BorderColor        in_border_color,
+                                                                   bool                      in_use_unnormalized_coordinates,
+                                                                   MTSafety                  in_mt_safety)
 {
     Anvil::SamplerCreateInfoUniquePtr result_ptr;
 
@@ -94,6 +94,7 @@ Anvil::SamplerCreateInfo::SamplerCreateInfo(const Anvil::BaseDevice*    in_devic
      m_min_lod                     (in_min_lod),
      m_mipmap_mode                 (in_mipmap_mode),
      m_mt_safety                   (in_mt_safety),
+     m_sampler_reduction_mode      (Anvil::SamplerReductionMode::UNKNOWN),
      m_use_unnormalized_coordinates(in_use_unnormalized_coordinates)
 {
     /* Stub */

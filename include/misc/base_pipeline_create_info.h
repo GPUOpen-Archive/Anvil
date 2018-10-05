@@ -36,7 +36,7 @@ namespace Anvil
 
         bool allows_derivatives() const
         {
-            return m_allow_derivatives;
+            return (m_create_flags & Anvil::PipelineCreateFlagBits::ALLOW_DERIVATIVES_BIT) != 0;
         }
 
         bool attach_push_constant_range(uint32_t                in_offset,
@@ -54,6 +54,11 @@ namespace Anvil
             return &m_ds_create_info_items;
         }
 
+        const char* get_name() const
+        {
+            return m_name.c_str();
+        }
+
         const PushConstantRanges& get_push_constant_ranges() const
         {
             return m_push_constant_ranges;
@@ -69,7 +74,7 @@ namespace Anvil
 
         bool has_optimizations_disabled() const
         {
-            return m_disable_optimizations;
+            return (m_create_flags & Anvil::PipelineCreateFlagBits::DISABLE_OPTIMIZATION_BIT) != 0;
         }
 
         bool is_proxy() const
@@ -78,6 +83,11 @@ namespace Anvil
         }
 
         void set_descriptor_set_create_info(const std::vector<const Anvil::DescriptorSetCreateInfo*>* in_ds_create_info_vec_ptr);
+
+        void set_name(const std::string& in_name)
+        {
+            m_name = in_name;
+        }
 
     protected:
         /* Protected functions */
@@ -100,18 +110,12 @@ namespace Anvil
                                                  uint32_t           in_n_data_bytes,
                                                  const void*        in_data_ptr);
 
-        void init_derivative(bool                                                      in_disable_optimizations,
-                             bool                                                      in_allow_derivatives,
-                             uint32_t                                                  in_n_shader_module_stage_entrypoints,
-                             const ShaderModuleStageEntryPoint*                        in_shader_module_stage_entrypoint_ptrs,
-                             Anvil::PipelineID                                         in_base_pipeline_id,
-                             const std::vector<const Anvil::DescriptorSetCreateInfo*>* in_opt_ds_create_info_vec_ptr = nullptr);
-        void init_proxy     ();
-        void init_regular   (bool                                                      in_disable_optimizations,
-                             bool                                                      in_allow_derivatives,
-                             uint32_t                                                  in_n_shader_module_stage_entrypoints,
-                             const ShaderModuleStageEntryPoint*                        in_shader_module_stage_entrypoint_ptrs,
-                             const std::vector<const Anvil::DescriptorSetCreateInfo*>* in_opt_ds_create_info_vec_ptr = nullptr);
+        void init      (const Anvil::PipelineCreateFlags&                         in_create_flags,
+                        uint32_t                                                  in_n_shader_module_stage_entrypoints,
+                        const ShaderModuleStageEntryPoint*                        in_shader_module_stage_entrypoint_ptrs,
+                        const Anvil::PipelineID*                                  in_opt_base_pipeline_id_ptr   = nullptr,
+                        const std::vector<const Anvil::DescriptorSetCreateInfo*>* in_opt_ds_create_info_vec_ptr = nullptr);
+        void init_proxy();
 
         void copy_state_from(const BasePipelineCreateInfo* in_src_pipeline_create_info_ptr);
 
@@ -123,12 +127,12 @@ namespace Anvil
         Anvil::PipelineID m_base_pipeline_id;
 
         std::vector<DescriptorSetCreateInfoUniquePtr> m_ds_create_info_items;
+        std::string                                   m_name;
         PushConstantRanges                            m_push_constant_ranges;
         std::vector<unsigned char>                    m_specialization_constants_data_buffer;
         ShaderStageToSpecializationConstantsMap       m_specialization_constants_map;
 
-        bool                                               m_allow_derivatives;
-        bool                                               m_disable_optimizations;
+        Anvil::PipelineCreateFlags                         m_create_flags;
         bool                                               m_is_proxy;
         std::map<ShaderStage, ShaderModuleStageEntryPoint> m_shader_stages;
 

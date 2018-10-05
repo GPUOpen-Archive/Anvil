@@ -154,6 +154,7 @@ void Anvil::Image::change_image_layout(Anvil::Queue*                       in_qu
 
         in_queue_ptr->submit(
             Anvil::SubmitInfo::create_execute(&cmd_buffer_submission,
+                                              1, /* in_n_command_buffer_submissions */
                                               true /* should_block */)
         );
     }
@@ -615,12 +616,35 @@ bool Anvil::Image::init()
     }
 
     {
+        const Anvil::Format* compatible_image_view_formats   = nullptr;
+        uint32_t             n_compatible_image_view_formats = 0;
+
+        m_create_info_ptr->get_image_view_formats(&n_compatible_image_view_formats,
+                                                  &compatible_image_view_formats);
+
+        if (n_compatible_image_view_formats > 0)
+        {
+            VkImageFormatListCreateInfoKHR image_format_list_create_info;
+
+            anvil_assert((image_flags & Anvil::ImageCreateFlagBits::MUTABLE_FORMAT_BIT) != 0);
+            anvil_assert(m_device_ptr->get_extension_info()->khr_image_format_list() );
+
+            image_format_list_create_info.pNext           = nullptr;
+            image_format_list_create_info.pViewFormats    = reinterpret_cast<const VkFormat*>(compatible_image_view_formats);
+            image_format_list_create_info.sType           = VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR;
+            image_format_list_create_info.viewFormatCount = n_compatible_image_view_formats;
+
+            struct_chainer.append_struct(image_format_list_create_info);
+        }
+    }
+
+    {
         auto struct_chain_ptr = struct_chainer.create_chain();
 
-        result = vkCreateImage(m_device_ptr->get_device_vk(),
-                               struct_chain_ptr->get_root_struct(),
-                               nullptr, /* pAllocator */
-                              &m_image);
+        result = Anvil::Vulkan::vkCreateImage(m_device_ptr->get_device_vk(),
+                                              struct_chain_ptr->get_root_struct(),
+                                              nullptr, /* pAllocator */
+                                             &m_image);
     }
 
     if (!is_vk_call_successful(result) )
@@ -675,9 +699,9 @@ bool Anvil::Image::init()
         }
         else
         {
-            vkGetImageMemoryRequirements(m_device_ptr->get_device_vk(),
-                                         m_image,
-                                        &m_memory_reqs);
+            Anvil::Vulkan::vkGetImageMemoryRequirements(m_device_ptr->get_device_vk(),
+                                                        m_image,
+                                                       &m_memory_reqs);
         }
 
         m_alignment    = m_memory_reqs.alignment;
@@ -713,10 +737,10 @@ bool Anvil::Image::init()
 
                     subresource.mip_level = n_mip;
 
-                    vkGetImageSubresourceLayout(m_device_ptr->get_device_vk(),
-                                                m_image,
-                                                reinterpret_cast<const VkImageSubresource*>(&subresource),
-                                                reinterpret_cast<VkSubresourceLayout*>     (&subresource_layout) );
+                    Anvil::Vulkan::vkGetImageSubresourceLayout(m_device_ptr->get_device_vk(),
+                                                               m_image,
+                                                               reinterpret_cast<const VkImageSubresource*>(&subresource),
+                                                               reinterpret_cast<VkSubresourceLayout*>     (&subresource_layout) );
 
                     m_aspects[static_cast<Anvil::ImageAspectFlagBits>(current_aspect.get_vk() )][LayerMipKey(n_layer, n_mip)] = subresource_layout;
                 }
@@ -777,18 +801,18 @@ bool Anvil::Image::init()
         }
         else
         {
-            vkGetImageSparseMemoryRequirements(m_device_ptr->get_device_vk(),
-                                               m_image,
-                                              &n_reqs,
-                                               nullptr);
+            Anvil::Vulkan::vkGetImageSparseMemoryRequirements(m_device_ptr->get_device_vk(),
+                                                              m_image,
+                                                             &n_reqs,
+                                                              nullptr);
 
             anvil_assert(n_reqs >= 1);
             sparse_image_memory_reqs.resize(n_reqs);
 
-            vkGetImageSparseMemoryRequirements(m_device_ptr->get_device_vk(),
-                                               m_image,
-                                              &n_reqs,
-                                               reinterpret_cast<VkSparseImageMemoryRequirements*>(&sparse_image_memory_reqs[0]) );
+            Anvil::Vulkan::vkGetImageSparseMemoryRequirements(m_device_ptr->get_device_vk(),
+                                                              m_image,
+                                                             &n_reqs,
+                                                              reinterpret_cast<VkSparseImageMemoryRequirements*>(&sparse_image_memory_reqs[0]) );
         }
 
         for (const auto& image_memory_req : sparse_image_memory_reqs)
@@ -1110,9 +1134,9 @@ Anvil::Image::~Image()
     {
         lock();
         {
-            vkDestroyImage(m_device_ptr->get_device_vk(),
-                           m_image,
-                           nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroyImage(m_device_ptr->get_device_vk(),
+                                          m_image,
+                                          nullptr /* pAllocator */);
         }
         unlock();
 
@@ -2082,10 +2106,10 @@ bool Anvil::Image::set_memory_internal(Anvil::MemoryBlock* in_memory_block_ptr,
     {
         lock();
         {
-            result = vkBindImageMemory(m_device_ptr->get_device_vk(),
-                                       m_image,
-                                       in_memory_block_ptr->get_memory(),
-                                       in_memory_block_ptr->get_start_offset() );
+            result = Anvil::Vulkan::vkBindImageMemory(m_device_ptr->get_device_vk(),
+                                                      m_image,
+                                                      in_memory_block_ptr->get_memory(),
+                                                      in_memory_block_ptr->get_start_offset() );
         }
         unlock();
     }
@@ -2530,10 +2554,10 @@ void Anvil::Image::upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_p
                 image_subresource.aspect_mask = current_aspect;
                 image_subresource.mip_level   = current_mipmap_raw_data_item_ptr->n_mipmap;
 
-                vkGetImageSubresourceLayout(m_device_ptr->get_device_vk(),
-                                            m_image,
-                                            reinterpret_cast<const VkImageSubresource*>(&image_subresource),
-                                            reinterpret_cast<VkSubresourceLayout*>     (&image_subresource_layout) );
+                Anvil::Vulkan::vkGetImageSubresourceLayout(m_device_ptr->get_device_vk(),
+                                                           m_image,
+                                                           reinterpret_cast<const VkImageSubresource*>(&image_subresource),
+                                                           reinterpret_cast<VkSubresourceLayout*>     (&image_subresource_layout) );
 
                 /* Determine row size for the mipmap.
                  *
