@@ -42,7 +42,7 @@ else()
     endif()
 endif()
 
-if (ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB)
+if (ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB AND NOT CONTINUOUS_INTEGRATION_RUN)
     if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
         find_library(VULKAN_LIBRARY
                      NAMES vulkan-1 vulkan
