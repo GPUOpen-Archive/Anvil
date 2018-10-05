@@ -154,9 +154,10 @@ bool Anvil::ComputePipelineManager::bake()
              *
              * NOTE: A slightly adjusted version of this code is re-used in GraphicsPipelineManager::bake() */
             auto& pipeline_vector        = layout_to_bake_item_map[pipeline_create_info.layout];
+            auto  base_pipeline_id       = current_pipeline_ptr->pipeline_create_info_ptr->get_base_pipeline_id();
             auto  base_pipeline_iterator = std::find(pipeline_vector.begin(),
                                                      pipeline_vector.end(),
-                                                     current_pipeline_ptr->pipeline_create_info_ptr->get_base_pipeline_id() );
+                                                     base_pipeline_id);
 
             if (base_pipeline_iterator != pipeline_vector.end() )
             {
@@ -165,17 +166,21 @@ bool Anvil::ComputePipelineManager::bake()
                 pipeline_create_info.basePipelineIndex  = static_cast<int32_t>(base_pipeline_iterator - pipeline_vector.begin() );
             }
             else
-            if (base_pipeline_iterator->pipeline_ptr                 != nullptr           &&
-                base_pipeline_iterator->pipeline_ptr->baked_pipeline != VK_NULL_HANDLE)
             {
-                /* Case 2 */
-                pipeline_create_info.basePipelineHandle = base_pipeline_iterator->pipeline_ptr->baked_pipeline;
-                pipeline_create_info.basePipelineIndex  = UINT32_MAX;
-            }
-            else
-            {
-                /* Case 3 */
-                anvil_assert_fail();
+                auto baked_pipeline_iterator = m_baked_pipelines.find(base_pipeline_id);
+
+                if (baked_pipeline_iterator                         != m_baked_pipelines.end() &&
+                    baked_pipeline_iterator->second->baked_pipeline != VK_NULL_HANDLE)
+                {
+                    /* Case 2 */
+                    pipeline_create_info.basePipelineHandle = baked_pipeline_iterator->second->baked_pipeline;
+                    pipeline_create_info.basePipelineIndex  = UINT32_MAX;
+                }
+                else
+                {
+                    /* Case 3 */
+                    anvil_assert_fail();
+                }
             }
         }
         else
@@ -247,12 +252,12 @@ bool Anvil::ComputePipelineManager::bake()
 
         m_pipeline_cache_ptr->lock();
         {
-            result_vk = vkCreateComputePipelines(m_device_ptr->get_device_vk(),
-                                                 m_pipeline_cache_ptr->get_pipeline_cache(),
-                                                 static_cast<uint32_t>(pipeline_create_info_items_vk.size() ),
-                                                &pipeline_create_info_items_vk[0],
-                                                 nullptr, /* pAllocator */
-                                                &result_pipeline_items_vk[0]);
+            result_vk = Anvil::Vulkan::vkCreateComputePipelines(m_device_ptr->get_device_vk(),
+                                                                m_pipeline_cache_ptr->get_pipeline_cache(),
+                                                                static_cast<uint32_t>(pipeline_create_info_items_vk.size() ),
+                                                               &pipeline_create_info_items_vk[0],
+                                                                nullptr, /* pAllocator */
+                                                               &result_pipeline_items_vk[0]);
         }
         m_pipeline_cache_ptr->unlock();
 

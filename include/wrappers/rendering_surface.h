@@ -48,13 +48,13 @@ namespace Anvil
         /* Public type definitions */
         typedef struct RenderingSurfaceFormat
         {
-            VkColorSpaceKHR color_space;
-            Anvil::Format   format;
+            Anvil::ColorSpaceKHR color_space;
+            Anvil::Format        format;
 
             /* Constructor. */
-            RenderingSurfaceFormat(VkSurfaceFormatKHR& in_surface_format)
+            RenderingSurfaceFormat(Anvil::SurfaceFormatKHR& in_surface_format)
             {
-                color_space = in_surface_format.colorSpace;
+                color_space = in_surface_format.color_space;
                 format      = static_cast<Anvil::Format>(in_surface_format.format);
             }
 

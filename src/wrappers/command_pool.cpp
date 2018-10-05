@@ -57,10 +57,10 @@ Anvil::CommandPool::CommandPool(Anvil::BaseDevice* in_device_ptr,
     command_pool_create_info.queueFamilyIndex = in_queue_family_index;
     command_pool_create_info.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 
-    result_vk = vkCreateCommandPool(in_device_ptr->get_device_vk(),
-                                   &command_pool_create_info,
-                                    nullptr, /* pAllocator */
-                                   &m_command_pool);
+    result_vk = Anvil::Vulkan::vkCreateCommandPool(in_device_ptr->get_device_vk(),
+                                                  &command_pool_create_info,
+                                                   nullptr, /* pAllocator */
+                                                  &m_command_pool);
 
     anvil_assert_vk_call_succeeded(result_vk);
     if (is_vk_call_successful(result_vk) )
@@ -85,9 +85,9 @@ Anvil::CommandPool::~CommandPool()
     {
         lock();
         {
-            vkDestroyCommandPool(m_device_ptr->get_device_vk(),
-                                 m_command_pool,
-                                 nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroyCommandPool(m_device_ptr->get_device_vk(),
+                                                m_command_pool,
+                                                nullptr /* pAllocator */);
         }
         unlock();
 
@@ -156,9 +156,9 @@ bool Anvil::CommandPool::reset(bool in_release_resources)
 
     lock();
     {
-        result_vk = vkResetCommandPool(m_device_ptr->get_device_vk(),
-                                       m_command_pool,
-                                       ((in_release_resources) ? VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT : 0u) );
+        result_vk = Anvil::Vulkan::vkResetCommandPool(m_device_ptr->get_device_vk(),
+                                                      m_command_pool,
+                                                      ((in_release_resources) ? VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT : 0u) );
     }
     unlock();
 

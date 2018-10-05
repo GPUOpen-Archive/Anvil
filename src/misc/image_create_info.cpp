@@ -316,3 +316,26 @@ Anvil::ImageCreateInfo::ImageCreateInfo(Anvil::ImageInternalType             in_
     }
     #endif
 }
+
+/* Please see header for specification */
+void Anvil::ImageCreateInfo::get_image_view_formats(uint32_t*             out_n_image_view_formats_ptr,
+                                                    const Anvil::Format** out_image_view_formats_ptr_ptr) const
+{
+    const uint32_t n_image_view_formats = static_cast<uint32_t>(m_image_view_formats.size() );
+
+    *out_n_image_view_formats_ptr   = n_image_view_formats;
+    *out_image_view_formats_ptr_ptr = (n_image_view_formats != 0) ? &m_image_view_formats.at(0) : nullptr;
+}
+
+/* Please see header for specification */
+void Anvil::ImageCreateInfo::set_image_view_formats(const uint32_t&      in_n_image_view_formats,
+                                                    const Anvil::Format* in_image_view_formats_ptr)
+{
+    anvil_assert(in_n_image_view_formats != 0);
+
+    m_image_view_formats.resize(in_n_image_view_formats);
+
+    memcpy(&m_image_view_formats.at(0),
+           in_image_view_formats_ptr,
+           sizeof(Anvil::Format) * in_n_image_view_formats);
+}

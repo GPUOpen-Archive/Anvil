@@ -73,9 +73,9 @@ Anvil::ImageView::~ImageView()
     {
         lock();
         {
-            vkDestroyImageView(m_device_ptr->get_device_vk(),
-                               m_image_view,
-                               nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroyImageView(m_device_ptr->get_device_vk(),
+                                              m_image_view,
+                                              nullptr /* pAllocator */);
         }
         unlock();
 
@@ -255,10 +255,10 @@ bool Anvil::ImageView::init()
     {
         auto chain_ptr = struct_chainer.create_chain();
 
-        result_vk = vkCreateImageView(m_device_ptr->get_device_vk(),
-                                      chain_ptr->get_root_struct(),
-                                      nullptr, /* pAllocator */
-                                     &m_image_view);
+        result_vk = Anvil::Vulkan::vkCreateImageView(m_device_ptr->get_device_vk(),
+                                                     chain_ptr->get_root_struct(),
+                                                     nullptr, /* pAllocator */
+                                                    &m_image_view);
     }
 
     if (!is_vk_call_successful(result_vk) )

@@ -122,6 +122,11 @@ namespace Anvil
             return m_mt_safety;
         }
 
+        const Anvil::SamplerReductionMode& get_sampler_reduction_mode() const
+        {
+            return m_sampler_reduction_mode;
+        }
+
         const bool& is_compare_enabled() const
         {
             return m_compare_enable;
@@ -202,6 +207,12 @@ namespace Anvil
             m_compare_enable = in_compare_enable;
         }
 
+        /* NOTE: Requires VK_EXT_sampler_filter_minmax */
+        void set_sampler_reduction_mode(const Anvil::SamplerReductionMode& in_reduction_mode)
+        {
+            m_sampler_reduction_mode = in_reduction_mode;
+        }
+
         void set_uses_unnormalized_coordinates(const bool& in_use_unnormalized_coordinates)
         {
             m_use_unnormalized_coordinates = in_use_unnormalized_coordinates;
@@ -234,21 +245,22 @@ namespace Anvil
 
         /* Private variables */
 
-        Anvil::SamplerAddressMode m_address_mode_u;
-        Anvil::SamplerAddressMode m_address_mode_v;
-        Anvil::SamplerAddressMode m_address_mode_w;
-        Anvil::BorderColor        m_border_color;
-        bool                      m_compare_enable;
-        Anvil::CompareOp          m_compare_op;
-        float                     m_lod_bias;
-        Anvil::Filter             m_mag_filter;
-        float                     m_max_anisotropy;
-        float                     m_max_lod;
-        Anvil::Filter             m_min_filter;
-        float                     m_min_lod;
-        Anvil::SamplerMipmapMode  m_mipmap_mode;
-        Anvil::MTSafety           m_mt_safety;
-        bool                      m_use_unnormalized_coordinates;
+        Anvil::SamplerAddressMode   m_address_mode_u;
+        Anvil::SamplerAddressMode   m_address_mode_v;
+        Anvil::SamplerAddressMode   m_address_mode_w;
+        Anvil::BorderColor          m_border_color;
+        bool                        m_compare_enable;
+        Anvil::CompareOp            m_compare_op;
+        float                       m_lod_bias;
+        Anvil::Filter               m_mag_filter;
+        float                       m_max_anisotropy;
+        float                       m_max_lod;
+        Anvil::Filter               m_min_filter;
+        float                       m_min_lod;
+        Anvil::SamplerMipmapMode    m_mipmap_mode;
+        Anvil::MTSafety             m_mt_safety;
+        Anvil::SamplerReductionMode m_sampler_reduction_mode;
+        bool                        m_use_unnormalized_coordinates;
 
         const Anvil::BaseDevice* m_device_ptr;
 

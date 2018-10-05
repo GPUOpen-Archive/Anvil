@@ -32,6 +32,7 @@
 #define WRAPPERS_INSTANCE_H
 
 #include "misc/extensions.h"
+#include "misc/library.h"
 #include "misc/mt_safety.h"
 #include "misc/types.h"
 
@@ -223,6 +224,10 @@ namespace Anvil
         void init                            (const std::vector<std::string>& in_disallowed_instance_level_extensions);
         void init_debug_callbacks            ();
         void init_func_pointers              ();
+
+        #if !defined(ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB)
+            bool init_vk10_func_ptrs();
+        #endif
 
         static VkBool32 VKAPI_PTR debug_callback_pfn_proc(VkDebugReportFlagsEXT      in_message_flags,
                                                           VkDebugReportObjectTypeEXT in_object_type,

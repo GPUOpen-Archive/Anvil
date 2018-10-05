@@ -74,9 +74,9 @@ Anvil::Framebuffer::~Framebuffer()
         /* Destroy the Vulkan framebuffer object */
         lock();
         {
-            vkDestroyFramebuffer(m_device_ptr->get_device_vk(),
-                                 fb_iterator->second.framebuffer,
-                                 nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroyFramebuffer(m_device_ptr->get_device_vk(),
+                                                fb_iterator->second.framebuffer,
+                                                nullptr /* pAllocator */);
         }
         unlock();
     }
@@ -115,9 +115,9 @@ bool Anvil::Framebuffer::bake(Anvil::RenderPass* in_render_pass_ptr)
     {
         lock();
         {
-            vkDestroyFramebuffer(m_device_ptr->get_device_vk(),
-                                 baked_fb_iterator->second.framebuffer,
-                                 nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroyFramebuffer(m_device_ptr->get_device_vk(),
+                                                baked_fb_iterator->second.framebuffer,
+                                                nullptr /* pAllocator */);
         }
         unlock();
 
@@ -163,10 +163,10 @@ bool Anvil::Framebuffer::bake(Anvil::RenderPass* in_render_pass_ptr)
     fb_create_info.width           = m_create_info_ptr->get_width();
 
     /* Create the framebuffer instance and store it */
-    result_vk = vkCreateFramebuffer(m_device_ptr->get_device_vk(),
-                                  &fb_create_info,
-                                   nullptr, /* pAllocator */
-                                  &result_fb);
+    result_vk = Anvil::Vulkan::vkCreateFramebuffer(m_device_ptr->get_device_vk(),
+                                                  &fb_create_info,
+                                                   nullptr, /* pAllocator */
+                                                  &result_fb);
 
     anvil_assert_vk_call_succeeded(result_vk);
     if (is_vk_call_successful(result_vk) )

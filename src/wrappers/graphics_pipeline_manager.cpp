@@ -104,13 +104,13 @@ bool Anvil::GraphicsPipelineManager::bake()
     } BakeItem;
 
     std::vector<BakeItem>                  bake_items;
-    auto                                   color_blend_attachment_states_vk_cache             = std::vector<VkPipelineColorBlendAttachmentState>      ();
-    auto                                   color_blend_state_create_info_items_vk_cache       = std::vector<VkPipelineColorBlendStateCreateInfo>      ();
-    auto                                   depth_stencil_state_create_info_items_vk_cache     = std::vector<VkPipelineDepthStencilStateCreateInfo>    ();
-    auto                                   dynamic_state_create_info_items_vk_cache           = std::vector<VkPipelineDynamicStateCreateInfo>         ();
-    auto                                   graphics_pipeline_create_info_chains               = Anvil::StructChainVector<VkGraphicsPipelineCreateInfo>();
-    auto                                   input_assembly_state_create_info_items_vk_cache    = std::vector<VkPipelineInputAssemblyStateCreateInfo>   ();
-    auto                                   multisample_state_create_info_items_vk_cache       = std::vector<VkPipelineMultisampleStateCreateInfo>     ();
+    auto                                   color_blend_attachment_states_vk_cache             = std::vector<VkPipelineColorBlendAttachmentState>                                        ();
+    auto                                   color_blend_state_create_info_items_vk_cache       = std::vector<VkPipelineColorBlendStateCreateInfo>                                        ();
+    auto                                   depth_stencil_state_create_info_items_vk_cache     = std::vector<VkPipelineDepthStencilStateCreateInfo>                                      ();
+    auto                                   dynamic_state_create_info_items_vk_cache           = std::vector<VkPipelineDynamicStateCreateInfo>                                           ();
+    auto                                   graphics_pipeline_create_info_chains               = Anvil::StructChainVector<VkGraphicsPipelineCreateInfo>                                  ();
+    auto                                   input_assembly_state_create_info_items_vk_cache    = std::vector<VkPipelineInputAssemblyStateCreateInfo>                                     ();
+    auto                                   multisample_state_create_info_chain_cache          = std::vector<std::unique_ptr<Anvil::StructChain<VkPipelineMultisampleStateCreateInfo> > >();
     std::unique_lock<std::recursive_mutex> mutex_lock;
     auto                                   mutex_ptr                                          = get_mutex();
     uint32_t                               n_consumed_graphics_pipelines                      = 0;
@@ -148,7 +148,6 @@ bool Anvil::GraphicsPipelineManager::bake()
     depth_stencil_state_create_info_items_vk_cache.reserve   (N_CACHE_ITEMS);
     dynamic_state_create_info_items_vk_cache.reserve         (N_CACHE_ITEMS);
     input_assembly_state_create_info_items_vk_cache.reserve  (N_CACHE_ITEMS);
-    multisample_state_create_info_items_vk_cache.reserve     (N_CACHE_ITEMS);
     raster_state_create_info_chains_vk_cache.reserve         (N_CACHE_ITEMS);
     scissor_boxes_vk_cache.reserve                           (N_CACHE_ITEMS);
     shader_stage_create_info_items_vk_cache.reserve          (N_CACHE_ITEMS);
@@ -496,35 +495,76 @@ bool Anvil::GraphicsPipelineManager::bake()
 
             if (!current_pipeline_create_info_ptr->is_rasterizer_discard_enabled() )
             {
-                const bool                           is_sample_mask_enabled        = current_pipeline_create_info_ptr->is_sample_mask_enabled();
-                VkPipelineMultisampleStateCreateInfo multisample_state_create_info;
+                bool                                                       are_custom_sample_locations_enabled = false;
+                VkExtent2D                                                 custom_sample_location_grid_size    = {0, 0};
+                Anvil::SampleCountFlagBits                                 custom_sample_locations_per_pixel   = Anvil::SampleCountFlagBits::NONE;
+                const Anvil::SampleLocation*                               custom_sample_locations_ptr         = nullptr;
+                Anvil::StructChainer<VkPipelineMultisampleStateCreateInfo> chainer;
+                const bool                                                 is_sample_mask_enabled              = current_pipeline_create_info_ptr->is_sample_mask_enabled();
+                uint32_t                                                   n_custom_sample_locations           = 0;
+
                 Anvil::SampleCountFlagBits           sample_count                  = static_cast<Anvil::SampleCountFlagBits>(0);
                 VkSampleMask                         sample_mask;
 
                 current_pipeline_create_info_ptr->get_multisampling_properties(&sample_count,
                                                                                &sample_mask);
+                current_pipeline_create_info_ptr->get_sample_location_state   (&are_custom_sample_locations_enabled,
+                                                                               &custom_sample_locations_per_pixel,
+                                                                               &custom_sample_location_grid_size,
+                                                                               &n_custom_sample_locations,
+                                                                               &custom_sample_locations_ptr);
 
                 /* If sample mask is not enabled, Vulkan spec will assume all samples need to pass. This is what the default sample mask value mimics.
-                *
+                 *
                  * Hence, if the application specified a non-~0u sample mask and has NOT enabled the sample mask using toggle_sample_mask(), it's (in
                  * all likelihood) a trivial app-side issue.
                  */
                 anvil_assert((!is_sample_mask_enabled && sample_mask == ~0u) ||
                                is_sample_mask_enabled);
 
-                multisample_state_create_info.alphaToCoverageEnable = current_pipeline_create_info_ptr->is_alpha_to_coverage_enabled() ? VK_TRUE : VK_FALSE;
-                multisample_state_create_info.alphaToOneEnable      = current_pipeline_create_info_ptr->is_alpha_to_one_enabled()      ? VK_TRUE : VK_FALSE;
-                multisample_state_create_info.flags                 = 0;
-                multisample_state_create_info.minSampleShading      = min_sample_shading;
-                multisample_state_create_info.pNext                 = nullptr;
-                multisample_state_create_info.pSampleMask           = (is_sample_mask_enabled) ? &sample_mask : nullptr;
-                multisample_state_create_info.rasterizationSamples  = static_cast<VkSampleCountFlagBits>(sample_count);
-                multisample_state_create_info.sampleShadingEnable   = is_sample_shading_enabled ? VK_TRUE : VK_FALSE;
-                multisample_state_create_info.sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+                {
+                    VkPipelineMultisampleStateCreateInfo multisample_state_create_info;
+
+                    multisample_state_create_info.alphaToCoverageEnable = current_pipeline_create_info_ptr->is_alpha_to_coverage_enabled() ? VK_TRUE : VK_FALSE;
+                    multisample_state_create_info.alphaToOneEnable      = current_pipeline_create_info_ptr->is_alpha_to_one_enabled()      ? VK_TRUE : VK_FALSE;
+                    multisample_state_create_info.flags                 = 0;
+                    multisample_state_create_info.minSampleShading      = min_sample_shading;
+                    multisample_state_create_info.pNext                 = nullptr;
+                    multisample_state_create_info.pSampleMask           = (is_sample_mask_enabled) ? &sample_mask : nullptr;
+                    multisample_state_create_info.rasterizationSamples  = static_cast<VkSampleCountFlagBits>(sample_count);
+                    multisample_state_create_info.sampleShadingEnable   = is_sample_shading_enabled ? VK_TRUE : VK_FALSE;
+                    multisample_state_create_info.sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+
+                    chainer.append_struct(multisample_state_create_info);
+                }
+
+                if (are_custom_sample_locations_enabled)
+                {
+                    VkPipelineSampleLocationsStateCreateInfoEXT psl_state_create_info;
+                    VkSampleLocationsInfoEXT                    sample_locations_info;
+
+                    sample_locations_info.pNext                   = nullptr;
+                    sample_locations_info.pSampleLocations        = reinterpret_cast<const VkSampleLocationEXT*>(custom_sample_locations_ptr);
+                    sample_locations_info.sampleLocationGridSize  = custom_sample_location_grid_size;
+                    sample_locations_info.sampleLocationsCount    = n_custom_sample_locations;
+                    sample_locations_info.sampleLocationsPerPixel = static_cast<VkSampleCountFlagBits>(custom_sample_locations_per_pixel);
+                    sample_locations_info.sType                   = VK_STRUCTURE_TYPE_SAMPLE_LOCATIONS_INFO_EXT;
+
+                    psl_state_create_info.pNext                 = nullptr;
+                    psl_state_create_info.sampleLocationsEnable = VK_TRUE;
+                    psl_state_create_info.sampleLocationsInfo   = sample_locations_info;
+                    psl_state_create_info.sType                 = VK_STRUCTURE_TYPE_PIPELINE_SAMPLE_LOCATIONS_STATE_CREATE_INFO_EXT;
+
+                    anvil_assert(m_device_ptr->get_extension_info()->ext_sample_locations() );
+
+                    chainer.append_struct(psl_state_create_info);
+                }
 
                 multisample_state_used = true;
 
-                multisample_state_create_info_items_vk_cache.push_back(multisample_state_create_info);
+                multisample_state_create_info_chain_cache.push_back(
+                    std::move(chainer.create_chain() )
+                );
             }
             else
             {
@@ -955,17 +995,21 @@ bool Anvil::GraphicsPipelineManager::bake()
                     graphics_pipeline_create_info.basePipelineIndex  = static_cast<int32_t>(base_bake_item_iterator - bake_items.begin() );
                 }
                 else
-                if (base_bake_item_iterator->pipeline_ptr                 != nullptr            &&
-                    base_bake_item_iterator->pipeline_ptr->baked_pipeline != VK_NULL_HANDLE)
                 {
-                    /* Case 2 */
-                    graphics_pipeline_create_info.basePipelineHandle = base_bake_item_iterator->pipeline_ptr->baked_pipeline;
-                    graphics_pipeline_create_info.basePipelineIndex  = UINT32_MAX;
-                }
-                else
-                {
-                    /* Case 3 */
-                    anvil_assert_fail();
+                    auto baked_pipeline_iterator = m_baked_pipelines.find(current_pipeline_base_pipeline_id);
+
+                    if (baked_pipeline_iterator                         != m_baked_pipelines.end() &&
+                        baked_pipeline_iterator->second->baked_pipeline != VK_NULL_HANDLE)
+                    {
+                        /* Case 2 */
+                        graphics_pipeline_create_info.basePipelineHandle = baked_pipeline_iterator->second->baked_pipeline;
+                        graphics_pipeline_create_info.basePipelineIndex  = UINT32_MAX;
+                    }
+                    else
+                    {
+                        /* Case 3 */
+                        anvil_assert_fail();
+                    }
                 }
             }
             else
@@ -987,7 +1031,7 @@ bool Anvil::GraphicsPipelineManager::bake()
             graphics_pipeline_create_info.pDynamicState       = (dynamic_state_used)        ? &dynamic_state_create_info_items_vk_cache[dynamic_state_create_info_items_vk_cache.size() - 1]
                                                                                             : VK_NULL_HANDLE;
             graphics_pipeline_create_info.pInputAssemblyState = &input_assembly_state_create_info_items_vk_cache[input_assembly_state_create_info_items_vk_cache.size() - 1];
-            graphics_pipeline_create_info.pMultisampleState   = (multisample_state_used)    ? &multisample_state_create_info_items_vk_cache[multisample_state_create_info_items_vk_cache.size() - 1]
+            graphics_pipeline_create_info.pMultisampleState   = (multisample_state_used)    ? multisample_state_create_info_chain_cache.at(multisample_state_create_info_chain_cache.size() - 1)->root_struct_ptr
                                                                                             : VK_NULL_HANDLE;
             graphics_pipeline_create_info.pNext               = nullptr;
             graphics_pipeline_create_info.pRasterizationState = raster_state_create_info_chains_vk_cache.at(raster_state_create_info_chains_vk_cache.size() - 1)->root_struct_ptr;
@@ -1034,13 +1078,10 @@ bool Anvil::GraphicsPipelineManager::bake()
         anvil_assert(depth_stencil_state_create_info_items_vk_cache.size()    <= N_CACHE_ITEMS);
         anvil_assert(dynamic_state_create_info_items_vk_cache.size()          <= N_CACHE_ITEMS);
         anvil_assert(input_assembly_state_create_info_items_vk_cache.size()   <= N_CACHE_ITEMS);
-        anvil_assert(multisample_state_create_info_items_vk_cache.size()      <= N_CACHE_ITEMS);
-        anvil_assert(raster_state_create_info_chains_vk_cache.size()          <= N_CACHE_ITEMS);
         anvil_assert(scissor_boxes_vk_cache.size()                            <= N_CACHE_ITEMS);
         anvil_assert(shader_stage_create_info_items_vk_cache.size()           <= N_CACHE_ITEMS);
         anvil_assert(specialization_info_vk_cache.size()                      <= N_CACHE_ITEMS);
         anvil_assert(specialization_map_entry_vk_cache.size()                 <= N_CACHE_ITEMS);
-        anvil_assert(tessellation_state_create_info_chain_cache.size()        <= N_CACHE_ITEMS);
         anvil_assert(viewport_state_create_info_items_vk_cache.size()         <= N_CACHE_ITEMS);
         anvil_assert(viewports_vk_cache.size()                                <= N_CACHE_ITEMS);
     }
@@ -1051,12 +1092,12 @@ bool Anvil::GraphicsPipelineManager::bake()
 
     m_pipeline_cache_ptr->lock();
     {
-        result_vk = vkCreateGraphicsPipelines(m_device_ptr->get_device_vk(),
-                                              m_pipeline_cache_ptr->get_pipeline_cache(),
-                                              graphics_pipeline_create_info_chains.get_n_structs   (),
-                                              graphics_pipeline_create_info_chains.get_root_structs(),
-                                              nullptr, /* pAllocator */
-                                             &result_graphics_pipelines[0]);
+        result_vk = Anvil::Vulkan::vkCreateGraphicsPipelines(m_device_ptr->get_device_vk(),
+                                                             m_pipeline_cache_ptr->get_pipeline_cache(),
+                                                             graphics_pipeline_create_info_chains.get_n_structs   (),
+                                                             graphics_pipeline_create_info_chains.get_root_structs(),
+                                                             nullptr, /* pAllocator */
+                                                            &result_graphics_pipelines[0]);
     }
     m_pipeline_cache_ptr->unlock();
 

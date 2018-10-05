@@ -301,12 +301,9 @@ namespace Anvil
          **/
         virtual ~CallbacksSupportProvider()
         {
-            if (m_callbacks != nullptr)
-            {
-                delete [] m_callbacks;
+            delete [] m_callbacks;
 
-                m_callbacks = nullptr;
-            }
+            m_callbacks = nullptr;
         }
 
         /* ICallbacksSupportClient interface implementation */

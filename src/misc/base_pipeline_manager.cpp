@@ -86,9 +86,9 @@ void Anvil::BasePipelineManager::Pipeline::release_pipeline()
         device_ptr->get_pipeline_cache()->lock();
         lock();
         {
-            vkDestroyPipeline(device_ptr->get_device_vk(),
-                              baked_pipeline,
-                              nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroyPipeline(device_ptr->get_device_vk(),
+                                             baked_pipeline,
+                                             nullptr /* pAllocator */);
         }
         unlock();
         device_ptr->get_pipeline_cache()->unlock();

@@ -630,8 +630,9 @@ end:
             /* Link the program */
             new_program_ptr->addShader(new_shader_ptr);
 
-            link_result        = new_program_ptr->link      (EShMsgDefault);
-            m_program_info_log = new_program_ptr->getInfoLog();
+            link_result              = new_program_ptr->link           (EShMsgDefault);
+            m_program_debug_info_log = new_program_ptr->getInfoDebugLog();
+            m_program_info_log       = new_program_ptr->getInfoLog     ();
 
             if (!link_result)
             {
@@ -677,19 +678,11 @@ end:
         /* All done */
         result = true;
     end:
-        if (new_program_ptr != nullptr)
-        {
-            delete new_program_ptr;
+        delete new_program_ptr;
+        new_program_ptr = nullptr;
 
-            new_program_ptr = nullptr;
-        }
-
-        if (new_shader_ptr != nullptr)
-        {
-            delete new_shader_ptr;
-
-            new_shader_ptr = nullptr;
-        }
+        delete new_shader_ptr;
+        new_shader_ptr = nullptr;
 
         return result;
     }

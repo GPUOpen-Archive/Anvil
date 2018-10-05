@@ -479,14 +479,6 @@ bool Anvil::MemoryAllocator::add_buffer_internal(Anvil::Buffer*                 
     anvil_assert( in_opt_device_mask_ptr                  == nullptr                                            ||
                  (in_opt_device_mask_ptr                  != nullptr && m_backend_ptr->supports_device_masks() ));
 
-    if (!do_mgpu_sanity_checks(in_opt_device_mask_ptr,
-                               in_opt_mgpu_peer_memory_reqs_ptr) )
-    {
-        result = false;
-
-        goto end;
-    }
-
     /* Extract external memory handle types from the specified buffer, if none were specified. */
     if (!do_external_memory_handle_type_sanity_checks(in_buffer_ptr->get_create_info_ptr()->get_exportable_external_memory_handle_types() ) )
     {
@@ -905,14 +897,6 @@ bool Anvil::MemoryAllocator::add_image_whole(Anvil::Image*                      
     anvil_assert(in_opt_device_mask_ptr           == nullptr                                            ||
                  (in_opt_device_mask_ptr          != nullptr && m_backend_ptr->supports_device_masks() ));
 
-    if (!do_mgpu_sanity_checks(in_opt_device_mask_ptr,
-                               in_opt_mgpu_peer_memory_reqs_ptr) )
-    {
-        result = false;
-
-        goto end;
-    }
-
     if (!do_external_memory_handle_type_sanity_checks(in_image_ptr->get_create_info_ptr()->get_external_memory_handle_types()) )
     {
         result = false;
@@ -984,14 +968,6 @@ bool Anvil::MemoryAllocator::add_sparse_buffer_region(Anvil::Buffer*            
     anvil_assert(in_buffer_ptr->get_memory_requirements().size    >= in_offset + in_size);
     anvil_assert( in_opt_device_mask_ptr                          == nullptr                                            ||
                  (in_opt_device_mask_ptr                          != nullptr && m_backend_ptr->supports_device_masks() ));
-
-    if (!do_mgpu_sanity_checks(in_opt_device_mask_ptr,
-                               in_opt_mgpu_peer_memory_reqs_ptr) )
-    {
-        result = false;
-
-        goto end;
-    }
 
     if (mutex_ptr != nullptr)
     {
@@ -1079,14 +1055,6 @@ bool Anvil::MemoryAllocator::add_sparse_image_miptail(Anvil::Image*             
     anvil_assert(in_image_ptr->has_aspects                               (in_aspect) );
     anvil_assert( in_opt_device_mask_ptr                                             == nullptr                                            ||
                  (in_opt_device_mask_ptr                                             != nullptr && m_backend_ptr->supports_device_masks() ));
-
-    if (!do_mgpu_sanity_checks(in_opt_device_mask_ptr,
-                               in_opt_mgpu_peer_memory_reqs_ptr) )
-    {
-        result = false;
-
-        goto end;
-    }
 
     if (mutex_ptr != nullptr)
     {
@@ -1194,14 +1162,6 @@ bool Anvil::MemoryAllocator::add_sparse_image_subresource(Anvil::Image*         
     anvil_assert(in_extent.depth  >= 1);
     anvil_assert(in_extent.height >= 1);
     anvil_assert(in_extent.width  >= 1);
-
-    if (!do_mgpu_sanity_checks(in_opt_device_mask_ptr,
-                               in_opt_mgpu_peer_memory_reqs_ptr) )
-    {
-        result = false;
-
-        goto end;
-    }
 
     if (mutex_ptr != nullptr)
     {
@@ -1646,11 +1606,11 @@ bool Anvil::MemoryAllocator::bake()
             anvil_assert(result);
 
             /* Block until the sparse memory bindings are in place */
-            vkWaitForFences(m_device_ptr->get_device_vk(),
-                            1, /* fenceCount */
-                            sparse_memory_binding.get_fence()->get_fence_ptr(),
-                            VK_FALSE, /* waitAll */
-                            UINT64_MAX);
+            Anvil::Vulkan::vkWaitForFences(m_device_ptr->get_device_vk(),
+                                           1, /* fenceCount */
+                                           sparse_memory_binding.get_fence()->get_fence_ptr(),
+                                           VK_FALSE, /* waitAll */
+                                           UINT64_MAX);
         }
     }
 
@@ -1836,49 +1796,6 @@ bool Anvil::MemoryAllocator::do_external_memory_handle_type_sanity_checks(const 
             result = false;
         }
     }
-
-    return result;
-}
-
-bool Anvil::MemoryAllocator::do_mgpu_sanity_checks(const uint32_t*                   in_opt_device_mask_ptr,
-                                                   const MGPUPeerMemoryRequirements* in_opt_peer_memory_reqs_ptr) const
-{
-    bool result = true;
-
-#if 0
-    if (in_opt_peer_memory_reqs_ptr != nullptr)
-    {
-        const auto device_mask = (in_opt_device_mask_ptr != nullptr) ? *in_opt_device_mask_ptr
-                                                                     : UINT32_MAX;
-
-        for (const auto& current_req : *in_opt_peer_memory_reqs_ptr)
-        {
-            const auto& local_device_index  = current_req.first.first;
-            const auto& remote_device_index = current_req.first.second;
-
-            if ((device_mask & (1 << local_device_index) ) == 0)
-            {
-                anvil_assert((device_mask & (1 << local_device_index) ) != 0);
-
-                result = false;
-                goto end;
-            }
-
-            if ((device_mask & (1 << remote_device_index) ) == 0)
-            {
-                anvil_assert((device_mask & (1 << remote_device_index) ) != 0);
-
-                result = false;
-                goto end;
-            }
-        }
-    }
-
-end:
-#else
-    ANVIL_REDUNDANT_ARGUMENT(in_opt_device_mask_ptr);
-    ANVIL_REDUNDANT_ARGUMENT(in_opt_peer_memory_reqs_ptr);
-#endif
 
     return result;
 }

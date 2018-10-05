@@ -277,9 +277,9 @@ void Anvil::ShaderModule::destroy()
     {
         lock();
         {
-            vkDestroyShaderModule(m_device_ptr->get_device_vk(),
-                                  m_module,
-                                  nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroyShaderModule(m_device_ptr->get_device_vk(),
+                                                 m_module,
+                                                 nullptr /* pAllocator */);
         }
         unlock();
 
@@ -324,10 +324,10 @@ bool Anvil::ShaderModule::init_from_spirv_blob(const char* in_spirv_blob,
     shader_module_create_info.pNext    = nullptr;
     shader_module_create_info.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 
-    result_vk = vkCreateShaderModule(m_device_ptr->get_device_vk(),
-                                    &shader_module_create_info,
-                                     nullptr, /* pAllocator */
-                                    &m_module);
+    result_vk = Anvil::Vulkan::vkCreateShaderModule(m_device_ptr->get_device_vk(),
+                                                   &shader_module_create_info,
+                                                    nullptr, /* pAllocator */
+                                                   &m_module);
 
     anvil_assert_vk_call_succeeded(result_vk);
     if (is_vk_call_successful(result_vk) )

@@ -232,6 +232,11 @@ namespace Anvil
                 return m_debug_info_log;
             }
 
+            const std::string& get_program_debug_info_log() const
+            {
+                return m_program_debug_info_log;
+            }
+
             /** Returns info log which contains detailed information regarding the program linking process.
               *
               *  Call if get_spirv_blob() returns nullptr to find out more about shader issues which
@@ -339,6 +344,7 @@ namespace Anvil
         #ifdef ANVIL_LINK_WITH_GLSLANG
             mutable std::string            m_debug_info_log;
             std::unique_ptr<GLSLangLimits> m_limits_ptr;
+            mutable std::string            m_program_debug_info_log;
             mutable std::string            m_program_info_log;
             mutable std::string            m_shader_info_log;
         #endif

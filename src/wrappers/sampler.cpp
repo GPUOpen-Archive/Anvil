@@ -52,9 +52,9 @@ Anvil::Sampler::~Sampler()
     {
         lock();
         {
-            vkDestroySampler(m_device_ptr->get_device_vk(),
-                             m_sampler,
-                             nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroySampler(m_device_ptr->get_device_vk(),
+                                            m_sampler,
+                                            nullptr /* pAllocator */);
         }
         unlock();
 
@@ -85,7 +85,8 @@ Anvil::SamplerUniquePtr Anvil::Sampler::create(Anvil::SamplerCreateInfoUniquePtr
 
 bool Anvil::Sampler::init()
 {
-    VkResult                                  result         (VK_ERROR_INITIALIZATION_FAILED);
+    VkResult                                  result                (VK_ERROR_INITIALIZATION_FAILED);
+    const auto                                sampler_reduction_mode(m_create_info_ptr->get_sampler_reduction_mode() );
     Anvil::StructChainer<VkSamplerCreateInfo> struct_chainer;
 
     ANVIL_REDUNDANT_VARIABLE(result);
@@ -117,13 +118,24 @@ bool Anvil::Sampler::init()
         struct_chainer.append_struct(sampler_create_info);
     }
 
+    if (sampler_reduction_mode != Anvil::SamplerReductionMode::UNKNOWN)
+    {
+        VkSamplerReductionModeCreateInfoEXT srm_create_info;
+
+        srm_create_info.pNext         = nullptr;
+        srm_create_info.reductionMode = static_cast<VkSamplerReductionModeEXT>(sampler_reduction_mode);
+        srm_create_info.sType         = VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO_EXT;
+
+        struct_chainer.append_struct(srm_create_info);
+    }
+
     {
         auto chain_ptr = struct_chainer.create_chain();
 
-        result = vkCreateSampler(m_device_ptr->get_device_vk(),
-                                 chain_ptr->get_root_struct(),
-                                 nullptr, /* pAllocator */
-                                &m_sampler);
+        result = Anvil::Vulkan::vkCreateSampler(m_device_ptr->get_device_vk(),
+                                                chain_ptr->get_root_struct(),
+                                                nullptr, /* pAllocator */
+                                               &m_sampler);
     }
 
     anvil_assert_vk_call_succeeded(result);

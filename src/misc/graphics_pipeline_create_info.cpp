@@ -48,6 +48,7 @@ Anvil::GraphicsPipelineCreateInfo::GraphicsPipelineCreateInfo(const RenderPass* 
     m_n_patch_control_points               = 1;
     m_primitive_restart_enabled            = false;
     m_rasterizer_discard_enabled           = false;
+    m_sample_locations_enabled             = false;
     m_sample_mask_enabled                  = false;
     m_sample_shading_enabled               = false;
     m_stencil_test_enabled                 = false;
@@ -63,6 +64,10 @@ Anvil::GraphicsPipelineCreateInfo::GraphicsPipelineCreateInfo(const RenderPass* 
     m_stencil_state_back_face.reference   = 0;
     m_stencil_state_back_face.writeMask   = ~0u;
     m_stencil_state_front_face            = m_stencil_state_back_face;
+
+    m_sample_locations_per_pixel       = Anvil::SampleCountFlagBits::NONE;
+    m_sample_location_grid_size.height = 0;
+    m_sample_location_grid_size.width  = 0;
 
     m_rasterization_order = Anvil::RasterizationOrderAMD::STRICT;
 
@@ -184,12 +189,17 @@ bool Anvil::GraphicsPipelineCreateInfo::copy_gfx_state_from(const Anvil::Graphic
     m_logic_op_enabled                     = in_src_pipeline_create_info_ptr->m_logic_op_enabled;
     m_primitive_restart_enabled            = in_src_pipeline_create_info_ptr->m_primitive_restart_enabled;
     m_rasterizer_discard_enabled           = in_src_pipeline_create_info_ptr->m_rasterizer_discard_enabled;
+    m_sample_locations_enabled             = in_src_pipeline_create_info_ptr->m_sample_locations_enabled;
     m_sample_mask_enabled                  = in_src_pipeline_create_info_ptr->m_sample_mask_enabled;
     m_sample_shading_enabled               = in_src_pipeline_create_info_ptr->m_sample_shading_enabled;
 
     m_stencil_test_enabled     = in_src_pipeline_create_info_ptr->m_stencil_test_enabled;
     m_stencil_state_back_face  = in_src_pipeline_create_info_ptr->m_stencil_state_back_face;
     m_stencil_state_front_face = in_src_pipeline_create_info_ptr->m_stencil_state_front_face;
+
+    m_sample_location_grid_size  = in_src_pipeline_create_info_ptr->m_sample_location_grid_size;
+    m_sample_locations           = in_src_pipeline_create_info_ptr->m_sample_locations;
+    m_sample_locations_per_pixel = in_src_pipeline_create_info_ptr->m_sample_locations_per_pixel;
 
     m_rasterization_order = in_src_pipeline_create_info_ptr->m_rasterization_order;
 
@@ -200,6 +210,7 @@ bool Anvil::GraphicsPipelineCreateInfo::copy_gfx_state_from(const Anvil::Graphic
     m_blend_constant[1]                      = in_src_pipeline_create_info_ptr->m_blend_constant[1];
     m_blend_constant[2]                      = in_src_pipeline_create_info_ptr->m_blend_constant[2];
     m_blend_constant[3]                      = in_src_pipeline_create_info_ptr->m_blend_constant[3];
+    m_cull_mode                              = in_src_pipeline_create_info_ptr->m_cull_mode;
     m_polygon_mode                           = in_src_pipeline_create_info_ptr->m_polygon_mode;
     m_front_face                             = in_src_pipeline_create_info_ptr->m_front_face;
     m_line_width                             = in_src_pipeline_create_info_ptr->m_line_width;
@@ -209,13 +220,12 @@ bool Anvil::GraphicsPipelineCreateInfo::copy_gfx_state_from(const Anvil::Graphic
     m_n_dynamic_viewports                    = in_src_pipeline_create_info_ptr->m_n_dynamic_viewports;
     m_n_patch_control_points                 = in_src_pipeline_create_info_ptr->m_n_patch_control_points;
     m_primitive_topology                     = in_src_pipeline_create_info_ptr->m_primitive_topology;
-    m_sample_count = in_src_pipeline_create_info_ptr->m_sample_count;
+    m_sample_count                           = in_src_pipeline_create_info_ptr->m_sample_count;
     m_sample_mask                            = in_src_pipeline_create_info_ptr->m_sample_mask;
     m_scissor_boxes                          = in_src_pipeline_create_info_ptr->m_scissor_boxes;
     m_subpass_attachment_blending_properties = in_src_pipeline_create_info_ptr->m_subpass_attachment_blending_properties;
     m_viewports                              = in_src_pipeline_create_info_ptr->m_viewports;
 
-    m_cull_mode = in_src_pipeline_create_info_ptr->m_cull_mode;
 
     BasePipelineCreateInfo::copy_state_from(in_src_pipeline_create_info_ptr);
 
@@ -224,74 +234,16 @@ end:
     return result;
 }
 
-Anvil::GraphicsPipelineCreateInfoUniquePtr Anvil::GraphicsPipelineCreateInfo::create_derivative(bool                               in_disable_optimizations,
-                                                                                                bool                               in_allow_derivatives,
-                                                                                                const RenderPass*                  in_renderpass_ptr,
-                                                                                                SubPassID                          in_subpass_id,
-                                                                                                const ShaderModuleStageEntryPoint& in_fragment_shader_stage_entrypoint_info,
-                                                                                                const ShaderModuleStageEntryPoint& in_geometry_shader_stage_entrypoint_info,
-                                                                                                const ShaderModuleStageEntryPoint& in_tess_control_shader_stage_entrypoint_info,
-                                                                                                const ShaderModuleStageEntryPoint& in_tess_evaluation_shader_stage_entrypoint_info,
-                                                                                                const ShaderModuleStageEntryPoint& in_vertex_shader_shader_stage_entrypoint_info,
-                                                                                                Anvil::PipelineID                  in_base_pipeline_id)
-{
-    Anvil::GraphicsPipelineCreateInfoUniquePtr result_ptr(nullptr,
-                                                          std::default_delete<Anvil::GraphicsPipelineCreateInfo>() );
-
-    result_ptr.reset(
-        new GraphicsPipelineCreateInfo(in_renderpass_ptr,
-                                       in_subpass_id)
-    );
-
-    if (result_ptr != nullptr)
-    {
-        const ShaderModuleStageEntryPoint stages[] =
-        {
-            in_fragment_shader_stage_entrypoint_info,
-            in_geometry_shader_stage_entrypoint_info,
-            in_tess_control_shader_stage_entrypoint_info,
-            in_tess_evaluation_shader_stage_entrypoint_info,
-            in_vertex_shader_shader_stage_entrypoint_info
-        };
-
-        result_ptr->init_derivative(in_disable_optimizations,
-                                    in_allow_derivatives,
-                                    sizeof(stages) / sizeof(stages[0]),
-                                    stages,
-                                    in_base_pipeline_id);
-    }
-
-    return result_ptr;
-}
-
-Anvil::GraphicsPipelineCreateInfoUniquePtr Anvil::GraphicsPipelineCreateInfo::create_proxy()
-{
-    Anvil::GraphicsPipelineCreateInfoUniquePtr result_ptr(nullptr,
-                                                          std::default_delete<Anvil::GraphicsPipelineCreateInfo>() );
-
-    result_ptr.reset(
-        new GraphicsPipelineCreateInfo(nullptr, /* in_renderpass_ptr */
-                                       UINT32_MAX)
-    );
-
-    if (result_ptr != nullptr)
-    {
-        result_ptr->init_proxy();
-    }
-
-    return result_ptr;
-}
-
-Anvil::GraphicsPipelineCreateInfoUniquePtr Anvil::GraphicsPipelineCreateInfo::create_regular(bool                                     in_disable_optimizations,
-                                                                                             bool                                     in_allow_derivatives,
-                                                                                             const RenderPass*                        in_renderpass_ptr,
-                                                                                             SubPassID                                in_subpass_id,
-                                                                                             const ShaderModuleStageEntryPoint&       in_fragment_shader_stage_entrypoint_info,
-                                                                                             const ShaderModuleStageEntryPoint&       in_geometry_shader_stage_entrypoint_info,
-                                                                                             const ShaderModuleStageEntryPoint&       in_tess_control_shader_stage_entrypoint_info,
-                                                                                             const ShaderModuleStageEntryPoint&       in_tess_evaluation_shader_stage_entrypoint_info,
-                                                                                             const ShaderModuleStageEntryPoint&       in_vertex_shader_shader_stage_entrypoint_info,
-                                                                                             const Anvil::GraphicsPipelineCreateInfo* in_opt_reference_pipeline_info_ptr)
+Anvil::GraphicsPipelineCreateInfoUniquePtr Anvil::GraphicsPipelineCreateInfo::create(const Anvil::PipelineCreateFlagBits&     in_create_flags,
+                                                                                     const RenderPass*                        in_renderpass_ptr,
+                                                                                     SubPassID                                in_subpass_id,
+                                                                                     const ShaderModuleStageEntryPoint&       in_fragment_shader_stage_entrypoint_info,
+                                                                                     const ShaderModuleStageEntryPoint&       in_geometry_shader_stage_entrypoint_info,
+                                                                                     const ShaderModuleStageEntryPoint&       in_tess_control_shader_stage_entrypoint_info,
+                                                                                     const ShaderModuleStageEntryPoint&       in_tess_evaluation_shader_stage_entrypoint_info,
+                                                                                     const ShaderModuleStageEntryPoint&       in_vertex_shader_shader_stage_entrypoint_info,
+                                                                                     const Anvil::GraphicsPipelineCreateInfo* in_opt_reference_pipeline_info_ptr,
+                                                                                     const Anvil::PipelineID*                 in_opt_base_pipeline_id_ptr)
 {
     Anvil::GraphicsPipelineCreateInfoUniquePtr result_ptr(nullptr,
                                                           std::default_delete<Anvil::GraphicsPipelineCreateInfo>() );
@@ -322,10 +274,28 @@ Anvil::GraphicsPipelineCreateInfoUniquePtr Anvil::GraphicsPipelineCreateInfo::cr
             }
         }
 
-        result_ptr->init_regular(in_disable_optimizations,
-                                 in_allow_derivatives,
-                                 sizeof(stages) / sizeof(stages[0]),
-                                 stages);
+        result_ptr->init(in_create_flags,
+                         sizeof(stages) / sizeof(stages[0]),
+                         stages,
+                         in_opt_base_pipeline_id_ptr);
+    }
+
+    return result_ptr;
+}
+
+Anvil::GraphicsPipelineCreateInfoUniquePtr Anvil::GraphicsPipelineCreateInfo::create_proxy()
+{
+    Anvil::GraphicsPipelineCreateInfoUniquePtr result_ptr(nullptr,
+                                                          std::default_delete<Anvil::GraphicsPipelineCreateInfo>() );
+
+    result_ptr.reset(
+        new GraphicsPipelineCreateInfo(nullptr, /* in_renderpass_ptr */
+                                       UINT32_MAX)
+    );
+
+    if (result_ptr != nullptr)
+    {
+        result_ptr->init_proxy();
     }
 
     return result_ptr;
@@ -592,6 +562,39 @@ void Anvil::GraphicsPipelineCreateInfo::get_rasterization_properties(Anvil::Poly
     if (out_opt_line_width_ptr != nullptr)
     {
         *out_opt_line_width_ptr = m_line_width;
+    }
+}
+
+void Anvil::GraphicsPipelineCreateInfo::get_sample_location_state(bool*                         out_opt_is_enabled_ptr,
+                                                                  Anvil::SampleCountFlagBits*   out_opt_sample_locations_per_pixel_ptr,
+                                                                  VkExtent2D*                   out_opt_sample_location_grid_size_ptr,
+                                                                  uint32_t*                     out_opt_n_sample_locations_ptr,
+                                                                  const Anvil::SampleLocation** out_opt_sample_locations_ptr_ptr)
+{
+    if (out_opt_is_enabled_ptr != nullptr)
+    {
+        *out_opt_is_enabled_ptr = m_sample_locations_enabled;
+    }
+
+    if (out_opt_sample_locations_per_pixel_ptr != nullptr)
+    {
+        *out_opt_sample_locations_per_pixel_ptr = m_sample_locations_per_pixel;
+    }
+
+    if (out_opt_sample_location_grid_size_ptr != nullptr)
+    {
+        *out_opt_sample_location_grid_size_ptr = m_sample_location_grid_size;
+    }
+
+    if (out_opt_n_sample_locations_ptr != nullptr)
+    {
+        *out_opt_n_sample_locations_ptr = static_cast<uint32_t>(m_sample_locations.size() );
+    }
+
+    if (out_opt_sample_locations_per_pixel_ptr != nullptr)
+    {
+        *out_opt_sample_locations_ptr_ptr = (m_sample_locations.size() > 0) ? &m_sample_locations.at(0)
+                                                                            : nullptr;
     }
 }
 
@@ -974,6 +977,28 @@ void Anvil::GraphicsPipelineCreateInfo::set_rasterization_properties(Anvil::Poly
     m_polygon_mode = in_polygon_mode;
 }
 
+void Anvil::GraphicsPipelineCreateInfo::set_sample_location_properties(const Anvil::SampleCountFlagBits& in_sample_locations_per_pixel,
+                                                                       const VkExtent2D&                 in_sample_location_grid_size,
+                                                                       const uint32_t&                   in_n_sample_locations,
+                                                                       const Anvil::SampleLocation*      in_sample_locations_ptr)
+{
+    anvil_assert(in_n_sample_locations != 0);
+
+    m_sample_locations.resize(in_n_sample_locations);
+
+    m_sample_location_grid_size  = in_sample_location_grid_size;
+    m_sample_locations_per_pixel = in_sample_locations_per_pixel;
+
+    for (uint32_t n_sample_location = 0;
+                  n_sample_location < in_n_sample_locations;
+                ++n_sample_location)
+    {
+        const auto& current_location_ptr = in_sample_locations_ptr + n_sample_location;
+
+        m_sample_locations.at(n_sample_location) = *current_location_ptr;
+    }
+}
+
 void Anvil::GraphicsPipelineCreateInfo::set_scissor_box_properties(uint32_t in_n_scissor_box,
                                                                    int32_t  in_x,
                                                                    int32_t  in_y,
@@ -1140,6 +1165,11 @@ void Anvil::GraphicsPipelineCreateInfo::toggle_primitive_restart(bool in_should_
 void Anvil::GraphicsPipelineCreateInfo::toggle_rasterizer_discard(bool in_should_enable)
 {
     m_rasterizer_discard_enabled = in_should_enable;
+}
+
+void Anvil::GraphicsPipelineCreateInfo::toggle_sample_locations(bool in_should_enable)
+{
+    m_sample_locations_enabled = in_should_enable;
 }
 
 void Anvil::GraphicsPipelineCreateInfo::toggle_sample_mask(bool in_should_enable)

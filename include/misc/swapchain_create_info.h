@@ -45,9 +45,15 @@ namespace Anvil
                                                    Anvil::RenderingSurface* in_parent_surface_ptr,
                                                    Anvil::Window*           in_window_ptr,
                                                    Anvil::Format            in_format,
+                                                   Anvil::ColorSpaceKHR     in_color_space,
                                                    Anvil::PresentModeKHR    in_present_mode,
                                                    Anvil::ImageUsageFlags   in_usage_flags,
                                                    uint32_t                 in_n_images);
+
+        Anvil::ColorSpaceKHR get_color_space() const
+        {
+            return m_color_space;
+        }
 
         /** Returns device instance which has been used to create the swapchain */
         const Anvil::BaseDevice* get_device() const
@@ -104,6 +110,11 @@ namespace Anvil
         Anvil::Window* get_window() const
         {
             return m_window_ptr;
+        }
+
+        void set_color_space(const Anvil::ColorSpaceKHR& in_color_space)
+        {
+            m_color_space = in_color_space;
         }
 
         void set_device(const Anvil::BaseDevice* in_device_ptr)
@@ -164,6 +175,7 @@ namespace Anvil
                             Anvil::RenderingSurface*           in_parent_surface_ptr,
                             Anvil::Window*                     in_window_ptr,
                             Anvil::Format                      in_format,
+                            Anvil::ColorSpaceKHR               in_color_space,
                             Anvil::PresentModeKHR              in_present_mode,
                             Anvil::ImageUsageFlags             in_usage_flags,
                             uint32_t                           in_n_images,
@@ -173,6 +185,7 @@ namespace Anvil
 
         /* Private variables */
 
+        Anvil::ColorSpaceKHR               m_color_space;
         const Anvil::BaseDevice*           m_device_ptr;
         Anvil::SwapchainCreateFlags        m_flags;
         Anvil::Format                      m_format;

@@ -31,6 +31,7 @@
 
 Anvil::RenderPassCreateInfo::RenderPassCreateInfo(const Anvil::BaseDevice* in_device_ptr)
     :m_device_ptr                  (in_device_ptr),
+     m_multiview_enabled           (false),
      m_update_preserved_attachments(false)
 {
     anvil_assert(in_device_ptr != nullptr);
@@ -668,6 +669,32 @@ end:
 }
 
 /** Please see header for specification */
+bool Anvil::RenderPassCreateInfo::get_dependency_multiview_properties(uint32_t in_n_dependency,
+                                                                      int32_t* out_view_offset_ptr) const
+{
+    bool result = false;
+
+    if (!m_multiview_enabled)
+    {
+        anvil_assert(m_multiview_enabled);
+
+        goto end;
+    }
+
+    if (m_subpass_dependencies.size() <= in_n_dependency)
+    {
+        anvil_assert(m_subpass_dependencies.size() > in_n_dependency);
+
+        goto end;
+    }
+
+    *out_view_offset_ptr = m_subpass_dependencies.at(in_n_dependency).multiview_view_offset;
+    result               = true;
+end:
+    return result;
+}
+
+/** Please see header for specification */
 bool Anvil::RenderPassCreateInfo::get_depth_stencil_attachment_properties(RenderPassAttachmentID    in_attachment_id,
                                                                           Anvil::AttachmentLoadOp*  out_opt_depth_load_op_ptr,
                                                                           Anvil::AttachmentStoreOp* out_opt_depth_store_op_ptr,
@@ -747,6 +774,16 @@ uint32_t Anvil::RenderPassCreateInfo::get_max_color_location_used_by_subpass(con
 
 end:
     return result;
+}
+
+/* Please see header for specification */
+void Anvil::RenderPassCreateInfo::get_multiview_correlation_masks(uint32_t*        out_n_correlation_masks_ptr,
+                                                                  const uint32_t** out_correlation_masks_ptr_ptr) const
+{
+    anvil_assert(m_multiview_enabled);
+
+    *out_correlation_masks_ptr_ptr = (m_correlation_masks.size() > 0) ? &m_correlation_masks.at(0) : nullptr;
+    *out_n_correlation_masks_ptr   = static_cast<uint32_t>(m_correlation_masks.size() );
 }
 
 /* Please see header for specification */
@@ -926,6 +963,104 @@ bool Anvil::RenderPassCreateInfo::get_subpass_attachment_properties(SubPassID   
     /* All done */
     result = true;
 
+end:
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::RenderPassCreateInfo::get_subpass_view_mask(SubPassID in_subpass_id,
+                                                        uint32_t* out_view_mask_ptr) const
+{
+    bool result = false;
+
+    if (!m_multiview_enabled)
+    {
+        anvil_assert(m_multiview_enabled);
+
+        goto end;
+    }
+
+    if (m_subpasses.size() <= in_subpass_id)
+    {
+        anvil_assert(m_subpasses.size() > in_subpass_id);
+
+        goto end;
+    }
+
+    *out_view_mask_ptr = m_subpasses.at(in_subpass_id)->multiview_view_mask;
+    result             = true;
+end:
+    return result;
+}
+
+/* Please see header for specification */
+void Anvil::RenderPassCreateInfo::set_correlation_masks(const uint32_t& in_n_correlation_masks,
+                                                        const uint32_t* in_correlation_masks_ptr)
+{
+    anvil_assert(in_n_correlation_masks != 0);
+
+    m_correlation_masks.resize(in_n_correlation_masks);
+
+    memcpy(&m_correlation_masks.at(0),
+           in_correlation_masks_ptr,
+           in_n_correlation_masks * sizeof(uint32_t) );
+
+    if (!m_multiview_enabled)
+    {
+        m_multiview_enabled = true;
+    }
+}
+
+/* Please see header for specification */
+bool Anvil::RenderPassCreateInfo::set_dependency_view_local_properties(const uint32_t& in_n_dependency,
+                                                                       const int32_t&  in_view_offset)
+{
+    decltype(m_subpass_dependencies)::iterator dep_iterator;
+    bool                                       result       = false;
+
+    if (m_subpass_dependencies.size() <= in_n_dependency)
+    {
+        anvil_assert(m_subpass_dependencies.size() > in_n_dependency);
+
+        goto end;
+    }
+
+    dep_iterator                        = m_subpass_dependencies.begin() + in_n_dependency;
+    dep_iterator->multiview_view_offset = in_view_offset;
+
+    if (!m_multiview_enabled)
+    {
+        m_multiview_enabled = true;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+/* Please see header for specification */
+bool Anvil::RenderPassCreateInfo::set_subpass_view_mask(SubPassID       in_subpass_id,
+                                                        const uint32_t& in_view_mask)
+{
+    bool                            result           = false;
+    decltype(m_subpasses)::iterator subpass_iterator;
+
+    if (m_subpasses.size() <= in_subpass_id)
+    {
+        anvil_assert(m_subpasses.size() > in_subpass_id);
+
+        goto end;
+    }
+
+    subpass_iterator                         = m_subpasses.begin() + in_subpass_id;
+    (*subpass_iterator)->multiview_view_mask = in_view_mask;
+
+    if (!m_multiview_enabled)
+    {
+        m_multiview_enabled = true;
+    }
+
+    result = true;
 end:
     return result;
 }
