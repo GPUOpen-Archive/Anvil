@@ -48,6 +48,7 @@ namespace Anvil
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
          * - External memory handle types: none
+         * - Image format list:            empty (ie. image views created from the image can use any compatible format)
          * - MT safety:                    Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
          *
          *  @param in_device_ptr               Device to use.
@@ -109,6 +110,7 @@ namespace Anvil
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
          * - External memory handle types: none
+         * - Image format list:            empty (ie. image views created from the image can use any compatible format)
          * - MT safety:                    Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
          *
          *  @param in_device_ptr               Device to use.
@@ -164,6 +166,7 @@ namespace Anvil
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
          * - External memory handle types: none
+         * - Image format list:            empty (ie. image views created from the image can use any compatible format)
          * - MT safety:                    Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
          * - Physical devices:             none
          * - SFR rectangles:               none
@@ -192,6 +195,7 @@ namespace Anvil
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
          * - External memory handle types: none
+         * - Image format list:            empty (ie. image views created from the image can use any compatible format)
          * - Initial layout:               Anvil::ImageLayout::UNDEFINED
          * - MT safety:                    Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
          *
@@ -285,6 +289,18 @@ namespace Anvil
         {
             return m_format;
         }
+
+        /* Tells which compatible image view formats have been specified for the image.
+         *
+         * Requires VK_KHR_image_format_list.
+         *
+         * @param out_n_image_view_formats_ptr   Deref will be set to the number of formats the array under *out_image_view_formats_ptr_ptr
+         *                                       holds. Must not be nullptr.
+         * @param out_image_view_formats_ptr_ptr Deref will be set to a ptr to an array of compatible formats.
+         *
+         **/
+        void get_image_view_formats(uint32_t*             out_n_image_view_formats_ptr,
+                                    const Anvil::Format** out_image_view_formats_ptr_ptr) const;
 
         const Anvil::ImageInternalType& get_internal_type() const
         {
@@ -431,6 +447,20 @@ namespace Anvil
             m_height = in_height;
         }
 
+        /* Lets the application specify what formats image views created off this image will use.
+         *
+         * This information will be chained to the image create info struct.
+         *
+         * Requires VK_KHR_image_format_list
+         *
+         * @param in_n_image_view_formats   Number of formats available for reading under @param in_image_view_formats_ptr.
+         *                                  Must not be 0.
+         * @param in_image_view_formats_ptr Image view formats to specify for the image. Must not be nullptr.
+         *
+         */
+        void set_image_view_formats(const uint32_t&      in_n_image_view_formats,
+                                    const Anvil::Format* in_image_view_formats_ptr);
+
         void set_memory_features(const Anvil::MemoryFeatureFlags& in_memory_features)
         {
             m_memory_features = in_memory_features;
@@ -576,6 +606,7 @@ namespace Anvil
         Anvil::ExternalMemoryHandleTypeFlags m_exportable_external_memory_handle_types;
         Anvil::Format                        m_format;
         uint32_t                             m_height;
+        std::vector<Anvil::Format>           m_image_view_formats;
         const Anvil::ImageInternalType       m_internal_type;
         Anvil::MemoryFeatureFlags            m_memory_features;
         std::vector<MipmapRawData>           m_mipmaps_to_upload;

@@ -3,9 +3,22 @@ project (Anvil)
 
 option(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT "Includes 32-/64-bit Windows window system support (Windows builds only)" ON)
 option(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT     "Includes XCB window system support (Linux builds only)" ON)
-option(ANVIL_LINK_WITH_GLSLANG                     "Links with glslang, instead of spawning a new process whenever GLSL->SPIR-V conversion is required" ON)
 option(ANVIL_LINK_EXAMPLES                         "Build examples showing how to use Anvil" OFF)
+option(ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB       "Link statically with Vulkan loader. If disabled, Anvil will load the func ptrs from ANVIL_VULKAN_DYNAMIC_DLL_DEPENDENCY at VK instance creation time" ON)
+option(ANVIL_LINK_WITH_GLSLANG                     "Links with glslang, instead of spawning a new process whenever GLSL->SPIR-V conversion is required" ON)
+option(ANVIL_USE_BUILT_IN_VULKAN_HEADERS           "Use built-in Vulkan headers. If disabled, VK_SDK_PATH and VULKAN_SDK env vars will be assumed to hold the location where the headers can be found." ON)
 
+
+if (MSVC)
+    set (DEFAULT_DYNAMIC_VK_DLL "vulkan-1.dll")
+else()
+    set (DEFAULT_DYNAMIC_VK_DLL "libvulkan.so")
+endif()
+
+if (NOT ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB)
+    set(ANVIL_VULKAN_DYNAMIC_DLL "${DEFAULT_DYNAMIC_VK_DLL}"
+                                 CACHE STRING "DLL to load Vulkan entrypoints from at Vulkan instance creation time. Only used if ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB is disabled. Only occurs at first Vulkan instance creation time")
+endif()
 
 # Do not modify anything after this line, unless you know what you're doing.
 configure_file("include/config.h.in" "include/config.h")
@@ -14,23 +27,31 @@ include_directories("${Anvil_BINARY_DIR}/include"
                     "${Anvil_SOURCE_DIR}"
                     "${Anvil_SOURCE_DIR}/deps"
                     "${Anvil_SOURCE_DIR}/include")
-                    
-if (WIN32)
-    if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-            link_directories   ($ENV{VK_SDK_PATH}/Bin
-                                $ENV{VK_SDK_PATH}/Lib
-                                $ENV{VULKAN_SDK}/Bin
-                                $ENV{VULKAN_SDK}/Lib)
-    else()
-            link_directories   ($ENV{VK_SDK_PATH}/Bin32
-                                $ENV{VK_SDK_PATH}/Lib32
-                                $ENV{VULKAN_SDK}/Bin32
-                                $ENV{VULKAN_SDK}/Lib32)
-    endif()
+
+# Include the Vulkan header.
+if (ANVIL_USE_BUILT_IN_VULKAN_HEADERS)
+        include_directories("${Anvil_SOURCE_DIR}/include")
 else()
-    link_directories   ($ENV{VK_SDK_PATH}/x86_64/lib
-                        $ENV{VULKAN_SDK}/lib
-                        $ENV{VULKAN_SDK}/x86_64/lib)
+    if (WIN32)
+        include_directories($ENV{VK_SDK_PATH}/Include
+                            $ENV{VULKAN_SDK}/Include)
+    else()
+        include_directories($ENV{VK_SDK_PATH}/x86_64/include
+                            $ENV{VULKAN_SDK}/include
+                            $ENV{VULKAN_SDK}/x86_64/include)
+    endif()
+endif()
+
+if (ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB AND NOT CONTINUOUS_INTEGRATION_RUN)
+    if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
+        find_library(VULKAN_LIBRARY
+                     NAMES vulkan-1 vulkan
+                     PATHS "$ENV{VK_SDK_PATH}/Lib" "$ENV{VK_SDK_PATH}/Bin" "$ENV{VULKAN_SDK}/Lib" "$ENV{VULKAN_SDK}/Bin" "$ENV{VULKAN_SDK}/lib")
+    else()
+        find_library(VULKAN_LIBRARY
+                     NAMES vulkan-1 vulkan
+                     PATHS "$ENV{VK_SDK_PATH}/Lib32" "$ENV{VK_SDK_PATH}/Bin32" "$ENV{VULKAN_SDK}/Lib32" "$ENV{VULKAN_SDK}/Bin32" "$ENV{VULKAN_SDK}/lib")
+    endif()
 endif()
 
 SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_oneshot.h"
@@ -56,6 +77,7 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/include/misc/image_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/image_view_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/io.h"
+              "${Anvil_SOURCE_DIR}/include/misc/library.h"
               "${Anvil_SOURCE_DIR}/include/misc/memory_allocator.h"
               "${Anvil_SOURCE_DIR}/include/misc/memory_block_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/mt_safety.h"
@@ -76,6 +98,7 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/include/misc/types_macro.h"
               "${Anvil_SOURCE_DIR}/include/misc/types_struct.h"
               "${Anvil_SOURCE_DIR}/include/misc/types_utils.h"
+              "${Anvil_SOURCE_DIR}/include/misc/vulkan.h"
               "${Anvil_SOURCE_DIR}/include/misc/window.h"
               "${Anvil_SOURCE_DIR}/include/misc/window_factory.h"
               "${Anvil_SOURCE_DIR}/include/wrappers/buffer.h"
@@ -132,6 +155,7 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/src/misc/image_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/image_view_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/io.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/library.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/memory_allocator.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/memory_block_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/object_tracker.cpp"
@@ -147,6 +171,7 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/src/misc/types_classes.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/types_struct.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/types_utils.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/vulkan.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/window.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/window_factory.cpp"
               "${Anvil_SOURCE_DIR}/src/wrappers/buffer.cpp"
@@ -212,15 +237,15 @@ add_library(Anvil STATIC ${SRC_LIST})
 
 if (WIN32)
     if (ANVIL_LINK_WITH_GLSLANG)
-        target_link_libraries(Anvil glslang HLSL OGLCompiler OSDependent SPIRV vulkan-1.lib)
+        target_link_libraries(Anvil glslang HLSL OGLCompiler OSDependent SPIRV ${VULKAN_LIBRARY})
     else()
-        target_link_libraries(Anvil vulkan-1.lib)
+        target_link_libraries(Anvil ${VULKAN_LIBRARY})
     endif()
 else()
     if (ANVIL_LINK_WITH_GLSLANG)
-        target_link_libraries(Anvil glslang HLSL OGLCompiler OSDependent SPIRV vulkan pthread)
+        target_link_libraries(Anvil glslang HLSL OGLCompiler OSDependent SPIRV ${VULKAN_LIBRARY} pthread)
     else()
-        target_link_libraries(Anvil vulkan pthread)
+        target_link_libraries(Anvil ${VULKAN_LIBRARY} pthread)
     endif()
 endif()
 
@@ -259,6 +284,3 @@ endif (CMAKE_COMPILER_IS_GNUCC)
 if (MSVC)
     target_compile_options(Anvil PRIVATE "/W4" "/WX" "/wd4191" "/wd4350" "/wd4668" "/wd4820" "/wd4514" "/wd4061" "/wd4710" "/wd4711" "/wd4548" "/wd4555")
 endif (MSVC)
-
-# Add all demo sub-projects
-MESSAGE(STATUS "Using Vulkan SDK at either " $ENV{VK_SDK_PATH} " or " $ENV{VULKAN_SDK})

@@ -335,10 +335,10 @@ bool Anvil::Fence::init()
         goto end;
     }
 
-    result = vkCreateFence(m_device_ptr->get_device_vk(),
-                           struct_chain_ptr->get_root_struct(),
-                           nullptr, /* pAllocator */
-                          &m_fence);
+    result = Anvil::Vulkan::vkCreateFence(m_device_ptr->get_device_vk(),
+                                          struct_chain_ptr->get_root_struct(),
+                                          nullptr, /* pAllocator */
+                                         &m_fence);
 
     anvil_assert_vk_call_succeeded(result);
     if (is_vk_call_successful(result) )
@@ -355,8 +355,8 @@ bool Anvil::Fence::is_set() const
 {
     VkResult result;
 
-    result = vkGetFenceStatus(m_device_ptr->get_device_vk(),
-                              m_fence);
+    result = Anvil::Vulkan::vkGetFenceStatus(m_device_ptr->get_device_vk(),
+                                             m_fence);
 
     anvil_assert(result == VK_SUCCESS  ||
                  result == VK_NOT_READY);
@@ -371,9 +371,9 @@ void Anvil::Fence::release_fence()
     {
         lock();
         {
-            vkDestroyFence(m_device_ptr->get_device_vk(),
-                           m_fence,
-                           nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroyFence(m_device_ptr->get_device_vk(),
+                                          m_fence,
+                                          nullptr /* pAllocator */);
         }
         unlock();
 
@@ -388,9 +388,9 @@ bool Anvil::Fence::reset()
 
     lock();
     {
-        result = vkResetFences(m_device_ptr->get_device_vk(),
-                               1, /* fenceCount */
-                              &m_fence);
+        result = Anvil::Vulkan::vkResetFences(m_device_ptr->get_device_vk(),
+                                              1, /* fenceCount */
+                                             &m_fence);
     }
     unlock();
 
@@ -433,9 +433,9 @@ bool Anvil::Fence::reset_fences(const uint32_t in_n_fences,
             current_fence.lock();
         }
         {
-            result_vk = vkResetFences(device_ptr->get_device_vk(),
-                                      n_fences_remaining,
-                                      (n_fences_remaining > 0) ? &fence_cache.at(0) : nullptr);
+            result_vk = Anvil::Vulkan::vkResetFences(device_ptr->get_device_vk(),
+                                                     n_fences_remaining,
+                                                     (n_fences_remaining > 0) ? &fence_cache.at(0) : nullptr);
         }
         for (uint32_t n_fence = 0;
                       n_fence < n_fences_remaining;

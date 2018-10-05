@@ -55,10 +55,10 @@ Anvil::Queue::Queue(const Anvil::BaseDevice* in_device_ptr,
      m_queue_index             (in_queue_index)
 {
     /* Retrieve the Vulkan handle */
-    vkGetDeviceQueue(m_device_ptr->get_device_vk(),
-                     in_queue_family_index,
-                     in_queue_index,
-                    &m_queue);
+    Anvil::Vulkan::vkGetDeviceQueue(m_device_ptr->get_device_vk(),
+                                    in_queue_family_index,
+                                    in_queue_index,
+                                   &m_queue);
 
     anvil_assert(m_queue != VK_NULL_HANDLE);
 
@@ -127,10 +127,10 @@ bool Anvil::Queue::bind_sparse_memory(Anvil::SparseMemoryBindingUpdateInfo& in_u
                                        true); /* in_should_lock */
     }
     {
-        result = vkQueueBindSparse(m_queue,
-                                   n_bind_info_items,
-                                   bind_info_items,
-                                   (fence_ptr != nullptr) ? fence_ptr->get_fence() : VK_NULL_HANDLE);
+        result = Anvil::Vulkan::vkQueueBindSparse(m_queue,
+                                                  n_bind_info_items,
+                                                  bind_info_items,
+                                                  (fence_ptr != nullptr) ? fence_ptr->get_fence() : VK_NULL_HANDLE);
     }
     if (mt_safe)
     {
@@ -755,13 +755,9 @@ VkResult Anvil::Queue::present_internal(DeviceGroupPresentModeFlagBits in_presen
                 static const Anvil::PipelineStageFlags dst_stage_mask(Anvil::PipelineStageFlagBits::TOP_OF_PIPE_BIT);
 
                 m_device_ptr->get_universal_queue(0)->submit(
-                    SubmitInfo::create(nullptr,
-                                       0,       /* in_n_semaphores_to_signal           */
-                                       nullptr, /* in_opt_semaphore_to_signal_ptrs_ptr */
-                                       in_n_wait_semaphores,
-                                       in_wait_semaphore_ptrs,
-                                      &dst_stage_mask,
-                                       true) /* in_should_block */
+                    SubmitInfo::create_wait(in_n_wait_semaphores,
+                                            in_wait_semaphore_ptrs,
+                                           &dst_stage_mask)
                 );
 
                 for (uint32_t n_presentation = 0;
@@ -1011,7 +1007,7 @@ bool Anvil::Queue::submit(const Anvil::SubmitInfo& in_submit_info)
             {
                 const auto& current_submission = in_submit_info.get_signal_semaphores_mgpu()[n_signal_semaphore_submission];
 
-                signal_semaphore_device_indices.at(n_signal_semaphore_submission) = current_submission.physical_device_ptr->get_device_group_device_index();
+                signal_semaphore_device_indices.at(n_signal_semaphore_submission) = current_submission.device_index;
                 signal_semaphores_vk.at           (n_signal_semaphore_submission) = current_submission.semaphore_ptr->get_semaphore();
             }
 
@@ -1021,7 +1017,7 @@ bool Anvil::Queue::submit(const Anvil::SubmitInfo& in_submit_info)
             {
                 const auto& current_submission = in_submit_info.get_wait_semaphores_mgpu()[n_wait_semaphore_submission];
 
-                wait_semaphore_device_indices.at(n_wait_semaphore_submission) = current_submission.physical_device_ptr->get_device_group_device_index();
+                wait_semaphore_device_indices.at(n_wait_semaphore_submission) = current_submission.device_index;
                 wait_semaphores_vk.at           (n_wait_semaphore_submission) = current_submission.semaphore_ptr->get_semaphore();
             }
 
@@ -1182,20 +1178,20 @@ bool Anvil::Queue::submit(const Anvil::SubmitInfo& in_submit_info)
             m_submit_fence_ptr->reset();
         }
 
-         result = vkQueueSubmit(m_queue,
-                                1, /* submitCount */
-                                chain_ptr->get_root_struct(),
-                               (fence_ptr != nullptr) ? fence_ptr->get_fence()
-                                                      : VK_NULL_HANDLE);
+         result = Anvil::Vulkan::vkQueueSubmit(m_queue,
+                                               1, /* submitCount */
+                                               chain_ptr->get_root_struct(),
+                                              (fence_ptr != nullptr) ? fence_ptr->get_fence()
+                                                                     : VK_NULL_HANDLE);
 
         if (in_submit_info.get_should_block() )
         {
             /* Wait till initialization finishes GPU-side */
-            result = vkWaitForFences(m_device_ptr->get_device_vk(),
-                                     1, /* fenceCount */
-                                     fence_ptr->get_fence_ptr(),
-                                     VK_TRUE,     /* waitAll */
-                                     in_submit_info.get_timeout() );
+            result = Anvil::Vulkan::vkWaitForFences(m_device_ptr->get_device_vk(),
+                                                    1, /* fenceCount */
+                                                    fence_ptr->get_fence_ptr(),
+                                                    VK_TRUE,     /* waitAll */
+                                                    in_submit_info.get_timeout() );
         }
      }
 
@@ -1393,7 +1389,7 @@ void Anvil::Queue::wait_idle()
 {
     lock();
     {
-        vkQueueWaitIdle(m_queue);
+        Anvil::Vulkan::vkQueueWaitIdle(m_queue);
     }
     unlock();
 }

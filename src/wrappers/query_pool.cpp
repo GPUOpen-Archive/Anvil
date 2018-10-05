@@ -85,9 +85,9 @@ Anvil::QueryPool::~QueryPool()
     {
         lock();
         {
-            vkDestroyQueryPool(m_device_ptr->get_device_vk(),
-                               m_query_pool_vk,
-                               nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroyQueryPool(m_device_ptr->get_device_vk(),
+                                              m_query_pool_vk,
+                                              nullptr /* pAllocator */);
         }
         unlock();
 
@@ -191,14 +191,14 @@ bool Anvil::QueryPool::get_query_pool_results_internal(const uint32_t&          
     }
 
     /* Execute the request */
-    result_vk = vkGetQueryPoolResults(m_device_ptr->get_device_vk(),
-                                      m_query_pool_vk,
-                                      in_first_query_index,
-                                      in_n_queries,
-                                      result_query_size * in_n_queries,
-                                      out_results_ptr,
-                                      (in_should_return_uint64) ? sizeof(uint64_t) : sizeof(uint32_t),
-                                      flags);
+    result_vk = Anvil::Vulkan::vkGetQueryPoolResults(m_device_ptr->get_device_vk(),
+                                                     m_query_pool_vk,
+                                                     in_first_query_index,
+                                                     in_n_queries,
+                                                     result_query_size * in_n_queries,
+                                                     out_results_ptr,
+                                                     (in_should_return_uint64) ? sizeof(uint64_t) : sizeof(uint32_t),
+                                                     flags);
 
     if ((in_query_props & Anvil::QueryResultFlagBits::PARTIAL_BIT) != 0)
     {
@@ -234,10 +234,10 @@ void Anvil::QueryPool::init(VkQueryType                        in_query_type,
     create_info.queryType          = in_query_type;
     create_info.sType              = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
 
-    result_vk = vkCreateQueryPool(m_device_ptr->get_device_vk(),
-                                 &create_info,
-                                  nullptr, /* pAllocator */
-                                 &m_query_pool_vk);
+    result_vk = Anvil::Vulkan::vkCreateQueryPool(m_device_ptr->get_device_vk(),
+                                                &create_info,
+                                                 nullptr, /* pAllocator */
+                                                &m_query_pool_vk);
 
     anvil_assert_vk_call_succeeded(result_vk);
     if (is_vk_call_successful(result_vk) )

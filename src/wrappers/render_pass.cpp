@@ -54,9 +54,9 @@ Anvil::RenderPass::~RenderPass()
 
     if (m_render_pass != VK_NULL_HANDLE)
     {
-        vkDestroyRenderPass(m_render_pass_create_info_ptr->get_device()->get_device_vk(),
-                            m_render_pass,
-                            nullptr /* pAllocator */);
+        Anvil::Vulkan::vkDestroyRenderPass(m_render_pass_create_info_ptr->get_device()->get_device_vk(),
+                                           m_render_pass,
+                                           nullptr /* pAllocator */);
 
         m_render_pass = VK_NULL_HANDLE;
     }
@@ -68,6 +68,8 @@ Anvil::RenderPass::~RenderPass()
 bool Anvil::RenderPass::init()
 {
     std::vector<std::unique_ptr<VkInputAttachmentAspectReferenceKHR> > input_attachment_aspect_reference_ptrs;
+    std::unique_ptr<std::vector<uint32_t> >                            multiview_view_mask_vec_ptr;
+    std::unique_ptr<std::vector<int32_t> >                             multiview_view_offset_vec_ptr;
     std::vector<VkAttachmentDescription>                               renderpass_attachments_vk;
     Anvil::StructChainer<VkRenderPassCreateInfo>                       render_pass_create_info_chainer;
     bool                                                               result                                (false);
@@ -136,6 +138,16 @@ bool Anvil::RenderPass::init()
 
     anvil_assert(m_render_pass == VK_NULL_HANDLE);
 
+    if (m_render_pass_create_info_ptr->is_multiview_enabled() )
+    {
+        if (!m_device_ptr->get_extension_info()->khr_multiview() )
+        {
+            anvil_assert(m_device_ptr->get_extension_info()->khr_multiview() );
+
+            goto end;
+        }
+    }
+
     /* Set up helper descriptor storage space */
     subpass_dependencies_vk.reserve(m_render_pass_create_info_ptr->m_subpass_dependencies.size() );
     subpass_descriptions_vk.reserve(m_render_pass_create_info_ptr->m_subpasses.size() );
@@ -175,6 +187,25 @@ bool Anvil::RenderPass::init()
         dependency_vk.srcStageMask    = subpass_dependency_iterator->source_stage_mask.get_vk ();
         dependency_vk.srcSubpass      = (subpass_dependency_iterator->source_subpass_ptr != nullptr) ? subpass_dependency_iterator->source_subpass_ptr->index
                                                                                                     : VK_SUBPASS_EXTERNAL;
+
+        #if defined(_DEBUG)
+        {
+            if (dependency_vk.dstSubpass == dependency_vk.srcSubpass &&
+                dependency_vk.dstSubpass != VK_SUBPASS_EXTERNAL)
+            {
+                uint32_t n_views_active = 0;
+                uint32_t view_mask      = 0;
+
+                m_render_pass_create_info_ptr->get_subpass_view_mask(dependency_vk.dstSubpass,
+                                                                    &view_mask);
+
+                n_views_active = Anvil::Utils::count_set_bits(view_mask);
+
+                anvil_assert( (n_views_active <= 1)                                                                         ||
+                             ((n_views_active >  1 && (dependency_vk.dependencyFlags & VK_DEPENDENCY_VIEW_LOCAL_BIT) != 0)) );
+            }
+        }
+        #endif
 
         subpass_dependencies_vk.push_back(dependency_vk);
     }
@@ -396,13 +427,82 @@ bool Anvil::RenderPass::init()
         }
     }
 
+    /* Don't forget about multiview structure, if multiview has been enabled for the renderpass. */
+    if (m_render_pass_create_info_ptr->is_multiview_enabled() )
+    {
+        const uint32_t n_subpasses = m_render_pass_create_info_ptr->get_n_subpasses();
+
+        if (n_subpasses > 0)
+        {
+            VkRenderPassMultiviewCreateInfoKHR multiview_create_info;
+            const uint32_t*                    correlation_masks_ptr = nullptr;
+            uint32_t                           n_correlation_masks   = 0;
+            const uint32_t                     n_dependencies        = m_render_pass_create_info_ptr->get_n_dependencies();
+
+            m_render_pass_create_info_ptr->get_multiview_correlation_masks(&n_correlation_masks,
+                                                                           &correlation_masks_ptr);
+
+            multiview_view_mask_vec_ptr.reset(new std::vector<uint32_t>(n_subpasses) );
+            anvil_assert(multiview_view_mask_vec_ptr!= nullptr);
+
+            multiview_view_offset_vec_ptr.reset(new std::vector<int32_t>(n_dependencies, UINT32_MAX) );
+            anvil_assert(multiview_view_offset_vec_ptr != nullptr);
+
+            for (uint32_t n_subpass = 0;
+                          n_subpass < n_subpasses;
+                        ++n_subpass)
+            {
+                uint32_t multiview_mask = 0;
+
+                if (!m_render_pass_create_info_ptr->get_subpass_view_mask(n_subpass,
+                                                                         &multiview_mask) )
+                {
+                    anvil_assert_fail();
+
+                    goto end;
+                }
+
+                multiview_view_mask_vec_ptr->at(n_subpass) = multiview_mask;
+            }
+
+            for (uint32_t n_dependency = 0;
+                          n_dependency < n_dependencies;
+                        ++n_dependency)
+            {
+                int32_t view_offset = INT32_MAX;
+
+                if (!m_render_pass_create_info_ptr->get_dependency_multiview_properties(n_dependency,
+                                                                                       &view_offset) )
+                {
+                    anvil_assert_fail();
+
+                    goto end;
+                }
+
+                multiview_view_offset_vec_ptr->at(n_dependency) = view_offset;
+            }
+
+            multiview_create_info.correlationMaskCount = n_correlation_masks;
+            multiview_create_info.dependencyCount      = n_dependencies;
+            multiview_create_info.pCorrelationMasks    = correlation_masks_ptr;
+            multiview_create_info.pNext                = nullptr;
+            multiview_create_info.pViewMasks           = &multiview_view_mask_vec_ptr->at(0);
+            multiview_create_info.pViewOffsets         = (n_dependencies != 0) ? &multiview_view_offset_vec_ptr->at(0) : nullptr;
+            multiview_create_info.sType                = VK_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_CREATE_INFO_KHR;
+            multiview_create_info.subpassCount         = n_subpasses;
+
+            render_pass_create_info_chainer.append_struct(multiview_create_info);
+        }
+    }
+
+    /* All done! Spawn the final chain and try to create the renderpass. */
     {
         auto create_info_chain_ptr = render_pass_create_info_chainer.create_chain();
 
-        result_vk = vkCreateRenderPass(m_device_ptr->get_device_vk(),
-                                       create_info_chain_ptr->get_root_struct(),
-                                       nullptr, /* pAllocator */
-                                      &m_render_pass);
+        result_vk = Anvil::Vulkan::vkCreateRenderPass(m_device_ptr->get_device_vk(),
+                                                      create_info_chain_ptr->get_root_struct(),
+                                                      nullptr, /* pAllocator */
+                                                     &m_render_pass);
     }
 
     if (!is_vk_call_successful(result_vk) )

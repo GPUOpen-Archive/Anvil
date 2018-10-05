@@ -250,11 +250,18 @@ namespace Anvil
         std::unique_ptr<Anvil::PhysicalDevicePropertiesCoreVK10>                        m_core_properties_vk10_ptr;
         std::unique_ptr<Anvil::EXTDescriptorIndexingFeatures>                           m_ext_descriptor_indexing_features_ptr;
         std::unique_ptr<Anvil::EXTDescriptorIndexingProperties>                         m_ext_descriptor_indexing_properties_ptr;
+        std::unique_ptr<Anvil::EXTExternalMemoryHostProperties>                         m_ext_external_memory_host_properties_ptr;
+        std::unique_ptr<Anvil::EXTSampleLocationsProperties>                            m_ext_sample_locations_properties_ptr;
+        std::unique_ptr<Anvil::EXTSamplerFilterMinmaxProperties>                        m_ext_sampler_filter_minmax_properties_ptr;
         std::unique_ptr<Anvil::EXTVertexAttributeDivisorProperties>                     m_ext_vertex_attribute_divisor_properties_ptr;
         std::unique_ptr<Anvil::KHR16BitStorageFeatures>                                 m_khr_16_bit_storage_features_ptr;
+        std::unique_ptr<Anvil::KHR8BitStorageFeatures>                                  m_khr_8_bit_storage_features_ptr;
         std::unique_ptr<Anvil::KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties> m_khr_external_memory_capabilities_physical_device_id_properties_ptr;
         std::unique_ptr<Anvil::KHRMaintenance2PhysicalDevicePointClippingProperties>    m_khr_maintenance2_physical_device_point_clipping_properties_ptr;
         std::unique_ptr<Anvil::KHRMaintenance3Properties>                               m_khr_maintenance3_properties_ptr;
+        std::unique_ptr<Anvil::KHRMultiviewFeatures>                                    m_khr_multiview_features_ptr;
+        std::unique_ptr<Anvil::KHRMultiviewProperties>                                  m_khr_multiview_properties_ptr;
+        std::unique_ptr<Anvil::KHRVariablePointerFeatures>                              m_khr_variable_pointer_features_ptr;
 
         friend class Anvil::Instance;
     };

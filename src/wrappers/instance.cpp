@@ -25,6 +25,15 @@
 #include "wrappers/instance.h"
 #include "wrappers/physical_device.h"
 
+#if !defined(ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB)
+    static bool g_core_func_ptrs_inited     = false;
+    static bool g_instance_func_ptrs_inited = false;
+#endif
+
+static std::mutex              g_vk10_func_ptr_init_mutex;
+static Anvil::LibraryUniquePtr g_vk10_library_ptr;
+
+
 /** Please see header for specification */
 Anvil::Instance::Instance(const std::string&    in_app_name,
                           const std::string&    in_engine_name,
@@ -35,6 +44,7 @@ Anvil::Instance::Instance(const std::string&    in_app_name,
      m_debug_callback_data         (0),
      m_engine_name                 (in_engine_name),
      m_global_layer                (""),
+     m_instance                    (VK_NULL_HANDLE),
      m_validation_callback_function(in_opt_validation_callback_function)
 {
     Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_INSTANCE,
@@ -53,8 +63,8 @@ Anvil::Instance::~Instance()
     {
         lock();
         {
-            vkDestroyInstance(m_instance,
-                              nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroyInstance(m_instance,
+                                             nullptr /* pAllocator */);
         }
         unlock();
 
@@ -155,14 +165,14 @@ void Anvil::Instance::enumerate_instance_layers()
     ANVIL_REDUNDANT_VARIABLE(result);
 
     /* Retrieve layer data */
-    result = vkEnumerateInstanceLayerProperties(&n_layers,
-                                                nullptr); /* pProperties */
+    result = Anvil::Vulkan::vkEnumerateInstanceLayerProperties(&n_layers,
+                                                               nullptr); /* pProperties */
     anvil_assert_vk_call_succeeded(result);
 
     layer_props.resize(n_layers + 1 /* global layer */);
 
-    result = vkEnumerateInstanceLayerProperties(&n_layers,
-                                               &layer_props[0]);
+    result = Anvil::Vulkan::vkEnumerateInstanceLayerProperties(&n_layers,
+                                                               &layer_props[0]);
 
     anvil_assert_vk_call_succeeded(result);
 
@@ -206,9 +216,9 @@ void Anvil::Instance::enumerate_layer_extensions(Anvil::Layer* in_layer_ptr)
     }
 
     layer_name = in_layer_ptr->name.c_str();
-    result     = vkEnumerateInstanceExtensionProperties(layer_name,
-                                                       &n_extensions,
-                                                        nullptr); /* pProperties */
+    result     = Anvil::Vulkan::vkEnumerateInstanceExtensionProperties(layer_name,
+                                                                      &n_extensions,
+                                                                       nullptr); /* pProperties */
 
     anvil_assert_vk_call_succeeded(result);
 
@@ -218,9 +228,9 @@ void Anvil::Instance::enumerate_layer_extensions(Anvil::Layer* in_layer_ptr)
 
         extension_props.resize(n_extensions);
 
-        result = vkEnumerateInstanceExtensionProperties(layer_name,
-                                                       &n_extensions,
-                                                       &extension_props[0]);
+        result = Anvil::Vulkan::vkEnumerateInstanceExtensionProperties(layer_name,
+                                                                      &n_extensions,
+                                                                      &extension_props[0]);
 
         anvil_assert_vk_call_succeeded(result);
 
@@ -310,9 +320,9 @@ void Anvil::Instance::enumerate_physical_devices()
     ANVIL_REDUNDANT_VARIABLE(result);
 
     /* Retrieve physical device handles */
-    result = vkEnumeratePhysicalDevices(m_instance,
-                                       &n_physical_devices,
-                                        nullptr); /* pPhysicalDevices */
+    result = Anvil::Vulkan::vkEnumeratePhysicalDevices(m_instance,
+                                                      &n_physical_devices,
+                                                       nullptr); /* pPhysicalDevices */
     anvil_assert_vk_call_succeeded(result);
 
     if (n_physical_devices == 0)
@@ -325,9 +335,9 @@ void Anvil::Instance::enumerate_physical_devices()
 
     devices.resize(n_physical_devices);
 
-    result = vkEnumeratePhysicalDevices(m_instance,
-                                       &n_physical_devices,
-                                       &devices[0]);
+    result = Anvil::Vulkan::vkEnumeratePhysicalDevices(m_instance,
+                                                      &n_physical_devices,
+                                                      &devices[0]);
     anvil_assert_vk_call_succeeded(result);
 
     /* Fill out internal physical device descriptors */
@@ -429,6 +439,16 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
     VkResult                    result                             = VK_ERROR_INITIALIZATION_FAILED;
 
     ANVIL_REDUNDANT_VARIABLE(result);
+
+    #if !defined(ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB)
+    {
+        if (!init_vk10_func_ptrs() )
+        {
+            /* TODO: Return null instance in case of a failure */
+            anvil_assert_fail();
+        }
+    }
+    #endif
 
     /* Enumerate available layers */
     enumerate_instance_layers();
@@ -582,13 +602,24 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
     create_info.ppEnabledLayerNames     = (enabled_layers.size()         > 0) ? &enabled_layers        [0] : nullptr;
     create_info.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 
-    result = vkCreateInstance(&create_info,
-                              nullptr, /* pAllocator */
-                              &m_instance);
+    result = Anvil::Vulkan::vkCreateInstance(&create_info,
+                                             nullptr, /* pAllocator */
+                                             &m_instance);
 
     anvil_assert_vk_call_succeeded(result);
 
     /* Continue initializing */
+    #if !defined(ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB)
+    {
+        /* Retrieve the remaining part of instance-dependent function pointers */
+        if (!init_vk10_func_ptrs() )
+        {
+            /* TODO: Return null instance in case of a failure */
+            anvil_assert_fail();
+        }
+    }
+    #endif
+
     init_func_pointers();
 
     if (m_validation_callback_function != nullptr)
@@ -630,21 +661,21 @@ void Anvil::Instance::init_debug_callbacks()
 /** Initializes all required instance-level function pointers. */
 void Anvil::Instance::init_func_pointers()
 {
-    m_khr_surface_entrypoints.vkDestroySurfaceKHR                       = reinterpret_cast<PFN_vkDestroySurfaceKHR>                      (vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                "vkDestroySurfaceKHR") );
-    m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceCapabilitiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR>(vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                "vkGetPhysicalDeviceSurfaceCapabilitiesKHR") );
-    m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceFormatsKHR      = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceFormatsKHR>     (vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                "vkGetPhysicalDeviceSurfaceFormatsKHR") );
-    m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfacePresentModesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfacePresentModesKHR>(vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                "vkGetPhysicalDeviceSurfacePresentModesKHR") );
-    m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceSupportKHR      = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceSupportKHR>     (vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                "vkGetPhysicalDeviceSurfaceSupportKHR") );
+    m_khr_surface_entrypoints.vkDestroySurfaceKHR                       = reinterpret_cast<PFN_vkDestroySurfaceKHR>                      (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                               "vkDestroySurfaceKHR") );
+    m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceCapabilitiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                               "vkGetPhysicalDeviceSurfaceCapabilitiesKHR") );
+    m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceFormatsKHR      = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceFormatsKHR>     (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                               "vkGetPhysicalDeviceSurfaceFormatsKHR") );
+    m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfacePresentModesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfacePresentModesKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                               "vkGetPhysicalDeviceSurfacePresentModesKHR") );
+    m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceSupportKHR      = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceSupportKHR>     (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                               "vkGetPhysicalDeviceSurfaceSupportKHR") );
 
-    m_ext_debug_report_entrypoints.vkCreateDebugReportCallbackEXT  = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT> (vkGetInstanceProcAddr(m_instance,
-                                                                                                                           "vkCreateDebugReportCallbackEXT") );
-    m_ext_debug_report_entrypoints.vkDestroyDebugReportCallbackEXT = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(vkGetInstanceProcAddr(m_instance,
-                                                                                                                           "vkDestroyDebugReportCallbackEXT") );
+    m_ext_debug_report_entrypoints.vkCreateDebugReportCallbackEXT  = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT> (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                "vkCreateDebugReportCallbackEXT") );
+    m_ext_debug_report_entrypoints.vkDestroyDebugReportCallbackEXT = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                "vkDestroyDebugReportCallbackEXT") );
 
     anvil_assert(m_khr_surface_entrypoints.vkDestroySurfaceKHR                       != nullptr);
     anvil_assert(m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceCapabilitiesKHR != nullptr);
@@ -656,10 +687,10 @@ void Anvil::Instance::init_func_pointers()
     {
         #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
         {
-            m_khr_win32_surface_entrypoints.vkCreateWin32SurfaceKHR                        = reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>                       (vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                  "vkCreateWin32SurfaceKHR") );
-            m_khr_win32_surface_entrypoints.vkGetPhysicalDeviceWin32PresentationSupportKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR>(vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                  "vkGetPhysicalDeviceWin32PresentationSupportKHR") );
+            m_khr_win32_surface_entrypoints.vkCreateWin32SurfaceKHR                        = reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>                       (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                       "vkCreateWin32SurfaceKHR") );
+            m_khr_win32_surface_entrypoints.vkGetPhysicalDeviceWin32PresentationSupportKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                       "vkGetPhysicalDeviceWin32PresentationSupportKHR") );
 
             anvil_assert(m_khr_win32_surface_entrypoints.vkCreateWin32SurfaceKHR                        != nullptr);
             anvil_assert(m_khr_win32_surface_entrypoints.vkGetPhysicalDeviceWin32PresentationSupportKHR != nullptr);
@@ -670,8 +701,8 @@ void Anvil::Instance::init_func_pointers()
     {
         #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
         {
-            m_khr_xcb_surface_entrypoints.vkCreateXcbSurfaceKHR = reinterpret_cast<PFN_vkCreateXcbSurfaceKHR>(vkGetInstanceProcAddr(m_instance,
-                                                                                                                                    "vkCreateXcbSurfaceKHR") );
+            m_khr_xcb_surface_entrypoints.vkCreateXcbSurfaceKHR = reinterpret_cast<PFN_vkCreateXcbSurfaceKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                   "vkCreateXcbSurfaceKHR") );
 
             anvil_assert(m_khr_xcb_surface_entrypoints.vkCreateXcbSurfaceKHR != nullptr);
         }
@@ -681,20 +712,20 @@ void Anvil::Instance::init_func_pointers()
 
     if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_get_physical_device_properties2() )
     {
-        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceFeatures2KHR                    = reinterpret_cast<PFN_vkGetPhysicalDeviceFeatures2KHR>                   (vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                              "vkGetPhysicalDeviceFeatures2KHR") );
-        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceFormatProperties2KHR            = reinterpret_cast<PFN_vkGetPhysicalDeviceFormatProperties2KHR>           (vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                              "vkGetPhysicalDeviceFormatProperties2KHR") );
-        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceImageFormatProperties2KHR       = reinterpret_cast<PFN_vkGetPhysicalDeviceImageFormatProperties2KHR>      (vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                              "vkGetPhysicalDeviceImageFormatProperties2KHR") );
-        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceMemoryProperties2KHR            = reinterpret_cast<PFN_vkGetPhysicalDeviceMemoryProperties2KHR>           (vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                              "vkGetPhysicalDeviceMemoryProperties2KHR") );
-        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceProperties2KHR                  = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2KHR>                 (vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                              "vkGetPhysicalDeviceProperties2KHR") );
-        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceQueueFamilyProperties2KHR       = reinterpret_cast<PFN_vkGetPhysicalDeviceQueueFamilyProperties2KHR>      (vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                              "vkGetPhysicalDeviceQueueFamilyProperties2KHR") );
-        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceSparseImageFormatProperties2KHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSparseImageFormatProperties2KHR>(vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                              "vkGetPhysicalDeviceSparseImageFormatProperties2KHR") );
+        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceFeatures2KHR                    = reinterpret_cast<PFN_vkGetPhysicalDeviceFeatures2KHR>                   (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                                             "vkGetPhysicalDeviceFeatures2KHR") );
+        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceFormatProperties2KHR            = reinterpret_cast<PFN_vkGetPhysicalDeviceFormatProperties2KHR>           (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                                             "vkGetPhysicalDeviceFormatProperties2KHR") );
+        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceImageFormatProperties2KHR       = reinterpret_cast<PFN_vkGetPhysicalDeviceImageFormatProperties2KHR>      (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                                             "vkGetPhysicalDeviceImageFormatProperties2KHR") );
+        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceMemoryProperties2KHR            = reinterpret_cast<PFN_vkGetPhysicalDeviceMemoryProperties2KHR>           (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                                             "vkGetPhysicalDeviceMemoryProperties2KHR") );
+        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceProperties2KHR                  = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2KHR>                 (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                                             "vkGetPhysicalDeviceProperties2KHR") );
+        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceQueueFamilyProperties2KHR       = reinterpret_cast<PFN_vkGetPhysicalDeviceQueueFamilyProperties2KHR>      (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                                             "vkGetPhysicalDeviceQueueFamilyProperties2KHR") );
+        m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceSparseImageFormatProperties2KHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSparseImageFormatProperties2KHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                                             "vkGetPhysicalDeviceSparseImageFormatProperties2KHR") );
 
         anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceFeatures2KHR                    != nullptr);
         anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceFormatProperties2KHR            != nullptr);
@@ -707,36 +738,253 @@ void Anvil::Instance::init_func_pointers()
 
     if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_device_group_creation() )
     {
-        m_khr_device_group_creation_entrypoints.vkEnumeratePhysicalDeviceGroupsKHR = reinterpret_cast<PFN_vkEnumeratePhysicalDeviceGroupsKHR>(vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                    "vkEnumeratePhysicalDeviceGroupsKHR") );
+        m_khr_device_group_creation_entrypoints.vkEnumeratePhysicalDeviceGroupsKHR = reinterpret_cast<PFN_vkEnumeratePhysicalDeviceGroupsKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                   "vkEnumeratePhysicalDeviceGroupsKHR") );
 
         anvil_assert(m_khr_device_group_creation_entrypoints.vkEnumeratePhysicalDeviceGroupsKHR != nullptr);
     }
 
     if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_external_fence_capabilities() )
     {
-        m_khr_external_fence_capabilities_entrypoints.vkGetPhysicalDeviceExternalFencePropertiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceExternalFencePropertiesKHR>(vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                "vkGetPhysicalDeviceExternalFencePropertiesKHR") );
+        m_khr_external_fence_capabilities_entrypoints.vkGetPhysicalDeviceExternalFencePropertiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceExternalFencePropertiesKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                               "vkGetPhysicalDeviceExternalFencePropertiesKHR") );
 
         anvil_assert(m_khr_external_fence_capabilities_entrypoints.vkGetPhysicalDeviceExternalFencePropertiesKHR!= nullptr);
     }
 
     if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_external_memory_capabilities() )
     {
-        m_khr_external_memory_capabilities_entrypoints.vkGetPhysicalDeviceExternalBufferPropertiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceExternalBufferPropertiesKHR>(vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                   "vkGetPhysicalDeviceExternalBufferPropertiesKHR") );
+        m_khr_external_memory_capabilities_entrypoints.vkGetPhysicalDeviceExternalBufferPropertiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceExternalBufferPropertiesKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                                  "vkGetPhysicalDeviceExternalBufferPropertiesKHR") );
 
         anvil_assert(m_khr_external_memory_capabilities_entrypoints.vkGetPhysicalDeviceExternalBufferPropertiesKHR != nullptr);
     }
 
     if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_external_semaphore_capabilities() )
     {
-        m_khr_external_semaphore_capabilities_entrypoints.vkGetPhysicalDeviceExternalSemaphorePropertiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceExternalSemaphorePropertiesKHR>(vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                            "vkGetPhysicalDeviceExternalSemaphorePropertiesKHR") );
+        m_khr_external_semaphore_capabilities_entrypoints.vkGetPhysicalDeviceExternalSemaphorePropertiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceExternalSemaphorePropertiesKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                                           "vkGetPhysicalDeviceExternalSemaphorePropertiesKHR") );
 
         anvil_assert(m_khr_external_semaphore_capabilities_entrypoints.vkGetPhysicalDeviceExternalSemaphorePropertiesKHR!= nullptr);
     }
 }
+
+#if !defined(ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB)
+    bool Anvil::Instance::init_vk10_func_ptrs()
+    {
+        std::lock_guard<std::mutex> lock  (g_vk10_func_ptr_init_mutex);
+        bool                        result(true);
+
+        struct
+        {
+            std::string func_name;
+            bool        requires_getter_call;
+            void**      result_func_ptr;
+        } functions[] =
+        {
+            /* NOTE: All functions with @param requires_getter_cal equal to false should come first! */
+            {"vkCreateInstance",                               false, reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateInstance)},
+            {"vkDestroyInstance",                              false, reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyInstance)},
+            {"vkEnumeratePhysicalDevices",                     false, reinterpret_cast<void**>(&Anvil::Vulkan::vkEnumeratePhysicalDevices)},
+            {"vkEnumerateInstanceExtensionProperties",         false, reinterpret_cast<void**>(&Anvil::Vulkan::vkEnumerateInstanceExtensionProperties)},
+            {"vkEnumerateInstanceLayerProperties",             false, reinterpret_cast<void**>(&Anvil::Vulkan::vkEnumerateInstanceLayerProperties)},
+            {"vkGetDeviceProcAddr",                            false, reinterpret_cast<void**>(&Anvil::Vulkan::vkGetDeviceProcAddr)},
+            {"vkGetInstanceProcAddr",                          false, reinterpret_cast<void**>(&Anvil::Vulkan::vkGetInstanceProcAddr)},
+
+            /* instance-dependent functions */
+            {"vkGetPhysicalDeviceFeatures",                    true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPhysicalDeviceFeatures)},
+            {"vkGetPhysicalDeviceFormatProperties",            true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPhysicalDeviceFormatProperties)},
+            {"vkGetPhysicalDeviceImageFormatProperties",       true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPhysicalDeviceImageFormatProperties)},
+            {"vkGetPhysicalDeviceProperties",                  true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPhysicalDeviceProperties)},
+            {"vkGetPhysicalDeviceQueueFamilyProperties",       true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPhysicalDeviceQueueFamilyProperties)},
+            {"vkGetPhysicalDeviceMemoryProperties",            true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPhysicalDeviceMemoryProperties)},
+            {"vkCreateDevice",                                 true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateDevice)},
+            {"vkDestroyDevice",                                true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyDevice)},
+            {"vkEnumerateDeviceExtensionProperties",           true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkEnumerateDeviceExtensionProperties)},
+            {"vkEnumerateDeviceLayerProperties",               true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkEnumerateDeviceLayerProperties)},
+            {"vkGetDeviceQueue",                               true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetDeviceQueue)},
+            {"vkQueueSubmit",                                  true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkQueueSubmit)},
+            {"vkQueueWaitIdle",                                true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkQueueWaitIdle)},
+            {"vkDeviceWaitIdle",                               true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDeviceWaitIdle)},
+            {"vkAllocateMemory",                               true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkAllocateMemory)},
+            {"vkFreeMemory",                                   true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkFreeMemory)},
+            {"vkMapMemory",                                    true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkMapMemory)},
+            {"vkUnmapMemory",                                  true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkUnmapMemory)},
+            {"vkFlushMappedMemoryRanges",                      true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkFlushMappedMemoryRanges)},
+            {"vkInvalidateMappedMemoryRanges",                 true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkInvalidateMappedMemoryRanges)},
+            {"vkGetDeviceMemoryCommitment",                    true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetDeviceMemoryCommitment)},
+            {"vkBindBufferMemory",                             true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkBindBufferMemory)},
+            {"vkBindImageMemory",                              true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkBindImageMemory)},
+            {"vkGetBufferMemoryRequirements",                  true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetBufferMemoryRequirements)},
+            {"vkGetImageMemoryRequirements",                   true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetImageMemoryRequirements)},
+            {"vkGetImageSparseMemoryRequirements",             true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetImageSparseMemoryRequirements)},
+            {"vkGetPhysicalDeviceSparseImageFormatProperties", true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPhysicalDeviceSparseImageFormatProperties)},
+            {"vkQueueBindSparse",                              true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkQueueBindSparse)},
+            {"vkCreateFence",                                  true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateFence)},
+            {"vkDestroyFence",                                 true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyFence)},
+            {"vkResetFences",                                  true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkResetFences)},
+            {"vkGetFenceStatus",                               true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetFenceStatus)},
+            {"vkWaitForFences",                                true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkWaitForFences)},
+            {"vkCreateSemaphore",                              true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateSemaphore)},
+            {"vkDestroySemaphore",                             true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroySemaphore)},
+            {"vkCreateEvent",                                  true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateEvent)},
+            {"vkDestroyEvent",                                 true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyEvent)},
+            {"vkGetEventStatus",                               true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetEventStatus)},
+            {"vkSetEvent",                                     true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkSetEvent)},
+            {"vkResetEvent",                                   true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkResetEvent)},
+            {"vkCreateQueryPool",                              true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateQueryPool)},
+            {"vkDestroyQueryPool",                             true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyQueryPool)},
+            {"vkGetQueryPoolResults",                          true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetQueryPoolResults)},
+            {"vkCreateBuffer",                                 true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateBuffer)},
+            {"vkDestroyBuffer",                                true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyBuffer)},
+            {"vkCreateBufferView",                             true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateBufferView)},
+            {"vkDestroyBufferView",                            true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyBufferView)},
+            {"vkCreateImage",                                  true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateImage)},
+            {"vkDestroyImage",                                 true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyImage)},
+            {"vkGetImageSubresourceLayout",                    true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetImageSubresourceLayout)},
+            {"vkCreateImageView",                              true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateImageView)},
+            {"vkDestroyImageView",                             true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyImageView)},
+            {"vkCreateShaderModule",                           true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateShaderModule)},
+            {"vkDestroyShaderModule",                          true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyShaderModule)},
+            {"vkCreatePipelineCache",                          true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreatePipelineCache)},
+            {"vkDestroyPipelineCache",                         true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyPipelineCache)},
+            {"vkGetPipelineCacheData",                         true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPipelineCacheData)},
+            {"vkMergePipelineCaches",                          true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkMergePipelineCaches)},
+            {"vkCreateGraphicsPipelines",                      true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateGraphicsPipelines)},
+            {"vkCreateComputePipelines",                       true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateComputePipelines)},
+            {"vkDestroyPipeline",                              true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyPipeline)},
+            {"vkCreatePipelineLayout",                         true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreatePipelineLayout)},
+            {"vkDestroyPipelineLayout",                        true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyPipelineLayout)},
+            {"vkCreateSampler",                                true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateSampler)},
+            {"vkDestroySampler",                               true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroySampler)},
+            {"vkCreateDescriptorSetLayout",                    true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateDescriptorSetLayout)},
+            {"vkDestroyDescriptorSetLayout",                   true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyDescriptorSetLayout)},
+            {"vkCreateDescriptorPool",                         true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateDescriptorPool)},
+            {"vkDestroyDescriptorPool",                        true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyDescriptorPool)},
+            {"vkResetDescriptorPool",                          true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkResetDescriptorPool)},
+            {"vkAllocateDescriptorSets",                       true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkAllocateDescriptorSets)},
+            {"vkFreeDescriptorSets",                           true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkFreeDescriptorSets)},
+            {"vkUpdateDescriptorSets",                         true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkUpdateDescriptorSets)},
+            {"vkCreateFramebuffer",                            true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateFramebuffer)},
+            {"vkDestroyFramebuffer",                           true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyFramebuffer)},
+            {"vkCreateRenderPass",                             true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateRenderPass)},
+            {"vkDestroyRenderPass",                            true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyRenderPass)},
+            {"vkGetRenderAreaGranularity",                     true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetRenderAreaGranularity)},
+            {"vkCreateCommandPool",                            true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateCommandPool)},
+            {"vkDestroyCommandPool",                           true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyCommandPool)},
+            {"vkResetCommandPool",                             true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkResetCommandPool)},
+            {"vkAllocateCommandBuffers",                       true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkAllocateCommandBuffers)},
+            {"vkFreeCommandBuffers",                           true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkFreeCommandBuffers)},
+            {"vkBeginCommandBuffer",                           true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkBeginCommandBuffer)},
+            {"vkEndCommandBuffer",                             true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkEndCommandBuffer)},
+            {"vkResetCommandBuffer",                           true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkResetCommandBuffer)},
+            {"vkCmdBindPipeline",                              true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdBindPipeline)},
+            {"vkCmdSetViewport",                               true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdSetViewport)},
+            {"vkCmdSetScissor",                                true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdSetScissor)},
+            {"vkCmdSetLineWidth",                              true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdSetLineWidth)},
+            {"vkCmdSetDepthBias",                              true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdSetDepthBias)},
+            {"vkCmdSetBlendConstants",                         true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdSetBlendConstants)},
+            {"vkCmdSetDepthBounds",                            true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdSetDepthBounds)},
+            {"vkCmdSetStencilCompareMask",                     true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdSetStencilCompareMask)},
+            {"vkCmdSetStencilWriteMask",                       true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdSetStencilWriteMask)},
+            {"vkCmdSetStencilReference",                       true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdSetStencilReference)},
+            {"vkCmdBindDescriptorSets",                        true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdBindDescriptorSets)},
+            {"vkCmdBindIndexBuffer",                           true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdBindIndexBuffer)},
+            {"vkCmdBindVertexBuffers",                         true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdBindVertexBuffers)},
+            {"vkCmdDraw",                                      true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdDraw)},
+            {"vkCmdDrawIndexed",                               true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdDrawIndexed)},
+            {"vkCmdDrawIndirect",                              true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdDrawIndirect)},
+            {"vkCmdDrawIndexedIndirect",                       true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdDrawIndexedIndirect)},
+            {"vkCmdDispatch",                                  true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdDispatch)},
+            {"vkCmdDispatchIndirect",                          true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdDispatchIndirect)},
+            {"vkCmdCopyBuffer",                                true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdCopyBuffer)},
+            {"vkCmdCopyImage",                                 true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdCopyImage)},
+            {"vkCmdBlitImage",                                 true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdBlitImage)},
+            {"vkCmdCopyBufferToImage",                         true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdCopyBufferToImage)},
+            {"vkCmdCopyImageToBuffer",                         true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdCopyImageToBuffer)},
+            {"vkCmdUpdateBuffer",                              true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdUpdateBuffer)},
+            {"vkCmdFillBuffer",                                true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdFillBuffer)},
+            {"vkCmdClearColorImage",                           true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdClearColorImage)},
+            {"vkCmdClearDepthStencilImage",                    true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdClearDepthStencilImage)},
+            {"vkCmdClearAttachments",                          true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdClearAttachments)},
+            {"vkCmdResolveImage",                              true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdResolveImage)},
+            {"vkCmdSetEvent",                                  true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdSetEvent)},
+            {"vkCmdResetEvent",                                true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdResetEvent)},
+            {"vkCmdWaitEvents",                                true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdWaitEvents)},
+            {"vkCmdPipelineBarrier",                           true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdPipelineBarrier)},
+            {"vkCmdBeginQuery",                                true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdBeginQuery)},
+            {"vkCmdEndQuery",                                  true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdEndQuery)},
+            {"vkCmdResetQueryPool",                            true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdResetQueryPool)},
+            {"vkCmdWriteTimestamp",                            true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdWriteTimestamp)},
+            {"vkCmdCopyQueryPoolResults",                      true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdCopyQueryPoolResults)},
+            {"vkCmdPushConstants",                             true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdPushConstants)},
+            {"vkCmdBeginRenderPass",                           true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdBeginRenderPass)},
+            {"vkCmdNextSubpass",                               true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdNextSubpass)},
+            {"vkCmdEndRenderPass",                             true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdEndRenderPass)},
+            {"vkCmdExecuteCommands",                           true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdExecuteCommands)}
+        };
+
+        if (g_core_func_ptrs_inited     &&
+            g_instance_func_ptrs_inited)
+        {
+            result = true;
+
+            goto end;
+        }
+
+        if (g_vk10_library_ptr == nullptr)
+        {
+            g_vk10_library_ptr = Anvil::Library::create(ANVIL_VULKAN_DYNAMIC_DLL);
+
+            if (g_vk10_library_ptr == nullptr)
+            {
+                anvil_assert(g_vk10_library_ptr != nullptr);
+
+                goto end;
+            }
+        }
+
+        for (const auto& current_func_data : functions)
+        {
+            if (!current_func_data.requires_getter_call &&
+                !g_core_func_ptrs_inited)
+            {
+                *current_func_data.result_func_ptr = g_vk10_library_ptr->get_proc_address(current_func_data.func_name.c_str() );
+
+                if (*current_func_data.result_func_ptr == nullptr)
+                {
+                    anvil_assert(*current_func_data.result_func_ptr != nullptr);
+
+                    goto end;
+                }
+            }
+
+            if ((current_func_data.requires_getter_call)                   &&
+                (g_core_func_ptrs_inited)                                  &&
+                (m_instance                             != VK_NULL_HANDLE) )
+            {
+                *current_func_data.result_func_ptr = reinterpret_cast<void*>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                  current_func_data.func_name.c_str() ));
+
+                if (*current_func_data.result_func_ptr == nullptr)
+                {
+                    anvil_assert(*current_func_data.result_func_ptr != nullptr);
+
+                    goto end;
+                }
+            }
+        }
+
+        g_core_func_ptrs_inited = true;
+
+        if (m_instance != VK_NULL_HANDLE)
+        {
+            g_instance_func_ptrs_inited = true;
+        }
+    end:
+        return result;
+    }
+#endif
 
 /** Please see header for specification */
 bool Anvil::Instance::is_instance_extension_enabled(const char* in_extension_name) const

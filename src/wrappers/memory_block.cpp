@@ -87,9 +87,9 @@ Anvil::MemoryBlock::~MemoryBlock()
         {
             lock();
             {
-                vkFreeMemory(m_create_info_ptr->get_device()->get_device_vk(),
-                             m_memory,
-                             nullptr /* pAllocator */);
+                Anvil::Vulkan::vkFreeMemory(m_create_info_ptr->get_device()->get_device_vk(),
+                                            m_memory,
+                                            nullptr /* pAllocator */);
             }
             unlock();
         }
@@ -122,8 +122,8 @@ void Anvil::MemoryBlock::close_gpu_memory_access()
                 else
                 {
                     /* This block will be entered for memory blocks instantiated without a memory allocator */
-                    vkUnmapMemory(m_create_info_ptr->get_device()->get_device_vk(),
-                                  m_memory);
+                    Anvil::Vulkan::vkUnmapMemory(m_create_info_ptr->get_device()->get_device_vk(),
+                                                 m_memory);
                 }
             }
             unlock();
@@ -452,26 +452,49 @@ bool Anvil::MemoryBlock::init()
 
         if (m_create_info_ptr->get_external_handle_import_info(&handle_import_info_ptr) )
         {
-            #if defined(_WIN32)
-                VkImportMemoryWin32HandleInfoKHR handle_info_khr;
-            #else
-                VkImportMemoryFdInfoKHR handle_info_khr;
-            #endif
+            const auto imported_external_memory_handle_type = m_create_info_ptr->get_imported_external_memory_handle_type();
 
-            handle_info_khr.handleType = static_cast<VkExternalMemoryHandleTypeFlagBitsKHR>(m_create_info_ptr->get_imported_external_memory_handle_type() );
-            handle_info_khr.pNext      = nullptr;
+            if (imported_external_memory_handle_type == Anvil::ExternalMemoryHandleTypeFlagBits::HOST_ALLOCATION_BIT_EXT             ||
+                imported_external_memory_handle_type == Anvil::ExternalMemoryHandleTypeFlagBits::HOST_MAPPED_FOREIGN_MEMORY_BIT_EXT)
+            {
+                VkImportMemoryHostPointerInfoEXT handle_info_khr;
 
-            #if defined(_WIN32)
-                handle_info_khr.handle = handle_import_info_ptr->handle;
-                handle_info_khr.name   = (handle_import_info_ptr->name.size() > 0) ? handle_import_info_ptr->name.c_str()
-                                                                                   : nullptr;
-                handle_info_khr.sType  = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR;
-            #else
-                handle_info_khr.fd     = handle_import_info_ptr->handle;
-                handle_info_khr.sType  = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR;
-            #endif
+                anvil_assert(handle_import_info_ptr->host_ptr != nullptr);
+                anvil_assert(handle_import_info_ptr->handle   == static_cast<Anvil::ExternalHandleType>(nullptr) );
 
-            struct_chainer.append_struct(handle_info_khr);
+                handle_info_khr.handleType   = static_cast<VkExternalMemoryHandleTypeFlagBitsKHR>(imported_external_memory_handle_type);
+                handle_info_khr.pHostPointer = handle_import_info_ptr->host_ptr;
+                handle_info_khr.pNext        = nullptr;
+                handle_info_khr.sType        = VK_STRUCTURE_TYPE_IMPORT_MEMORY_HOST_POINTER_INFO_EXT;
+
+                struct_chainer.append_struct(handle_info_khr);
+            }
+            else
+            {
+                #if defined(_WIN32)
+                    VkImportMemoryWin32HandleInfoKHR handle_info_khr;
+                #else
+                    VkImportMemoryFdInfoKHR handle_info_khr;
+                #endif
+
+                anvil_assert(handle_import_info_ptr->host_ptr == nullptr);
+                anvil_assert(handle_import_info_ptr->handle   != static_cast<Anvil::ExternalHandleType>(nullptr) );
+
+                handle_info_khr.handleType = static_cast<VkExternalMemoryHandleTypeFlagBitsKHR>(imported_external_memory_handle_type);
+                handle_info_khr.pNext      = nullptr;
+
+                #if defined(_WIN32)
+                    handle_info_khr.handle = handle_import_info_ptr->handle;
+                    handle_info_khr.name   = (handle_import_info_ptr->name.size() > 0) ? handle_import_info_ptr->name.c_str()
+                                                                                       : nullptr;
+                    handle_info_khr.sType  = VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR;
+                #else
+                    handle_info_khr.fd     = handle_import_info_ptr->handle;
+                    handle_info_khr.sType  = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR;
+                #endif
+
+                struct_chainer.append_struct(handle_info_khr);
+            }
         }
     }
 
@@ -502,10 +525,10 @@ bool Anvil::MemoryBlock::init()
     {
         auto chain_ptr = struct_chainer.create_chain();
 
-        result = vkAllocateMemory(m_create_info_ptr->get_device()->get_device_vk(),
-                                  chain_ptr->get_root_struct(),
-                                  nullptr, /* pAllocator */
-                                 &m_memory);
+        result = Anvil::Vulkan::vkAllocateMemory(m_create_info_ptr->get_device()->get_device_vk(),
+                                                 chain_ptr->get_root_struct(),
+                                                 nullptr, /* pAllocator */
+                                                &m_memory);
     }
 
     anvil_assert_vk_call_succeeded(result);
@@ -583,9 +606,9 @@ bool Anvil::MemoryBlock::map(VkDeviceSize in_start_offset,
             mapped_memory_range.size   = in_size;
             mapped_memory_range.sType  = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
 
-            result_vk = vkInvalidateMappedMemoryRanges(m_create_info_ptr->get_device()->get_device_vk(),
-                                                       1, /* memRangeCount */
-                                                      &mapped_memory_range);
+            result_vk = Anvil::Vulkan::vkInvalidateMappedMemoryRanges(m_create_info_ptr->get_device()->get_device_vk(),
+                                                                      1, /* memRangeCount */
+                                                                     &mapped_memory_range);
             anvil_assert_vk_call_succeeded(result_vk);
         }
 
@@ -638,13 +661,23 @@ bool Anvil::MemoryBlock::open_gpu_memory_access()
             }
             else
             {
-                /* This block will be entered for memory blocks instantiated without a memory allocator */
-                result_vk = vkMapMemory(m_create_info_ptr->get_device()->get_device_vk(),
-                                        m_memory,
-                                        0, /* offset */
-                                        m_create_info_ptr->get_size(),
-                                        0, /* flags */
-                                        static_cast<void**>(&m_gpu_data_ptr) );
+                /* This block will be entered for memory blocks instantiated without a memory allocator
+                 *
+                 * TODO: A memory block may hold both buffer and image data. This means that the invocation below may trigger validation warnings telling
+                 *       that image memory which is not in GENERAL and PREINITIALIZED layout must not be modified by the host. As long as the map request
+                 *       is done specifically for a buffer, this warning is harmless.
+                 *       Avoiding this warning is tricky, given the VK restriction where a memory allocation X must not be mapped more than once at a time.
+                 *       Effectively, we would need to make the memory alloc backends create separate memory allocs for buffer and image objects, in order
+                 *       to support cases where apps need to map >1 memory regions, coming from the same memory block, at once. It would also make the implementation
+                 *       less readable. Might want to consider doing this nevertheless one day.
+                 *
+                 */
+                result_vk = Anvil::Vulkan::vkMapMemory(m_create_info_ptr->get_device()->get_device_vk(),
+                                                       m_memory,
+                                                       0, /* offset */
+                                                       m_create_info_ptr->get_size(),
+                                                       0, /* flags */
+                                                       static_cast<void**>(&m_gpu_data_ptr) );
             }
         }
         unlock();
@@ -710,9 +743,9 @@ bool Anvil::MemoryBlock::read(VkDeviceSize in_start_offset,
                 mapped_memory_range.size = mem_block_size - mapped_memory_range.offset;
             }
 
-            result_vk = vkInvalidateMappedMemoryRanges(m_create_info_ptr->get_device()->get_device_vk(),
-                                                       1, /* memRangeCount */
-                                                      &mapped_memory_range);
+            result_vk = Anvil::Vulkan::vkInvalidateMappedMemoryRanges(m_create_info_ptr->get_device()->get_device_vk(),
+                                                                      1, /* memRangeCount */
+                                                                     &mapped_memory_range);
             anvil_assert_vk_call_succeeded(result_vk);
         }
 
@@ -808,9 +841,9 @@ bool Anvil::MemoryBlock::write(VkDeviceSize in_start_offset,
                 mapped_memory_range.size = mem_block_size - mapped_memory_range.offset;
             }
 
-            result_vk = vkFlushMappedMemoryRanges(m_create_info_ptr->get_device()->get_device_vk(),
-                                                  1, /* memRangeCount */
-                                                 &mapped_memory_range);
+            result_vk = Anvil::Vulkan::vkFlushMappedMemoryRanges(m_create_info_ptr->get_device()->get_device_vk(),
+                                                                 1, /* memRangeCount */
+                                                                &mapped_memory_range);
             anvil_assert_vk_call_succeeded(result_vk);
         }
 

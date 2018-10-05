@@ -408,6 +408,31 @@ namespace Anvil
 
     INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(ColorComponentFlags, VkColorComponentFlags, ColorComponentFlagBits)
 
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class ColorSpaceKHR
+    {
+        /* VK_KHR_surface */
+        SRGB_NONLINEAR_KHR = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
+
+        /* VK_EXT_swapchain_colorspace */
+        DISPLAY_P3_NONLINEAR_EXT    = VK_COLOR_SPACE_DISPLAY_P3_NONLINEAR_EXT,
+        EXTENDED_SRGB_LINEAR_EXT    = VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT,
+        DCI_P3_LINEAR_EXT           = VK_COLOR_SPACE_DCI_P3_LINEAR_EXT,
+        DCI_P3_NONLINEAR_EXT        = VK_COLOR_SPACE_DCI_P3_NONLINEAR_EXT,
+        BT709_LINEAR_EXT            = VK_COLOR_SPACE_BT709_LINEAR_EXT,
+        BT709_NONLINEAR_EXT         = VK_COLOR_SPACE_BT709_NONLINEAR_EXT,
+        BT2020_LINEAR_EXT           = VK_COLOR_SPACE_BT2020_LINEAR_EXT,
+        HDR10_ST2084_EXT            = VK_COLOR_SPACE_HDR10_ST2084_EXT,
+        DOLBYVISION_EXT             = VK_COLOR_SPACE_DOLBYVISION_EXT,
+        HDR10_HLG_EXT               = VK_COLOR_SPACE_HDR10_HLG_EXT,
+        ADOBERGB_LINEAR_EXT         = VK_COLOR_SPACE_ADOBERGB_LINEAR_EXT,
+        ADOBERGB_NONLINEAR_EXT      = VK_COLOR_SPACE_ADOBERGB_NONLINEAR_EXT,
+        PASS_THROUGH_EXT            = VK_COLOR_SPACE_PASS_THROUGH_EXT,
+        EXTENDED_SRGB_NONLINEAR_EXT = VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT,
+
+        UNKNOWN = VK_COLOR_SPACE_MAX_ENUM_KHR
+    };
+
     /* Note: These map 1:1 to VK equivalents. */
     enum class ComponentSwizzle
     {
@@ -443,6 +468,9 @@ namespace Anvil
         /* KHR_device_group */
         DEVICE_GROUP_BIT = VK_DEPENDENCY_DEVICE_GROUP_BIT_KHR,
 
+        /* KHR_multiview */
+        VIEW_LOCAL_BIT = VK_DEPENDENCY_VIEW_LOCAL_BIT_KHR,
+
         NONE = 0
     };
     typedef Anvil::Bitfield<Anvil::DependencyFlagBits, VkDependencyFlags> DependencyFlags;
@@ -474,6 +502,9 @@ namespace Anvil
         STENCIL_REFERENCE    = VK_DYNAMIC_STATE_STENCIL_REFERENCE,
         STENCIL_WRITE_MASK   = VK_DYNAMIC_STATE_STENCIL_WRITE_MASK,
         VIEWPORT             = VK_DYNAMIC_STATE_VIEWPORT,
+
+        /* VK_EXT_sample_locations */
+        SAMPLE_LOCATIONS_EXT = VK_DYNAMIC_STATE_SAMPLE_LOCATIONS_EXT,
     };
 
     enum class ExternalFenceHandleTypeFlagBits
@@ -495,6 +526,7 @@ namespace Anvil
     enum class ExternalMemoryHandleTypeFlagBits
     {
         #if defined(_WIN32)
+            /* VK_KHR_external_memory_win32 */
             OPAQUE_WIN32_BIT      = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR,
             OPAQUE_WIN32_KMT_BIT  = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR,
             D3D11_TEXTURE_BIT     = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT_KHR,
@@ -502,8 +534,13 @@ namespace Anvil
             D3D12_HEAP_BIT        = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_HEAP_BIT_KHR,
             D3D12_RESOURCE_BIT    = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT_KHR,
         #else
+            /* VK_KHR_external_memory_fd */
             OPAQUE_FD_BIT = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR,
         #endif
+
+        /* VK_EXT_external_memory_host */
+        HOST_ALLOCATION_BIT_EXT            = VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT,
+        HOST_MAPPED_FOREIGN_MEMORY_BIT_EXT = VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_MAPPED_FOREIGN_MEMORY_BIT_EXT,
 
         NONE = 0,
     };
@@ -544,6 +581,9 @@ namespace Anvil
         STORAGE_TEXEL_BUFFER_BIT        = VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT,
         UNIFORM_TEXEL_BUFFER_BIT        = VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT,
         VERTEX_BUFFER_BIT               = VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT,
+
+        /* EXT_sampler_filter_minmax */
+        SAMPLED_IMAGE_FILTER_MINMAX_BIT_EXT = VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_MINMAX_BIT_EXT,
 
         /* KHR_maintenance1 */
         TRANSFER_DST_BIT_KHR = VK_FORMAT_FEATURE_TRANSFER_DST_BIT_KHR,
@@ -980,6 +1020,9 @@ namespace Anvil
         MUTABLE_FORMAT_BIT      = VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT,
         CUBE_COMPATIBLE_BIT     = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
 
+        /* NOTE: Requires VK_EXT_sample_locations */
+        SAMPLE_LOCATIONS_COMPATIBLE_DEPTH_BIT_EXT = VK_IMAGE_CREATE_SAMPLE_LOCATIONS_COMPATIBLE_DEPTH_BIT_EXT,
+
         /* NOTE: Requires VK_KHR_bind_memory2 */
         SPLIT_INSTANCE_BIND_REGIONS_BIT = VK_IMAGE_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT_KHR,
         ALIAS_BIT                       = VK_IMAGE_CREATE_ALIAS_BIT_KHR,
@@ -1290,6 +1333,26 @@ namespace Anvil
     };
 
     /* NOTE: These map 1:1 to VK equivalents */
+    enum class PipelineCreateFlagBits
+    {
+        /* Core VK 1.0 */
+        ALLOW_DERIVATIVES_BIT    = VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT,
+        DISABLE_OPTIMIZATION_BIT = VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT,
+        DERIVATIVE_BIT           = VK_PIPELINE_CREATE_DERIVATIVE_BIT,
+
+        /* VK_KHR_multiview */
+        VIEW_INDEX_FROM_DEVICE_INDEX_BIT = VK_PIPELINE_CREATE_VIEW_INDEX_FROM_DEVICE_INDEX_BIT_KHR,
+
+        /* VK_KHR_device_group */
+        DISPATCH_BASE_BIT = VK_PIPELINE_CREATE_DISPATCH_BASE_KHR,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::PipelineCreateFlagBits, VkPipelineCreateFlagBits> PipelineCreateFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(PipelineCreateFlags, VkPipelineCreateFlags, PipelineCreateFlagBits)
+
+    /* NOTE: These map 1:1 to VK equivalents */
     enum class PolygonMode
     {
         FILL  = VK_POLYGON_MODE_FILL,
@@ -1469,11 +1532,14 @@ namespace Anvil
     /* NOTE: These map 1:1 to VK equivalents */
     enum class SamplerAddressMode
     {
+        /* Core VK 1.0 */
         CLAMP_TO_BORDER      = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
         CLAMP_TO_EDGE        = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-        MIRROR_CLAMP_TO_EDGE = VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE,
         MIRRORED_REPEAT      = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
         REPEAT               = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+
+        /* VK_KHR_sampler_mirror_clamp_to_edge */
+        MIRROR_CLAMP_TO_EDGE = VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE,
 
         UNKNOWN = VK_SAMPLER_ADDRESS_MODE_MAX_ENUM
     };
@@ -1485,6 +1551,17 @@ namespace Anvil
         NEAREST = VK_SAMPLER_MIPMAP_MODE_NEAREST,
 
         UNKNOWN = VK_SAMPLER_MIPMAP_MODE_MAX_ENUM
+    };
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class SamplerReductionMode
+    {
+        /* VK_EXT_sampler_filter_minmax */
+        WEIGHTED_AVERAGE_EXT = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE_EXT,
+        MAX_EXT              = VK_SAMPLER_REDUCTION_MODE_MAX_EXT,
+        MIN_EXT              = VK_SAMPLER_REDUCTION_MODE_MIN_EXT,
+
+        UNKNOWN = VK_SAMPLER_REDUCTION_MODE_MAX_ENUM_EXT
     };
 
     /* Specifies one of the compute / rendering pipeline stages. */

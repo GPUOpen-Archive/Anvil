@@ -415,10 +415,7 @@ end:
 
     if (!result_bool)
     {
-        if (result != nullptr)
-        {
-            delete [] result;
-        }
+        delete [] result;
     }
 
     return result_bool;
@@ -543,10 +540,7 @@ end:
 
     if (!result_bool)
     {
-        if (result != nullptr)
-        {
-            delete [] result;
-        }
+        delete [] result;
     }
 
     return result_bool;

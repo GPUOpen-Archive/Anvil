@@ -106,6 +106,7 @@ namespace Anvil
         COMMAND_TYPE_SET_DEVICE_MASK_KHR,
         COMMAND_TYPE_SET_EVENT,
         COMMAND_TYPE_SET_LINE_WIDTH,
+        COMMAND_TYPE_SET_SAMPLE_LOCATIONS_EXT,
         COMMAND_TYPE_SET_SCISSOR,
         COMMAND_TYPE_SET_STENCIL_COMPARE_MASK,
         COMMAND_TYPE_SET_STENCIL_REFERENCE,
@@ -113,6 +114,7 @@ namespace Anvil
         COMMAND_TYPE_SET_VIEWPORT,
         COMMAND_TYPE_UPDATE_BUFFER,
         COMMAND_TYPE_WAIT_EVENTS,
+        COMMAND_TYPE_WRITE_BUFFER_MARKER_AMD,
         COMMAND_TYPE_WRITE_TIMESTAMP,
     } CommandType;
 
@@ -157,12 +159,7 @@ namespace Anvil
         COMMAND_BUFFER_CALLBACK_ID_COUNT
     };
 
-    /** Holds all arguments passed to a vkCmdBeginRenderPass() command.
-     *
-     *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-     *  These objects are retained at construction time, and released at descriptor
-     *  destruction time.
-     */
+    /** Holds all arguments passed to a vkCmdBeginRenderPass() command. */
     typedef struct BeginRenderPassCommand : public Command
     {
         std::vector<VkClearValue>                 clear_values;
@@ -172,20 +169,26 @@ namespace Anvil
         std::vector<VkRect2D>                     render_areas;
         Anvil::RenderPass*                        render_pass_ptr;
 
+        /* VK_EXT_sample_locations: */
+        std::vector<Anvil::AttachmentSampleLocations> attachment_initial_sample_locations;
+        std::vector<Anvil::SubpassSampleLocations>    post_subpass_sample_locations;
+
         /** Constructor.
-         *
-         *  Retains @param in_fbo_ptr and @param in_render_pass_ptr objects.
          *
          *  Arguments as per Vulkan API.
          **/
-        explicit BeginRenderPassCommand(uint32_t                            in_n_clear_values,
-                                        const VkClearValue*                 in_clear_value_ptrs,
-                                        Anvil::Framebuffer*                 in_fbo_ptr,
-                                        uint32_t                            in_n_physical_devices,
-                                        const Anvil::PhysicalDevice* const* in_physical_devices,
-                                        const VkRect2D*                     in_render_areas,
-                                        Anvil::RenderPass*                  in_render_pass_ptr,
-                                        Anvil::SubpassContents              in_contents);
+        explicit BeginRenderPassCommand(uint32_t                                in_n_clear_values,
+                                        const VkClearValue*                     in_clear_value_ptrs,
+                                        Anvil::Framebuffer*                     in_fbo_ptr,
+                                        uint32_t                                in_n_physical_devices,
+                                        const Anvil::PhysicalDevice* const*     in_physical_devices,
+                                        const VkRect2D*                         in_render_areas,
+                                        Anvil::RenderPass*                      in_render_pass_ptr,
+                                        Anvil::SubpassContents                  in_contents,
+                                        const uint32_t&                         in_n_attachment_initial_sample_locations,
+                                        const Anvil::AttachmentSampleLocations* in_attachment_initial_sample_locations_ptr,
+                                        const uint32_t&                         in_n_post_subpass_sample_locations,
+                                        const Anvil::SubpassSampleLocations*    in_post_subpass_sample_locations_ptr);
 
         /** Destructor.
          *
@@ -254,12 +257,7 @@ namespace Anvil
         }
     } EndRenderPassCommandRecordedCallbackData;
 
-    /** Holds all arguments passed to a vkCmdPipelineBarrier() command.
-     *
-     *  Takes an array of Barrier descriptors instead of void* pointers, as is the case
-     *  with the original Vulkan API. Each buffer in a buffer barrier, and each image in
-     *  an image barrier, is retained.
-     **/
+    /** Holds all arguments passed to a vkCmdPipelineBarrier() command. */
     typedef struct PipelineBarrierCommand : public Command
     {
         std::vector<BufferBarrier> buffer_barriers;
@@ -387,9 +385,6 @@ namespace Anvil
          *  Calling this function for a command buffer which has not been put into a recording mode
          *  (by issuing a start_recording() call earlier) will result in an assertion failure.
          *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
-         *
          *  Argument meaning is as per Vulkan API specification.
          *
          *  @return true if successful, false otherwise.
@@ -419,9 +414,6 @@ namespace Anvil
          *  Calling this function for a command buffer which has not been put into a recording mode
          *  (by issuing a start_recording() call earlier) will result in an assertion failure.
          *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
-         *
          *  Argument meaning is as per Vulkan API specification.
          *
          *  @return true if successful, false otherwise.
@@ -440,9 +432,6 @@ namespace Anvil
          *
          *  It is also illegal to call this function when recording renderpass commands. Doing so
          *  will also result in an assertion failure.
-         *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
          *
          *  Argument meaning is as per Vulkan API specification.
          *
@@ -466,9 +455,6 @@ namespace Anvil
          *  It is also illegal to call this function when not recording renderpass commands. Doing so
          *  will also result in an assertion failure.
          *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
-         *
          *  Argument meaning is as per Vulkan API specification.
          *
          *  @return true if successful, false otherwise.
@@ -487,9 +473,6 @@ namespace Anvil
          *
          *  It is also illegal to call this function when recording renderpass commands. Doing so
          *  will also result in an assertion failure.
-         *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
          *
          *  Argument meaning is as per Vulkan API specification.
          *
@@ -511,9 +494,6 @@ namespace Anvil
          *  It is also illegal to call this function when recording renderpass commands. Doing so
          *  will also result in an assertion failure.
          *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
-         *
          *  Argument meaning is as per Vulkan API specification.
          *
          *  @return true if successful, false otherwise.
@@ -534,9 +514,6 @@ namespace Anvil
          *  It is also illegal to call this function when recording renderpass commands. Doing so
          *  will also result in an assertion failure.
          *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
-         *
          *  Argument meaning is as per Vulkan API specification.
          *
          *  @return true if successful, false otherwise.
@@ -555,9 +532,6 @@ namespace Anvil
          *
          *  It is also illegal to call this function when recording renderpass commands. Doing so
          *  will also result in an assertion failure.
-         *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
          *
          *  Argument meaning is as per Vulkan API specification.
          *
@@ -578,9 +552,6 @@ namespace Anvil
          *
          *  It is also illegal to call this function when recording renderpass commands. Doing so
          *  will also result in an assertion failure.
-         *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
          *
          *  Argument meaning is as per Vulkan API specification.
          *
@@ -603,9 +574,6 @@ namespace Anvil
          *  It is also illegal to call this function when recording renderpass commands. Doing so
          *  will also result in an assertion failure.
          *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
-         *
          *  Argument meaning is as per Vulkan API specification.
          *
          *  @return true if successful, false otherwise.
@@ -625,9 +593,6 @@ namespace Anvil
          *
          *  It is also illegal to call this function when recording renderpass commands. Doing so
          *  will also result in an assertion failure.
-         *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
          *
          *  Argument meaning is as per Vulkan API specification.
          *
@@ -733,9 +698,6 @@ namespace Anvil
          *  It is also illegal to call this function when recording renderpass commands. Doing so
          *  will also result in an assertion failure.
          *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
-         *
          *  Argument meaning is as per Vulkan API specification.
          *
          *  @return true if successful, false otherwise.
@@ -792,9 +754,6 @@ namespace Anvil
          *  It is also illegal to call this function when not recording renderpass commands. Doing so
          *  will also result in an assertion failure.
          *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
-         *
          *  Argument meaning is as per Vulkan API specification.
          *
          *  @return true if successful, false otherwise.
@@ -813,9 +772,6 @@ namespace Anvil
          *
          *  It is also illegal to call this function when not recording renderpass commands. Doing so
          *  will also result in an assertion failure.
-         *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
          *
          *  This function is only available if VK_AMD_draw_indirect_count is supported by the Vulkan
          *  device AND if the extension has been requested at creation time.
@@ -841,9 +797,6 @@ namespace Anvil
          *  It is also illegal to call this function when not recording renderpass commands. Doing so
          *  will also result in an assertion failure.
          *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
-         *
          *  This function is only available if VK_KHR_draw_indirect_count is supported by the Vulkan
          *  device AND if the extension has been requested at creation time.
          *
@@ -868,9 +821,6 @@ namespace Anvil
          *  It is also illegal to call this function when not recording renderpass commands. Doing so
          *  will also result in an assertion failure.
          *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
-         *
          *  Argument meaning is as per Vulkan API specification.
          *
          *  @return true if successful, false otherwise.
@@ -889,9 +839,6 @@ namespace Anvil
          *
          *  It is also illegal to call this function when not recording renderpass commands. Doing so
          *  will also result in an assertion failure.
-         *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
          *
          *  This function is only available if VK_AMD_draw_indirect_count is supported by the Vulkan
          *  device AND if the extension has been requested at creation time.
@@ -916,9 +863,6 @@ namespace Anvil
          *
          *  It is also illegal to call this function when not recording renderpass commands. Doing so
          *  will also result in an assertion failure.
-         *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
          *
          *  This function is only available if VK_KHR_draw_indirect_count is supported by the Vulkan
          *  device AND if the extension has been requested at creation time.
@@ -958,9 +902,6 @@ namespace Anvil
          *  It is also illegal to call this function when recording renderpass commands. Doing so
          *  will also result in an assertion failure.
          *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
-         *
          *  Argument meaning is as per Vulkan API specification.
          *
          *  @return true if successful, false otherwise.
@@ -976,9 +917,6 @@ namespace Anvil
          *
          *  Calling this function for a command buffer which has not been put into a recording mode
          *  (by issuing a start_recording() call earlier) will result in an assertion failure.
-         *
-         *  Any Vulkan object wrapper instances, passed implicitly to this function, are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
          *
          *  Argument meaning is as per Vulkan API specification.
          *
@@ -1021,9 +959,6 @@ namespace Anvil
          *  It is also illegal to call this function when recording renderpass commands. Doing so
          *  will also result in an assertion failure.
          *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
-         *
          *  Argument meaning is as per Vulkan API specification.
          *
          *  @return true if successful, false otherwise.
@@ -1058,9 +993,6 @@ namespace Anvil
          *
          *  It is also illegal to call this function when recording renderpass commands. Doing so
          *  will also result in an assertion failure.
-         *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
          *
          *  Argument meaning is as per Vulkan API specification.
          *
@@ -1141,9 +1073,6 @@ namespace Anvil
          *  It is also illegal to call this function when recording renderpass commands. Doing so
          *  will also result in an assertion failure.
          *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
-         *
          *  Argument meaning is as per Vulkan API specification.
          *
          *  @return true if successful, false otherwise.
@@ -1163,6 +1092,21 @@ namespace Anvil
          *  @return true if successful, false otherwise.
          **/
         bool record_set_line_width(float in_line_width);
+
+        /** Issues a vkCmdSetSampleLocationsEXT() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  Argument meaning is as per VK_EXT_sample_locations specification.
+         *
+         *  Must not be called if VK_EXT_sample_locations is not enabled and supported.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_set_sample_locations_EXT(const Anvil::SampleLocationsInfo& in_sample_locations_info);
 
         /** Issues a vkCmdSetScissor() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -1246,9 +1190,6 @@ namespace Anvil
          *  It is also illegal to call this function when recording renderpass commands. Doing so
          *  will also result in an assertion failure.
          *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
-         *
          *  Argument meaning is as per Vulkan API specification.
          *
          *  @return true if successful, false otherwise.
@@ -1265,9 +1206,6 @@ namespace Anvil
          *  Calling this function for a command buffer which has not been put into a recording mode
          *  (by issuing a start_recording() call earlier) will result in an assertion failure.
          *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
-         *
          *  Argument meaning is as per Vulkan API specification.
          *
          *  @return true if successful, false otherwise.
@@ -1283,15 +1221,30 @@ namespace Anvil
                                 uint32_t                   in_image_memory_barrier_count,
                                 const ImageBarrier* const  in_image_memory_barriers_ptr);
 
-        /** Issues a vkCmdWriteTimestamp() call and appends it to the internal vector of commands
+        /** Issues a vkCmdWriteBufferMarkerAMD() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
          *  #define enabled).
          *
          *  Calling this function for a command buffer which has not been put into a recording mode
          *  (by issuing a start_recording() call earlier) will result in an assertion failure.
          *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
+         *  Argument meaning is as per VK_AMD_buffer_marker specification.
+         *
+         *  Requires VK_AMD_buffer_marker extension.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_write_buffer_marker_AMD(const Anvil::PipelineStageFlagBits& in_pipeline_stage,
+                                            Anvil::Buffer*                      in_dst_buffer_ptr,
+                                            const VkDeviceSize&                 in_dst_offset,
+                                            const uint32_t&                     in_marker);
+
+        /** Issues a vkCmdWriteTimestamp() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
          *
          *  Argument meaning is as per Vulkan API specification.
          *
@@ -1357,6 +1310,7 @@ namespace Anvil
         struct SetDepthBoundsCommand;
         struct SetEventCommand;
         struct SetLineWidthCommand;
+        struct SetSampleLocationsEXTCommand;
         struct SetScissorCommand;
         struct SetStencilCompareMaskCommand;
         struct SetStencilReferenceCommand;
@@ -1415,12 +1369,7 @@ namespace Anvil
         } BindDescriptorSetsCommand;
 
 
-        /** Holds all arguments passed to a vkCmdBindIndexBuffer() command.
-         *
-         *  Raw Vulkan object handles have been replaced with pointers to wrapper objects.
-         *  These objects are retained at construction time, and released at descriptor
-         *  destruction time.
-         */
+        /** Holds all arguments passed to a vkCmdBindIndexBuffer() command. */
         typedef struct BindIndexBufferCommand : public Command
         {
             VkBuffer         buffer;
@@ -2406,6 +2355,22 @@ namespace Anvil
         } SetLineWidthCommand;
 
 
+        /** Holds all arguments passed to vkCmdSetSampleLocationsEXT() command. **/
+        typedef struct SetSampleLocationsEXTCommand : public Command
+        {
+            Anvil::SampleLocationsInfo sample_locations_info;
+
+            /** Constructor. **/
+            explicit SetSampleLocationsEXTCommand(const Anvil::SampleLocationsInfo& in_sample_locations_info);
+
+            /** Destructor. */
+            virtual ~SetSampleLocationsEXTCommand()
+            {
+                /* Stub */
+            }
+        } SetSampleLocationsEXTCommand;
+
+
         /** Holds all arguments passed to a vkCmdSetScissor() command. **/
         typedef struct SetScissorCommand : public Command
         {
@@ -2560,6 +2525,29 @@ namespace Anvil
             WaitEventsCommand& operator=(const WaitEventsCommand&);
         } WaitEventsCommand;
 
+        /** Holds all arguments passed to vkCmdWriteBufferMarkerAMD() command. **/
+        typedef struct WriteBufferMarkerAMDCommand : public Command
+        {
+            Anvil::PipelineStageFlagBits pipeline_stage;
+            Anvil::Buffer*               dst_buffer_ptr;
+            VkDeviceSize                 dst_offset;
+            uint32_t                     marker;
+
+            /** Constructor **/
+            explicit WriteBufferMarkerAMDCommand(const Anvil::PipelineStageFlagBits& in_pipeline_stage,
+                                                 Anvil::Buffer*                      in_dst_buffer_ptr,
+                                                 VkDeviceSize                        in_dst_offset,
+                                                 const uint32_t&                     in_marker);
+
+            /** Destructor. */
+            virtual ~WriteBufferMarkerAMDCommand()
+            {
+                /* Stub */
+            }
+
+        private:
+            WriteBufferMarkerAMDCommand& operator=(const WriteBufferMarkerAMDCommand&);
+        } WriteBufferMarkerAMDCommand;
 
         /** Holds all arguments passed to a vkCmdWriteTimestamp() command. **/
         typedef struct WriteTimestampCommand : public Command
@@ -2644,23 +2632,27 @@ namespace Anvil
          *  Calling this function for a command buffer which has not been put into a recording mode
          *  (by issuing a start_recording() call earlier) will result in an assertion failure.
          *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
-         *
          *  This function prototype can be called for both single- and multi-GPU devices. In the latter case,
          *  it will be assumed that all physical devices within the device group should be used for
          *  the device mask and that they all should use the same render area.
          *
          *  Argument meaning is as per Vulkan API specification.
          *
+         *  NOTE: If either @param in_opt_n_attachment_initial_sample_locations or @param in_opt_n_post_subpass_sample_locations
+         *        (or both) are not zero, VK_EXT_sample_locations is required.
+         *
          *  @return true if successful, false otherwise.
          **/
-        bool record_begin_render_pass(uint32_t               in_n_clear_values,
-                                      const VkClearValue*    in_clear_value_ptrs,
-                                      Anvil::Framebuffer*    in_fbo_ptr,
-                                      VkRect2D               in_render_area,
-                                      Anvil::RenderPass*     in_render_pass_ptr,
-                                      Anvil::SubpassContents in_contents);
+        bool record_begin_render_pass(uint32_t                                in_n_clear_values,
+                                      const VkClearValue*                     in_clear_value_ptrs,
+                                      Anvil::Framebuffer*                     in_fbo_ptr,
+                                      VkRect2D                                in_render_area,
+                                      Anvil::RenderPass*                      in_render_pass_ptr,
+                                      Anvil::SubpassContents                  in_contents,
+                                      const uint32_t&                         in_opt_n_attachment_initial_sample_locations   = 0,
+                                      const Anvil::AttachmentSampleLocations* in_opt_attachment_initial_sample_locations_ptr = nullptr,
+                                      const uint32_t&                         in_opt_n_post_subpass_sample_locations         = 0,
+                                      const Anvil::SubpassSampleLocations*    in_opt_post_subpass_sample_locations_ptr       = nullptr);
 
         /** See documentation for the other record_begin_render_pass() function prototype for general
          *  information about this function.
@@ -2669,14 +2661,18 @@ namespace Anvil
          *
          *  TODO
          */
-        bool record_begin_render_pass(uint32_t                            in_n_clear_values,
-                                      const VkClearValue*                 in_clear_value_ptrs,
-                                      Anvil::Framebuffer*                 in_fbo_ptr,
-                                      uint32_t                            in_n_physical_devices,
-                                      const Anvil::PhysicalDevice* const* in_physical_devices,
-                                      const VkRect2D*                     in_render_areas,
-                                      Anvil::RenderPass*                  in_render_pass_ptr,
-                                      Anvil::SubpassContents              in_contents);
+        bool record_begin_render_pass(uint32_t                                in_n_clear_values,
+                                      const VkClearValue*                     in_clear_value_ptrs,
+                                      Anvil::Framebuffer*                     in_fbo_ptr,
+                                      uint32_t                                in_n_physical_devices,
+                                      const Anvil::PhysicalDevice* const*     in_physical_devices,
+                                      const VkRect2D*                         in_render_areas,
+                                      Anvil::RenderPass*                      in_render_pass_ptr,
+                                      Anvil::SubpassContents                  in_contents,
+                                      const uint32_t&                         in_opt_n_attachment_initial_sample_locations   = 0,
+                                      const Anvil::AttachmentSampleLocations* in_opt_attachment_initial_sample_locations_ptr = nullptr,
+                                      const uint32_t&                         in_opt_n_post_subpass_sample_locations         = 0,
+                                      const Anvil::SubpassSampleLocations*    in_opt_post_subpass_sample_locations_ptr       = nullptr);
 
         /** Issues a vkCmdEndRenderPass() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -2697,9 +2693,6 @@ namespace Anvil
          *
          *  Calling this function for a command buffer which has not been put into a recording mode
          *  (by issuing a start_recording() call earlier) will result in an assertion failure.
-         *
-         *  Any Vulkan object wrapper instances passed to this function are going to be retained,
-         *  and will be released when the command buffer is released or resetted.
          *
          *  Argument meaning is as per Vulkan API specification.
          *

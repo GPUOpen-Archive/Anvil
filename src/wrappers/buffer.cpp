@@ -147,9 +147,9 @@ Anvil::Buffer::~Buffer()
     {
         lock();
         {
-            vkDestroyBuffer(m_device_ptr->get_device_vk(),
-                            m_buffer,
-                            nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroyBuffer(m_device_ptr->get_device_vk(),
+                                           m_buffer,
+                                           nullptr /* pAllocator */);
         }
         unlock();
 
@@ -336,10 +336,10 @@ bool Anvil::Buffer::init()
         {
             auto struct_chain_ptr = struct_chainer.create_chain();
 
-            result = vkCreateBuffer(m_device_ptr->get_device_vk(),
-                                    struct_chain_ptr->get_root_struct(),
-                                    nullptr, /* pAllocator */
-                                   &m_buffer);
+            result = Anvil::Vulkan::vkCreateBuffer(m_device_ptr->get_device_vk(),
+                                                   struct_chain_ptr->get_root_struct(),
+                                                   nullptr, /* pAllocator */
+                                                  &m_buffer);
         }
 
         anvil_assert_vk_call_succeeded(result);
@@ -410,9 +410,9 @@ bool Anvil::Buffer::init()
             }
             else
             {
-                vkGetBufferMemoryRequirements(m_device_ptr->get_device_vk(),
-                                              m_buffer,
-                                             &m_buffer_memory_reqs);
+                Anvil::Vulkan::vkGetBufferMemoryRequirements(m_device_ptr->get_device_vk(),
+                                                             m_buffer,
+                                                            &m_buffer_memory_reqs);
             }
         }
     }
@@ -618,7 +618,7 @@ bool Anvil::Buffer::init_staging_buffer(const VkDeviceSize& in_size,
                                                                                          in_size,
                                                                                          staging_buffer_queue_fam_bits,
                                                                                          sharing_mode,
-                                                                                         Anvil::BufferUsageFlagBits::TRANSFER_SRC_BIT,
+                                                                                         Anvil::BufferUsageFlagBits::TRANSFER_DST_BIT | Anvil::BufferUsageFlagBits::TRANSFER_SRC_BIT,
                                                                                          Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT);
 
             create_info_ptr->set_mt_safety  (Anvil::MTSafety::DISABLED);
@@ -761,6 +761,7 @@ bool Anvil::Buffer::read(VkDeviceSize in_start_offset,
 
             m_staging_buffer_queue_ptr->submit(
                 Anvil::SubmitInfo::create_execute(&cmd_buffer_submission,
+                                                  1, /* in_n_command_buffer_submissions */
                                                   true /* should_block */)
             );
         }
@@ -808,10 +809,10 @@ bool Anvil::Buffer::set_memory_nonsparse_internal(MemoryBlockUniquePtr  in_memor
     {
         lock();
         {
-            result_vk = vkBindBufferMemory(m_device_ptr->get_device_vk(),
-                                           m_buffer,
-                                           in_memory_block_ptr->get_memory      (),
-                                           in_memory_block_ptr->get_start_offset() );
+            result_vk = Anvil::Vulkan::vkBindBufferMemory(m_device_ptr->get_device_vk(),
+                                                          m_buffer,
+                                                          in_memory_block_ptr->get_memory      (),
+                                                          in_memory_block_ptr->get_start_offset() );
         }
         unlock();
     }
@@ -1263,6 +1264,7 @@ bool Anvil::Buffer::write(VkDeviceSize  in_start_offset,
 
             m_staging_buffer_queue_ptr->submit(
                 Anvil::SubmitInfo::create_execute(&copy_cmdbuf_submission,
+                                                  1, /* in_n_command_buffer_submissions */
                                                   true /* should_block */)
             );
         }

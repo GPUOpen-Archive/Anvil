@@ -32,14 +32,10 @@ namespace Anvil
     {
     public:
         /* Public functions */
-        static ComputePipelineCreateInfoUniquePtr create_derivative(bool                               in_disable_optimizations,
-                                                                    bool                               in_allow_derivatives,
-                                                                    const ShaderModuleStageEntryPoint& in_compute_shader_stage_entrypoint_info,
-                                                                    Anvil::PipelineID                  in_base_pipeline_id);
-        static ComputePipelineCreateInfoUniquePtr create_proxy     ();
-        static ComputePipelineCreateInfoUniquePtr create_regular   (bool                               in_disable_optimizations,
-                                                                    bool                               in_allow_derivatives,
-                                                                    const ShaderModuleStageEntryPoint& in_compute_shader_stage_entrypoint_info);
+        static ComputePipelineCreateInfoUniquePtr create      (const Anvil::PipelineCreateFlags&  in_create_flags,
+                                                               const ShaderModuleStageEntryPoint& in_compute_shader_stage_entrypoint_info,
+                                                               const Anvil::PipelineID*           in_opt_base_pipeline_id_ptr = nullptr);
+        static ComputePipelineCreateInfoUniquePtr create_proxy();
 
         /** Adds a new specialization constant.
          *

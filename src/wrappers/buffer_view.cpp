@@ -53,9 +53,9 @@ Anvil::BufferView::~BufferView()
 
     lock();
     {
-        vkDestroyBufferView(m_device_ptr->get_device_vk(),
-                            m_buffer_view,
-                            nullptr /* pAllocator */);
+        Anvil::Vulkan::vkDestroyBufferView(m_device_ptr->get_device_vk(),
+                                           m_buffer_view,
+                                           nullptr /* pAllocator */);
     }
     unlock();
 
@@ -98,10 +98,10 @@ bool Anvil::BufferView::init()
     buffer_view_create_info.range  = m_create_info_ptr->get_size();
     buffer_view_create_info.sType  = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
 
-    result = vkCreateBufferView(m_create_info_ptr->get_device()->get_device_vk(),
-                               &buffer_view_create_info,
-                                nullptr, /* pAllocator */
-                               &m_buffer_view);
+    result = Anvil::Vulkan::vkCreateBufferView(m_create_info_ptr->get_device()->get_device_vk(),
+                                              &buffer_view_create_info,
+                                               nullptr, /* pAllocator */
+                                              &m_buffer_view);
 
     if (is_vk_call_successful(result) )
     {

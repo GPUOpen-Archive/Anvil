@@ -235,11 +235,11 @@ uint32_t Anvil::Swapchain::acquire_image(Anvil::Semaphore*                   in_
 
             if (fence_handle != VK_NULL_HANDLE)
             {
-                result_vk = vkWaitForFences(m_device_ptr->get_device_vk(),
-                                            1, /* fenceCount */
-                                           &fence_handle,
-                                            VK_TRUE, /* waitAll */
-                                            UINT64_MAX);
+                result_vk = Anvil::Vulkan::vkWaitForFences(m_device_ptr->get_device_vk(),
+                                                           1, /* fenceCount */
+                                                          &fence_handle,
+                                                           VK_TRUE, /* waitAll */
+                                                           UINT64_MAX);
 
                 anvil_assert_vk_call_succeeded(result_vk);
             }
@@ -465,7 +465,7 @@ bool Anvil::Swapchain::init()
             create_info.compositeAlpha        = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
             create_info.flags                 = m_create_info_ptr->get_flags().get_vk();
             create_info.imageArrayLayers      = 1;
-            create_info.imageColorSpace       = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
+            create_info.imageColorSpace       = static_cast<VkColorSpaceKHR>(m_create_info_ptr->get_color_space() );
             create_info.imageExtent.height    = parent_surface_ptr->get_height();
             create_info.imageExtent.width     = parent_surface_ptr->get_width ();
             create_info.imageFormat           = static_cast<VkFormat>(m_create_info_ptr->get_format() );
@@ -757,4 +757,36 @@ void Anvil::Swapchain::on_present_request_issued(Anvil::CallbackArgument* in_cal
             m_n_present_counter++;
         }
     }
+}
+
+/** Please see header for specification */
+void Anvil::Swapchain::set_hdr_metadata(const uint32_t&              in_n_swapchains,
+                                        Anvil::Swapchain**           in_swapchains_ptr_ptr,
+                                        const Anvil::HdrMetadataEXT* in_metadata_items_ptr)
+{
+    anvil_assert(in_n_swapchains > 0);
+
+    auto        device_ptr       = in_swapchains_ptr_ptr[0]->get_create_info_ptr()->get_device();
+    const auto& entrypoints      = device_ptr->get_extension_ext_hdr_metadata_entrypoints     ();
+    auto        metadata_vk_vec  = std::vector<VkHdrMetadataEXT>(in_n_swapchains);
+    auto        swapchain_vk_vec = std::vector<VkSwapchainKHR>  (in_n_swapchains);
+
+    for (uint32_t n_swapchain = 0;
+                  n_swapchain < in_n_swapchains;
+                ++n_swapchain)
+    {
+        metadata_vk_vec.at (n_swapchain) = in_metadata_items_ptr[n_swapchain].get_vk           ();
+        swapchain_vk_vec.at(n_swapchain) = in_swapchains_ptr_ptr[n_swapchain]->get_swapchain_vk();
+
+        #if defined(_DEBUG)
+        {
+            anvil_assert(in_swapchains_ptr_ptr[n_swapchain]->get_create_info_ptr()->get_device() == device_ptr);
+        }
+        #endif
+    }
+
+    entrypoints.vkSetHdrMetadataEXT(device_ptr->get_device_vk(),
+                                    in_n_swapchains,
+                                   &swapchain_vk_vec.at(0),
+                                   &metadata_vk_vec.at (0) );
 }

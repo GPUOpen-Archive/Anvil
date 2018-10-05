@@ -273,9 +273,9 @@ void Anvil::Semaphore::release_semaphore()
     {
         lock();
         {
-            vkDestroySemaphore(m_device_ptr->get_device_vk(),
-                               m_semaphore,
-                               nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroySemaphore(m_device_ptr->get_device_vk(),
+                                              m_semaphore,
+                                              nullptr /* pAllocator */);
         }
         unlock();
 
@@ -358,10 +358,10 @@ bool Anvil::Semaphore::reset()
         goto end;
     }
 
-    result = vkCreateSemaphore(m_device_ptr->get_device_vk(),
-                               struct_chain_ptr->get_root_struct(),
-                               nullptr, /* pAllocator */
-                              &m_semaphore);
+    result = Anvil::Vulkan::vkCreateSemaphore(m_device_ptr->get_device_vk(),
+                                              struct_chain_ptr->get_root_struct(),
+                                              nullptr, /* pAllocator */
+                                             &m_semaphore);
 
     anvil_assert_vk_call_succeeded(result);
     if (is_vk_call_successful(result) )

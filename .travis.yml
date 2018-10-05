@@ -29,4 +29,4 @@ install:
 script:
   - mkdir build
   - cd build
-  - ${DEPS_DIR}/cmake/bin/cmake -G "Unix Makefiles" .. && make
+  - ${DEPS_DIR}/cmake/bin/cmake -DCONTINUOUS_INTEGRATION_RUN=ON -G "Unix Makefiles" .. && make

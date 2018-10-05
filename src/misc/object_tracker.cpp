@@ -40,12 +40,9 @@ Anvil::ObjectTracker::ObjectTracker()
 /* Please see header for specification */
 void Anvil::ObjectTracker::destroy()
 {
-    if (object_tracker_ptr != nullptr)
-    {
-        delete object_tracker_ptr;
+    delete object_tracker_ptr;
 
-        object_tracker_ptr = nullptr;
-    }
+    object_tracker_ptr = nullptr;
 }
 
 /* Please see header for specification */

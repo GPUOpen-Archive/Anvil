@@ -52,9 +52,9 @@ Anvil::PipelineLayout::~PipelineLayout()
     {
         lock();
         {
-            vkDestroyPipelineLayout(m_device_ptr->get_device_vk(),
-                                    m_layout_vk,
-                                    nullptr /* pAllocator */);
+            Anvil::Vulkan::vkDestroyPipelineLayout(m_device_ptr->get_device_vk(),
+                                                   m_layout_vk,
+                                                   nullptr /* pAllocator */);
         }
         unlock();
 
@@ -151,10 +151,10 @@ bool Anvil::PipelineLayout::bake(const std::vector<DescriptorSetCreateInfoUnique
     pipeline_layout_create_info.pushConstantRangeCount = static_cast<uint32_t>(m_push_constant_ranges.size() );
     pipeline_layout_create_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 
-    result_vk = vkCreatePipelineLayout(m_device_ptr->get_device_vk(),
-                                      &pipeline_layout_create_info,
-                                       nullptr, /* pAllocator */
-                                      &m_layout_vk);
+    result_vk = Anvil::Vulkan::vkCreatePipelineLayout(m_device_ptr->get_device_vk(),
+                                                     &pipeline_layout_create_info,
+                                                      nullptr, /* pAllocator */
+                                                     &m_layout_vk);
 
     anvil_assert_vk_call_succeeded(result_vk);
     if (is_vk_call_successful(result_vk))

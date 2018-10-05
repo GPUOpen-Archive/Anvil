@@ -109,8 +109,9 @@ namespace Anvil
                 bool init();
 
                 /* Private variables */
-                VmaAllocator             m_allocator;
-                const Anvil::BaseDevice* m_device_ptr;
+                VmaAllocator                        m_allocator;
+                const Anvil::BaseDevice*            m_device_ptr;
+                std::unique_ptr<VmaVulkanFunctions> m_vma_func_ptrs;
 
                 std::vector<std::shared_ptr<VMAAllocator> > m_refcount_helper;
             };
@@ -134,8 +135,8 @@ namespace Anvil
             void     unmap                           (void*                                       in_memory_object);
 
             /* Private variables */
-            const Anvil::BaseDevice*      m_device_ptr;
-            std::shared_ptr<VMAAllocator> m_vma_allocator_ptr;
+            const Anvil::BaseDevice*            m_device_ptr;
+            std::shared_ptr<VMAAllocator>       m_vma_allocator_ptr;
         };
     };
 };

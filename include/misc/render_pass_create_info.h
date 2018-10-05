@@ -161,6 +161,8 @@ namespace Anvil
 
         /** Adds a new external->subpass dependency to the internal data model.
          *
+         *  NOTE: @param in_dependency_flags must NOT include Anvil::DependencyFlagBits::VIEW_LOCAL_BIT.
+         *
          *  @param in_destination_subpass_id  ID of the destination subpass. The subpass must have been
          *                                    created earlier with an add_subpass() call.
          *  @param in_source_stage_mask       Source pipeline stage mask.
@@ -180,6 +182,10 @@ namespace Anvil
                                                 Anvil::DependencyFlags    in_dependency_flags);
 
         /** Adds a new self-subpass dependency to the internal data model.
+         *
+         *  NOTE: If @param in_dependency_flags includes Anvil::DependencyFlagBits::VIEW_LOCAL_BIT, you must
+         *        also call set_dependency_view_local_properties() to define the src<->dst view index relationship
+         *        for the subpass.
          *
          *  @param in_destination_subpass_id  ID of the subpass to create the dep for. The subpass must have been
          *                                    created earlier with an add_subpass() call.
@@ -201,6 +207,8 @@ namespace Anvil
 
         /** Adds a new subpass->external dependency to the internal data model.
          *
+         *  NOTE: @param in_dependency_flags must NOT include Anvil::DependencyFlagBits::VIEW_LOCAL_BIT.
+         *
          *  @param in_source_subpass_id       ID of the source subpass. The subpass must have been
          *                                    created earlier with an add_subpass() call.
          *  @param in_source_stage_mask       Source pipeline stage mask.
@@ -219,6 +227,10 @@ namespace Anvil
                                                 Anvil::DependencyFlags    in_dependency_flags);
 
         /** Adds a new subpass->subpass dependency to the internal data model.
+         *
+         *  NOTE: If @param in_dependency_flags includes Anvil::DependencyFlagBits::VIEW_LOCAL_BIT, you must
+         *        also call set_dependency_view_local_properties() to define the src<->dst view index relationship
+         *        for the subpass.
          *
          *  @param in_source_subpass_id       ID of the source subpass. The subpass must have been
          *                                    created earlier with an add_subpass() call.
@@ -304,6 +316,19 @@ namespace Anvil
                                        Anvil::AccessFlags*        out_source_access_mask_ptr,
                                        DependencyFlags*           out_flags_ptr) const;
 
+        /* Returns the view offset associated with a given dependency. For view-global dependencies, zero will be returned.
+         *
+         * This function should only be called if is_multiview_enabled() returns true.
+         *
+         * @param in_n_dependency     Index of the dependency to use for the query.
+         * @param out_view_offset_ptr If the function returns true, deref will be set to the view offset associated with the dependency.
+         *                            Must not be nullptr.
+         *
+         * @return true if successful, false otherwise.
+         **/
+        bool get_dependency_multiview_properties(uint32_t in_n_dependency,
+                                                 int32_t* out_view_offset_ptr) const;
+
         /** Retrieves properties of the render pass color attachment with the user-specified ID
          *
          *  @param in_attachment_id             ID of the attachment to retrieve properties of.
@@ -348,6 +373,18 @@ namespace Anvil
          * @return As per description.
          **/
         uint32_t get_max_color_location_used_by_subpass(const SubPassID& in_subpass_id) const;
+
+        /* Returns the correlation masks specified for the renderpass.
+         *
+         * This function should only be called if is_multiview_enabled() returns true.
+         *
+         * @param out_n_correlation_masks_ptr   Deref will be set to the number of uint32s available for reading under *out_correlation_masks_ptr_ptr
+         *                                      after the function leaves. Must not be nullptr.
+         * @param out_correlation_masks_ptr_ptr Deref will be set to a pointer to an array of uint32s holding correlation masks. Must nto be nullptr.
+         *
+         **/
+        void get_multiview_correlation_masks(uint32_t*        out_n_correlation_masks_ptr,
+                                             const uint32_t** out_correlation_masks_ptr_ptr) const;
 
         /** Returns the number of added attachments */
         uint32_t get_n_attachments() const
@@ -399,10 +436,74 @@ namespace Anvil
                                        AttachmentType in_attachment_type,
                                        uint32_t*      out_n_attachments_ptr) const;
 
+        /* Returns the view mask associated with a given subpass.
+         *
+         * This function should only be called if is_multiview_enabled() returns true.
+         *
+         * @param in_subpass_id     ID of the subpass to use for the query.
+         * @param out_view_mask_ptr If the function returns true, deref will be set to the view mask associated with the subpass.
+         *                          Must not be nullptr.
+         *
+         * @return true if successful, false otherwise.
+         **/
+        bool get_subpass_view_mask(SubPassID in_subpass_id,
+                                   uint32_t* out_view_mask_ptr) const;
+
+        /* Tells whether the renderpass uses multiview functionality. */
+        bool is_multiview_enabled() const
+        {
+            return m_multiview_enabled;
+        }
+
+        /* Specifies correlation mask(s) for the renderpass.
+         *
+         *  If multiview is not already enabled for the renderpass, calling this function enables the functionality.
+         *
+         *  Requires VK_KHR_multiview.
+         *
+         *  @param in_n_correlation_masks   Number of masks available for reading under @param in_correlation_masks_ptr.
+         *                                  Must not be 0.
+         *  @param in_correlation_masks_ptr Correlation masks to use for the renderpass. Please read VK_KHR_multiview spec
+         *                                  for more details.
+         */
+        void set_correlation_masks(const uint32_t& in_n_correlation_masks,
+                                   const uint32_t* in_correlation_masks_ptr);
+
+        /** Specifies a view offset to use for a view-local dependency.
+         *
+         *  If multiview is not already enabled for the renderpass, calling this function enables the functionality.
+         *
+         *  Requires VK_KHR_multiview.
+         *
+         *  @param in_subpass_id  ID of the subpass to use.
+         *  @param in_view_offset View offset to use for a view-local dependency defined at index @param in_n_dependency. Must not be zero
+         *                        for self-dependencies.
+         *
+         *  @return true if successful, false otherwise.
+         */
+        bool set_dependency_view_local_properties(const uint32_t& in_n_dependency,
+                                                  const int32_t&  in_view_offset);
+
         void set_device_ptr(const Anvil::BaseDevice* in_device_ptr)
         {
             m_device_ptr = in_device_ptr;
         }
+
+        /** Specifies the view mask for a subpass associated with ID @param in_subpass_id.
+         *
+         *  If multiview is not already enabled for the renderpass, calling this function enables the functionality.
+         *  The implication is the application needs to set the view mask for all subpasses defined for the renderpass,
+         *  before the create info structure can be passed over to Anvil::RenderPass.
+         *
+         *  Requires VK_KHR_multiview.
+         *
+         *  @param in_subpass_id ID of the subpass to use.
+         *  @param in_view_mask  View mask to use for the subpass. Please consult VK_KHR_multiview spec for more details.
+         *
+         *  @return true if successful, false otherwise.
+         */
+        bool set_subpass_view_mask(SubPassID       in_subpass_id,
+                                   const uint32_t& in_view_mask);
 
     private:
         /* Private type definitions */
@@ -572,6 +673,7 @@ namespace Anvil
             LocationToSubPassAttachmentMap color_attachments_map;
             SubPassAttachment              depth_stencil_attachment;
             uint32_t                       index;
+            uint32_t                       multiview_view_mask;
             LocationToSubPassAttachmentMap input_attachments_map;
             SubPassAttachmentVector        preserved_attachments;
             LocationToSubPassAttachmentMap resolved_attachments_map;
@@ -597,7 +699,8 @@ namespace Anvil
             /** Dummy constructor. This should only be used by STL containers */
             SubPass()
             {
-                index = UINT32_MAX;
+                index               = UINT32_MAX;
+                multiview_view_mask = 0;
             }
 
             /** Constructor.
@@ -607,7 +710,8 @@ namespace Anvil
              **/
             SubPass(uint32_t in_index)
             {
-                index = in_index;
+                index               = in_index;
+                multiview_view_mask = 0;
             }
 
             /* Destructor */
@@ -657,6 +761,8 @@ namespace Anvil
             const SubPass*  destination_subpass_ptr;
             const SubPass*  source_subpass_ptr;
 
+            int32_t multiview_view_offset;
+
             /** Constructor.
              *
              *  @param in_destination_stage_mask  Destination pipeline stage mask.
@@ -677,10 +783,11 @@ namespace Anvil
                               Anvil::AccessFlags        in_destination_access_mask,
                               const DependencyFlags&    in_flags)
             {
-                flags                   = in_flags;
                 destination_stage_mask  = in_destination_stage_mask;
                 destination_subpass_ptr = in_destination_subpass_ptr;
                 destination_access_mask = in_destination_access_mask;
+                flags                   = in_flags;
+                multiview_view_offset   = INT32_MAX;
                 source_access_mask      = in_source_access_mask;
                 source_stage_mask       = in_source_stage_mask;
                 source_subpass_ptr      = in_source_subpass_ptr;
@@ -690,16 +797,18 @@ namespace Anvil
             SubPassDependency()
             {
                 destination_subpass_ptr = nullptr;
+                multiview_view_offset   = INT32_MAX;
                 source_subpass_ptr      = nullptr;
             }
 
             /** Comparator operator */
             bool operator==(const SubPassDependency& in)
             {
-                return in.flags                   == flags                   &&
-                       in.destination_access_mask == destination_access_mask &&
+                return in.destination_access_mask == destination_access_mask &&
                        in.destination_stage_mask  == destination_stage_mask  &&
                        in.destination_subpass_ptr == destination_subpass_ptr &&
+                       in.flags                   == flags                   &&
+                       in.multiview_view_offset   == multiview_view_offset   &&
                        in.source_access_mask      == source_access_mask      &&
                        in.source_stage_mask       == source_stage_mask       &&
                        in.source_subpass_ptr      == source_subpass_ptr;
@@ -736,7 +845,9 @@ namespace Anvil
 
         /* Private variables */
         RenderPassAttachments    m_attachments;
+        std::vector<uint32_t>    m_correlation_masks;
         const Anvil::BaseDevice* m_device_ptr;
+        bool                     m_multiview_enabled;
         SubPasses                m_subpasses;
         SubPassDependencies      m_subpass_dependencies;
         mutable bool             m_update_preserved_attachments;

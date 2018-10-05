@@ -116,6 +116,17 @@ namespace Anvil
          **/
         Anvil::DescriptorSetLayout* get_dummy_descriptor_set_layout() const;
 
+        /** Returns a container with entry-points to functions introduced by VK_AMD_buffer_marker extension.
+         *
+         *  Will fire an assertion failure if the extension was not requested at device creation time.
+         **/
+        const ExtensionAMDBufferMarkerEntrypoints& get_extension_amd_buffer_marker_entrypoints() const
+        {
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->amd_buffer_marker() );
+
+            return m_amd_buffer_marker_extension_entrypoints;
+        }
+
         /** Returns a container with entry-points to functions introduced by VK_AMD_draw_indirect_count  extension.
          *
          *  Will fire an assertion failure if the extension was not requested at device creation time.
@@ -148,6 +159,34 @@ namespace Anvil
 
             return m_ext_debug_marker_extension_entrypoints;
         }
+
+        /** Returns a container with entry-points to functions introduced by VK_EXT_external_memory_host extension.
+         *
+         *  Will fire an assertion failure if the extension is not supported.
+         **/
+        const ExtensionEXTExternalMemoryHostEntrypoints& get_extension_ext_external_memory_host_entrypoints() const
+        {
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->ext_external_memory_host() );
+
+            return m_ext_external_memory_host_extension_entrypoints;
+        }
+
+        /** Returns a container with entry-points to functions introduced by VK_EXT_hdr_metadata extension.
+         *
+         *  Will fire an assertion failure if the extension is not supported.
+         **/
+        const ExtensionEXTHdrMetadataEntrypoints& get_extension_ext_hdr_metadata_entrypoints() const
+        {
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->ext_hdr_metadata() );
+
+            return m_ext_hdr_metadata_extension_entrypoints;
+        }
+
+        /** Returns a container with entry-points to functions introduced by VK_EXT_sample_locations extension.
+         *
+         *  Will fire an assertion failure if the extension is not supported.
+         **/
+        const ExtensionEXTSampleLocationsEntrypoints& get_extension_ext_sample_locations_entrypoints() const;
 
         /** Returns a container with entry-points to functions introduced by VK_KHR_bind_memory2 extension. **/
         const ExtensionKHRBindMemory2Entrypoints& get_extension_khr_bind_memory2_entrypoints() const
@@ -364,6 +403,13 @@ namespace Anvil
          **/
         virtual const Anvil::MemoryProperties& get_physical_device_memory_properties() const = 0;
 
+        /** Returns multisample properties as reported for physical device(s) which have been used
+         *  to instantiate this logical device instance.
+         *
+         * Requires VK_EXT_sample_locations
+         */
+        virtual Anvil::MultisamplePropertiesEXT get_physical_device_multisample_properties(const Anvil::SampleCountFlagBits& in_samples) const = 0;
+
         /** Returns general physical device properties, as reported by physical device(s) which have been used
          *  to instantiate this logical device instance.
          **/
@@ -431,8 +477,8 @@ namespace Anvil
          **/
         PFN_vkVoidFunction get_proc_address(const char* in_name) const
         {
-            return vkGetDeviceProcAddr(m_device,
-                                       in_name);
+            return Anvil::Vulkan::vkGetDeviceProcAddr(m_device,
+                                                      in_name);
         }
 
         PFN_vkVoidFunction get_proc_address(const std::string& in_name) const
@@ -505,15 +551,23 @@ namespace Anvil
 
         /* Tells which memory types can be specified when creating an external memory handle for a Win32 handle @param in_handle
          *
-         * Requires VK_KHR_external_memory_Fd    under Windows.
-         * Requires VK_KHR_external_memory_win32 under Windows.
+         * For all external memory handle types EXCEPT host pointers:
+         * + Requires VK_KHR_external_memory_Fd    under Linux.
+         * + Requires VK_KHR_external_memory_win32 under Windows
+         *
+         * For host pointers:
+         * + Requires VK_EXT_external_memory_host.
          *
          * @return true if successful, false otherwise.
          *
          *
-         * @param in_external_handle_type            (Windows) must be either Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_WIN32_BIT or
-         *                                                     Anvil::ExternalMemoryHandleTypeFlagBits::WIN32_KMT_BIT.
-         *                                           (Linux)   must be Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_FD_BIT.
+         * @param in_external_handle_type            (Host pointers) Must be Anvil::ExternalMemoryHandleTypeFlagBits::HOST_ALLOCATION_BIT_EXT or
+         *                                                           Anvil::ExternalMemoryHandleTypeFlagBits::HOST_MAPPED_FOREIGN_MEMORY_BIT_EXT.
+         *
+         *                                           (Other) (Windows) must be either Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_WIN32_BIT or
+         *                                                             Anvil::ExternalMemoryHandleTypeFlagBits::WIN32_KMT_BIT.
+         *                                                   (Linux)   must be Anvil::ExternalMemoryHandleTypeFlagBits::OPAQUE_FD_BIT.
+         *
          * @param out_supported_memory_type_bits_ptr Deref will be set to a set of bits where each index corresponds to support status
          *                                           of a memory type with corresponding index. Must not be null.
          */
@@ -668,9 +722,13 @@ namespace Anvil
         /* Protected variables */
         VkDevice m_device;
 
+        ExtensionAMDBufferMarkerEntrypoints               m_amd_buffer_marker_extension_entrypoints;
         ExtensionAMDDrawIndirectCountEntrypoints          m_amd_draw_indirect_count_extension_entrypoints;
         ExtensionAMDShaderInfoEntrypoints                 m_amd_shader_info_extension_entrypoints;
         ExtensionEXTDebugMarkerEntrypoints                m_ext_debug_marker_extension_entrypoints;
+        ExtensionEXTExternalMemoryHostEntrypoints         m_ext_external_memory_host_extension_entrypoints;
+        ExtensionEXTHdrMetadataEntrypoints                m_ext_hdr_metadata_extension_entrypoints;
+        ExtensionEXTSampleLocationsEntrypoints            m_ext_sample_locations_extension_entrypoints;
         ExtensionKHRBindMemory2Entrypoints                m_khr_bind_memory2_extension_entrypoints;
         ExtensionKHRDescriptorUpdateTemplateEntrypoints   m_khr_descriptor_update_template_extension_entrypoints;
         ExtensionKHRDeviceGroupEntrypoints                m_khr_device_group_extension_entrypoints;
@@ -749,6 +807,7 @@ namespace Anvil
          *  @param in_parent_surface_ptr Rendering surface to create the swapchain for. Must not be nullptr.
          *  @param in_window_ptr         current window to create the swapchain for. Must not be nullptr.
          *  @param in_image_format       Format which the swap-chain should use.
+         *  @param in_color_space        TODO
          *  @param in_present_mode       Presentation mode which the swap-chain should use.
          *  @param in_usage              Image usage flags describing how the swap-chain is going to be used.
          *  @param in_n_swapchain_images Number of images the swap-chain should use.
@@ -758,6 +817,7 @@ namespace Anvil
         Anvil::SwapchainUniquePtr create_swapchain(Anvil::RenderingSurface* in_parent_surface_ptr,
                                                    Anvil::Window*           in_window_ptr,
                                                    Anvil::Format            in_image_format,
+                                                   Anvil::ColorSpaceKHR     in_color_space,
                                                    Anvil::PresentModeKHR    in_present_mode,
                                                    ImageUsageFlags          in_usage,
                                                    uint32_t                 in_n_swapchain_images);
@@ -787,6 +847,9 @@ namespace Anvil
 
         bool get_physical_device_image_format_properties(const ImageFormatPropertiesQuery& in_query,
                                                          Anvil::ImageFormatProperties*     out_opt_result_ptr = nullptr) const override;
+
+        /** See documentation in BaseDevice for more details */
+        Anvil::MultisamplePropertiesEXT get_physical_device_multisample_properties(const Anvil::SampleCountFlagBits& in_samples) const override;
 
         /** See documentation in BaseDevice for more details */
         const Anvil::MemoryProperties& get_physical_device_memory_properties() const override;
@@ -863,6 +926,7 @@ namespace Anvil
         Anvil::SwapchainUniquePtr create_swapchain(Anvil::RenderingSurface*           in_parent_surface_ptr,
                                                    Anvil::Window*                     in_window_ptr,
                                                    Anvil::Format                      in_image_format,
+                                                   Anvil::ColorSpaceKHR               in_color_space,
                                                    Anvil::PresentModeKHR              in_present_mode,
                                                    ImageUsageFlags                    in_usage,
                                                    uint32_t                           in_n_swapchain_images,
@@ -910,6 +974,9 @@ namespace Anvil
 
         /** TODO */
         const Anvil::MemoryProperties& get_physical_device_memory_properties() const override;
+
+        /** See documentation in BaseDevice for more details */
+        Anvil::MultisamplePropertiesEXT get_physical_device_multisample_properties(const Anvil::SampleCountFlagBits& in_samples) const override;
 
         /** TODO */
         const Anvil::PhysicalDeviceProperties& get_physical_device_properties() const override;

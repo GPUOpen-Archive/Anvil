@@ -254,6 +254,7 @@ namespace Anvil
          * Under Windows, if @param in_name is zero-sized, <name> member of the VkImportMemoryWin32HandleInfoKHR struct, as chained to the VkMemoryAllocateInfo struct chain,
          * will be set to nullptr.
          *
+         * NOTE: This function MUST NOT be used for importing host pointers. Please use the other set_external_handle_import_info() function instead.
          * NOTE: For NT handles, you also need to call set_external_nt_handle_import_info().
          *
          * Requires VK_KHR_external_memory_fd    under Windows.
@@ -276,6 +277,21 @@ namespace Anvil
             }
             #endif
 
+            m_external_handle_import_info_specified = true;
+        }
+
+        /* Lets the app specify imported handle details.
+         *
+         * NOTE: This function MUST NOT be used for importing handles other than host pointers. Please use the other set_external_handle_import_info() function instead.
+         *
+         * Requires VK_EXT_external_memory_host.
+         */
+        void set_external_handle_import_info(void* in_host_pointer)
+        {
+            anvil_assert(!m_external_handle_import_info_specified);
+            anvil_assert( in_host_pointer                         != nullptr);
+
+            m_external_handle_import_info.host_ptr  = in_host_pointer;
             m_external_handle_import_info_specified = true;
         }
 
