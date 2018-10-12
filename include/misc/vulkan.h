@@ -19,6 +19,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
+#ifndef MISC_VULKAN_H
+#define MISC_VULKAN_H
+
 #include <config.h>
 #include "vulkan/vulkan.h"
 
@@ -173,3 +176,5 @@ namespace Anvil
         /* Func pointers to extensions are exposed to apps via relevant functions implemented by Anvil::*Device and Anvil::Instance. */
     }
 }
+
+#endif /* MISC_VULKAN_H */
