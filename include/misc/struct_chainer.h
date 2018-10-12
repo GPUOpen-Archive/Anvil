@@ -100,7 +100,8 @@ namespace Anvil
     public:
         /* Public functions */
          StructChainer()
-             :m_structs_size(0)
+             :m_helper_structs_size(0),
+              m_structs_size       (0)
          {
              /* Stub */
          }
@@ -138,10 +139,47 @@ namespace Anvil
             return pre_call_structs_size;
         }
 
+        template<typename HelperStructType>
+        void store_helper_structure(const HelperStructType& in_helper_struct,
+                                    const StructID&         in_referring_struct,
+                                    const uint32_t&         in_referring_struct_pnext_ptr_offset)
+        {
+            anvil_assert(m_structs.size() >  in_referring_struct);
+            anvil_assert(m_structs.size() >= in_referring_struct + in_referring_struct_pnext_ptr_offset + sizeof(void*) );
+
+            m_helper_structs.push_back(
+                HelperStruct(&in_helper_struct,
+                             sizeof(in_helper_struct),
+                             in_referring_struct,
+                            in_referring_struct_pnext_ptr_offset)
+            );
+
+            m_helper_structs_size += static_cast<uint32_t>(sizeof(in_helper_struct) );
+        }
+
+        template<typename HelperStructType>
+        void store_helper_structure_vector(const std::vector<HelperStructType>& in_helper_struct_vec,
+                                           const StructID&                      in_referring_struct,
+                                           const uint32_t&                      in_referring_struct_pnext_ptr_offset)
+        {
+            /* Convert the input vector to a single entry */
+            anvil_assert(in_helper_struct_vec.size() > 0);
+
+            m_helper_structs.push_back(
+                HelperStruct(&in_helper_struct_vec.at(0),
+                              static_cast<uint32_t>(in_helper_struct_vec.size() ) * sizeof(HelperStructType),
+                              in_referring_struct,
+                              in_referring_struct_pnext_ptr_offset)
+            );
+
+            m_helper_structs_size += static_cast<uint32_t>(in_helper_struct_vec.size() ) * sizeof(HelperStructType);
+        }
+
         std::unique_ptr<StructChain<StructType> > create_chain() const
         {
-            size_t                                    n_bytes_used = 0;
-            const uint32_t                            n_structs    = static_cast<uint32_t>(m_structs.size() );
+            size_t                                    n_bytes_used     = 0;
+            const uint32_t                            n_helper_structs = static_cast<uint32_t>(m_helper_structs.size() );
+            const uint32_t                            n_structs        = static_cast<uint32_t>(m_structs.size       () );
             std::unique_ptr<StructChain<StructType> > result_ptr;
 
             /* Sanity checks */
@@ -154,7 +192,7 @@ namespace Anvil
 
             /* Allocate the result instance */
             result_ptr.reset(
-                new StructChain<StructType>(m_structs_size)
+                new StructChain<StructType>(m_structs_size + m_helper_structs_size)
             );
 
             if (result_ptr == nullptr)
@@ -188,6 +226,25 @@ namespace Anvil
                 n_bytes_used += current_struct_data_size;
             }
 
+            for (uint32_t n_helper_struct = 0;
+                          n_helper_struct < n_helper_structs;
+                        ++n_helper_struct)
+            {
+                const auto& current_helper_struct_props     = m_helper_structs.at(n_helper_struct);
+                const auto& current_helper_struct_data      = current_helper_struct_props.data;
+                const auto  current_helper_struct_data_size = current_helper_struct_data.size();
+
+                /* Cache helper structure data */
+                memcpy(&result_ptr->raw_data.at(n_bytes_used),
+                       &current_helper_struct_data.at(0),
+                        current_helper_struct_data_size);
+
+                /* Patch the field of the referring struct so that it points to the helper structure we cache locally */
+                *reinterpret_cast<void**>(&result_ptr->raw_data.at(current_helper_struct_props.referring_struct_id + current_helper_struct_props.referring_struct_ptr_offset) ) = &result_ptr->raw_data.at(n_bytes_used);
+
+                n_bytes_used += current_helper_struct_data_size;
+            }
+
             result_ptr->root_struct_ptr = reinterpret_cast<StructType*>(&result_ptr->raw_data.at(0) );
 
             /* Done. */
@@ -217,7 +274,34 @@ namespace Anvil
         }
 
     private:
+        /* Private type definitions */
+        typedef struct HelperStruct
+        {
+            std::vector<uint8_t> data;
+            StructID             referring_struct_id;
+            uint32_t             referring_struct_ptr_offset;
+
+            HelperStruct(const void*     in_data_ptr,
+                         const uint32_t& in_data_size,
+                         const StructID& in_referring_struct_id,
+                         const uint32_t& in_referring_struct_ptr_offset)
+                :referring_struct_id        (in_referring_struct_id),
+                 referring_struct_ptr_offset(in_referring_struct_ptr_offset)
+            {
+                anvil_assert(in_data_ptr  != nullptr);
+                anvil_assert(in_data_size != 0);
+
+                data.resize(in_data_size);
+
+                memcpy(&data.at(0),
+                       in_data_ptr,
+                       in_data_size);
+            }
+        } HelperStruct;
+
         /* Private functions */
+        std::vector<HelperStruct>          m_helper_structs;
+        uint32_t                           m_helper_structs_size;
         std::vector<std::vector<uint8_t> > m_structs;
         uint32_t                           m_structs_size;
     };
