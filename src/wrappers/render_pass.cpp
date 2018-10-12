@@ -190,19 +190,22 @@ bool Anvil::RenderPass::init()
 
         #if defined(_DEBUG)
         {
-            if (dependency_vk.dstSubpass == dependency_vk.srcSubpass &&
-                dependency_vk.dstSubpass != VK_SUBPASS_EXTERNAL)
+            if (m_render_pass_create_info_ptr->is_multiview_enabled() )
             {
-                uint32_t n_views_active = 0;
-                uint32_t view_mask      = 0;
+                if (dependency_vk.dstSubpass == dependency_vk.srcSubpass &&
+                    dependency_vk.dstSubpass != VK_SUBPASS_EXTERNAL)
+                {
+                    uint32_t n_views_active = 0;
+                    uint32_t view_mask      = 0;
 
-                m_render_pass_create_info_ptr->get_subpass_view_mask(dependency_vk.dstSubpass,
-                                                                    &view_mask);
+                    m_render_pass_create_info_ptr->get_subpass_view_mask(dependency_vk.dstSubpass,
+                                                                        &view_mask);
 
-                n_views_active = Anvil::Utils::count_set_bits(view_mask);
+                    n_views_active = Anvil::Utils::count_set_bits(view_mask);
 
-                anvil_assert( (n_views_active <= 1)                                                                         ||
-                             ((n_views_active >  1 && (dependency_vk.dependencyFlags & VK_DEPENDENCY_VIEW_LOCAL_BIT) != 0)) );
+                    anvil_assert( (n_views_active <= 1)                                                                         ||
+                                 ((n_views_active >  1 && (dependency_vk.dependencyFlags & VK_DEPENDENCY_VIEW_LOCAL_BIT) != 0)) );
+                }
             }
         }
         #endif

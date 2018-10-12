@@ -356,9 +356,9 @@ namespace Anvil
     /* NOTE: These map 1:1 to VK equivalents */
     enum class BufferCreateFlagBits
     {
+        SPARSE_ALIASED_BIT   = VK_BUFFER_CREATE_SPARSE_ALIASED_BIT,
         SPARSE_BINDING_BIT   = VK_BUFFER_CREATE_SPARSE_BINDING_BIT,
         SPARSE_RESIDENCY_BIT = VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT,
-        SPARSE_ALIASED_BIT   = VK_BUFFER_CREATE_SPARSE_ALIASED_BIT,
 
         NONE = 0
     };
@@ -368,10 +368,9 @@ namespace Anvil
 
     enum class BufferType
     {
-        NONSPARSE_ALLOC,
-        NONSPARSE_NO_ALLOC,
-        NONSPARSE_NO_ALLOC_CHILD,
-        SPARSE_NO_ALLOC,
+        ALLOC,
+        NO_ALLOC,
+        NO_ALLOC_CHILD,
     };
 
     /* NOTE: These map 1:1 to Vulkan equialents */
@@ -1017,15 +1016,19 @@ namespace Anvil
     /* NOTE: These map 1:1 to VK equivalents */
     enum class ImageCreateFlagBits
     {
-        MUTABLE_FORMAT_BIT      = VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT,
-        CUBE_COMPATIBLE_BIT     = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
+        /* Core VK 1.0 stuff */
+        CUBE_COMPATIBLE_BIT  = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
+        MUTABLE_FORMAT_BIT   = VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT,
+        SPARSE_ALIASED_BIT   = VK_IMAGE_CREATE_SPARSE_ALIASED_BIT,
+        SPARSE_BINDING_BIT   = VK_IMAGE_CREATE_SPARSE_BINDING_BIT,
+        SPARSE_RESIDENCY_BIT = VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT,
 
         /* NOTE: Requires VK_EXT_sample_locations */
         SAMPLE_LOCATIONS_COMPATIBLE_DEPTH_BIT_EXT = VK_IMAGE_CREATE_SAMPLE_LOCATIONS_COMPATIBLE_DEPTH_BIT_EXT,
 
         /* NOTE: Requires VK_KHR_bind_memory2 */
-        SPLIT_INSTANCE_BIND_REGIONS_BIT = VK_IMAGE_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT_KHR,
         ALIAS_BIT                       = VK_IMAGE_CREATE_ALIAS_BIT_KHR,
+        SPLIT_INSTANCE_BIND_REGIONS_BIT = VK_IMAGE_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT_KHR,
 
         /* NOTE: Requires VK_KHR_maintenance1 */
         _2D_ARRAY_COMPATIBLE_BIT = VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT_KHR,
@@ -1099,10 +1102,9 @@ namespace Anvil
 
     enum class ImageInternalType
     {
-        NONSPARSE_ALLOC,
-        NONSPARSE_NO_ALLOC,
-        NONSPARSE_PEER_NO_ALLOC,
-        SPARSE_NO_ALLOC,
+        ALLOC,
+        NO_ALLOC,
+        PEER_NO_ALLOC,
         SWAPCHAIN_WRAPPER
     };
 
@@ -1644,20 +1646,6 @@ namespace Anvil
     typedef Anvil::Bitfield<Anvil::SparseMemoryBindFlagBits, VkSparseMemoryBindFlags> SparseMemoryBindFlags;
 
     INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(SparseMemoryBindFlags, VkSparseMemoryBindFlags, SparseMemoryBindFlagBits)
-
-    enum class SparseResidencyScope
-    {
-        /* Support sparse binding only */
-        NONE,
-
-        /* Support sparse residency, do not support sparse aliased residency */
-        NONALIASED,
-
-        /* Support sparse aliased residency */
-        ALIASED,
-
-        UNKNOWN
-    };
 
     /* NOTE: These map 1:1 to VK equivalents */
     enum class StencilFaceFlagBits

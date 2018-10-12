@@ -172,10 +172,9 @@ Anvil::ImageUniquePtr Anvil::Image::create(Anvil::ImageCreateInfoUniquePtr in_cr
 
         switch (image_type)
         {
-            case Anvil::ImageInternalType::NONSPARSE_ALLOC:
-            case Anvil::ImageInternalType::NONSPARSE_NO_ALLOC:
-            case Anvil::ImageInternalType::NONSPARSE_PEER_NO_ALLOC:
-            case Anvil::ImageInternalType::SPARSE_NO_ALLOC:
+            case Anvil::ImageInternalType::ALLOC:
+            case Anvil::ImageInternalType::NO_ALLOC:
+            case Anvil::ImageInternalType::PEER_NO_ALLOC:
             {
                 if (!result_ptr->init() )
                 {
@@ -212,7 +211,7 @@ Anvil::ImageUniquePtr Anvil::Image::create(Anvil::ImageCreateInfoUniquePtr in_cr
             }
         }
 
-        if (image_type == Anvil::ImageInternalType::NONSPARSE_PEER_NO_ALLOC)
+        if (image_type == Anvil::ImageInternalType::PEER_NO_ALLOC)
         {
             const auto&           physical_devices        = result_ptr->m_create_info_ptr->get_physical_devices();
             const auto            n_physical_devices      = static_cast<uint32_t>(physical_devices.size() );
@@ -290,7 +289,8 @@ bool Anvil::Image::do_sanity_checks_for_sfr_binding(uint32_t        in_n_SFR_rec
     const Anvil::SparseImageFormatProperties*       sparse_image_format_props_ptr(nullptr);
     std::vector<Anvil::SparseImageFormatProperties> sparse_image_format_props_vec;
 
-    anvil_assert(m_create_info_ptr->get_internal_type() != Anvil::ImageInternalType::SPARSE_NO_ALLOC);
+    anvil_assert( m_create_info_ptr->get_internal_type()                                                   == Anvil::ImageInternalType::NO_ALLOC &&
+                 (m_create_info_ptr->get_create_flags () & Anvil::ImageCreateFlagBits::SPARSE_BINDING_BIT) == 0);
     anvil_assert(m_mipmaps.size                      () >  0);
     anvil_assert(m_memory_blocks_owned.size          () == 0);
 
@@ -398,7 +398,7 @@ bool Anvil::Image::get_aspect_subresource_layout(Anvil::ImageAspectFlagBits in_a
 Anvil::MemoryBlock* Anvil::Image::get_memory_block()
 {
     bool       is_callback_needed = false;
-    const auto is_sparse          = (m_create_info_ptr->get_internal_type() == Anvil::ImageInternalType::SPARSE_NO_ALLOC);
+    const auto is_sparse          = (m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_BINDING_BIT) != 0;
 
     if (is_sparse)
     {
@@ -425,7 +425,7 @@ Anvil::MemoryBlock* Anvil::Image::get_memory_block()
 
     if (is_sparse)
     {
-        if (m_create_info_ptr->get_residency_scope() == Anvil::SparseResidencyScope::NONE)
+        if ((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_RESIDENCY_BIT) == 0)
         {
             anvil_assert(m_page_tracker_ptr != nullptr);
 
@@ -451,7 +451,6 @@ Anvil::MemoryBlock* Anvil::Image::get_memory_block()
 bool Anvil::Image::init()
 {
     std::vector<Anvil::ImageAspectFlags>    aspects_used;
-    Anvil::ImageCreateFlags                 image_flags              = m_create_info_ptr->get_create_flags();
     Anvil::ImageFormatProperties            image_format_props;
     const auto                              memory_features          = m_create_info_ptr->get_memory_features();
     uint32_t                                n_queue_family_indices   = 0;
@@ -549,22 +548,6 @@ bool Anvil::Image::init()
         anvil_assert(m_device_ptr->get_extension_info()->khr_bind_memory2() );
     }
 
-    if (m_create_info_ptr->get_internal_type() == Anvil::ImageInternalType::SPARSE_NO_ALLOC)
-    {
-        /* Convert residency scope to Vulkan image create flags */
-        switch (m_create_info_ptr->get_residency_scope() )
-        {
-            case Anvil::SparseResidencyScope::ALIASED:    image_flags |= static_cast<Anvil::ImageCreateFlagBits>(VK_IMAGE_CREATE_SPARSE_ALIASED_BIT | VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT | VK_IMAGE_CREATE_SPARSE_BINDING_BIT); break;
-            case Anvil::SparseResidencyScope::NONALIASED: image_flags |= static_cast<Anvil::ImageCreateFlagBits>(                                     VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT | VK_IMAGE_CREATE_SPARSE_BINDING_BIT); break;
-            case Anvil::SparseResidencyScope::NONE:       image_flags |= static_cast<Anvil::ImageCreateFlagBits>(                                     VK_IMAGE_CREATE_SPARSE_BINDING_BIT); break;
-
-            default:
-            {
-                anvil_assert_fail();
-            }
-        }
-    }
-
     {
         const auto max_dimension = std::max(std::max(m_create_info_ptr->get_base_mip_depth(),
                                                      m_create_info_ptr->get_base_mip_height() ),
@@ -581,7 +564,7 @@ bool Anvil::Image::init()
         image_create_info.extent.depth          = m_create_info_ptr->get_base_mip_depth ();
         image_create_info.extent.height         = m_create_info_ptr->get_base_mip_height();
         image_create_info.extent.width          = m_create_info_ptr->get_base_mip_width ();
-        image_create_info.flags                 = image_flags.get_vk();
+        image_create_info.flags                 = m_create_info_ptr->get_create_flags   ().get_vk();
         image_create_info.format                = static_cast<VkFormat>     (m_create_info_ptr->get_format                  () );
         image_create_info.imageType             = static_cast<VkImageType>  (m_create_info_ptr->get_type                    () );
         image_create_info.initialLayout         = static_cast<VkImageLayout>(m_create_info_ptr->get_post_create_image_layout() );
@@ -626,7 +609,7 @@ bool Anvil::Image::init()
         {
             VkImageFormatListCreateInfoKHR image_format_list_create_info;
 
-            anvil_assert((image_flags & Anvil::ImageCreateFlagBits::MUTABLE_FORMAT_BIT) != 0);
+            anvil_assert((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::MUTABLE_FORMAT_BIT) != 0);
             anvil_assert(m_device_ptr->get_extension_info()->khr_image_format_list() );
 
             image_format_list_create_info.pNext           = nullptr;
@@ -751,8 +734,7 @@ bool Anvil::Image::init()
     /* Initialize mipmap props storage */
     init_mipmap_props();
 
-    if (m_create_info_ptr->get_residency_scope() == SparseResidencyScope::ALIASED    ||
-        m_create_info_ptr->get_residency_scope() == SparseResidencyScope::NONALIASED)
+    if ((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0)
     {
         uint32_t                                          n_reqs                  = 0;
         std::vector<Anvil::SparseImageMemoryRequirements> sparse_image_memory_reqs;
@@ -838,7 +820,7 @@ bool Anvil::Image::init()
         init_page_occupancy(sparse_image_memory_reqs);
     }
     else
-    if (m_create_info_ptr->get_residency_scope() == Anvil::SparseResidencyScope::NONE)
+    if ((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_BINDING_BIT) != 0)
     {
         m_page_tracker_ptr.reset(
             new Anvil::PageTracker(m_storage_size,
@@ -846,7 +828,7 @@ bool Anvil::Image::init()
         );
     }
 
-    if (m_create_info_ptr->get_internal_type() == Anvil::ImageInternalType::NONSPARSE_ALLOC)
+    if (m_create_info_ptr->get_internal_type() == Anvil::ImageInternalType::ALLOC)
     {
         /* Allocate memory for the image */
         Anvil::MemoryBlockUniquePtr memory_block_ptr;
@@ -886,7 +868,7 @@ bool Anvil::Image::init()
     }
 
     /* If the image has been initialized for SFR bindings, calculate & cache SFR tile size */
-    if ((image_flags & Anvil::ImageCreateFlagBits::SPLIT_INSTANCE_BIND_REGIONS_BIT) != 0)
+    if ((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPLIT_INSTANCE_BIND_REGIONS_BIT) != 0)
     {
         init_sfr_tile_size();
     }
@@ -901,8 +883,7 @@ end:
  **/
 void Anvil::Image::init_page_occupancy(const std::vector<Anvil::SparseImageMemoryRequirements>& in_memory_reqs)
 {
-    anvil_assert(m_create_info_ptr->get_residency_scope() != Anvil::SparseResidencyScope::NONE     &&
-                 m_create_info_ptr->get_residency_scope() != Anvil::SparseResidencyScope::UNKNOWN);
+    anvil_assert((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0);
 
     /* First, allocate space for an AspectPageOccupancyData instance for all aspects used by the image.
      *
@@ -1151,7 +1132,7 @@ Anvil::Image::~Image()
 /* Please see header for specification */
 const VkImage& Anvil::Image::get_image(const bool& in_bake_memory_if_necessary)
 {
-    if (m_create_info_ptr->get_internal_type() != Anvil::ImageInternalType::SPARSE_NO_ALLOC)
+    if ((m_create_info_ptr->get_create_flags () & Anvil::ImageCreateFlagBits::SPARSE_BINDING_BIT) == 0)
     {
         if (m_memory_blocks_owned.size() == 0 &&
             in_bake_memory_if_necessary)
@@ -1274,16 +1255,16 @@ bool Anvil::Image::get_sparse_image_aspect_properties(const Anvil::ImageAspectFl
     decltype(m_sparse_aspect_props)::const_iterator prop_iterator;
     bool                                            result = false;
 
-    if (m_create_info_ptr->get_internal_type() != Anvil::ImageInternalType::SPARSE_NO_ALLOC)
+    if (m_create_info_ptr->get_internal_type() != Anvil::ImageInternalType::NO_ALLOC)
     {
-        anvil_assert(m_create_info_ptr->get_internal_type() == Anvil::ImageInternalType::SPARSE_NO_ALLOC);
+        anvil_assert(m_create_info_ptr->get_internal_type() == Anvil::ImageInternalType::NO_ALLOC);
 
         goto end;
     }
 
-    if (m_create_info_ptr->get_residency_scope() == Anvil::SparseResidencyScope::NONE)
+    if ((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_RESIDENCY_BIT) == 0)
     {
-        anvil_assert(m_create_info_ptr->get_residency_scope() != Anvil::SparseResidencyScope::NONE);
+        anvil_assert((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0);
 
         goto end;
     }
@@ -1385,8 +1366,7 @@ bool Anvil::Image::has_aspects(const Anvil::ImageAspectFlags& in_aspects) const
     Anvil::ImageAspectFlags checked_aspects;
     bool                    result          = true;
 
-    if (m_create_info_ptr->get_residency_scope() == SparseResidencyScope::ALIASED    ||
-        m_create_info_ptr->get_residency_scope() == SparseResidencyScope::NONALIASED)
+    if ((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0)
     {
         for (uint32_t n_bit = 0;
                       n_bit < sizeof(uint32_t) * 8 /* bits in byte */ && result;
@@ -1539,8 +1519,7 @@ bool Anvil::Image::is_memory_bound_for_texel(Anvil::ImageAspectFlagBits in_aspec
     bool result = false;
 
     /* Sanity checks */
-    anvil_assert(m_create_info_ptr->get_residency_scope() == SparseResidencyScope::ALIASED     ||
-                 m_create_info_ptr->get_residency_scope() == SparseResidencyScope::NONALIASED);
+    anvil_assert((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0);
 
     anvil_assert(m_create_info_ptr->get_n_layers () > in_n_layer);
     anvil_assert(m_n_mipmaps                        > in_n_mip);
@@ -1590,14 +1569,14 @@ void Anvil::Image::on_memory_backing_opaque_update(VkDeviceSize        in_resour
     const bool is_unbinding = (in_memory_block_ptr == nullptr);
 
     /* Sanity checks */
-    anvil_assert(m_create_info_ptr->get_residency_scope() != Anvil::SparseResidencyScope::UNKNOWN);
+    anvil_assert((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_BINDING_BIT) != 0);
 
     if (in_memory_block_ptr != nullptr)
     {
         anvil_assert(in_memory_block_ptr->get_create_info_ptr()->get_size() <= in_memory_block_start_offset + in_size);
     }
 
-    if (m_create_info_ptr->get_residency_scope() == Anvil::SparseResidencyScope::NONE)
+    if ((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_RESIDENCY_BIT) == 0)
     {
         /* Non-resident image: underlying memory is viewed as an opaque linear region. */
         m_page_tracker_ptr->set_binding(in_memory_block_ptr,
@@ -1756,8 +1735,7 @@ void Anvil::Image::on_memory_backing_update(const Anvil::ImageSubresource& in_su
     decltype(m_sparse_aspect_page_occupancy)::iterator aspect_page_occupancy_iterator;
     decltype(m_sparse_aspect_props)::iterator          aspect_props_iterator;
 
-    anvil_assert(m_create_info_ptr->get_residency_scope() == Anvil::SparseResidencyScope::ALIASED     ||
-                 m_create_info_ptr->get_residency_scope() == Anvil::SparseResidencyScope::NONALIASED);
+    anvil_assert((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0);
 
     ANVIL_REDUNDANT_ARGUMENT(in_memory_block_start_offset);
 
@@ -1977,13 +1955,13 @@ bool Anvil::Image::set_memory_internal(uint32_t        in_swapchain_image_index,
     Anvil::StructChainer<VkBindImageMemoryInfoKHR> struct_chainer;
 
     /* Sanity checks */
-    anvil_assert(m_create_info_ptr->get_residency_scope()                                  == Anvil::SparseResidencyScope::UNKNOWN);
-    anvil_assert(m_mipmaps.size()                                                          == 1);
-    anvil_assert(m_peer_device_indices.size()                                              == 0);
-    anvil_assert(m_peer_sfr_rects.size()                                                   == 0);
-    anvil_assert(m_create_info_ptr->get_internal_type()                                    == Anvil::ImageInternalType::NONSPARSE_PEER_NO_ALLOC ||
-                 m_create_info_ptr->get_internal_type()                                    == Anvil::ImageInternalType::SWAPCHAIN_WRAPPER);
-    anvil_assert(m_create_info_ptr->get_swapchain()->get_create_info_ptr()->get_n_images() >  in_swapchain_image_index);
+    anvil_assert((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_BINDING_BIT) == 0);
+    anvil_assert(m_mipmaps.size()                                                                         == 1);
+    anvil_assert(m_peer_device_indices.size()                                                             == 0);
+    anvil_assert(m_peer_sfr_rects.size()                                                                  == 0);
+    anvil_assert(m_create_info_ptr->get_internal_type()                                                   == Anvil::ImageInternalType::PEER_NO_ALLOC     ||
+                 m_create_info_ptr->get_internal_type()                                                   == Anvil::ImageInternalType::SWAPCHAIN_WRAPPER);
+    anvil_assert(m_create_info_ptr->get_swapchain()->get_create_info_ptr()->get_n_images()                >  in_swapchain_image_index);
 
     if (!m_device_ptr->is_extension_enabled(VK_KHR_DEVICE_GROUP_EXTENSION_NAME) )
     {
@@ -2095,11 +2073,11 @@ bool Anvil::Image::set_memory_internal(Anvil::MemoryBlock* in_memory_block_ptr,
     VkResult                result     (VK_ERROR_INITIALIZATION_FAILED);
 
     /* Sanity checks */
-    anvil_assert(in_memory_block_ptr                      != nullptr);
-    anvil_assert(m_create_info_ptr->get_residency_scope() == Anvil::SparseResidencyScope::UNKNOWN);
-    anvil_assert(m_mipmaps.size()                         >  0);
-    anvil_assert(m_memory_blocks_owned.size()             == 0);
-    anvil_assert(m_create_info_ptr->get_internal_type()   != Anvil::ImageInternalType::SWAPCHAIN_WRAPPER);
+    anvil_assert(in_memory_block_ptr                                                                      != nullptr);
+    anvil_assert((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_BINDING_BIT) == 0);
+    anvil_assert(m_mipmaps.size()                                                                         >  0);
+    anvil_assert(m_memory_blocks_owned.size()                                                             == 0);
+    anvil_assert(m_create_info_ptr->get_internal_type()                                                   != Anvil::ImageInternalType::SWAPCHAIN_WRAPPER);
 
     /* Bind the memory object to the image object */
     if (device_type == Anvil::DeviceType::SINGLE_GPU)
@@ -2226,11 +2204,11 @@ bool Anvil::Image::set_memory_internal(Anvil::MemoryBlock*  in_memory_block_ptr,
     Anvil::StructChainer<VkBindImageMemoryInfoKHR> struct_chainer;
 
     /* Sanity checks */
-    anvil_assert(in_memory_block_ptr                      != nullptr);
-    anvil_assert(m_create_info_ptr->get_residency_scope() == Anvil::SparseResidencyScope::UNKNOWN);
-    anvil_assert(m_mipmaps.size()                         >  0);
-    anvil_assert(m_memory_blocks_owned.size()             == 0);
-    anvil_assert(m_create_info_ptr->get_internal_type()   != Anvil::ImageInternalType::SWAPCHAIN_WRAPPER);
+    anvil_assert(in_memory_block_ptr                                                                      != nullptr);
+    anvil_assert((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_BINDING_BIT) == 0);
+    anvil_assert(m_mipmaps.size()                                                                         >  0);
+    anvil_assert(m_memory_blocks_owned.size()                                                             == 0);
+    anvil_assert(m_create_info_ptr->get_internal_type()                                                   != Anvil::ImageInternalType::SWAPCHAIN_WRAPPER);
 
     if (!do_sanity_checks_for_physical_device_binding(in_memory_block_ptr,
                                                       in_n_device_group_indices) )
@@ -2599,14 +2577,15 @@ void Anvil::Image::upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_p
                         Anvil::MemoryBlock* mem_block_ptr          = nullptr;
                         VkDeviceSize        write_dst_slice_offset = dst_slice_offset;
 
-                        if (m_create_info_ptr->get_residency_scope() == Anvil::SparseResidencyScope::UNKNOWN)
+                        if ((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_BINDING_BIT) == 0)
                         {
                             anvil_assert(m_memory_blocks_owned.size() == 1);
 
                             mem_block_ptr = m_memory_blocks_owned.at(0).get();
                         }
                         else
-                        if (m_create_info_ptr->get_residency_scope() == SparseResidencyScope::NONE)
+                        if ((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_BINDING_BIT)   != 0 &&
+                            (m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_RESIDENCY_BIT) == 0)
                         {
                             const VkDeviceSize dst_slice_offset_page_aligned = Anvil::Utils::round_down(dst_slice_offset,
                                                                                                         sparse_page_size);
@@ -2724,12 +2703,13 @@ void Anvil::Image::upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_p
         }
 
         {
-            auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_alloc(m_device_ptr,
-                                                                                   total_raw_mips_size,
-                                                                                   Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                                   Anvil::SharingMode::EXCLUSIVE,
-                                                                                   Anvil::BufferUsageFlagBits::TRANSFER_SRC_BIT,
-                                                                                   Anvil::MemoryFeatureFlagBits::NONE);
+            auto create_info_ptr = Anvil::BufferCreateInfo::create_alloc(m_device_ptr,
+                                                                         total_raw_mips_size,
+                                                                         Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                                                                         Anvil::SharingMode::EXCLUSIVE,
+                                                                         Anvil::BufferCreateFlagBits::NONE,
+                                                                         Anvil::BufferUsageFlagBits::TRANSFER_SRC_BIT,
+                                                                         Anvil::MemoryFeatureFlagBits::NONE);
 
             create_info_ptr->set_client_data(merged_mip_storage.get() );
             create_info_ptr->set_mt_safety  (Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe() ));

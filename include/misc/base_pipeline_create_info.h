@@ -49,6 +49,11 @@ namespace Anvil
             return m_base_pipeline_id;
         }
 
+        const Anvil::PipelineCreateFlags& get_create_flags() const
+        {
+            return m_create_flags;
+        }
+
         const std::vector<DescriptorSetCreateInfoUniquePtr>* get_ds_create_info_items() const
         {
             return &m_ds_create_info_items;

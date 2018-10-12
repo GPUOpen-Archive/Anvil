@@ -201,10 +201,33 @@ void Anvil::SparseMemoryBindingUpdateInfo::bake()
 
     if (n_bindings > 0)
     {
+        uint32_t n_buffer_updates_used       = 0;
+        uint32_t n_image_updates_used        = 0;
+        uint32_t n_opaque_image_updates_used = 0;
+
         m_bindings_vk.resize             (n_bindings);
         m_device_group_bindings_vk.resize(n_bindings);
 
-        m_buffer_bindings_vk.clear();
+        {
+            uint32_t n_total_buffer_updates       = 0;
+            uint32_t n_total_image_updates        = 0;
+            uint32_t n_total_opaque_image_updates = 0;
+
+            for (uint32_t n_binding = 0;
+                          n_binding < n_bindings;
+                        ++n_binding)
+            {
+                const auto& bind_info = m_bindings.at(n_binding);
+
+                n_total_buffer_updates       += static_cast<uint32_t>(bind_info.buffer_updates.size      () );
+                n_total_image_updates        += static_cast<uint32_t>(bind_info.image_updates.size       () );
+                n_total_opaque_image_updates += static_cast<uint32_t>(bind_info.image_opaque_updates.size() );
+            }
+
+            m_buffer_bindings_vk.resize      (n_total_buffer_updates);
+            m_image_bindings_vk.resize       (n_total_image_updates);
+            m_image_opaque_bindings_vk.resize(n_total_opaque_image_updates);
+        }
 
         for (uint32_t n_binding = 0;
                       n_binding < n_bindings;
@@ -255,9 +278,9 @@ void Anvil::SparseMemoryBindingUpdateInfo::bake()
                 vk_binding.pNext = &device_group_binding_info;
             }
 
-            n_buffer_bindings_start_index       = static_cast<uint32_t>(m_buffer_bindings_vk.size() );
-            n_image_bindings_start_index        = static_cast<uint32_t>(m_image_bindings_vk.size() );
-            n_image_opaque_bindings_start_index = static_cast<uint32_t>(m_image_opaque_bindings_vk.size() );
+            n_buffer_bindings_start_index       = n_buffer_updates_used;
+            n_image_bindings_start_index        = n_image_updates_used;
+            n_image_opaque_bindings_start_index = n_opaque_image_updates_used;
 
             for (auto& buffer_update : bind_info.buffer_updates)
             {
@@ -270,7 +293,8 @@ void Anvil::SparseMemoryBindingUpdateInfo::bake()
                 buffer_bind_info.buffer    = current_buffer_vk;
                 buffer_bind_info.pBinds    = &buffer_update.second.second[0];
 
-                m_buffer_bindings_vk.push_back(buffer_bind_info);
+                m_buffer_bindings_vk.at(n_buffer_updates_used) = buffer_bind_info;
+                ++n_buffer_updates_used;
             }
 
             for (auto& image_update : bind_info.image_updates)
@@ -284,7 +308,8 @@ void Anvil::SparseMemoryBindingUpdateInfo::bake()
                 image_bind_info.image     = current_image_vk;
                 image_bind_info.pBinds    = &image_update.second.second[0];
 
-                m_image_bindings_vk.push_back(image_bind_info);
+                m_image_bindings_vk.at(n_image_updates_used) = image_bind_info;
+                ++n_image_updates_used;
             }
 
             for (auto& image_opaque_update : bind_info.image_opaque_updates)
@@ -298,12 +323,13 @@ void Anvil::SparseMemoryBindingUpdateInfo::bake()
                 image_opaque_bind_info.image     = current_image_vk;
                 image_opaque_bind_info.pBinds    = &image_opaque_update.second.second[0];
 
-                m_image_opaque_bindings_vk.push_back(image_opaque_bind_info);
+                m_image_opaque_bindings_vk.at(n_opaque_image_updates_used) = image_opaque_bind_info;
+                ++n_opaque_image_updates_used;
             }
 
-            vk_binding.pBufferBinds      = (bind_info.buffer_updates.size()       > 0) ? &m_buffer_bindings_vk      [n_buffer_bindings_start_index]       : nullptr;
-            vk_binding.pImageBinds       = (bind_info.image_updates.size()        > 0) ? &m_image_bindings_vk       [n_image_bindings_start_index]        : nullptr;
-            vk_binding.pImageOpaqueBinds = (bind_info.image_opaque_updates.size() > 0) ? &m_image_opaque_bindings_vk[n_image_opaque_bindings_start_index] : nullptr;
+            vk_binding.pBufferBinds      = (bind_info.buffer_updates.size()       > 0) ? &m_buffer_bindings_vk.at      (n_buffer_bindings_start_index)       : nullptr;
+            vk_binding.pImageBinds       = (bind_info.image_updates.size()        > 0) ? &m_image_bindings_vk.at       (n_image_bindings_start_index)        : nullptr;
+            vk_binding.pImageOpaqueBinds = (bind_info.image_opaque_updates.size() > 0) ? &m_image_opaque_bindings_vk.at(n_image_opaque_bindings_start_index) : nullptr;
         }
     }
     else

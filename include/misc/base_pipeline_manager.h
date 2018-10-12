@@ -213,7 +213,7 @@ namespace Anvil
        void bake_specialization_info_vk(const SpecializationConstants&         in_specialization_constants,
                                         const unsigned char*                   in_specialization_constant_data_ptr,
                                         std::vector<VkSpecializationMapEntry>* out_specialization_map_entry_vk_vector,
-                                        VkSpecializationInfo*                  out_specialization_info_ptr);
+                                        VkSpecializationInfo*                  out_specialization_info_ptr) const;
 
        /* Protected members */
        const Anvil::BaseDevice* m_device_ptr;
