@@ -74,6 +74,8 @@
 #define WRAPPERS_GRAPHICS_PIPELINE_MANAGER_H
 
 #include "misc/base_pipeline_manager.h"
+#include "misc/graphics_pipeline_create_info.h"
+#include "misc/struct_chainer.h"
 #include "misc/types.h"
 #include "wrappers/render_pass.h"
 #include <map>
@@ -175,11 +177,41 @@ namespace Anvil
                                          bool                     in_use_pipeline_cache,
                                          Anvil::PipelineCache*    in_pipeline_cache_to_reuse_ptr);
 
+        Anvil::StructChainUniquePtr<VkGraphicsPipelineCreateInfo>                   bake_graphics_pipeline_create_info                 (const Anvil::GraphicsPipelineCreateInfo*      in_gfx_pipeline_create_info_ptr,
+                                                                                                                                        const Anvil::PipelineLayout*                  in_pipeline_layout_ptr,
+                                                                                                                                        const VkPipeline&                             in_opt_base_pipeline_handle,
+                                                                                                                                        const int32_t&                                in_opt_base_pipeline_index,
+                                                                                                                                        const VkPipelineColorBlendStateCreateInfo*    in_opt_color_blend_state_create_info_ptr,
+                                                                                                                                        const VkPipelineDepthStencilStateCreateInfo*  in_opt_depth_stencil_state_create_info_ptr,
+                                                                                                                                        const VkPipelineDynamicStateCreateInfo*       in_opt_dynamic_state_create_info_ptr,
+                                                                                                                                        const VkPipelineInputAssemblyStateCreateInfo* in_input_assembly_state_create_info_ptr,
+                                                                                                                                        const VkPipelineMultisampleStateCreateInfo*   in_opt_multisample_state_create_info_ptr,
+                                                                                                                                        const VkPipelineRasterizationStateCreateInfo* in_rasterization_state_create_info_ptr,
+                                                                                                                                        const uint32_t&                               in_n_shader_stage_create_info_items,
+                                                                                                                                        const VkPipelineShaderStageCreateInfo*        in_shader_stage_create_info_items_ptr,
+                                                                                                                                        const VkPipelineTessellationStateCreateInfo*  in_opt_tessellation_state_create_info_ptr,
+                                                                                                                                        const VkPipelineVertexInputStateCreateInfo*   in_vertex_input_state_create_info_ptr,
+                                                                                                                                        const VkPipelineViewportStateCreateInfo*      in_opt_viewport_state_create_info_ptr) const;
+        Anvil::StructChainUniquePtr<VkPipelineColorBlendStateCreateInfo>            bake_pipeline_color_blend_state_create_info        (const Anvil::GraphicsPipelineCreateInfo*      in_gfx_pipeline_create_info_ptr,
+                                                                                                                                        const Anvil::RenderPass*                      in_current_renderpass_ptr,
+                                                                                                                                        const Anvil::SubPassID&                       in_subpass_id)                         const;
+        Anvil::StructChainUniquePtr<VkPipelineDepthStencilStateCreateInfo>          bake_pipeline_depth_stencil_state_create_info      (const Anvil::GraphicsPipelineCreateInfo*      in_gfx_pipeline_create_info_ptr,
+                                                                                                                                        const Anvil::RenderPass*                      in_current_renderpass_ptr)             const;
+        Anvil::StructChainUniquePtr<VkPipelineDynamicStateCreateInfo>               bake_pipeline_dynamic_state_create_info            (const Anvil::GraphicsPipelineCreateInfo*      in_gfx_pipeline_create_info_ptr)       const;
+        Anvil::StructChainUniquePtr<VkPipelineInputAssemblyStateCreateInfo>         bake_pipeline_input_assembly_state_create_info     (const Anvil::GraphicsPipelineCreateInfo*      in_gfx_pipeline_create_info_ptr)       const;
+        Anvil::StructChainUniquePtr<VkPipelineMultisampleStateCreateInfo>           bake_pipeline_multisample_state_create_info        (const Anvil::GraphicsPipelineCreateInfo*      in_gfx_pipeline_create_info_ptr)       const;
+        Anvil::StructChainUniquePtr<VkPipelineRasterizationStateCreateInfo>         bake_pipeline_rasterization_state_create_info      (const Anvil::GraphicsPipelineCreateInfo*      in_gfx_pipeline_create_info_ptr)       const;
+        std::unique_ptr<Anvil::StructChainVector<VkPipelineShaderStageCreateInfo> > bake_pipeline_shader_stage_create_info_chain_vector(const Anvil::GraphicsPipelineCreateInfo*      in_gfx_pipeline_create_info_ptr)       const;
+        Anvil::StructChainUniquePtr<VkPipelineTessellationStateCreateInfo>          bake_pipeline_tessellation_state_create_info       (const Anvil::GraphicsPipelineCreateInfo*      in_gfx_pipeline_create_info_ptr)       const;
+        Anvil::StructChainUniquePtr<VkPipelineVertexInputStateCreateInfo>           bake_pipeline_vertex_input_state_create_info       (const Anvil::GraphicsPipelineCreateInfo*      in_gfx_pipeline_create_info_ptr)       const;
+        Anvil::StructChainUniquePtr<VkPipelineViewportStateCreateInfo>              bake_pipeline_viewport_state_create_info           (Anvil::GraphicsPipelineCreateInfo*            in_gfx_pipeline_create_info_ptr,
+                                                                                                                                        const bool&                                   in_is_dynamic_scissor_state_enabled,
+                                                                                                                                        const bool&                                   in_is_dynamic_viewport_state_enabled)  const;
+
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(GraphicsPipelineManager);
         ANVIL_DISABLE_COPY_CONSTRUCTOR   (GraphicsPipelineManager);
 
         /* Private variables */
-        GraphicsPipelineDataMap m_pipeline_id_to_gfx_pipeline_data;
     };
 }; /* Vulkan namespace */
 

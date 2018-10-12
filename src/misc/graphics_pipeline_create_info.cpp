@@ -569,7 +569,7 @@ void Anvil::GraphicsPipelineCreateInfo::get_sample_location_state(bool*         
                                                                   Anvil::SampleCountFlagBits*   out_opt_sample_locations_per_pixel_ptr,
                                                                   VkExtent2D*                   out_opt_sample_location_grid_size_ptr,
                                                                   uint32_t*                     out_opt_n_sample_locations_ptr,
-                                                                  const Anvil::SampleLocation** out_opt_sample_locations_ptr_ptr)
+                                                                  const Anvil::SampleLocation** out_opt_sample_locations_ptr_ptr) const
 {
     if (out_opt_is_enabled_ptr != nullptr)
     {

@@ -187,7 +187,7 @@ end:
 void Anvil::BasePipelineManager::bake_specialization_info_vk(const SpecializationConstants&         in_specialization_constants,
                                                              const unsigned char*                   in_specialization_constant_data_ptr,
                                                              std::vector<VkSpecializationMapEntry>* out_specialization_map_entry_vk_vector_ptr,
-                                                             VkSpecializationInfo*                  out_specialization_info_ptr)
+                                                             VkSpecializationInfo*                  out_specialization_info_ptr) const
 {
     uint32_t n_specialization_constant_bytes = 0;
     uint32_t n_specialization_constants      = 0;

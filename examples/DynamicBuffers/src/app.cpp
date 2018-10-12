@@ -420,11 +420,12 @@ void App::init_buffers()
      * after memory allocator actually assigns it a memory block.
      */
     {
-        auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_no_alloc(m_device_ptr.get(),
-                                                                                  m_sine_offset_data_buffer_size,
-                                                                                  Anvil::QueueFamilyFlagBits::COMPUTE_BIT | Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                                  Anvil::SharingMode::CONCURRENT,
-                                                                                  Anvil::BufferUsageFlagBits::STORAGE_BUFFER_BIT);
+        auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(m_device_ptr.get(),
+                                                                        m_sine_offset_data_buffer_size,
+                                                                        Anvil::QueueFamilyFlagBits::COMPUTE_BIT | Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                                                                        Anvil::SharingMode::CONCURRENT,
+                                                                        Anvil::BufferCreateFlagBits::NONE,
+                                                                        Anvil::BufferUsageFlagBits::STORAGE_BUFFER_BIT);
 
         m_sine_offset_data_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
     }
@@ -462,11 +463,12 @@ void App::init_buffers()
     m_sine_data_buffer_size *= 2;
 
     {
-        auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_no_alloc(m_device_ptr.get(),
-                                                                                  m_sine_data_buffer_size,
-                                                                                  Anvil::QueueFamilyFlagBits::COMPUTE_BIT | Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                                  Anvil::SharingMode::CONCURRENT,
-                                                                                  Anvil::BufferUsageFlagBits::STORAGE_BUFFER_BIT);
+        auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(m_device_ptr.get(),
+                                                                        m_sine_data_buffer_size,
+                                                                        Anvil::QueueFamilyFlagBits::COMPUTE_BIT | Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                                                                        Anvil::SharingMode::CONCURRENT,
+                                                                        Anvil::BufferCreateFlagBits::NONE,
+                                                                        Anvil::BufferUsageFlagBits::STORAGE_BUFFER_BIT);
 
         m_sine_data_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
     }
@@ -485,11 +487,12 @@ void App::init_buffers()
     m_sine_props_data_buffer_size_per_swapchain_image = sine_props_data_buffer_size_per_swapchain_image;
 
     {
-        auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_no_alloc(m_device_ptr.get(),
-                                                                                  sine_props_data_buffer_size_total,
-                                                                                  Anvil::QueueFamilyFlagBits::COMPUTE_BIT | Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                                  Anvil::SharingMode::CONCURRENT,
-                                                                                  Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT);
+        auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(m_device_ptr.get(),
+                                                                        sine_props_data_buffer_size_total,
+                                                                        Anvil::QueueFamilyFlagBits::COMPUTE_BIT | Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                                                                        Anvil::SharingMode::CONCURRENT,
+                                                                        Anvil::BufferCreateFlagBits::NONE,
+                                                                        Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT);
 
         m_sine_props_data_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
     }
@@ -523,11 +526,12 @@ void App::init_buffers()
     }
 
     {
-        auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_no_alloc(m_device_ptr.get(),
-                                                                                  m_sine_color_buffer_size,
-                                                                                  Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                                  Anvil::SharingMode::EXCLUSIVE,
-                                                                                  Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
+        auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(m_device_ptr.get(),
+                                                                        m_sine_color_buffer_size,
+                                                                        Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                                                                        Anvil::SharingMode::EXCLUSIVE,
+                                                                        Anvil::BufferCreateFlagBits::NONE,
+                                                                        Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
 
         m_sine_color_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
     }
@@ -1028,23 +1032,23 @@ void App::init_images()
                 ++n_depth_image)
     {
         {
-            auto create_info_ptr = Anvil::ImageCreateInfo::create_nonsparse_alloc(m_device_ptr.get(),
-                                                                                  Anvil::ImageType::_2D,
-                                                                                  Anvil::Format::D16_UNORM,
-                                                                                  Anvil::ImageTiling::OPTIMAL,
-                                                                                  Anvil::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT_BIT,
-                                                                                  WINDOW_WIDTH,
-                                                                                  WINDOW_HEIGHT,
-                                                                                  1,                    /* in_base_mipmap_depth */
-                                                                                  1,                    /* in_n_layers          */
-                                                                                  Anvil::SampleCountFlagBits::_1_BIT,
-                                                                                  Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                                  Anvil::SharingMode::EXCLUSIVE,
-                                                                                  false,                /* in_use_full_mipmap_chain */
-                                                                                  Anvil::MemoryFeatureFlagBits::NONE,
-                                                                                  Anvil::ImageCreateFlagBits::NONE,
-                                                                                  Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                                                                  nullptr);             /* in_mipmaps_ptr */
+            auto create_info_ptr = Anvil::ImageCreateInfo::create_alloc(m_device_ptr.get(),
+                                                                        Anvil::ImageType::_2D,
+                                                                        Anvil::Format::D16_UNORM,
+                                                                        Anvil::ImageTiling::OPTIMAL,
+                                                                        Anvil::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT_BIT,
+                                                                        WINDOW_WIDTH,
+                                                                        WINDOW_HEIGHT,
+                                                                        1,                    /* in_base_mipmap_depth */
+                                                                        1,                    /* in_n_layers          */
+                                                                        Anvil::SampleCountFlagBits::_1_BIT,
+                                                                        Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                                                                        Anvil::SharingMode::EXCLUSIVE,
+                                                                        false,                /* in_use_full_mipmap_chain */
+                                                                        Anvil::MemoryFeatureFlagBits::NONE,
+                                                                        Anvil::ImageCreateFlagBits::NONE,
+                                                                        Anvil::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                                        nullptr);             /* in_mipmaps_ptr */
 
             m_depth_images[n_depth_image] = Anvil::Image::create(std::move(create_info_ptr) );
         }
