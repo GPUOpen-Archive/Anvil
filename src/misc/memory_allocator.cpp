@@ -59,6 +59,7 @@ Anvil::MemoryAllocator::Item::Item(Anvil::MemoryAllocator*                     i
 
     alloc_device_mask                      = in_device_mask;
     alloc_exportable_external_handle_types = in_opt_exportable_external_handle_types;
+    alloc_image_aspect                     = Anvil::ImageAspectFlagBits::NONE;
     alloc_is_dedicated_memory              = in_alloc_is_dedicated;
     alloc_memory_final_type                = UINT32_MAX;
     alloc_memory_required_alignment        = in_alloc_alignment;
@@ -101,6 +102,7 @@ Anvil::MemoryAllocator::Item::Item(Anvil::MemoryAllocator*                     i
 
     alloc_device_mask                      = in_device_mask;
     alloc_exportable_external_handle_types = in_opt_exportable_external_handle_types;
+    alloc_image_aspect                     = Anvil::ImageAspectFlagBits::NONE;
     alloc_is_dedicated_memory              = in_alloc_is_dedicated;
     alloc_memory_final_type                = UINT32_MAX;
     alloc_memory_required_alignment        = in_alloc_alignment;
@@ -126,6 +128,7 @@ Anvil::MemoryAllocator::Item::Item(Anvil::MemoryAllocator*                     i
                                    VkDeviceSize                                in_alloc_size,
                                    uint32_t                                    in_alloc_memory_types,
                                    VkDeviceSize                                in_miptail_offset,
+                                   const Anvil::ImageAspectFlagBits&           in_alloc_aspect,
                                    VkDeviceSize                                in_alloc_alignment,
                                    MemoryFeatureFlags                          in_alloc_required_memory_features,
                                    uint32_t                                    in_alloc_supported_memory_types,
@@ -146,6 +149,7 @@ Anvil::MemoryAllocator::Item::Item(Anvil::MemoryAllocator*                     i
 
     alloc_device_mask                      = in_device_mask;
     alloc_exportable_external_handle_types = in_opt_exportable_external_handle_types;
+    alloc_image_aspect                     = in_alloc_aspect;
     alloc_is_dedicated_memory              = in_alloc_is_dedicated;
     alloc_memory_final_type                = UINT32_MAX;
     alloc_memory_required_alignment        = in_alloc_alignment;
@@ -194,6 +198,7 @@ Anvil::MemoryAllocator::Item::Item(Anvil::MemoryAllocator*                     i
 
     alloc_device_mask                      = in_device_mask;
     alloc_exportable_external_handle_types = in_opt_exportable_external_handle_types;
+    alloc_image_aspect                     = Anvil::ImageAspectFlagBits::NONE;
     alloc_is_dedicated_memory              = in_alloc_is_dedicated;
     alloc_memory_final_type                = UINT32_MAX;
     alloc_memory_types                     = in_alloc_memory_types;
@@ -240,6 +245,7 @@ Anvil::MemoryAllocator::Item::Item(Anvil::MemoryAllocator*                     i
 
     alloc_device_mask                      = in_device_mask;
     alloc_exportable_external_handle_types = in_opt_exportable_external_handle_types;
+    alloc_image_aspect                     = Anvil::ImageAspectFlagBits::NONE;
     alloc_is_dedicated_memory              = in_alloc_is_dedicated;
     alloc_memory_final_type                = UINT32_MAX;
     alloc_memory_required_alignment        = in_alloc_alignment;
@@ -964,10 +970,11 @@ bool Anvil::MemoryAllocator::add_sparse_buffer_region(Anvil::Buffer*            
     /* Sanity checks */
     anvil_assert(in_buffer_ptr                                    != nullptr);
     anvil_assert(m_backend_ptr->supports_baking                () );
-    anvil_assert(in_buffer_ptr->get_create_info_ptr()->get_type() == Anvil::BufferType::SPARSE_NO_ALLOC);
     anvil_assert(in_buffer_ptr->get_memory_requirements().size    >= in_offset + in_size);
     anvil_assert( in_opt_device_mask_ptr                          == nullptr                                            ||
                  (in_opt_device_mask_ptr                          != nullptr && m_backend_ptr->supports_device_masks() ));
+
+    anvil_assert((in_buffer_ptr->get_create_info_ptr()->get_create_flags() & Anvil::BufferCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0);
 
     if (mutex_ptr != nullptr)
     {
@@ -1048,13 +1055,14 @@ bool Anvil::MemoryAllocator::add_sparse_image_miptail(Anvil::Image*             
     ANVIL_REDUNDANT_VARIABLE(result);
 
     /* Sanity checks */
-    anvil_assert(in_image_ptr                                                        != nullptr);
-    anvil_assert(m_backend_ptr->supports_baking                          () );
-    anvil_assert(in_image_ptr->get_create_info_ptr()->get_residency_scope()          != Anvil::SparseResidencyScope::UNKNOWN);
-    anvil_assert(in_image_ptr->get_create_info_ptr()->get_n_layers       ()          >  in_n_layer);
-    anvil_assert(in_image_ptr->has_aspects                               (in_aspect) );
-    anvil_assert( in_opt_device_mask_ptr                                             == nullptr                                            ||
-                 (in_opt_device_mask_ptr                                             != nullptr && m_backend_ptr->supports_device_masks() ));
+    anvil_assert(in_image_ptr                                                     != nullptr);
+    anvil_assert(m_backend_ptr->supports_baking                       () );
+    anvil_assert(in_image_ptr->get_create_info_ptr()->get_n_layers    ()          >  in_n_layer);
+    anvil_assert(in_image_ptr->has_aspects                            (in_aspect) );
+    anvil_assert( in_opt_device_mask_ptr                                          == nullptr                                            ||
+                 (in_opt_device_mask_ptr                                          != nullptr && m_backend_ptr->supports_device_masks() ));
+
+    anvil_assert((in_image_ptr->get_create_info_ptr()->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0);
 
     if (mutex_ptr != nullptr)
     {
@@ -1104,6 +1112,7 @@ bool Anvil::MemoryAllocator::add_sparse_image_miptail(Anvil::Image*             
                  miptail_size,
                  miptail_memory_types,
                  miptail_offset,
+                 in_aspect,
                  in_image_ptr->get_image_alignment(),
                  in_required_memory_features,
                  filtered_memory_types,
@@ -1152,7 +1161,6 @@ bool Anvil::MemoryAllocator::add_sparse_image_subresource(Anvil::Image*         
     /* Sanity checks */
     anvil_assert(in_image_ptr != nullptr);
     anvil_assert(m_backend_ptr->supports_baking                          () );
-    anvil_assert(in_image_ptr->get_create_info_ptr()->get_residency_scope()                             != Anvil::SparseResidencyScope::UNKNOWN);
     anvil_assert(in_image_ptr->has_aspects                               (in_subresource.aspect_mask) );
     anvil_assert(in_image_ptr->get_n_mipmaps                             ()                             >  in_subresource.mip_level);
     anvil_assert(in_image_ptr->get_create_info_ptr()->get_n_layers       ()                             >  in_subresource.array_layer);
@@ -1162,6 +1170,8 @@ bool Anvil::MemoryAllocator::add_sparse_image_subresource(Anvil::Image*         
     anvil_assert(in_extent.depth  >= 1);
     anvil_assert(in_extent.height >= 1);
     anvil_assert(in_extent.width  >= 1);
+
+    anvil_assert((in_image_ptr->get_create_info_ptr()->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0);
 
     if (mutex_ptr != nullptr)
     {
@@ -1379,7 +1389,8 @@ bool Anvil::MemoryAllocator::bake()
             case Anvil::MemoryAllocator::ITEM_TYPE_BUFFER:
             case Anvil::MemoryAllocator::ITEM_TYPE_SPARSE_BUFFER_REGION:
             {
-                needs_sparse_memory_binding |= ((*item_iterator)->buffer_ptr->get_create_info_ptr()->get_type() == Anvil::BufferType::SPARSE_NO_ALLOC);
+                needs_sparse_memory_binding |=  ((*item_iterator)->buffer_ptr->get_create_info_ptr()->get_type()                                                            == Anvil::BufferType::NO_ALLOC) &&
+                                               (((*item_iterator)->buffer_ptr->get_create_info_ptr()->get_create_flags() & Anvil::BufferCreateFlagBits::SPARSE_BINDING_BIT) != 0);
 
                 break;
             }
@@ -1388,7 +1399,12 @@ bool Anvil::MemoryAllocator::bake()
             case Anvil::MemoryAllocator::ITEM_TYPE_SPARSE_IMAGE_MIPTAIL:
             case Anvil::MemoryAllocator::ITEM_TYPE_SPARSE_IMAGE_SUBRESOURCE:
             {
-                needs_sparse_memory_binding |= ((*item_iterator)->image_ptr->get_create_info_ptr()->get_residency_scope() != Anvil::SparseResidencyScope::UNKNOWN);
+                const auto& create_flags         = (*item_iterator)->image_ptr->get_create_info_ptr()->get_create_flags();
+                const bool  uses_sparse_bindings = ((create_flags & Anvil::ImageCreateFlagBits::SPARSE_ALIASED_BIT)   != 0) ||
+                                                   ((create_flags & Anvil::ImageCreateFlagBits::SPARSE_BINDING_BIT)   != 0) ||
+                                                   ((create_flags & Anvil::ImageCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0);
+
+                needs_sparse_memory_binding |= uses_sparse_bindings;
 
                 break;
             }
@@ -1441,7 +1457,7 @@ bool Anvil::MemoryAllocator::bake()
             {
                 case Anvil::MemoryAllocator::ITEM_TYPE_BUFFER:
                 {
-                    if (item_ptr->buffer_ptr->get_create_info_ptr()->get_type() != Anvil::BufferType::SPARSE_NO_ALLOC)
+                    if ((item_ptr->buffer_ptr->get_create_info_ptr()->get_create_flags() & Anvil::BufferCreateFlagBits::SPARSE_BINDING_BIT) == 0)
                     {
                         if (m_post_bake_per_buffer_item_mem_assignment_callback_function != nullptr)
                         {
@@ -1480,7 +1496,9 @@ bool Anvil::MemoryAllocator::bake()
 
                 case Anvil::MemoryAllocator::ITEM_TYPE_SPARSE_BUFFER_REGION:
                 {
-                    anvil_assert(item_ptr->buffer_ptr->get_create_info_ptr()->get_type() == Anvil::BufferType::SPARSE_NO_ALLOC);
+                    anvil_assert((item_ptr->buffer_ptr->get_create_info_ptr()->get_create_flags() & Anvil::BufferCreateFlagBits::SPARSE_ALIASED_BIT)   != 0 ||
+                                 (item_ptr->buffer_ptr->get_create_info_ptr()->get_create_flags() & Anvil::BufferCreateFlagBits::SPARSE_BINDING_BIT)   != 0 ||
+                                 (item_ptr->buffer_ptr->get_create_info_ptr()->get_create_flags() & Anvil::BufferCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0);
 
                     if (m_post_bake_per_buffer_item_mem_assignment_callback_function != nullptr)
                     {
@@ -1503,7 +1521,7 @@ bool Anvil::MemoryAllocator::bake()
 
                 case Anvil::MemoryAllocator::ITEM_TYPE_IMAGE_WHOLE:
                 {
-                    if (item_ptr->image_ptr->get_create_info_ptr()->get_residency_scope() == Anvil::SparseResidencyScope::UNKNOWN)
+                    if ((item_ptr->image_ptr->get_create_info_ptr()->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_BINDING_BIT) == 0)
                     {
                         if (m_post_bake_per_image_item_mem_assignment_callback_function != nullptr)
                         {
@@ -1551,11 +1569,14 @@ bool Anvil::MemoryAllocator::bake()
                     }
                     else
                     {
+                        const Anvil::SparseMemoryBindFlagBits bind_flags = (item_ptr->alloc_image_aspect == Anvil::ImageAspectFlagBits::METADATA_BIT) ? Anvil::SparseMemoryBindFlagBits::BIND_METADATA_BIT
+                                                                                                                                                      : Anvil::SparseMemoryBindFlagBits::NONE;
+
                         sparse_memory_binding.append_opaque_image_memory_update(sparse_memory_bind_info_id,
                                                                                 item_ptr->image_ptr,
                                                                                 item_ptr->miptail_offset,
                                                                                 item_ptr->alloc_size,
-                                                                                Anvil::SparseMemoryBindFlagBits::NONE,
+                                                                                bind_flags,
                                                                                 item_ptr->alloc_memory_block_ptr.release(),
                                                                                 0,     /* opt_memory_block_start_offset      */
                                                                                 true); /* in_opt_memory_block_owned_by_image */

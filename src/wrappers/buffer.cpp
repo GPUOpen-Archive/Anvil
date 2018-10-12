@@ -40,94 +40,25 @@ Anvil::Buffer::Buffer(Anvil::BufferCreateInfoUniquePtr in_create_info_ptr)
      MTSafetySupportProvider           (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety(),
                                                                                         in_create_info_ptr->get_device   () )),
      m_buffer                          (VK_NULL_HANDLE),
-     m_create_flags                    (Anvil::BufferCreateFlagBits::NONE),
      m_memory_block_ptr                (nullptr),
      m_prefers_dedicated_allocation    (false),
      m_requires_dedicated_allocation   (false),
      m_staging_buffer_queue_ptr        (nullptr)
 {
-    switch (in_create_info_ptr->get_type() )
+    if (in_create_info_ptr->get_type() == BufferType::NO_ALLOC)
     {
-        case BufferType::NONSPARSE_ALLOC:
+        if (((in_create_info_ptr->get_memory_features() & Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT)        == 0) ||
+            ((in_create_info_ptr->get_create_flags   () & Anvil::BufferCreateFlagBits::SPARSE_ALIASED_BIT)   == 0) ||
+            ((in_create_info_ptr->get_create_flags   () & Anvil::BufferCreateFlagBits::SPARSE_RESIDENCY_BIT) == 0))
         {
-            /* Nothing to do */
-            break;
-        }
+            /* For host->gpu writes to work in this case, we will need the buffer to work as a target
+             * for buffer->buffer copy operations. Same goes for the other way around.
+             */
+            auto usage_flags = in_create_info_ptr->get_usage_flags();
 
-        case BufferType::NONSPARSE_NO_ALLOC:
-        {
-            if ((in_create_info_ptr->get_memory_features() & Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT) == 0)
-            {
-                /* For host->gpu writes to work in this case, we will need the buffer to work as a target
-                 * for buffer->buffer copy operations. Same goes for the other way around.
-                 */
-                auto usage_flags = in_create_info_ptr->get_usage_flags();
+            usage_flags |= Anvil::BufferUsageFlagBits::TRANSFER_DST_BIT | Anvil::BufferUsageFlagBits::TRANSFER_SRC_BIT;
 
-                usage_flags |= Anvil::BufferUsageFlagBits::TRANSFER_DST_BIT | Anvil::BufferUsageFlagBits::TRANSFER_SRC_BIT;
-
-                in_create_info_ptr->set_usage_flags(usage_flags);
-            }
-
-            break;
-        }
-
-        case BufferType::NONSPARSE_NO_ALLOC_CHILD:
-        {
-            m_create_flags = in_create_info_ptr->get_parent_buffer_ptr()->m_create_flags;
-
-            in_create_info_ptr->set_usage_flags(in_create_info_ptr->get_usage_flags() );
-
-            break;
-        }
-
-        case BufferType::SPARSE_NO_ALLOC:
-        {
-            switch (in_create_info_ptr->get_residency_scope() )
-            {
-                case Anvil::SparseResidencyScope::ALIASED:
-                {
-                    m_create_flags = Anvil::BufferCreateFlagBits::SPARSE_ALIASED_BIT | Anvil::BufferCreateFlagBits::SPARSE_RESIDENCY_BIT | Anvil::BufferCreateFlagBits::SPARSE_BINDING_BIT;
-
-                    break;
-                }
-
-                case Anvil::SparseResidencyScope::NONALIASED:
-                {
-                    m_create_flags = Anvil::BufferCreateFlagBits::SPARSE_RESIDENCY_BIT | Anvil::BufferCreateFlagBits::SPARSE_BINDING_BIT;
-
-                    break;
-                }
-
-                case Anvil::SparseResidencyScope::NONE:
-                {
-                    m_create_flags = Anvil::BufferCreateFlagBits::SPARSE_BINDING_BIT;
-
-                    break;
-                }
-
-                default:
-                {
-                    anvil_assert_fail();
-                }
-            }
-
-            /* Assume the user may try to bind memory from non-mappable memory heap, in which case
-             * we're going to need to copy data from a staging buffer to this buffer if the user
-             * ever uses write(), and vice versa. */
-            {
-                auto usage_flags = in_create_info_ptr->get_usage_flags();
-
-                usage_flags |= Anvil::BufferUsageFlagBits::TRANSFER_DST_BIT | Anvil::BufferUsageFlagBits::TRANSFER_SRC_BIT;
-
-                in_create_info_ptr->set_usage_flags(usage_flags);
-            }
-
-            break;
-        }
-
-        default:
-        {
-            anvil_assert_fail();
+            in_create_info_ptr->set_usage_flags(usage_flags);
         }
     }
 
@@ -198,7 +129,12 @@ const Anvil::Buffer* Anvil::Buffer::get_base_buffer()
 /* Please see header for specification */
 VkBuffer Anvil::Buffer::get_buffer(const bool& in_bake_memory_if_necessary)
 {
-    if (get_create_info_ptr()->get_type() != Anvil::BufferType::SPARSE_NO_ALLOC)
+    const auto& create_flags = get_create_info_ptr()->get_create_flags();
+    const bool  is_sparse    = ((create_flags & Anvil::BufferCreateFlagBits::SPARSE_ALIASED_BIT)   != 0) ||
+                               ((create_flags & Anvil::BufferCreateFlagBits::SPARSE_BINDING_BIT)   != 0) ||
+                               ((create_flags & Anvil::BufferCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0);
+
+    if (!is_sparse)
     {
         if (in_bake_memory_if_necessary            &&
             m_memory_block_ptr          == nullptr)
@@ -213,8 +149,11 @@ VkBuffer Anvil::Buffer::get_buffer(const bool& in_bake_memory_if_necessary)
 /* Please see header for specification */
 Anvil::MemoryBlock* Anvil::Buffer::get_memory_block(uint32_t in_n_memory_block)
 {
-    bool       is_callback_needed = false;
-    const auto is_sparse          = (get_create_info_ptr()->get_type() == Anvil::BufferType::SPARSE_NO_ALLOC);
+    const auto& create_flags       = get_create_info_ptr()->get_create_flags();
+    bool        is_callback_needed = false;
+    const bool  is_sparse          = ((create_flags & Anvil::BufferCreateFlagBits::SPARSE_ALIASED_BIT)   != 0) ||
+                                     ((create_flags & Anvil::BufferCreateFlagBits::SPARSE_BINDING_BIT)   != 0) ||
+                                     ((create_flags & Anvil::BufferCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0);
 
     if (is_sparse)
     {
@@ -266,7 +205,11 @@ VkMemoryRequirements Anvil::Buffer::get_memory_requirements() const
 
 uint32_t Anvil::Buffer::get_n_memory_blocks() const
 {
-    if (m_create_info_ptr->get_type() == Anvil::BufferType::SPARSE_NO_ALLOC)
+    const auto& create_flags = get_create_info_ptr()->get_create_flags();
+    const bool  is_sparse    = ((create_flags & Anvil::BufferCreateFlagBits::SPARSE_ALIASED_BIT)   != 0) ||
+                               ((create_flags & Anvil::BufferCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0);
+
+    if (is_sparse)
     {
         return m_page_tracker_ptr->get_n_memory_blocks();
     }
@@ -290,7 +233,7 @@ bool Anvil::Buffer::init()
         m_create_info_ptr->set_usage_flags(m_create_info_ptr->get_usage_flags() | Anvil::BufferUsageFlagBits::TRANSFER_DST_BIT);
     }
 
-    if (m_create_info_ptr->get_type() != BufferType::NONSPARSE_NO_ALLOC_CHILD)
+    if (m_create_info_ptr->get_type() != BufferType::NO_ALLOC_CHILD)
     {
         /* Determine which queues the buffer should be available to. */
         Anvil::Utils::convert_queue_family_bits_to_family_indices(m_device_ptr,
@@ -305,7 +248,7 @@ bool Anvil::Buffer::init()
         {
             VkBufferCreateInfo buffer_create_info;
 
-            buffer_create_info.flags                 = m_create_flags.get_vk();
+            buffer_create_info.flags                 = m_create_info_ptr->get_create_flags().get_vk();
             buffer_create_info.pNext                 = nullptr;
             buffer_create_info.pQueueFamilyIndices   = queue_family_indices;
             buffer_create_info.queueFamilyIndexCount = n_queue_family_indices;
@@ -429,7 +372,7 @@ bool Anvil::Buffer::init()
 
     switch (m_create_info_ptr->get_type() )
     {
-        case Anvil::BufferType::NONSPARSE_ALLOC:
+        case Anvil::BufferType::ALLOC:
         {
             /* Create a memory object and preallocate as much space as we need */
             auto                        client_data_ptr  = m_create_info_ptr->get_client_data();
@@ -478,7 +421,7 @@ bool Anvil::Buffer::init()
             break;
         }
 
-        case Anvil::BufferType::NONSPARSE_NO_ALLOC_CHILD:
+        case Anvil::BufferType::NO_ALLOC_CHILD:
         {
             Anvil::MemoryBlockUniquePtr mem_block_ptr;
 
@@ -504,20 +447,23 @@ bool Anvil::Buffer::init()
             break;
         }
 
-        case BufferType::NONSPARSE_NO_ALLOC:
+        case BufferType::NO_ALLOC:
         {
+            const auto& create_flags = get_create_info_ptr()->get_create_flags();
+            const bool  is_sparse    = ((create_flags & Anvil::BufferCreateFlagBits::SPARSE_ALIASED_BIT)   != 0) ||
+                                       ((create_flags & Anvil::BufferCreateFlagBits::SPARSE_BINDING_BIT)   != 0) ||
+                                       ((create_flags & Anvil::BufferCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0);
+
+            if (is_sparse)
+            {
+                m_page_tracker_ptr.reset(
+                    new Anvil::PageTracker(Anvil::Utils::round_up(m_create_info_ptr->get_size(),
+                                                                  m_buffer_memory_reqs.alignment),
+                                           m_buffer_memory_reqs.alignment)
+                );
+            }
+
             /* No special action needed */
-            break;
-        }
-
-        case BufferType::SPARSE_NO_ALLOC:
-        {
-            m_page_tracker_ptr.reset(
-                new Anvil::PageTracker(Anvil::Utils::round_up(m_create_info_ptr->get_size(),
-                                                              m_buffer_memory_reqs.alignment),
-                                       m_buffer_memory_reqs.alignment)
-            );
-
             break;
         }
 
@@ -614,12 +560,13 @@ bool Anvil::Buffer::init_staging_buffer(const VkDeviceSize& in_size,
             const auto sharing_mode    = Anvil::Utils::is_pow2(static_cast<uint32_t>(staging_buffer_queue_fam_bits) ) ? Anvil::SharingMode::EXCLUSIVE
                                                                                                                       : Anvil::SharingMode::CONCURRENT;
 
-            auto       create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_alloc(m_device_ptr,
-                                                                                         in_size,
-                                                                                         staging_buffer_queue_fam_bits,
-                                                                                         sharing_mode,
-                                                                                         Anvil::BufferUsageFlagBits::TRANSFER_DST_BIT | Anvil::BufferUsageFlagBits::TRANSFER_SRC_BIT,
-                                                                                         Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT);
+            auto       create_info_ptr = Anvil::BufferCreateInfo::create_alloc(m_device_ptr,
+                                                                               in_size,
+                                                                               staging_buffer_queue_fam_bits,
+                                                                               sharing_mode,
+                                                                               Anvil::BufferCreateFlagBits::NONE,
+                                                                               Anvil::BufferUsageFlagBits::TRANSFER_DST_BIT | Anvil::BufferUsageFlagBits::TRANSFER_SRC_BIT,
+                                                                               Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT);
 
             create_info_ptr->set_mt_safety  (Anvil::MTSafety::DISABLED);
 
@@ -657,7 +604,7 @@ bool Anvil::Buffer::read(VkDeviceSize in_start_offset,
     bool                    result           (false);
 
     /* TODO: Support for sparse buffers */
-    anvil_assert(m_create_info_ptr->get_type() != Anvil::BufferType::SPARSE_NO_ALLOC);
+    anvil_assert(m_create_info_ptr->get_create_flags() == Anvil::BufferCreateFlagBits::NONE);
 
     if ((memory_block_ptr->get_create_info_ptr()->get_memory_features() & Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT) != 0)
     {
@@ -797,9 +744,11 @@ bool Anvil::Buffer::set_memory_nonsparse_internal(MemoryBlockUniquePtr  in_memor
         goto end;
     }
 
-    if (m_create_info_ptr->get_type() == Anvil::BufferType::SPARSE_NO_ALLOC)
+    if (((m_create_info_ptr->get_create_flags() & Anvil::BufferCreateFlagBits::SPARSE_ALIASED_BIT)   != 0) ||
+        ((m_create_info_ptr->get_create_flags() & Anvil::BufferCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0) )
     {
-        anvil_assert(m_create_info_ptr->get_type() != Anvil::BufferType::SPARSE_NO_ALLOC);
+        anvil_assert(((m_create_info_ptr->get_create_flags() & Anvil::BufferCreateFlagBits::SPARSE_ALIASED_BIT)   == 0) &&
+                     ((m_create_info_ptr->get_create_flags() & Anvil::BufferCreateFlagBits::SPARSE_RESIDENCY_BIT) == 0) );
 
         goto end;
     }
@@ -878,7 +827,7 @@ bool Anvil::Buffer::set_memory_sparse(MemoryBlock* in_memory_block_ptr,
                                       VkDeviceSize in_start_offset,
                                       VkDeviceSize in_size)
 {
-    anvil_assert(m_create_info_ptr->get_type() == Anvil::BufferType::SPARSE_NO_ALLOC);
+    anvil_assert((m_create_info_ptr->get_create_flags() & Anvil::BufferCreateFlagBits::SPARSE_BINDING_BIT) != 0);
 
     if (m_page_tracker_ptr->set_binding(in_memory_block_ptr,
                                         in_memory_block_start_offset,
@@ -1142,7 +1091,8 @@ bool Anvil::Buffer::write(VkDeviceSize  in_start_offset,
     /** TODO: Support for sparse-resident buffers whose n_memory_blocks > 1 */
     Anvil::MemoryBlock* memory_block_ptr(get_memory_block(0) );
 
-    if (m_create_info_ptr->get_type() == Anvil::BufferType::SPARSE_NO_ALLOC)
+    if ( m_create_info_ptr->get_type()                                                              == Anvil::BufferType::NO_ALLOC &&
+        (m_create_info_ptr->get_create_flags() & Anvil::BufferCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0)
     {
         anvil_assert(m_page_tracker_ptr->get_n_memory_blocks() == 1);
     }

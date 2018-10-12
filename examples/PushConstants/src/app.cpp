@@ -416,11 +416,12 @@ void App::init_buffers()
 
     /* Set up a buffer to hold uniform data */
     {
-        auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_no_alloc(m_device_ptr.get(),
-                                                                                  ub_data_size_total,
-                                                                                  Anvil::QueueFamilyFlagBits::COMPUTE_BIT | Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                                  Anvil::SharingMode::EXCLUSIVE,
-                                                                                  Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT);
+        auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(m_device_ptr.get(),
+                                                                        ub_data_size_total,
+                                                                        Anvil::QueueFamilyFlagBits::COMPUTE_BIT | Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                                                                        Anvil::SharingMode::EXCLUSIVE,
+                                                                        Anvil::BufferCreateFlagBits::NONE,
+                                                                        Anvil::BufferUsageFlagBits::UNIFORM_BUFFER_BIT);
 
         m_data_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
     }
@@ -432,11 +433,12 @@ void App::init_buffers()
 
     /* Set up a buffer to hold mesh data */
     {
-        auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_no_alloc(m_device_ptr.get(),
-                                                                                  get_mesh_data_size(),
-                                                                                  Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                                  Anvil::SharingMode::EXCLUSIVE,
-                                                                                  Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
+        auto create_info_ptr = Anvil::BufferCreateInfo::create_no_alloc(m_device_ptr.get(),
+                                                                        get_mesh_data_size(),
+                                                                        Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                                                                        Anvil::SharingMode::EXCLUSIVE,
+                                                                        Anvil::BufferCreateFlagBits::NONE,
+                                                                        Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT);
 
         m_mesh_data_buffer_ptr = Anvil::Buffer::create(std::move(create_info_ptr) );
     }

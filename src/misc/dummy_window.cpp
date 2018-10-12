@@ -191,12 +191,13 @@ std::unique_ptr<uint8_t[]> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_ima
     result_ptr.reset(new unsigned char[raw_image_size]);
 
     {
-        auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_alloc(device_ptr,
-                                                                               raw_image_size,
-                                                                               Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                               Anvil::SharingMode::EXCLUSIVE,
-                                                                               Anvil::BufferUsageFlagBits::TRANSFER_DST_BIT,
-                                                                               Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT);
+        auto create_info_ptr = Anvil::BufferCreateInfo::create_alloc(device_ptr,
+                                                                     raw_image_size,
+                                                                     Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                                                                     Anvil::SharingMode::EXCLUSIVE,
+                                                                     Anvil::BufferCreateFlagBits::NONE,
+                                                                     Anvil::BufferUsageFlagBits::TRANSFER_DST_BIT,
+                                                                     Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT);
 
         create_info_ptr->set_mt_safety(Anvil::MTSafety::DISABLED);
 
@@ -208,22 +209,22 @@ std::unique_ptr<uint8_t[]> Anvil::DummyWindowWithPNGSnapshots::get_swapchain_ima
     ImageUniquePtr   intermediate_image_ptr;
 
     {
-        auto create_info_ptr = Anvil::ImageCreateInfo::create_nonsparse_alloc(device_ptr,
-                                                                              Anvil::ImageType::_2D,
-                                                                              Anvil::Format::R8G8B8A8_UNORM,
-                                                                              Anvil::ImageTiling::OPTIMAL,
-                                                                              Anvil::ImageUsageFlagBits::TRANSFER_SRC_BIT | Anvil::ImageUsageFlagBits::TRANSFER_DST_BIT,
-                                                                              swapchain_image_width,
-                                                                              swapchain_image_height,
-                                                                              1,      /* in_base_mipmap_depth */
-                                                                              1,      /* in_n_layers          */
-                                                                              Anvil::SampleCountFlagBits::_1_BIT,
-                                                                              Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                              Anvil::SharingMode::EXCLUSIVE,
-                                                                              false,  /* in_use_full_mipmap_chain */
-                                                                              Anvil::MemoryFeatureFlagBits::NONE,
-                                                                              Anvil::ImageCreateFlagBits::NONE,
-                                                                              Anvil::ImageLayout::TRANSFER_DST_OPTIMAL);
+        auto create_info_ptr = Anvil::ImageCreateInfo::create_alloc(device_ptr,
+                                                                    Anvil::ImageType::_2D,
+                                                                    Anvil::Format::R8G8B8A8_UNORM,
+                                                                    Anvil::ImageTiling::OPTIMAL,
+                                                                    Anvil::ImageUsageFlagBits::TRANSFER_SRC_BIT | Anvil::ImageUsageFlagBits::TRANSFER_DST_BIT,
+                                                                    swapchain_image_width,
+                                                                    swapchain_image_height,
+                                                                    1,      /* in_base_mipmap_depth */
+                                                                    1,      /* in_n_layers          */
+                                                                    Anvil::SampleCountFlagBits::_1_BIT,
+                                                                    Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                                                                    Anvil::SharingMode::EXCLUSIVE,
+                                                                    false,  /* in_use_full_mipmap_chain */
+                                                                    Anvil::MemoryFeatureFlagBits::NONE,
+                                                                    Anvil::ImageCreateFlagBits::NONE,
+                                                                    Anvil::ImageLayout::TRANSFER_DST_OPTIMAL);
 
         create_info_ptr->set_mt_safety(Anvil::MTSafety::DISABLED);
 

@@ -559,23 +559,23 @@ bool Anvil::Swapchain::init()
         }
         else
         {
-            auto create_info_ptr = Anvil::ImageCreateInfo::create_nonsparse_alloc(m_device_ptr,
-                                                                                  Anvil::ImageType::_2D,
-                                                                                  m_create_info_ptr->get_format(),
-                                                                                  Anvil::ImageTiling::OPTIMAL,
-                                                                                  m_create_info_ptr->get_usage_flags(),
-                                                                                  m_size.width,
-                                                                                  m_size.height,
-                                                                                  1, /* base_mipmap_depth */
-                                                                                  1,
-                                                                                  Anvil::SampleCountFlagBits::_1_BIT,
-                                                                                  Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                                  Anvil::SharingMode::EXCLUSIVE,
-                                                                                  false, /* in_use_full_mipmap_chain */
-                                                                                  Anvil::MemoryFeatureFlagBits::NONE,
-                                                                                  Anvil::ImageCreateFlagBits::NONE,
-                                                                                  Anvil::ImageLayout::GENERAL,
-                                                                                  nullptr);
+            auto create_info_ptr = Anvil::ImageCreateInfo::create_alloc(m_device_ptr,
+                                                                        Anvil::ImageType::_2D,
+                                                                        m_create_info_ptr->get_format(),
+                                                                        Anvil::ImageTiling::OPTIMAL,
+                                                                        m_create_info_ptr->get_usage_flags(),
+                                                                        m_size.width,
+                                                                        m_size.height,
+                                                                        1, /* base_mipmap_depth */
+                                                                        1,
+                                                                        Anvil::SampleCountFlagBits::_1_BIT,
+                                                                        Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                                                                        Anvil::SharingMode::EXCLUSIVE,
+                                                                        false, /* in_use_full_mipmap_chain */
+                                                                        Anvil::MemoryFeatureFlagBits::NONE,
+                                                                        Anvil::ImageCreateFlagBits::NONE,
+                                                                        Anvil::ImageLayout::GENERAL,
+                                                                        nullptr);
 
             create_info_ptr->set_mt_safety(Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe() ) );
 

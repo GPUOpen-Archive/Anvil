@@ -474,12 +474,13 @@ void App::init_buffers()
     auto mesh_data_ptr = get_mesh_data();
 
     /* Initialize the buffer object */
-    auto create_info_ptr = Anvil::BufferCreateInfo::create_nonsparse_alloc(m_device_ptr.get(),
-                                                                           get_mesh_data_size(),
-                                                                           Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
-                                                                           Anvil::SharingMode::EXCLUSIVE,
-                                                                           Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT,
-                                                                           Anvil::MemoryFeatureFlagBits::NONE); /* in_memory_features */
+    auto create_info_ptr = Anvil::BufferCreateInfo::create_alloc(m_device_ptr.get(),
+                                                                 get_mesh_data_size(),
+                                                                 Anvil::QueueFamilyFlagBits::GRAPHICS_BIT,
+                                                                 Anvil::SharingMode::EXCLUSIVE,
+                                                                 Anvil::BufferCreateFlagBits::NONE,
+                                                                 Anvil::BufferUsageFlagBits::VERTEX_BUFFER_BIT,
+                                                                 Anvil::MemoryFeatureFlagBits::NONE); /* in_memory_features */
 
     create_info_ptr->set_client_data(mesh_data_ptr.get() );
 

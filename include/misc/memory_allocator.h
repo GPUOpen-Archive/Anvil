@@ -79,6 +79,7 @@ namespace Anvil
 
             uint32_t                             alloc_device_mask;
             Anvil::ExternalMemoryHandleTypeFlags alloc_exportable_external_handle_types;
+            Anvil::ImageAspectFlagBits           alloc_image_aspect;
             bool                                 alloc_is_dedicated_memory;
             MemoryBlockUniquePtr                 alloc_memory_block_ptr;
             uint32_t                             alloc_memory_final_type;
@@ -135,6 +136,7 @@ namespace Anvil
                  VkDeviceSize                                in_alloc_size,
                  uint32_t                                    in_alloc_memory_types,
                  VkDeviceSize                                in_miptail_offset,
+                 const Anvil::ImageAspectFlagBits&           in_alloc_aspect,
                  VkDeviceSize                                in_alloc_alignment,
                  MemoryFeatureFlags                          in_alloc_required_memory_features,
                  uint32_t                                    in_alloc_supported_memory_types,

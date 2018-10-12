@@ -68,7 +68,7 @@ namespace Anvil
          *
          *  @return Requested handle.
          **/
-        VkPipelineLayout get_pipeline_layout()
+        VkPipelineLayout get_pipeline_layout() const
         {
             return m_layout_vk;
         }
