@@ -98,7 +98,7 @@ void Anvil::ImageView::get_base_mipmap_size(uint32_t* out_opt_base_mipmap_width_
     result = parent_image_ptr->get_image_mipmap_size(n_base_mip_level,
                                                      out_opt_base_mipmap_width_ptr,
                                                      out_opt_base_mipmap_height_ptr,
-                                                     nullptr);
+                                                     out_opt_base_mipmap_depth_ptr);
     anvil_assert(result);
 
     switch (m_create_info_ptr->get_type() )
@@ -107,7 +107,7 @@ void Anvil::ImageView::get_base_mipmap_size(uint32_t* out_opt_base_mipmap_width_
         case Anvil::ImageViewType::_1D_ARRAY:   result_depth = m_create_info_ptr->get_n_layers(); break;
         case Anvil::ImageViewType::_2D:         result_depth = 1;                                 break;
         case Anvil::ImageViewType::_2D_ARRAY:   result_depth = m_create_info_ptr->get_n_layers(); break;
-        case Anvil::ImageViewType::_3D:         result_depth = m_create_info_ptr->get_n_slices(); break;
+        case Anvil::ImageViewType::_3D:         break;
         case Anvil::ImageViewType::_CUBE:       result_depth = m_create_info_ptr->get_n_layers(); break;
         case Anvil::ImageViewType::_CUBE_ARRAY: result_depth = m_create_info_ptr->get_n_layers(); break;
 
@@ -293,15 +293,11 @@ bool Anvil::ImageView::intersects(const Anvil::ImageView* in_image_view_ptr) con
         if ((this_subresource_range.aspect_mask & in_subresource_range.aspect_mask) != 0)
         {
             /* Layers + mips */
-            if (!((this_subresource_range.base_array_layer                                      < in_subresource_range.base_array_layer    &&
-                   this_subresource_range.base_array_layer + this_subresource_range.layer_count < in_subresource_range.base_array_layer)   ||
-                  (in_subresource_range.base_array_layer                                        < this_subresource_range.base_array_layer  &&
-                   in_subresource_range.base_array_layer   + in_subresource_range.layer_count   < this_subresource_range.base_array_layer) ))
+            if (!((this_subresource_range.base_array_layer + this_subresource_range.layer_count <= in_subresource_range.base_array_layer)   ||
+                  (in_subresource_range.base_array_layer   + in_subresource_range.layer_count   <= this_subresource_range.base_array_layer) ))
             {
-                if (!((this_subresource_range.base_mip_level                                      < in_subresource_range.base_mip_level    &&
-                       this_subresource_range.base_mip_level + this_subresource_range.level_count < in_subresource_range.base_mip_level)   ||
-                      (in_subresource_range.base_mip_level                                        < this_subresource_range.base_mip_level  &&
-                       in_subresource_range.base_mip_level   + in_subresource_range.level_count   < this_subresource_range.base_mip_level) ))
+                if (!((this_subresource_range.base_mip_level + this_subresource_range.level_count <= in_subresource_range.base_mip_level)   ||
+                      (in_subresource_range.base_mip_level   + in_subresource_range.level_count   <= this_subresource_range.base_mip_level) ))
                 {
                     result = true;
                 }
