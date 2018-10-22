@@ -176,8 +176,6 @@ namespace Anvil
          *  @param in_device_ptr          Device to use.
          *  @param in_image_ptr           Image instance to create a view for. Must not be nullptr. The specified
          *                                object will be retained and release at ImageView release time.
-         *  @param in_n_base_slice        Base slice index.
-         *  @param in_n_slices            Number of slices to include in the view.
          *  @param in_n_base_mipmap_level Base mipmap level.
          *  @param in_n_mipmaps           Number of mipmaps to include in the view.
          *  @param in_aspect_mask         Image aspect mask to use when creating the Vulkan image view instance.
@@ -195,8 +193,6 @@ namespace Anvil
          **/
         static Anvil::ImageViewCreateInfoUniquePtr create_3D(const Anvil::BaseDevice* in_device_ptr,
                                                              Image*                   in_image_ptr,
-                                                             uint32_t                 in_n_base_slice,
-                                                             uint32_t                 in_n_slices,
                                                              uint32_t                 in_n_base_mipmap_level,
                                                              uint32_t                 in_n_mipmaps,
                                                              Anvil::ImageAspectFlags  in_aspect_mask,
@@ -321,12 +317,6 @@ namespace Anvil
             return m_n_mipmaps;
         }
 
-        /** Returns number of slices encapsulated by the image view */
-        uint32_t get_n_slices() const
-        {
-            return m_n_slices;
-        }
-
         /** Returns a pointer to the parent image, from which the image view has been created. */
         Anvil::Image* get_parent_image() const
         {
@@ -396,11 +386,6 @@ namespace Anvil
             m_n_mipmaps = in_n_mipmaps;
         }
 
-        void set_n_slices(const uint32_t& in_n_slices)
-        {
-            m_n_slices = in_n_slices;
-        }
-
         void set_parent_image(Anvil::Image* in_parent_image_ptr)
         {
             m_parent_image_ptr = in_parent_image_ptr;
@@ -431,7 +416,6 @@ namespace Anvil
                             const uint32_t                 in_n_base_mipmap_level,
                             const uint32_t                 in_n_layers,
                             const uint32_t                 in_n_mipmaps,
-                            const uint32_t                 in_n_slices,
                             Anvil::Image*                  in_parent_image_ptr,
                             const Anvil::ComponentSwizzle* in_swizzle_array_ptr,
                             const Anvil::ImageViewType     in_type,
@@ -448,7 +432,6 @@ namespace Anvil
         uint32_t                               m_n_base_mipmap_level;
         uint32_t                               m_n_layers;
         uint32_t                               m_n_mipmaps;
-        uint32_t                               m_n_slices;
         Anvil::Image*                          m_parent_image_ptr;
         std::array<Anvil::ComponentSwizzle, 4> m_swizzle_array;
         Anvil::ImageViewType                   m_type;

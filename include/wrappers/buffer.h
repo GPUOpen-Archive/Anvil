@@ -283,6 +283,8 @@ namespace Anvil
                                            uint32_t             in_n_device_group_indices,
                                            const uint32_t*      in_device_group_indices_ptr);
 
+        bool is_memory_block_owned(const MemoryBlock* in_memory_block_ptr) const;
+
         /* Private members */
         VkBuffer                                 m_buffer;
         VkMemoryRequirements                     m_buffer_memory_reqs;

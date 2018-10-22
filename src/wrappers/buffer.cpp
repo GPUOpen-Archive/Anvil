@@ -439,6 +439,8 @@ bool Anvil::Buffer::init()
                 }
             }
 
+            anvil_assert(!is_memory_block_owned(mem_block_ptr.get()));
+
             m_owned_memory_blocks.push_back(std::move(mem_block_ptr) );
 
             m_memory_block_ptr = m_owned_memory_blocks.back().get();
@@ -812,6 +814,8 @@ bool Anvil::Buffer::set_memory_nonsparse_internal(MemoryBlockUniquePtr  in_memor
     m_memory_block_ptr = in_memory_block_ptr.get();
     result             = true;
 
+    anvil_assert(!is_memory_block_owned(in_memory_block_ptr.get()));
+
     m_owned_memory_blocks.push_back(
         std::move(in_memory_block_ptr)
     );
@@ -834,7 +838,7 @@ bool Anvil::Buffer::set_memory_sparse(MemoryBlock* in_memory_block_ptr,
                                         in_start_offset,
                                         in_size) )
     {
-        if (in_memory_block_owned_by_buffer)
+        if (in_memory_block_owned_by_buffer && !is_memory_block_owned(in_memory_block_ptr))
         {
             MemoryBlockUniquePtr mem_block_ptr(in_memory_block_ptr,
                                                std::default_delete<MemoryBlock>() );
@@ -1052,6 +1056,8 @@ bool Anvil::Buffer::set_nonsparse_memory_multi(uint32_t                   in_n_b
                 MemoryBlockUniquePtr memory_block_ptr(current_update.memory_block_ptr,
                                                       std::default_delete<MemoryBlock>() );
 
+                anvil_assert(!current_update.buffer_ptr->is_memory_block_owned(current_update.memory_block_ptr));
+
                 current_update.buffer_ptr->m_owned_memory_blocks.push_back(
                     std::move(memory_block_ptr)
                 );
@@ -1199,9 +1205,9 @@ bool Anvil::Buffer::write(VkDeviceSize  in_start_offset,
             copy_cmdbuf_submission.device_mask    = in_device_mask;
 
             /* Need to update all memory instances */
-            if ((m_memory_block_ptr->get_create_info_ptr()->get_memory_features() & Anvil::MemoryFeatureFlagBits::MULTI_INSTANCE_BIT) != 0)
+            if ((memory_block_ptr->get_create_info_ptr()->get_memory_features() & Anvil::MemoryFeatureFlagBits::MULTI_INSTANCE_BIT) != 0)
             {
-                auto                     device_mask     = m_memory_block_ptr->get_create_info_ptr()->get_device_mask();
+                auto                     device_mask     = memory_block_ptr->get_create_info_ptr()->get_device_mask();
                 const Anvil::MGPUDevice* mgpu_device_ptr = dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr);
 
                 if (device_mask == 0)
@@ -1224,4 +1230,19 @@ bool Anvil::Buffer::write(VkDeviceSize  in_start_offset,
 
 end:
     return result;
+}
+
+bool Anvil::Buffer::is_memory_block_owned(const MemoryBlock* in_memory_block_ptr) const
+{
+    for (auto memory_block_ptr_iter  = m_owned_memory_blocks.begin();
+              memory_block_ptr_iter != m_owned_memory_blocks.end();
+            ++memory_block_ptr_iter)
+    {
+        if (in_memory_block_ptr == memory_block_ptr_iter->get())
+        {
+            return true;
+        }
+    }
+
+    return false;
 }

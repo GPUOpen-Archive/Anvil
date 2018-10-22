@@ -126,7 +126,7 @@ namespace Anvil
                 anvil_assert_fail();
             }
 
-            memcpy(&struct_raw_data.at(0),
+            memcpy(struct_raw_data.data(),
                    &in_struct,
                    sizeof(in_struct) );
 
