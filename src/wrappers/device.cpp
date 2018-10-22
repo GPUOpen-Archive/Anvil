@@ -241,15 +241,15 @@ uint32_t Anvil::BaseDevice::get_n_queues(uint32_t in_n_queue_family) const
 }
 
 /* Please see header for specification */
-std::unique_ptr<Anvil::StructChain<VkPhysicalDeviceFeatures2KHR > > Anvil::BaseDevice::get_physical_device_features_chain(const VkPhysicalDeviceFeatures* in_opt_features_ptr) const
+void Anvil::BaseDevice::add_physical_device_features_to_chainer(const VkPhysicalDeviceFeatures*           in_opt_features_ptr,
+                                                                Anvil::StructChainer<VkDeviceCreateInfo>* in_struct_chainer_ptr,
+                                                                bool                                      in_add_features_struct) const
 {
-    const auto&                                                           features           = get_physical_device_features();
-    std::unique_ptr<Anvil::StructChainer<VkPhysicalDeviceFeatures2KHR > > struct_chainer_ptr;
+    const auto& features = get_physical_device_features();
 
-    struct_chainer_ptr.reset(
-        new Anvil::StructChainer<VkPhysicalDeviceFeatures2KHR>()
-    );
+    anvil_assert(in_struct_chainer_ptr != nullptr);
 
+    if (in_add_features_struct)
     {
         VkPhysicalDeviceFeatures2KHR features_khr;
 
@@ -258,20 +258,18 @@ std::unique_ptr<Anvil::StructChain<VkPhysicalDeviceFeatures2KHR > > Anvil::BaseD
         features_khr.pNext    = nullptr;
         features_khr.sType    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR;
 
-        struct_chainer_ptr->append_struct(features_khr);
+        in_struct_chainer_ptr->append_struct(features_khr);
     }
 
     if (m_extension_enabled_info_ptr->get_device_extension_info()->ext_descriptor_indexing() )
     {
-        struct_chainer_ptr->append_struct(features.ext_descriptor_indexing_features_ptr->get_vk_physical_device_descriptor_indexing_features() );
+        in_struct_chainer_ptr->append_struct(features.ext_descriptor_indexing_features_ptr->get_vk_physical_device_descriptor_indexing_features() );
     }
 
     if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_16bit_storage() )
     {
-        struct_chainer_ptr->append_struct(features.khr_16bit_storage_features_ptr->get_vk_physical_device_16_bit_storage_features() );
+        in_struct_chainer_ptr->append_struct(features.khr_16bit_storage_features_ptr->get_vk_physical_device_16_bit_storage_features() );
     }
-
-    return struct_chainer_ptr->create_chain();
 }
 
 /* Please see header for specification */
@@ -303,7 +301,7 @@ void Anvil::BaseDevice::get_queue_family_indices_for_physical_device(const Anvil
     std::vector<DeviceQueueFamilyMemberInfo> result_compute_queue_families;
     std::vector<DeviceQueueFamilyMemberInfo> result_transfer_queue_families;
     std::vector<DeviceQueueFamilyMemberInfo> result_universal_queue_families;
-    
+
     for (uint32_t n_iteration = 0;
                   n_iteration < 3;
                 ++n_iteration)
@@ -1277,8 +1275,6 @@ void Anvil::MGPUDevice::create_device(const std::vector<const char*>& in_extensi
 {
     std::vector<VkDeviceQueueCreateInfo>     device_queue_create_info_items;
     std::vector<float>                       device_queue_priorities;
-    auto                                     features_chain_ptr               (get_physical_device_features_chain (&in_features) );
-    auto                                     features_chain_root_struct_ptr   (features_chain_ptr->get_root_struct() );
     VkResult                                 result                           (VK_ERROR_INITIALIZATION_FAILED);
     Anvil::StructChainer<VkDeviceCreateInfo> struct_chainer;
     const Anvil::PhysicalDevice*             zeroth_physical_device_ptr       (m_parent_physical_devices.at(0).physical_device_ptr);
@@ -1325,6 +1321,7 @@ void Anvil::MGPUDevice::create_device(const std::vector<const char*>& in_extensi
         }
     }
 
+    /* Set up the device create info descriptor. */
     {
         VkDeviceCreateInfo create_info;
 
@@ -1342,7 +1339,6 @@ void Anvil::MGPUDevice::create_device(const std::vector<const char*>& in_extensi
         struct_chainer.append_struct(create_info);
     }
 
-    /* Set up the device create info descriptor. Enable all features available. */
     std::vector<VkPhysicalDevice> physical_devices(m_parent_physical_devices.size() );
 
     for (uint32_t n_physical_device = 0;
@@ -1363,12 +1359,12 @@ void Anvil::MGPUDevice::create_device(const std::vector<const char*>& in_extensi
         struct_chainer.append_struct(device_group_device_create_info);
     }
 
-    /* Finally manually append the features chain to our chain
-     *
-     * NOTE: This is a dirty hack! Do NOT append any structs after this point, or else the struct we just chained here gets lost.
-     */
-    struct_chainer.get_last_struct()->pNext = reinterpret_cast<void*>((zeroth_physical_device_ptr->get_instance()->get_enabled_extensions_info()->khr_get_physical_device_properties2() ) ? features_chain_root_struct_ptr
-                                                                                                                                                                                          : features_chain_root_struct_ptr->pNext);
+    /* Enable all features available. */
+    {
+        add_physical_device_features_to_chainer(&in_features,
+                                                &struct_chainer,
+                                                 zeroth_physical_device_ptr->get_instance()->get_enabled_extensions_info()->khr_get_physical_device_properties2());
+    }
 
     {
         auto struct_chain_ptr = struct_chainer.create_chain();
@@ -1915,13 +1911,11 @@ void Anvil::SGPUDevice::create_device(const std::vector<const char*>& in_extensi
                                       const VkPhysicalDeviceFeatures& in_features,
                                       DeviceQueueFamilyInfo*          out_queue_families_ptr)
 {
-    VkDeviceCreateInfo                   create_info;
-    std::vector<VkDeviceQueueCreateInfo> device_queue_create_info_items;
-    std::vector<float>                   device_queue_priorities;
-    auto                                 features_chain_ptr            (get_physical_device_features_chain              (&in_features) );
-    auto                                 features_chain_root_struct_ptr(features_chain_ptr->get_root_struct             () );
-    const auto&                          physical_device_queue_fams    (m_parent_physical_device_ptr->get_queue_families() );
-    VkResult                             result                        (VK_ERROR_INITIALIZATION_FAILED);
+    Anvil::StructChainer<VkDeviceCreateInfo> struct_chainer;
+    std::vector<VkDeviceQueueCreateInfo>     device_queue_create_info_items;
+    std::vector<float>                       device_queue_priorities;
+    const auto&                              physical_device_queue_fams    (m_parent_physical_device_ptr->get_queue_families() );
+    VkResult                                 result                        (VK_ERROR_INITIALIZATION_FAILED);
 
     ANVIL_REDUNDANT_VARIABLE(result);
 
@@ -1963,21 +1957,35 @@ void Anvil::SGPUDevice::create_device(const std::vector<const char*>& in_extensi
         }
     }
 
-    /* Set up the device create info descriptor. Enable all features available. */
-    create_info.enabledExtensionCount   = static_cast<uint32_t>(in_extensions.size() );
-    create_info.enabledLayerCount       = static_cast<uint32_t>(in_layers.size() );
-    create_info.flags                   = 0;
-    create_info.pEnabledFeatures        = nullptr;
-    create_info.pNext                   = (m_parent_physical_device_ptr->get_instance()->get_enabled_extensions_info()->khr_get_physical_device_properties2() ) ? features_chain_root_struct_ptr
-                                                                                                                                                                : features_chain_root_struct_ptr->pNext;
-    create_info.ppEnabledExtensionNames = (in_extensions.size() > 0) ? &in_extensions[0] : nullptr;
-    create_info.ppEnabledLayerNames     = (in_layers.size()     > 0) ? &in_layers    [0] : nullptr;
-    create_info.pQueueCreateInfos       = &device_queue_create_info_items[0];
-    create_info.queueCreateInfoCount    = static_cast<uint32_t>(device_queue_create_info_items.size() );
-    create_info.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    /* Set up the device create info descriptor.*/
+    {
+        VkDeviceCreateInfo                       create_info;
+
+        create_info.enabledExtensionCount   = static_cast<uint32_t>(in_extensions.size());
+        create_info.enabledLayerCount       = static_cast<uint32_t>(in_layers.size());
+        create_info.flags                   = 0;
+        create_info.pEnabledFeatures        = nullptr;
+        create_info.pNext                   = nullptr;
+        create_info.ppEnabledExtensionNames = (in_extensions.size() > 0) ? &in_extensions[0] : nullptr;
+        create_info.ppEnabledLayerNames     = (in_layers.size() > 0) ? &in_layers[0] : nullptr;
+        create_info.pQueueCreateInfos       = &device_queue_create_info_items[0];
+        create_info.queueCreateInfoCount    = static_cast<uint32_t>(device_queue_create_info_items.size());
+        create_info.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+
+        struct_chainer.append_struct(create_info);
+    }
+
+    /* Enable all features available. */
+    {
+        add_physical_device_features_to_chainer(&in_features,
+                                                &struct_chainer,
+                                                 m_parent_physical_device_ptr->get_instance()->get_enabled_extensions_info()->khr_get_physical_device_properties2());
+    }
+
+    auto struct_chain = struct_chainer.create_chain();
 
     result = Anvil::Vulkan::vkCreateDevice(m_parent_physical_device_ptr->get_physical_device(),
-                                          &create_info,
+                                           struct_chain->get_root_struct(),
                                            nullptr, /* pAllocator */
                                           &m_device);
     anvil_assert_vk_call_succeeded(result);
