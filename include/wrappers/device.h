@@ -677,7 +677,9 @@ namespace Anvil
 
         /* Protected functions */
 
-        std::unique_ptr<Anvil::StructChain<VkPhysicalDeviceFeatures2KHR > > get_physical_device_features_chain(const VkPhysicalDeviceFeatures* in_opt_features_ptr) const;
+        void add_physical_device_features_to_chainer(const VkPhysicalDeviceFeatures*           in_opt_features_ptr,
+                                                     Anvil::StructChainer<VkDeviceCreateInfo>* in_struct_chainer,
+                                                     bool                                      in_add_features_struct) const;
 
         std::vector<float> get_queue_priorities(const QueueFamilyInfo*              in_queue_family_info_ptr) const;
         void               init                (const DeviceExtensionConfiguration& in_extensions,
@@ -985,7 +987,7 @@ namespace Anvil
         const QueueFamilyInfoItems& get_physical_device_queue_families() const override;
 
         bool get_physical_device_semaphore_properties(const SemaphorePropertiesQuery& in_query,
-                                                      Anvil::SemaphoreProperties*     out_opt_result_ptr = nullptr) const;
+                                                      Anvil::SemaphoreProperties*     out_opt_result_ptr = nullptr) const override;
 
         /** TODO */
         bool get_physical_device_sparse_image_format_properties(Anvil::Format                                    in_format,

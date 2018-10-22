@@ -596,7 +596,7 @@ Anvil::float16_t Anvil::Utils::fp32_to_fp16_fast3_rtne(Anvil::float32_t in_f)
             uint32_t mant_odd = (in_f.u >> 13) & 1; // resulting mantissa is odd
 
             // update exponent, rounding bias part 1
-            in_f.u += static_cast<uint32_t>(((15 - 127) << 23) + 0xfff);
+            in_f.u += 0xc8000fff; // 0xc8000fff == static_cast<uint32_t>(((15 - 127) << 23) + 0xfff);
             // rounding bias part 2
             in_f.u += mant_odd;
             // take the bits!

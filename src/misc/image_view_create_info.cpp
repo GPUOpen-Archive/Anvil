@@ -51,7 +51,6 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_1D(const 
                                        in_n_base_mipmap_level,
                                        1, /* in_n_layers */
                                        in_n_mipmaps,
-                                       1, /* in_n_slices */
                                        in_image_ptr,
                                        swizzle_rgba,
                                        Anvil::ImageViewType::_1D,
@@ -92,7 +91,6 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_1D_array(
                                        in_n_base_mipmap_level,
                                        in_n_layers,
                                        in_n_mipmaps,
-                                       1, /* in_n_slices */
                                        in_image_ptr,
                                        swizzle_rgba,
                                        Anvil::ImageViewType::_1D_ARRAY,
@@ -132,7 +130,6 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_2D(const 
                                        in_n_base_mipmap_level,
                                        1, /* in_n_layers */
                                        in_n_mipmaps,
-                                       1, /* in_n_slices */
                                        in_image_ptr,
                                        swizzle_rgba,
                                        Anvil::ImageViewType::_2D,
@@ -173,7 +170,6 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_2D_array(
                                        in_n_base_mipmap_level,
                                        in_n_layers,
                                        in_n_mipmaps,
-                                       1, /* in_n_slices */
                                        in_image_ptr,
                                        swizzle_rgba,
                                        Anvil::ImageViewType::_2D_ARRAY,
@@ -185,8 +181,6 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_2D_array(
 
 Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_3D(const Anvil::BaseDevice* in_device_ptr,
                                                                           Image*                   in_image_ptr,
-                                                                          uint32_t                 in_n_base_slice,
-                                                                          uint32_t                 in_n_slices,
                                                                           uint32_t                 in_n_base_mipmap_level,
                                                                           uint32_t                 in_n_mipmaps,
                                                                           Anvil::ImageAspectFlags  in_aspect_mask,
@@ -210,11 +204,10 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_3D(const 
         new Anvil::ImageViewCreateInfo(in_aspect_mask,
                                        in_device_ptr,
                                        in_format,
-                                       in_n_base_slice,
+                                       0,    /* in_base_array_layer */
                                        in_n_base_mipmap_level,
                                        1, /* in_n_layers */
                                        in_n_mipmaps,
-                                       in_n_slices,
                                        in_image_ptr,
                                        swizzle_rgba,
                                        Anvil::ImageViewType::_3D,
@@ -254,7 +247,6 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_cube_map(
                                        in_n_base_mipmap_level,
                                        6, /* in_n_layers */
                                        in_n_mipmaps,
-                                       1, /* in_n_slices */
                                        in_image_ptr,
                                        swizzle_rgba,
                                        Anvil::ImageViewType::_CUBE,
@@ -295,7 +287,6 @@ Anvil::ImageViewCreateInfoUniquePtr Anvil::ImageViewCreateInfo::create_cube_map_
                                        in_n_base_mipmap_level,
                                        in_n_cube_maps * 6,
                                        in_n_mipmaps,
-                                       1, /* in_n_slices */
                                        in_image_ptr,
                                        swizzle_rgba,
                                        Anvil::ImageViewType::_CUBE_ARRAY,
@@ -312,7 +303,6 @@ Anvil::ImageViewCreateInfo::ImageViewCreateInfo(const Anvil::ImageAspectFlags& i
                                                 const uint32_t                 in_n_base_mipmap_level,
                                                 const uint32_t                 in_n_layers,
                                                 const uint32_t                 in_n_mipmaps,
-                                                const uint32_t                 in_n_slices,
                                                 Anvil::Image*                  in_parent_image_ptr,
                                                 const Anvil::ComponentSwizzle* in_swizzle_array_ptr,
                                                 const Anvil::ImageViewType     in_type,
@@ -325,7 +315,6 @@ Anvil::ImageViewCreateInfo::ImageViewCreateInfo(const Anvil::ImageAspectFlags& i
      m_n_base_mipmap_level(in_n_base_mipmap_level),
      m_n_layers           (in_n_layers),
      m_n_mipmaps          (in_n_mipmaps),
-     m_n_slices           (in_n_slices),
      m_parent_image_ptr   (in_parent_image_ptr),
      m_swizzle_array      ({in_swizzle_array_ptr[0], in_swizzle_array_ptr[1], in_swizzle_array_ptr[2], in_swizzle_array_ptr[3]}),
      m_type               (in_type)
