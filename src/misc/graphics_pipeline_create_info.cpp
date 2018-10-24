@@ -75,7 +75,7 @@ Anvil::GraphicsPipelineCreateInfo::GraphicsPipelineCreateInfo(const RenderPass* 
            0,
            sizeof(m_blend_constant) );
 
-    m_cull_mode          = Anvil::CullModeFlagBits::CULL_MODE_BACK_BIT;
+    m_cull_mode          = Anvil::CullModeFlagBits::BACK_BIT;
     m_line_width         = 1.0f;
     m_min_sample_shading = 1.0f;
     m_sample_count       = Anvil::SampleCountFlagBits::_1_BIT;
