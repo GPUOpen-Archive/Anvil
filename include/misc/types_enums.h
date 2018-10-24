@@ -646,13 +646,11 @@ namespace Anvil
     /* NOTE: These map 1:1 to VK equivalents */
     enum class CullModeFlagBits
     {
-        CULL_MODE_BACK_BIT  = VK_CULL_MODE_BACK_BIT,
-        CULL_MODE_FRONT_BIT = VK_CULL_MODE_FRONT_BIT,
-        CULL_MODE_NONE      = VK_CULL_MODE_NONE,
+        BACK_BIT  = VK_CULL_MODE_BACK_BIT,
+        FRONT_BIT = VK_CULL_MODE_FRONT_BIT,
+        NONE      = VK_CULL_MODE_NONE,
 
-        CULL_MODE_FRONT_AND_BACK = VK_CULL_MODE_FRONT_AND_BACK,
-
-        NONE = 0
+        FRONT_AND_BACK = VK_CULL_MODE_FRONT_AND_BACK
     };
     typedef Anvil::Bitfield<Anvil::CullModeFlagBits, VkCullModeFlags> CullModeFlags;
 
