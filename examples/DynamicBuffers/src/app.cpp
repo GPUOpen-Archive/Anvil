@@ -1012,7 +1012,7 @@ void App::init_gfx_pipelines()
     consumer_pipeline_info_ptr->set_descriptor_set_create_info(m_consumer_dsg_ptr->get_descriptor_set_create_info() );
     consumer_pipeline_info_ptr->set_primitive_topology        (Anvil::PrimitiveTopology::LINE_STRIP);
     consumer_pipeline_info_ptr->set_rasterization_properties  (Anvil::PolygonMode::FILL,
-                                                               Anvil::CullModeFlagBits::CULL_MODE_NONE,
+                                                               Anvil::CullModeFlagBits::NONE,
                                                                Anvil::FrontFace::COUNTER_CLOCKWISE,
                                                                1.0f /* line_width */);
     consumer_pipeline_info_ptr->toggle_depth_test             (true, /* should_enable */

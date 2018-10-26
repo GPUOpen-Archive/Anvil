@@ -650,7 +650,7 @@ namespace Anvil
         FRONT_BIT = VK_CULL_MODE_FRONT_BIT,
         NONE      = VK_CULL_MODE_NONE,
 
-        FRONT_AND_BACK = VK_CULL_MODE_FRONT_AND_BACK
+        FRONT_AND_BACK = VK_CULL_MODE_FRONT_AND_BACK,
     };
     typedef Anvil::Bitfield<Anvil::CullModeFlagBits, VkCullModeFlags> CullModeFlags;
 
@@ -986,6 +986,7 @@ namespace Anvil
         USCALED,
 
         UNKNOWN,
+        COUNT = UNKNOWN
     } ;
 
     enum class FrontFace
