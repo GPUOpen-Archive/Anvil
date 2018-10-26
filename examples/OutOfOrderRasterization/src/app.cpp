@@ -761,7 +761,7 @@ void App::init_gfx_pipelines()
 
             pipeline_create_info_ptr->set_primitive_topology      (Anvil::PrimitiveTopology::TRIANGLE_LIST);
             pipeline_create_info_ptr->set_rasterization_properties(Anvil::PolygonMode::FILL,
-                                                                   Anvil::CullModeFlagBits::CULL_MODE_BACK_BIT,
+                                                                   Anvil::CullModeFlagBits::BACK_BIT,
                                                                    Anvil::FrontFace::CLOCKWISE,
                                                                    4.0f); /* line_width */
             pipeline_create_info_ptr->toggle_depth_test           (true, /* should_enable */

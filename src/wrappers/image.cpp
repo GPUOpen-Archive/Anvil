@@ -485,44 +485,48 @@ bool Anvil::Image::init()
                                                               queue_family_indices,
                                                              &n_queue_family_indices);
 
-    /* Is the requested texture size valid? */
-    if (!m_device_ptr->get_physical_device_image_format_properties(Anvil::ImageFormatPropertiesQuery(m_create_info_ptr->get_format      (),
-                                                                                                     m_create_info_ptr->get_type        (),
-                                                                                                     m_create_info_ptr->get_tiling      (),
-                                                                                                     m_create_info_ptr->get_usage_flags (),
-                                                                                                     m_create_info_ptr->get_create_flags() ),
-                                                                  &image_format_props) )
+    /* Images can be created with unsupported usages with EXTENDED_USAGE_BIT */
+    if ((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::EXTENDED_USAGE_BIT) == 0)
     {
-        anvil_assert_fail();
+        /* Is the requested texture size valid? */
+        if (!m_device_ptr->get_physical_device_image_format_properties(Anvil::ImageFormatPropertiesQuery(m_create_info_ptr->get_format      (),
+                                                                                                         m_create_info_ptr->get_type        (),
+                                                                                                         m_create_info_ptr->get_tiling      (),
+                                                                                                         m_create_info_ptr->get_usage_flags (),
+                                                                                                         m_create_info_ptr->get_create_flags() ),
+                                                                      &image_format_props))
+        {
+            anvil_assert_fail();
 
-        goto end;
-    }
+            goto end;
+        }
 
-    anvil_assert(m_create_info_ptr->get_base_mip_width() <= image_format_props.max_extent.width);
+        anvil_assert(m_create_info_ptr->get_base_mip_width() <= image_format_props.max_extent.width);
 
-    if (m_create_info_ptr->get_base_mip_height() > 1)
-    {
-        anvil_assert(m_create_info_ptr->get_base_mip_height() <= image_format_props.max_extent.height);
-    }
+        if (m_create_info_ptr->get_base_mip_height() > 1)
+        {
+            anvil_assert(m_create_info_ptr->get_base_mip_height() <= image_format_props.max_extent.height);
+        }
 
-    if (m_create_info_ptr->get_base_mip_depth() > 1)
-    {
-        anvil_assert(m_create_info_ptr->get_base_mip_depth() <= image_format_props.max_extent.depth);
-    }
+        if (m_create_info_ptr->get_base_mip_depth() > 1)
+        {
+            anvil_assert(m_create_info_ptr->get_base_mip_depth() <= image_format_props.max_extent.depth);
+        }
 
-    anvil_assert(m_create_info_ptr->get_n_layers() >= 1);
+        anvil_assert(m_create_info_ptr->get_n_layers() >= 1);
 
-    if (m_create_info_ptr->get_n_layers() > 1)
-    {
-        anvil_assert(m_create_info_ptr->get_n_layers() <= image_format_props.n_max_array_layers);
-    }
+        if (m_create_info_ptr->get_n_layers() > 1)
+        {
+            anvil_assert(m_create_info_ptr->get_n_layers() <= image_format_props.n_max_array_layers);
+        }
 
-    /* If multisample image is requested, make sure the number of samples is supported. */
-    anvil_assert(m_create_info_ptr->get_sample_count() >= Anvil::SampleCountFlagBits::_1_BIT);
+        /* If multisample image is requested, make sure the number of samples is supported. */
+        anvil_assert(m_create_info_ptr->get_sample_count() >= Anvil::SampleCountFlagBits::_1_BIT);
 
-    if (m_create_info_ptr->get_sample_count() > Anvil::SampleCountFlagBits::_1_BIT)
-    {
-        anvil_assert((image_format_props.sample_counts & m_create_info_ptr->get_sample_count() ) != 0);
+        if (m_create_info_ptr->get_sample_count() > Anvil::SampleCountFlagBits::_1_BIT)
+        {
+            anvil_assert((image_format_props.sample_counts & m_create_info_ptr->get_sample_count()) != 0);
+        }
     }
 
     /* Create the image object */

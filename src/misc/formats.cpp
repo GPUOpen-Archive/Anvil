@@ -22,6 +22,8 @@
 
 #include "misc/debug.h"
 #include "misc/formats.h"
+#include <algorithm>
+#include <unordered_map>
 
 static const struct FormatInfo
 {
@@ -414,6 +416,395 @@ static uint32_t g_layout_to_n_components[] =
     /* COMPONENT_LAYOUT_XD */
     2,
 };
+
+static const std::vector<Anvil::Format> g_compatibility_classes[] =
+{
+    /* 8-bit */
+    {
+        Anvil::Format::R4G4_UNORM_PACK8,
+        Anvil::Format::R8_UNORM,
+        Anvil::Format::R8_SNORM,
+        Anvil::Format::R8_USCALED,
+        Anvil::Format::R8_SSCALED,
+        Anvil::Format::R8_UINT,
+        Anvil::Format::R8_SINT,
+        Anvil::Format::R8_SRGB
+    },
+
+    /* 16-bit */
+    {
+        Anvil::Format::R4G4B4A4_UNORM_PACK16,
+        Anvil::Format::B4G4R4A4_UNORM_PACK16,
+        Anvil::Format::R5G6B5_UNORM_PACK16,
+        Anvil::Format::B5G6R5_UNORM_PACK16,
+        Anvil::Format::R5G5B5A1_UNORM_PACK16,
+        Anvil::Format::B5G5R5A1_UNORM_PACK16,
+        Anvil::Format::A1R5G5B5_UNORM_PACK16,
+        Anvil::Format::R8G8_UNORM,
+        Anvil::Format::R8G8_SNORM,
+        Anvil::Format::R8G8_USCALED,
+        Anvil::Format::R8G8_SSCALED,
+        Anvil::Format::R8G8_UINT,
+        Anvil::Format::R8G8_SINT,
+        Anvil::Format::R8G8_SRGB,
+        Anvil::Format::R16_UNORM,
+        Anvil::Format::R16_SNORM,
+        Anvil::Format::R16_USCALED,
+        Anvil::Format::R16_SSCALED,
+        Anvil::Format::R16_UINT,
+        Anvil::Format::R16_SINT,
+        Anvil::Format::R16_SFLOAT
+    },
+
+    /* 24-bit */
+    {
+        Anvil::Format::R8G8B8_UNORM,
+        Anvil::Format::R8G8B8_SNORM,
+        Anvil::Format::R8G8B8_USCALED,
+        Anvil::Format::R8G8B8_SSCALED,
+        Anvil::Format::R8G8B8_UINT,
+        Anvil::Format::R8G8B8_SINT,
+        Anvil::Format::R8G8B8_SRGB,
+        Anvil::Format::B8G8R8_UNORM,
+        Anvil::Format::B8G8R8_SNORM,
+        Anvil::Format::B8G8R8_USCALED,
+        Anvil::Format::B8G8R8_SSCALED,
+        Anvil::Format::B8G8R8_UINT,
+        Anvil::Format::B8G8R8_SINT,
+        Anvil::Format::B8G8R8_SRGB
+    },
+
+    /* 32-bit */
+    {
+        Anvil::Format::R8G8B8A8_UNORM,
+        Anvil::Format::R8G8B8A8_SNORM,
+        Anvil::Format::R8G8B8A8_USCALED,
+        Anvil::Format::R8G8B8A8_SSCALED,
+        Anvil::Format::R8G8B8A8_UINT,
+        Anvil::Format::R8G8B8A8_SINT,
+        Anvil::Format::R8G8B8A8_SRGB,
+        Anvil::Format::B8G8R8A8_UNORM,
+        Anvil::Format::B8G8R8A8_SNORM,
+        Anvil::Format::B8G8R8A8_USCALED,
+        Anvil::Format::B8G8R8A8_SSCALED,
+        Anvil::Format::B8G8R8A8_UINT,
+        Anvil::Format::B8G8R8A8_SINT,
+        Anvil::Format::B8G8R8A8_SRGB,
+        Anvil::Format::A8B8G8R8_UNORM_PACK32,
+        Anvil::Format::A8B8G8R8_SNORM_PACK32,
+        Anvil::Format::A8B8G8R8_USCALED_PACK32,
+        Anvil::Format::A8B8G8R8_SSCALED_PACK32,
+        Anvil::Format::A8B8G8R8_UINT_PACK32,
+        Anvil::Format::A8B8G8R8_SINT_PACK32,
+        Anvil::Format::A8B8G8R8_SRGB_PACK32,
+        Anvil::Format::A2R10G10B10_UNORM_PACK32,
+        Anvil::Format::A2R10G10B10_SNORM_PACK32,
+        Anvil::Format::A2R10G10B10_USCALED_PACK32,
+        Anvil::Format::A2R10G10B10_SSCALED_PACK32,
+        Anvil::Format::A2R10G10B10_UINT_PACK32,
+        Anvil::Format::A2R10G10B10_SINT_PACK32,
+        Anvil::Format::A2B10G10R10_UNORM_PACK32,
+        Anvil::Format::A2B10G10R10_SNORM_PACK32,
+        Anvil::Format::A2B10G10R10_USCALED_PACK32,
+        Anvil::Format::A2B10G10R10_SSCALED_PACK32,
+        Anvil::Format::A2B10G10R10_UINT_PACK32,
+        Anvil::Format::A2B10G10R10_SINT_PACK32,
+        Anvil::Format::R16G16_UNORM,
+        Anvil::Format::R16G16_SNORM,
+        Anvil::Format::R16G16_USCALED,
+        Anvil::Format::R16G16_SSCALED,
+        Anvil::Format::R16G16_UINT,
+        Anvil::Format::R16G16_SINT,
+        Anvil::Format::R16G16_SFLOAT,
+        Anvil::Format::R32_UINT,
+        Anvil::Format::R32_SINT,
+        Anvil::Format::R32_SFLOAT,
+        Anvil::Format::B10G11R11_UFLOAT_PACK32,
+        Anvil::Format::E5B9G9R9_UFLOAT_PACK32,
+    },
+
+    /* 48-bit */
+    {
+        Anvil::Format::R16G16B16_UNORM,
+        Anvil::Format::R16G16B16_SNORM,
+        Anvil::Format::R16G16B16_USCALED,
+        Anvil::Format::R16G16B16_SSCALED,
+        Anvil::Format::R16G16B16_UINT,
+        Anvil::Format::R16G16B16_SINT,
+        Anvil::Format::R16G16B16_SFLOAT
+    },
+
+    /* 64-bit */
+    {
+        Anvil::Format::R16G16B16A16_UNORM,
+        Anvil::Format::R16G16B16A16_SNORM,
+        Anvil::Format::R16G16B16A16_USCALED,
+        Anvil::Format::R16G16B16A16_SSCALED,
+        Anvil::Format::R16G16B16A16_UINT,
+        Anvil::Format::R16G16B16A16_SINT,
+        Anvil::Format::R16G16B16A16_SFLOAT,
+        Anvil::Format::R32G32_UINT,
+        Anvil::Format::R32G32_SINT,
+        Anvil::Format::R32G32_SFLOAT,
+        Anvil::Format::R64_UINT,
+        Anvil::Format::R64_SINT,
+        Anvil::Format::R64_SFLOAT
+    },
+
+    /* 96-bit */
+    {
+        Anvil::Format::R32G32B32_UINT,
+        Anvil::Format::R32G32B32_SINT,
+        Anvil::Format::R32G32B32_SFLOAT
+    },
+
+    /* 128-bit */
+    {
+        Anvil::Format::R32G32B32A32_UINT,
+        Anvil::Format::R32G32B32A32_SINT,
+        Anvil::Format::R32G32B32A32_SFLOAT,
+        Anvil::Format::R64G64_UINT,
+        Anvil::Format::R64G64_SINT,
+        Anvil::Format::R64G64_SFLOAT
+    },
+
+    /* 192-bit */
+    {
+        Anvil::Format::R64G64B64_UINT,
+        Anvil::Format::R64G64B64_SINT,
+        Anvil::Format::R64G64B64_SFLOAT
+    },
+
+    /* 256-bit */
+    {
+        Anvil::Format::R64G64B64A64_UINT,
+        Anvil::Format::R64G64B64A64_SINT,
+        Anvil::Format::R64G64B64A64_SFLOAT
+    },
+
+    /* BC1 RGB  */
+    {
+        Anvil::Format::BC1_RGB_UNORM_BLOCK,
+        Anvil::Format::BC1_RGB_SRGB_BLOCK
+    },
+
+    /* BC1 RGBA */
+    {
+        Anvil::Format::BC1_RGBA_UNORM_BLOCK,
+        Anvil::Format::BC1_RGBA_SRGB_BLOCK
+    },
+
+    /* BC2 */
+    {
+        Anvil::Format::BC2_UNORM_BLOCK,
+        Anvil::Format::BC2_SRGB_BLOCK
+    },
+
+    /* BC3 */
+    {
+        Anvil::Format::BC3_UNORM_BLOCK,
+        Anvil::Format::BC3_SRGB_BLOCK
+    },
+
+    /* BC4 */
+    {
+        Anvil::Format::BC4_UNORM_BLOCK,
+        Anvil::Format::BC4_SNORM_BLOCK
+    },
+
+    /* BC5 */
+    {
+        Anvil::Format::BC5_UNORM_BLOCK,
+        Anvil::Format::BC5_SNORM_BLOCK
+    },
+
+    /* BC6H */
+    {
+        Anvil::Format::BC6H_UFLOAT_BLOCK,
+        Anvil::Format::BC6H_SFLOAT_BLOCK
+    },
+
+    /* BC7 */
+    {
+        Anvil::Format::BC7_UNORM_BLOCK,
+        Anvil::Format::BC7_SRGB_BLOCK
+    },
+
+    /* ETC2 RGB */
+    {
+        Anvil::Format::ETC2_R8G8B8_UNORM_BLOCK,
+        Anvil::Format::ETC2_R8G8B8_SRGB_BLOCK
+    },
+
+    /* ETC2 RGBA */
+    {
+        Anvil::Format::ETC2_R8G8B8A1_UNORM_BLOCK,
+        Anvil::Format::ETC2_R8G8B8A1_SRGB_BLOCK
+    },
+
+    /* ETC2/EAC RGBA */
+    {
+        Anvil::Format::ETC2_R8G8B8A8_UNORM_BLOCK,
+        Anvil::Format::ETC2_R8G8B8A8_SRGB_BLOCK
+    },
+
+    /* EAC R */
+    {
+        Anvil::Format::EAC_R11_UNORM_BLOCK,
+        Anvil::Format::EAC_R11_SNORM_BLOCK
+    },
+
+    /* EAC RG */
+    {
+        Anvil::Format::EAC_R11G11_UNORM_BLOCK,
+        Anvil::Format::EAC_R11G11_SNORM_BLOCK
+    },
+
+    /* ASTC (4x4) */
+    {
+        Anvil::Format::ASTC_4x4_UNORM_BLOCK,
+        Anvil::Format::ASTC_4x4_SRGB_BLOCK
+    },
+
+    /* ASTC (5x4) */
+    {
+        Anvil::Format::ASTC_5x4_UNORM_BLOCK,
+        Anvil::Format::ASTC_5x4_SRGB_BLOCK
+    },
+
+    /* ASTC (5x5) */
+    {
+        Anvil::Format::ASTC_5x5_UNORM_BLOCK,
+        Anvil::Format::ASTC_5x5_SRGB_BLOCK
+    },
+
+    /* ASTC (6x5) */
+    {
+        Anvil::Format::ASTC_6x5_UNORM_BLOCK,
+        Anvil::Format::ASTC_6x5_SRGB_BLOCK
+    },
+
+    /* ASTC (6x6) */
+    {
+        Anvil::Format::ASTC_6x6_UNORM_BLOCK,
+        Anvil::Format::ASTC_6x6_SRGB_BLOCK
+    },
+
+    /* ASTC (8x5) */
+    {
+        Anvil::Format::ASTC_8x5_UNORM_BLOCK,
+        Anvil::Format::ASTC_8x5_SRGB_BLOCK
+    },
+
+    /* ASTC (8x6) */
+    {
+        Anvil::Format::ASTC_8x6_UNORM_BLOCK,
+        Anvil::Format::ASTC_8x6_SRGB_BLOCK
+    },
+
+    /* ASTC (8x8) */
+    {
+        Anvil::Format::ASTC_8x8_UNORM_BLOCK,
+        Anvil::Format::ASTC_8x8_SRGB_BLOCK
+    },
+
+    /* ASTC (10x5) */
+    {
+        Anvil::Format::ASTC_10x5_UNORM_BLOCK,
+        Anvil::Format::ASTC_10x5_SRGB_BLOCK
+    },
+
+    /* ASTC (10x6) */
+    {
+        Anvil::Format::ASTC_10x6_UNORM_BLOCK,
+        Anvil::Format::ASTC_10x6_SRGB_BLOCK
+    },
+
+    /* ASTC (10x8) */
+    {
+        Anvil::Format::ASTC_10x8_UNORM_BLOCK,
+        Anvil::Format::ASTC_10x8_SRGB_BLOCK
+    },
+
+    /* ASTC (10x10) */
+    {
+        Anvil::Format::ASTC_10x10_UNORM_BLOCK,
+        Anvil::Format::ASTC_10x10_SRGB_BLOCK
+    },
+
+    /* ASTC (12x10) */
+    {
+        Anvil::Format::ASTC_12x10_UNORM_BLOCK,
+        Anvil::Format::ASTC_12x10_SRGB_BLOCK
+    },
+
+    /* ASTC (12x12) */
+    {
+        Anvil::Format::ASTC_12x12_UNORM_BLOCK,
+        Anvil::Format::ASTC_12x12_SRGB_BLOCK
+    },
+
+    /* D16 */
+    {
+        Anvil::Format::D16_UNORM
+    },
+
+    /* D24 */
+    {
+        Anvil::Format::X8_D24_UNORM_PACK32
+    },
+
+    /* D32 */
+    {
+        Anvil::Format::D32_SFLOAT
+    },
+
+    /* S8 */
+    {
+        Anvil::Format::S8_UINT
+    },
+
+    /* D16S8 */
+    {
+        Anvil::Format::D16_UNORM_S8_UINT
+    },
+
+    /* D24S8 */
+    {
+        Anvil::Format::D24_UNORM_S8_UINT
+    },
+
+    /* D32S8 */
+    {
+        Anvil::Format::D32_SFLOAT_S8_UINT
+    }
+};
+
+/** Please see header for specification */
+bool Anvil::Formats::get_compatible_formats(Anvil::Format         in_format,
+                                            uint32_t*             out_n_compatible_formats_ptr,
+                                            const Anvil::Format** out_compatible_formats_ptr_ptr)
+{
+    bool result = false;
+
+    for (const auto& current_class : g_compatibility_classes)
+    {
+        auto format_iterator = std::find(current_class.begin(),
+                                         current_class.end  (),
+                                         in_format);
+
+        if (format_iterator != current_class.end() )
+        {
+            *out_n_compatible_formats_ptr   = static_cast<uint32_t>(current_class.size() );
+            *out_compatible_formats_ptr_ptr = &current_class.at(0);
+
+            result = true;
+            break;
+        }
+    }
+
+    return result;
+}
 
 /** Please see header for specification */
 bool Anvil::Formats::get_compressed_format_block_size(Anvil::Format in_format,
