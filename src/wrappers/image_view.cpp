@@ -54,7 +54,8 @@ Anvil::ImageView::ImageView(Anvil::ImageViewCreateInfoUniquePtr in_create_info_p
     :DebugMarkerSupportProvider(in_create_info_ptr->get_device(),
                                 VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT),
      MTSafetySupportProvider   (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety(),
-                                                                                in_create_info_ptr->get_device   () ))
+                                                                                in_create_info_ptr->get_device   () )),
+     m_image_view              (VK_NULL_HANDLE)
 {
     m_create_info_ptr = std::move(in_create_info_ptr);
 

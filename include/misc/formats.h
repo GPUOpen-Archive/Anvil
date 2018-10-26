@@ -32,6 +32,21 @@ namespace Anvil
     class Formats
     {
     public:
+        /* Returns a list of formats compatible with @param in_format.
+         *
+         * The returned array includes @param in_format.
+         *
+         * @param in_format                      Format to use to determine compatibility class to use for the query.
+         * @param out_n_compatible_formats_ptr   Deref will be set to the number of formats accessible under *out_compatible_formats_ptr_ptr.
+         *                                       Must not be nullptr.
+         * @param out_compatible_formats_ptr_ptr Deref will be set to a ptr to a linear list of formats compatible with @param in_format.
+         *
+         * @return true if successful, false otherwise.
+         */
+        static bool get_compatible_formats(Anvil::Format         in_format,
+                                           uint32_t*             out_n_compatible_formats_ptr,
+                                           const Anvil::Format** out_compatible_formats_ptr_ptr);
+
         static bool get_compressed_format_block_size(Anvil::Format in_format,
                                                      uint32_t*     out_block_size_uvec2_ptr,
                                                      uint32_t*     out_n_bytes_per_block_ptr);

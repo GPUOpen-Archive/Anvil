@@ -982,7 +982,7 @@ namespace Anvil
             /* 3. Disable VK_AMD_shader_info by default. */
             extension_status[VK_AMD_SHADER_INFO_EXTENSION_NAME] = Anvil::ExtensionAvailability::IGNORE;
         }
- 
+
         std::map<std::string, ExtensionAvailability> extension_status;
 
         bool operator==(const DeviceExtensionConfiguration& in_config) const

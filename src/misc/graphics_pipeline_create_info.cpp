@@ -234,7 +234,7 @@ end:
     return result;
 }
 
-Anvil::GraphicsPipelineCreateInfoUniquePtr Anvil::GraphicsPipelineCreateInfo::create(const Anvil::PipelineCreateFlags&     in_create_flags,
+Anvil::GraphicsPipelineCreateInfoUniquePtr Anvil::GraphicsPipelineCreateInfo::create(const Anvil::PipelineCreateFlags&        in_create_flags,
                                                                                      const RenderPass*                        in_renderpass_ptr,
                                                                                      SubPassID                                in_subpass_id,
                                                                                      const ShaderModuleStageEntryPoint&       in_fragment_shader_stage_entrypoint_info,
