@@ -262,7 +262,7 @@ namespace Anvil
              *
              *  Releases the embedded image view instance.
              **/
-            ~ImageBindingElement();
+            virtual ~ImageBindingElement();
 
             /* Returns Vulkan descriptor type for this structure */
             virtual Anvil::DescriptorType get_type() const = 0;
@@ -385,7 +385,7 @@ namespace Anvil
              *
              *  Releases the embedded buffer view instance.
              **/
-            ~TexelBufferBindingElement();
+            virtual ~TexelBufferBindingElement();
 
             /** Copy assignment operator.
              *
