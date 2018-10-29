@@ -319,7 +319,7 @@ namespace Anvil
         }
 
         /** Returns a handle to the raw Vulkan command buffer instance, encapsulated by the object */
-        const VkCommandBuffer get_command_buffer() const
+        VkCommandBuffer get_command_buffer() const
         {
             return m_command_buffer;
         }

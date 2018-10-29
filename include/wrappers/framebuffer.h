@@ -60,7 +60,7 @@ namespace Anvil
          *
          *  @return Raw Vulkan framebuffer handle or VK_NULL_HANDLE, if the function failed.
          **/
-        const VkFramebuffer get_framebuffer(Anvil::RenderPass* in_render_pass_ptr);
+        VkFramebuffer get_framebuffer(Anvil::RenderPass* in_render_pass_ptr);
 
     private:
         /* Private type declarations */

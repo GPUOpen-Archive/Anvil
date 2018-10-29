@@ -79,7 +79,7 @@ namespace Anvil
             struct_chain_ptrs.push_back(std::move(inout_struct_chain_ptr) );
         }
 
-        const uint32_t get_n_structs() const
+        uint32_t get_n_structs() const
         {
             return static_cast<uint32_t>(root_structs.size() );
         }

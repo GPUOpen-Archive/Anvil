@@ -295,7 +295,7 @@ namespace Anvil
         }
 
         /** Returns image view's format */
-        const Anvil::Format get_format() const
+        Anvil::Format get_format() const
         {
             return m_format;
         }
@@ -330,7 +330,7 @@ namespace Anvil
         }
 
         /** Returns image view type of the image view instance */
-        const Anvil::ImageViewType get_type() const
+        Anvil::ImageViewType get_type() const
         {
             return m_type;
         }
