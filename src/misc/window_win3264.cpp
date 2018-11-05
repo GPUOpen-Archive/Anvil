@@ -88,12 +88,10 @@ Anvil::WindowUniquePtr Anvil::WindowWin3264::create(const std::string&          
 /** Please see header for specification */
 Anvil::WindowUniquePtr Anvil::WindowWin3264::create(HWND in_window_handle)
 {
-    WindowUniquePtr   result_ptr(nullptr,
-                                 std::default_delete<Window>() );
-    RECT              window_rect;
-    uint32_t          window_size[2] = {0};
-    std::vector<char> window_title;
-    uint32_t          window_title_length = 0;
+    WindowUniquePtr result_ptr(nullptr,
+                               std::default_delete<Window>() );
+    RECT            window_rect;
+    uint32_t        window_size[2] = {0};
 
     /* The window has already been spawned by the user. Gather all the info we need in order to instantiate
      * the wrapper instance.
@@ -116,21 +114,10 @@ Anvil::WindowUniquePtr Anvil::WindowWin3264::create(HWND in_window_handle)
     window_size[0] = static_cast<uint32_t>(window_rect.right  - window_rect.left);
     window_size[1] = static_cast<uint32_t>(window_rect.bottom - window_rect.top);
 
-    window_title_length = static_cast<uint32_t>(::GetWindowTextLength(in_window_handle) );
-
-    if (window_title_length != 0)
-    {
-        window_title.resize(window_title_length);
-
-        ::GetWindowText(in_window_handle,
-                        static_cast<LPSTR>(&window_title.at(0) ),
-                        static_cast<int>  (window_title_length) );
-    }
-
     /* Go ahead and create the window wrapper instance */
     result_ptr.reset(
         new Anvil::WindowWin3264(in_window_handle,
-                                 std::string(&window_title.at(0) ),
+                                 "HWND wrapper window instance",
                                  window_size[0],
                                  window_size[1],
                                  nullptr) /* present_callback_func_ptr */
