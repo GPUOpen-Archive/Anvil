@@ -202,7 +202,7 @@ Anvil::FramebufferUniquePtr Anvil::Framebuffer::create(Anvil::FramebufferCreateI
 }
 
 /* Please see header for specification */
-const VkFramebuffer Anvil::Framebuffer::get_framebuffer(Anvil::RenderPass* in_render_pass_ptr)
+VkFramebuffer Anvil::Framebuffer::get_framebuffer(Anvil::RenderPass* in_render_pass_ptr)
 {
     auto          fb_iterator = m_baked_framebuffers.find(in_render_pass_ptr);
     VkFramebuffer result_fb   = VK_NULL_HANDLE;
