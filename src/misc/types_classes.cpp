@@ -238,6 +238,7 @@ void Anvil::SparseMemoryBindingUpdateInfo::bake()
             uint32_t n_image_bindings_start_index        = ~0u;
             uint32_t n_image_opaque_bindings_start_index = ~0u;
             auto&    vk_binding                          = m_bindings_vk[n_binding];
+            void**   next_ptr_ptr                        = const_cast<void**>(&vk_binding.pNext);
 
             bind_info.signal_semaphores_vk.clear();
             bind_info.wait_semaphores_vk.clear  ();
@@ -275,7 +276,8 @@ void Anvil::SparseMemoryBindingUpdateInfo::bake()
                 device_group_binding_info.resourceDeviceIndex = bind_info.resource_device_index;
                 device_group_binding_info.sType               = VK_STRUCTURE_TYPE_DEVICE_GROUP_BIND_SPARSE_INFO_KHR;
 
-                vk_binding.pNext = &device_group_binding_info;
+                *next_ptr_ptr = &device_group_binding_info;
+                next_ptr_ptr  = const_cast<void**>(&device_group_binding_info.pNext);
             }
 
             n_buffer_bindings_start_index       = n_buffer_updates_used;

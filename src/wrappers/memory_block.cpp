@@ -478,7 +478,17 @@ bool Anvil::MemoryBlock::init()
                 #endif
 
                 anvil_assert(handle_import_info_ptr->host_ptr == nullptr);
-                anvil_assert(handle_import_info_ptr->handle   != static_cast<Anvil::ExternalHandleType>(nullptr) );
+
+                #if defined(_WIN32)
+                {
+                    anvil_assert(handle_import_info_ptr->handle      != static_cast<Anvil::ExternalHandleType>(nullptr) ||
+                                 handle_import_info_ptr->name.size() >  0);
+                }
+                #else
+                {
+                    anvil_assert(handle_import_info_ptr->handle != static_cast<Anvil::ExternalHandleType>(nullptr) );
+                }
+                #endif
 
                 handle_info_khr.handleType = static_cast<VkExternalMemoryHandleTypeFlagBitsKHR>(imported_external_memory_handle_type);
                 handle_info_khr.pNext      = nullptr;

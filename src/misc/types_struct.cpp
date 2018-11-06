@@ -703,6 +703,32 @@ bool Anvil::EXTExternalMemoryHostProperties::operator==(const Anvil::EXTExternal
     return (min_imported_host_pointer_alignment == in_props.min_imported_host_pointer_alignment);
 }
 
+Anvil::EXTPCIBusInfoProperties::EXTPCIBusInfoProperties()
+    :pci_bus     (0),
+     pci_device  (0),
+     pci_domain  (0),
+     pci_function(0)
+{
+    /* Stub */
+}
+
+Anvil::EXTPCIBusInfoProperties::EXTPCIBusInfoProperties(const VkPhysicalDevicePCIBusInfoPropertiesEXT& in_props)
+    :pci_bus     (in_props.pciBus),
+     pci_device  (in_props.pciDevice),
+     pci_domain  (in_props.pciDomain),
+     pci_function(in_props.pciFunction)
+{
+    /* Stub */
+}
+
+bool Anvil::EXTPCIBusInfoProperties::operator==(const Anvil::EXTPCIBusInfoProperties& in_props) const
+{
+    return (in_props.pci_bus      == pci_bus      &&
+            in_props.pci_device   == pci_device   &&
+            in_props.pci_domain   == pci_domain   &&
+            in_props.pci_function == pci_function);
+}
+
 Anvil::EXTSampleLocationsProperties::EXTSampleLocationsProperties()
 {
     max_sample_location_grid_size.height = 0;
@@ -1840,6 +1866,7 @@ Anvil::PhysicalDeviceProperties::PhysicalDeviceProperties()
     core_vk1_0_properties_ptr                                          = nullptr;
     ext_descriptor_indexing_properties_ptr                             = nullptr;
     ext_external_memory_host_properties_ptr                            = nullptr;
+    ext_pci_bus_info_properties_ptr                                    = nullptr;
     ext_sample_locations_properties_ptr                                = nullptr;
     ext_sampler_filter_minmax_properties_ptr                           = nullptr;
     ext_vertex_attribute_divisor_properties_ptr                        = nullptr;
@@ -1853,6 +1880,7 @@ Anvil::PhysicalDeviceProperties::PhysicalDeviceProperties(const AMDShaderCorePro
                                                           const PhysicalDevicePropertiesCoreVK10*                               in_core_vk1_0_properties_ptr,
                                                           const EXTDescriptorIndexingProperties*                                in_ext_descriptor_indexing_properties_ptr,
                                                           const EXTExternalMemoryHostProperties*                                in_ext_external_memory_host_properties_ptr,
+                                                          const EXTPCIBusInfoProperties*                                        in_ext_pci_bus_info_properties_ptr,
                                                           const EXTSampleLocationsProperties*                                   in_ext_sample_locations_properties_ptr,
                                                           const EXTSamplerFilterMinmaxProperties*                               in_ext_sampler_filter_minmax_properties_ptr,
                                                           const EXTVertexAttributeDivisorProperties*                            in_ext_vertex_attribute_divisor_properties_ptr,
@@ -1864,6 +1892,7 @@ Anvil::PhysicalDeviceProperties::PhysicalDeviceProperties(const AMDShaderCorePro
      core_vk1_0_properties_ptr                                         (in_core_vk1_0_properties_ptr),
      ext_descriptor_indexing_properties_ptr                            (in_ext_descriptor_indexing_properties_ptr),
      ext_external_memory_host_properties_ptr                           (in_ext_external_memory_host_properties_ptr),
+     ext_pci_bus_info_properties_ptr                                   (in_ext_pci_bus_info_properties_ptr),
      ext_sample_locations_properties_ptr                               (in_ext_sample_locations_properties_ptr),
      ext_sampler_filter_minmax_properties_ptr                          (in_ext_sampler_filter_minmax_properties_ptr),
      ext_vertex_attribute_divisor_properties_ptr                       (in_ext_vertex_attribute_divisor_properties_ptr),
@@ -2631,7 +2660,7 @@ bool Anvil::PhysicalDeviceFeatures::operator==(const PhysicalDeviceFeatures& in_
     if (khr_multiview_features_ptr                             != nullptr &&
         in_physical_device_features.khr_multiview_features_ptr != nullptr)
     {
-        khr_multiview_features_match = (*ext_descriptor_indexing_features_ptr == *in_physical_device_features.ext_descriptor_indexing_features_ptr);
+        khr_multiview_features_match = (*khr_multiview_features_ptr == *in_physical_device_features.khr_multiview_features_ptr);
     }
     else
     {
@@ -2906,6 +2935,7 @@ bool Anvil::PhysicalDeviceProperties::operator==(const PhysicalDeviceProperties&
     const bool core_vk1_0_features_match                          = (*core_vk1_0_properties_ptr == *in_props.core_vk1_0_properties_ptr);
     bool       ext_descriptor_indexing_properties_match           = false;
     bool       ext_external_memory_host_properties_match          = false;
+    bool       ext_pci_bus_info_properties_match                  = false;
     bool       ext_sample_locations_properties_match              = false;
     bool       ext_sampler_filter_minmax_properties_match         = false;
     bool       ext_vertex_attribute_divisor_properties_match      = false;
@@ -2945,6 +2975,17 @@ bool Anvil::PhysicalDeviceProperties::operator==(const PhysicalDeviceProperties&
     {
         ext_external_memory_host_properties_match = (ext_external_memory_host_properties_ptr          == nullptr &&
                                                      in_props.ext_external_memory_host_properties_ptr == nullptr);
+    }
+
+    if (ext_pci_bus_info_properties_ptr          != nullptr &&
+        in_props.ext_pci_bus_info_properties_ptr != nullptr)
+    {
+        ext_pci_bus_info_properties_match = (*ext_pci_bus_info_properties_ptr == *in_props.ext_pci_bus_info_properties_ptr);
+    }
+    else
+    {
+        ext_pci_bus_info_properties_match = (ext_pci_bus_info_properties_ptr          == nullptr &&
+                                             in_props.ext_pci_bus_info_properties_ptr == nullptr);
     }
 
     if (ext_sample_locations_properties_ptr          != nullptr &&
@@ -3028,6 +3069,7 @@ bool Anvil::PhysicalDeviceProperties::operator==(const PhysicalDeviceProperties&
            core_vk1_0_features_match                          &&
            ext_descriptor_indexing_properties_match           &&
            ext_external_memory_host_properties_match          &&
+           ext_pci_bus_info_properties_match                  &&
            ext_sample_locations_properties_match              &&
            ext_sampler_filter_minmax_properties_match         &&
            ext_vertex_attribute_divisor_properties_match      &&

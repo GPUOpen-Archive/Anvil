@@ -347,6 +347,7 @@ bool Anvil::PhysicalDevice::init()
         const auto&                                                 gpdp2_entrypoints                        = m_instance_ptr->get_extension_khr_get_physical_device_properties2_entrypoints();
         Anvil::StructID                                             maintenance3_struct_id                   = UINT32_MAX;
         Anvil::StructID                                             multiview_struct_id                      = UINT32_MAX;
+        Anvil::StructID                                             pci_bus_info_props_struct_id             = UINT32_MAX;
         Anvil::StructID                                             point_clipping_props_struct_id           = UINT32_MAX;
         Anvil::StructID                                             sample_locations_props_struct_id         = UINT32_MAX;
         Anvil::StructID                                             sampler_filter_minmax_props_struct_id    = UINT32_MAX;
@@ -393,6 +394,16 @@ bool Anvil::PhysicalDevice::init()
             external_memory_host_props.sType = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_MEMORY_HOST_PROPERTIES_EXT);
 
             external_memory_host_props_struct_id = struct_chainer.append_struct(external_memory_host_props);
+        }
+
+        if (m_extension_info_ptr->get_device_extension_info()->ext_pci_bus_info() )
+        {
+            VkPhysicalDevicePCIBusInfoPropertiesEXT pci_bus_info_props;
+
+            pci_bus_info_props.pNext = nullptr;
+            pci_bus_info_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT;
+
+            pci_bus_info_props_struct_id = struct_chainer.append_struct(pci_bus_info_props);
         }
 
         if (m_extension_info_ptr->get_device_extension_info()->ext_sample_locations() )
@@ -547,6 +558,21 @@ bool Anvil::PhysicalDevice::init()
             }
         }
 
+        if (pci_bus_info_props_struct_id != UINT32_MAX)
+        {
+            m_ext_pci_bus_info_ptr.reset(
+                new EXTPCIBusInfoProperties(*struct_chain_ptr->get_struct_with_id<VkPhysicalDevicePCIBusInfoPropertiesEXT>(pci_bus_info_props_struct_id) )
+            );
+
+            if (m_ext_pci_bus_info_ptr == nullptr)
+            {
+                anvil_assert(m_ext_pci_bus_info_ptr != nullptr);
+
+                result = false;
+                goto end;
+            }
+        }
+
         if (point_clipping_props_struct_id != UINT32_MAX)
         {
             m_khr_maintenance2_physical_device_point_clipping_properties_ptr.reset(
@@ -647,6 +673,7 @@ bool Anvil::PhysicalDevice::init()
                                                    m_core_properties_vk10_ptr.get                                          (),
                                                    m_ext_descriptor_indexing_properties_ptr.get                            (),
                                                    m_ext_external_memory_host_properties_ptr.get                           (),
+                                                   m_ext_pci_bus_info_ptr.get                                              (),
                                                    m_ext_sample_locations_properties_ptr.get                               (),
                                                    m_ext_sampler_filter_minmax_properties_ptr.get                          (),
                                                    m_ext_vertex_attribute_divisor_properties_ptr.get                       (),
@@ -924,7 +951,7 @@ bool Anvil::PhysicalDevice::get_semaphore_properties(const Anvil::SemaphorePrope
                                                      Anvil::SemaphoreProperties*            out_opt_result_ptr) const
 {
     const Anvil::ExtensionKHRExternalSemaphoreCapabilitiesEntrypoints* entrypoints_ptr = nullptr;
-    VkPhysicalDeviceExternalSemaphoreInfoKHR                           input_struct;
+    Anvil::StructChainer<VkPhysicalDeviceExternalSemaphoreInfoKHR>     struct_chainer;
     VkExternalSemaphorePropertiesKHR                                   result_struct;
     bool                                                               result          = false;
 
@@ -939,15 +966,21 @@ bool Anvil::PhysicalDevice::get_semaphore_properties(const Anvil::SemaphorePrope
         entrypoints_ptr = &m_instance_ptr->get_extension_khr_external_semaphore_capabilities_entrypoints();
     }
 
-    input_struct.handleType = static_cast<VkExternalSemaphoreHandleTypeFlagBitsKHR>(in_query.external_semaphore_handle_type);
-    input_struct.pNext      = nullptr;
-    input_struct.sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_SEMAPHORE_INFO_KHR;
+    {
+        VkPhysicalDeviceExternalSemaphoreInfoKHR root_struct;
+
+        root_struct.handleType = static_cast<VkExternalSemaphoreHandleTypeFlagBitsKHR>(in_query.external_semaphore_handle_type);
+        root_struct.pNext      = nullptr;
+        root_struct.sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_SEMAPHORE_INFO_KHR;
+
+        struct_chainer.append_struct(root_struct);
+    }
 
     result_struct.pNext = nullptr;
     result_struct.sType = VK_STRUCTURE_TYPE_EXTERNAL_SEMAPHORE_PROPERTIES_KHR;
 
     entrypoints_ptr->vkGetPhysicalDeviceExternalSemaphorePropertiesKHR(m_physical_device,
-                                                                      &input_struct,
+                                                                       struct_chainer.create_chain()->get_root_struct(),
                                                                       &result_struct);
 
     if (out_opt_result_ptr != nullptr)
