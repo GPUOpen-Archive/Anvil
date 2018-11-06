@@ -23,7 +23,6 @@
 #include "misc/debug.h"
 #include "misc/formats.h"
 #include <algorithm>
-#include <unordered_map>
 
 static const struct FormatInfo
 {
@@ -223,6 +222,112 @@ static const struct FormatInfo
     {Anvil::Format::ASTC_12x12_SRGB_BLOCK,       "VK_FORMAT_ASTC_12x12_SRGB_BLOCK",      Anvil::ComponentLayout::RGBA,     0,                  0,                  0,                  0,                  Anvil::FormatType::SRGB,        false}
 };
 
+struct SubresourceLayoutInfo
+{
+    Anvil::ComponentLayout component_layout;
+    uint8_t                component_bits[4];
+
+    /*  Default Constructor  */
+    SubresourceLayoutInfo()
+    {
+        component_layout  = Anvil::ComponentLayout::UNKNOWN;
+        component_bits[0] = component_bits[1] = component_bits[2] = component_bits[3] = 0;
+    }
+
+    SubresourceLayoutInfo(Anvil::ComponentLayout in_component_layout,
+                          uint8_t                in_component0_bits,
+                          uint8_t                in_component1_bits,
+                          uint8_t                in_component2_bits,
+                          uint8_t                in_component3_bits)
+    {
+        component_layout  = in_component_layout;
+        component_bits[0] = in_component0_bits;
+        component_bits[1] = in_component1_bits;
+        component_bits[2] = in_component2_bits;
+        component_bits[3] = in_component3_bits;
+
+    }
+};
+
+struct YUVFormatInfo
+{
+    const char*                        name;
+    uint8_t                            num_planes;
+    std::vector<SubresourceLayoutInfo> subresources;
+    Anvil::FormatType                  format_type;
+    bool                               is_multiplanar;
+    bool                               is_packed;
+
+    YUVFormatInfo()
+        :name          (nullptr),
+         num_planes    (0),
+         format_type   (Anvil::FormatType::UNKNOWN),
+         is_multiplanar(false),
+         is_packed     (false)
+    {
+        /* Stub */
+    }
+
+    YUVFormatInfo(const char*           in_name,
+                  uint8_t               in_num_planes,
+                  SubresourceLayoutInfo in_subresource0,
+                  SubresourceLayoutInfo in_subresource1,
+                  SubresourceLayoutInfo in_subresource2,
+                  Anvil::FormatType     in_format_type,
+                  bool                  in_multiplanar,
+                  bool                  in_packed)
+        : name          (in_name),
+          num_planes    (in_num_planes),
+          format_type   (in_format_type),
+          is_multiplanar(in_multiplanar),
+          is_packed     (in_packed)
+    {
+        subresources.push_back(in_subresource0);
+        subresources.push_back(in_subresource1);
+        subresources.push_back(in_subresource2);
+    }
+};
+
+static const std::map<Anvil::Format, YUVFormatInfo> g_yuv_formats =
+{
+    /* (key)                                                   | YUVFormatInfo (value)                                                                                                                                                                                                                                                                   */
+    /* format                                                    | name                                                   | num_planes | subresources[0]                                       | subresources[1]                                  | subresources[2]                            | format_type              | is_multiplanar? | is_packed? */
+    {Anvil::Format::G8B8G8R8_422_UNORM,                          {"VK_FORMAT_G8B8G8R8_422_UNORM",                         1,  {Anvil::ComponentLayout::GBGR,   8,      8,      8,      8},     {},                                                {},                                          Anvil::FormatType::UNORM,  false,      false} },
+    {Anvil::Format::B8G8R8G8_422_UNORM,                          {"VK_FORMAT_B8G8R8G8_422_UNORM",                         1,  {Anvil::ComponentLayout::BGRG,   8,      8,      8,      8},     {},                                                {},                                          Anvil::FormatType::UNORM,  false,      false} },
+    {Anvil::Format::G8_B8_R8_3PLANE_420_UNORM,                   {"VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM",                  3,  {Anvil::ComponentLayout::R,      8,      0,      0,      0},     {Anvil::ComponentLayout::R,   8,   0,   0,   0},   {Anvil::ComponentLayout::R, 8,  0, 0, 0},    Anvil::FormatType::UNORM,  true,       false} },
+    {Anvil::Format::G8_B8R8_2PLANE_420_UNORM,                    {"VK_FORMAT_G8_B8R8_2PLANE_420_UNORM",                   2,  {Anvil::ComponentLayout::R,      8,      0,      0,      0},     {Anvil::ComponentLayout::BR,  8,   8,   0,   0},   {},                                          Anvil::FormatType::UNORM,  true,       false} },
+    {Anvil::Format::G8_B8_R8_3PLANE_422_UNORM,                   {"VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM",                  3,  {Anvil::ComponentLayout::G,      8,      0,      0,      0},     {Anvil::ComponentLayout::B,   8,   0,   8,   0},   {Anvil::ComponentLayout::R, 8,  0, 8, 0},    Anvil::FormatType::UNORM,  true,       false} },
+    {Anvil::Format::G8_B8R8_2PLANE_422_UNORM,                    {"VK_FORMAT_G8_B8R8_2PLANE_422_UNORM",                   2,  {Anvil::ComponentLayout::G,      8,      0,      0,      0},     {Anvil::ComponentLayout::BR,  8,   8,   0,   0},   {},                                          Anvil::FormatType::UNORM,  true,       false} },
+    {Anvil::Format::G8_B8_R8_3PLANE_444_UNORM,                   {"VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM",                  3,  {Anvil::ComponentLayout::G,      8,      0,      0,      0},     {Anvil::ComponentLayout::B,   8,   0,   0,   0},   {Anvil::ComponentLayout::R, 8,  0, 8, 0},    Anvil::FormatType::UNORM,  true,       false} },
+    {Anvil::Format::R10X6_UNORM_PACK16,                          {"VK_FORMAT_R10X6_UNORM_PACK16",                         1,  {Anvil::ComponentLayout::R,      10,     0,      0,      0},     {},                                                {},                                          Anvil::FormatType::UNORM,  false,      true } },
+    {Anvil::Format::R10X6G10X6_UNORM_2PACK16,                    {"VK_FORMAT_R10X6G10X6_UNORM_2PACK16",                   1,  {Anvil::ComponentLayout::RG,     10,     10,     0,      0},     {},                                                {},                                          Anvil::FormatType::UNORM,  false,      true } },
+    {Anvil::Format::R10X6G10X6B10X6A10X6_UNORM_4PACK16,          {"VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16",         1,  {Anvil::ComponentLayout::RGBA,   10,     10,     10,     10},    {},                                                {},                                          Anvil::FormatType::UNORM,  false,      true } },
+    {Anvil::Format::G10X6B10X6G10X6R10X6_422_UNORM_4PACK16,      {"VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16",     1,  {Anvil::ComponentLayout::GBGR,   10,     10,     10,     10},    {},                                                {},                                          Anvil::FormatType::UNORM,  false,      true } },
+    {Anvil::Format::B10X6G10X6R10X6G10X6_422_UNORM_4PACK16,      {"VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16",     1,  {Anvil::ComponentLayout::BGRG,   10,     10,     10,     10},    {},                                                {},                                          Anvil::FormatType::UNORM,  false,      true } },
+    {Anvil::Format::G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16,  {"VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16", 3,  {Anvil::ComponentLayout::G,      10,     0,      0,      0},     {Anvil::ComponentLayout::B,   10,  0,   0,   0},   {Anvil::ComponentLayout::R, 10, 0, 0, 0},    Anvil::FormatType::UNORM,  true,       true } },
+    {Anvil::Format::G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16,   {"VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16",  2,  {Anvil::ComponentLayout::G,      10,     0,      0,      0},     {Anvil::ComponentLayout::BR,  10,  10,  0,   0},   {},                                          Anvil::FormatType::UNORM,  true,       true } },
+    {Anvil::Format::G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16,  {"VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16", 3,  {Anvil::ComponentLayout::G,      10,     0,      0,      0},     {Anvil::ComponentLayout::B,   10,  0,   0,   0},   {Anvil::ComponentLayout::R, 10, 0, 0, 0},    Anvil::FormatType::UNORM,  true,       true } },
+    {Anvil::Format::G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16,   {"VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16",  2,  {Anvil::ComponentLayout::G,      10,     0,      0,      0},     {Anvil::ComponentLayout::BR,  10,  10,  0,   0},   {},                                          Anvil::FormatType::UNORM,  true,       true } },
+    {Anvil::Format::G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16,  {"VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16", 3,  {Anvil::ComponentLayout::G,      10,     0,      0,      0},     {Anvil::ComponentLayout::B,   10,  0,   0,   0},   {Anvil::ComponentLayout::R, 10, 0, 0, 0},    Anvil::FormatType::UNORM,  true,       true } },
+    {Anvil::Format::R12X4_UNORM_PACK16,                          {"VK_FORMAT_R12X4_UNORM_PACK16",                         1,  {Anvil::ComponentLayout::R,      12,     0,      0,      0},     {},                                                {},                                          Anvil::FormatType::UNORM,  false,      true } },
+    {Anvil::Format::R12X4G12X4_UNORM_2PACK16,                    {"VK_FORMAT_R12X4G12X4_UNORM_2PACK16",                   1,  {Anvil::ComponentLayout::RG,     12,     12,     0,      0},     {},                                                {},                                          Anvil::FormatType::UNORM,  false,      true } },
+    {Anvil::Format::R12X4G12X4B12X4A12X4_UNORM_4PACK16,          {"VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16",         1,  {Anvil::ComponentLayout::RGBA,   12,     12,     12,     12},    {},                                                {},                                          Anvil::FormatType::UNORM,  false,      true } },
+    {Anvil::Format::G12X4B12X4G12X4R12X4_422_UNORM_4PACK16,      {"VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16",     1,  {Anvil::ComponentLayout::GBGR,   12,     12,     12,     12},    {},                                                {},                                          Anvil::FormatType::UNORM,  false,      true } },
+    {Anvil::Format::B12X4G12X4R12X4G12X4_422_UNORM_4PACK16,      {"VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16",     1,  {Anvil::ComponentLayout::BGRG,   12,     12,     12,     12},    {},                                                {},                                          Anvil::FormatType::UNORM,  false,      true } },
+    {Anvil::Format::G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16,  {"VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16", 3,  {Anvil::ComponentLayout::G,      12,     0,      0,      0},     {Anvil::ComponentLayout::B,   12,  0,   0,   0},   {Anvil::ComponentLayout::R, 12, 0, 0, 0},    Anvil::FormatType::UNORM,  true,       true } },
+    {Anvil::Format::G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16,   {"VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16",  2,  {Anvil::ComponentLayout::G,      12,     0,      0,      0},     {Anvil::ComponentLayout::BR,  12,  12,  0,   0},   {},                                          Anvil::FormatType::UNORM,  true,       true } },
+    {Anvil::Format::G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16,  {"VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16", 3,  {Anvil::ComponentLayout::G,      12,     0,      0,      0},     {Anvil::ComponentLayout::B,   12,  0,   0,   0},   {Anvil::ComponentLayout::R, 12, 0, 0, 0},    Anvil::FormatType::UNORM,  true,       true } },
+    {Anvil::Format::G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16,   {"VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16",  2,  {Anvil::ComponentLayout::G,      12,     0,      0,      0},     {Anvil::ComponentLayout::BR,  12,  12,  0,   0},   {},                                          Anvil::FormatType::UNORM,  true,       true } },
+    {Anvil::Format::G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16,  {"VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16", 3,  {Anvil::ComponentLayout::G,      12,     0,      0,      0},     {Anvil::ComponentLayout::B,   12,  0,   0,   0},   {Anvil::ComponentLayout::R, 12, 0, 0, 0},    Anvil::FormatType::UNORM,  true,       true } },
+    {Anvil::Format::G16B16G16R16_422_UNORM,                      {"VK_FORMAT_G16B16G16R16_422_UNORM",                     1,  {Anvil::ComponentLayout::GBGR,   16,     16,     16,     16},    {},                                                {},                                          Anvil::FormatType::UNORM,  false,      false} },
+    {Anvil::Format::B16G16R16G16_422_UNORM,                      {"VK_FORMAT_B16G16R16G16_422_UNORM",                     1,  {Anvil::ComponentLayout::BGRG,   16,     16,     16,     16},    {},                                                {},                                          Anvil::FormatType::UNORM,  false,      false} },
+    {Anvil::Format::G16_B16_R16_3PLANE_420_UNORM,                {"VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM",               3,  {Anvil::ComponentLayout::G,      16,     0,      0,      0},     {Anvil::ComponentLayout::B,   16,  0,   0,   0},   {Anvil::ComponentLayout::R, 16, 0, 0, 0},    Anvil::FormatType::UNORM,  true,       false} },
+    {Anvil::Format::G16_B16R16_2PLANE_420_UNORM,                 {"VK_FORMAT_G16_B16R16_2PLANE_420_UNORM",                2,  {Anvil::ComponentLayout::G,      16,     0,      0,      0},     {Anvil::ComponentLayout::BR,  16,  16,  0,   0},   {},                                          Anvil::FormatType::UNORM,  true,       false} },
+    {Anvil::Format::G16_B16_R16_3PLANE_422_UNORM,                {"VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM",               3,  {Anvil::ComponentLayout::G,      16,     0,      0,      0},     {Anvil::ComponentLayout::B,   16,  0,   0,   0},   {Anvil::ComponentLayout::R, 16, 0, 0, 0},    Anvil::FormatType::UNORM,  true,       false} },
+    {Anvil::Format::G16_B16R16_2PLANE_422_UNORM,                 {"VK_FORMAT_G16_B16R16_2PLANE_422_UNORM",                2,  {Anvil::ComponentLayout::G,      16,     0,      0,      0},     {Anvil::ComponentLayout::BR,  16,  16,  0,   0},   {},                                          Anvil::FormatType::UNORM,  true,       false} },
+    {Anvil::Format::G16_B16_R16_3PLANE_444_UNORM,                {"VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM",               3,  {Anvil::ComponentLayout::G,      16,     0,      0,      0},     {Anvil::ComponentLayout::B,   16,  0,   0,   0},   {Anvil::ComponentLayout::R, 16, 0, 0, 0},    Anvil::FormatType::UNORM,  true,       false} },
+};
+
 static const struct
 {
     Anvil::Format format;
@@ -383,11 +488,20 @@ static uint32_t g_layout_to_n_components[] =
     /* COMPONENT_LAYOUT_ARGB */
     4,
 
+    /* COMPONENT_LAYOUT_B */
+    1,
+
     /* COMPONENT_LAYOUT_BGR */
     3,
 
     /* COMPONENT_LAYOUT_BGRA */
     4,
+
+    /* COMPONENT_LAYOUT_BGRG */
+    4,
+
+    /* COMPONENT_LAYOUT_BR */
+    2,
 
     /* COMPONENT_LAYOUT_D */
     1,
@@ -396,6 +510,12 @@ static uint32_t g_layout_to_n_components[] =
     2,
 
     /* COMPONENT_LAYOUT_EBGR */
+    4,
+
+    /* COMPONENT_LAYOUT_G */
+    1,
+
+    /* COMPONENT_LAYOUT_GBGR */
     4,
 
     /* COMPONENT_LAYOUT_R */
@@ -989,6 +1109,31 @@ bool Anvil::Formats::get_compressed_format_block_size(Anvil::Format in_format,
             break;
         }
 
+        // YUV KHR compressed formats
+        case Anvil::Format::G8B8G8R8_422_UNORM:
+        case Anvil::Format::B8G8R8G8_422_UNORM:
+        {
+            out_block_size_uvec2_ptr[0] = 2;
+            out_block_size_uvec2_ptr[1] = 1;
+           *out_n_bytes_per_block_ptr   = 32 / 8;
+
+            break;
+        }
+
+        case Anvil::Format::G10X6B10X6G10X6R10X6_422_UNORM_4PACK16:
+        case Anvil::Format::B10X6G10X6R10X6G10X6_422_UNORM_4PACK16:
+        case Anvil::Format::G12X4B12X4G12X4R12X4_422_UNORM_4PACK16:
+        case Anvil::Format::B12X4G12X4R12X4G12X4_422_UNORM_4PACK16:
+        case Anvil::Format::G16B16G16R16_422_UNORM:
+        case Anvil::Format::B16G16R16G16_422_UNORM:
+        {
+            out_block_size_uvec2_ptr[0] = 2;
+            out_block_size_uvec2_ptr[1] = 1;
+           *out_n_bytes_per_block_ptr   = 64 / 8;
+
+            break;
+        }
+
         default:
         {
             anvil_assert_fail();
@@ -1039,6 +1184,97 @@ bool Anvil::Formats::get_format_aspects(Anvil::Format                         in
 
     out_aspects_ptr->clear();
 
+    if (Anvil::Formats::is_format_yuv_khr(in_format) )
+    {
+        struct
+        {
+            bool uses_plane_0_aspect;
+            bool uses_plane_1_aspect;
+            bool uses_plane_2_aspect;
+        } aspects_used;
+
+        aspects_used.uses_plane_0_aspect = false;
+        aspects_used.uses_plane_1_aspect = false;
+        aspects_used.uses_plane_2_aspect = false;
+
+        switch (in_format)
+        {
+            case Anvil::Format::G8B8G8R8_422_UNORM:
+            case Anvil::Format::B8G8R8G8_422_UNORM:
+            case Anvil::Format::R10X6_UNORM_PACK16:
+            case Anvil::Format::R10X6G10X6_UNORM_2PACK16:
+            case Anvil::Format::R10X6G10X6B10X6A10X6_UNORM_4PACK16:
+            case Anvil::Format::G10X6B10X6G10X6R10X6_422_UNORM_4PACK16:
+            case Anvil::Format::B10X6G10X6R10X6G10X6_422_UNORM_4PACK16:
+            case Anvil::Format::R12X4_UNORM_PACK16:
+            case Anvil::Format::R12X4G12X4_UNORM_2PACK16:
+            case Anvil::Format::R12X4G12X4B12X4A12X4_UNORM_4PACK16:
+            case Anvil::Format::G12X4B12X4G12X4R12X4_422_UNORM_4PACK16:
+            case Anvil::Format::B12X4G12X4R12X4G12X4_422_UNORM_4PACK16:
+            case Anvil::Format::G16B16G16R16_422_UNORM:
+            case Anvil::Format::B16G16R16G16_422_UNORM:
+            {
+                aspects_used = { true, false, false };
+
+                break;
+            }
+
+            case Anvil::Format::G8_B8R8_2PLANE_420_UNORM:
+            case Anvil::Format::G8_B8R8_2PLANE_422_UNORM:
+            case Anvil::Format::G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16:
+            case Anvil::Format::G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16:
+            case Anvil::Format::G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16:
+            case Anvil::Format::G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16:
+            case Anvil::Format::G16_B16R16_2PLANE_420_UNORM:
+            case Anvil::Format::G16_B16R16_2PLANE_422_UNORM:
+            {
+                aspects_used = { true, true, false };
+
+                break;
+            }
+
+            case Anvil::Format::G8_B8_R8_3PLANE_420_UNORM:
+            case Anvil::Format::G8_B8_R8_3PLANE_422_UNORM:
+            case Anvil::Format::G8_B8_R8_3PLANE_444_UNORM:
+            case Anvil::Format::G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16:
+            case Anvil::Format::G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16:
+            case Anvil::Format::G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16:
+            case Anvil::Format::G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16:
+            case Anvil::Format::G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16:
+            case Anvil::Format::G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16:
+            case Anvil::Format::G16_B16_R16_3PLANE_420_UNORM:
+            case Anvil::Format::G16_B16_R16_3PLANE_422_UNORM:
+            case Anvil::Format::G16_B16_R16_3PLANE_444_UNORM:
+            {
+                aspects_used = { true, true, true };
+
+                break;
+            }
+
+            default:
+            {
+                anvil_assert_fail();
+
+                goto end;
+            }
+        }
+
+        if (aspects_used.uses_plane_0_aspect)
+        {
+            out_aspects_ptr->push_back(Anvil::ImageAspectFlagBits::PLANE_0_BIT);
+        }
+
+        if (aspects_used.uses_plane_1_aspect)
+        {
+            out_aspects_ptr->push_back(Anvil::ImageAspectFlagBits::PLANE_1_BIT);
+        }
+
+        if (aspects_used.uses_plane_2_aspect)
+        {
+            out_aspects_ptr->push_back(Anvil::ImageAspectFlagBits::PLANE_2_BIT);
+        }
+    }
+    else
     {
         /* This image can hold color and/or depth and/or stencil aspects only */
         const Anvil::ComponentLayout format_layout = Anvil::Formats::get_format_component_layout(in_format);
@@ -1071,6 +1307,7 @@ bool Anvil::Formats::get_format_aspects(Anvil::Format                         in
     }
 
     result = true;
+end:
     return result;
 }
 
@@ -1091,6 +1328,8 @@ void Anvil::Formats::get_format_bit_layout(Anvil::Format in_format,
                                            uint32_t*     out_opt_stencil_component_start_bit_index_ptr,
                                            uint32_t*     out_opt_stencil_component_end_bit_index_ptr)
 {
+    anvil_assert(!Anvil::Formats::is_format_yuv_khr(in_format) );
+
     anvil_assert(sizeof(g_format_bit_layout_info) / sizeof(g_format_bit_layout_info[0]) >  static_cast<uint32_t>(in_format) );
     anvil_assert(g_format_bit_layout_info[static_cast<uint32_t>(in_format)].format      == in_format);
 
@@ -1172,16 +1411,46 @@ Anvil::ComponentLayout Anvil::Formats::get_format_component_layout(Anvil::Format
 {
     static_assert(sizeof(g_formats) / sizeof(g_formats[0]) == VK_FORMAT_RANGE_SIZE, "");
     anvil_assert(static_cast<uint32_t>(in_format)          <  VK_FORMAT_RANGE_SIZE);
+    anvil_assert(!Anvil::Formats::is_format_yuv_khr(in_format) );
 
     return g_formats[static_cast<uint32_t>(in_format)].component_layout;
+}
+
+/** Please see header for specification */
+Anvil::ComponentLayout Anvil::Formats::get_format_component_layout(Anvil::Format              in_format,
+                                                                   Anvil::ImageAspectFlagBits in_aspect)
+{
+    const auto plane_idx           = Anvil::Formats::get_yuv_format_plane_index(in_format,
+                                                                                in_aspect);
+    const auto YUV_FORMAT_KHR_SIZE = static_cast<uint32_t>(Anvil::Format::G16_B16_R16_3PLANE_444_UNORM) - static_cast<uint32_t>(Anvil::Format::G8B8G8R8_422_UNORM) + 1;
+
+    ANVIL_REDUNDANT_VARIABLE_CONST(YUV_FORMAT_KHR_SIZE);
+
+    anvil_assert(g_yuv_formats.size() == YUV_FORMAT_KHR_SIZE);
+    anvil_assert(Anvil::Formats::is_format_yuv_khr(in_format) );
+
+    return g_yuv_formats.at(in_format).subresources[plane_idx].component_layout;
 }
 
 /** Please see header for specification */
 uint32_t Anvil::Formats::get_format_n_components(Anvil::Format in_format)
 {
     anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE);
+    anvil_assert(!Anvil::Formats::is_format_yuv_khr(in_format) );
 
     return g_layout_to_n_components[static_cast<uint32_t>(g_formats[static_cast<uint32_t>(in_format)].component_layout)];
+}
+
+/** Please see header for specification */
+uint32_t Anvil::Formats::get_format_n_components(Anvil::Format              in_format,
+                                                 Anvil::ImageAspectFlagBits in_aspect)
+{
+    const auto plane_idx = Anvil::Formats::get_yuv_format_plane_index(in_format,
+                                                                      in_aspect);
+
+    anvil_assert(Anvil::Formats::is_format_yuv_khr(in_format) );
+
+    return g_layout_to_n_components[static_cast<uint32_t>(g_yuv_formats.at(in_format).subresources[plane_idx].component_layout)];
 }
 
 /** Please see header for specification */
@@ -1194,6 +1463,7 @@ void Anvil::Formats::get_format_n_component_bits(Anvil::Format in_format,
     const FormatInfo* format_props_ptr = nullptr;
 
     anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE);
+    anvil_assert(!Anvil::Formats::is_format_yuv_khr(in_format) );
 
     format_props_ptr = g_formats + static_cast<uint32_t>(in_format);
 
@@ -1204,24 +1474,222 @@ void Anvil::Formats::get_format_n_component_bits(Anvil::Format in_format,
 }
 
 /** Please see header for specification */
+void Anvil::Formats::get_format_n_component_bits(Anvil::Format              in_format,
+                                                 Anvil::ImageAspectFlagBits in_aspect,
+                                                 uint32_t*                  out_channel0_bits_ptr,
+                                                 uint32_t*                  out_channel1_bits_ptr,
+                                                 uint32_t*                  out_channel2_bits_ptr,
+                                                 uint32_t*                  out_channel3_bits_ptr)
+{
+    const SubresourceLayoutInfo* format_props_ptr = nullptr;
+    const auto                   plane_idx        = Anvil::Formats::get_yuv_format_plane_index(in_format,
+                                                                                               in_aspect);
+
+    anvil_assert(Anvil::Formats::is_format_yuv_khr(in_format) );
+
+    format_props_ptr = &g_yuv_formats.at(in_format).subresources.at(plane_idx);
+
+    *out_channel0_bits_ptr = format_props_ptr->component_bits[0];
+    *out_channel1_bits_ptr = format_props_ptr->component_bits[1];
+    *out_channel2_bits_ptr = format_props_ptr->component_bits[2];
+    *out_channel3_bits_ptr = format_props_ptr->component_bits[3];
+}
+
+/** Please see header for specification */
 const char* Anvil::Formats::get_format_name(Anvil::Format in_format)
 {
-    anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE);
+    anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE || Anvil::Formats::is_format_yuv_khr(in_format) );
 
-    return g_formats[static_cast<uint32_t>(in_format)].name;
+    if (Anvil::Formats::is_format_yuv_khr(in_format) )
+    {
+        return g_yuv_formats.at(in_format).name;
+    }
+    else
+    {
+        return g_formats[static_cast<uint32_t>(in_format)].name;
+    }
 }
 
 /** Please see header for specification */
 Anvil::FormatType Anvil::Formats::get_format_type(Anvil::Format in_format)
 {
-    anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE);
+    anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE || Anvil::Formats::is_format_yuv_khr(in_format) );
 
-    return g_formats[static_cast<uint32_t>(in_format)].format_type;
+    if (Anvil::Formats::is_format_yuv_khr(in_format) )
+    {
+        return g_yuv_formats.at(in_format).format_type;
+    }
+    else
+    {
+        return g_formats[static_cast<uint32_t>(in_format)].format_type;
+    }
+}
+
+/** Please see header for specification */
+uint32_t Anvil::Formats::get_yuv_format_n_planes(Anvil::Format in_format)
+{
+    anvil_assert(Anvil::Formats::is_format_yuv_khr(in_format) );
+
+    return g_yuv_formats.at(in_format).num_planes;
+}
+
+/** Please see header for specification */
+void Anvil::Formats::get_yuv_format_plane_extent(Anvil::Format              in_format,
+                                                 Anvil::ImageAspectFlagBits in_aspect,
+                                                 VkExtent3D                 in_image_extent,
+                                                 VkExtent3D*                out_plane_extent_ptr)
+{
+    anvil_assert(Anvil::Formats::is_format_yuv_khr(in_format) );
+    anvil_assert(in_aspect == Anvil::ImageAspectFlagBits::PLANE_0_BIT ||
+                 in_aspect == Anvil::ImageAspectFlagBits::PLANE_1_BIT ||
+                 in_aspect == Anvil::ImageAspectFlagBits::PLANE_2_BIT);
+
+    switch (in_format)
+    {
+        case Anvil::Format::G8B8G8R8_422_UNORM:
+        case Anvil::Format::B8G8R8G8_422_UNORM:
+        case Anvil::Format::G16B16G16R16_422_UNORM:
+        case Anvil::Format::B16G16R16G16_422_UNORM:
+        {
+            anvil_assert((in_image_extent.width % 2) == 0);
+
+           *out_plane_extent_ptr = in_image_extent;
+            break;
+        }
+
+        case Anvil::Format::G8_B8_R8_3PLANE_420_UNORM:
+        case Anvil::Format::G8_B8R8_2PLANE_420_UNORM:
+        case Anvil::Format::G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16:
+        case Anvil::Format::G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16:
+        case Anvil::Format::G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16:
+        case Anvil::Format::G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16:
+        case Anvil::Format::G16_B16_R16_3PLANE_420_UNORM:
+        case Anvil::Format::G16_B16R16_2PLANE_420_UNORM:
+        {
+            anvil_assert((in_image_extent.width  % 2) == 0);
+            anvil_assert((in_image_extent.height % 2) == 0);
+
+            if (in_aspect == Anvil::ImageAspectFlagBits::PLANE_0_BIT)
+            {
+               *out_plane_extent_ptr = in_image_extent;
+            }
+            else
+            {
+               *out_plane_extent_ptr = {in_image_extent.width  / 2,
+                                        in_image_extent.height / 2,
+                                        in_image_extent.depth};
+            }
+
+            break;
+        }
+
+        case Anvil::Format::G8_B8_R8_3PLANE_422_UNORM:
+        case Anvil::Format::G8_B8R8_2PLANE_422_UNORM:
+        case Anvil::Format::G10X6B10X6G10X6R10X6_422_UNORM_4PACK16:
+        case Anvil::Format::B10X6G10X6R10X6G10X6_422_UNORM_4PACK16:
+        case Anvil::Format::G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16:
+        case Anvil::Format::G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16:
+        case Anvil::Format::G12X4B12X4G12X4R12X4_422_UNORM_4PACK16:
+        case Anvil::Format::B12X4G12X4R12X4G12X4_422_UNORM_4PACK16:
+        case Anvil::Format::G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16:
+        case Anvil::Format::G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16:
+        case Anvil::Format::G16_B16_R16_3PLANE_422_UNORM:
+        case Anvil::Format::G16_B16R16_2PLANE_422_UNORM:
+        {
+            anvil_assert((in_image_extent.width % 2) == 0);
+
+            if (in_aspect == Anvil::ImageAspectFlagBits::PLANE_0_BIT)
+            {
+               *out_plane_extent_ptr = in_image_extent;
+            }
+            else
+            {
+               *out_plane_extent_ptr = {in_image_extent.width / 2,
+                                        in_image_extent.height,
+                                        in_image_extent.depth};
+            }
+
+            break;
+        }
+
+        case Anvil::Format::G8_B8_R8_3PLANE_444_UNORM:
+        case Anvil::Format::R10X6_UNORM_PACK16:
+        case Anvil::Format::R10X6G10X6_UNORM_2PACK16:
+        case Anvil::Format::R10X6G10X6B10X6A10X6_UNORM_4PACK16:
+        case Anvil::Format::G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16:
+        case Anvil::Format::R12X4_UNORM_PACK16:
+        case Anvil::Format::R12X4G12X4_UNORM_2PACK16:
+        case Anvil::Format::R12X4G12X4B12X4A12X4_UNORM_4PACK16:
+        case Anvil::Format::G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16:
+        case Anvil::Format::G16_B16_R16_3PLANE_444_UNORM:
+        {
+           *out_plane_extent_ptr = in_image_extent;
+
+            break;
+        }
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
+}
+
+/** Please see header for specification */
+uint32_t Anvil::Formats::get_yuv_format_plane_index(Anvil::Format              in_format,
+                                                    Anvil::ImageAspectFlagBits in_aspect)
+{
+    const auto n_planes  = Anvil::Formats::get_yuv_format_n_planes(in_format);
+    uint32_t   plane_idx = 0;
+
+    ANVIL_REDUNDANT_VARIABLE_CONST(n_planes);
+
+    anvil_assert(0 < n_planes &&
+                     n_planes <= 3);
+    anvil_assert(in_aspect == Anvil::ImageAspectFlagBits::PLANE_0_BIT ||
+                 in_aspect == Anvil::ImageAspectFlagBits::PLANE_1_BIT ||
+                 in_aspect == Anvil::ImageAspectFlagBits::PLANE_2_BIT);
+
+    switch (in_aspect)
+    {
+        case Anvil::ImageAspectFlagBits::PLANE_0_BIT:
+        {
+            anvil_assert(n_planes >= 1);
+
+            plane_idx = 0;
+            break;
+        }
+
+        case Anvil::ImageAspectFlagBits::PLANE_1_BIT:
+        {
+            anvil_assert(n_planes >= 2);
+
+            plane_idx = 1;
+            break;
+        }
+
+        case Anvil::ImageAspectFlagBits::PLANE_2_BIT:
+        {
+            anvil_assert(n_planes == 3);
+
+            plane_idx = 2;
+            break;
+        }
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
+
+    return plane_idx;
 }
 
 /** Please see header for specification */
 bool Anvil::Formats::has_depth_aspect(Anvil::Format in_format)
 {
+    anvil_assert(!Anvil::Formats::is_format_yuv_khr(in_format) );
+
     return (g_formats[static_cast<uint32_t>(in_format)].component_layout == Anvil::ComponentLayout::D)  ||
            (g_formats[static_cast<uint32_t>(in_format)].component_layout == Anvil::ComponentLayout::DS) ||
            (g_formats[static_cast<uint32_t>(in_format)].component_layout == Anvil::ComponentLayout::XD);
@@ -1230,6 +1698,8 @@ bool Anvil::Formats::has_depth_aspect(Anvil::Format in_format)
 /** Please see header for specification */
 bool Anvil::Formats::has_stencil_aspect(Anvil::Format in_format)
 {
+    anvil_assert(!Anvil::Formats::is_format_yuv_khr(in_format) );
+
     return (g_formats[static_cast<uint32_t>(in_format)].component_layout == Anvil::ComponentLayout::S)  ||
            (g_formats[static_cast<uint32_t>(in_format)].component_layout == Anvil::ComponentLayout::DS);
 }
@@ -1237,18 +1707,83 @@ bool Anvil::Formats::has_stencil_aspect(Anvil::Format in_format)
 /** Please see header for specification */
 bool Anvil::Formats::is_format_compressed(Anvil::Format in_format)
 {
-    anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE);
+    anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE || Anvil::Formats::is_format_yuv_khr(in_format));
 
-    return (g_formats[static_cast<uint32_t>(in_format)].component_bits[0] == g_formats[static_cast<uint32_t>(in_format)].component_bits[1]) &&
-           (g_formats[static_cast<uint32_t>(in_format)].component_bits[1] == g_formats[static_cast<uint32_t>(in_format)].component_bits[2]) &&
-           (g_formats[static_cast<uint32_t>(in_format)].component_bits[2] == g_formats[static_cast<uint32_t>(in_format)].component_bits[3]) &&
-           (g_formats[static_cast<uint32_t>(in_format)].component_bits[0] == 0);
+    if (Anvil::Formats::is_format_yuv_khr(in_format) )
+    {
+        return (g_yuv_formats.at(in_format).subresources[0].component_layout == Anvil::ComponentLayout::GBGR) ||
+               (g_yuv_formats.at(in_format).subresources[0].component_layout == Anvil::ComponentLayout::GBGR);
+    }
+    else
+    {
+        return (g_formats[static_cast<uint32_t>(in_format)].component_bits[0] == g_formats[static_cast<uint32_t>(in_format)].component_bits[1]) &&
+               (g_formats[static_cast<uint32_t>(in_format)].component_bits[1] == g_formats[static_cast<uint32_t>(in_format)].component_bits[2]) &&
+               (g_formats[static_cast<uint32_t>(in_format)].component_bits[2] == g_formats[static_cast<uint32_t>(in_format)].component_bits[3]) &&
+               (g_formats[static_cast<uint32_t>(in_format)].component_bits[0] == 0);
+    }
+}
+
+/** Please see header for specification */
+bool Anvil::Formats::is_format_multiplanar(Anvil::Format in_format)
+{
+    anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE || Anvil::Formats::is_format_yuv_khr(in_format) );
+
+    if (Anvil::Formats::is_format_yuv_khr(in_format) )
+    {
+        return g_yuv_formats.at(in_format).is_multiplanar;
+    }
+
+    return false;
+}
+
+/** Please see header for specification */
+bool Anvil::Formats::is_format_yuv_khr(Anvil::Format in_format)
+{
+    return (in_format == Anvil::Format::G8B8G8R8_422_UNORM                         ||
+            in_format == Anvil::Format::B8G8R8G8_422_UNORM                         ||
+            in_format == Anvil::Format::G8_B8_R8_3PLANE_420_UNORM                  ||
+            in_format == Anvil::Format::G8_B8R8_2PLANE_420_UNORM                   ||
+            in_format == Anvil::Format::G8_B8_R8_3PLANE_422_UNORM                  ||
+            in_format == Anvil::Format::G8_B8R8_2PLANE_422_UNORM                   ||
+            in_format == Anvil::Format::G8_B8_R8_3PLANE_444_UNORM                  ||
+            in_format == Anvil::Format::R10X6_UNORM_PACK16                         ||
+            in_format == Anvil::Format::R10X6G10X6_UNORM_2PACK16                   ||
+            in_format == Anvil::Format::R10X6G10X6B10X6A10X6_UNORM_4PACK16         ||
+            in_format == Anvil::Format::G10X6B10X6G10X6R10X6_422_UNORM_4PACK16     ||
+            in_format == Anvil::Format::B10X6G10X6R10X6G10X6_422_UNORM_4PACK16     ||
+            in_format == Anvil::Format::G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16 ||
+            in_format == Anvil::Format::G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16  ||
+            in_format == Anvil::Format::G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16 ||
+            in_format == Anvil::Format::G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16  ||
+            in_format == Anvil::Format::G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16 ||
+            in_format == Anvil::Format::R12X4_UNORM_PACK16                         ||
+            in_format == Anvil::Format::R12X4G12X4_UNORM_2PACK16                   ||
+            in_format == Anvil::Format::R12X4G12X4B12X4A12X4_UNORM_4PACK16         ||
+            in_format == Anvil::Format::G12X4B12X4G12X4R12X4_422_UNORM_4PACK16     ||
+            in_format == Anvil::Format::B12X4G12X4R12X4G12X4_422_UNORM_4PACK16     ||
+            in_format == Anvil::Format::G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16 ||
+            in_format == Anvil::Format::G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16  ||
+            in_format == Anvil::Format::G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16 ||
+            in_format == Anvil::Format::G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16  ||
+            in_format == Anvil::Format::G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16 ||
+            in_format == Anvil::Format::G16B16G16R16_422_UNORM                     ||
+            in_format == Anvil::Format::B16G16R16G16_422_UNORM                     ||
+            in_format == Anvil::Format::G16_B16_R16_3PLANE_420_UNORM               ||
+            in_format == Anvil::Format::G16_B16R16_2PLANE_420_UNORM                ||
+            in_format == Anvil::Format::G16_B16_R16_3PLANE_422_UNORM               ||
+            in_format == Anvil::Format::G16_B16R16_2PLANE_422_UNORM                ||
+            in_format == Anvil::Format::G16_B16_R16_3PLANE_444_UNORM);
 }
 
 /** Please see header for specification */
 bool Anvil::Formats::is_format_packed(Anvil::Format in_format)
 {
-    anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE);
+    anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE || Anvil::Formats::is_format_yuv_khr(in_format) );
+
+    if (Anvil::Formats::is_format_yuv_khr(in_format) )
+    {
+        return g_yuv_formats.at(in_format).is_packed;
+    }
 
     return g_formats[static_cast<uint32_t>(in_format)].is_packed;
 }

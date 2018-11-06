@@ -91,6 +91,7 @@ namespace Anvil
         /** Returns bit layout for the specified format.
          *
          *  NOTE: Only non-compressed formats are supported.
+         *  NOTE: YUV KHR formats are NOT supported for this function.
          *  NOTE: Components not used by the specified format have start and end bit indices set to UINT32_MAX.
          *
          *  @param in_format                                     Non-compressed format to use for the query.
@@ -125,15 +126,39 @@ namespace Anvil
                                           uint32_t*     out_opt_stencil_component_start_bit_index_ptr = nullptr,
                                           uint32_t*     out_opt_stencil_component_end_bit_index_ptr   = nullptr);
 
-        /** Tells what component layout is used by @param in_format. */
+        /** Tells what component layout is used by @param in_format.
+         *
+         *  NOTE: This function does NOT support YUV KHR format. Please check the overloaded function if
+         *        you would like to use for YUV KHR format.
+         */
         static ComponentLayout get_format_component_layout(Anvil::Format in_format);
 
-        /** Tells the number of components used by @param in_format */
+        /** Tells what component layout is used by @param in_format at specified subresource @param in_aspect.
+         *
+         *  NOTE: Only YUV KHR formats are supported.
+         */
+        static ComponentLayout get_format_component_layout(Anvil::Format              in_format,
+                                                           Anvil::ImageAspectFlagBits in_aspect);
+
+        /** Tells the number of components used by @param in_format
+         *
+         *  NOTE: This function does NOT support YUV KHR format. Please check the overloaded function if
+         *        you would like to use for YUV KHR format.
+         */
         static uint32_t get_format_n_components(Anvil::Format in_format);
+
+        /** Tells the number of components used by @param in_format under specified subresource @param in_aspect.
+         *
+         *  NOTE: Only YUV KHR formats are supported.
+         */
+        static uint32_t get_format_n_components(Anvil::Format              in_format,
+                                                Anvil::ImageAspectFlagBits in_aspect);
 
         /* Tells the number of bits used for each component in case of Vulkan format specified
          * under @param in_format.
          *
+         * NOTE: This function does NOT support YUV KHR format. Please check the overloaded function if
+         *       you would like to use for YUV KHR format.
          * NOTE: Number of bits reported for each component uses ordering as reported for the format
          *       via get_format_component_layout(). This is especially important in the context of packed formats.
          *
@@ -153,23 +178,87 @@ namespace Anvil
                                                 uint32_t*     out_channel2_bits_ptr,
                                                 uint32_t*     out_channel3_bits_ptr);
 
+        /* Tells the number of bits used for each component in case of Vulkan format specified
+         * under @param in_format at subresource @param in_aspect.
+         *
+         * NOTE: Only YUV KHR fromats are supported.
+         * NOTE: Number of bits reported for each component uses ordering as reported for the format
+         *       via get_format_component_layout(). This is especially important in the context of packed formats.
+         *
+         * @param in_format             Vulkan format to use for the query.
+         * @param out_channel0_bits_ptr Deref will be set to the number of bits used for channel 0. Must
+         *                              not be nullptr.
+         * @param out_channel1_bits_ptr Deref will be set to the number of bits used for channel 1. Must
+         *                              not be nullptr.
+         * @param out_channel2_bits_ptr Deref will be set to the number of bits used for channel 2. Must
+         *                              not be nullptr.
+         * @param out_channel3_bits_ptr Deref will be set to the number of bits used for channel 3. Must
+         *                              not be nullptr.
+         */
+        static void get_format_n_component_bits(Anvil::Format              in_format,
+                                                Anvil::ImageAspectFlagBits in_aspect,
+                                                uint32_t*                  out_channel0_bits_ptr,
+                                                uint32_t*                  out_channel1_bits_ptr,
+                                                uint32_t*                  out_channel2_bits_ptr,
+                                                uint32_t*                  out_channel3_bits_ptr);
+
         /* Returns a raw C string for specified format, or NULL if the format is unknown. */
         static const char* get_format_name(Anvil::Format in_format);
 
         /** Tells the format type used by @param in_format. */
         static FormatType get_format_type(Anvil::Format in_format);
 
-        /** Tells whether @param in_format includes a depth aspect */
+        /** Returns the extent of subresource @param in_aspect with specified format @param in_format.
+         *
+         *  NOTE: Only YUV KHR formats are supported.
+         *
+         * @param in_format            VUlkan format.
+         * @param in_aspect            Image aspect for specific subresource of the format.
+         * @param in_image_extent      Image extent specified when creating image.
+         * @param out_plane_extent_ptr Deref will be set to the extent of the specified subresource.
+         *                             Must not be nullptr.
+         */
+        static void get_yuv_format_plane_extent(Anvil::Format              in_format,
+                                                Anvil::ImageAspectFlagBits in_aspect,
+                                                VkExtent3D                 in_image_extent,
+                                                VkExtent3D*                out_plane_extent_ptr);
+        /** Tells whether @param in_format includes a depth aspect.
+         *
+         *  NOTE: YUV KHR formats are NOT supported.
+         */
         static bool has_depth_aspect(Anvil::Format in_format);
 
-        /** Tells whether @param in_format includes a stencil aspect */
+        /** Tells whether @param in_format includes a stencil aspect.
+         *
+         *  NOTE: YUV KHR formats are NOT supported.
+         */
         static bool has_stencil_aspect(Anvil::Format in_format);
 
         /** Tells whether @param in_format format is a block format. */
         static bool is_format_compressed(Anvil::Format in_format);
 
+        /** Tells whether @param in_format format is a multiplanar format. */
+        static bool is_format_multiplanar(Anvil::Format in_format);
+
+        /** Tells whether @param in_format is a KHR YUV format */
+        static bool is_format_yuv_khr(Anvil::Format in_format);
+
         /** Tells whether @param in_format is a packed format */
         static bool is_format_packed(Anvil::Format in_format);
+
+    private:
+        /** Returns the index of subresource info by given @param in_format and @param in_aspect.
+         *
+         *  NOTE: Only YUV KHR formats are supported.
+         */
+        static uint32_t get_yuv_format_plane_index(Anvil::Format              in_format,
+                                                   Anvil::ImageAspectFlagBits in_aspect);
+
+        /** Returns the number of subresources by given @param in_format.
+         *
+         *  NOTE: Only YUV KHR formats are supported.
+         */
+        static uint32_t get_yuv_format_n_planes(Anvil::Format in_format);
     };
 };
 
