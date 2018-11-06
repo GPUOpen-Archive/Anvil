@@ -88,8 +88,8 @@ Anvil::WindowUniquePtr Anvil::WindowWin3264::create(const std::string&          
 /** Please see header for specification */
 Anvil::WindowUniquePtr Anvil::WindowWin3264::create(HWND in_window_handle)
 {
-    WindowUniquePtr result_ptr(nullptr,
-                               std::default_delete<Window>() );
+    WindowUniquePtr result_ptr (nullptr,
+                                std::default_delete<Window>() );
     RECT            window_rect;
     uint32_t        window_size[2] = {0};
 

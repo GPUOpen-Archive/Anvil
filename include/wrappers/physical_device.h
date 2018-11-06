@@ -251,6 +251,7 @@ namespace Anvil
         std::unique_ptr<Anvil::EXTDescriptorIndexingFeatures>                           m_ext_descriptor_indexing_features_ptr;
         std::unique_ptr<Anvil::EXTDescriptorIndexingProperties>                         m_ext_descriptor_indexing_properties_ptr;
         std::unique_ptr<Anvil::EXTExternalMemoryHostProperties>                         m_ext_external_memory_host_properties_ptr;
+        std::unique_ptr<Anvil::EXTPCIBusInfoProperties>                                 m_ext_pci_bus_info_ptr;
         std::unique_ptr<Anvil::EXTSampleLocationsProperties>                            m_ext_sample_locations_properties_ptr;
         std::unique_ptr<Anvil::EXTSamplerFilterMinmaxProperties>                        m_ext_sampler_filter_minmax_properties_ptr;
         std::unique_ptr<Anvil::EXTVertexAttributeDivisorProperties>                     m_ext_vertex_attribute_divisor_properties_ptr;
