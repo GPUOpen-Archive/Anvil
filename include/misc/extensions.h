@@ -51,6 +51,7 @@ namespace Anvil
             ValueType ext_debug_marker;
             ValueType ext_depth_range_unrestricted;
             ValueType ext_descriptor_indexing;
+            ValueType ext_pci_bus_info;
             ValueType ext_external_memory_host;
             ValueType ext_hdr_metadata;
             ValueType ext_sample_locations;
@@ -138,6 +139,7 @@ namespace Anvil
                     {ExtensionData(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,              &ext_descriptor_indexing)},
                     {ExtensionData(VK_EXT_EXTERNAL_MEMORY_HOST_EXTENSION_NAME,             &ext_external_memory_host)},
                     {ExtensionData(VK_EXT_HDR_METADATA_EXTENSION_NAME,                     &ext_hdr_metadata)},
+                    {ExtensionData(VK_EXT_PCI_BUS_INFO_EXTENSION_NAME,                     &ext_pci_bus_info)},
                     {ExtensionData(VK_EXT_SAMPLE_LOCATIONS_EXTENSION_NAME,                 &ext_sample_locations)},
                     {ExtensionData(VK_EXT_SAMPLER_FILTER_MINMAX_EXTENSION_NAME,            &ext_sampler_filter_minmax)},
                     {ExtensionData(VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME,            &ext_shader_stencil_export)},
@@ -309,6 +311,7 @@ namespace Anvil
         virtual ValueType ext_descriptor_indexing             () const = 0;
         virtual ValueType ext_external_memory_host            () const = 0;
         virtual ValueType ext_hdr_metadata                    () const = 0;
+        virtual ValueType ext_pci_bus_info                    () const = 0;
         virtual ValueType ext_sample_locations                () const = 0;
         virtual ValueType ext_sampler_filter_minmax           () const = 0;
         virtual ValueType ext_shader_stencil_export           () const = 0;
@@ -615,6 +618,13 @@ namespace Anvil
             return m_device_extensions_ptr->ext_hdr_metadata;
         }
 
+        ValueType ext_pci_bus_info() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->ext_pci_bus_info;
+        }
+
         ValueType ext_sampler_filter_minmax() const final
         {
             anvil_assert(m_expose_device_extensions);
@@ -917,7 +927,6 @@ namespace Anvil
 
             return m_instance_extensions_ptr->khr_surface;
         }
-
 
         #ifdef _WIN32
             #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)

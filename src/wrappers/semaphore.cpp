@@ -372,3 +372,4 @@ bool Anvil::Semaphore::reset()
 end:
     return is_vk_call_successful(result);
 }
+
