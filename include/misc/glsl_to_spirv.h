@@ -305,7 +305,7 @@ namespace Anvil
          }
 
          /** Returns the number of bytes the SPIR-V blob, accessible via get_spirv_blob(), takes. */
-         const uint32_t get_spirv_blob_size() const
+         uint32_t get_spirv_blob_size() const
          {
              if (m_spirv_blob.size() == 0)
              {
