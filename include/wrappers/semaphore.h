@@ -112,7 +112,6 @@ namespace Anvil
         /** Releases the underlying Vulkan Semaphore instance and creates a new Vulkan object. */
         bool reset();
 
-
     private:
         /* Private functions */
 

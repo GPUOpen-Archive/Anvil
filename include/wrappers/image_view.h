@@ -65,7 +65,7 @@ namespace Anvil
         }
 
         /** Returns the encapsulated raw Vulkan image view handle. */
-        const VkImageView get_image_view() const
+        VkImageView get_image_view() const
         {
             return m_image_view;
         }

@@ -104,7 +104,7 @@ namespace Anvil
                                                                       VkDeviceSize   in_start_offset,
                                                                       VkDeviceSize   in_size);
 
-        const void* const get_client_data() const
+        const void* get_client_data() const
         {
             return m_client_data_ptr;
         }

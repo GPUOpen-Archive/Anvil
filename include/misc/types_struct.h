@@ -603,6 +603,19 @@ namespace Anvil
         bool operator==(const EXTExternalMemoryHostProperties& in_props) const;
     } EXTExternalMemoryHostProperties;
 
+    typedef struct EXTPCIBusInfoProperties
+    {
+        uint8_t  pci_bus;
+        uint8_t  pci_device;
+        uint16_t pci_domain;
+        uint8_t  pci_function;
+
+        EXTPCIBusInfoProperties();
+        EXTPCIBusInfoProperties(const VkPhysicalDevicePCIBusInfoPropertiesEXT& in_props);
+
+        bool operator==(const EXTPCIBusInfoProperties& in_props) const;
+    } EXTPCIBusInfoProperties;
+
     typedef struct EXTSampleLocationsProperties
     {
         VkExtent2D              max_sample_location_grid_size;
@@ -2104,6 +2117,7 @@ namespace Anvil
         const PhysicalDevicePropertiesCoreVK10*                        core_vk1_0_properties_ptr;
         const EXTDescriptorIndexingProperties*                         ext_descriptor_indexing_properties_ptr;
         const EXTExternalMemoryHostProperties*                         ext_external_memory_host_properties_ptr;
+        const EXTPCIBusInfoProperties*                                 ext_pci_bus_info_properties_ptr;
         const EXTSampleLocationsProperties*                            ext_sample_locations_properties_ptr;
         const EXTSamplerFilterMinmaxProperties*                        ext_sampler_filter_minmax_properties_ptr;
         const EXTVertexAttributeDivisorProperties*                     ext_vertex_attribute_divisor_properties_ptr;
@@ -2117,6 +2131,7 @@ namespace Anvil
                                  const PhysicalDevicePropertiesCoreVK10*                        in_core_vk1_0_properties_ptr,
                                  const EXTDescriptorIndexingProperties*                         in_ext_descriptor_indexing_properties_ptr,
                                  const EXTExternalMemoryHostProperties*                         in_ext_external_memory_host_properties_ptr,
+                                 const EXTPCIBusInfoProperties*                                 in_ext_pci_bus_info_properties_ptr,
                                  const EXTSampleLocationsProperties*                            in_ext_sample_locations_properties_ptr,
                                  const EXTSamplerFilterMinmaxProperties*                        in_ext_sampler_filter_minmax_properties_ptr,
                                  const EXTVertexAttributeDivisorProperties*                     in_ext_vertex_attribute_divisor_properties_ptr,
