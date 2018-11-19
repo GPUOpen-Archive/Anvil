@@ -158,7 +158,7 @@ namespace Anvil
 
         typedef struct PhysicalDeviceCapabilities
         {
-            Anvil::SurfaceCapabilities          capabilities;
+            Anvil::SurfaceCapabilities          capabilities{};
             std::vector<RenderingSurfaceFormat> supported_formats;
             std::vector<Anvil::PresentModeKHR>  supported_presentation_modes;
             Anvil::SurfaceTransformFlags        supported_transformations;
@@ -167,13 +167,6 @@ namespace Anvil
             std::vector<uint32_t>               present_capable_queue_fams;
 
             Anvil::CompositeAlphaFlags          supported_composite_alpha_flags;
-
-            PhysicalDeviceCapabilities()
-            {
-                memset(&capabilities,
-                       0,
-                       sizeof(capabilities) );
-            }
         } PhysicalDeviceCapabilities;
 
         /* Private functions */

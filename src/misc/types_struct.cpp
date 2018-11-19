@@ -1316,11 +1316,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_1D(Anvil::ImageAspectFlagBits 
                                                      uint32_t                   in_n_mipmap,
                                                      uint32_t                   in_row_size)
 {
-    MipmapRawData result;
-
-    memset(&result,
-            0,
-            sizeof(result) );
+    MipmapRawData result{};
 
     result.aspect    = in_aspect;
     result.data_size = in_row_size;
@@ -1343,11 +1339,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array(Anvil::ImageAspectFla
                                                            uint32_t                   in_row_size,
                                                            uint32_t                   in_data_size)
 {
-    MipmapRawData result;
-
-    memset(&result,
-            0,
-            sizeof(result) );
+    MipmapRawData result{};
 
     result.aspect    = in_aspect;
     result.data_size = in_data_size;
@@ -1369,11 +1361,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_2D(Anvil::ImageAspectFlagBits 
                                                      uint32_t                   in_data_size,
                                                      uint32_t                   in_row_size)
 {
-    MipmapRawData result;
-
-    memset(&result,
-            0,
-            sizeof(result) );
+    MipmapRawData result{};
 
     result.aspect    = in_aspect;
     result.data_size = in_data_size;
@@ -1396,11 +1384,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array(Anvil::ImageAspectFla
                                                            uint32_t                   in_data_size,
                                                            uint32_t                   in_row_size)
 {
-    MipmapRawData result;
-
-    memset(&result,
-            0,
-            sizeof(result) );
+    MipmapRawData result{};
 
     result.aspect    = in_aspect;
     result.data_size = in_data_size;
@@ -1424,11 +1408,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_3D(Anvil::ImageAspectFlagBits 
                                                      uint32_t                   in_data_size,
                                                      uint32_t                   in_row_size)
 {
-    MipmapRawData result;
-
-    memset(&result,
-            0,
-            sizeof(result) );
+    MipmapRawData result{};
 
     result.aspect    = in_aspect;
     result.data_size = in_data_size;
