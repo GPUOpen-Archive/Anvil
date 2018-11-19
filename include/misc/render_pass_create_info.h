@@ -262,6 +262,8 @@ namespace Anvil
         /** Retrieves properties of the render pass color attachment with the user-specified ID
          *
          *  @param in_attachment_id           ID of the attachment to retrieve properties of.
+         *  @param out_opt_format_ptr         If not nullptr, deref will be set to the format, specified
+         *                                    at attachment creation time. May be nullptr.
          *  @param out_opt_sample_count_ptr   If not nullptr, deref will be set to the sample count, specified
          *                                    at attachment creation time. May be nullptr.
          *  @param out_opt_load_op_ptr        If not nullptr, deref will be set to the load op, specified at
@@ -279,6 +281,7 @@ namespace Anvil
          *  @return true if successful, false otherwise.
          **/
         bool get_color_attachment_properties(RenderPassAttachmentID      in_attachment_id,
+                                             Anvil::Format*              out_opt_format_ptr         = nullptr,
                                              Anvil::SampleCountFlagBits* out_opt_sample_count_ptr   = nullptr,
                                              Anvil::AttachmentLoadOp*    out_opt_load_op_ptr        = nullptr,
                                              Anvil::AttachmentStoreOp*   out_opt_store_op_ptr       = nullptr,
@@ -332,6 +335,10 @@ namespace Anvil
         /** Retrieves properties of the render pass color attachment with the user-specified ID
          *
          *  @param in_attachment_id             ID of the attachment to retrieve properties of.
+         *  @param out_opt_format_ptr           If not nullptr, deref will be set to the format, specified
+         *                                      at attachment creation time. May be nullptr.
+         *  @param out_opt_sample_count_ptr     If not nullptr, deref will be set to the sample count, specified
+         *                                      at attachment creation time. May be nullptr.
          *  @param out_opt_depth_load_op_ptr    If not nullptr, deref will be set to the depth-specific load op, specified at
          *                                      attachment creation time. May be nullptr.
          *  @param out_opt_depth_store_op_ptr   If not nullptr, deref will be set to the depth-specific store op, specified at
@@ -350,14 +357,16 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_depth_stencil_attachment_properties(RenderPassAttachmentID    in_attachment_id,
-                                                     Anvil::AttachmentLoadOp*  out_opt_depth_load_op_ptr    = nullptr,
-                                                     Anvil::AttachmentStoreOp* out_opt_depth_store_op_ptr   = nullptr,
-                                                     Anvil::AttachmentLoadOp*  out_opt_stencil_load_op_ptr  = nullptr,
-                                                     Anvil::AttachmentStoreOp* out_opt_stencil_store_op_ptr = nullptr,
-                                                     Anvil::ImageLayout*       out_opt_initial_layout_ptr   = nullptr,
-                                                     Anvil::ImageLayout*       out_opt_final_layout_ptr     = nullptr,
-                                                     bool*                     out_opt_may_alias_ptr        = nullptr) const;
+        bool get_depth_stencil_attachment_properties(RenderPassAttachmentID      in_attachment_id,
+                                                     Anvil::Format*              out_opt_format_ptr           = nullptr,
+                                                     Anvil::SampleCountFlagBits* out_opt_sample_count_ptr     = nullptr,
+                                                     Anvil::AttachmentLoadOp*    out_opt_depth_load_op_ptr    = nullptr,
+                                                     Anvil::AttachmentStoreOp*   out_opt_depth_store_op_ptr   = nullptr,
+                                                     Anvil::AttachmentLoadOp*    out_opt_stencil_load_op_ptr  = nullptr,
+                                                     Anvil::AttachmentStoreOp*   out_opt_stencil_store_op_ptr = nullptr,
+                                                     Anvil::ImageLayout*         out_opt_initial_layout_ptr   = nullptr,
+                                                     Anvil::ImageLayout*         out_opt_final_layout_ptr     = nullptr,
+                                                     bool*                       out_opt_may_alias_ptr        = nullptr) const;
 
         const Anvil::BaseDevice* get_device() const
         {
