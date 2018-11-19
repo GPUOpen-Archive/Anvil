@@ -89,6 +89,12 @@ namespace Anvil
             return m_size.height;
         }
 
+        /** Return the actual number of swapchain images created. */
+        uint32_t get_n_images() const
+        {
+            return m_n_images;
+        }
+
         /** Retrieves an Image instance associated with a swapchain image at index
          *  @param in_n_swapchain_image.
          *
@@ -197,6 +203,7 @@ namespace Anvil
         /* Private variables */
         Anvil::SwapchainCreateInfoUniquePtr m_create_info_ptr;
         Anvil::FenceUniquePtr               m_image_available_fence_ptr;
+        uint32_t                            m_n_images;  /* number of images created in the swapchain. */
         std::vector<ImageUniquePtr>         m_image_ptrs;
         std::vector<ImageViewUniquePtr>     m_image_view_ptrs;
         uint32_t                            m_last_acquired_image_index;
