@@ -48,11 +48,6 @@ Anvil::Swapchain::Swapchain(Anvil::SwapchainCreateInfoUniquePtr in_create_info_p
      m_n_present_counter                            (0),
      m_swapchain                                    (VK_NULL_HANDLE)
 {
-    const auto n_images = in_create_info_ptr->get_n_images();
-
-    m_image_ptrs.resize     (n_images);
-    m_image_view_ptrs.resize(n_images);
-
     {
         auto create_info_ptr = Anvil::FenceCreateInfo::create(m_device_ptr,
                                                               false);  /* create_signalled */
@@ -341,7 +336,7 @@ void Anvil::Swapchain::destroy_swapchain()
 /** Please see header for specification */
 Anvil::Image* Anvil::Swapchain::get_image(uint32_t in_n_swapchain_image) const
 {
-    anvil_assert(in_n_swapchain_image < m_create_info_ptr->get_n_images() );
+    anvil_assert(in_n_swapchain_image < m_n_images );
 
     return m_image_ptrs.at(in_n_swapchain_image).get();
 }
@@ -349,7 +344,7 @@ Anvil::Image* Anvil::Swapchain::get_image(uint32_t in_n_swapchain_image) const
 /** Please see header for specification */
 Anvil::ImageView* Anvil::Swapchain::get_image_view(uint32_t in_n_swapchain_image) const
 {
-    anvil_assert(in_n_swapchain_image < m_create_info_ptr->get_n_images());
+    anvil_assert(in_n_swapchain_image < m_n_images );
 
     return m_image_view_ptrs.at(in_n_swapchain_image).get();
 }
@@ -357,7 +352,6 @@ Anvil::ImageView* Anvil::Swapchain::get_image_view(uint32_t in_n_swapchain_image
 /** Initializes the swapchain object. */
 bool Anvil::Swapchain::init()
 {
-    uint32_t                                              n_swapchain_images             = 0;
     auto                                                  parent_surface_ptr             = m_create_info_ptr->get_rendering_surface();
     VkResult                                              result                         = VK_ERROR_INITIALIZATION_FAILED;
     Anvil::StructChainUniquePtr<VkSwapchainCreateInfoKHR> struct_chain_ptr;
@@ -367,6 +361,7 @@ bool Anvil::Swapchain::init()
     const bool                                            is_offscreen_rendering_enabled = (window_platform   == WINDOW_PLATFORM_DUMMY                     ||
                                                                                             window_platform   == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS);
 
+    m_n_images    = 0;
     m_size.width  = parent_surface_ptr->get_width ();
     m_size.height = parent_surface_ptr->get_height();
 
@@ -519,17 +514,17 @@ bool Anvil::Swapchain::init()
         /* Retrieve swap-chain images */
         result = khr_swapchain_entrypoints.vkGetSwapchainImagesKHR(m_device_ptr->get_device_vk(),
                                                                    m_swapchain,
-                                                                  &n_swapchain_images,
+                                                                  &m_n_images,
                                                                    nullptr); /* pSwapchainImages */
 
         anvil_assert_vk_call_succeeded(result);
-        anvil_assert                  (n_swapchain_images >  0);
+        anvil_assert                  (m_n_images > 0);
 
-        swapchain_images.resize(n_swapchain_images);
+        swapchain_images.resize(m_n_images);
 
         result = khr_swapchain_entrypoints.vkGetSwapchainImagesKHR(m_device_ptr->get_device_vk(),
                                                                    m_swapchain,
-                                                                  &n_swapchain_images,
+                                                                  &m_n_images,
                                                                   &swapchain_images[0]);
 
         anvil_assert_vk_call_succeeded(result);
@@ -538,11 +533,15 @@ bool Anvil::Swapchain::init()
     {
         m_create_info_ptr->set_usage_flags(m_create_info_ptr->get_usage_flags() | Anvil::ImageUsageFlagBits::TRANSFER_SRC_BIT);
 
-        n_swapchain_images = m_create_info_ptr->get_n_images();
+        m_n_images = m_create_info_ptr->get_n_images();
     }
 
+    /* Adjust capacity of m_image_ptrs and m_image_view_ptrs to the number of swapchain images actually created. */
+    m_image_ptrs.resize     (m_n_images);
+    m_image_view_ptrs.resize(m_n_images);
+
     for (uint32_t n_result_image = 0;
-                  n_result_image < n_swapchain_images;
+                  n_result_image < m_n_images;
                 ++n_result_image)
     {
         /* Spawn an Image wrapper class for the swap-chain image. */

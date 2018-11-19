@@ -517,7 +517,7 @@ void App::init_command_buffers()
     VkClearValue                   clear_values[2];
     const Anvil::DeviceType        device_type                  = m_device_ptr->get_type();
     auto                           gfx_manager_ptr              = m_device_ptr->get_graphics_pipeline_manager();
-    const uint32_t                 n_swapchain_images           = m_swapchain_ptr->get_create_info_ptr()->get_n_images();
+    const uint32_t                 n_swapchain_images           = m_swapchain_ptr->get_n_images();
     const uint32_t                 universal_queue_family_index = m_device_ptr->get_universal_queue(0)->get_queue_family_index();
     Anvil::Buffer*                 vertex_buffers[]             =
     {
