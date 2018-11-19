@@ -102,7 +102,7 @@ void Anvil::DebugMarkerSupportProviderWorker::set_tag_internal(const uint64_t in
         m_object_tag_name = in_tag_name;
         m_object_tag_data.resize(in_tag_size);
 
-        memcpy(&m_object_tag_data,
+        memcpy(&m_object_tag_data.at(0),
                in_tag_ptr,
                in_tag_size);
 

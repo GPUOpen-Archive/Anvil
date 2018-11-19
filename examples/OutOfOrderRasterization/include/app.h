@@ -89,7 +89,7 @@ private:
 
     uint32_t               m_n_indices;
     uint32_t               m_n_last_semaphore_used;
-    const uint32_t         m_n_swapchain_images;
+    uint32_t               m_n_swapchain_images;
     bool                   m_ooo_enabled;
     bool                   m_should_rotate;
     std::unique_ptr<float> m_teapot_props_data_ptr;

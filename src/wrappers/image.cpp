@@ -1965,7 +1965,7 @@ bool Anvil::Image::set_memory_internal(uint32_t        in_swapchain_image_index,
     anvil_assert(m_peer_sfr_rects.size()                                                                  == 0);
     anvil_assert(m_create_info_ptr->get_internal_type()                                                   == Anvil::ImageInternalType::PEER_NO_ALLOC     ||
                  m_create_info_ptr->get_internal_type()                                                   == Anvil::ImageInternalType::SWAPCHAIN_WRAPPER);
-    anvil_assert(m_create_info_ptr->get_swapchain()->get_create_info_ptr()->get_n_images()                >  in_swapchain_image_index);
+    anvil_assert(m_create_info_ptr->get_swapchain()->get_n_images()                                       >  in_swapchain_image_index);
 
     if (!m_device_ptr->is_extension_enabled(VK_KHR_DEVICE_GROUP_EXTENSION_NAME) )
     {
