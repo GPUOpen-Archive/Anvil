@@ -170,7 +170,7 @@ namespace Anvil
 
             PhysicalDeviceCapabilities()
             {
-                memset(&capabilities,
+                memset(static_cast<void*>(&capabilities),
                        0,
                        sizeof(capabilities) );
             }

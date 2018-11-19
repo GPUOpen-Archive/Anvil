@@ -1318,7 +1318,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_1D(Anvil::ImageAspectFlagBits 
 {
     MipmapRawData result;
 
-    memset(&result,
+    memset(static_cast<void*>(&result),
             0,
             sizeof(result) );
 
@@ -1345,7 +1345,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array(Anvil::ImageAspectFla
 {
     MipmapRawData result;
 
-    memset(&result,
+    memset(static_cast<void*>(&result),
             0,
             sizeof(result) );
 
@@ -1371,7 +1371,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_2D(Anvil::ImageAspectFlagBits 
 {
     MipmapRawData result;
 
-    memset(&result,
+    memset(static_cast<void*>(&result),
             0,
             sizeof(result) );
 
@@ -1398,7 +1398,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array(Anvil::ImageAspectFla
 {
     MipmapRawData result;
 
-    memset(&result,
+    memset(static_cast<void*>(&result),
             0,
             sizeof(result) );
 
@@ -1426,7 +1426,7 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_3D(Anvil::ImageAspectFlagBits 
 {
     MipmapRawData result;
 
-    memset(&result,
+    memset(static_cast<void*>(&result),
             0,
             sizeof(result) );
 
