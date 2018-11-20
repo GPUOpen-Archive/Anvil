@@ -37,7 +37,7 @@ Anvil was designed with the following goals in mind:
 - Provide a reasonable level of deferred approach to baking objects, in order
   to emulate mutability of certain Vulkan objects to a certain degree. Note
   that this is an optional feature - you are free to request baking of any
-  object at any time, in ordre to ensure it will never happen at draw time.
+  object at any time, in order to ensure it will never happen at draw time.
 - Provide a simple cross-platform implementation for areas unrelated to Vulkan
   (eg. window management)
 
