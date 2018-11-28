@@ -99,7 +99,7 @@ Anvil::DescriptorSetGroup::DescriptorSetGroup(const Anvil::BaseDevice*          
     }
 
     /* Register the object */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_DESCRIPTOR_SET_GROUP,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::ANVIL_DESCRIPTOR_SET_GROUP,
                                                  this);
 }
 
@@ -155,7 +155,7 @@ Anvil::DescriptorSetGroup::DescriptorSetGroup(const DescriptorSetGroup* in_paren
     m_n_unique_dses = in_parent_dsg_ptr->m_n_unique_dses;
 
     /* Register the object */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_DESCRIPTOR_SET_GROUP,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::ANVIL_DESCRIPTOR_SET_GROUP,
                                                  this);
 }
 
@@ -163,7 +163,7 @@ Anvil::DescriptorSetGroup::DescriptorSetGroup(const DescriptorSetGroup* in_paren
 Anvil::DescriptorSetGroup::~DescriptorSetGroup()
 {
     /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_DESCRIPTOR_SET_GROUP,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::ANVIL_DESCRIPTOR_SET_GROUP,
                                                     this);
 }
 

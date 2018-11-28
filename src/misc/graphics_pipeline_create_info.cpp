@@ -75,13 +75,14 @@ Anvil::GraphicsPipelineCreateInfo::GraphicsPipelineCreateInfo(const RenderPass* 
            0,
            sizeof(m_blend_constant) );
 
-    m_cull_mode          = Anvil::CullModeFlagBits::BACK_BIT;
-    m_line_width         = 1.0f;
-    m_min_sample_shading = 1.0f;
-    m_sample_count       = Anvil::SampleCountFlagBits::_1_BIT;
-    m_polygon_mode       = Anvil::PolygonMode::FILL;
-    m_primitive_topology = Anvil::PrimitiveTopology::TRIANGLE_LIST;
-    m_sample_mask        = ~0u;
+    m_cull_mode                  = Anvil::CullModeFlagBits::BACK_BIT;
+    m_line_width                 = 1.0f;
+    m_min_sample_shading         = 1.0f;
+    m_sample_count               = Anvil::SampleCountFlagBits::_1_BIT;
+    m_polygon_mode               = Anvil::PolygonMode::FILL;
+    m_primitive_topology         = Anvil::PrimitiveTopology::TRIANGLE_LIST;
+    m_rasterization_stream_index = 0;
+    m_sample_mask                = ~0u;
 
     m_tessellation_domain_origin = Anvil::TessellationDomainOrigin::UPPER_LEFT;
 }
@@ -964,6 +965,11 @@ void Anvil::GraphicsPipelineCreateInfo::set_primitive_topology(Anvil::PrimitiveT
 void Anvil::GraphicsPipelineCreateInfo::set_rasterization_order(Anvil::RasterizationOrderAMD in_rasterization_order)
 {
     m_rasterization_order = in_rasterization_order;
+}
+
+void Anvil::GraphicsPipelineCreateInfo::set_rasterization_stream_index(const uint32_t& in_rasterization_stream_index)
+{
+    m_rasterization_stream_index = in_rasterization_stream_index;
 }
 
 void Anvil::GraphicsPipelineCreateInfo::set_rasterization_properties(Anvil::PolygonMode   in_polygon_mode,

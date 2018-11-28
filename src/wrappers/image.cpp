@@ -52,7 +52,7 @@
 Anvil::Image::Image(Anvil::ImageCreateInfoUniquePtr in_create_info_ptr)
     :CallbacksSupportProvider               (IMAGE_CALLBACK_ID_COUNT),
      DebugMarkerSupportProvider             (in_create_info_ptr->get_device(),
-                                             VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT),
+                                             Anvil::ObjectType::IMAGE),
      MTSafetySupportProvider                (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety(),
                                                                                              in_create_info_ptr->get_device   () )),
      m_alignment                            (UINT64_MAX),
@@ -68,7 +68,7 @@ Anvil::Image::Image(Anvil::ImageCreateInfoUniquePtr in_create_info_ptr)
     m_create_info_ptr = std::move(in_create_info_ptr);
 
     /* Register this instance */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_IMAGE,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::IMAGE,
                                                  this);
 
 }
@@ -1129,7 +1129,7 @@ Anvil::Image::~Image()
     }
 
     /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_IMAGE,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::IMAGE,
                                                    this);
 }
 

@@ -116,11 +116,29 @@ namespace Anvil
         /** Destructor */
         virtual ~Queue();
 
+        /** Starts a queue debug label region. App must call end_debug_utils_label() for the same queue instance
+         *  at some point to declare the end of the label region.
+         *
+         *  Requires VK_EXT_debug_utils support. Otherwise, the call is moot.
+         *
+         *  @param in_label_name_ptr Meaning as per VkDebugUtilsLabelEXT::pLabelName. Must not be nullptr.
+         *  @param in_color_vec4_ptr Meaning as per VkDebugUtilsLabelEXT::color. Must not be nullptr.
+         */
+        void begin_debug_utils_label(const char*  in_label_name_ptr,
+                                     const float* in_color_vec4_ptr);
+
         /** Updates sparse resource memory bindings using this queue.
          *
          *  @param in_update Detailed information about the update to be carried out.
          **/
         bool bind_sparse_memory(Anvil::SparseMemoryBindingUpdateInfo& in_update);
+
+        /** Ends a queue debug label region. Requires a preceding begin_debug_utils_label() call.
+         *
+         *  Requires VK_EXT_debug_utils support. Otherwise, the call is moot.
+         *
+         */
+        void end_debug_utils_label();
 
         /** Retrieves parent device instance */
         const Anvil::BaseDevice* get_parent_device() const
@@ -145,6 +163,16 @@ namespace Anvil
         {
             return m_queue_index;
         }
+
+        /** Inserts a single queue debug label.
+         *
+         *  Requires VK_EXT_debug_utils support. Otherwise, the call is moot.
+         *
+         *  @param in_label_name_ptr Meaning as per VkDebugUtilsLabelEXT::pLabelName. Must not be nullptr.
+         *  @param in_color_vec4_ptr Meaning as per VkDebugUtilsLabelEXT::color. Must not be nullptr.
+         */
+        void insert_debug_utils_label(const char*  in_label_name_ptr,
+                                      const float* in_color_vec4_ptr);
 
         /** Presents the specified swapchain image using this queue. This queue must support presentation
          *  for the swapchain's rendering surface in order for this call to succeed.
@@ -290,6 +318,7 @@ namespace Anvil
 
         /* Private variables */
         const Anvil::BaseDevice* m_device_ptr;
+        uint32_t                 m_n_debug_label_regions_started;
         VkQueue                  m_queue;
         uint32_t                 m_queue_family_index;
         uint32_t                 m_queue_index;

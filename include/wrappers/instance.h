@@ -35,14 +35,12 @@
 #include "misc/library.h"
 #include "misc/mt_safety.h"
 #include "misc/types.h"
+#include "wrappers/debug_messenger.h"
 
 namespace Anvil
 {
-    /** Debug call-back function prototype */
-    typedef std::function< VkBool32(VkDebugReportFlagsEXT      in_message_flags,
-                                    VkDebugReportObjectTypeEXT in_object_type,
-                                    const char*                in_layer_prefix,
-                                    const char*                in_message)>     DebugCallbackFunction;
+     typedef std::function<void (Anvil::DebugMessageSeverityFlags in_severity,
+                                 const char*                      in_message)> DebugCallbackFunction;
 
     class Instance : public Anvil::MTSafetySupportProvider
     {
@@ -79,7 +77,7 @@ namespace Anvil
          **/
         static Anvil::InstanceUniquePtr create(const std::string&              in_app_name,
                                                const std::string&              in_engine_name,
-                                               DebugCallbackFunction           in_opt_validation_callback_proc,
+                                               Anvil::DebugCallbackFunction    in_opt_validation_callback_proc,
                                                bool                            in_mt_safe,
                                                const std::vector<std::string>& in_opt_disallowed_instance_level_extensions = std::vector<std::string>() );
 
@@ -87,6 +85,9 @@ namespace Anvil
         {
             return m_enabled_extensions_info_ptr->get_instance_extension_info();
         }
+
+        const ExtensionEXTDebugReportEntrypoints& get_extension_ext_debug_report_entrypoints() const;
+        const ExtensionEXTDebugUtilsEntrypoints&  get_extension_ext_debug_utils_entrypoints () const;
 
         const ExtensionKHRExternalFenceCapabilitiesEntrypoints& get_extension_khr_external_fence_capabilities_entrypoints() const;
 
@@ -208,10 +209,10 @@ namespace Anvil
         /* Private functions */
 
         /** Private constructor. Please use create() function instead. */
-        Instance(const std::string&    in_app_name,
-                 const std::string&    in_engine_name,
-                 DebugCallbackFunction in_opt_validation_callback_function,
-                 bool                  in_mt_safe);
+        Instance(const std::string&           in_app_name,
+                 const std::string&           in_engine_name,
+                 Anvil::DebugCallbackFunction in_opt_validation_callback_function,
+                 bool                         in_mt_safe);
 
         Instance& operator=(const Instance&);
         Instance           (const Instance&);
@@ -229,22 +230,14 @@ namespace Anvil
             bool init_vk10_func_ptrs();
         #endif
 
-        static VkBool32 VKAPI_PTR debug_callback_pfn_proc(VkDebugReportFlagsEXT      in_message_flags,
-                                                          VkDebugReportObjectTypeEXT in_object_type,
-                                                          uint64_t                   in_src_object,
-                                                          size_t                     in_location,
-                                                          int32_t                    in_msg_code,
-                                                          const char*                in_layer_prefix_ptr,
-                                                          const char*                in_message_ptr,
-                                                          void*                      in_user_data);
+        void debug_callback_handler(const Anvil::DebugMessageSeverityFlagBits& in_severity,
+                                    const char*                                in_message_ptr);
 
         /* Private variables */
         VkInstance m_instance;
 
-        /* DebugReport extension function pointers and data */
-        VkDebugReportCallbackEXT m_debug_callback_data;
-
         ExtensionEXTDebugReportEntrypoints                   m_ext_debug_report_entrypoints;
+        ExtensionEXTDebugUtilsEntrypoints                    m_ext_debug_utils_entrypoints;
         ExtensionKHRDeviceGroupCreationEntrypoints           m_khr_device_group_creation_entrypoints;
         ExtensionKHRExternalFenceCapabilitiesEntrypoints     m_khr_external_fence_capabilities_entrypoints;
         ExtensionKHRExternalMemoryCapabilitiesEntrypoints    m_khr_external_memory_capabilities_entrypoints;
@@ -269,6 +262,7 @@ namespace Anvil
         std::unique_ptr<Anvil::ExtensionInfo<bool> > m_enabled_extensions_info_ptr;
         std::unique_ptr<Anvil::ExtensionInfo<bool> > m_supported_extensions_info_ptr;
 
+        Anvil::DebugMessengerUniquePtr                       m_debug_messenger_ptr;
         Anvil::Layer                                         m_global_layer;
         std::vector<Anvil::PhysicalDeviceGroup>              m_physical_device_groups;
         std::vector<std::unique_ptr<Anvil::PhysicalDevice> > m_physical_devices;

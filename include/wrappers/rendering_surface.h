@@ -170,9 +170,7 @@ namespace Anvil
 
             PhysicalDeviceCapabilities()
             {
-                memset(&capabilities,
-                       0,
-                       sizeof(capabilities) );
+                /* Stub */
             }
         } PhysicalDeviceCapabilities;
 
