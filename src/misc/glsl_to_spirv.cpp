@@ -35,6 +35,12 @@
 #endif
 
 #ifdef ANVIL_LINK_WITH_GLSLANG
+    #ifdef max
+        #undef max
+    #endif
+    #ifdef min
+        #undef min
+    #endif
     #undef snprintf
 
     #if defined(_MSC_VER)
@@ -258,7 +264,7 @@ Anvil::GLSLShaderToSPIRVGenerator::~GLSLShaderToSPIRVGenerator()
 {
     auto object_tracker_ptr = Anvil::ObjectTracker::get();
 
-    object_tracker_ptr->unregister_object(Anvil::OBJECT_TYPE_GLSL_SHADER_TO_SPIRV_GENERATOR,
+    object_tracker_ptr->unregister_object(Anvil::ObjectType::ANVIL_GLSL_SHADER_TO_SPIRV_GENERATOR,
                                           this);
 
     m_spirv_blob.clear();
@@ -515,7 +521,7 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_spirv_blob() const
 
         do
         {
-            auto                       shader_module_raw_ptr = object_tracker_ptr->get_object_at_index     (Anvil::OBJECT_TYPE_SHADER_MODULE,
+            auto                       shader_module_raw_ptr = object_tracker_ptr->get_object_at_index     (Anvil::ObjectType::SHADER_MODULE,
                                                                                                             n_current_shader_module);
             const Anvil::ShaderModule* shader_module_ptr     = reinterpret_cast<const Anvil::ShaderModule*>(shader_module_raw_ptr);
 
@@ -873,7 +879,7 @@ Anvil::GLSLShaderToSPIRVGeneratorUniquePtr Anvil::GLSLShaderToSPIRVGenerator::cr
                                               in_shader_stage)
     );
 
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_GLSL_SHADER_TO_SPIRV_GENERATOR,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::ANVIL_GLSL_SHADER_TO_SPIRV_GENERATOR,
                                                  result_ptr.get() );
 
     return result_ptr;

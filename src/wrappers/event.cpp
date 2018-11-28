@@ -29,7 +29,7 @@
 /* Please see header for specification */
 Anvil::Event::Event(Anvil::EventCreateInfoUniquePtr in_create_info_ptr)
     :DebugMarkerSupportProvider(in_create_info_ptr->get_device(),
-                                VK_DEBUG_REPORT_OBJECT_TYPE_EVENT_EXT),
+                                Anvil::ObjectType::EVENT),
      MTSafetySupportProvider   (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety(),
                                                                                 in_create_info_ptr->get_device   () )),
      m_event                   (VK_NULL_HANDLE)
@@ -37,7 +37,7 @@ Anvil::Event::Event(Anvil::EventCreateInfoUniquePtr in_create_info_ptr)
     m_create_info_ptr = std::move(in_create_info_ptr);
 
     /* Register the event instance */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_EVENT,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::EVENT,
                                                   this);
 }
 
@@ -48,7 +48,7 @@ Anvil::Event::Event(Anvil::EventCreateInfoUniquePtr in_create_info_ptr)
  **/
 Anvil::Event::~Event()
 {
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_EVENT,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::EVENT,
                                                     this);
 
     release_event();

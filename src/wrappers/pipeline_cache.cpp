@@ -32,7 +32,7 @@ Anvil::PipelineCache::PipelineCache(const Anvil::BaseDevice* in_device_ptr,
                                     size_t                   in_initial_data_size,
                                     const void*              in_initial_data)
     :DebugMarkerSupportProvider(in_device_ptr,
-                                VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_CACHE_EXT),
+                                Anvil::ObjectType::PIPELINE_CACHE),
      MTSafetySupportProvider   (in_mt_safe),
      m_device_ptr              (in_device_ptr),
      m_pipeline_cache          (VK_NULL_HANDLE)
@@ -62,7 +62,7 @@ Anvil::PipelineCache::PipelineCache(const Anvil::BaseDevice* in_device_ptr,
     anvil_assert(m_pipeline_cache != VK_NULL_HANDLE);
 
     /* Register the instance */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_PIPELINE_CACHE,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::PIPELINE_CACHE,
                                                   this);
 }
 
@@ -70,7 +70,7 @@ Anvil::PipelineCache::PipelineCache(const Anvil::BaseDevice* in_device_ptr,
 Anvil::PipelineCache::~PipelineCache()
 {
     /* Unregister the instance */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_PIPELINE_CACHE,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::PIPELINE_CACHE,
                                                     this);
 
     if (m_pipeline_cache != VK_NULL_HANDLE)

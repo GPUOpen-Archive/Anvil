@@ -35,7 +35,7 @@ Anvil::PipelineLayoutManager::PipelineLayoutManager(const Anvil::BaseDevice* in_
      m_device_ptr           (in_device_ptr)
 {
     /* Register the object */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_PIPELINE_LAYOUT_MANAGER,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::ANVIL_PIPELINE_LAYOUT_MANAGER,
                                                   this);
 }
 
@@ -46,7 +46,7 @@ Anvil::PipelineLayoutManager::~PipelineLayoutManager()
     anvil_assert(m_pipeline_layouts.size() == 0);
 
     /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_PIPELINE_LAYOUT_MANAGER,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::ANVIL_PIPELINE_LAYOUT_MANAGER,
                                                     this);
 }
 

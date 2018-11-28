@@ -27,6 +27,8 @@ INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::BufferUsageFlags,             
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::ColorComponentFlags,              VkColorComponentFlags,                 Anvil::ColorComponentFlagBits);
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::CompositeAlphaFlags,              VkCompositeAlphaFlagsKHR,              Anvil::CompositeAlphaFlagBits);
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::CullModeFlags,                    VkCullModeFlags,                       Anvil::CullModeFlagBits);
+INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::DebugMessageSeverityFlags,        VkDebugUtilsMessageSeverityFlagsEXT,   Anvil::DebugMessageSeverityFlagBits);
+INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::DebugMessageTypeFlags,            VkDebugUtilsMessageTypeFlagsEXT,       Anvil::DebugMessageTypeFlagBits);
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::DependencyFlags,                  VkDependencyFlags,                     Anvil::DependencyFlagBits);
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::DescriptorBindingFlags,           VkDescriptorBindingFlagsEXT,           Anvil::DescriptorBindingFlagBits);
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::DescriptorPoolCreateFlags,        VkDescriptorPoolCreateFlags,           Anvil::DescriptorPoolCreateFlagBits);

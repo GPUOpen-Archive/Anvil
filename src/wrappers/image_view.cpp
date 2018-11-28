@@ -52,7 +52,7 @@ Anvil::ImageViewUniquePtr Anvil::ImageView::create(Anvil::ImageViewCreateInfoUni
 
 Anvil::ImageView::ImageView(Anvil::ImageViewCreateInfoUniquePtr in_create_info_ptr)
     :DebugMarkerSupportProvider(in_create_info_ptr->get_device(),
-                                VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT),
+                                Anvil::ObjectType::IMAGE_VIEW),
      MTSafetySupportProvider   (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety(),
                                                                                 in_create_info_ptr->get_device   () )),
      m_image_view              (VK_NULL_HANDLE)
@@ -60,14 +60,14 @@ Anvil::ImageView::ImageView(Anvil::ImageViewCreateInfoUniquePtr in_create_info_p
     m_create_info_ptr = std::move(in_create_info_ptr);
 
     /* Register the object */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_IMAGE_VIEW,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::IMAGE_VIEW,
                                                  this);
 }
 
 Anvil::ImageView::~ImageView()
 {
     /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_IMAGE_VIEW,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::IMAGE_VIEW,
                                                    this);
 
     if (m_image_view != VK_NULL_HANDLE)
