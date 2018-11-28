@@ -61,6 +61,7 @@ namespace Anvil
             ValueType ext_shader_subgroup_vote;
             ValueType ext_shader_viewport_index_layer;
             ValueType ext_swapchain_colorspace;
+            ValueType ext_transform_feedback;
             ValueType ext_vertex_attribute_divisor;
             ValueType khr_16bit_storage;
             ValueType khr_8bit_storage;
@@ -147,6 +148,7 @@ namespace Anvil
                     {ExtensionData(VK_EXT_SHADER_SUBGROUP_VOTE_EXTENSION_NAME,             &ext_shader_subgroup_vote)},
                     {ExtensionData(VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME,      &ext_shader_viewport_index_layer)},
                     {ExtensionData(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,            &ext_swapchain_colorspace)},
+                    {ExtensionData(VK_EXT_TRANSFORM_FEEDBACK_EXTENSION_NAME,               &ext_transform_feedback)},
                     {ExtensionData(VK_EXT_VERTEX_ATTRIBUTE_DIVISOR_EXTENSION_NAME,         &ext_vertex_attribute_divisor)},
                     {ExtensionData(VK_KHR_16BIT_STORAGE_EXTENSION_NAME,                    &khr_16bit_storage)},
                     {ExtensionData(VK_KHR_8BIT_STORAGE_EXTENSION_NAME,                     &khr_8bit_storage)},
@@ -204,6 +206,8 @@ namespace Anvil
         template<typename ValueType>
         struct InstanceExtensions
         {
+            ValueType ext_debug_report;
+            ValueType ext_debug_utils;
             ValueType khr_device_group_creation;
             ValueType khr_external_fence_capabilities;
             ValueType khr_external_memory_capabilities;
@@ -243,6 +247,8 @@ namespace Anvil
 
                 std::vector<ExtensionData> recognized_extensions =
                 {
+                    {ExtensionData(VK_EXT_DEBUG_REPORT_EXTENSION_NAME,                     &ext_debug_report)},
+                    {ExtensionData(VK_EXT_DEBUG_UTILS_EXTENSION_NAME,                      &ext_debug_utils)},
                     {ExtensionData(VK_KHR_DEVICE_GROUP_CREATION_EXTENSION_NAME,            &khr_device_group_creation)},
                     {ExtensionData(VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME,      &khr_external_fence_capabilities)},
                     {ExtensionData(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME,     &khr_external_memory_capabilities)},
@@ -319,6 +325,7 @@ namespace Anvil
         virtual ValueType ext_shader_subgroup_vote            () const = 0;
         virtual ValueType ext_shader_viewport_index_layer     () const = 0;
         virtual ValueType ext_swapchain_colorspace            () const = 0;
+        virtual ValueType ext_transform_feedback              () const = 0;
         virtual ValueType ext_vertex_attribute_divisor        () const = 0;
         virtual ValueType khr_16bit_storage                   () const = 0;
         virtual ValueType khr_8bit_storage                    () const = 0;
@@ -365,6 +372,8 @@ namespace Anvil
             /* Stub */
         }
 
+        virtual bool ext_debug_report                   () const = 0;
+        virtual bool ext_debug_utils                    () const = 0;
         virtual bool khr_device_group_creation          () const = 0;
         virtual bool khr_external_fence_capabilities    () const = 0;
         virtual bool khr_external_memory_capabilities   () const = 0;
@@ -682,6 +691,13 @@ namespace Anvil
             return m_device_extensions_ptr->ext_swapchain_colorspace;
         }
 
+        ValueType ext_transform_feedback() const
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->ext_transform_feedback;
+        }
+
         ValueType khr_16bit_storage() const final
         {
             anvil_assert(m_expose_device_extensions);
@@ -885,6 +901,20 @@ namespace Anvil
         }
 
         /* IExtensionInfoInstance */
+
+        ValueType ext_debug_report() const final
+        {
+            anvil_assert(!m_expose_device_extensions);
+
+            return m_instance_extensions_ptr->ext_debug_report;
+        }
+
+        ValueType ext_debug_utils() const final
+        {
+            anvil_assert(!m_expose_device_extensions);
+
+            return m_instance_extensions_ptr->ext_debug_utils;
+        }
 
         ValueType khr_device_group_creation() const final
         {

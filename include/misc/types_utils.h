@@ -258,6 +258,16 @@ namespace Anvil
         /* Returns Vulkan equivalent of @param in_shader_stage */
         Anvil::ShaderStageFlagBits get_shader_stage_flag_bits_from_shader_stage(Anvil::ShaderStage in_shader_stage);
 
+        /* TODO
+         *
+         * get_vk_object_type_for_*() return VK_DEBUG_REPORT_OBJECT_TYPE_MAX_ENUM_EXT if no enum exists for @param in_object_type. Since EXT_debug_utils
+         * has been deprecated, this is not an unlikely scenario.
+         */
+        Anvil::ObjectType          get_object_type_for_vk_object_type                  (const VkObjectType&               in_object_type);
+        Anvil::ObjectType          get_object_type_for_vk_debug_report_object_type     (const VkDebugReportObjectTypeEXT& in_object_type);
+        VkDebugReportObjectTypeEXT get_vk_debug_report_object_type_ext_from_object_type(const Anvil::ObjectType&          in_object_type);
+        VkObjectType               get_vk_object_type_for_object_type                  (const Anvil::ObjectType&          in_object_type);
+
         /** Converts an Anvil::MemoryFeatureFlags value to a pair of corresponding Vulkan enum values.
          *
          *  @param in_mem_feature_flags   Anvil memory feature flags to use for conversion.

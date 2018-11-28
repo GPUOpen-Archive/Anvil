@@ -457,11 +457,22 @@ public:
 #ifdef AMD_EXTENSIONS
         explicitInterp = false;
 #endif
+#ifdef NV_EXTENSIONS
+        pervertexNV = false;
+        perPrimitiveNV = false;
+        perViewNV = false;
+        perTaskNV = false;
+#endif
     }
 
     void clearMemory()
     {
         coherent     = false;
+        devicecoherent = false;
+        queuefamilycoherent = false;
+        workgroupcoherent = false;
+        subgroupcoherent  = false;
+        nonprivate = false;
         volatil      = false;
         restrict     = false;
         readonly     = false;
@@ -496,9 +507,20 @@ public:
 #ifdef AMD_EXTENSIONS
     bool explicitInterp : 1;
 #endif
+#ifdef NV_EXTENSIONS
+    bool pervertexNV  : 1;
+    bool perPrimitiveNV : 1;
+    bool perViewNV : 1;
+    bool perTaskNV : 1;
+#endif
     bool patch        : 1;
     bool sample       : 1;
     bool coherent     : 1;
+    bool devicecoherent : 1;
+    bool queuefamilycoherent : 1;
+    bool workgroupcoherent : 1;
+    bool subgroupcoherent  : 1;
+    bool nonprivate   : 1;
     bool volatil      : 1;
     bool restrict     : 1;
     bool readonly     : 1;
@@ -508,8 +530,13 @@ public:
 
     bool isMemory() const
     {
-        return coherent || volatil || restrict || readonly || writeonly;
+        return subgroupcoherent || workgroupcoherent || queuefamilycoherent || devicecoherent || coherent || volatil || restrict || readonly || writeonly || nonprivate;
     }
+    bool isMemoryQualifierImageAndSSBOOnly() const
+    {
+        return subgroupcoherent || workgroupcoherent || queuefamilycoherent || devicecoherent || coherent || volatil || restrict || readonly || writeonly;
+    }
+
     bool isInterpolation() const
     {
 #ifdef AMD_EXTENSIONS
@@ -518,15 +545,21 @@ public:
         return flat || smooth || nopersp;
 #endif
     }
+
 #ifdef AMD_EXTENSIONS
     bool isExplicitInterpolation() const
     {
         return explicitInterp;
     }
 #endif
+
     bool isAuxiliary() const
     {
+#ifdef NV_EXTENSIONS
+        return centroid || patch || sample || pervertexNV;
+#else
         return centroid || patch || sample;
+#endif
     }
 
     bool isPipeInput() const
@@ -593,6 +626,33 @@ public:
         }
     }
 
+    bool isPerPrimitive() const
+    {
+#ifdef NV_EXTENSIONS
+        return perPrimitiveNV;
+#else
+        return false;
+#endif
+    }
+
+    bool isPerView() const
+    {
+#ifdef NV_EXTENSIONS
+        return perViewNV;
+#else
+        return false;
+#endif
+    }
+
+    bool isTaskMemory() const
+    {
+#ifdef NV_EXTENSIONS
+        return perTaskNV;
+#else
+        return false;
+#endif
+    }
+
     bool isIo() const
     {
         switch (storage) {
@@ -616,6 +676,22 @@ public:
         }
     }
 
+    // non-built-in symbols that might link between compilation units
+    bool isLinkable() const
+    {
+        switch (storage) {
+        case EvqGlobal:
+        case EvqVaryingIn:
+        case EvqVaryingOut:
+        case EvqUniform:
+        case EvqBuffer:
+        case EvqShared:
+            return true;
+        default:
+            return false;
+        }
+    }
+
     // True if this type of IO is supposed to be arrayed with extra level for per-vertex data
     bool isArrayedIo(EShLanguage language) const
     {
@@ -626,6 +702,13 @@ public:
             return ! patch && (isPipeInput() || isPipeOutput());
         case EShLangTessEvaluation:
             return ! patch && isPipeInput();
+#ifdef NV_EXTENSIONS
+        case EShLangFragment:
+            return pervertexNV && isPipeInput();
+        case EShLangMeshNV:
+            return ! perTaskNV && isPipeOutput();
+#endif
+
         default:
             return false;
         }
@@ -642,6 +725,7 @@ public:
         layoutViewportRelative = false;
         // -2048 as the default value indicating layoutSecondaryViewportRelative is not set
         layoutSecondaryViewportRelativeOffset = -2048;
+        layoutShaderRecordNV = false;
 #endif
 
         clearInterstageLayout();
@@ -675,6 +759,9 @@ public:
                hasAnyLocation() ||
                hasStream() ||
                hasFormat() ||
+#ifdef NV_EXTENSIONS
+               layoutShaderRecordNV ||
+#endif
                layoutPushConstant;
     }
     bool hasLayout() const
@@ -728,6 +815,7 @@ public:
     bool layoutPassthrough;
     bool layoutViewportRelative;
     int layoutSecondaryViewportRelativeOffset;
+    bool layoutShaderRecordNV;
 #endif
 
     bool hasUniformLayout() const
@@ -1005,7 +1093,7 @@ struct TShaderQualifiers {
     bool pixelCenterInteger;  // fragment shader
     bool originUpperLeft;     // fragment shader
     int invocations;
-    int vertices;             // both for tessellation "vertices" and geometry "max_vertices"
+    int vertices;             // for tessellation "vertices", geometry & mesh "max_vertices"
     TVertexSpacing spacing;
     TVertexOrder order;
     bool pointMode;
@@ -1018,7 +1106,10 @@ struct TShaderQualifiers {
     int numViews;             // multiview extenstions
 
 #ifdef NV_EXTENSIONS
-    bool layoutOverrideCoverage;    // true if layout override_coverage set
+    bool layoutOverrideCoverage;        // true if layout override_coverage set
+    bool layoutDerivativeGroupQuads;    // true if layout derivative_group_quadsNV set
+    bool layoutDerivativeGroupLinear;   // true if layout derivative_group_linearNV set
+    int primitives;                     // mesh shader "max_primitives"DerivativeGroupLinear;   // true if layout derivative_group_linearNV set
 #endif
 
     void init()
@@ -1043,7 +1134,10 @@ struct TShaderQualifiers {
         blendEquation = false;
         numViews = TQualifier::layoutNotSet;
 #ifdef NV_EXTENSIONS
-        layoutOverrideCoverage = false;
+        layoutOverrideCoverage      = false;
+        layoutDerivativeGroupQuads  = false;
+        layoutDerivativeGroupLinear = false;
+        primitives                  = TQualifier::layoutNotSet;
 #endif
     }
 
@@ -1088,6 +1182,12 @@ struct TShaderQualifiers {
 #ifdef NV_EXTENSIONS
         if (src.layoutOverrideCoverage)
             layoutOverrideCoverage = src.layoutOverrideCoverage;
+        if (src.layoutDerivativeGroupQuads)
+            layoutDerivativeGroupQuads = src.layoutDerivativeGroupQuads;
+        if (src.layoutDerivativeGroupLinear)
+            layoutDerivativeGroupLinear = src.layoutDerivativeGroupLinear;
+        if (src.primitives != TQualifier::layoutNotSet)
+            primitives = src.primitives;
 #endif
     }
 };
@@ -1386,7 +1486,11 @@ public:
         }
         return false;
     }
-    virtual bool isOpaque() const { return basicType == EbtSampler || basicType == EbtAtomicUint; }
+    virtual bool isOpaque() const { return basicType == EbtSampler || basicType == EbtAtomicUint
+#ifdef NV_EXTENSIONS
+        || basicType == EbtAccStructNV
+#endif
+        ; }
     virtual bool isBuiltIn() const { return getQualifier().builtIn != EbvNone; }
 
     // "Image" is a superset of "Subpass"
@@ -1472,6 +1576,16 @@ public:
         return contains([](const TType* t) { return t->isArray() && t->arraySizes->isOuterSpecialization(); } );
     }
 
+    virtual bool contains16BitInt() const
+    {
+        return containsBasicType(EbtInt16) || containsBasicType(EbtUint16);
+    }
+
+    virtual bool contains8BitInt() const
+    {
+        return containsBasicType(EbtInt8) || containsBasicType(EbtUint8);
+    }
+
     // Array editing methods.  Array descriptors can be shared across
     // type instances.  This allows all uses of the same array
     // to be updated at once.  E.g., all nodes can be explicitly sized
@@ -1530,6 +1644,11 @@ public:
     {
         if (isUnsizedArray() && !(skipNonvariablyIndexed || isArrayVariablyIndexed()))
             changeOuterArraySize(getImplicitArraySize());
+#ifdef NV_EXTENSIONS
+        // For multi-dim per-view arrays, set unsized inner dimension size to 1
+        if (qualifier.isPerView() && arraySizes && arraySizes->isInnerUnsized())
+            arraySizes->clearInnerUnsized();
+#endif
         if (isStruct() && structure->size() > 0) {
             int lastMember = (int)structure->size() - 1;
             for (int i = 0; i < lastMember; ++i)
@@ -1564,6 +1683,9 @@ public:
         case EbtSampler:           return "sampler/image";
         case EbtStruct:            return "structure";
         case EbtBlock:             return "block";
+#ifdef NV_EXTENSIONS
+        case EbtAccStructNV:       return "accelerationStructureNV";
+#endif
         default:                   return "unknown type";
         }
     }
@@ -1659,6 +1781,8 @@ public:
                     appendStr(" layoutSecondaryViewportRelativeOffset=");
                     appendInt(qualifier.layoutSecondaryViewportRelativeOffset);
                 }
+                if (qualifier.layoutShaderRecordNV)
+                    appendStr(" shaderRecordNV");
 #endif
 
                 appendStr(")");
@@ -1681,12 +1805,32 @@ public:
         if (qualifier.explicitInterp)
             appendStr(" __explicitInterpAMD");
 #endif
+#ifdef NV_EXTENSIONS
+        if (qualifier.pervertexNV)
+            appendStr(" pervertexNV");
+        if (qualifier.perPrimitiveNV)
+            appendStr(" perprimitiveNV");
+        if (qualifier.perViewNV)
+            appendStr(" perviewNV");
+        if (qualifier.perTaskNV)
+            appendStr(" taskNV");
+#endif
         if (qualifier.patch)
             appendStr(" patch");
         if (qualifier.sample)
             appendStr(" sample");
         if (qualifier.coherent)
             appendStr(" coherent");
+        if (qualifier.devicecoherent)
+            appendStr(" devicecoherent");
+        if (qualifier.queuefamilycoherent)
+            appendStr(" queuefamilycoherent");
+        if (qualifier.workgroupcoherent)
+            appendStr(" workgroupcoherent");
+        if (qualifier.subgroupcoherent)
+            appendStr(" subgroupcoherent");
+        if (qualifier.nonprivate)
+            appendStr(" nonprivate");
         if (qualifier.volatil)
             appendStr(" volatile");
         if (qualifier.restrict)

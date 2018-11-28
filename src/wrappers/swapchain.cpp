@@ -38,7 +38,7 @@
 /** Please see header for specification */
 Anvil::Swapchain::Swapchain(Anvil::SwapchainCreateInfoUniquePtr in_create_info_ptr)
     :DebugMarkerSupportProvider                     (in_create_info_ptr->get_device(),
-                                                     VK_DEBUG_REPORT_OBJECT_TYPE_SWAPCHAIN_KHR_EXT),
+                                                     Anvil::ObjectType::SWAPCHAIN),
      MTSafetySupportProvider                        (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety(),
                                                                                                      in_create_info_ptr->get_device   () )),
      m_destroy_swapchain_before_parent_window_closes(true),
@@ -59,14 +59,14 @@ Anvil::Swapchain::Swapchain(Anvil::SwapchainCreateInfoUniquePtr in_create_info_p
 
     m_create_info_ptr = std::move(in_create_info_ptr);
 
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SWAPCHAIN,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::SWAPCHAIN,
                                                   this);
 }
 
 /** Please see header for specification */
 Anvil::Swapchain::~Swapchain()
 {
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_SWAPCHAIN,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::SWAPCHAIN,
                                                     this);
 
     destroy_swapchain();

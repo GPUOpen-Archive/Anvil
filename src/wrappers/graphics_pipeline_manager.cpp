@@ -50,7 +50,7 @@ Anvil::GraphicsPipelineManager::GraphicsPipelineManager(const Anvil::BaseDevice*
                          in_pipeline_cache_to_reuse_ptr)
 {
     /* Register the object */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_GRAPHICS_PIPELINE_MANAGER,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::ANVIL_GRAPHICS_PIPELINE_MANAGER,
                                                   this);
 }
 
@@ -61,7 +61,7 @@ Anvil::GraphicsPipelineManager::~GraphicsPipelineManager()
     m_outstanding_pipelines.clear();
 
     /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_GRAPHICS_PIPELINE_MANAGER,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::ANVIL_GRAPHICS_PIPELINE_MANAGER,
                                                     this);
 }
 
@@ -939,9 +939,29 @@ Anvil::StructChainUniquePtr<VkPipelineRasterizationStateCreateInfo> Anvil::Graph
         }
     }
     else
-    if (in_gfx_pipeline_create_info_ptr->get_rasterization_order() != Anvil::RasterizationOrderAMD::STRICT)
     {
         anvil_assert(in_gfx_pipeline_create_info_ptr->get_rasterization_order() == Anvil::RasterizationOrderAMD::STRICT);
+    }
+
+    if (m_device_ptr->is_extension_enabled(VK_EXT_TRANSFORM_FEEDBACK_EXTENSION_NAME) )
+    {
+        const auto& rasterization_stream_index = in_gfx_pipeline_create_info_ptr->get_rasterization_stream_index();
+
+        if (rasterization_stream_index != 0)
+        {
+            VkPipelineRasterizationStateStreamCreateInfoEXT create_info;
+
+            create_info.flags               = 0;
+            create_info.pNext               = nullptr;
+            create_info.rasterizationStream = rasterization_stream_index;
+            create_info.sType               = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT;
+
+            raster_state_create_info_chainer.append_struct(create_info);
+        }
+    }
+    else
+    {
+        anvil_assert(in_gfx_pipeline_create_info_ptr->get_rasterization_stream_index() == 0);
     }
 
     return raster_state_create_info_chainer.create_chain();

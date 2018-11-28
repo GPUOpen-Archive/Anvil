@@ -30,14 +30,14 @@
 /** Please see header for specification */
 Anvil::BufferView::BufferView(Anvil::BufferViewCreateInfoUniquePtr in_create_info_ptr)
     :DebugMarkerSupportProvider<BufferView>(in_create_info_ptr->get_device(),
-                                            VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_VIEW_EXT),
+                                            Anvil::ObjectType::BUFFER_VIEW),
      MTSafetySupportProvider               (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety(),
                                                                                             in_create_info_ptr->get_device   () ))
 {
     m_create_info_ptr = std::move(in_create_info_ptr);
 
     /* Register the buffer view instance */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_BUFFER_VIEW,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::BUFFER_VIEW,
                                                  this);
 }
 
@@ -48,7 +48,7 @@ Anvil::BufferView::BufferView(Anvil::BufferViewCreateInfoUniquePtr in_create_inf
  **/
 Anvil::BufferView::~BufferView()
 {
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_BUFFER_VIEW,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::BUFFER_VIEW,
                                                     this);
 
     lock();

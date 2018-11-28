@@ -188,6 +188,12 @@ namespace Anvil
          **/
         const ExtensionEXTSampleLocationsEntrypoints& get_extension_ext_sample_locations_entrypoints() const;
 
+        /** Returns a container with entry-points to functions introduced by VK_EXT_transform_feedback extension.
+         *
+         *  Will fire an assertion failure if the extension is not supported.
+         **/
+        const ExtensionEXTTransformFeedbackEntrypoints& get_extension_ext_transform_feedback_entrypoints() const;
+
         /** Returns a container with entry-points to functions introduced by VK_KHR_bind_memory2 extension. **/
         const ExtensionKHRBindMemory2Entrypoints& get_extension_khr_bind_memory2_entrypoints() const
         {
@@ -731,6 +737,7 @@ namespace Anvil
         ExtensionEXTExternalMemoryHostEntrypoints         m_ext_external_memory_host_extension_entrypoints;
         ExtensionEXTHdrMetadataEntrypoints                m_ext_hdr_metadata_extension_entrypoints;
         ExtensionEXTSampleLocationsEntrypoints            m_ext_sample_locations_extension_entrypoints;
+        ExtensionEXTTransformFeedbackEntrypoints          m_ext_transform_feedback_extension_entrypoints;
         ExtensionKHRBindMemory2Entrypoints                m_khr_bind_memory2_extension_entrypoints;
         ExtensionKHRDescriptorUpdateTemplateEntrypoints   m_khr_descriptor_update_template_extension_entrypoints;
         ExtensionKHRDeviceGroupEntrypoints                m_khr_device_group_extension_entrypoints;

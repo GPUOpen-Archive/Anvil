@@ -116,6 +116,8 @@ namespace Anvil
     class  CommandPool;
     class  ComputePipelineCreateInfo;
     class  ComputePipelineManager;
+    class  DebugMessenger;
+    class  DebugMessengerCreateInfo;
     class  DescriptorPool;
     class  DescriptorSet;
     class  DescriptorSetCreateInfo;
@@ -176,6 +178,8 @@ namespace Anvil
     typedef std::unique_ptr<CommandBufferBase,                     std::function<void(CommandBufferBase*)> >           CommandBufferBaseUniquePtr;
     typedef std::unique_ptr<CommandPool,                           std::function<void(CommandPool*)> >                 CommandPoolUniquePtr;
     typedef std::unique_ptr<ComputePipelineCreateInfo>                                                                 ComputePipelineCreateInfoUniquePtr;
+    typedef std::unique_ptr<DebugMessengerCreateInfo>                                                                  DebugMessengerCreateInfoUniquePtr;
+    typedef std::unique_ptr<DebugMessenger,                        std::function<void(DebugMessenger*)> >              DebugMessengerUniquePtr;
     typedef std::unique_ptr<DescriptorPool,                        std::function<void(DescriptorPool*)> >              DescriptorPoolUniquePtr;
     typedef std::unique_ptr<DescriptorSetCreateInfo>                                                                   DescriptorSetCreateInfoUniquePtr;
     typedef std::unique_ptr<DescriptorSetGroup,                    std::function<void(DescriptorSetGroup*)> >          DescriptorSetGroupUniquePtr;

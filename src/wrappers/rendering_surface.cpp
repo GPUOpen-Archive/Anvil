@@ -37,7 +37,7 @@ Anvil::RenderingSurface::RenderingSurface(Anvil::Instance*         in_instance_p
                                           bool                     in_mt_safe,
                                           bool*                    out_safe_to_use_ptr)
     :DebugMarkerSupportProvider(in_device_ptr,
-                                VK_DEBUG_REPORT_OBJECT_TYPE_SURFACE_KHR_EXT),
+                                Anvil::ObjectType::RENDERING_SURFACE),
      MTSafetySupportProvider   (in_mt_safe),
      m_device_ptr              (in_device_ptr),
      m_height                  (0),
@@ -49,14 +49,14 @@ Anvil::RenderingSurface::RenderingSurface(Anvil::Instance*         in_instance_p
     *out_safe_to_use_ptr = init();
 
     /* Register the instance */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_RENDERING_SURFACE,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::RENDERING_SURFACE,
                                                  this);
 }
 
 /* Please see header for specification */
 Anvil::RenderingSurface::~RenderingSurface()
 {
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_RENDERING_SURFACE,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::RENDERING_SURFACE,
                                                     this);
 
     if (m_surface != VK_NULL_HANDLE)

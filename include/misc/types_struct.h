@@ -124,7 +124,7 @@ namespace Anvil
     } SubpassSampleLocations;
 
     /* NOTE: Maps 1:1 to VkImageSubresource */
-    typedef struct
+    typedef struct SurfaceCapabilities
     {
         uint32_t                         min_image_count;
         uint32_t                         max_image_count;
@@ -136,6 +136,23 @@ namespace Anvil
         Anvil::SurfaceTransformFlagBits  current_transform;
         Anvil::CompositeAlphaFlags       supported_composite_alpha;
         Anvil::ImageUsageFlags           supported_usage_flags;
+
+        SurfaceCapabilities()
+        {
+            current_extent.height     = 0;
+            current_extent.width      = 0;
+            max_image_array_layers    = 0;
+            max_image_count           = 0;
+            max_image_extent.height   = 0;
+            max_image_extent.width    = 0;
+            min_image_count           = 0;
+            min_image_extent.height   = 0;
+            min_image_extent.width    = 0;
+            supported_transforms      = Anvil::SurfaceTransformFlagBits::NONE;
+            current_transform         = Anvil::SurfaceTransformFlagBits::NONE;
+            supported_composite_alpha = Anvil::CompositeAlphaFlagBits::NONE;
+            supported_usage_flags     = Anvil::ImageUsageFlagBits::NONE;
+        }
     } SurfaceCapabilities;
 
     static_assert(sizeof(SurfaceCapabilities)                              == sizeof(VkSurfaceCapabilitiesKHR),                            "Struct sizes much match");
@@ -517,6 +534,58 @@ namespace Anvil
         }
     } CommandBufferMGPUSubmission;
 
+    /* Holds contents of VkDebugUtilsLabelEXT minus pNext and sType */
+    struct DebugLabel
+    {
+        float       color[4];
+        const char* name_ptr;
+
+        DebugLabel()
+        {
+            color[0] = 0.0f;
+            color[1] = 0.0f;
+            color[2] = 0.0f;
+            color[3] = 0.0f;
+            name_ptr = nullptr;
+        }
+
+        DebugLabel(const VkDebugUtilsLabelEXT& in_label_vk)
+        {
+            color[0] = in_label_vk.color[0];
+            color[1] = in_label_vk.color[1];
+            color[2] = in_label_vk.color[2];
+            color[3] = in_label_vk.color[3];
+            name_ptr = in_label_vk.pLabelName;
+        }
+    };
+
+    /* Holds contents of VkDebugUtilsObjectNameInfoEXT minus pNext and sType */
+    struct DebugObjectNameInfo
+    {
+        uint64_t          object_handle;
+        const char*       object_name_ptr;
+        Anvil::ObjectType object_type;
+
+        DebugObjectNameInfo()
+        {
+            object_handle   = 0;
+            object_name_ptr = nullptr;
+            object_type     = Anvil::ObjectType::UNKNOWN;
+        }
+
+        DebugObjectNameInfo(const uint64_t&          in_object_handle,
+                            const char*              in_object_name_ptr,
+                            const Anvil::ObjectType& in_object_type)
+            :object_handle  (in_object_handle),
+             object_name_ptr(in_object_name_ptr),
+             object_type    (in_object_type)
+        {
+            /* Stub */
+        }
+
+        DebugObjectNameInfo(const VkDebugUtilsObjectNameInfoEXT& in_name_info_vk);
+    };
+
     #if defined(_WIN32)
         typedef struct ExternalNTHandleInfo
         {
@@ -757,10 +826,28 @@ namespace Anvil
     typedef struct ExtensionEXTDebugReportEntrypoints
     {
         PFN_vkCreateDebugReportCallbackEXT  vkCreateDebugReportCallbackEXT;
+        PFN_vkDebugReportMessageEXT         vkDebugReportMessageEXT;
         PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallbackEXT;
 
         ExtensionEXTDebugReportEntrypoints();
     } ExtensionEXTDebugReportEntrypoints;
+
+    typedef struct ExtensionEXTDebugUtilsEntrypoints
+    {
+        PFN_vkCmdBeginDebugUtilsLabelEXT    vkCmdBeginDebugUtilsLabelEXT;
+        PFN_vkCmdEndDebugUtilsLabelEXT      vkCmdEndDebugUtilsLabelEXT;
+        PFN_vkCmdInsertDebugUtilsLabelEXT   vkCmdInsertDebugUtilsLabelEXT;
+        PFN_vkCreateDebugUtilsMessengerEXT  vkCreateDebugUtilsMessengerEXT;
+        PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessengerEXT;
+        PFN_vkSetDebugUtilsObjectNameEXT    vkSetDebugUtilsObjectNameEXT;
+        PFN_vkSetDebugUtilsObjectTagEXT     vkSetDebugUtilsObjectTagEXT;
+        PFN_vkQueueBeginDebugUtilsLabelEXT  vkQueueBeginDebugUtilsLabelEXT;
+        PFN_vkQueueEndDebugUtilsLabelEXT    vkQueueEndDebugUtilsLabelEXT;
+        PFN_vkQueueInsertDebugUtilsLabelEXT vkQueueInsertDebugUtilsLabelEXT;
+        PFN_vkSubmitDebugUtilsMessageEXT    vkSubmitDebugUtilsMessageEXT;
+
+        ExtensionEXTDebugUtilsEntrypoints();
+    } ExtensionEXTDebugUtilsEntrypoints;
 
     typedef struct ExtensionEXTExternalMemoryHostEntrypoints
     {
@@ -783,6 +870,18 @@ namespace Anvil
 
         ExtensionEXTSampleLocationsEntrypoints();
     } ExtensionEXTSampleLocationsEntrypoints;
+
+    typedef struct ExtensionEXTTransformFeedbackEntrypoints
+    {
+        PFN_vkCmdBeginQueryIndexedEXT            vkCmdBeginQueryIndexedEXT;
+        PFN_vkCmdBeginTransformFeedbackEXT       vkCmdBeginTransformFeedbackEXT;
+        PFN_vkCmdBindTransformFeedbackBuffersEXT vkCmdBindTransformFeedbackBuffersEXT;
+        PFN_vkCmdDrawIndirectByteCountEXT        vkCmdDrawIndirectByteCountEXT;
+        PFN_vkCmdEndQueryIndexedEXT              vkCmdEndQueryIndexedEXT;
+        PFN_vkCmdEndTransformFeedbackEXT         vkCmdEndTransformFeedbackEXT;
+
+        ExtensionEXTTransformFeedbackEntrypoints();
+    } ExtensionEXTTransformFeedbackEntrypoints;
 
     typedef struct ExtensionKHRDeviceGroupEntrypoints
     {
@@ -1268,6 +1367,39 @@ namespace Anvil
         }
     } ExternalMemoryHandleImportInfo;
 
+    typedef struct EXTTransformFeedbackFeatures
+    {
+        bool geometry_streams;
+        bool transform_feedback;
+
+        EXTTransformFeedbackFeatures();
+        EXTTransformFeedbackFeatures(const VkPhysicalDeviceTransformFeedbackFeaturesEXT& in_features);
+
+        VkPhysicalDeviceTransformFeedbackFeaturesEXT get_vk_physical_device_transform_feedback_features() const;
+
+        bool operator==(const EXTTransformFeedbackFeatures& in_features) const;
+    } EXTTransformFeedbackFeatures;
+
+    typedef struct EXTTransformFeedbackProperties
+    {
+        uint32_t           max_transform_feedback_buffer_data_size;
+        uint32_t           max_transform_feedback_buffer_data_stride;
+        VkDeviceSize       max_transform_feedback_buffer_size;
+        uint32_t           max_transform_feedback_stream_data_size;
+        uint32_t           n_max_transform_feedback_buffers;
+        uint32_t           n_max_transform_feedback_streams;
+        bool               supports_transform_feedback_draw;
+        bool               supports_transform_feedback_queries;
+        bool               supports_transform_feedback_rasterization_stream_select;
+        bool               supports_transform_feedback_streams_lines_triangles;
+
+        EXTTransformFeedbackProperties();
+        EXTTransformFeedbackProperties(const VkPhysicalDeviceTransformFeedbackPropertiesEXT& in_props);
+
+        bool operator==(const EXTTransformFeedbackProperties&) const;
+
+    } EXTTransformFeedbackProperties;
+
     typedef struct KHR16BitStorageFeatures
     {
         bool is_input_output_storage_supported;
@@ -1569,6 +1701,18 @@ namespace Anvil
         /* Number of bytes each row takes */
         uint32_t row_size;
 
+
+        MipmapRawData()
+        {
+            aspect                                   = Anvil::ImageAspectFlagBits::NONE;
+            data_size                                = 0;
+            linear_tightly_packed_data_uchar_raw_ptr = nullptr;
+            n_layer                                  = 0;
+            n_layers                                 = 0;
+            n_mipmap                                 = 0;
+            n_slices                                 = 0;
+            row_size                                 = 0;
+        }
 
         /** Creates a MipmapRawData instance which can be used to upload data to 1D Image instances:
          *
@@ -1947,6 +2091,7 @@ namespace Anvil
     {
         const PhysicalDeviceFeaturesCoreVK10* core_vk1_0_features_ptr;
         const EXTDescriptorIndexingFeatures*  ext_descriptor_indexing_features_ptr;
+        const EXTTransformFeedbackFeatures*   ext_transform_feedback_features_ptr;
         const KHR16BitStorageFeatures*        khr_16bit_storage_features_ptr;
         const KHR8BitStorageFeatures*         khr_8bit_storage_features_ptr;
         const KHRMultiviewFeatures*           khr_multiview_features_ptr;
@@ -1955,6 +2100,7 @@ namespace Anvil
         PhysicalDeviceFeatures();
         PhysicalDeviceFeatures(const PhysicalDeviceFeaturesCoreVK10* in_core_vk1_0_features_ptr,
                                const EXTDescriptorIndexingFeatures*  in_ext_descriptor_indexing_features_ptr,
+                               const EXTTransformFeedbackFeatures*   in_ext_transform_feedback_features_ptr,
                                const KHR16BitStorageFeatures*        in_khr_16_bit_storage_features_ptr,
                                const KHR8BitStorageFeatures*         in_khr_8_bit_storage_features_ptr,
                                const KHRMultiviewFeatures*           in_khr_multiview_features_ptr,
@@ -2120,6 +2266,7 @@ namespace Anvil
         const EXTPCIBusInfoProperties*                                 ext_pci_bus_info_properties_ptr;
         const EXTSampleLocationsProperties*                            ext_sample_locations_properties_ptr;
         const EXTSamplerFilterMinmaxProperties*                        ext_sampler_filter_minmax_properties_ptr;
+        const EXTTransformFeedbackProperties*                          ext_transform_feedback_properties_ptr;
         const EXTVertexAttributeDivisorProperties*                     ext_vertex_attribute_divisor_properties_ptr;
         const KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties* khr_external_memory_capabilities_physical_device_id_properties_ptr;
         const KHRMaintenance2PhysicalDevicePointClippingProperties*    khr_maintenance2_point_clipping_properties_ptr;
@@ -2134,6 +2281,7 @@ namespace Anvil
                                  const EXTPCIBusInfoProperties*                                 in_ext_pci_bus_info_properties_ptr,
                                  const EXTSampleLocationsProperties*                            in_ext_sample_locations_properties_ptr,
                                  const EXTSamplerFilterMinmaxProperties*                        in_ext_sampler_filter_minmax_properties_ptr,
+                                 const EXTTransformFeedbackProperties*                          in_ext_transform_feedback_properties_ptr,
                                  const EXTVertexAttributeDivisorProperties*                     in_ext_vertex_attribute_divisor_properties_ptr,
                                  const KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties* in_khr_external_memory_caps_physical_device_id_props_ptr,
                                  const KHRMaintenance3Properties*                               in_khr_maintenance3_properties_ptr,
@@ -2749,6 +2897,15 @@ namespace Anvil
         VkStructureType type;
         const void*     next_ptr;
     } VkStructHeader;
+
+    typedef std::function<void(const Anvil::DebugMessageSeverityFlagBits&     in_severity,
+                               const Anvil::DebugMessageTypeFlags&            in_types,
+                               const char*                                    in_opt_message_id_name_ptr,
+                               int32_t                                        in_message_id,
+                               const char*                                    in_message_ptr,
+                               const std::vector<Anvil::DebugLabel>&          in_queue_labels,
+                               const std::vector<Anvil::DebugLabel>&          in_cmd_buffer_labels,
+                               const std::vector<Anvil::DebugObjectNameInfo>& in_objects)> DebugMessengerCallbackFunction;
 
 }; /* namespace Anvil */
 #endif

@@ -38,7 +38,7 @@ Anvil::ShaderModule::ShaderModule(const Anvil::BaseDevice*    in_device_ptr,
                                   GLSLShaderToSPIRVGenerator* in_spirv_generator_ptr,
                                   bool                        in_mt_safe)
     :DebugMarkerSupportProvider(in_device_ptr,
-                                VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT),
+                                Anvil::ObjectType::SHADER_MODULE),
      MTSafetySupportProvider   (in_mt_safe),
      m_device_ptr              (in_device_ptr)
 {
@@ -78,7 +78,7 @@ Anvil::ShaderModule::ShaderModule(const Anvil::BaseDevice* in_device_ptr,
                                   const std::string&       in_vs_entrypoint_name,
                                   bool                     in_mt_safe)
     :DebugMarkerSupportProvider(in_device_ptr,
-                                VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT),
+                                Anvil::ObjectType::SHADER_MODULE),
      MTSafetySupportProvider   (in_mt_safe),
      m_cs_entrypoint_name      (in_cs_entrypoint_name),
      m_device_ptr              (in_device_ptr),
@@ -100,7 +100,7 @@ Anvil::ShaderModule::~ShaderModule()
 {
     auto object_tracker_ptr = Anvil::ObjectTracker::get();
 
-    object_tracker_ptr->unregister_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
+    object_tracker_ptr->unregister_object(Anvil::ObjectType::SHADER_MODULE,
                                           this);
 
     /* Release the Vulkan handle */
@@ -159,7 +159,7 @@ Anvil::ShaderModuleUniquePtr Anvil::ShaderModule::create_from_spirv_generator(co
                         /* Stub */
                     });
 
-                Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
+                Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::SHADER_MODULE,
                                                              result_ptr.get() );
             }
         }
@@ -176,7 +176,7 @@ Anvil::ShaderModuleUniquePtr Anvil::ShaderModule::create_from_spirv_generator(co
 
         anvil_assert(result_ptr->get_module() != VK_NULL_HANDLE);
 
-        Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
+        Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::SHADER_MODULE,
                                                      result_ptr.get() );
     }
 
@@ -239,7 +239,7 @@ Anvil::ShaderModuleUniquePtr Anvil::ShaderModule::create_from_spirv_blob(const A
                         /* Stub */
                     });
 
-                Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
+                Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::SHADER_MODULE,
                                                              result_ptr.get() );
             }
         }
@@ -263,7 +263,7 @@ Anvil::ShaderModuleUniquePtr Anvil::ShaderModule::create_from_spirv_blob(const A
 
         anvil_assert(result_ptr->get_module() != VK_NULL_HANDLE);
 
-        Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SHADER_MODULE,
+        Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::SHADER_MODULE,
                                                      result_ptr.get() );
     }
 

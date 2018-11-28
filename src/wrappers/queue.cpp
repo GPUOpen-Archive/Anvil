@@ -45,14 +45,15 @@ Anvil::Queue::Queue(const Anvil::BaseDevice* in_device_ptr,
                     uint32_t                 in_queue_index,
                     bool                     in_mt_safe)
 
-    :CallbacksSupportProvider  (QUEUE_CALLBACK_ID_COUNT),
-     DebugMarkerSupportProvider(in_device_ptr,
-                                VK_DEBUG_REPORT_OBJECT_TYPE_QUEUE_EXT),
-     MTSafetySupportProvider   (in_mt_safe),
-     m_device_ptr              (in_device_ptr),
-     m_queue                   (VK_NULL_HANDLE),
-     m_queue_family_index      (in_queue_family_index),
-     m_queue_index             (in_queue_index)
+    :CallbacksSupportProvider       (QUEUE_CALLBACK_ID_COUNT),
+     DebugMarkerSupportProvider     (in_device_ptr,
+                                     Anvil::ObjectType::QUEUE),
+     MTSafetySupportProvider        (in_mt_safe),
+     m_device_ptr                   (in_device_ptr),
+     m_n_debug_label_regions_started(0),
+     m_queue                        (VK_NULL_HANDLE),
+     m_queue_family_index           (in_queue_family_index),
+     m_queue_index                  (in_queue_index)
 {
     /* Retrieve the Vulkan handle */
     Anvil::Vulkan::vkGetDeviceQueue(m_device_ptr->get_device_vk(),
@@ -76,15 +77,47 @@ Anvil::Queue::Queue(const Anvil::BaseDevice* in_device_ptr,
     }
 
     /* OK, register the wrapper instance and leave */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_QUEUE,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::QUEUE,
                                                   this);
 }
 
 /** Please see header for specification */
 Anvil::Queue::~Queue()
 {
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_QUEUE,
+    anvil_assert(m_n_debug_label_regions_started == 0);
+
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::QUEUE,
                                                     this);
+}
+
+/** Please see header for specification */
+void Anvil::Queue::begin_debug_utils_label(const char*  in_label_name_ptr,
+                                           const float* in_color_vec4_ptr)
+{
+    if (!m_device_ptr->get_parent_instance()->get_enabled_extensions_info()->ext_debug_utils() )
+    {
+        goto end;
+    }
+
+    {
+        const auto&          entrypoints = m_device_ptr->get_parent_instance()->get_extension_ext_debug_utils_entrypoints();
+        VkDebugUtilsLabelEXT label_info;
+
+        label_info.color[0]   = in_color_vec4_ptr[0];
+        label_info.color[1]   = in_color_vec4_ptr[1];
+        label_info.color[2]   = in_color_vec4_ptr[2];
+        label_info.color[3]   = in_color_vec4_ptr[3];
+        label_info.pLabelName = in_label_name_ptr;
+        label_info.pNext      = nullptr;
+        label_info.sType      = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+
+        entrypoints.vkQueueBeginDebugUtilsLabelEXT(m_queue,
+                                                  &label_info);
+    }
+
+    ++m_n_debug_label_regions_started;
+end:
+    ;
 }
 
 /** Please see header for specification */
@@ -427,6 +460,61 @@ std::unique_ptr<Anvil::Queue> Anvil::Queue::create(const Anvil::BaseDevice* in_d
     );
 
     return result_ptr;
+}
+
+/** Please see header for specification */
+void Anvil::Queue::end_debug_utils_label()
+{
+    if (!m_device_ptr->get_parent_instance()->get_enabled_extensions_info()->ext_debug_utils() )
+    {
+        goto end;
+    }
+
+    if (m_n_debug_label_regions_started == 0)
+    {
+        anvil_assert(m_n_debug_label_regions_started != 0);
+
+        goto end;
+    }
+
+    {
+        const auto& entrypoints = m_device_ptr->get_parent_instance()->get_extension_ext_debug_utils_entrypoints();
+
+        entrypoints.vkQueueEndDebugUtilsLabelEXT(m_queue);
+    }
+
+    --m_n_debug_label_regions_started;
+end:
+    ;
+}
+
+/** Please see header for specification */
+void Anvil::Queue::insert_debug_utils_label(const char*  in_label_name_ptr,
+                                            const float* in_color_vec4_ptr)
+{
+    if (!m_device_ptr->get_parent_instance()->get_enabled_extensions_info()->ext_debug_utils() )
+    {
+        goto end;
+    }
+
+    {
+        const auto&          entrypoints = m_device_ptr->get_parent_instance()->get_extension_ext_debug_utils_entrypoints();
+        VkDebugUtilsLabelEXT label_info;
+
+        label_info.color[0]   = in_color_vec4_ptr[0];
+        label_info.color[1]   = in_color_vec4_ptr[1];
+        label_info.color[2]   = in_color_vec4_ptr[2];
+        label_info.color[3]   = in_color_vec4_ptr[3];
+        label_info.pLabelName = in_label_name_ptr;
+        label_info.pNext      = nullptr;
+        label_info.sType      = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+
+        entrypoints.vkQueueInsertDebugUtilsLabelEXT(m_queue,
+                                                   &label_info);
+    }
+
+end:
+    ;
 }
 
 /** Please see header for specification */

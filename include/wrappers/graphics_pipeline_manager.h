@@ -29,46 +29,6 @@
  * - pipeline properties are assigned default values, as described below. They can be
  *   adjusted by calling relevant entrypoints, prior to baking.
  *
- *  Each baked graphics pipeline is configured as below at Pipeline object creation time:
- *
- *  All rendering modes & tests:          disabled
- *  Blend constant:                       vec4(0.0)
- *  Cull mode:                            VK_CULL_MODE_BACK
- *  Depth bias:                           0.0
- *  Depth bias clamp:                     0.0
- *  Depth bias slope factor:              1.0
- *  Depth test compare op:                Anvil::CompareOp::ALWAYS
- *  Depth writes:                         disabled
- *  Dynamic states:                       all disabled
- *  Fill mode:                            VK_FILL_MODE_SOLID
- *  Front face:                           VK_FRONT_FACE_CCW
- *  Line width:                           1.0
- *  Logic op:                             VK_LOGIC_OP_NOOP;
- *  Max depth boundary:                   1.0
- *  Min depth boundary:                   0.0
- *  Min sample shading:                   1.0
- *  Number of raster samples:             1
- *  Number of tessellation patches:       1
- *  Primitive topology:                   VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
- *  Sample mask:                          0xFFFFFFFF
- *  Slope scaled depth bias:              0.0
- *  Stencil comparison mask (back/front): 0xFFFFFFFF
- *  Stencil comparison op   (back/front): Anvil::CompareOp::ALWAYS
- *  Stencil depth fail op   (back/front): VK_STENCIL_OP_KEEP
- *  Stencil fail op         (back/front): VK_STENCIL_OP_KEEP
- *  Stencil pass op         (back/front): VK_STENCIL_OP_KEEP
- *  Stencil reference value (back/front): 0
- *  Stencil write mask      (back/front): 0xFFFFFFFF
- *
- *  If no scissor or viewport is defined explicitly, one scissor box and one viewport,
- *  covering the whole screen, will be created at baking time.
- *
- *  If VK_AMD_rasterization_order extension is supported, strict rasterization order is assumed
- *  for the pipeline by default.
- *
- *  If VK_KHR_maintenance2 extension is supported, upper-left tessellation domain origin is assumed
- *  by default (as per spec).
- *
  **/
 #ifndef WRAPPERS_GRAPHICS_PIPELINE_MANAGER_H
 #define WRAPPERS_GRAPHICS_PIPELINE_MANAGER_H

@@ -309,6 +309,57 @@ Anvil::AccessFlags Anvil::Utils::get_access_mask_from_image_layout(Anvil::ImageL
 }
 
 /* Please see header for specification */
+Anvil::ObjectType Anvil::Utils::get_object_type_for_vk_debug_report_object_type(const VkDebugReportObjectTypeEXT& in_object_type)
+{
+    Anvil::ObjectType result = Anvil::ObjectType::UNKNOWN;
+
+    switch (in_object_type)
+    {
+        case VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT:                         result = Anvil::ObjectType::BUFFER;                     break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_VIEW_EXT:                    result = Anvil::ObjectType::BUFFER_VIEW;                break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_BUFFER_EXT:                 result = Anvil::ObjectType::COMMAND_BUFFER;             break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_POOL_EXT:                   result = Anvil::ObjectType::COMMAND_POOL;               break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_DEBUG_REPORT_CALLBACK_EXT_EXT:      result = Anvil::ObjectType::DEBUG_REPORT_CALLBACK;      break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_POOL_EXT:                result = Anvil::ObjectType::DESCRIPTOR_POOL;            break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT:                 result = Anvil::ObjectType::DESCRIPTOR_SET;             break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT_EXT:          result = Anvil::ObjectType::DESCRIPTOR_SET_LAYOUT;      break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_KHR_EXT: result = Anvil::ObjectType::DESCRIPTOR_UPDATE_TEMPLATE; break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_EXT:                         result = Anvil::ObjectType::DEVICE;                     break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT:                  result = Anvil::ObjectType::ANVIL_MEMORY_BLOCK;         break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_EVENT_EXT:                          result = Anvil::ObjectType::EVENT;                      break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_FENCE_EXT:                          result = Anvil::ObjectType::FENCE;                      break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT:                    result = Anvil::ObjectType::FRAMEBUFFER;                break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT:                          result = Anvil::ObjectType::IMAGE;                      break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT:                     result = Anvil::ObjectType::IMAGE_VIEW;                 break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_INSTANCE_EXT:                       result = Anvil::ObjectType::INSTANCE;                   break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_PHYSICAL_DEVICE_EXT:                result = Anvil::ObjectType::PHYSICAL_DEVICE;            break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_CACHE_EXT:                 result = Anvil::ObjectType::PIPELINE_CACHE;             break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_LAYOUT_EXT:                result = Anvil::ObjectType::PIPELINE_LAYOUT;            break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_QUEUE_EXT:                          result = Anvil::ObjectType::QUEUE;                      break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_QUERY_POOL_EXT:                     result = Anvil::ObjectType::QUERY_POOL;                 break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT:                    result = Anvil::ObjectType::RENDER_PASS;                break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT:                        result = Anvil::ObjectType::SAMPLER;                    break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT:                      result = Anvil::ObjectType::SEMAPHORE;                  break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT:                  result = Anvil::ObjectType::SHADER_MODULE;              break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_SURFACE_KHR_EXT:                    result = Anvil::ObjectType::RENDERING_SURFACE;          break;
+        case VK_DEBUG_REPORT_OBJECT_TYPE_SWAPCHAIN_KHR_EXT:                  result = Anvil::ObjectType::SWAPCHAIN;                  break;
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
+
+    return result;
+}
+
+/* Please see header for specification */
+Anvil::ObjectType Anvil::Utils::get_object_type_for_vk_object_type(const VkObjectType& in_object_type)
+{
+    return static_cast<Anvil::ObjectType>(in_object_type);
+}
+
+/* Please see header for specification */
 Anvil::QueueFamilyFlags Anvil::Utils::get_queue_family_flags_from_queue_family_type(Anvil::QueueFamilyType in_queue_family_type)
 {
     Anvil::QueueFamilyFlags result;
@@ -846,6 +897,98 @@ Anvil::ShaderStageFlagBits Anvil::Utils::get_shader_stage_flag_bits_from_shader_
         default:
         {
             anvil_assert_fail();
+        }
+    }
+
+    return result;
+}
+
+/* Please see header for specification */
+VkDebugReportObjectTypeEXT Anvil::Utils::get_vk_debug_report_object_type_ext_from_object_type(const Anvil::ObjectType& in_object_type)
+{
+    VkDebugReportObjectTypeEXT result = VK_DEBUG_REPORT_OBJECT_TYPE_MAX_ENUM_EXT;
+
+    switch (in_object_type)
+    {
+        case Anvil::ObjectType::BUFFER:                     result = VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT;                     break;
+        case Anvil::ObjectType::BUFFER_VIEW:                result = VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_VIEW_EXT;                break;
+        case Anvil::ObjectType::COMMAND_BUFFER:             result = VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_BUFFER_EXT;             break;
+        case Anvil::ObjectType::COMMAND_POOL:               result = VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_POOL_EXT;               break;
+        case Anvil::ObjectType::DESCRIPTOR_POOL:            result = VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_POOL_EXT;            break;
+        case Anvil::ObjectType::DESCRIPTOR_SET:             result = VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT;             break;
+        case Anvil::ObjectType::DESCRIPTOR_SET_LAYOUT:      result = VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT_EXT;      break;
+        case Anvil::ObjectType::DESCRIPTOR_UPDATE_TEMPLATE: result = VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_EXT; break;
+        case Anvil::ObjectType::DEVICE:                     result = VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_EXT;                     break;
+        case Anvil::ObjectType::EVENT:                      result = VK_DEBUG_REPORT_OBJECT_TYPE_EVENT_EXT;                      break;
+        case Anvil::ObjectType::FENCE:                      result = VK_DEBUG_REPORT_OBJECT_TYPE_FENCE_EXT;                      break;
+        case Anvil::ObjectType::FRAMEBUFFER:                result = VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT;                break;
+        case Anvil::ObjectType::IMAGE:                      result = VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT;                      break;
+        case Anvil::ObjectType::IMAGE_VIEW:                 result = VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT;                 break;
+        case Anvil::ObjectType::INSTANCE:                   result = VK_DEBUG_REPORT_OBJECT_TYPE_INSTANCE_EXT;                   break;
+        case Anvil::ObjectType::PHYSICAL_DEVICE:            result = VK_DEBUG_REPORT_OBJECT_TYPE_PHYSICAL_DEVICE_EXT;            break;
+        case Anvil::ObjectType::PIPELINE_CACHE:             result = VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_CACHE_EXT;             break;
+        case Anvil::ObjectType::PIPELINE_LAYOUT:            result = VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_LAYOUT_EXT;            break;
+        case Anvil::ObjectType::QUERY_POOL:                 result = VK_DEBUG_REPORT_OBJECT_TYPE_QUERY_POOL_EXT;                 break;
+        case Anvil::ObjectType::QUEUE:                      result = VK_DEBUG_REPORT_OBJECT_TYPE_QUEUE_EXT;                      break;
+        case Anvil::ObjectType::RENDER_PASS:                result = VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT;                break;
+        case Anvil::ObjectType::RENDERING_SURFACE:          result = VK_DEBUG_REPORT_OBJECT_TYPE_SURFACE_KHR_EXT;                break;
+        case Anvil::ObjectType::SAMPLER:                    result = VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT;                    break;
+        case Anvil::ObjectType::SEMAPHORE:                  result = VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT;                  break;
+        case Anvil::ObjectType::SHADER_MODULE:              result = VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT;              break;
+        case Anvil::ObjectType::SWAPCHAIN:                  result = VK_DEBUG_REPORT_OBJECT_TYPE_SWAPCHAIN_KHR_EXT;              break;
+
+        default:
+        {
+            /* Either Anvil-specific object OR one that is not recognized by VK_EXT_debug_utils. The extension has
+             * been deprecated, so there's not much we can do at this point, other than return MAX_ENUM_EXT and hope
+             * for the best.
+             */
+        }
+    }
+
+    return result;
+}
+
+/* Please see header for specification */
+VkObjectType Anvil::Utils::get_vk_object_type_for_object_type(const Anvil::ObjectType& in_object_type)
+{
+    VkObjectType result = VK_OBJECT_TYPE_MAX_ENUM;
+
+    switch (in_object_type)
+    {
+        case Anvil::ObjectType::BUFFER:                     result = VK_OBJECT_TYPE_BUFFER;                     break;
+        case Anvil::ObjectType::BUFFER_VIEW:                result = VK_OBJECT_TYPE_BUFFER_VIEW;                break;
+        case Anvil::ObjectType::COMMAND_BUFFER:             result = VK_OBJECT_TYPE_COMMAND_BUFFER;             break;
+        case Anvil::ObjectType::COMMAND_POOL:               result = VK_OBJECT_TYPE_COMMAND_POOL;               break;
+        case Anvil::ObjectType::DESCRIPTOR_POOL:            result = VK_OBJECT_TYPE_DESCRIPTOR_POOL;            break;
+        case Anvil::ObjectType::DESCRIPTOR_SET:             result = VK_OBJECT_TYPE_DESCRIPTOR_SET;             break;
+        case Anvil::ObjectType::DESCRIPTOR_SET_LAYOUT:      result = VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT;      break;
+        case Anvil::ObjectType::DESCRIPTOR_UPDATE_TEMPLATE: result = VK_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE; break;
+        case Anvil::ObjectType::DEVICE:                     result = VK_OBJECT_TYPE_DEVICE;                     break;
+        case Anvil::ObjectType::EVENT:                      result = VK_OBJECT_TYPE_EVENT;                      break;
+        case Anvil::ObjectType::FENCE:                      result = VK_OBJECT_TYPE_FENCE;                      break;
+        case Anvil::ObjectType::FRAMEBUFFER:                result = VK_OBJECT_TYPE_FRAMEBUFFER;                break;
+        case Anvil::ObjectType::IMAGE:                      result = VK_OBJECT_TYPE_IMAGE;                      break;
+        case Anvil::ObjectType::IMAGE_VIEW:                 result = VK_OBJECT_TYPE_IMAGE_VIEW;                 break;
+        case Anvil::ObjectType::INSTANCE:                   result = VK_OBJECT_TYPE_INSTANCE;                   break;
+        case Anvil::ObjectType::PHYSICAL_DEVICE:            result = VK_OBJECT_TYPE_PHYSICAL_DEVICE;            break;
+        case Anvil::ObjectType::PIPELINE_CACHE:             result = VK_OBJECT_TYPE_PIPELINE_CACHE;             break;
+        case Anvil::ObjectType::PIPELINE_LAYOUT:            result = VK_OBJECT_TYPE_PIPELINE_LAYOUT;            break;
+        case Anvil::ObjectType::QUERY_POOL:                 result = VK_OBJECT_TYPE_QUERY_POOL;                 break;
+        case Anvil::ObjectType::QUEUE:                      result = VK_OBJECT_TYPE_QUEUE;                      break;
+        case Anvil::ObjectType::RENDER_PASS:                result = VK_OBJECT_TYPE_RENDER_PASS;                break;
+        case Anvil::ObjectType::RENDERING_SURFACE:          result = VK_OBJECT_TYPE_SURFACE_KHR;                break;
+        case Anvil::ObjectType::SAMPLER:                    result = VK_OBJECT_TYPE_SAMPLER;                    break;
+        case Anvil::ObjectType::SEMAPHORE:                  result = VK_OBJECT_TYPE_SEMAPHORE;                  break;
+        case Anvil::ObjectType::SHADER_MODULE:              result = VK_OBJECT_TYPE_SHADER_MODULE;              break;
+        case Anvil::ObjectType::SWAPCHAIN:                  result = VK_OBJECT_TYPE_SWAPCHAIN_KHR;              break;
+
+        default:
+        {
+            /* Either Anvil-specific object OR one that is not recognized by VK_EXT_debug_utils. The extension has
+             * been deprecated, so there's not much we can do at this point, other than return MAX_ENUM_EXT and hope
+             * for the best.
+             */
         }
     }
 
