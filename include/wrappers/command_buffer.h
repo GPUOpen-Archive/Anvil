@@ -63,9 +63,12 @@ namespace Anvil
     {
         COMMAND_TYPE_BEGIN_RENDER_PASS,
         COMMAND_TYPE_BEGIN_QUERY,
+        COMMAND_TYPE_BEGIN_QUERY_INDEXED_EXT,
+        COMMAND_TYPE_BEGIN_TRANSFORM_FEEDBACK_EXT,
         COMMAND_TYPE_BIND_DESCRIPTOR_SETS,
         COMMAND_TYPE_BIND_INDEX_BUFFER,
         COMMAND_TYPE_BIND_PIPELINE,
+        COMMAND_TYPE_BIND_TRANSFORM_FEEDBACK_BUFFERS_EXT,
         COMMAND_TYPE_BIND_VERTEX_BUFFER,
         COMMAND_TYPE_BLIT_IMAGE,
         COMMAND_TYPE_CLEAR_ATTACHMENTS,
@@ -88,10 +91,13 @@ namespace Anvil
         COMMAND_TYPE_DRAW_INDEXED_INDIRECT_COUNT_AMD,
         COMMAND_TYPE_DRAW_INDEXED_INDIRECT_COUNT_KHR,
         COMMAND_TYPE_DRAW_INDIRECT,
+        COMMAND_TYPE_DRAW_INDIRECT_BYTE_COUNT_EXT,
         COMMAND_TYPE_DRAW_INDIRECT_COUNT_AMD,
         COMMAND_TYPE_DRAW_INDIRECT_COUNT_KHR,
         COMMAND_TYPE_END_QUERY,
+        COMMAND_TYPE_END_QUERY_INDEXED_EXT,
         COMMAND_TYPE_END_RENDER_PASS,
+        COMMAND_TYPE_END_TRANSFORM_FEEDBACK_EXT,
         COMMAND_TYPE_EXECUTE_COMMANDS,
         COMMAND_TYPE_FILL_BUFFER,
         COMMAND_TYPE_NEXT_SUBPASS,
@@ -159,6 +165,38 @@ namespace Anvil
         COMMAND_BUFFER_CALLBACK_ID_COUNT
     };
 
+    /** Holds all arguments passed to a vkCmdBeginQueryIndexedEXT() command. */
+    typedef struct BeginQueryIndexedEXTCommand : public Command
+    {
+        Anvil::QueryControlFlags flags;
+        uint32_t                 index;
+        Anvil::QueryPool*        query_pool_ptr;
+        uint32_t                 query;
+
+        /** Constructor.
+         *
+         *  Arguments as per VK_EXT_transform_feedback.
+         **/
+        explicit BeginQueryIndexedEXTCommand(Anvil::QueryPool*               in_query_pool_ptr,
+                                             const uint32_t&                 in_query,
+                                             const Anvil::QueryControlFlags& in_flags,
+                                             const uint32_t&                 in_index);
+
+        /** Destructor.
+         *
+         *  Releases the encapsulated Framebuffer and RenderPass instances.
+         **/
+        virtual ~BeginQueryIndexedEXTCommand()
+         {
+             /* Stub */
+         }
+
+
+    private:
+        BeginQueryIndexedEXTCommand           (const BeginQueryIndexedEXTCommand&);
+        BeginQueryIndexedEXTCommand& operator=(const BeginQueryIndexedEXTCommand&);
+    } BeginQueryIndexedEXTCommand;
+
     /** Holds all arguments passed to a vkCmdBeginRenderPass() command. */
     typedef struct BeginRenderPassCommand : public Command
     {
@@ -224,6 +262,40 @@ namespace Anvil
             /* Stub */
         }
     } BeginRenderPassCommandRecordedCallbackData;
+
+    typedef struct BeginTransformFeedbackEXTCommand : public Command
+    {
+        std::vector<VkDeviceSize>         counter_buffer_offsets;
+        std::vector<const Anvil::Buffer*> counter_buffer_ptrs;
+        uint32_t                          first_counter_buffer;
+
+        explicit BeginTransformFeedbackEXTCommand(const uint32_t&                          in_first_counter_buffer,
+                                                  const std::vector<const Anvil::Buffer*>& in_counter_buffer_ptrs,
+                                                  const std::vector<VkDeviceSize>&         in_counter_buffer_offsets);
+
+    private:
+        BeginTransformFeedbackEXTCommand           (const BeginTransformFeedbackEXTCommand&);
+        BeginTransformFeedbackEXTCommand& operator=(const BeginTransformFeedbackEXTCommand);
+    } BeginTransformFeedbackEXTCommand;
+
+    typedef struct BindTransformFeedbackBuffersEXTCommand : public Command
+    {
+        std::vector<Anvil::Buffer*> buffer_ptrs;
+        uint32_t                    first_binding;
+        uint32_t                    n_bindings;
+        std::vector<VkDeviceSize>   offsets;
+        std::vector<VkDeviceSize>   sizes;
+
+        explicit BindTransformFeedbackBuffersEXTCommand(const uint32_t&                    in_first_binding,
+                                                        const uint32_t&                    in_n_bindings,
+                                                        const std::vector<Anvil::Buffer*>& in_buffer_ptrs,
+                                                        const std::vector<VkDeviceSize>&   in_offsets,
+                                                        const std::vector<VkDeviceSize>&   in_sizes);
+
+    private:
+        BindTransformFeedbackBuffersEXTCommand           (const BindTransformFeedbackBuffersEXTCommand&);
+        BindTransformFeedbackBuffersEXTCommand& operator=(const BindTransformFeedbackBuffersEXTCommand);
+    } BindTransformFeedbackBuffersEXTCommand;
 
     /** Holds all arguments passed to a vkCmdEndRenderPass() command. */
     typedef struct EndRenderPassCommand : public Command
@@ -308,6 +380,17 @@ namespace Anvil
 
         virtual ~CommandBufferBase();
 
+        /** Starts a queue debug label region. App must call end_debug_utils_label() for the same cmd buffer instance
+         *  at some point to declare the end of the label region.
+         *
+         *  Requires VK_EXT_debug_utils support. Otherwise, the call is moot.
+         *
+         *  @param in_label_name_ptr Meaning as per VkDebugUtilsLabelEXT::pLabelName. Must not be nullptr.
+         *  @param in_color_vec4_ptr Meaning as per VkDebugUtilsLabelEXT::color. Must not be nullptr.
+         */
+        void begin_debug_utils_label(const char*  in_label_name_ptr,
+                                     const float* in_color_vec4_ptr);
+
         /* Disables internal command stashing which is enbled for builds created with
          * STORE_COMMAND_BUFFER_COMMANDS enabled.
          *
@@ -317,6 +400,13 @@ namespace Anvil
         {
             m_command_stashing_disabled = true;
         }
+
+        /** Ends a queue debug label region. Requires a preceding begin_debug_utils_label() call.
+         *
+         *  Requires VK_EXT_debug_utils support. Otherwise, the call is moot.
+         *
+         */
+        void end_debug_utils_label();
 
         /** Returns a handle to the raw Vulkan command buffer instance, encapsulated by the object */
         VkCommandBuffer get_command_buffer() const
@@ -344,6 +434,16 @@ namespace Anvil
             return m_parent_command_pool_ptr;
         }
 
+        /** Inserts a single queue debug label.
+         *
+         *  Requires VK_EXT_debug_utils support. Otherwise, the call is moot.
+         *
+         *  @param in_label_name_ptr Meaning as per VkDebugUtilsLabelEXT::pLabelName. Must not be nullptr.
+         *  @param in_color_vec4_ptr Meaning as per VkDebugUtilsLabelEXT::color. Must not be nullptr.
+         */
+        void insert_debug_utils_label(const char*  in_label_name_ptr,
+                                      const float* in_color_vec4_ptr);
+
         /** Issues a vkCmdBeginQuery() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
          *  #define enabled).
@@ -358,6 +458,44 @@ namespace Anvil
         bool record_begin_query(Anvil::QueryPool*        in_query_pool_ptr,
                                 Anvil::QueryIndex        in_entry,
                                 Anvil::QueryControlFlags in_flags);
+
+        /** Issues a vkCmdBeginQueryIndexedEXT() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  Argument meaning is as per VK_EXT_transform_feedback.
+         *
+         *  Requires VK_EXT_transform_feedback support.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_begin_query_indexed(Anvil::QueryPool*               in_query_pool_ptr,
+                                        const Anvil::QueryIndex&        in_query,
+                                        const Anvil::QueryControlFlags& in_flags,
+                                        const uint32_t&                 in_index);
+
+        /** Issues a vkCmdBeginTransformFeedbackEXT() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  Requires active renderpass.
+         *
+         *  Argument meaning is as per VK_EXT_transform_feedback.
+         *
+         *  Requires VK_EXT_transform_feedback support.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_begin_transform_feedback_EXT(const uint32_t&     in_first_counter_buffer,
+                                                 const uint32_t&     in_n_counter_buffers,
+                                                 Anvil::Buffer**     in_opt_counter_buffer_ptrs,
+                                                 const VkDeviceSize* in_opt_counter_buffer_offsets);
 
         /** Issues a vkCmdBindDescriptorSets() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -406,6 +544,26 @@ namespace Anvil
          **/
         bool record_bind_pipeline(Anvil::PipelineBindPoint in_pipeline_bind_point,
                                   Anvil::PipelineID        in_pipeline_id);
+
+        /** Issues a vkCmdBindTransformFeedbackBuffersEXT() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  Requires VK_EXT_transform_feedback support.
+         *
+         *  Argument meaning is as per VK_EXT_transform_feedback.
+         *
+         *  @return true if successful, false otherwise.
+         *
+         */
+        bool record_bind_transform_feedback_buffers_EXT(const uint32_t&     in_first_binding,
+                                                        const uint32_t&     in_n_bindings,
+                                                        Anvil::Buffer**     in_buffer_ptrs,
+                                                        const VkDeviceSize* in_offsets_ptr,
+                                                        const VkDeviceSize* in_sizes_ptr);
 
         /** Issues a vkCmdBindVertexBuffers() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -830,6 +988,30 @@ namespace Anvil
                                   uint32_t       in_count,
                                   uint32_t       in_stride);
 
+        /** Issues a vkCmdDrawIndirectByteCountEXT() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  It is also illegal to call this function when not recording renderpass commands. Doing so
+         *  will also result in an assertion failure.
+         *
+         *  This function is only available if VK_EXT_transform_feedback is supported by the Vulkan
+         *  device AND if the extension has been requested at creation time.
+         *
+         *  Argument meaning is as per VK_EXT_transform_feedback specification.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_draw_indirect_byte_count_EXT(const uint32_t&     in_instance_count,
+                                                 const uint32_t&     in_first_instance,
+                                                 Anvil::Buffer*      in_counter_buffer_ptr,
+                                                 const VkDeviceSize& in_counter_buffer_offset,
+                                                 const uint32_t&     in_counter_offset,
+                                                 const uint32_t&     in_vertex_stride);
+
         /** Issues a vkCmdDrawIndirectCount() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
          *  #define enabled).
@@ -891,6 +1073,43 @@ namespace Anvil
          **/
         bool record_end_query(Anvil::QueryPool* in_query_pool_ptr,
                               Anvil::QueryIndex in_entry);
+
+        /** Issues a vkCmdEndQueryIndexedEXT() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  Argument meaning is as per VK_EXT_transform_feedback.
+         *
+         *  Requires VK_EXT_transform_feedback support.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_end_query_indexed_EXT(Anvil::QueryPool*        in_query_pool_ptr,
+                                          const Anvil::QueryIndex& in_query,
+                                          const uint32_t&          in_index);
+
+        /** Issues a vkCmdEndTransformFeedbackEXT() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  Requires active renderpass.
+         *
+         *  Argument meaning is as per VK_EXT_transform_feedback.
+         *
+         *  Requires VK_EXT_transform_feedback support.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_end_transform_feedback_EXT(const uint32_t&     in_first_counter_buffer,
+                                               const uint32_t&     in_n_counter_buffers,
+                                               Anvil::Buffer**     in_opt_counter_buffer_ptrs,
+                                               const VkDeviceSize* in_opt_counter_buffer_offsets);
 
         /** Issues a vkCmdFillBuffer() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -1298,6 +1517,7 @@ namespace Anvil
         struct DrawIndirectCommand;
         struct DrawIndexedIndirectCommand;
         struct EndQueryCommand;
+        struct EndQueryIndexedEXTCommand;
         struct ExecuteCommandsCommand;
         struct FillBufferCommand;
         struct NextSubpassCommand;
@@ -2011,6 +2231,34 @@ namespace Anvil
             DrawIndexedIndirectCommand& operator=(const DrawIndexedIndirectCommand&);
         } DrawIndexedIndirectCommand;
 
+        /** Holds all arguments passed to a vkCmdDrawIndirectByteCountEXT() command. */
+        typedef struct DrawIndirectByteCountEXTCommand : public Command
+        {
+            VkDeviceSize   counter_buffer_offset;
+            Anvil::Buffer* counter_buffer_ptr;
+            uint32_t       counter_offset;
+            uint32_t       first_instance;
+            uint32_t       instance_count;
+            uint32_t       vertex_stride;
+
+            /** Constructor. **/
+            explicit DrawIndirectByteCountEXTCommand(const uint32_t&     in_instance_count,
+                                                     const uint32_t&     in_first_instance,
+                                                     Anvil::Buffer*      in_counter_buffer_ptr,
+                                                     const VkDeviceSize& in_counter_buffer_offset,
+                                                     const uint32_t&     in_counter_offset,
+                                                     const uint32_t&     in_vertex_stride);
+
+            /** Destructor */
+            virtual ~DrawIndirectByteCountEXTCommand()
+            {
+                /* Stub */
+            }
+
+        private:
+            DrawIndirectByteCountEXTCommand& operator=(const DrawIndirectByteCountEXTCommand&);
+        } DrawIndirectByteCountEXTCommand;
+
         /** Holds all arguments passed to a vkCmdDrawIndexedIndirectCountAMD() command. */
         typedef struct DrawIndexedIndirectCountAMDCommand : public Command
         {
@@ -2088,6 +2336,41 @@ namespace Anvil
             }
 
         } EndQueryCommand;
+
+        /** Holds all arguments passed to a vkCmdEndQueryIndexedEXT() command. */
+        typedef struct EndQueryIndexedEXTCommand : public Command
+        {
+            uint32_t          index;
+            Anvil::QueryIndex query;
+            Anvil::QueryPool* query_pool_ptr;
+
+            /** Constructor. **/
+            explicit EndQueryIndexedEXTCommand(Anvil::QueryPool*        in_query_pool_ptr,
+                                               const Anvil::QueryIndex& in_entry,
+                                               const uint32_t&          in_index);
+
+            /** Destructor. */
+            virtual ~EndQueryIndexedEXTCommand()
+            {
+                /* Stub */
+            }
+
+        } EndQueryIndexedEXTCommand;
+
+        typedef struct EndTransformFeedbackEXTCommand : public Command
+        {
+            std::vector<VkDeviceSize>         counter_buffer_offsets;
+            std::vector<const Anvil::Buffer*> counter_buffer_ptrs;
+            uint32_t                          first_counter_buffer;
+
+            explicit EndTransformFeedbackEXTCommand(const uint32_t&                          in_first_counter_buffer,
+                                                    const std::vector<const Anvil::Buffer*>& in_counter_buffer_ptrs,
+                                                    const std::vector<VkDeviceSize>&         in_counter_buffer_offsets);
+
+        private:
+            EndTransformFeedbackEXTCommand           (const EndTransformFeedbackEXTCommand&);
+            EndTransformFeedbackEXTCommand& operator=(const EndTransformFeedbackEXTCommand);
+        } EndTransformFeedbackEXTCommand;
 
         /** Holds all arguments passed to a vkCmdExecuteCommands() command. */
         typedef struct ExecuteCommandsCommand : public Command
@@ -2594,6 +2877,7 @@ namespace Anvil
         uint32_t                 m_device_mask;
         const Anvil::BaseDevice* m_device_ptr;
         bool                     m_is_renderpass_active;
+        uint32_t                 m_n_debug_label_regions_started;
         Anvil::CommandPool*      m_parent_command_pool_ptr;
         bool                     m_recording_in_progress;
         uint32_t                 m_renderpass_device_mask;

@@ -36,7 +36,7 @@
 Anvil::Buffer::Buffer(Anvil::BufferCreateInfoUniquePtr in_create_info_ptr)
     :CallbacksSupportProvider          (BUFFER_CALLBACK_ID_COUNT),
      DebugMarkerSupportProvider<Buffer>(in_create_info_ptr->get_device(),
-                                        VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT),
+                                        Anvil::ObjectType::BUFFER),
      MTSafetySupportProvider           (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety(),
                                                                                         in_create_info_ptr->get_device   () )),
      m_buffer                          (VK_NULL_HANDLE),
@@ -70,7 +70,7 @@ Anvil::Buffer::Buffer(Anvil::BufferCreateInfoUniquePtr in_create_info_ptr)
 Anvil::Buffer::~Buffer()
 {
     /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_BUFFER,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::BUFFER,
                                                    this);
 
     if (m_buffer                                   != VK_NULL_HANDLE &&
@@ -106,7 +106,7 @@ Anvil::BufferUniquePtr Anvil::Buffer::create(Anvil::BufferCreateInfoUniquePtr in
     }
 
     /* Register the object */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_BUFFER,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::BUFFER,
                                                  new_buffer_ptr.get() );
 
     return new_buffer_ptr;

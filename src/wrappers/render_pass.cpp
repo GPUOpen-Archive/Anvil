@@ -35,13 +35,13 @@
 Anvil::RenderPass::RenderPass(Anvil::RenderPassCreateInfoUniquePtr in_renderpass_create_info_ptr,
                               Anvil::Swapchain*                    in_opt_swapchain_ptr)
     :DebugMarkerSupportProvider   (in_renderpass_create_info_ptr->get_device(),
-                                   VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT),
+                                   Anvil::ObjectType::RENDER_PASS),
      m_render_pass                (VK_NULL_HANDLE),
      m_render_pass_create_info_ptr(std::move(in_renderpass_create_info_ptr) ),
      m_swapchain_ptr              (in_opt_swapchain_ptr)
 {
     /* Register the object */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_RENDER_PASS,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::RENDER_PASS,
                                                   this);
 }
 
@@ -49,7 +49,7 @@ Anvil::RenderPass::RenderPass(Anvil::RenderPassCreateInfoUniquePtr in_renderpass
 Anvil::RenderPass::~RenderPass()
 {
     /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_RENDER_PASS,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::RENDER_PASS,
                                                     this);
 
     if (m_render_pass != VK_NULL_HANDLE)

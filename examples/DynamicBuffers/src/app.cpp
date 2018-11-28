@@ -1233,9 +1233,7 @@ void App::init_vulkan()
                                              std::bind(&App::on_validation_callback,
                                                        this,
                                                        std::placeholders::_1,
-                                                       std::placeholders::_2,
-                                                       std::placeholders::_3,
-                                                       std::placeholders::_4),
+                                                       std::placeholders::_2),
 #else
                                              Anvil::DebugCallbackFunction(),
 #endif
@@ -1252,19 +1250,15 @@ void App::init_vulkan()
                                              false);                     /* in_support_resettable_command_buffers   */
 }
 
-VkBool32 App::on_validation_callback(VkDebugReportFlagsEXT      message_flags,
-                                     VkDebugReportObjectTypeEXT object_type,
-                                     const char*                layer_prefix,
-                                     const char*                message)
+void App::on_validation_callback(Anvil::DebugMessageSeverityFlags in_severity,
+                                 const char*                      in_message_ptr)
 {
-    if ((message_flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) != 0)
+    if ((in_severity & Anvil::DebugMessageSeverityFlagBits::ERROR_BIT) != 0)
     {
         fprintf(stderr,
                 "[!] %s\n",
-                message);
+                in_message_ptr);
     }
-
-    return false;
 }
 
 void App::run()

@@ -262,6 +262,11 @@ namespace Anvil
         UNIFORM_READ_BIT                   = VK_ACCESS_UNIFORM_READ_BIT,
         VERTEX_ATTRIBUTE_READ_BIT          = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
 
+        /* VK_EXT_transform_feedback */
+        TRANSFORM_FEEDBACK_COUNTER_READ_BIT_EXT  = VK_ACCESS_TRANSFORM_FEEDBACK_COUNTER_READ_BIT_EXT,
+        TRANSFORM_FEEDBACK_COUNTER_WRITE_BIT_EXT = VK_ACCESS_TRANSFORM_FEEDBACK_COUNTER_WRITE_BIT_EXT,
+        TRANSFORM_FEEDBACK_WRITE_BIT_EXT         = VK_ACCESS_TRANSFORM_FEEDBACK_WRITE_BIT_EXT,
+
         NONE = 0
     };
     typedef Anvil::Bitfield<Anvil::AccessFlagBits, VkAccessFlags> AccessFlags;
@@ -387,6 +392,10 @@ namespace Anvil
         UNIFORM_TEXEL_BUFFER_BIT = VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT,
         VERTEX_BUFFER_BIT        = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 
+        /* VK_EXT_transform_feedback */
+        TRANSFORM_FEEDBACK_BUFFER_BIT_EXT         = VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_BUFFER_BIT_EXT,
+        TRANSFORM_FEEDBACK_COUNTER_BUFFER_BIT_EXT = VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_COUNTER_BUFFER_BIT_EXT,
+
         NONE = 0
     };
     typedef Anvil::Bitfield<Anvil::BufferUsageFlagBits, VkBufferUsageFlags> BufferUsageFlags;
@@ -457,6 +466,33 @@ namespace Anvil
     typedef Anvil::Bitfield<Anvil::CompositeAlphaFlagBits, VkCompositeAlphaFlagsKHR> CompositeAlphaFlags;
 
     INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(CompositeAlphaFlags, VkCompositeAlphaFlagsKHR, CompositeAlphaFlagBits)
+
+    /* Note: These map 1:1 to VK equivalents. */
+    enum class DebugMessageSeverityFlagBits
+    {
+        ERROR_BIT   = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+        INFO_BIT    = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT,
+        VERBOSE_BIT = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT,
+        WARNING_BIT = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::DebugMessageSeverityFlagBits, VkDebugUtilsMessageSeverityFlagsEXT> DebugMessageSeverityFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(DebugMessageSeverityFlags, VkDebugUtilsMessageSeverityFlagsEXT, DebugMessageSeverityFlagBits)
+
+    /* Note: These map 1:1 to VK equivalents. */
+    enum class DebugMessageTypeFlagBits
+    {
+        GENERAL_BIT     = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT,
+        PERFORMANCE_BIT = VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+        VALIDATION_BIT  = VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::DebugMessageTypeFlagBits, VkDebugUtilsMessageTypeFlagsEXT> DebugMessageTypeFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(DebugMessageTypeFlags, VkDebugUtilsMessageTypeFlagsEXT, DebugMessageTypeFlagBits)
 
     /* Note: These map 1:1 to VK equivalents. */
     enum class DependencyFlagBits
@@ -1276,53 +1312,53 @@ namespace Anvil
         DISABLED
     };
 
-    typedef enum
+    enum class ObjectType
     {
-        /* NOTE: If new entries are added or existing entry order is modified, make sure to
+        /* NOTE: If new entries are added or existing entries are removed, make sure to
          *       update Anvil::ObjectTracker::get_object_type_name().
          */
-        OBJECT_TYPE_FIRST,
+        BUFFER                      = VK_OBJECT_TYPE_BUFFER,
+        BUFFER_VIEW                 = VK_OBJECT_TYPE_BUFFER_VIEW,
+        COMMAND_BUFFER              = VK_OBJECT_TYPE_COMMAND_BUFFER,
+        COMMAND_POOL                = VK_OBJECT_TYPE_COMMAND_POOL,
+        DEBUG_REPORT_CALLBACK       = VK_OBJECT_TYPE_DEBUG_REPORT_CALLBACK_EXT,
+        DEBUG_UTILS_MESSENGER       = VK_OBJECT_TYPE_DEBUG_UTILS_MESSENGER_EXT,
+        DESCRIPTOR_POOL             = VK_OBJECT_TYPE_DESCRIPTOR_POOL,
+        DESCRIPTOR_SET              = VK_OBJECT_TYPE_DESCRIPTOR_SET,
+        DESCRIPTOR_SET_LAYOUT       = VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT,
+        DESCRIPTOR_UPDATE_TEMPLATE  = VK_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE,
+        DEVICE                      = VK_OBJECT_TYPE_DEVICE,
+        EVENT                       = VK_OBJECT_TYPE_EVENT,
+        FENCE                       = VK_OBJECT_TYPE_FENCE,
+        FRAMEBUFFER                 = VK_OBJECT_TYPE_FRAMEBUFFER,
+        IMAGE                       = VK_OBJECT_TYPE_IMAGE,
+        IMAGE_VIEW                  = VK_OBJECT_TYPE_IMAGE_VIEW,
+        INSTANCE                    = VK_OBJECT_TYPE_INSTANCE,
+        PHYSICAL_DEVICE             = VK_OBJECT_TYPE_PHYSICAL_DEVICE,
+        PIPELINE                    = VK_OBJECT_TYPE_PIPELINE,
+        PIPELINE_CACHE              = VK_OBJECT_TYPE_PIPELINE_CACHE,
+        PIPELINE_LAYOUT             = VK_OBJECT_TYPE_PIPELINE_LAYOUT,
+        QUERY_POOL                  = VK_OBJECT_TYPE_QUERY_POOL,
+        QUEUE                       = VK_OBJECT_TYPE_QUEUE,
+        RENDER_PASS                 = VK_OBJECT_TYPE_RENDER_PASS,
+        RENDERING_SURFACE           = VK_OBJECT_TYPE_SURFACE_KHR,
+        SAMPLER                     = VK_OBJECT_TYPE_SAMPLER,
+        SEMAPHORE                   = VK_OBJECT_TYPE_SEMAPHORE,
+        SHADER_MODULE               = VK_OBJECT_TYPE_SHADER_MODULE,
+        SWAPCHAIN                   = VK_OBJECT_TYPE_SWAPCHAIN_KHR,
 
-        OBJECT_TYPE_BUFFER = OBJECT_TYPE_FIRST,
-        OBJECT_TYPE_BUFFER_VIEW,
-        OBJECT_TYPE_COMMAND_BUFFER,
-        OBJECT_TYPE_COMMAND_POOL,
-        OBJECT_TYPE_COMPUTE_PIPELINE_MANAGER,
-        OBJECT_TYPE_DESCRIPTOR_POOL,
-        OBJECT_TYPE_DESCRIPTOR_SET,
-        OBJECT_TYPE_DESCRIPTOR_SET_GROUP,
-        OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT,
-        OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT_MANAGER,
-        OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE,
-        OBJECT_TYPE_DEVICE,
-        OBJECT_TYPE_EVENT,
-        OBJECT_TYPE_FENCE,
-        OBJECT_TYPE_FRAMEBUFFER,
-        OBJECT_TYPE_GRAPHICS_PIPELINE_MANAGER,
-        OBJECT_TYPE_IMAGE,
-        OBJECT_TYPE_IMAGE_VIEW,
-        OBJECT_TYPE_INSTANCE,
-        OBJECT_TYPE_MEMORY_BLOCK,
-        OBJECT_TYPE_PHYSICAL_DEVICE,
-        OBJECT_TYPE_PIPELINE_CACHE,
-        OBJECT_TYPE_PIPELINE_LAYOUT,
-        OBJECT_TYPE_PIPELINE_LAYOUT_MANAGER,
-        OBJECT_TYPE_QUERY_POOL,
-        OBJECT_TYPE_QUEUE,
-        OBJECT_TYPE_RENDER_PASS,
-        OBJECT_TYPE_RENDERING_SURFACE,
-        OBJECT_TYPE_SAMPLER,
-        OBJECT_TYPE_SEMAPHORE,
-        OBJECT_TYPE_SHADER_MODULE,
-        OBJECT_TYPE_SWAPCHAIN,
-
-        OBJECT_TYPE_GLSL_SHADER_TO_SPIRV_GENERATOR,
-        OBJECT_TYPE_GRAPHICS_PIPELINE,
+        /* Anvil-specific items */
+        ANVIL_COMPUTE_PIPELINE_MANAGER = VK_OBJECT_TYPE_END_RANGE + 1,
+        ANVIL_DESCRIPTOR_SET_GROUP,
+        ANVIL_DESCRIPTOR_SET_LAYOUT_MANAGER,
+        ANVIL_GLSL_SHADER_TO_SPIRV_GENERATOR,
+        ANVIL_GRAPHICS_PIPELINE_MANAGER,
+        ANVIL_MEMORY_BLOCK,
+        ANVIL_PIPELINE_LAYOUT_MANAGER,
 
         /* Always last */
-        OBJECT_TYPE_COUNT,
-        OBJECT_TYPE_UNKNOWN = OBJECT_TYPE_COUNT
-    } ObjectType;
+        UNKNOWN
+    };
 
     /** Defines, to what extent occlusion queries are going to be used.
      *
@@ -1371,6 +1407,9 @@ namespace Anvil
         TRANSFER_BIT                       = VK_PIPELINE_STAGE_TRANSFER_BIT,
         VERTEX_INPUT_BIT                   = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
         VERTEX_SHADER_BIT                  = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+
+        /* VK_EXT_transform_feedback */
+        TRANSFORM_FEEDBACK_BIT_EXT         = VK_PIPELINE_STAGE_TRANSFORM_FEEDBACK_BIT_EXT,
 
         NONE = 0
     };

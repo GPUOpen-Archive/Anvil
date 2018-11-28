@@ -64,6 +64,7 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/include/misc/compute_pipeline_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/debug.h"
               "${Anvil_SOURCE_DIR}/include/misc/debug_marker.h"
+              "${Anvil_SOURCE_DIR}/include/misc/debug_messenger_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/descriptor_set_create_info.h"
               "${Anvil_SOURCE_DIR}/include/misc/dummy_window.h"
               "${Anvil_SOURCE_DIR}/include/misc/event_create_info.h"
@@ -106,6 +107,7 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/include/wrappers/command_buffer.h"
               "${Anvil_SOURCE_DIR}/include/wrappers/command_pool.h"
               "${Anvil_SOURCE_DIR}/include/wrappers/compute_pipeline_manager.h"
+              "${Anvil_SOURCE_DIR}/include/wrappers/debug_messenger.h"
               "${Anvil_SOURCE_DIR}/include/wrappers/descriptor_pool.h"
               "${Anvil_SOURCE_DIR}/include/wrappers/descriptor_set.h"
               "${Anvil_SOURCE_DIR}/include/wrappers/descriptor_set_group.h"
@@ -143,6 +145,7 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/src/misc/compute_pipeline_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/debug.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/debug_marker.cpp"
+              "${Anvil_SOURCE_DIR}/src/misc/debug_messenger_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/descriptor_set_create_info.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/dummy_window.cpp"
               "${Anvil_SOURCE_DIR}/src/misc/external_handle.cpp"
@@ -179,6 +182,7 @@ SET (SRC_LIST "${Anvil_SOURCE_DIR}/include/misc/memalloc_backends/backend_onesho
               "${Anvil_SOURCE_DIR}/src/wrappers/command_buffer.cpp"
               "${Anvil_SOURCE_DIR}/src/wrappers/command_pool.cpp"
               "${Anvil_SOURCE_DIR}/src/wrappers/compute_pipeline_manager.cpp"
+              "${Anvil_SOURCE_DIR}/src/wrappers/debug_messenger.cpp"
               "${Anvil_SOURCE_DIR}/src/wrappers/descriptor_pool.cpp"
               "${Anvil_SOURCE_DIR}/src/wrappers/descriptor_set.cpp"
               "${Anvil_SOURCE_DIR}/src/wrappers/descriptor_set_group.cpp"
@@ -237,13 +241,13 @@ add_library(Anvil STATIC ${SRC_LIST})
 
 if (WIN32)
     if (ANVIL_LINK_WITH_GLSLANG)
-        target_link_libraries(Anvil glslang HLSL OGLCompiler OSDependent SPIRV ${VULKAN_LIBRARY})
+        target_link_libraries(Anvil glslang OGLCompiler OSDependent SPIRV ${VULKAN_LIBRARY})
     else()
         target_link_libraries(Anvil ${VULKAN_LIBRARY})
     endif()
 else()
     if (ANVIL_LINK_WITH_GLSLANG)
-        target_link_libraries(Anvil glslang HLSL OGLCompiler OSDependent SPIRV ${VULKAN_LIBRARY} pthread)
+        target_link_libraries(Anvil glslang OGLCompiler OSDependent SPIRV ${VULKAN_LIBRARY} pthread)
     else()
         target_link_libraries(Anvil ${VULKAN_LIBRARY} pthread)
     endif()
@@ -256,7 +260,10 @@ else()
 endif()
 
 if (ANVIL_LINK_WITH_GLSLANG)
-    # Add dependendencies
+    set(BUILD_TESTING OFF CACHE BOOL ".." FORCE)
+    set(ENABLE_HLSL   OFF CACHE BOOL ".." FORCE)
+    set(ENABLE_OPT    OFF CACHE BOOL ".." FORCE)
+
     if (WIN32)
         add_subdirectory("deps\\glslang")
     else()

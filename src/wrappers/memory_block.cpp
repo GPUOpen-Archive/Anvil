@@ -52,7 +52,7 @@ Anvil::MemoryBlock::MemoryBlock(Anvil::MemoryBlockCreateInfoUniquePtr in_create_
     }
 
     /* Register the object */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_MEMORY_BLOCK,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::ANVIL_MEMORY_BLOCK,
                                                   this);
 }
 
@@ -78,7 +78,7 @@ Anvil::MemoryBlock::~MemoryBlock()
     }
 
     /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_MEMORY_BLOCK,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::ANVIL_MEMORY_BLOCK,
                                                    this);
 
     if (m_memory != VK_NULL_HANDLE)

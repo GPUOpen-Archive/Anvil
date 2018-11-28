@@ -54,11 +54,9 @@ private:
     void init_window           ();
     void init_vulkan           ();
 
-    void     draw_frame            ();
-    VkBool32 on_validation_callback(VkDebugReportFlagsEXT      message_flags,
-                                    VkDebugReportObjectTypeEXT object_type,
-                                    const char*                layer_prefix,
-                                    const char*                message);
+    void draw_frame            ();
+    void on_validation_callback(Anvil::DebugMessageSeverityFlags in_severity,
+                                const char*                      in_message_ptr);
 
     void get_buffer_memory_offsets(uint32_t  n_sine_pair,
                                    uint32_t* out_opt_sine1SB_offset_ptr,

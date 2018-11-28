@@ -37,7 +37,7 @@ Anvil::CommandPool::CommandPool(Anvil::BaseDevice* in_device_ptr,
                                 bool               in_mt_safe)
 
     :DebugMarkerSupportProvider         (in_device_ptr,
-                                         VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_POOL_EXT),
+                                         Anvil::ObjectType::COMMAND_POOL),
      MTSafetySupportProvider            (in_mt_safe),
      m_command_pool                     (VK_NULL_HANDLE),
      m_device_ptr                       (in_device_ptr),
@@ -69,7 +69,7 @@ Anvil::CommandPool::CommandPool(Anvil::BaseDevice* in_device_ptr,
     }
 
     /* Register the command pool instance */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_COMMAND_POOL,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::COMMAND_POOL,
                                                  this);
 }
 
@@ -77,7 +77,7 @@ Anvil::CommandPool::CommandPool(Anvil::BaseDevice* in_device_ptr,
 Anvil::CommandPool::~CommandPool()
 {
     /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_COMMAND_POOL,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::COMMAND_POOL,
                                                    this);
 
     /* Release the Vulkan command pool */
