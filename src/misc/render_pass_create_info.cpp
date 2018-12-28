@@ -581,6 +581,7 @@ end:
 
 /* Please see header for specification */
 bool Anvil::RenderPassCreateInfo::get_color_attachment_properties(RenderPassAttachmentID      in_attachment_id,
+                                                                  Anvil::Format*              out_opt_format_ptr,
                                                                   Anvil::SampleCountFlagBits* out_opt_sample_count_ptr,
                                                                   Anvil::AttachmentLoadOp*    out_opt_load_op_ptr,
                                                                   Anvil::AttachmentStoreOp*   out_opt_store_op_ptr,
@@ -593,6 +594,11 @@ bool Anvil::RenderPassCreateInfo::get_color_attachment_properties(RenderPassAtta
     if (m_attachments.size() <= in_attachment_id)
     {
         goto end;
+    }
+
+    if (out_opt_format_ptr != nullptr)
+    {
+        *out_opt_format_ptr = m_attachments[in_attachment_id].format;
     }
 
     if (out_opt_sample_count_ptr != nullptr)
@@ -695,20 +701,32 @@ end:
 }
 
 /** Please see header for specification */
-bool Anvil::RenderPassCreateInfo::get_depth_stencil_attachment_properties(RenderPassAttachmentID    in_attachment_id,
-                                                                          Anvil::AttachmentLoadOp*  out_opt_depth_load_op_ptr,
-                                                                          Anvil::AttachmentStoreOp* out_opt_depth_store_op_ptr,
-                                                                          Anvil::AttachmentLoadOp*  out_opt_stencil_load_op_ptr,
-                                                                          Anvil::AttachmentStoreOp* out_opt_stencil_store_op_ptr,
-                                                                          Anvil::ImageLayout*       out_opt_initial_layout_ptr,
-                                                                          Anvil::ImageLayout*       out_opt_final_layout_ptr,
-                                                                          bool*                     out_opt_may_alias_ptr) const
+bool Anvil::RenderPassCreateInfo::get_depth_stencil_attachment_properties(RenderPassAttachmentID      in_attachment_id,
+                                                                          Anvil::Format*              out_opt_format_ptr,
+                                                                          Anvil::SampleCountFlagBits* out_opt_sample_count_ptr,
+                                                                          Anvil::AttachmentLoadOp*    out_opt_depth_load_op_ptr,
+                                                                          Anvil::AttachmentStoreOp*   out_opt_depth_store_op_ptr,
+                                                                          Anvil::AttachmentLoadOp*    out_opt_stencil_load_op_ptr,
+                                                                          Anvil::AttachmentStoreOp*   out_opt_stencil_store_op_ptr,
+                                                                          Anvil::ImageLayout*         out_opt_initial_layout_ptr,
+                                                                          Anvil::ImageLayout*         out_opt_final_layout_ptr,
+                                                                          bool*                       out_opt_may_alias_ptr) const
 {
     bool result = false;
 
     if (m_attachments.size() <= in_attachment_id)
     {
         goto end;
+    }
+
+    if (out_opt_format_ptr != nullptr)
+    {
+        *out_opt_format_ptr = m_attachments[in_attachment_id].format;
+    }
+
+    if (out_opt_sample_count_ptr != nullptr)
+    {
+        *out_opt_sample_count_ptr = m_attachments[in_attachment_id].sample_count;
     }
 
     if (out_opt_depth_load_op_ptr != nullptr)

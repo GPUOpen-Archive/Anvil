@@ -41,6 +41,8 @@
 #include "../Public/ShaderLang.h"
 #include "Versions.h"
 
+#include <string>
+#include <vector>
 #include <algorithm>
 #include <set>
 #include <array>
@@ -204,6 +206,17 @@ class TSymbolTable;
 class TSymbol;
 class TVariable;
 
+#ifdef NV_EXTENSIONS
+//
+// Texture and Sampler transformation mode.
+//
+enum ComputeDerivativeMode {
+    LayoutDerivativeNone,         // default layout as SPV_NV_compute_shader_derivatives not enabled
+    LayoutDerivativeGroupQuads,   // derivative_group_quadsNV
+    LayoutDerivativeGroupLinear,  // derivative_group_linearNV
+};
+#endif
+
 //
 // Set of helper functions to help parse and build the tree.
 //
@@ -223,6 +236,10 @@ public:
 #ifdef NV_EXTENSIONS
         layoutOverrideCoverage(false),
         geoPassthroughEXT(false),
+        numShaderRecordNVBlocks(0),
+        computeDerivativeMode(LayoutDerivativeNone),
+        primitives(TQualifier::layoutNotSet),
+        numTaskNVBlocks(0),
 #endif
         autoMapBindings(false),
         autoMapLocations(false),
@@ -231,9 +248,12 @@ public:
         useUnknownFormat(false),
         hlslOffsets(false),
         useStorageBuffer(false),
+        useVulkanMemoryModel(false),
         hlslIoMapping(false),
         textureSamplerTransformMode(EShTexSampTransKeep),
-        needToLegalize(false)
+        needToLegalize(false),
+        binaryDoubleOutput(false),
+        uniformLocationBase(0)
     {
         localSize[0] = 1;
         localSize[1] = 1;
@@ -348,7 +368,7 @@ public:
         if (hlslOffsets)
             processes.addProcess("hlsl-offsets");
     }
-    bool usingHlslOFfsets() const { return hlslOffsets; }
+    bool usingHlslOffsets() const { return hlslOffsets; }
     void setUseStorageBuffer()
     {
         useStorageBuffer = true;
@@ -362,6 +382,12 @@ public:
             processes.addProcess("hlsl-iomap");
     }
     bool usingHlslIoMapping() { return hlslIoMapping; }
+    void setUseVulkanMemoryModel()
+    {
+        useVulkanMemoryModel = true;
+        processes.addProcess("use-vulkan-memory-model");
+    }
+    bool usingVulkanMemoryModel() const { return useVulkanMemoryModel; }
 
     template<class T> T addCounterBufferName(const T& name) const { return name + implicitCounterName; }
     bool hasCounterBufferName(const TString& name) const {
@@ -405,6 +431,11 @@ public:
     int getNumEntryPoints() const { return numEntryPoints; }
     int getNumErrors() const { return numErrors; }
     void addPushConstantCount() { ++numPushConstants; }
+#ifdef NV_EXTENSIONS
+    void addShaderRecordNVCount() { ++numShaderRecordNVBlocks; }
+    void addTaskNVCount() { ++numTaskNVBlocks; }
+#endif
+
     bool isRecursive() const { return recursive; }
 
     TIntermSymbol* addSymbol(const TVariable&);
@@ -612,6 +643,16 @@ public:
     bool getLayoutOverrideCoverage() const { return layoutOverrideCoverage; }
     void setGeoPassthroughEXT() { geoPassthroughEXT = true; }
     bool getGeoPassthroughEXT() const { return geoPassthroughEXT; }
+    void setLayoutDerivativeMode(ComputeDerivativeMode mode) { computeDerivativeMode = mode; }
+    ComputeDerivativeMode getLayoutDerivativeModeNone() const { return computeDerivativeMode; }
+    bool setPrimitives(int m)
+    {
+        if (primitives != TQualifier::layoutNotSet)
+            return primitives == m;
+        primitives = m;
+        return true;
+    }
+    int getPrimitives() const { return primitives; }
 #endif
 
     const char* addSemanticName(const TString& name)
@@ -623,7 +664,8 @@ public:
     const std::string& getSourceFile() const { return sourceFile; }
     void addSourceText(const char* text) { sourceText = sourceText + text; }
     const std::string& getSourceText() const { return sourceText; }
-    void addProcesses(const std::vector<std::string>& p) {
+    void addProcesses(const std::vector<std::string>& p)
+    {
         for (int i = 0; i < (int)p.size(); ++i)
             processes.addProcess(p[i]);
     }
@@ -631,8 +673,30 @@ public:
     void addProcessArgument(const std::string& arg) { processes.addArgument(arg); }
     const std::vector<std::string>& getProcesses() const { return processes.getProcesses(); }
 
+    void addUniformLocationOverride(const char* nameStr, int location)
+    {
+        std::string name = nameStr;
+        uniformLocationOverrides[name] = location;
+    }
+
+    int getUniformLocationOverride(const char* nameStr) const
+    {
+        std::string name = nameStr;
+        auto pos = uniformLocationOverrides.find(name);
+        if (pos == uniformLocationOverrides.end())
+            return -1;
+        else
+            return pos->second;
+    }
+
+    void setUniformLocationBase(int base) { uniformLocationBase = base; }
+    int getUniformLocationBase() const { return uniformLocationBase; }
+
     void setNeedsLegalization() { needToLegalize = true; }
     bool needsLegalization() const { return needToLegalize; }
+
+    void setBinaryDoubleOutput() { binaryDoubleOutput = true; }
+    bool getBinaryDoubleOutput() { return binaryDoubleOutput; }
 
     const char* const implicitThisName;
     const char* const implicitCounterName;
@@ -641,6 +705,11 @@ protected:
     TIntermSymbol* addSymbol(int Id, const TString&, const TType&, const TConstUnionArray&, TIntermTyped* subtree, const TSourceLoc&);
     void error(TInfoSink& infoSink, const char*);
     void warn(TInfoSink& infoSink, const char*);
+    void mergeCallGraphs(TInfoSink&, TIntermediate&);
+    void mergeModes(TInfoSink&, TIntermediate&);
+    void mergeTrees(TInfoSink&, TIntermediate&);
+    void seedIdMap(TMap<TString, int>& idMap, int& maxId);
+    void remapIds(const TMap<TString, int>& idMap, int idShift, TIntermediate&);
     void mergeBodies(TInfoSink&, TIntermSequence& globals, const TIntermSequence& unitGlobals);
     void mergeLinkerObjects(TInfoSink&, TIntermSequence& linkerObjects, const TIntermSequence& unitLinkerObjects);
     void mergeImplicitArraySizes(TType&, const TType&);
@@ -648,7 +717,7 @@ protected:
     void checkCallGraphCycles(TInfoSink&);
     void checkCallGraphBodies(TInfoSink&, bool keepUncalled);
     void inOutLocationCheck(TInfoSink&);
-    TIntermSequence& findLinkerObjects() const;
+    TIntermAggregate* findLinkerObjects() const;
     bool userOutputUsed() const;
     bool isSpecializationOperation(const TIntermOperator&) const;
     bool isNonuniformPropagating(TOperator) const;
@@ -670,6 +739,8 @@ protected:
     EShSource source;            // source language, known a bit later
     std::string entryPointName;
     std::string entryPointMangledName;
+    typedef std::list<TCall> TGraph;
+    TGraph callGraph;
 
     EProfile profile;                           // source profile
     int version;                                // source version
@@ -699,18 +770,23 @@ protected:
     bool hlslFunctionality1;
     int blendEquations;        // an 'or'ing of masks of shifts of TBlendEquationShift
     bool xfbMode;
+    std::vector<TXfbBuffer> xfbBuffers;     // all the data we need to track per xfb buffer
     bool multiStream;
 
 #ifdef NV_EXTENSIONS
     bool layoutOverrideCoverage;
     bool geoPassthroughEXT;
+    int numShaderRecordNVBlocks;
+    ComputeDerivativeMode computeDerivativeMode;
+    int primitives;
+    int numTaskNVBlocks;
 #endif
 
     // Base shift values
     std::array<unsigned int, EResCount> shiftBinding;
 
     // Per-descriptor-set shift values
-    std::array<std::map<int, int>, EResCount>  shiftBindingForSet;
+    std::array<std::map<int, int>, EResCount> shiftBindingForSet;
 
     std::vector<std::string> resourceSetBinding;
     bool autoMapBindings;
@@ -720,15 +796,12 @@ protected:
     bool useUnknownFormat;
     bool hlslOffsets;
     bool useStorageBuffer;
+    bool useVulkanMemoryModel;
     bool hlslIoMapping;
-
-    typedef std::list<TCall> TGraph;
-    TGraph callGraph;
 
     std::set<TString> ioAccessed;           // set of names of statically read/written I/O that might need extra checking
     std::vector<TIoRange> usedIo[4];        // sets of used locations, one for each of in, out, uniform, and buffers
     std::vector<TOffsetRange> usedAtomics;  // sets of bindings used by atomic counters
-    std::vector<TXfbBuffer> xfbBuffers;     // all the data we need to track per xfb buffer
     std::unordered_set<int> usedConstantId; // specialization constant ids used
     std::set<TString> semanticNameSet;
 
@@ -742,6 +815,10 @@ protected:
     TProcesses processes;
 
     bool needToLegalize;
+    bool binaryDoubleOutput;
+
+    std::unordered_map<std::string, int> uniformLocationOverrides;
+    int uniformLocationBase;
 
 private:
     void operator=(TIntermediate&); // prevent assignments

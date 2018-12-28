@@ -460,6 +460,9 @@ bool TIntermediate::isConversionAllowed(TOperator op, TIntermTyped* node) const
         return false;
     case EbtAtomicUint:
     case EbtSampler:
+#ifdef NV_EXTENSIONS
+    case EbtAccStructNV:
+#endif
         // opaque types can be passed to functions
         if (op == EOpFunction)
             break;
@@ -881,6 +884,9 @@ TIntermTyped* TIntermediate::addConversion(TOperator op, const TType& type, TInt
     // like vector and matrix sizes.
 
     TBasicType promoteTo;
+    // GL_EXT_shader_16bit_storage can't do OpConstantComposite with
+    // 16-bit types, so disable promotion for those types.
+    bool canPromoteConstant = true;
 
     switch (op) {
     //
@@ -897,18 +903,28 @@ TIntermTyped* TIntermediate::addConversion(TOperator op, const TType& type, TInt
         break;
     case EOpConstructFloat16:
         promoteTo = EbtFloat16;
+        canPromoteConstant = extensionRequested(E_GL_KHX_shader_explicit_arithmetic_types) ||
+                             extensionRequested(E_GL_KHX_shader_explicit_arithmetic_types_float16);
         break;
     case EOpConstructInt8:
         promoteTo = EbtInt8;
+        canPromoteConstant = extensionRequested(E_GL_KHX_shader_explicit_arithmetic_types) ||
+                             extensionRequested(E_GL_KHX_shader_explicit_arithmetic_types_int8);
         break;
     case EOpConstructUint8:
         promoteTo = EbtUint8;
+        canPromoteConstant = extensionRequested(E_GL_KHX_shader_explicit_arithmetic_types) ||
+                             extensionRequested(E_GL_KHX_shader_explicit_arithmetic_types_int8);
         break;
     case EOpConstructInt16:
         promoteTo = EbtInt16;
+        canPromoteConstant = extensionRequested(E_GL_KHX_shader_explicit_arithmetic_types) ||
+                             extensionRequested(E_GL_KHX_shader_explicit_arithmetic_types_int16);
         break;
     case EOpConstructUint16:
         promoteTo = EbtUint16;
+        canPromoteConstant = extensionRequested(E_GL_KHX_shader_explicit_arithmetic_types) ||
+                             extensionRequested(E_GL_KHX_shader_explicit_arithmetic_types_int16);
         break;
     case EOpConstructInt:
         promoteTo = EbtInt;
@@ -999,7 +1015,7 @@ TIntermTyped* TIntermediate::addConversion(TOperator op, const TType& type, TInt
             return nullptr;
     }
 
-    if (node->getAsConstantUnion())
+    if (canPromoteConstant && node->getAsConstantUnion())
         return promoteConstantUnion(promoteTo, node->getAsConstantUnion());
 
     //
@@ -1103,9 +1119,12 @@ void TIntermediate::addBiShapeConversion(TOperator op, TIntermTyped*& lhsNode, T
         rhsNode = addUniShapeConversion(op, lhsNode->getType(), rhsNode);
         return;
 
+    case EOpMul:
+        // matrix multiply does not change shapes
+        if (lhsNode->isMatrix() && rhsNode->isMatrix())
+            return;
     case EOpAdd:
     case EOpSub:
-    case EOpMul:
     case EOpDiv:
         // want to support vector * scalar native ops in AST and lower, not smear, similarly for
         // matrix * vector, etc.
@@ -1178,9 +1197,19 @@ TIntermTyped* TIntermediate::addShapeConversion(const TType& type, TIntermTyped*
     // The new node that handles the conversion
     TOperator constructorOp = mapTypeToConstructorOp(type);
 
-    // HLSL has custom semantics for scalar->mat shape conversions.
     if (source == EShSourceHlsl) {
-        if (node->getType().isScalarOrVec1() && type.isMatrix()) {
+        // HLSL rules for scalar, vector and matrix conversions:
+        // 1) scalar can become anything, initializing every component with its value
+        // 2) vector and matrix can become scalar, first element is used (warning: truncation)
+        // 3) matrix can become matrix with less rows and/or columns (warning: truncation)
+        // 4) vector can become vector with less rows size (warning: truncation)
+        // 5a) vector 4 can become 2x2 matrix (special case) (same packing layout, its a reinterpret)
+        // 5b) 2x2 matrix can become vector 4 (special case) (same packing layout, its a reinterpret)
+
+        const TType &sourceType = node->getType();
+
+        // rule 1 for scalar to matrix is special
+        if (sourceType.isScalarOrVec1() && type.isMatrix()) {
 
             // HLSL semantics: the scalar (or vec1) is replicated to every component of the matrix.  Left to its
             // own devices, the constructor from a scalar would populate the diagonal.  This forces replication
@@ -1188,7 +1217,7 @@ TIntermTyped* TIntermediate::addShapeConversion(const TType& type, TIntermTyped*
 
             // Note that if the node is complex (e.g, a function call), we don't want to duplicate it here
             // repeatedly, so we copy it to a temp, then use the temp.
-            const int matSize = type.getMatrixRows() * type.getMatrixCols();
+            const int matSize = type.computeNumComponents();
             TIntermAggregate* rhsAggregate = new TIntermAggregate();
 
             const bool isSimple = (node->getAsSymbolNode() != nullptr) || (node->getAsConstantUnion() != nullptr);
@@ -1196,11 +1225,43 @@ TIntermTyped* TIntermediate::addShapeConversion(const TType& type, TIntermTyped*
             if (!isSimple) {
                 assert(0); // TODO: use node replicator service when available.
             }
-            
-            for (int x=0; x<matSize; ++x)
+
+            for (int x = 0; x < matSize; ++x)
                 rhsAggregate->getSequence().push_back(node);
 
             return setAggregateOperator(rhsAggregate, constructorOp, type, node->getLoc());
+        }
+
+        // rule 1 and 2
+        if ((sourceType.isScalar() && !type.isScalar()) || (!sourceType.isScalar() && type.isScalar()))
+            return setAggregateOperator(makeAggregate(node), constructorOp, type, node->getLoc());
+
+        // rule 3 and 5b
+        if (sourceType.isMatrix()) {
+            // rule 3
+            if (type.isMatrix()) {
+                if ((sourceType.getMatrixCols() != type.getMatrixCols() || sourceType.getMatrixRows() != type.getMatrixRows()) &&
+                    sourceType.getMatrixCols() >= type.getMatrixCols() && sourceType.getMatrixRows() >= type.getMatrixRows())
+                    return setAggregateOperator(makeAggregate(node), constructorOp, type, node->getLoc());
+            // rule 5b
+            } else if (type.isVector()) {
+                if (type.getVectorSize() == 4 && sourceType.getMatrixCols() == 2 && sourceType.getMatrixRows() == 2)
+                    return setAggregateOperator(makeAggregate(node), constructorOp, type, node->getLoc());
+            }
+        }
+
+        // rule 4 and 5a
+        if (sourceType.isVector()) {
+            // rule 4
+            if (type.isVector())
+            {
+                if (sourceType.getVectorSize() > type.getVectorSize())
+                    return setAggregateOperator(makeAggregate(node), constructorOp, type, node->getLoc());
+            // rule 5a
+            } else if (type.isMatrix()) {
+                if (sourceType.getVectorSize() == 4 && type.getMatrixCols() == 2 && type.getMatrixRows() == 2)
+                    return setAggregateOperator(makeAggregate(node), constructorOp, type, node->getLoc());
+            }
         }
     }
 
@@ -1468,16 +1529,16 @@ bool TIntermediate::canImplicitlyPromote(TBasicType from, TBasicType to, TOperat
             case EbtUint:
             case EbtInt64:
             case EbtUint64:
+            case EbtFloat:
+            case EbtDouble:
+                return true;
 #ifdef AMD_EXTENSIONS
             case EbtInt16:
             case EbtUint16:
+                return extensionRequested(E_GL_AMD_gpu_shader_int16);
+            case EbtFloat16:
+                return extensionRequested(E_GL_AMD_gpu_shader_half_float);
 #endif
-             case EbtFloat:
-             case EbtDouble:
-#ifdef AMD_EXTENSIONS
-             case EbtFloat16:
-#endif
-                return true;
             default:
                 return false;
            }
@@ -1485,17 +1546,21 @@ bool TIntermediate::canImplicitlyPromote(TBasicType from, TBasicType to, TOperat
             switch (from) {
             case EbtInt:
             case EbtUint:
-#ifdef AMD_EXTENSIONS
-            case EbtInt16:
-            case EbtUint16:
-#endif
             case EbtFloat:
-#ifdef AMD_EXTENSIONS
-            case EbtFloat16:
-#endif
                  return true;
             case EbtBool:
                  return (source == EShSourceHlsl);
+#ifdef AMD_EXTENSIONS
+            case EbtInt16:
+            case EbtUint16:
+                return extensionRequested(E_GL_AMD_gpu_shader_int16);
+#endif
+            case EbtFloat16:
+                return 
+#ifdef AMD_EXTENSIONS
+                    extensionRequested(E_GL_AMD_gpu_shader_half_float) ||
+#endif
+                    (source == EShSourceHlsl);
             default:
                  return false;
             }
@@ -1504,25 +1569,27 @@ bool TIntermediate::canImplicitlyPromote(TBasicType from, TBasicType to, TOperat
             case EbtInt:
                  return version >= 400 || (source == EShSourceHlsl);
             case EbtUint:
-#ifdef AMD_EXTENSIONS
-            case EbtInt16:
-            case EbtUint16:
-#endif
                 return true;
             case EbtBool:
                 return (source == EShSourceHlsl);
+#ifdef AMD_EXTENSIONS
+            case EbtInt16:
+            case EbtUint16:
+                return extensionRequested(E_GL_AMD_gpu_shader_int16);
+#endif
             default:
                 return false;
             }
         case EbtInt:
             switch (from) {
             case EbtInt:
-#ifdef AMD_EXTENSIONS
-            case EbtInt16:
-#endif
                 return true;
             case EbtBool:
                 return (source == EShSourceHlsl);
+#ifdef AMD_EXTENSIONS
+            case EbtInt16:
+                return extensionRequested(E_GL_AMD_gpu_shader_int16);
+#endif
             default:
                 return false;
             }
@@ -1532,11 +1599,12 @@ bool TIntermediate::canImplicitlyPromote(TBasicType from, TBasicType to, TOperat
             case EbtUint:
             case EbtInt64:
             case EbtUint64:
+                return true;
 #ifdef AMD_EXTENSIONS
             case EbtInt16:
             case EbtUint16:
+                return extensionRequested(E_GL_AMD_gpu_shader_int16);
 #endif
-                return true;
             default:
                 return false;
             }
@@ -1544,32 +1612,38 @@ bool TIntermediate::canImplicitlyPromote(TBasicType from, TBasicType to, TOperat
             switch (from) {
             case EbtInt:
             case EbtInt64:
+                return true;
 #ifdef AMD_EXTENSIONS
             case EbtInt16:
+                return extensionRequested(E_GL_AMD_gpu_shader_int16);
 #endif
-                return true;
             default:
                 return false;
             }
-#ifdef AMD_EXTENSIONS
         case EbtFloat16:
+#ifdef AMD_EXTENSIONS
             switch (from) {
             case EbtInt16:
             case EbtUint16:
+                return extensionRequested(E_GL_AMD_gpu_shader_int16);
             case EbtFloat16:
-                return true;
+                return extensionRequested(E_GL_AMD_gpu_shader_half_float);
             default:
-                return false;
-        }
+                break;
+            }
+#endif
+            return false;
         case EbtUint16:
+#ifdef AMD_EXTENSIONS
             switch (from) {
             case EbtInt16:
             case EbtUint16:
-                return true;
+                return extensionRequested(E_GL_AMD_gpu_shader_int16);
             default:
-                return false;
-        }
+                break;
+            }
 #endif
+            return false;
         default:
             return false;
         }
@@ -3769,23 +3843,39 @@ struct TextureUpgradeAndSamplerRemovalTransform : public TIntermTraverser {
     bool visitAggregate(TVisit, TIntermAggregate* ag) override {
         using namespace std;
         TIntermSequence& seq = ag->getSequence();
-        // remove pure sampler variables
-        TIntermSequence::iterator newEnd = remove_if(seq.begin(), seq.end(), [](TIntermNode* node) {
-            TIntermSymbol* symbol = node->getAsSymbolNode();
-            if (!symbol)
-                return false;
+        TQualifierList& qual = ag->getQualifierList();
 
-            return (symbol->getBasicType() == EbtSampler && symbol->getType().getSampler().isPureSampler());
-        });
-        seq.erase(newEnd, seq.end());
-        // replace constructors with sampler/textures
-        for_each(seq.begin(), seq.end(), [](TIntermNode*& node) {
-            TIntermAggregate *constructor = node->getAsAggregate();
+        // qual and seq are indexed using the same indices, so we have to modify both in lock-step
+        assert(seq.size() == qual.size() || qual.empty());
+
+        size_t write = 0;
+        for (size_t i = 0; i < seq.size(); ++i) {
+            TIntermSymbol* symbol = seq[i]->getAsSymbolNode();
+            if (symbol && symbol->getBasicType() == EbtSampler && symbol->getType().getSampler().isPureSampler()) {
+                // remove pure sampler variables
+                continue;
+            }
+
+            TIntermNode* result = seq[i];
+
+            // replace constructors with sampler/textures
+            TIntermAggregate *constructor = seq[i]->getAsAggregate();
             if (constructor && constructor->getOp() == EOpConstructTextureSampler) {
                 if (!constructor->getSequence().empty())
-                    node = constructor->getSequence()[0];
+                    result = constructor->getSequence()[0];
             }
-        });
+
+            // write new node & qualifier
+            seq[write] = result;
+            if (!qual.empty())
+                qual[write] = qual[i];
+            write++;
+        }
+
+        seq.resize(write);
+        if (!qual.empty())
+            qual.resize(write);
+
         return true;
     }
 };

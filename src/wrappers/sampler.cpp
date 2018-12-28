@@ -31,21 +31,21 @@
 /** Please see header for specification */
 Anvil::Sampler::Sampler(Anvil::SamplerCreateInfoUniquePtr in_create_info_ptr)
     :DebugMarkerSupportProvider(in_create_info_ptr->get_device(),
-                                VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT),
+                                Anvil::ObjectType::SAMPLER),
      MTSafetySupportProvider   (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety(),
                                                                                 in_create_info_ptr->get_device   () ))
 {
     m_create_info_ptr = std::move(in_create_info_ptr);
 
     /* Register the event instance */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_SAMPLER,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::SAMPLER,
                                                  this);
 }
 
 /* Please see header for specification */
 Anvil::Sampler::~Sampler()
 {
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_SAMPLER,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::SAMPLER,
                                                     this);
 
     if (m_sampler != VK_NULL_HANDLE)

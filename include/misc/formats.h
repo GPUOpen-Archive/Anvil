@@ -186,6 +186,7 @@ namespace Anvil
          *       via get_format_component_layout(). This is especially important in the context of packed formats.
          *
          * @param in_format             Vulkan format to use for the query.
+         * @param in_aspect             Image aspect to use for the query.
          * @param out_channel0_bits_ptr Deref will be set to the number of bits used for channel 0. Must
          *                              not be nullptr.
          * @param out_channel1_bits_ptr Deref will be set to the number of bits used for channel 1. Must
@@ -201,6 +202,31 @@ namespace Anvil
                                                 uint32_t*                  out_channel1_bits_ptr,
                                                 uint32_t*                  out_channel2_bits_ptr,
                                                 uint32_t*                  out_channel3_bits_ptr);
+
+        /** Tells the number of bits unused for each component in case of Vulkan format specified
+         *  under @param in_format at subresource @param in_aspect.
+         *
+         *  NOTE: Only YUV KHR fromats are supported.
+         *  NOTE: Number of bits reported for each component uses ordering as reported for the format
+         *        via get_format_component_layout(). This is especially important in the context of packed formats.
+         *
+         * @param in_format                    Vulkan format to use for the query.
+         * @param in_aspect                    Image aspect to use for the query.
+         * @param out_channel0_unused_bits_ptr Deref will be set to the number of bits unused for channel 0. Must
+         *                                     not be nullptr.
+         * @param out_channel1_unused_bits_ptr Deref will be set to the number of bits unused for channel 1. Must
+         *                                     not be nullptr.
+         * @param out_channel2_unused_bits_ptr Deref will be set to the number of bits unused for channel 2. Must
+         *                                     not be nullptr.
+         * @param out_channel3_unused_bits_ptr Deref will be set to the number of bits unused for channel 3. Must
+         *                                     not be nullptr.
+         */
+        static void get_format_n_unused_component_bits(Anvil::Format              in_format,
+                                                       Anvil::ImageAspectFlagBits in_aspect,
+                                                       uint32_t*                  out_channel0_unused_bits_ptr,
+                                                       uint32_t*                  out_channel1_unused_bits_ptr,
+                                                       uint32_t*                  out_channel2_unused_bits_ptr,
+                                                       uint32_t*                  out_channel3_unused_bits_ptr);
 
         /* Returns a raw C string for specified format, or NULL if the format is unknown. */
         static const char* get_format_name(Anvil::Format in_format);

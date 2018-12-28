@@ -27,6 +27,52 @@
 
 namespace Anvil
 {
+    /* By default, graphics pipeline create info uses the following settings:
+     *
+     *  All rendering modes & tests:          disabled
+     *  Blend constant:                       vec4(0.0)
+     *  Cull mode:                            VK_CULL_MODE_BACK
+     *  Depth bias:                           0.0
+     *  Depth bias clamp:                     0.0
+     *  Depth bias slope factor:              1.0
+     *  Depth test compare op:                Anvil::CompareOp::ALWAYS
+     *  Depth writes:                         disabled
+     *  Dynamic states:                       all disabled
+     *  Fill mode:                            VK_FILL_MODE_SOLID
+     *  Front face:                           VK_FRONT_FACE_CCW
+     *  Line width:                           1.0
+     *  Logic op:                             VK_LOGIC_OP_NOOP;
+     *  Max depth boundary:                   1.0
+     *  Min depth boundary:                   0.0
+     *  Min sample shading:                   1.0
+     *  Number of raster samples:             1
+     *  Number of tessellation patches:       1
+     *  Primitive topology:                   VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+     *  Sample mask:                          0xFFFFFFFF
+     *  Slope scaled depth bias:              0.0
+     *  Stencil comparison mask (back/front): 0xFFFFFFFF
+     *  Stencil comparison op   (back/front): Anvil::CompareOp::ALWAYS
+     *  Stencil depth fail op   (back/front): VK_STENCIL_OP_KEEP
+     *  Stencil fail op         (back/front): VK_STENCIL_OP_KEEP
+     *  Stencil pass op         (back/front): VK_STENCIL_OP_KEEP
+     *  Stencil reference value (back/front): 0
+     *  Stencil write mask      (back/front): 0xFFFFFFFF
+     *
+     *  If no scissor or viewport is defined explicitly, one scissor box and one viewport,
+     *  covering the whole screen, will be created at baking time.
+     *
+     *  If VK_AMD_rasterization_order extension is supported:
+     *
+     *  + Rasterization order: strict
+     *
+     *  If VK_EXT_transform_feedback extension is supported:
+     *
+     *  + Rasterization stream index: 0
+     *
+     *  If VK_KHR_maintenance2 extension is supported:
+     *
+     *  + Tessellation domain origin: upper-left
+     */
     class GraphicsPipelineCreateInfo : public BasePipelineCreateInfo
     {
     public:
@@ -276,6 +322,12 @@ namespace Anvil
                                           Anvil::CullModeFlags* out_opt_cull_mode_ptr,
                                           Anvil::FrontFace*     out_opt_front_face_ptr,
                                           float*                out_opt_line_width_ptr) const;
+
+        /* Returns rasterization stream index associated with the create info structure. */
+        const uint32_t& get_rasterization_stream_index() const
+        {
+            return m_rasterization_stream_index;
+        }
 
         const RenderPass* get_renderpass() const
         {
@@ -528,6 +580,15 @@ namespace Anvil
          *  @param in_rasterization_order  Rasterization order to use.
          **/
         void set_rasterization_order(Anvil::RasterizationOrderAMD in_rasterization_order);
+
+        /** Configures rasterization stream index for the pipeline if VK_EXT_transform_feedback extension 
+         *  is supported by the device, for which the pipeline is going to be created.
+         *
+         *  On drivers not supporting the extension, the setting will be ignored.
+         *
+         *  @param in_rasterization_stream_index Index to use.
+         **/
+        void set_rasterization_stream_index(const uint32_t& in_rasterization_stream_index);
 
         /** Sets a number of rasterization properties to be used for the pipeline.
          *
@@ -1003,6 +1064,7 @@ namespace Anvil
         uint32_t                                 m_n_dynamic_viewports;
         uint32_t                                 m_n_patch_control_points;
         Anvil::PrimitiveTopology                 m_primitive_topology;
+        uint32_t                                 m_rasterization_stream_index;
         Anvil::SampleCountFlagBits               m_sample_count;
         VkSampleMask                             m_sample_mask;
         InternalScissorBoxes                     m_scissor_boxes;

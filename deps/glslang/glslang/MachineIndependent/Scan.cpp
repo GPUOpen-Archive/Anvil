@@ -380,6 +380,11 @@ void TScanContext::fillInKeywordMap()
     (*KeywordMap)["varying"] =                 VARYING;
     (*KeywordMap)["buffer"] =                  BUFFER;
     (*KeywordMap)["coherent"] =                COHERENT;
+    (*KeywordMap)["devicecoherent"] =          DEVICECOHERENT;
+    (*KeywordMap)["queuefamilycoherent"] =     QUEUEFAMILYCOHERENT;
+    (*KeywordMap)["workgroupcoherent"] =       WORKGROUPCOHERENT;
+    (*KeywordMap)["subgroupcoherent"] =        SUBGROUPCOHERENT;
+    (*KeywordMap)["nonprivate"] =              NONPRIVATE;
     (*KeywordMap)["restrict"] =                RESTRICT;
     (*KeywordMap)["readonly"] =                READONLY;
     (*KeywordMap)["writeonly"] =               WRITEONLY;
@@ -683,14 +688,29 @@ void TScanContext::fillInKeywordMap()
     (*KeywordMap)["smooth"] =                  SMOOTH;
     (*KeywordMap)["flat"] =                    FLAT;
 #ifdef AMD_EXTENSIONS
-    (*KeywordMap)["__explicitInterpAMD"] =     __EXPLICITINTERPAMD;
+    (*KeywordMap)["__explicitInterpAMD"] =     EXPLICITINTERPAMD;
 #endif
     (*KeywordMap)["centroid"] =                CENTROID;
+#ifdef NV_EXTENSIONS
+    (*KeywordMap)["pervertexNV"] =             PERVERTEXNV;
+#endif
     (*KeywordMap)["precise"] =                 PRECISE;
     (*KeywordMap)["invariant"] =               INVARIANT;
     (*KeywordMap)["packed"] =                  PACKED;
     (*KeywordMap)["resource"] =                RESOURCE;
     (*KeywordMap)["superp"] =                  SUPERP;
+
+#ifdef NV_EXTENSIONS
+    (*KeywordMap)["rayPayloadNV"] =            PAYLOADNV;
+    (*KeywordMap)["rayPayloadInNV"] =          PAYLOADINNV;
+    (*KeywordMap)["hitAttributeNV"] =          HITATTRNV;
+    (*KeywordMap)["callableDataNV"] =          CALLDATANV;
+    (*KeywordMap)["callableDataInNV"] =        CALLDATAINNV;
+    (*KeywordMap)["accelerationStructureNV"] = ACCSTRUCTNV;
+    (*KeywordMap)["perprimitiveNV"] =          PERPRIMITIVENV;
+    (*KeywordMap)["perviewNV"] =               PERVIEWNV;
+    (*KeywordMap)["taskNV"] =                  PERTASKNV;
+#endif
 
     ReservedSet = new std::unordered_set<const char*, str_hash, str_eq>;
 
@@ -778,7 +798,7 @@ int TScanContext::tokenize(TPpContext* pp, TParserToken& token)
         case '?':                       return QUESTION;
         case '[':                       return LEFT_BRACKET;
         case ']':                       return RIGHT_BRACKET;
-        case '{':                       return LEFT_BRACE;
+        case '{':  afterStruct = false; return LEFT_BRACE;
         case '}':                       return RIGHT_BRACE;
         case '\\':
             parseContext.error(loc, "illegal use of escape character", "\\", "");
@@ -861,7 +881,6 @@ int TScanContext::tokenizeIdentifier()
     case IN:
     case OUT:
     case INOUT:
-    case STRUCT:
     case BREAK:
     case CONTINUE:
     case DO:
@@ -872,6 +891,10 @@ int TScanContext::tokenizeIdentifier()
     case DISCARD:
     case RETURN:
     case CASE:
+        return keyword;
+
+    case STRUCT:
+        afterStruct = true;
         return keyword;
 
     case NONUNIFORM:
@@ -927,6 +950,20 @@ int TScanContext::tokenizeIdentifier()
             return identifierOrType();
         return keyword;
 
+#ifdef NV_EXTENSIONS
+    case PAYLOADNV:
+    case PAYLOADINNV:
+    case HITATTRNV:
+    case CALLDATANV:
+    case CALLDATAINNV:
+    case ACCSTRUCTNV:
+        if (parseContext.symbolTable.atBuiltInLevel() ||
+            (parseContext.profile != EEsProfile && parseContext.version >= 460
+                 && parseContext.extensionTurnedOn(E_GL_NV_ray_tracing)))
+            return keyword;
+        return identifierOrType();
+#endif
+
     case ATOMIC_UINT:
         if ((parseContext.profile == EEsProfile && parseContext.version >= 310) ||
             parseContext.extensionTurnedOn(E_GL_ARB_shader_atomic_counters))
@@ -934,6 +971,11 @@ int TScanContext::tokenizeIdentifier()
         return es30ReservedFromGLSL(420);
 
     case COHERENT:
+    case DEVICECOHERENT:
+    case QUEUEFAMILYCOHERENT:
+    case WORKGROUPCOHERENT:
+    case SUBGROUPCOHERENT:
+    case NONPRIVATE:
     case RESTRICT:
     case READONLY:
     case WRITEONLY:
@@ -1107,6 +1149,7 @@ int TScanContext::tokenizeIdentifier()
         afterType = true;
         if (parseContext.symbolTable.atBuiltInLevel() ||
             ((parseContext.extensionTurnedOn(E_GL_KHX_shader_explicit_arithmetic_types) ||
+              parseContext.extensionTurnedOn(E_GL_EXT_shader_8bit_storage) ||
               parseContext.extensionTurnedOn(E_GL_KHX_shader_explicit_arithmetic_types_int8)) &&
               parseContext.profile != EEsProfile && parseContext.version >= 450))
             return keyword;
@@ -1127,6 +1170,7 @@ int TScanContext::tokenizeIdentifier()
 #ifdef AMD_EXTENSIONS
               parseContext.extensionTurnedOn(E_GL_AMD_gpu_shader_int16) ||
 #endif
+              parseContext.extensionTurnedOn(E_GL_EXT_shader_16bit_storage) ||
               parseContext.extensionTurnedOn(E_GL_KHX_shader_explicit_arithmetic_types) ||
               parseContext.extensionTurnedOn(E_GL_KHX_shader_explicit_arithmetic_types_int16))))
             return keyword;
@@ -1198,6 +1242,20 @@ int TScanContext::tokenizeIdentifier()
     case F16VEC2:
     case F16VEC3:
     case F16VEC4:
+        afterType = true;
+        if (parseContext.symbolTable.atBuiltInLevel() ||
+            (parseContext.profile != EEsProfile && parseContext.version >= 450 &&
+             (
+#ifdef AMD_EXTENSIONS
+              parseContext.extensionTurnedOn(E_GL_AMD_gpu_shader_half_float) ||
+#endif
+              parseContext.extensionTurnedOn(E_GL_EXT_shader_16bit_storage) ||
+              parseContext.extensionTurnedOn(E_GL_KHX_shader_explicit_arithmetic_types) ||
+              parseContext.extensionTurnedOn(E_GL_KHX_shader_explicit_arithmetic_types_float16))))
+            return keyword;
+
+        return identifierOrType();
+
     case F16MAT2:
     case F16MAT3:
     case F16MAT4:
@@ -1471,9 +1529,18 @@ int TScanContext::tokenizeIdentifier()
         return keyword;
 
 #ifdef AMD_EXTENSIONS
-    case __EXPLICITINTERPAMD:
+    case EXPLICITINTERPAMD:
         if (parseContext.profile != EEsProfile && parseContext.version >= 450 &&
             parseContext.extensionTurnedOn(E_GL_AMD_shader_explicit_vertex_parameter))
+            return keyword;
+        return identifierOrType();
+#endif
+
+#ifdef NV_EXTENSIONS
+    case PERVERTEXNV:
+        if (((parseContext.profile != EEsProfile && parseContext.version >= 450) ||
+            (parseContext.profile == EEsProfile && parseContext.version >= 320)) &&
+            parseContext.extensionTurnedOn(E_GL_NV_fragment_shader_barycentric))
             return keyword;
         return identifierOrType();
 #endif
@@ -1524,6 +1591,17 @@ int TScanContext::tokenizeIdentifier()
         return identifierOrReserved(reserved);
     }
 
+#ifdef NV_EXTENSIONS
+    case PERPRIMITIVENV:
+    case PERVIEWNV:
+    case PERTASKNV:
+        if ((parseContext.profile != EEsProfile && parseContext.version >= 450) ||
+            (parseContext.profile == EEsProfile && parseContext.version >= 320) ||
+            parseContext.extensionTurnedOn(E_GL_NV_mesh_shader))
+            return keyword;
+        return identifierOrType();
+#endif
+
     default:
         parseContext.infoSink.info.message(EPrefixInternalError, "Unknown glslang keyword", loc);
         return 0;
@@ -1537,7 +1615,7 @@ int TScanContext::identifierOrType()
         return IDENTIFIER;
 
     parserToken->sType.lex.symbol = parseContext.symbolTable.find(*parserToken->sType.lex.string);
-    if (afterType == false && parserToken->sType.lex.symbol) {
+    if ((afterType == false && afterStruct == false) && parserToken->sType.lex.symbol != nullptr) {
         if (const TVariable* variable = parserToken->sType.lex.symbol->getAsVariable()) {
             if (variable->isUserType()) {
                 afterType = true;

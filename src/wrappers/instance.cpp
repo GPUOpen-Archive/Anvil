@@ -21,6 +21,7 @@
 //
 
 #include "misc/debug.h"
+#include "misc/debug_messenger_create_info.h"
 #include "misc/object_tracker.h"
 #include "wrappers/instance.h"
 #include "wrappers/physical_device.h"
@@ -41,20 +42,20 @@ Anvil::Instance::Instance(const std::string&    in_app_name,
                           bool                  in_mt_safe)
     :MTSafetySupportProvider       (in_mt_safe),
      m_app_name                    (in_app_name),
-     m_debug_callback_data         (0),
+     m_debug_messenger_ptr         (Anvil::DebugMessengerUniquePtr(nullptr, std::default_delete<Anvil::DebugMessenger>() )),
      m_engine_name                 (in_engine_name),
      m_global_layer                (""),
      m_instance                    (VK_NULL_HANDLE),
      m_validation_callback_function(in_opt_validation_callback_function)
 {
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_INSTANCE,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::INSTANCE,
                                                   this);
 }
 
 /** Please see header for specification */
 Anvil::Instance::~Instance()
 {
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_INSTANCE,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::INSTANCE,
                                                     this);
 
     destroy();
@@ -99,45 +100,18 @@ Anvil::InstanceUniquePtr Anvil::Instance::create(const std::string&             
  *
  *  For argument discussion, please see the extension specification
  **/
-VkBool32 VKAPI_PTR Anvil::Instance::debug_callback_pfn_proc(VkDebugReportFlagsEXT      in_message_flags,
-                                                            VkDebugReportObjectTypeEXT in_object_type,
-                                                            uint64_t                   in_src_object,
-                                                            size_t                     in_location,
-                                                            int32_t                    in_msg_code,
-                                                            const char*                in_layer_prefix_ptr,
-                                                            const char*                in_message_ptr,
-                                                            void*                      in_user_data)
+void Anvil::Instance::debug_callback_handler(const Anvil::DebugMessageSeverityFlagBits& in_severity,
+                                             const char*                                in_message_ptr)
 {
-    Anvil::Instance* instance_ptr = static_cast<Anvil::Instance*>(in_user_data);
-
-    ANVIL_REDUNDANT_ARGUMENT(in_src_object);
-    ANVIL_REDUNDANT_ARGUMENT(in_location);
-    ANVIL_REDUNDANT_ARGUMENT(in_msg_code);
-    ANVIL_REDUNDANT_ARGUMENT(in_user_data);
-
-    return instance_ptr->m_validation_callback_function(in_message_flags,
-                                                        in_object_type,
-                                                        in_layer_prefix_ptr,
-                                                        in_message_ptr);
+    m_validation_callback_function(in_severity,
+                                   in_message_ptr);
 }
 
 /** Please see header for specification */
 void Anvil::Instance::destroy()
 {
-    if (m_debug_callback_data != VK_NULL_HANDLE)
-    {
-        lock();
-        {
-            m_ext_debug_report_entrypoints.vkDestroyDebugReportCallbackEXT(m_instance,
-                                                                           m_debug_callback_data,
-                                                                           nullptr /* pAllocator */);
-        }
-        unlock();
-
-        m_debug_callback_data = VK_NULL_HANDLE;
-    }
-
-    m_physical_devices.clear();
+    m_debug_messenger_ptr.reset   ();
+    m_physical_devices.clear      ();
     m_physical_device_groups.clear();
 
     #ifdef _DEBUG
@@ -145,10 +119,10 @@ void Anvil::Instance::destroy()
         /* Make sure no physical devices are still registered with Object Tracker at this point */
         auto object_manager_ptr = Anvil::ObjectTracker::get();
 
-        if (object_manager_ptr->get_object_at_index(Anvil::OBJECT_TYPE_INSTANCE,
+        if (object_manager_ptr->get_object_at_index(Anvil::ObjectType::INSTANCE,
                                                     0) == nullptr)
         {
-            anvil_assert(object_manager_ptr->get_object_at_index(Anvil::OBJECT_TYPE_PHYSICAL_DEVICE,
+            anvil_assert(object_manager_ptr->get_object_at_index(Anvil::ObjectType::PHYSICAL_DEVICE,
                                                                  0) == nullptr);
         }
     }
@@ -358,6 +332,22 @@ void Anvil::Instance::enumerate_physical_devices()
 }
 
 /** Please see header for specification */
+const Anvil::ExtensionEXTDebugReportEntrypoints& Anvil::Instance::get_extension_ext_debug_report_entrypoints() const
+{
+    anvil_assert(m_enabled_extensions_info_ptr->get_instance_extension_info()->ext_debug_report() );
+
+    return m_ext_debug_report_entrypoints;
+}
+
+/** Please see header for specification */
+const Anvil::ExtensionEXTDebugUtilsEntrypoints& Anvil::Instance::get_extension_ext_debug_utils_entrypoints() const
+{
+    anvil_assert(m_enabled_extensions_info_ptr->get_instance_extension_info()->ext_debug_utils() );
+
+    return m_ext_debug_utils_entrypoints;
+}
+
+/** Please see header for specification */
 const Anvil::ExtensionKHRExternalFenceCapabilitiesEntrypoints& Anvil::Instance::get_extension_khr_external_fence_capabilities_entrypoints() const
 {
     anvil_assert(m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_external_fence_capabilities() );
@@ -543,12 +533,24 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
             }
         }
         /* Enable known instance-level extensions by default */
+        if (is_instance_extension_supported(VK_EXT_DEBUG_UTILS_EXTENSION_NAME) )
+        {
+            extension_enabled_status[VK_EXT_DEBUG_UTILS_EXTENSION_NAME] = true;
+        }
+
         if (is_instance_extension_supported(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) )
         {
             extension_enabled_status[VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME] = true;
         }
 
-        extension_enabled_status[VK_KHR_DEVICE_GROUP_CREATION_EXTENSION_NAME] = true;
+        if (is_instance_extension_supported(VK_KHR_DEVICE_GROUP_CREATION_EXTENSION_NAME) )
+        {
+            extension_enabled_status[VK_KHR_DEVICE_GROUP_CREATION_EXTENSION_NAME] = true;
+        }
+        else
+        {
+            is_device_group_creation_supported = false;
+        }
 
         if (is_instance_extension_supported(VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME) )
         {
@@ -638,62 +640,37 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
 /** Initializes debug callback support. */
 void Anvil::Instance::init_debug_callbacks()
 {
-    VkResult result = VK_ERROR_INITIALIZATION_FAILED;
+    auto create_info_ptr = Anvil::DebugMessengerCreateInfo::create(this,
+                                                                   Anvil::DebugMessageSeverityFlagBits::ERROR_BIT | Anvil::DebugMessageSeverityFlagBits::INFO_BIT | Anvil::DebugMessageSeverityFlagBits::WARNING_BIT,
+                                                                   Anvil::DebugMessageTypeFlagBits::VALIDATION_BIT,
+                                                                   std::bind(&Anvil::Instance::debug_callback_handler,
+                                                                             this,
+                                                                             std::placeholders::_1,    /* severity */
+                                                                             std::placeholders::_5) ); /* message  */
 
-    ANVIL_REDUNDANT_VARIABLE(result);
+    anvil_assert(create_info_ptr != nullptr);
 
-    /* Set up the debug call-backs, while we're at it */
-    VkDebugReportCallbackCreateInfoEXT debug_report_callback_create_info;
-
-    debug_report_callback_create_info.flags       = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
-    debug_report_callback_create_info.pfnCallback = debug_callback_pfn_proc;
-    debug_report_callback_create_info.pNext       = nullptr;
-    debug_report_callback_create_info.pUserData   = this;
-    debug_report_callback_create_info.sType       = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
-
-    result = m_ext_debug_report_entrypoints.vkCreateDebugReportCallbackEXT(m_instance,
-                                                                          &debug_report_callback_create_info,
-                                                                           nullptr, /* pAllocator */
-                                                                          &m_debug_callback_data);
-    anvil_assert_vk_call_succeeded(result);
+    m_debug_messenger_ptr = Anvil::DebugMessenger::create(std::move(create_info_ptr) );
+    anvil_assert(m_debug_messenger_ptr != nullptr);
 }
 
 /** Initializes all required instance-level function pointers. */
 void Anvil::Instance::init_func_pointers()
 {
-    m_khr_surface_entrypoints.vkDestroySurfaceKHR                       = reinterpret_cast<PFN_vkDestroySurfaceKHR>                      (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                               "vkDestroySurfaceKHR") );
-    m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceCapabilitiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                               "vkGetPhysicalDeviceSurfaceCapabilitiesKHR") );
-    m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceFormatsKHR      = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceFormatsKHR>     (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                               "vkGetPhysicalDeviceSurfaceFormatsKHR") );
-    m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfacePresentModesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfacePresentModesKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                               "vkGetPhysicalDeviceSurfacePresentModesKHR") );
-    m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceSupportKHR      = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceSupportKHR>     (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                               "vkGetPhysicalDeviceSurfaceSupportKHR") );
-
-    m_ext_debug_report_entrypoints.vkCreateDebugReportCallbackEXT  = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT> (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                "vkCreateDebugReportCallbackEXT") );
-    m_ext_debug_report_entrypoints.vkDestroyDebugReportCallbackEXT = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                "vkDestroyDebugReportCallbackEXT") );
-
-    anvil_assert(m_khr_surface_entrypoints.vkDestroySurfaceKHR                       != nullptr);
-    anvil_assert(m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceCapabilitiesKHR != nullptr);
-    anvil_assert(m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceFormatsKHR      != nullptr);
-    anvil_assert(m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfacePresentModesKHR != nullptr);
-    anvil_assert(m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceSupportKHR      != nullptr);
-
     #ifdef _WIN32
     {
         #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
         {
-            m_khr_win32_surface_entrypoints.vkCreateWin32SurfaceKHR                        = reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>                       (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                       "vkCreateWin32SurfaceKHR") );
-            m_khr_win32_surface_entrypoints.vkGetPhysicalDeviceWin32PresentationSupportKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                       "vkGetPhysicalDeviceWin32PresentationSupportKHR") );
+            if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_win32_surface() )
+            {
+                m_khr_win32_surface_entrypoints.vkCreateWin32SurfaceKHR                        = reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>                       (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                           "vkCreateWin32SurfaceKHR") );
+                m_khr_win32_surface_entrypoints.vkGetPhysicalDeviceWin32PresentationSupportKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                           "vkGetPhysicalDeviceWin32PresentationSupportKHR") );
 
-            anvil_assert(m_khr_win32_surface_entrypoints.vkCreateWin32SurfaceKHR                        != nullptr);
-            anvil_assert(m_khr_win32_surface_entrypoints.vkGetPhysicalDeviceWin32PresentationSupportKHR != nullptr);
+                anvil_assert(m_khr_win32_surface_entrypoints.vkCreateWin32SurfaceKHR                        != nullptr);
+                anvil_assert(m_khr_win32_surface_entrypoints.vkGetPhysicalDeviceWin32PresentationSupportKHR != nullptr);
+            }
         }
         #endif
     }
@@ -701,14 +678,69 @@ void Anvil::Instance::init_func_pointers()
     {
         #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT)
         {
-            m_khr_xcb_surface_entrypoints.vkCreateXcbSurfaceKHR = reinterpret_cast<PFN_vkCreateXcbSurfaceKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                   "vkCreateXcbSurfaceKHR") );
+            if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_xcb_surface() )
+            {
+                m_khr_xcb_surface_entrypoints.vkCreateXcbSurfaceKHR = reinterpret_cast<PFN_vkCreateXcbSurfaceKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                       "vkCreateXcbSurfaceKHR") );
 
-            anvil_assert(m_khr_xcb_surface_entrypoints.vkCreateXcbSurfaceKHR != nullptr);
+                anvil_assert(m_khr_xcb_surface_entrypoints.vkCreateXcbSurfaceKHR != nullptr);
+            }
         }
         #endif
     }
     #endif
+
+    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->ext_debug_report() )
+    {
+        m_ext_debug_report_entrypoints.vkCreateDebugReportCallbackEXT  = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT> (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                    "vkCreateDebugReportCallbackEXT") );
+        m_ext_debug_report_entrypoints.vkDebugReportMessageEXT         = reinterpret_cast<PFN_vkDebugReportMessageEXT>        (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                    "vkDebugReportMessageEXT") );
+        m_ext_debug_report_entrypoints.vkDestroyDebugReportCallbackEXT = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                    "vkDestroyDebugReportCallbackEXT") );
+
+        anvil_assert(m_ext_debug_report_entrypoints.vkCreateDebugReportCallbackEXT  != nullptr);
+        anvil_assert(m_ext_debug_report_entrypoints.vkDebugReportMessageEXT         != nullptr);
+        anvil_assert(m_ext_debug_report_entrypoints.vkDestroyDebugReportCallbackEXT != nullptr);
+    }
+
+    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->ext_debug_utils() )
+    {
+        m_ext_debug_utils_entrypoints.vkCmdBeginDebugUtilsLabelEXT    = reinterpret_cast<PFN_vkCmdBeginDebugUtilsLabelEXT>   (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                   "vkCmdBeginDebugUtilsLabelEXT") );
+        m_ext_debug_utils_entrypoints.vkCmdEndDebugUtilsLabelEXT      = reinterpret_cast<PFN_vkCmdEndDebugUtilsLabelEXT>     (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                   "vkCmdEndDebugUtilsLabelEXT") );
+        m_ext_debug_utils_entrypoints.vkCmdInsertDebugUtilsLabelEXT   = reinterpret_cast<PFN_vkCmdInsertDebugUtilsLabelEXT>  (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                   "vkCmdInsertDebugUtilsLabelEXT") );
+        m_ext_debug_utils_entrypoints.vkCreateDebugUtilsMessengerEXT  = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT> (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                   "vkCreateDebugUtilsMessengerEXT") );
+        m_ext_debug_utils_entrypoints.vkDestroyDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                   "vkDestroyDebugUtilsMessengerEXT") );
+        m_ext_debug_utils_entrypoints.vkSetDebugUtilsObjectNameEXT    = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>   (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                   "vkSetDebugUtilsObjectNameEXT") );
+        m_ext_debug_utils_entrypoints.vkSetDebugUtilsObjectTagEXT     = reinterpret_cast<PFN_vkSetDebugUtilsObjectTagEXT>    (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                   "vkSetDebugUtilsObjectTagEXT") );
+        m_ext_debug_utils_entrypoints.vkQueueBeginDebugUtilsLabelEXT  = reinterpret_cast<PFN_vkQueueBeginDebugUtilsLabelEXT> (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                   "vkQueueBeginDebugUtilsLabelEXT") );
+        m_ext_debug_utils_entrypoints.vkQueueEndDebugUtilsLabelEXT    = reinterpret_cast<PFN_vkQueueEndDebugUtilsLabelEXT>   (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                   "vkQueueEndDebugUtilsLabelEXT") );
+        m_ext_debug_utils_entrypoints.vkQueueInsertDebugUtilsLabelEXT = reinterpret_cast<PFN_vkQueueInsertDebugUtilsLabelEXT>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                   "vkQueueInsertDebugUtilsLabelEXT") );
+        m_ext_debug_utils_entrypoints.vkSubmitDebugUtilsMessageEXT    = reinterpret_cast<PFN_vkSubmitDebugUtilsMessageEXT>   (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                   "vkSubmitDebugUtilsMessageEXT") );
+
+        anvil_assert(m_ext_debug_utils_entrypoints.vkCmdBeginDebugUtilsLabelEXT    != nullptr);
+        anvil_assert(m_ext_debug_utils_entrypoints.vkCmdEndDebugUtilsLabelEXT      != nullptr);
+        anvil_assert(m_ext_debug_utils_entrypoints.vkCmdInsertDebugUtilsLabelEXT   != nullptr);
+        anvil_assert(m_ext_debug_utils_entrypoints.vkCreateDebugUtilsMessengerEXT  != nullptr);
+        anvil_assert(m_ext_debug_utils_entrypoints.vkDestroyDebugUtilsMessengerEXT != nullptr);
+        anvil_assert(m_ext_debug_utils_entrypoints.vkSetDebugUtilsObjectNameEXT    != nullptr);
+        anvil_assert(m_ext_debug_utils_entrypoints.vkSetDebugUtilsObjectTagEXT     != nullptr);
+        anvil_assert(m_ext_debug_utils_entrypoints.vkQueueBeginDebugUtilsLabelEXT  != nullptr);
+        anvil_assert(m_ext_debug_utils_entrypoints.vkQueueEndDebugUtilsLabelEXT    != nullptr);
+        anvil_assert(m_ext_debug_utils_entrypoints.vkQueueInsertDebugUtilsLabelEXT != nullptr);
+        anvil_assert(m_ext_debug_utils_entrypoints.vkSubmitDebugUtilsMessageEXT    != nullptr);
+    }
 
     if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_get_physical_device_properties2() )
     {
@@ -766,6 +798,26 @@ void Anvil::Instance::init_func_pointers()
                                                                                                                                                                                                                            "vkGetPhysicalDeviceExternalSemaphorePropertiesKHR") );
 
         anvil_assert(m_khr_external_semaphore_capabilities_entrypoints.vkGetPhysicalDeviceExternalSemaphorePropertiesKHR!= nullptr);
+    }
+
+    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_surface() )
+    {
+        m_khr_surface_entrypoints.vkDestroySurfaceKHR                       = reinterpret_cast<PFN_vkDestroySurfaceKHR>                      (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                   "vkDestroySurfaceKHR") );
+        m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceCapabilitiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                   "vkGetPhysicalDeviceSurfaceCapabilitiesKHR") );
+        m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceFormatsKHR      = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceFormatsKHR>     (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                   "vkGetPhysicalDeviceSurfaceFormatsKHR") );
+        m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfacePresentModesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfacePresentModesKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                   "vkGetPhysicalDeviceSurfacePresentModesKHR") );
+        m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceSupportKHR      = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceSupportKHR>     (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                   "vkGetPhysicalDeviceSurfaceSupportKHR") );
+
+        anvil_assert(m_khr_surface_entrypoints.vkDestroySurfaceKHR                       != nullptr);
+        anvil_assert(m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceCapabilitiesKHR != nullptr);
+        anvil_assert(m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceFormatsKHR      != nullptr);
+        anvil_assert(m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfacePresentModesKHR != nullptr);
+        anvil_assert(m_khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceSupportKHR      != nullptr);
     }
 }
 

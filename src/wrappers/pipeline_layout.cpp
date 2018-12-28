@@ -34,7 +34,7 @@ Anvil::PipelineLayout::PipelineLayout(const Anvil::BaseDevice*         in_device
                                       const Anvil::PushConstantRanges& in_push_constant_ranges,
                                       bool                             in_mt_safe)
     :DebugMarkerSupportProvider(in_device_ptr,
-                                VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_LAYOUT_EXT),
+                                Anvil::ObjectType::PIPELINE_LAYOUT),
      MTSafetySupportProvider   (in_mt_safe)
 {
     m_device_ptr           = in_device_ptr;
@@ -45,7 +45,7 @@ Anvil::PipelineLayout::PipelineLayout(const Anvil::BaseDevice*         in_device
 /** Please see header for specification */
 Anvil::PipelineLayout::~PipelineLayout()
 {
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_PIPELINE_LAYOUT,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::PIPELINE_LAYOUT,
                                                     this);
 
     if (m_layout_vk != VK_NULL_HANDLE)
@@ -189,7 +189,7 @@ Anvil::PipelineLayoutUniquePtr Anvil::PipelineLayout::create(const Anvil::BaseDe
         }
         else
         {
-            Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_PIPELINE_LAYOUT,
+            Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::PIPELINE_LAYOUT,
                                                          result_ptr.get() );
         }
     }

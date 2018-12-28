@@ -41,7 +41,7 @@ Anvil::ComputePipelineManager::ComputePipelineManager(Anvil::BaseDevice*    in_d
                          in_pipeline_cache_to_reuse_ptr)
 {
     /* Register the object */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_COMPUTE_PIPELINE_MANAGER,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::ANVIL_COMPUTE_PIPELINE_MANAGER,
                                                   this);
 }
 
@@ -50,7 +50,7 @@ Anvil::ComputePipelineManager::ComputePipelineManager(Anvil::BaseDevice*    in_d
 Anvil::ComputePipelineManager::~ComputePipelineManager()
 {
     /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_COMPUTE_PIPELINE_MANAGER,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::ANVIL_COMPUTE_PIPELINE_MANAGER,
                                                     this);
 
     m_baked_pipelines.clear      ();

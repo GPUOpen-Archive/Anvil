@@ -59,12 +59,10 @@ private:
     void update_fps         ();
     void update_teapot_props(uint32_t n_current_swapchain_image);
 
-    void     draw_frame            ();
-    void     on_keypress_event     (Anvil::CallbackArgument*   in_callback_data_raw_ptr);
-    VkBool32 on_validation_callback(VkDebugReportFlagsEXT      message_flags,
-                                    VkDebugReportObjectTypeEXT object_type,
-                                    const char*                layer_prefix,
-                                    const char*                message);
+    void draw_frame            ();
+    void on_keypress_event     (Anvil::CallbackArgument*         in_callback_data_raw_ptr);
+    void on_validation_callback(Anvil::DebugMessageSeverityFlags in_severity,
+                                 const char*                     in_message_ptr);
 
     /* Private variables */
     Anvil::BaseDeviceUniquePtr m_device_ptr;
@@ -89,7 +87,7 @@ private:
 
     uint32_t               m_n_indices;
     uint32_t               m_n_last_semaphore_used;
-    const uint32_t         m_n_swapchain_images;
+    uint32_t               m_n_swapchain_images;
     bool                   m_ooo_enabled;
     bool                   m_should_rotate;
     std::unique_ptr<float> m_teapot_props_data_ptr;

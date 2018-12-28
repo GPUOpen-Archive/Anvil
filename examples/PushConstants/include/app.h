@@ -53,11 +53,9 @@ private:
     void init_window         ();
     void init_vulkan         ();
 
-    void     draw_frame            ();
-    VkBool32 on_validation_callback(VkDebugReportFlagsEXT      in_message_flags,
-                                    VkDebugReportObjectTypeEXT in_object_type,
-                                    const char*                in_layer_prefix,
-                                    const char*                in_message);
+    void draw_frame            ();
+    void on_validation_callback(Anvil::DebugMessageSeverityFlags in_severity,
+                                const char*                      in_message_ptr);
 
     void get_luminance_data(std::unique_ptr<float[]>* out_result_ptr,
                             uint32_t*                 out_result_size_ptr) const;
