@@ -162,6 +162,13 @@ Anvil::BufferMemoryBindingUpdate::BufferMemoryBindingUpdate()
     memory_block_ptr             = nullptr;
 }
 
+Anvil::DebugObjectNameInfo::DebugObjectNameInfo(const VkDebugUtilsObjectNameInfoEXT& in_name_info_vk)
+{
+    object_handle   = in_name_info_vk.objectHandle;
+    object_name_ptr = in_name_info_vk.pObjectName;
+    object_type     = Anvil::Utils::get_object_type_for_vk_object_type(in_name_info_vk.objectType);
+}
+
 Anvil::DescriptorSetAllocation::DescriptorSetAllocation(const Anvil::DescriptorSetLayout* in_ds_layout_ptr)
 {
     anvil_assert( in_ds_layout_ptr                                                                  != nullptr);
@@ -337,7 +344,23 @@ Anvil::ExtensionEXTDebugMarkerEntrypoints::ExtensionEXTDebugMarkerEntrypoints()
 Anvil::ExtensionEXTDebugReportEntrypoints::ExtensionEXTDebugReportEntrypoints()
 {
     vkCreateDebugReportCallbackEXT  = nullptr;
+    vkDebugReportMessageEXT         = nullptr;
     vkDestroyDebugReportCallbackEXT = nullptr;
+}
+
+Anvil::ExtensionEXTDebugUtilsEntrypoints::ExtensionEXTDebugUtilsEntrypoints()
+{
+    vkCmdBeginDebugUtilsLabelEXT    = nullptr;
+    vkCmdEndDebugUtilsLabelEXT      = nullptr;
+    vkCmdInsertDebugUtilsLabelEXT   = nullptr;
+    vkCreateDebugUtilsMessengerEXT  = nullptr;
+    vkDestroyDebugUtilsMessengerEXT = nullptr;
+    vkSetDebugUtilsObjectNameEXT    = nullptr;
+    vkSetDebugUtilsObjectTagEXT     = nullptr;
+    vkQueueBeginDebugUtilsLabelEXT  = nullptr;
+    vkQueueEndDebugUtilsLabelEXT    = nullptr;
+    vkQueueInsertDebugUtilsLabelEXT = nullptr;
+    vkSubmitDebugUtilsMessageEXT    = nullptr;
 }
 
 Anvil::ExtensionEXTExternalMemoryHostEntrypoints::ExtensionEXTExternalMemoryHostEntrypoints()
@@ -354,6 +377,16 @@ Anvil::ExtensionEXTSampleLocationsEntrypoints::ExtensionEXTSampleLocationsEntryp
 {
     vkCmdSetSampleLocationsEXT                  = nullptr;
     vkGetPhysicalDeviceMultisamplePropertiesEXT = nullptr;
+}
+
+Anvil::ExtensionEXTTransformFeedbackEntrypoints::ExtensionEXTTransformFeedbackEntrypoints()
+{
+    vkCmdBeginQueryIndexedEXT            = nullptr;
+    vkCmdBeginTransformFeedbackEXT       = nullptr;
+    vkCmdBindTransformFeedbackBuffersEXT = nullptr;
+    vkCmdDrawIndirectByteCountEXT        = nullptr;
+    vkCmdEndQueryIndexedEXT              = nullptr;
+    vkCmdEndTransformFeedbackEXT         = nullptr;
 }
 
 Anvil::ExtensionKHRDeviceGroupEntrypoints::ExtensionKHRDeviceGroupEntrypoints()
@@ -778,6 +811,82 @@ bool Anvil::EXTSamplerFilterMinmaxProperties::operator==(const Anvil::EXTSampler
 {
     return (filter_minmax_image_component_mapping  == in_props.filter_minmax_image_component_mapping &&
             filter_minmax_single_component_formats == in_props.filter_minmax_single_component_formats);
+}
+
+Anvil::EXTTransformFeedbackFeatures::EXTTransformFeedbackFeatures()
+    :geometry_streams  (false),
+     transform_feedback(false)
+{
+    /* Stub */
+}
+
+Anvil::EXTTransformFeedbackFeatures::EXTTransformFeedbackFeatures(const VkPhysicalDeviceTransformFeedbackFeaturesEXT& in_features)
+    :geometry_streams  (in_features.geometryStreams   == VK_TRUE),
+     transform_feedback(in_features.transformFeedback == VK_TRUE)
+{
+    /* Stub */
+}
+
+VkPhysicalDeviceTransformFeedbackFeaturesEXT Anvil::EXTTransformFeedbackFeatures::get_vk_physical_device_transform_feedback_features() const
+{
+    VkPhysicalDeviceTransformFeedbackFeaturesEXT result;
+
+    result.geometryStreams   = (geometry_streams) ? VK_TRUE : VK_FALSE;
+    result.pNext             = nullptr;
+    result.sType             = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TRANSFORM_FEEDBACK_FEATURES_EXT;
+    result.transformFeedback = (transform_feedback) ? VK_TRUE : VK_FALSE;
+
+    return result;
+}
+
+bool Anvil::EXTTransformFeedbackFeatures::operator==(const EXTTransformFeedbackFeatures& in_features) const
+{
+    return (in_features.geometry_streams   == geometry_streams    &&
+            in_features.transform_feedback == transform_feedback);
+}
+
+Anvil::EXTTransformFeedbackProperties::EXTTransformFeedbackProperties()
+    :max_transform_feedback_buffer_data_size                (0),
+     max_transform_feedback_buffer_data_stride              (0),
+     max_transform_feedback_buffer_size                     (0),
+     max_transform_feedback_stream_data_size                (0),
+     n_max_transform_feedback_buffers                       (0),
+     n_max_transform_feedback_streams                       (0),
+     supports_transform_feedback_draw                       (false),
+     supports_transform_feedback_queries                    (false),
+     supports_transform_feedback_rasterization_stream_select(false),
+     supports_transform_feedback_streams_lines_triangles    (false)
+{
+    /* Stub */
+}
+
+Anvil::EXTTransformFeedbackProperties::EXTTransformFeedbackProperties(const VkPhysicalDeviceTransformFeedbackPropertiesEXT& in_props)
+    :max_transform_feedback_buffer_data_size                (in_props.maxTransformFeedbackBufferDataSize),
+     max_transform_feedback_buffer_data_stride              (in_props.maxTransformFeedbackBufferDataStride),
+     max_transform_feedback_buffer_size                     (in_props.maxTransformFeedbackBufferSize),
+     max_transform_feedback_stream_data_size                (in_props.maxTransformFeedbackStreamDataSize),
+     n_max_transform_feedback_buffers                       (in_props.maxTransformFeedbackBuffers),
+     n_max_transform_feedback_streams                       (in_props.maxTransformFeedbackStreams),
+     supports_transform_feedback_draw                       (in_props.transformFeedbackDraw                      == VK_TRUE),
+     supports_transform_feedback_queries                    (in_props.transformFeedbackQueries                   == VK_TRUE),
+     supports_transform_feedback_rasterization_stream_select(in_props.transformFeedbackRasterizationStreamSelect == VK_TRUE),
+     supports_transform_feedback_streams_lines_triangles    (in_props.transformFeedbackStreamsLinesTriangles     == VK_TRUE)
+{
+    /* Stub */
+}
+
+bool Anvil::EXTTransformFeedbackProperties::operator==(const Anvil::EXTTransformFeedbackProperties& in_props) const
+{
+    return (max_transform_feedback_buffer_data_size                 == in_props.max_transform_feedback_buffer_data_size                 &&
+            max_transform_feedback_buffer_data_stride               == in_props.max_transform_feedback_buffer_data_stride               &&
+            max_transform_feedback_buffer_size                      == in_props.max_transform_feedback_buffer_size                      &&
+            max_transform_feedback_stream_data_size                 == in_props.max_transform_feedback_stream_data_size                 &&
+            n_max_transform_feedback_buffers                        == in_props.n_max_transform_feedback_buffers                        &&
+            n_max_transform_feedback_streams                        == in_props.n_max_transform_feedback_streams                        &&
+            supports_transform_feedback_draw                        == in_props.supports_transform_feedback_draw                        &&
+            supports_transform_feedback_queries                     == in_props.supports_transform_feedback_queries                     &&
+            supports_transform_feedback_rasterization_stream_select == in_props.supports_transform_feedback_rasterization_stream_select &&
+            supports_transform_feedback_streams_lines_triangles     == in_props.supports_transform_feedback_streams_lines_triangles);
 }
 
 Anvil::EXTVertexAttributeDivisorProperties::EXTVertexAttributeDivisorProperties()
@@ -1869,6 +1978,7 @@ Anvil::PhysicalDeviceProperties::PhysicalDeviceProperties()
     ext_pci_bus_info_properties_ptr                                    = nullptr;
     ext_sample_locations_properties_ptr                                = nullptr;
     ext_sampler_filter_minmax_properties_ptr                           = nullptr;
+    ext_transform_feedback_properties_ptr                              = nullptr;
     ext_vertex_attribute_divisor_properties_ptr                        = nullptr;
     khr_external_memory_capabilities_physical_device_id_properties_ptr = nullptr;
     khr_maintenance2_point_clipping_properties_ptr                     = nullptr;
@@ -1883,6 +1993,7 @@ Anvil::PhysicalDeviceProperties::PhysicalDeviceProperties(const AMDShaderCorePro
                                                           const EXTPCIBusInfoProperties*                                        in_ext_pci_bus_info_properties_ptr,
                                                           const EXTSampleLocationsProperties*                                   in_ext_sample_locations_properties_ptr,
                                                           const EXTSamplerFilterMinmaxProperties*                               in_ext_sampler_filter_minmax_properties_ptr,
+                                                          const EXTTransformFeedbackProperties*                                 in_ext_transform_feedback_properties_ptr,
                                                           const EXTVertexAttributeDivisorProperties*                            in_ext_vertex_attribute_divisor_properties_ptr,
                                                           const Anvil::KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties* in_khr_external_memory_caps_physical_device_id_props_ptr,
                                                           const KHRMaintenance3Properties*                                      in_khr_maintenance3_properties_ptr,
@@ -1895,6 +2006,7 @@ Anvil::PhysicalDeviceProperties::PhysicalDeviceProperties(const AMDShaderCorePro
      ext_pci_bus_info_properties_ptr                                   (in_ext_pci_bus_info_properties_ptr),
      ext_sample_locations_properties_ptr                               (in_ext_sample_locations_properties_ptr),
      ext_sampler_filter_minmax_properties_ptr                          (in_ext_sampler_filter_minmax_properties_ptr),
+     ext_transform_feedback_properties_ptr                             (in_ext_transform_feedback_properties_ptr),
      ext_vertex_attribute_divisor_properties_ptr                       (in_ext_vertex_attribute_divisor_properties_ptr),
      khr_external_memory_capabilities_physical_device_id_properties_ptr(in_khr_external_memory_caps_physical_device_id_props_ptr),
      khr_maintenance2_point_clipping_properties_ptr                    (in_khr_maintenance2_point_clipping_properties_ptr),
@@ -1923,6 +2035,7 @@ Anvil::PhysicalDeviceFeatures::PhysicalDeviceFeatures()
 {
     core_vk1_0_features_ptr              = nullptr;
     ext_descriptor_indexing_features_ptr = nullptr;
+    ext_transform_feedback_features_ptr  = nullptr;
     khr_16bit_storage_features_ptr       = nullptr;
     khr_8bit_storage_features_ptr        = nullptr;
     khr_multiview_features_ptr           = nullptr;
@@ -1931,6 +2044,7 @@ Anvil::PhysicalDeviceFeatures::PhysicalDeviceFeatures()
 
 Anvil::PhysicalDeviceFeatures::PhysicalDeviceFeatures(const PhysicalDeviceFeaturesCoreVK10* in_core_vk1_0_features_ptr,
                                                       const EXTDescriptorIndexingFeatures*  in_ext_descriptor_indexing_features_ptr,
+                                                      const EXTTransformFeedbackFeatures*   in_ext_transform_feedback_features_ptr,
                                                       const KHR16BitStorageFeatures*        in_khr_16_bit_storage_features_ptr,
                                                       const KHR8BitStorageFeatures*         in_khr_8_bit_storage_features_ptr,
                                                       const KHRMultiviewFeatures*           in_khr_multiview_features_ptr,
@@ -1938,6 +2052,7 @@ Anvil::PhysicalDeviceFeatures::PhysicalDeviceFeatures(const PhysicalDeviceFeatur
 {
     core_vk1_0_features_ptr              = in_core_vk1_0_features_ptr;
     ext_descriptor_indexing_features_ptr = in_ext_descriptor_indexing_features_ptr;
+    ext_transform_feedback_features_ptr  = in_ext_transform_feedback_features_ptr;
     khr_16bit_storage_features_ptr       = in_khr_16_bit_storage_features_ptr;
     khr_8bit_storage_features_ptr        = in_khr_8_bit_storage_features_ptr;
     khr_multiview_features_ptr           = in_khr_multiview_features_ptr;
@@ -2619,10 +2734,33 @@ bool Anvil::PhysicalDeviceFeatures::operator==(const PhysicalDeviceFeatures& in_
 {
     const bool core_vk1_0_features_match              = (*core_vk1_0_features_ptr == *in_physical_device_features.core_vk1_0_features_ptr);
     bool       ext_descriptor_indexing_features_match = false;
+    bool       ext_transform_feedback_features_match  = false;
     bool       khr_16bit_storage_features_match       = false;
     bool       khr_8bit_storage_features_match        = false;
     bool       khr_multiview_features_match           = false;
     bool       khr_variable_pointer_features_match    = false;
+
+    if (ext_descriptor_indexing_features_ptr                             != nullptr &&
+        in_physical_device_features.ext_descriptor_indexing_features_ptr != nullptr)
+    {
+        ext_descriptor_indexing_features_match = (*ext_descriptor_indexing_features_ptr == *in_physical_device_features.ext_descriptor_indexing_features_ptr);
+    }
+    else
+    {
+        ext_descriptor_indexing_features_match = (ext_descriptor_indexing_features_ptr                             == nullptr &&
+                                                  in_physical_device_features.ext_descriptor_indexing_features_ptr == nullptr);
+    }
+
+    if (ext_transform_feedback_features_ptr                             != nullptr &&
+        in_physical_device_features.ext_transform_feedback_features_ptr != nullptr)
+    {
+        ext_transform_feedback_features_match = (*ext_transform_feedback_features_ptr == *in_physical_device_features.ext_transform_feedback_features_ptr);
+    }
+    else
+    {
+        ext_transform_feedback_features_match = (ext_transform_feedback_features_ptr                             == nullptr &&
+                                                 in_physical_device_features.ext_transform_feedback_features_ptr == nullptr);
+    }
 
     if (khr_16bit_storage_features_ptr                             != nullptr &&
         in_physical_device_features.khr_16bit_storage_features_ptr != nullptr)
@@ -2644,17 +2782,6 @@ bool Anvil::PhysicalDeviceFeatures::operator==(const PhysicalDeviceFeatures& in_
     {
         khr_8bit_storage_features_match = (khr_8bit_storage_features_ptr                             == nullptr &&
                                            in_physical_device_features.khr_8bit_storage_features_ptr == nullptr);
-    }
-
-    if (ext_descriptor_indexing_features_ptr                             != nullptr &&
-        in_physical_device_features.ext_descriptor_indexing_features_ptr != nullptr)
-    {
-        ext_descriptor_indexing_features_match = (*ext_descriptor_indexing_features_ptr == *in_physical_device_features.ext_descriptor_indexing_features_ptr);
-    }
-    else
-    {
-        ext_descriptor_indexing_features_match = (ext_descriptor_indexing_features_ptr                             == nullptr &&
-                                                  in_physical_device_features.ext_descriptor_indexing_features_ptr == nullptr);
     }
 
     if (khr_multiview_features_ptr                             != nullptr &&
@@ -2681,6 +2808,7 @@ bool Anvil::PhysicalDeviceFeatures::operator==(const PhysicalDeviceFeatures& in_
 
     return core_vk1_0_features_match              &&
            ext_descriptor_indexing_features_match &&
+           ext_transform_feedback_features_match  &&
            khr_16bit_storage_features_match       &&
            khr_8bit_storage_features_match        &&
            khr_multiview_features_match           &&

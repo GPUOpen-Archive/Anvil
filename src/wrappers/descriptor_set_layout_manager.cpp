@@ -35,7 +35,7 @@ Anvil::DescriptorSetLayoutManager::DescriptorSetLayoutManager(const Anvil::BaseD
      m_device_ptr           (in_device_ptr)
 {
     /* Register the object */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT_MANAGER,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::ANVIL_DESCRIPTOR_SET_LAYOUT_MANAGER,
                                                   this);
 }
 
@@ -45,7 +45,7 @@ Anvil::DescriptorSetLayoutManager::~DescriptorSetLayoutManager()
     anvil_assert(m_descriptor_set_layouts.size() == 0);
 
     /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT_MANAGER,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::ANVIL_DESCRIPTOR_SET_LAYOUT_MANAGER,
                                                     this);
 }
 

@@ -36,7 +36,7 @@
 Anvil::Buffer::Buffer(Anvil::BufferCreateInfoUniquePtr in_create_info_ptr)
     :CallbacksSupportProvider          (BUFFER_CALLBACK_ID_COUNT),
      DebugMarkerSupportProvider<Buffer>(in_create_info_ptr->get_device(),
-                                        VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT),
+                                        Anvil::ObjectType::BUFFER),
      MTSafetySupportProvider           (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety(),
                                                                                         in_create_info_ptr->get_device   () )),
      m_buffer                          (VK_NULL_HANDLE),
@@ -70,7 +70,7 @@ Anvil::Buffer::Buffer(Anvil::BufferCreateInfoUniquePtr in_create_info_ptr)
 Anvil::Buffer::~Buffer()
 {
     /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_BUFFER,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::BUFFER,
                                                    this);
 
     if (m_buffer                                   != VK_NULL_HANDLE &&
@@ -106,7 +106,7 @@ Anvil::BufferUniquePtr Anvil::Buffer::create(Anvil::BufferCreateInfoUniquePtr in
     }
 
     /* Register the object */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_BUFFER,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::BUFFER,
                                                  new_buffer_ptr.get() );
 
     return new_buffer_ptr;
@@ -671,10 +671,22 @@ bool Anvil::Buffer::read(VkDeviceSize in_start_offset,
                                                 0, /* in_offset */
                                                 in_size);
             Anvil::BufferCopy    copy_region;
+            Anvil::MemoryBarrier pre_copy_barrier(Anvil::AccessFlagBits::TRANSFER_READ_BIT, /* in_destination_access_mask */
+                                                  Anvil::AccessFlagBits::HOST_WRITE_BIT | Anvil::AccessFlagBits::MEMORY_WRITE_BIT | Anvil::AccessFlagBits::SHADER_WRITE_BIT | Anvil::AccessFlagBits::TRANSFER_WRITE_BIT);
 
             copy_region.dst_offset = 0;
             copy_region.size       = in_size;
             copy_region.src_offset = in_start_offset;
+
+            copy_cmdbuf_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::ALL_COMMANDS_BIT, /* in_src_stage_mask */
+                                                     Anvil::PipelineStageFlagBits::TRANSFER_BIT,     /* in_dst_stage_mask */
+                                                     Anvil::DependencyFlagBits::NONE,
+                                                     1, /* in_memory_barrier_count */
+                                                    &pre_copy_barrier,
+                                                     0,        /* in_buffer_memory_barrier_count */
+                                                     nullptr,  /* in_buffer_memory_barriers_ptr  */
+                                                     0,        /* in_image_memory_barrier_count  */
+                                                     nullptr); /* in_iamge_memory_barriers_ptr   */
 
             copy_cmdbuf_ptr->record_copy_buffer     (this,
                                                      m_staging_buffer_ptr.get(),
@@ -1161,21 +1173,23 @@ bool Anvil::Buffer::write(VkDeviceSize  in_start_offset,
                                              in_device_mask);
         }
         {
-            BufferBarrier     buffer_barrier(Anvil::AccessFlagBits::HOST_WRITE_BIT,
-                                             Anvil::AccessFlagBits::TRANSFER_READ_BIT,
-                                             VK_QUEUE_FAMILY_IGNORED,
-                                             VK_QUEUE_FAMILY_IGNORED,
-                                             m_staging_buffer_ptr.get(),
-                                             0, /* in_offset */
-                                             in_size);
-            Anvil::BufferCopy copy_region;
+            BufferBarrier        buffer_barrier(Anvil::AccessFlagBits::HOST_WRITE_BIT, /* in_source_access_mask */
+                                                (Anvil::AccessFlagBits::HOST_READ_BIT  | Anvil::AccessFlagBits::MEMORY_READ_BIT  | Anvil::AccessFlagBits::SHADER_READ_BIT  | Anvil::AccessFlagBits::TRANSFER_READ_BIT   |
+                                                 Anvil::AccessFlagBits::HOST_WRITE_BIT | Anvil::AccessFlagBits::MEMORY_WRITE_BIT | Anvil::AccessFlagBits::SHADER_WRITE_BIT | Anvil::AccessFlagBits::TRANSFER_WRITE_BIT),
+                                                VK_QUEUE_FAMILY_IGNORED,
+                                                VK_QUEUE_FAMILY_IGNORED,
+                                                m_staging_buffer_ptr.get(),
+                                                0, /* in_offset */
+                                                in_size);
+            Anvil::BufferCopy    copy_region;
 
             copy_region.dst_offset = in_start_offset;
             copy_region.size       = in_size;
             copy_region.src_offset = 0;
 
+
             copy_cmdbuf_ptr->record_pipeline_barrier(Anvil::PipelineStageFlagBits::HOST_BIT,
-                                                     Anvil::PipelineStageFlagBits::TRANSFER_BIT,
+                                                     Anvil::PipelineStageFlagBits::ALL_COMMANDS_BIT,
                                                      Anvil::DependencyFlagBits::NONE,
                                                      0,               /* in_memory_barrier_count        */
                                                      nullptr,         /* in_memory_barriers_ptr         */

@@ -55,7 +55,7 @@ Anvil::BaseDevice::BaseDevice(const Anvil::Instance* in_parent_instance_ptr,
     m_khr_surface_extension_entrypoints = m_parent_instance_ptr->get_extension_khr_surface_entrypoints();
 
     /* Register the instance */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_DEVICE,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::DEVICE,
                                                  this);
 }
 
@@ -64,7 +64,7 @@ Anvil::BaseDevice::~BaseDevice()
     /* Unregister the instance. Tihs needs to happen before actual Vulkan object destruction, as there might
      * be observers who postpone their destruction until the device is about to go down.
      */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_DEVICE,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::DEVICE,
                                                     this);
 
     if (m_device != VK_NULL_HANDLE)
@@ -111,6 +111,13 @@ const Anvil::ExtensionEXTSampleLocationsEntrypoints& Anvil::BaseDevice::get_exte
     anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->ext_sample_locations() );
 
     return m_ext_sample_locations_extension_entrypoints;
+}
+
+const Anvil::ExtensionEXTTransformFeedbackEntrypoints& Anvil::BaseDevice::get_extension_ext_transform_feedback_entrypoints() const
+{
+    anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->ext_transform_feedback() );
+
+    return m_ext_transform_feedback_extension_entrypoints;
 }
 
 bool Anvil::BaseDevice::get_memory_types_supported_for_external_handle(const Anvil::ExternalMemoryHandleTypeFlagBits& in_external_handle_type,
@@ -792,6 +799,23 @@ void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
 
         anvil_assert(m_ext_sample_locations_extension_entrypoints.vkCmdSetSampleLocationsEXT                  != nullptr);
         anvil_assert(m_ext_sample_locations_extension_entrypoints.vkGetPhysicalDeviceMultisamplePropertiesEXT != nullptr);
+    }
+
+    if (m_extension_enabled_info_ptr->get_device_extension_info()->ext_transform_feedback() )
+    {
+        m_ext_transform_feedback_extension_entrypoints.vkCmdBeginQueryIndexedEXT            = reinterpret_cast<PFN_vkCmdBeginQueryIndexedEXT>           (get_proc_address("vkCmdBeginQueryIndexedEXT") );
+        m_ext_transform_feedback_extension_entrypoints.vkCmdBeginTransformFeedbackEXT       = reinterpret_cast<PFN_vkCmdBeginTransformFeedbackEXT>      (get_proc_address("vkCmdBeginTransformFeedbackEXT") );
+        m_ext_transform_feedback_extension_entrypoints.vkCmdBindTransformFeedbackBuffersEXT = reinterpret_cast<PFN_vkCmdBindTransformFeedbackBuffersEXT>(get_proc_address("vkCmdBindTransformFeedbackBuffersEXT") );
+        m_ext_transform_feedback_extension_entrypoints.vkCmdDrawIndirectByteCountEXT        = reinterpret_cast<PFN_vkCmdDrawIndirectByteCountEXT>       (get_proc_address("vkCmdDrawIndirectByteCountEXT") );
+        m_ext_transform_feedback_extension_entrypoints.vkCmdEndQueryIndexedEXT              = reinterpret_cast<PFN_vkCmdEndQueryIndexedEXT>             (get_proc_address("vkCmdEndQueryIndexedEXT") );
+        m_ext_transform_feedback_extension_entrypoints.vkCmdEndTransformFeedbackEXT         = reinterpret_cast<PFN_vkCmdEndTransformFeedbackEXT>        (get_proc_address("vkCmdEndTransformFeedbackEXT") );
+
+        anvil_assert(m_ext_transform_feedback_extension_entrypoints.vkCmdBeginQueryIndexedEXT            != nullptr);
+        anvil_assert(m_ext_transform_feedback_extension_entrypoints.vkCmdBeginTransformFeedbackEXT       != nullptr);
+        anvil_assert(m_ext_transform_feedback_extension_entrypoints.vkCmdBindTransformFeedbackBuffersEXT != nullptr);
+        anvil_assert(m_ext_transform_feedback_extension_entrypoints.vkCmdDrawIndirectByteCountEXT        != nullptr);
+        anvil_assert(m_ext_transform_feedback_extension_entrypoints.vkCmdEndQueryIndexedEXT              != nullptr);
+        anvil_assert(m_ext_transform_feedback_extension_entrypoints.vkCmdEndTransformFeedbackEXT         != nullptr);
     }
 
     if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_descriptor_update_template() )

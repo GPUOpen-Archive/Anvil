@@ -70,7 +70,7 @@
 // This should always increase, as some paths to do not consume
 // a more major number.
 // It should increment by one when new functionality is added.
-#define GLSLANG_MINOR_VERSION 6
+#define GLSLANG_MINOR_VERSION 10
 
 //
 // Call before doing any other compiler/linker operations.
@@ -94,6 +94,14 @@ typedef enum {
     EShLangGeometry,
     EShLangFragment,
     EShLangCompute,
+    EShLangRayGenNV,
+    EShLangIntersectNV,
+    EShLangAnyHitNV,
+    EShLangClosestHitNV,
+    EShLangMissNV,
+    EShLangCallableNV,
+    EShLangTaskNV,
+    EShLangMeshNV,
     EShLangCount,
 } EShLanguage;         // would be better as stage, but this is ancient now
 
@@ -104,6 +112,14 @@ typedef enum {
     EShLangGeometryMask       = (1 << EShLangGeometry),
     EShLangFragmentMask       = (1 << EShLangFragment),
     EShLangComputeMask        = (1 << EShLangCompute),
+    EShLangRayGenNVMask       = (1 << EShLangRayGenNV),
+    EShLangIntersectNVMask    = (1 << EShLangIntersectNV),
+    EShLangAnyHitNVMask       = (1 << EShLangAnyHitNV),
+    EShLangClosestHitNVMask   = (1 << EShLangClosestHitNV),
+    EShLangMissNVMask         = (1 << EShLangMissNV),
+    EShLangCallableNVMask     = (1 << EShLangCallableNV),
+    EShLangTaskNVMask         = (1 << EShLangTaskNV),
+    EShLangMeshNVMask         = (1 << EShLangMeshNV),
 } EShLanguageMask;
 
 namespace glslang {
@@ -138,7 +154,10 @@ typedef EShTargetClientVersion EshTargetClientVersion;
 
 typedef enum {
     EShTargetSpv_1_0 = (1 << 16),
+    EShTargetSpv_1_1 = (1 << 16) | (1 << 8),
+    EShTargetSpv_1_2 = (1 << 16) | (2 << 8),
     EShTargetSpv_1_3 = (1 << 16) | (3 << 8),
+    EShTargetSpv_1_4 = (1 << 16) | (4 << 8),
 } EShTargetLanguageVersion;
 
 struct TInputLanguage {
@@ -397,6 +416,8 @@ public:
     void setResourceSetBinding(const std::vector<std::string>& base);
     void setAutoMapBindings(bool map);
     void setAutoMapLocations(bool map);
+    void addUniformLocationOverride(const char* name, int loc);
+    void setUniformLocationBase(int base);
     void setInvertY(bool invert);
     void setHlslIoMapping(bool hlslIoMap);
     void setFlattenUniformArrays(bool flatten);
@@ -532,6 +553,8 @@ public:
         return parse(builtInResources, defaultVersion, ENoProfile, false, forwardCompatible, messages, includer);
     }
 
+    // NOTE: Doing just preprocessing to obtain a correct preprocessed shader string
+    // is not an officially supported or fully working path.
     bool preprocess(const TBuiltInResource* builtInResources,
                     int defaultVersion, EProfile defaultProfile, bool forceDefaultVersionAndProfile,
                     bool forwardCompatible, EShMessages message, std::string* outputString,
@@ -671,6 +694,7 @@ public:
     int getUniformBlockSize(int blockIndex) const;         // can be used for glGetActiveUniformBlockiv(UNIFORM_BLOCK_DATA_SIZE)
     int getUniformIndex(const char* name) const;           // can be used for glGetUniformIndices()
     int getUniformBinding(int index) const;                // returns the binding number
+    EShLanguageMask getUniformStages(int index) const;     // returns Shaders Stages where a Uniform is present
     int getUniformBlockBinding(int index) const;           // returns the block binding number
     int getUniformBlockIndex(int index) const;             // can be used for glGetActiveUniformsiv(GL_UNIFORM_BLOCK_INDEX)
     int getUniformBlockCounterIndex(int index) const;      // returns block index of associated counter.

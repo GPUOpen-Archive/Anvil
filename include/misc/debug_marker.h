@@ -20,7 +20,7 @@
 // THE SOFTWARE.
 //
 
-/* Provides support for functionality introduced by VK_EXT_debug_marker extension. */
+/* Provides support for functionality introduced by VK_EXT_debug_marker extension, later subsumed by VK_EXT_debug_utils. */
 #ifndef MISC_DEBUG_MARKER_H
 #define MISC_DEBUG_MARKER_H
 
@@ -38,8 +38,8 @@ namespace Anvil
         /* Public functions */
 
         /** Constructor. */
-        DebugMarkerSupportProviderWorker(const Anvil::BaseDevice*   in_device_ptr,
-                                         VkDebugReportObjectTypeEXT in_vk_object_type);
+        DebugMarkerSupportProviderWorker(const Anvil::BaseDevice* in_device_ptr,
+                                         const Anvil::ObjectType& in_vk_object_type);
 
         /** Destructor. */
         ~DebugMarkerSupportProviderWorker()
@@ -108,14 +108,24 @@ namespace Anvil
         void set_vk_handle_internal(uint64_t in_vk_object_handle);
 
     private:
+        /* Private type definitions */
+        enum class DebugAPI
+        {
+            EXT_DEBUG_MARKER,
+            EXT_DEBUG_UTILS,
+
+            NONE
+        };
+
         /* Private variables */
         const Anvil::BaseDevice*   m_device_ptr;
-        bool                       m_is_ext_debug_marker_available;
+        std::mutex                 m_mutex;
         std::string                m_object_name;
         std::vector<char>          m_object_tag_data;
         uint64_t                   m_object_tag_name;
+        DebugAPI                   m_used_api;
         uint64_t                   m_vk_object_handle;
-        VkDebugReportObjectTypeEXT m_vk_object_type;
+        Anvil::ObjectType          m_vk_object_type;
     };
 
     /** This class needs to be inherited from by all wrapper classes that wrap Vulkan objects.
@@ -150,9 +160,9 @@ namespace Anvil
          *                                True to permit more than one handle to be used.
          *
          **/
-        DebugMarkerSupportProvider(const Anvil::BaseDevice*   in_device_ptr,
-                                   VkDebugReportObjectTypeEXT in_vk_object_type,
-                                   bool                       in_use_delegate_workers = false)
+        DebugMarkerSupportProvider(const Anvil::BaseDevice* in_device_ptr,
+                                   const Anvil::ObjectType& in_object_type,
+                                   bool                     in_use_delegate_workers = false)
         {
             anvil_assert(in_device_ptr != nullptr);
 
@@ -162,12 +172,12 @@ namespace Anvil
             {
                 m_worker_ptr.reset(
                     new DebugMarkerSupportProviderWorker(in_device_ptr,
-                                                         in_vk_object_type)
+                                                         in_object_type)
                 );
             }
             else
             {
-                m_vk_object_type = in_vk_object_type;
+                m_vk_object_type = in_object_type;
             }
         }
 
@@ -404,7 +414,7 @@ namespace Anvil
         /* Only used if delegate workers have been requested at creation time: ==> */
         std::vector<std::unique_ptr<DebugMarkerSupportProviderWorker> > m_delegate_workers;
         const Anvil::BaseDevice*                                        m_device_ptr;
-        VkDebugReportObjectTypeEXT                                      m_vk_object_type;
+        Anvil::ObjectType                                               m_vk_object_type;
 
         /* <== */
 

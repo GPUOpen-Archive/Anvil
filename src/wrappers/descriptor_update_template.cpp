@@ -32,13 +32,13 @@
 Anvil::DescriptorUpdateTemplate::DescriptorUpdateTemplate(const Anvil::BaseDevice* in_device_ptr,
                                                           bool                     in_mt_safe)
     :DebugMarkerSupportProvider(in_device_ptr,
-                                VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT),
+                                Anvil::ObjectType::DESCRIPTOR_UPDATE_TEMPLATE),
      MTSafetySupportProvider   (in_mt_safe),
      m_device_ptr              (in_device_ptr),
      m_vk_object               (VK_NULL_HANDLE)
 {
     /* Register this instance */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::DESCRIPTOR_UPDATE_TEMPLATE,
                                                  this);
 
 }
@@ -57,7 +57,7 @@ Anvil::DescriptorUpdateTemplate::~DescriptorUpdateTemplate()
     }
 
     /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::DESCRIPTOR_UPDATE_TEMPLATE,
                                                    this);
 
 }
@@ -180,6 +180,8 @@ bool Anvil::DescriptorUpdateTemplate::init(const Anvil::DescriptorSetLayout*    
         result = false;
         goto end;
     }
+
+    set_vk_handle(m_vk_object);
 
     /* Finally, also cache descriptor set create info using the user-specified DS layout */
     m_ds_create_info_ptr.reset(

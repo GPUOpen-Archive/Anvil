@@ -33,20 +33,20 @@ Anvil::DescriptorSetLayout::DescriptorSetLayout(Anvil::DescriptorSetCreateInfoUn
                                                 const Anvil::BaseDevice*                in_device_ptr,
                                                 bool                                    in_mt_safe)
     :DebugMarkerSupportProvider(in_device_ptr,
-                                VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT_EXT),
+                                Anvil::ObjectType::DESCRIPTOR_SET_LAYOUT),
      MTSafetySupportProvider   (in_mt_safe),
      m_create_info_ptr         (std::move(in_ds_create_info_ptr) ),
      m_device_ptr              (in_device_ptr),
      m_layout                  (VK_NULL_HANDLE)
 {
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::DESCRIPTOR_SET_LAYOUT,
                                                   this);
 }
 
 /** Please see header for specification */
 Anvil::DescriptorSetLayout::~DescriptorSetLayout()
 {
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::DESCRIPTOR_SET_LAYOUT,
                                                     this);
 
     if (m_layout != VK_NULL_HANDLE)

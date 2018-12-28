@@ -37,6 +37,7 @@
 #ifndef MISC_OBJECT_TRACKER_H
 #define MISC_OBJECT_TRACKER_H
 
+#include <unordered_map>
 #include <vector>
 #include "misc/callbacks.h"
 #include "misc/types.h"
@@ -127,16 +128,16 @@ namespace Anvil
         void check_for_leaks() const;
 
         /** Retrieves an alive object of user-specified type at given index. */
-        void* get_object_at_index(ObjectType in_object_type,
-                                  uint32_t   in_alloc_index) const;
+        void* get_object_at_index(const ObjectType& in_object_type,
+                                  uint32_t          in_alloc_index) const;
 
         /** Registers a new object of the specified type.
          *
          *  @param in_object_type Wrapper object type.
          *  @param in_object_ptr  Object instance. The object is NOT retained.
          **/
-        void register_object(ObjectType in_object_type,
-                             void*      in_object_ptr);
+        void register_object(const ObjectType& in_object_type,
+                             void*             in_object_ptr);
 
         /** Stops tracking the specified object.
          *
@@ -147,8 +148,8 @@ namespace Anvil
          *                        been registered earlier with a register_object() call, or else an
          *                        assertion failure will occur.
          **/
-        void unregister_object(ObjectType in_object_type,
-                               void*      in_object_ptr);
+        void unregister_object(const ObjectType& in_object_type,
+                               void*             in_object_ptr);
 
     private:
         /* Private type declarations */
@@ -192,12 +193,13 @@ namespace Anvil
         ObjectTracker           (const ObjectTracker&);
         ObjectTracker& operator=(const ObjectTracker&);
 
-        const char* get_object_type_name(ObjectType in_object_type) const;
+        const char* get_object_type_name(const ObjectType& in_object_type) const;
 
         /* Private members */
         mutable std::mutex m_cs;
-        ObjectAllocations  m_object_allocations       [OBJECT_TYPE_COUNT];
-        uint32_t           m_n_objects_allocated_array[OBJECT_TYPE_COUNT];
+
+        mutable std::map<Anvil::ObjectType, ObjectAllocations>  m_object_allocations;
+        std::map<Anvil::ObjectType, uint32_t>                   m_n_objects_allocated_array;
     };
 }; /* namespace Anvil */
 

@@ -38,7 +38,7 @@ Anvil::DescriptorPool::DescriptorPool(const Anvil::BaseDevice*                in
                                       bool                                    in_mt_safe)
     :CallbacksSupportProvider  (DESCRIPTOR_POOL_CALLBACK_ID_COUNT),
      DebugMarkerSupportProvider(in_device_ptr,
-                                VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_POOL_EXT),
+                                Anvil::ObjectType::DESCRIPTOR_POOL),
      MTSafetySupportProvider   (in_mt_safe),
      m_device_ptr              (in_device_ptr),
      m_flags                   (in_flags),
@@ -50,7 +50,7 @@ Anvil::DescriptorPool::DescriptorPool(const Anvil::BaseDevice*                in
            sizeof(uint32_t) * VK_DESCRIPTOR_TYPE_RANGE_SIZE);
 
     /* Register the object in the Object Tracker */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_DESCRIPTOR_POOL,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::DESCRIPTOR_POOL,
                                                  this);
 }
 
@@ -58,7 +58,7 @@ Anvil::DescriptorPool::DescriptorPool(const Anvil::BaseDevice*                in
 Anvil::DescriptorPool::~DescriptorPool()
 {
     /* Unregister the instance */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_DESCRIPTOR_POOL,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::DESCRIPTOR_POOL,
                                                     this);
 
     if (m_pool != VK_NULL_HANDLE)

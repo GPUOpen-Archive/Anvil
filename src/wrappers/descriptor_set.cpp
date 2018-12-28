@@ -262,7 +262,7 @@ Anvil::DescriptorSet::DescriptorSet(const Anvil::BaseDevice*          in_device_
                                     VkDescriptorSet                   in_descriptor_set,
                                     bool                              in_mt_safe)
     :DebugMarkerSupportProvider(in_device_ptr,
-                                VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT),
+                                Anvil::ObjectType::DESCRIPTOR_SET),
      MTSafetySupportProvider   (in_mt_safe),
      m_descriptor_set          (in_descriptor_set),
      m_device_ptr              (in_device_ptr),
@@ -280,14 +280,14 @@ Anvil::DescriptorSet::DescriptorSet(const Anvil::BaseDevice*          in_device_
         this
     );
 
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_DESCRIPTOR_SET,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::DESCRIPTOR_SET,
                                                  this);
 }
 
 /** Please see header for specification */
 Anvil::DescriptorSet::~DescriptorSet()
 {
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_DESCRIPTOR_SET,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::DESCRIPTOR_SET,
                                                    this);
 }
 

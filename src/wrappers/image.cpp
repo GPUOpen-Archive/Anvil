@@ -52,7 +52,7 @@
 Anvil::Image::Image(Anvil::ImageCreateInfoUniquePtr in_create_info_ptr)
     :CallbacksSupportProvider               (IMAGE_CALLBACK_ID_COUNT),
      DebugMarkerSupportProvider             (in_create_info_ptr->get_device(),
-                                             VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT),
+                                             Anvil::ObjectType::IMAGE),
      MTSafetySupportProvider                (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety(),
                                                                                              in_create_info_ptr->get_device   () )),
      m_alignment                            (UINT64_MAX),
@@ -68,7 +68,7 @@ Anvil::Image::Image(Anvil::ImageCreateInfoUniquePtr in_create_info_ptr)
     m_create_info_ptr = std::move(in_create_info_ptr);
 
     /* Register this instance */
-    Anvil::ObjectTracker::get()->register_object(Anvil::OBJECT_TYPE_IMAGE,
+    Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::IMAGE,
                                                  this);
 
 }
@@ -1129,7 +1129,7 @@ Anvil::Image::~Image()
     }
 
     /* Unregister the object */
-    Anvil::ObjectTracker::get()->unregister_object(Anvil::OBJECT_TYPE_IMAGE,
+    Anvil::ObjectTracker::get()->unregister_object(Anvil::ObjectType::IMAGE,
                                                    this);
 }
 
@@ -1965,7 +1965,7 @@ bool Anvil::Image::set_memory_internal(uint32_t        in_swapchain_image_index,
     anvil_assert(m_peer_sfr_rects.size()                                                                  == 0);
     anvil_assert(m_create_info_ptr->get_internal_type()                                                   == Anvil::ImageInternalType::PEER_NO_ALLOC     ||
                  m_create_info_ptr->get_internal_type()                                                   == Anvil::ImageInternalType::SWAPCHAIN_WRAPPER);
-    anvil_assert(m_create_info_ptr->get_swapchain()->get_create_info_ptr()->get_n_images()                >  in_swapchain_image_index);
+    anvil_assert(m_create_info_ptr->get_swapchain()->get_n_images()                                       >  in_swapchain_image_index);
 
     if (!m_device_ptr->is_extension_enabled(VK_KHR_DEVICE_GROUP_EXTENSION_NAME) )
     {
