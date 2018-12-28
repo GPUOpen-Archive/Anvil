@@ -401,7 +401,6 @@ namespace Anvil
         Anvil::AccessFlags src_access_mask;
 
         VkBuffer              buffer;
-        VkBufferMemoryBarrier buffer_barrier_vk;
         Anvil::Buffer*        buffer_ptr;
         uint32_t              dst_queue_family_index;
         VkDeviceSize          offset;
@@ -446,21 +445,7 @@ namespace Anvil
         /** Returns a Vulkan buffer memory barrier descriptor, whose configuration corresponds to
          *  to the configuration of this descriptor.
          **/
-        virtual VkBufferMemoryBarrier get_barrier_vk() const
-        {
-            return buffer_barrier_vk;
-        }
-
-        /** Returns a pointer to the Vulkan descriptor, whose configuration corresponds to
-         *  the configuration of this descriptor.
-         *
-         *  The returned pointer remains valid for the duration of the Barrier descriptor's
-         *  life-time.
-         **/
-        const VkBufferMemoryBarrier* get_barrier_vk_ptr() const
-        {
-            return &buffer_barrier_vk;
-        }
+        virtual VkBufferMemoryBarrier get_barrier_vk() const;
 
         bool operator==(const BufferBarrier&) const;
     private:
@@ -1329,17 +1314,6 @@ namespace Anvil
            return image_barrier_vk;
        }
 
-       /** Returns a pointer to the Vulkan descriptor, whose configuration corresponds to
-         *  the configuration of this descriptor.
-         *
-         *  The returned pointer remains valid for the duration of the Barrier descriptor's
-         *  life-time.
-         **/
-       const VkImageMemoryBarrier* get_barrier_vk_ptr() const
-       {
-           return &image_barrier_vk;
-       }
-
        bool operator==(const ImageBarrier& in_barrier) const;
 
     private:
@@ -1564,17 +1538,6 @@ namespace Anvil
         virtual VkMemoryBarrier get_barrier_vk() const
         {
             return memory_barrier_vk;
-        }
-
-        /** Returns a pointer to the Vulkan descriptor, whose configuration corresponds to
-         *  the configuration of this descriptor.
-         *
-         *  The returned pointer remains valid for the duration of the Barrier descriptor's
-         *  life-time.
-         **/
-        virtual const VkMemoryBarrier* get_barrier_vk_ptr() const
-        {
-            return &memory_barrier_vk;
         }
     } MemoryBarrier;
 

@@ -81,7 +81,6 @@ bool Anvil::AMDShaderCoreProperties::operator==(const Anvil::AMDShaderCoreProper
 Anvil::BufferBarrier::BufferBarrier(const BufferBarrier& in)
 {
     buffer                 = in.buffer;
-    buffer_barrier_vk      = in.buffer_barrier_vk;
     buffer_ptr             = in.buffer_ptr;
     dst_access_mask        = in.dst_access_mask;
     dst_queue_family_index = in.dst_queue_family_index;
@@ -109,16 +108,6 @@ Anvil::BufferBarrier::BufferBarrier(Anvil::AccessFlags in_source_access_mask,
     src_access_mask        = in_source_access_mask;
     src_queue_family_index = in_src_queue_family_index;
 
-    buffer_barrier_vk.buffer              = in_buffer_ptr->get_buffer();
-    buffer_barrier_vk.dstAccessMask       = in_destination_access_mask.get_vk();
-    buffer_barrier_vk.dstQueueFamilyIndex = in_dst_queue_family_index;
-    buffer_barrier_vk.offset              = in_offset;
-    buffer_barrier_vk.pNext               = nullptr;
-    buffer_barrier_vk.size                = in_size;
-    buffer_barrier_vk.srcAccessMask       = in_source_access_mask.get_vk(),
-    buffer_barrier_vk.srcQueueFamilyIndex = in_src_queue_family_index;
-    buffer_barrier_vk.sType               = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-
     /* NOTE: For an image barrier to work correctly, the underlying subresource range must be assigned memory.
      *       Query for a memory block in order to force any listening memory allocators to bake */
     auto memory_block_ptr = buffer_ptr->get_memory_block(0 /* in_n_memory_block */);
@@ -141,6 +130,23 @@ bool Anvil::BufferBarrier::operator==(const Anvil::BufferBarrier& in_barrier) co
             offset                 == in_barrier.offset                 &&
             size                   == in_barrier.size                   &&
             src_queue_family_index == in_barrier.src_queue_family_index);
+}
+
+VkBufferMemoryBarrier Anvil::BufferBarrier::get_barrier_vk() const
+{
+    VkBufferMemoryBarrier result;
+
+    result.buffer              = buffer_ptr->get_buffer();
+    result.dstAccessMask       = dst_access_mask.get_vk();
+    result.dstQueueFamilyIndex = dst_queue_family_index;
+    result.offset              = offset;
+    result.pNext               = nullptr;
+    result.size                = size;
+    result.srcAccessMask       = src_access_mask.get_vk(),
+    result.srcQueueFamilyIndex = src_queue_family_index;
+    result.sType               = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+
+    return result;
 }
 
 Anvil::BufferProperties::BufferProperties()
