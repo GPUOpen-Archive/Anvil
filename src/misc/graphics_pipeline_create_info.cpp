@@ -497,16 +497,16 @@ void Anvil::GraphicsPipelineCreateInfo::get_logic_op_state(bool*           out_o
 }
 
 void Anvil::GraphicsPipelineCreateInfo::get_multisampling_properties(SampleCountFlagBits* out_opt_sample_count_ptr,
-                                                                     VkSampleMask*        out_opt_sample_mask_ptr) const
+                                                                     const VkSampleMask** out_opt_sample_mask_ptr_ptr) const
 {
     if (out_opt_sample_count_ptr != nullptr)
     {
         *out_opt_sample_count_ptr = m_sample_count;
     }
 
-    if (out_opt_sample_mask_ptr != nullptr)
+    if (out_opt_sample_mask_ptr_ptr != nullptr)
     {
-        *out_opt_sample_mask_ptr = m_sample_mask;
+        *out_opt_sample_mask_ptr_ptr = &m_sample_mask;
     }
 }
 
