@@ -518,10 +518,11 @@ end:
 }
 
 /** Please see header for specification */
-VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
-                               uint32_t                 in_swapchain_image_index,
-                               uint32_t                 in_n_wait_semaphores,
-                               Anvil::Semaphore* const* in_wait_semaphore_ptrs)
+bool Anvil::Queue::present(Anvil::Swapchain*                   in_swapchain_ptr,
+                           uint32_t                            in_swapchain_image_index,
+                           uint32_t                            in_n_wait_semaphores,
+                           Anvil::Semaphore* const*            in_wait_semaphore_ptrs,
+                           Anvil::SwapchainOperationErrorCode* out_present_results_ptr)
 {
     static const uint32_t device_mask = 0x1;
 
@@ -531,18 +532,20 @@ VkResult Anvil::Queue::present(Anvil::Swapchain*        in_swapchain_ptr,
                            &in_swapchain_image_index,
                            &device_mask,
                             in_n_wait_semaphores,
-                            in_wait_semaphore_ptrs);
+                            in_wait_semaphore_ptrs,
+                            out_present_results_ptr);
 }
 
 /** Please see header for specification */
-VkResult Anvil::Queue::present_in_local_presentation_mode(uint32_t                         in_n_local_mode_presentation_items,
-                                                          const LocalModePresentationItem* in_local_mode_presentation_items,
-                                                          uint32_t                         in_n_wait_semaphores,
-                                                          Anvil::Semaphore* const*         in_wait_semaphore_ptrs)
+bool Anvil::Queue::present_in_local_presentation_mode(uint32_t                            in_n_local_mode_presentation_items,
+                                                      const LocalModePresentationItem*    in_local_mode_presentation_items,
+                                                      uint32_t                            in_n_wait_semaphores,
+                                                      Anvil::Semaphore* const*            in_wait_semaphore_ptrs,
+                                                      Anvil::SwapchainOperationErrorCode* out_present_results_ptr)
 {
     const Anvil::DeviceType device_type  (m_device_ptr->get_type() );
     uint32_t                n_swapchains;
-    VkResult                result;
+    bool                    result;
 
     uint32_t                device_masks           [MAX_SWAPCHAINS];
     uint32_t                swapchain_image_indices[MAX_SWAPCHAINS];
@@ -587,19 +590,21 @@ VkResult Anvil::Queue::present_in_local_presentation_mode(uint32_t              
                               swapchain_image_indices,
                               device_masks,
                               in_n_wait_semaphores,
-                              in_wait_semaphore_ptrs);
+                              in_wait_semaphore_ptrs,
+                              out_present_results_ptr);
 
     return result;
 }
 
 /** Please see header for specification */
-VkResult Anvil::Queue::present_in_local_multi_device_presentation_mode(uint32_t                                           in_n_local_multi_device_mode_presentation_items,
-                                                                       const Anvil::LocalMultiDeviceModePresentationItem* in_local_multi_device_mode_presentation_items,
-                                                                       uint32_t                                           in_n_wait_semaphores,
-                                                                       Anvil::Semaphore* const*                           in_wait_semaphore_ptrs)
+bool Anvil::Queue::present_in_local_multi_device_presentation_mode(uint32_t                                           in_n_local_multi_device_mode_presentation_items,
+                                                                   const Anvil::LocalMultiDeviceModePresentationItem* in_local_multi_device_mode_presentation_items,
+                                                                   uint32_t                                           in_n_wait_semaphores,
+                                                                   Anvil::Semaphore* const*                           in_wait_semaphore_ptrs,
+                                                                   Anvil::SwapchainOperationErrorCode*                out_present_results_ptr)
 {
     uint32_t          n_swapchains;
-    VkResult          result;
+    bool              result;
 
     uint32_t          device_masks           [MAX_SWAPCHAINS];
     uint32_t          swapchain_image_indices[MAX_SWAPCHAINS];
@@ -636,20 +641,22 @@ VkResult Anvil::Queue::present_in_local_multi_device_presentation_mode(uint32_t 
                               swapchain_image_indices,
                               device_masks,
                               in_n_wait_semaphores,
-                              in_wait_semaphore_ptrs);
+                              in_wait_semaphore_ptrs,
+                              out_present_results_ptr);
 
     return result;
 }
 
 /** Please see header for specification */
-VkResult Anvil::Queue::present_in_remote_presentation_mode(uint32_t                                 in_n_remote_mode_presentation_items,
-                                                           const Anvil::RemoteModePresentationItem* in_remote_mode_presentation_items,
-                                                           uint32_t                                 in_n_wait_semaphores,
-                                                           Anvil::Semaphore* const*                 in_wait_semaphore_ptrs)
+bool Anvil::Queue::present_in_remote_presentation_mode(uint32_t                                 in_n_remote_mode_presentation_items,
+                                                       const Anvil::RemoteModePresentationItem* in_remote_mode_presentation_items,
+                                                       uint32_t                                 in_n_wait_semaphores,
+                                                       Anvil::Semaphore* const*                 in_wait_semaphore_ptrs,
+                                                       Anvil::SwapchainOperationErrorCode*      out_present_results_ptr)
 {
     const Anvil::MGPUDevice* mgpu_device_ptr(dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr));
     uint32_t                 n_swapchains;
-    VkResult                 result;
+    bool                     result;
 
     uint32_t          device_masks           [MAX_SWAPCHAINS];
     uint32_t          swapchain_image_indices[MAX_SWAPCHAINS];
@@ -690,20 +697,22 @@ VkResult Anvil::Queue::present_in_remote_presentation_mode(uint32_t             
                               swapchain_image_indices,
                               device_masks,
                               in_n_wait_semaphores,
-                              in_wait_semaphore_ptrs);
+                              in_wait_semaphore_ptrs,
+                              out_present_results_ptr);
 
     return result;
 }
 
 /** Please see header for specification */
-VkResult Anvil::Queue::present_in_sum_presentation_mode(uint32_t                              in_n_sum_mode_presentation_items,
-                                                        const Anvil::SumModePresentationItem* in_sum_mode_presentation_items,
-                                                        uint32_t                              in_n_wait_semaphores,
-                                                        Anvil::Semaphore* const*              in_wait_semaphore_ptrs)
+bool Anvil::Queue::present_in_sum_presentation_mode(uint32_t                              in_n_sum_mode_presentation_items,
+                                                    const Anvil::SumModePresentationItem* in_sum_mode_presentation_items,
+                                                    uint32_t                              in_n_wait_semaphores,
+                                                    Anvil::Semaphore* const*              in_wait_semaphore_ptrs,
+                                                    Anvil::SwapchainOperationErrorCode*   out_present_results_ptr)
 {
     const Anvil::MGPUDevice* mgpu_device_ptr(dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr));
     uint32_t                 n_swapchains;
-    VkResult                 result;
+    bool                     result;
 
     uint32_t          device_masks           [MAX_SWAPCHAINS];
     uint32_t          swapchain_image_indices[MAX_SWAPCHAINS];
@@ -791,23 +800,26 @@ VkResult Anvil::Queue::present_in_sum_presentation_mode(uint32_t                
                               swapchain_image_indices,
                               device_masks,
                               in_n_wait_semaphores,
-                              in_wait_semaphore_ptrs);
+                              in_wait_semaphore_ptrs,
+                              out_present_results_ptr);
 
     return result;
 }
 
 /** Please see header for specification */
-VkResult Anvil::Queue::present_internal(DeviceGroupPresentModeFlagBits in_presentation_mode,
-                                        uint32_t                       in_n_swapchains,
-                                        Anvil::Swapchain* const*       in_swapchains,
-                                        const uint32_t*                in_swapchain_image_indices,
-                                        const uint32_t*                in_device_masks,
-                                        uint32_t                       in_n_wait_semaphores,
-                                        Anvil::Semaphore* const*       in_wait_semaphore_ptrs)
+bool Anvil::Queue::present_internal(DeviceGroupPresentModeFlagBits      in_presentation_mode,
+                                    uint32_t                            in_n_swapchains,
+                                    Anvil::Swapchain* const*            in_swapchains,
+                                    const uint32_t*                     in_swapchain_image_indices,
+                                    const uint32_t*                     in_device_masks,
+                                    uint32_t                            in_n_wait_semaphores,
+                                    Anvil::Semaphore* const*            in_wait_semaphore_ptrs,
+                                    Anvil::SwapchainOperationErrorCode* out_present_results_ptr)
 {
-    const Anvil::DeviceType                 device_type            (m_device_ptr->get_type() );
-    VkResult                                presentation_results   [MAX_SWAPCHAINS];
-    VkResult                                result;
+    const Anvil::DeviceType                 device_type              (m_device_ptr->get_type() );
+    VkResult                                presentation_results     [MAX_SWAPCHAINS];
+    bool                                    result                   (false);
+    VkResult                                result_vk;
     Anvil::StructChainer<VkPresentInfoKHR>  struct_chainer;
     const ExtensionKHRSwapchainEntrypoints* swapchain_entrypoints_ptr(nullptr);
     VkSwapchainKHR                          swapchains_vk          [MAX_SWAPCHAINS];
@@ -858,7 +870,7 @@ VkResult Anvil::Queue::present_internal(DeviceGroupPresentModeFlagBits in_presen
                                                       &callback_argument);
                 }
 
-                result = VK_SUCCESS;
+                result = true;
                 goto end;
             }
         }
@@ -920,8 +932,8 @@ VkResult Anvil::Queue::present_internal(DeviceGroupPresentModeFlagBits in_presen
     {
         auto chain_ptr = struct_chainer.create_chain();
 
-        result = swapchain_entrypoints_ptr->vkQueuePresentKHR(m_queue,
-                                                              chain_ptr->get_root_struct() );
+        result_vk = swapchain_entrypoints_ptr->vkQueuePresentKHR(m_queue,
+                                                                 chain_ptr->get_root_struct() );
     }
     present_lock_unlock(in_n_swapchains,
                         in_swapchains,
@@ -929,74 +941,19 @@ VkResult Anvil::Queue::present_internal(DeviceGroupPresentModeFlagBits in_presen
                         in_wait_semaphore_ptrs,
                         false);
 
-    anvil_assert_vk_call_succeeded(result);
+    result = (result_vk == VK_SUCCESS);
 
-    if (is_vk_call_successful(result) )
+    for (uint32_t n_presentation = 0;
+                  n_presentation < in_n_swapchains;
+                ++n_presentation)
     {
-        for (uint32_t n_presentation = 0;
-                      n_presentation < in_n_swapchains;
-                    ++n_presentation)
+        out_present_results_ptr[n_presentation] = static_cast<Anvil::SwapchainOperationErrorCode>(presentation_results[n_presentation]);
+
         {
-            anvil_assert(is_vk_call_successful(presentation_results[n_presentation]));
+            OnPresentRequestIssuedCallbackArgument callback_argument(in_swapchains[n_presentation]);
 
-            /* Return the most important error code reported */
-            if (result != VK_ERROR_DEVICE_LOST)
-            {
-                switch (presentation_results[n_presentation])
-                {
-                    case VK_ERROR_DEVICE_LOST:
-                    {
-                        result = VK_ERROR_DEVICE_LOST;
-
-                        break;
-                    }
-
-                    case VK_ERROR_SURFACE_LOST_KHR:
-                    {
-                        if (result != VK_ERROR_DEVICE_LOST)
-                        {
-                            result = VK_ERROR_SURFACE_LOST_KHR;
-                        }
-
-                        break;
-                    }
-
-                    case VK_ERROR_OUT_OF_DATE_KHR:
-                    {
-                        if (result != VK_ERROR_DEVICE_LOST      &&
-                            result != VK_ERROR_SURFACE_LOST_KHR)
-                        {
-                            result = VK_ERROR_OUT_OF_DATE_KHR;
-                        }
-
-                        break;
-                    }
-
-                    case VK_SUBOPTIMAL_KHR:
-                    {
-                        if (result != VK_ERROR_DEVICE_LOST      &&
-                            result != VK_ERROR_SURFACE_LOST_KHR &&
-                            result != VK_ERROR_OUT_OF_DATE_KHR)
-                        {
-                            result = VK_SUBOPTIMAL_KHR;
-                        }
-
-                        break;
-                    }
-
-                    default:
-                    {
-                        anvil_assert(presentation_results[n_presentation] == VK_SUCCESS);
-                    }
-                }
-            }
-
-            {
-                OnPresentRequestIssuedCallbackArgument callback_argument(in_swapchains[n_presentation]);
-
-                CallbacksSupportProvider::callback(QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
-                                                  &callback_argument);
-            }
+            CallbacksSupportProvider::callback(QUEUE_CALLBACK_ID_PRESENT_REQUEST_ISSUED,
+                                              &callback_argument);
         }
     }
 

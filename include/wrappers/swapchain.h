@@ -71,12 +71,14 @@ namespace Anvil
          *
          *  @return Index of the swapchain image that the commands should be submitted against.
          **/
-        uint32_t acquire_image(Anvil::Semaphore*                   in_opt_semaphore_ptr,
-                               bool                                in_should_block = false);
-        uint32_t acquire_image(Anvil::Semaphore*                   in_opt_semaphore_ptr,
-                               uint32_t                            in_n_mgpu_physical_devices,
-                               const Anvil::PhysicalDevice* const* in_mgpu_physical_device_ptrs,
-                               bool                                in_should_block = false);
+        SwapchainOperationErrorCode acquire_image(Anvil::Semaphore*                   in_opt_semaphore_ptr,
+                                                  uint32_t*                           out_result_index_ptr,
+                                                  bool                                in_should_block = false);
+        SwapchainOperationErrorCode acquire_image(Anvil::Semaphore*                   in_opt_semaphore_ptr,
+                                                  uint32_t                            in_n_mgpu_physical_devices,
+                                                  const Anvil::PhysicalDevice* const* in_mgpu_physical_device_ptrs,
+                                                  uint32_t*                           out_result_index_ptr,
+                                                  bool                                in_should_block = false);
 
         const SwapchainCreateInfo* get_create_info_ptr() const
         {
