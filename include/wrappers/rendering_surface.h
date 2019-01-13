@@ -95,7 +95,6 @@ namespace Anvil
         uint32_t get_height() const
         {
             anvil_assert(m_height != 0);
-
             return m_height;
         }
 
@@ -137,7 +136,6 @@ namespace Anvil
         uint32_t get_width() const
         {
             anvil_assert(m_width != 0);
-
             return m_width;
         }
 
@@ -151,6 +149,8 @@ namespace Anvil
         bool supports_presentation_mode(const Anvil::PhysicalDevice* in_physical_device_ptr,
                                         Anvil::PresentModeKHR        in_presentation_mode,
                                         bool*                        out_result_ptr) const;
+
+        void update_surface_extents() const;
 
     private:
         /* Private type definitions */
@@ -193,10 +193,10 @@ namespace Anvil
         const Anvil::BaseDevice* m_device_ptr;
         Anvil::Instance*         m_instance_ptr;
 
-        uint32_t                                               m_height;
+        mutable uint32_t                                       m_height;
         std::map<DeviceGroupIndex, PhysicalDeviceCapabilities> m_physical_device_capabilities;
         VkSurfaceKHR                                           m_surface;
-        uint32_t                                               m_width;
+        mutable uint32_t                                       m_width;
         const Anvil::Window*                                   m_window_ptr;
     };
 }; /* namespace Anvil */
