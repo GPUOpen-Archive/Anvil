@@ -23,7 +23,7 @@
 #include "misc/fp16.h"
 
 // Conversion tables
-static struct PrecalcedData
+static const struct PrecalcedData
 {
     uint32_t      basetable[512];
     unsigned char shifttable[512];
@@ -154,7 +154,7 @@ Anvil::float32_t Anvil::Utils::fp16_to_fp32_full(Anvil::float16_t in_h)
         else // Normalized number
         {
             o.fields.Mantissa = static_cast<uint32_t>(in_h.fields.Mantissa << 13);
-            o.fields.Exponent = static_cast<uint32_t>(127 - 15 + in_h.fields.Exponent); 
+            o.fields.Exponent = static_cast<uint32_t>(127 - 15 + in_h.fields.Exponent);
             o.fields.Sign     = in_h.fields.Sign;
         }
     }
@@ -523,7 +523,7 @@ Anvil::float16_t Anvil::Utils::fp32_to_fp16_fast3(Anvil::float32_t in_f)
     Anvil::float32_t f16infty   = { 31 << 23 };
     Anvil::float32_t magic      = { 15 << 23 };
     uint32_t         sign_mask  = 0x80000000u;
-    uint32_t         round_mask = ~0xfffu; 
+    uint32_t         round_mask = ~0xfffu;
     Anvil::float16_t o;
 
     uint32_t sign = in_f.u & sign_mask;

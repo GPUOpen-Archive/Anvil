@@ -1804,6 +1804,16 @@ namespace Anvil
 
     INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(SwapchainCreateFlags, VkSwapchainCreateFlagsKHR, SwapchainCreateFlagBits)
 
+    /* Note: These map 1:1 to corresponding VK error & VK swapchain error codes. */
+    enum class SwapchainOperationErrorCode
+    {
+        DEVICE_LOST  = VK_ERROR_DEVICE_LOST,
+        OUT_OF_DATE  = VK_ERROR_OUT_OF_DATE_KHR,
+        SUBOPTIMAL   = VK_SUBOPTIMAL_KHR,
+        SUCCESS      = VK_SUCCESS,
+        SURFACE_LOST = VK_ERROR_SURFACE_LOST_KHR
+    };
+
     /* NOTE: Enums map 1:1 to their VK equivalents */
     enum class TessellationDomainOrigin
     {

@@ -65,6 +65,9 @@ namespace Anvil
          *  to MemoryBlock::create().
          *
          *  TODO
+         *
+         *  @param in_allowed_memory_bits A bitfield whose indices correspond to memory type indices which can be used for the allocation.
+         *                                
          */
         static MemoryBlockCreateInfoUniquePtr create_derived_with_custom_delete_proc(const Anvil::BaseDevice*             in_device_ptr,
                                                                                      VkDeviceMemory                       in_memory,

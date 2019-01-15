@@ -215,8 +215,6 @@
         m_resources_ptr->maxFragmentAtomicCounterBuffers             = 0; /* not supported in Vulkan */
         m_resources_ptr->maxCombinedAtomicCounterBuffers             = 0; /* not supported in Vulkan */
         m_resources_ptr->maxAtomicCounterBufferSize                  = 0; /* not supported in Vulkan */
-        m_resources_ptr->maxTransformFeedbackBuffers                 = 0; /* not supported in Vulkan */
-        m_resources_ptr->maxTransformFeedbackInterleavedComponents   = 0; /* not supported in Vulkan */
         m_resources_ptr->maxCullDistances                            = static_cast<int32_t>(CLAMP_TO_INT_MAX(limits.max_cull_distances) );
         m_resources_ptr->maxCombinedClipAndCullDistances             = static_cast<int32_t>(CLAMP_TO_INT_MAX(limits.max_combined_clip_and_cull_distances) );
         m_resources_ptr->maxSamples                                  = (max_sampled_image_samples > max_storage_image_samples) ? CLAMP_TO_INT_MAX(max_sampled_image_samples)
@@ -230,9 +228,22 @@
         m_resources_ptr->limits.generalSamplerIndexing               = 1;
         m_resources_ptr->limits.generalVariableIndexing              = 1;
         m_resources_ptr->limits.generalConstantMatrixVectorIndexing  = 1;
+
+        if (in_device_ptr->get_extension_info()->ext_transform_feedback() )
+        {
+            const auto xfb_props_ptr = in_device_ptr->get_physical_device_properties().ext_transform_feedback_properties_ptr;
+
+            m_resources_ptr->maxTransformFeedbackBuffers                 = xfb_props_ptr->n_max_transform_feedback_buffers;
+            m_resources_ptr->maxTransformFeedbackInterleavedComponents   = xfb_props_ptr->max_transform_feedback_buffer_data_size / 4;
+        }
+        else
+        {
+            m_resources_ptr->maxTransformFeedbackBuffers               = 0; /* not supported in core Vulkan */
+            m_resources_ptr->maxTransformFeedbackInterleavedComponents = 0; /* not supported in core Vulkan */
+        }
     }
 
-    static GLSLangGlobalInitializer glslang_helper;
+    static const GLSLangGlobalInitializer glslang_helper;
 #endif
 
 
@@ -320,6 +331,30 @@ end:
 }
 
 /* Please see header for specification */
+bool Anvil::GLSLShaderToSPIRVGenerator::add_placeholder_value_pair(const std::string& in_placeholder_name,
+                                                                   const std::string& in_value)
+{
+    bool result = false;
+
+    for (const auto& placeholder_value_pair : m_placeholder_values)
+    {
+        if (placeholder_value_pair.first == in_placeholder_name)
+        {
+            anvil_assert_fail();
+
+            goto end;
+        }
+    }
+
+    m_placeholder_values.push_back(std::make_pair(in_placeholder_name, in_value));
+
+    /* All done */
+    result = true;
+end:
+    return result;
+}
+
+/* Please see header for specification */
 bool Anvil::GLSLShaderToSPIRVGenerator::add_pragma(std::string in_pragma_name,
                                                    std::string in_opt_value)
 {
@@ -346,6 +381,7 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_glsl_source_code() const
     std::string    final_glsl_source_string;
     const uint32_t n_definition_values        = static_cast<uint32_t>(m_definition_values.size() );
     const uint32_t n_extension_behaviors      = static_cast<uint32_t>(m_extension_behaviors.size() );
+    const uint32_t n_placeholder_values       = static_cast<uint32_t>(m_placeholder_values.size());
     const uint32_t n_pragmas                  = static_cast<uint32_t>(m_pragmas.size() );
     bool           result                     = false;
 
@@ -392,6 +428,7 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_glsl_source_code() const
     }
 
     if (n_pragmas             > 0 ||
+        n_placeholder_values  > 0 ||
         n_extension_behaviors > 0 ||
         n_definition_values   > 0)
     {
@@ -434,7 +471,7 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_glsl_source_code() const
                                             new_line);
         }
 
-        /* Finish with pragmas */
+        /* Next define pragmas */
         for (auto& current_pragma : m_pragmas)
         {
             std::string pragma_name  = current_pragma.first;
@@ -443,6 +480,23 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_glsl_source_code() const
 
             final_glsl_source_string.insert(glsl_source_string_second_line_index,
                                             new_line);
+        }
+
+        /* Finish with replacing placeholders with values */
+        for(auto vec_iterator  = m_placeholder_values.begin();
+                 vec_iterator != m_placeholder_values.end();
+               ++vec_iterator)
+        {
+            const std::string& current_key   = vec_iterator->first;
+            const std::string& current_value = vec_iterator->second;
+            size_t glsl_source_string_pos    = final_glsl_source_string.find(current_key, 0);
+
+            while (glsl_source_string_pos != std::string::npos)
+            {
+                final_glsl_source_string.replace(glsl_source_string_pos, current_key.size(), current_value);
+
+                glsl_source_string_pos = final_glsl_source_string.find(current_key, glsl_source_string_pos);
+            }
         }
     }
 
@@ -571,7 +625,7 @@ end:
     #endif
 
 
-    
+
     return result;
 }
 
@@ -759,7 +813,7 @@ end:
                                nullptr, /* lpProcessAttributes */
                                nullptr, /* lpThreadAttributes */
                                FALSE, /* bInheritHandles */
-                               CREATE_NO_WINDOW, 
+                               CREATE_NO_WINDOW,
                                nullptr, /* lpEnvironment */
                                nullptr, /* lpCurrentDirectory */
                                &startup_info,
@@ -823,7 +877,7 @@ end:
         #endif
 
         /* Now, read the SPIR-V file contents */
-        
+
 
         Anvil::IO::read_file(in_spirv_filename_with_path.c_str(),
                              false, /* is_text_file */
