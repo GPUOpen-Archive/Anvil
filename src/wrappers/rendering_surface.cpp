@@ -606,3 +606,94 @@ bool Anvil::RenderingSurface::supports_presentation_mode(const Anvil::PhysicalDe
 
     return result;
 }
+
+void Anvil::RenderingSurface::update_surface_extents() const
+{
+    const Anvil::DeviceType& device_type                   (m_device_ptr->get_type() );
+    auto                     khr_surface_entrypoints       (m_instance_ptr->get_extension_khr_surface_entrypoints() );
+    const Anvil::MGPUDevice* mgpu_device_ptr               (dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr));
+    uint32_t                 n_physical_devices            (0);
+    const Anvil::SGPUDevice* sgpu_device_ptr               (dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr));
+
+    if (m_window_ptr != nullptr)
+    {
+        const WindowPlatform window_platform(m_window_ptr->get_platform() );
+
+        if (window_platform == WINDOW_PLATFORM_DUMMY                     ||
+            window_platform == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS)
+        {
+            /* Nothing to update - off-screen rendering is active. */
+            goto end;
+        }
+        else
+        {
+            /* In this case, width & height may change at run-time */
+        }
+    }
+    else
+    {
+        /* In this case, width & height may change at run-time */
+    }
+
+    switch (device_type)
+    {
+        case Anvil::DeviceType::MULTI_GPU:  n_physical_devices = mgpu_device_ptr->get_n_physical_devices(); break;
+        case Anvil::DeviceType::SINGLE_GPU: n_physical_devices = 1;                                         break;
+
+        default:
+        {
+            anvil_assert_fail();
+        }
+    }
+
+    /* Retrieve general properties */
+    for (uint32_t n_physical_device = 0;
+                  n_physical_device < n_physical_devices;
+                ++n_physical_device)
+    {
+        const Anvil::PhysicalDevice* physical_device_ptr = nullptr;
+        VkResult                     result_vk;
+        Anvil::SurfaceCapabilities   surface_caps;
+
+        ANVIL_REDUNDANT_VARIABLE_CONST(result_vk);
+
+        switch (device_type)
+        {
+            case Anvil::DeviceType::MULTI_GPU:  physical_device_ptr = mgpu_device_ptr->get_physical_device(n_physical_device); break;
+            case Anvil::DeviceType::SINGLE_GPU: physical_device_ptr = sgpu_device_ptr->get_physical_device();                  break;
+
+            default:
+            {
+                anvil_assert_fail();
+            }
+        }
+
+        if (m_surface == VK_NULL_HANDLE)
+        {
+            /* Nothing to update */
+            goto end;
+        }
+
+        const VkPhysicalDevice physical_device_vk = physical_device_ptr->get_physical_device();
+
+        result_vk = khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device_vk,
+                                                                                      m_surface,
+                                                                                      reinterpret_cast<VkSurfaceCapabilitiesKHR*>(&surface_caps) );
+
+        anvil_assert_vk_call_succeeded(result_vk);
+
+        if (n_physical_device == 0)
+        {
+            m_height = surface_caps.current_extent.height;
+            m_width  = surface_caps.current_extent.width;
+        }
+        else
+        {
+            anvil_assert(m_height == surface_caps.current_extent.height);
+            anvil_assert(m_width  == surface_caps.current_extent.width);
+        }
+    }
+
+end:
+    ;
+}

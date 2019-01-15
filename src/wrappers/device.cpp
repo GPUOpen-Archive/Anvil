@@ -863,6 +863,19 @@ void Anvil::BaseDevice::init(const DeviceExtensionConfiguration& in_extensions,
         anvil_assert(m_khr_bind_memory2_extension_entrypoints.vkBindImageMemory2KHR  != nullptr);
     }
 
+    if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_create_renderpass2() )
+    {
+        m_khr_create_renderpass2_extension_entrypoints.vkCmdBeginRenderPass2KHR = reinterpret_cast<PFN_vkCmdBeginRenderPass2KHR>(get_proc_address("vkCmdBeginRenderPass2KHR"));
+        m_khr_create_renderpass2_extension_entrypoints.vkCmdEndRenderPass2KHR   = reinterpret_cast<PFN_vkCmdEndRenderPass2KHR>  (get_proc_address("vkCmdEndRenderPass2KHR"));
+        m_khr_create_renderpass2_extension_entrypoints.vkCmdNextSubpass2KHR     = reinterpret_cast<PFN_vkCmdNextSubpass2KHR>    (get_proc_address("vkCmdNextSubpass2KHR"));
+        m_khr_create_renderpass2_extension_entrypoints.vkCreateRenderPass2KHR   = reinterpret_cast<PFN_vkCreateRenderPass2KHR>  (get_proc_address("vkCreateRenderPass2KHR"));
+
+        anvil_assert(m_khr_create_renderpass2_extension_entrypoints.vkCmdBeginRenderPass2KHR != nullptr);
+        anvil_assert(m_khr_create_renderpass2_extension_entrypoints.vkCmdEndRenderPass2KHR   != nullptr);
+        anvil_assert(m_khr_create_renderpass2_extension_entrypoints.vkCmdNextSubpass2KHR     != nullptr);
+        anvil_assert(m_khr_create_renderpass2_extension_entrypoints.vkCreateRenderPass2KHR   != nullptr);
+    }
+
     if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_draw_indirect_count() )
     {
         m_khr_draw_indirect_count_extension_entrypoints.vkCmdDrawIndexedIndirectCountKHR = reinterpret_cast<PFN_vkCmdDrawIndexedIndirectCountKHR>(get_proc_address("vkCmdDrawIndexedIndirectCountKHR") );

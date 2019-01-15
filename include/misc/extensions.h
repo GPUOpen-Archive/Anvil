@@ -66,6 +66,7 @@ namespace Anvil
             ValueType khr_16bit_storage;
             ValueType khr_8bit_storage;
             ValueType khr_bind_memory2;
+            ValueType khr_create_renderpass2;
             ValueType khr_dedicated_allocation;
             ValueType khr_descriptor_update_template;
             ValueType khr_device_group;
@@ -153,6 +154,7 @@ namespace Anvil
                     {ExtensionData(VK_KHR_16BIT_STORAGE_EXTENSION_NAME,                    &khr_16bit_storage)},
                     {ExtensionData(VK_KHR_8BIT_STORAGE_EXTENSION_NAME,                     &khr_8bit_storage)},
                     {ExtensionData(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,                    &khr_bind_memory2)},
+                    {ExtensionData(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,              &khr_create_renderpass2)},
                     {ExtensionData(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,             &khr_dedicated_allocation)},
                     {ExtensionData(VK_KHR_DESCRIPTOR_UPDATE_TEMPLATE_EXTENSION_NAME,       &khr_descriptor_update_template)},
                     {ExtensionData(VK_KHR_DEVICE_GROUP_EXTENSION_NAME,                     &khr_device_group)},
@@ -330,6 +332,7 @@ namespace Anvil
         virtual ValueType khr_16bit_storage                   () const = 0;
         virtual ValueType khr_8bit_storage                    () const = 0;
         virtual ValueType khr_bind_memory2                    () const = 0;
+        virtual ValueType khr_create_renderpass2              () const = 0;
         virtual ValueType khr_dedicated_allocation            () const = 0;
         virtual ValueType khr_descriptor_update_template      () const = 0;
         virtual ValueType khr_device_group                    () const = 0;
@@ -717,6 +720,13 @@ namespace Anvil
             anvil_assert(m_expose_device_extensions);
 
             return m_device_extensions_ptr->khr_bind_memory2;
+        }
+
+        ValueType khr_create_renderpass2() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->khr_create_renderpass2;
         }
 
         ValueType khr_dedicated_allocation() const final

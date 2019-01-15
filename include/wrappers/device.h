@@ -202,6 +202,14 @@ namespace Anvil
             return m_khr_bind_memory2_extension_entrypoints;
         }
 
+        /** Returns a container with entry-points to functions introduced by VK_KHR_create_renderpass2 extension. **/
+        const ExtensionKHRCreateRenderpass2Entrypoints& get_extension_khr_create_renderpass2_entrypoints() const
+        {
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_create_renderpass2() );
+
+            return m_khr_create_renderpass2_extension_entrypoints;
+        }
+
         /** Returns a container with entry-points to functions introduced by VK_KHR_descriptor_update_template extension. **/
         const ExtensionKHRDescriptorUpdateTemplateEntrypoints& get_extension_khr_descriptor_update_template_entrypoints() const
         {
@@ -739,6 +747,7 @@ namespace Anvil
         ExtensionEXTSampleLocationsEntrypoints            m_ext_sample_locations_extension_entrypoints;
         ExtensionEXTTransformFeedbackEntrypoints          m_ext_transform_feedback_extension_entrypoints;
         ExtensionKHRBindMemory2Entrypoints                m_khr_bind_memory2_extension_entrypoints;
+        ExtensionKHRCreateRenderpass2Entrypoints          m_khr_create_renderpass2_extension_entrypoints;
         ExtensionKHRDescriptorUpdateTemplateEntrypoints   m_khr_descriptor_update_template_extension_entrypoints;
         ExtensionKHRDeviceGroupEntrypoints                m_khr_device_group_extension_entrypoints;
         ExtensionKHRDrawIndirectCountEntrypoints          m_khr_draw_indirect_count_extension_entrypoints;

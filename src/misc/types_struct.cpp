@@ -19,8 +19,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
-#include "misc/types.h"
 #include "misc/descriptor_set_create_info.h"
+#include "misc/formats.h"
+#include "misc/image_create_info.h"
+#include "misc/types.h"
 #include "wrappers/buffer.h"
 #include "wrappers/descriptor_set_layout.h"
 #include "wrappers/image.h"
@@ -81,7 +83,6 @@ bool Anvil::AMDShaderCoreProperties::operator==(const Anvil::AMDShaderCoreProper
 Anvil::BufferBarrier::BufferBarrier(const BufferBarrier& in)
 {
     buffer                 = in.buffer;
-    buffer_barrier_vk      = in.buffer_barrier_vk;
     buffer_ptr             = in.buffer_ptr;
     dst_access_mask        = in.dst_access_mask;
     dst_queue_family_index = in.dst_queue_family_index;
@@ -109,16 +110,6 @@ Anvil::BufferBarrier::BufferBarrier(Anvil::AccessFlags in_source_access_mask,
     src_access_mask        = in_source_access_mask;
     src_queue_family_index = in_src_queue_family_index;
 
-    buffer_barrier_vk.buffer              = in_buffer_ptr->get_buffer();
-    buffer_barrier_vk.dstAccessMask       = in_destination_access_mask.get_vk();
-    buffer_barrier_vk.dstQueueFamilyIndex = in_dst_queue_family_index;
-    buffer_barrier_vk.offset              = in_offset;
-    buffer_barrier_vk.pNext               = nullptr;
-    buffer_barrier_vk.size                = in_size;
-    buffer_barrier_vk.srcAccessMask       = in_source_access_mask.get_vk(),
-    buffer_barrier_vk.srcQueueFamilyIndex = in_src_queue_family_index;
-    buffer_barrier_vk.sType               = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-
     /* NOTE: For an image barrier to work correctly, the underlying subresource range must be assigned memory.
      *       Query for a memory block in order to force any listening memory allocators to bake */
     auto memory_block_ptr = buffer_ptr->get_memory_block(0 /* in_n_memory_block */);
@@ -141,6 +132,23 @@ bool Anvil::BufferBarrier::operator==(const Anvil::BufferBarrier& in_barrier) co
             offset                 == in_barrier.offset                 &&
             size                   == in_barrier.size                   &&
             src_queue_family_index == in_barrier.src_queue_family_index);
+}
+
+VkBufferMemoryBarrier Anvil::BufferBarrier::get_barrier_vk() const
+{
+    VkBufferMemoryBarrier result;
+
+    result.buffer              = buffer_ptr->get_buffer();
+    result.dstAccessMask       = dst_access_mask.get_vk();
+    result.dstQueueFamilyIndex = dst_queue_family_index;
+    result.offset              = offset;
+    result.pNext               = nullptr;
+    result.size                = size;
+    result.srcAccessMask       = src_access_mask.get_vk(),
+    result.srcQueueFamilyIndex = src_queue_family_index;
+    result.sType               = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+
+    return result;
 }
 
 Anvil::BufferProperties::BufferProperties()
@@ -387,6 +395,14 @@ Anvil::ExtensionEXTTransformFeedbackEntrypoints::ExtensionEXTTransformFeedbackEn
     vkCmdDrawIndirectByteCountEXT        = nullptr;
     vkCmdEndQueryIndexedEXT              = nullptr;
     vkCmdEndTransformFeedbackEXT         = nullptr;
+}
+
+Anvil::ExtensionKHRCreateRenderpass2Entrypoints::ExtensionKHRCreateRenderpass2Entrypoints()
+{
+    vkCmdBeginRenderPass2KHR = nullptr;
+    vkCmdEndRenderPass2KHR   = nullptr;
+    vkCmdNextSubpass2KHR     = nullptr;
+    vkCreateRenderPass2KHR   = nullptr;
 }
 
 Anvil::ExtensionKHRDeviceGroupEntrypoints::ExtensionKHRDeviceGroupEntrypoints()
@@ -1029,6 +1045,20 @@ Anvil::ImageBarrier::ImageBarrier(Anvil::AccessFlags           in_source_access_
     src_queue_family_index = in_src_queue_family_index;
     subresource_range      = in_image_subresource_range;
 
+    /* NOTE: Barriers referring to DS images must always specify both aspects. */
+    {
+        const auto image_format = in_image_ptr->get_create_info_ptr()->get_format();
+
+        if (Anvil::Formats::has_depth_aspect  (image_format) &&
+            Anvil::Formats::has_stencil_aspect(image_format) )
+        {
+            if (subresource_range.aspect_mask != (Anvil::ImageAspectFlagBits::DEPTH_BIT | Anvil::ImageAspectFlagBits::STENCIL_BIT) )
+            {
+                subresource_range.aspect_mask = (Anvil::ImageAspectFlagBits::DEPTH_BIT | Anvil::ImageAspectFlagBits::STENCIL_BIT);
+            }
+        }
+    }
+
     image_barrier_vk.dstAccessMask       = in_destination_access_mask.get_vk();
     image_barrier_vk.dstQueueFamilyIndex = in_dst_queue_family_index;
     image_barrier_vk.image               = (in_image_ptr != nullptr) ? in_image_ptr->get_image()
@@ -1039,7 +1069,7 @@ Anvil::ImageBarrier::ImageBarrier(Anvil::AccessFlags           in_source_access_
     image_barrier_vk.srcAccessMask       = in_source_access_mask.get_vk();
     image_barrier_vk.srcQueueFamilyIndex = in_src_queue_family_index;
     image_barrier_vk.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    image_barrier_vk.subresourceRange    = in_image_subresource_range.get_vk();
+    image_barrier_vk.subresourceRange    = subresource_range.get_vk();
 
     /* NOTE: For an image barrier to work correctly, the underlying subresource range must be assigned memory.
      *       Query for a memory block in order to force any listening memory allocators to bake */

@@ -32,6 +32,7 @@
 #define WRAPPERS_INSTANCE_H
 
 #include "misc/extensions.h"
+#include "misc/instance_create_info.h"
 #include "misc/library.h"
 #include "misc/mt_safety.h"
 #include "misc/types.h"
@@ -39,47 +40,14 @@
 
 namespace Anvil
 {
-     typedef std::function<void (Anvil::DebugMessageSeverityFlags in_severity,
-                                 const char*                      in_message)> DebugCallbackFunction;
-
     class Instance : public Anvil::MTSafetySupportProvider
     {
     public:
         /** Destructor */
         virtual ~Instance();
 
-        /** Creates a new Instance wrapper instance. This process is executed in the following steps:
-         *
-         *  1. If @param opt_pfn_validation_callback_proc is specified, available instance layers are
-         *     enumerated. Layers which support VK_EXT_debug_report extension, are cached and used
-         *     in step 2.
-         *  2. A new Vulkan instance is created.
-         *  3. Available physical devices are enumerated.
-         *  4. Instance-level function pointers are extracted.
-         *
-         *  Only one Instance wrapper instance should be created during application's life-time.
-         *
-         *  NOTE: You MUST call destroy() for this object in order for all dependent objects to be
-         *        destroyed correctly.
-         *
-         *
-         *  @param in_app_name                                 Name of the application, to be passed in VkCreateInstanceInfo
-         *                                                     structure.
-         *  @param in_engine_name                              Name of the engine, to be passed in VkCreateInstanceInfo
-         *                                                     structure.
-         *  @param in_opt_validation_callback_function         If not nullptr, the specified function will be called whenever
-         *                                                     a call-back from any of the validation layers is received.
-         *                                                     Ignored otherwise.
-         *  @param in_mt_safe                                  True if all instance-based operations where external host synchronization
-         *                                                     is required should be automatically synchronized by Anvil.
-         *  @param in_opt_disallowed_instance_level_extensions Optional vector holding instance-level extension names that must NOT be
-         *                                                     requested at creation time. 
-         **/
-        static Anvil::InstanceUniquePtr create(const std::string&              in_app_name,
-                                               const std::string&              in_engine_name,
-                                               Anvil::DebugCallbackFunction    in_opt_validation_callback_proc,
-                                               bool                            in_mt_safe,
-                                               const std::vector<std::string>& in_opt_disallowed_instance_level_extensions = std::vector<std::string>() );
+        /** Creates a new Instance wrapper instance. **/
+        static Anvil::InstanceUniquePtr create(Anvil::InstanceCreateInfoUniquePtr in_create_info_ptr);
 
         const Anvil::IExtensionInfoInstance<bool>* get_enabled_extensions_info() const
         {
@@ -130,6 +98,11 @@ namespace Anvil
          *  Will fire an assertion failure if the extension is not supported.
          **/
         const ExtensionKHRDeviceGroupCreationEntrypoints& get_extension_khr_device_group_creation_entrypoints() const;
+
+        const Anvil::InstanceCreateInfo* get_create_info_ptr() const
+        {
+            return m_create_info_ptr.get();
+        }
 
         /** Returns a raw wrapped VkInstance handle. */
         VkInstance get_instance_vk() const
@@ -202,17 +175,14 @@ namespace Anvil
         /** Tells if validation support has been requested for this Vulkan Instance wrapper */
         bool is_validation_enabled() const
         {
-            return m_validation_callback_function != nullptr;
+            return m_create_info_ptr->get_validation_callback() != nullptr;
         }
 
     private:
         /* Private functions */
 
         /** Private constructor. Please use create() function instead. */
-        Instance(const std::string&           in_app_name,
-                 const std::string&           in_engine_name,
-                 Anvil::DebugCallbackFunction in_opt_validation_callback_function,
-                 bool                         in_mt_safe);
+        Instance(Anvil::InstanceCreateInfoUniquePtr in_create_info_ptr);
 
         Instance& operator=(const Instance&);
         Instance           (const Instance&);
@@ -222,7 +192,7 @@ namespace Anvil
         void enumerate_layer_extensions      (Anvil::Layer* layer_ptr);
         void enumerate_physical_device_groups();
         void enumerate_physical_devices      ();
-        void init                            (const std::vector<std::string>& in_disallowed_instance_level_extensions);
+        void init                            ();
         void init_debug_callbacks            ();
         void init_func_pointers              ();
 
@@ -255,9 +225,7 @@ namespace Anvil
             #endif
         #endif
 
-        const std::string     m_app_name;
-        const std::string     m_engine_name;
-        DebugCallbackFunction m_validation_callback_function;
+        Anvil::InstanceCreateInfoUniquePtr m_create_info_ptr;
 
         std::unique_ptr<Anvil::ExtensionInfo<bool> > m_enabled_extensions_info_ptr;
         std::unique_ptr<Anvil::ExtensionInfo<bool> > m_supported_extensions_info_ptr;

@@ -140,6 +140,7 @@ namespace Anvil
     class  ImageView;
     class  ImageViewCreateInfo;
     class  Instance;
+    class  InstanceCreateInfo;
     class  MemoryAllocator;
     class  MemoryBlock;
     class  MemoryBlockCreateInfo;
@@ -201,6 +202,7 @@ namespace Anvil
     typedef std::unique_ptr<Image,                                 std::function<void(Image*)> >                       ImageUniquePtr;
     typedef std::unique_ptr<ImageViewCreateInfo>                                                                       ImageViewCreateInfoUniquePtr;
     typedef std::unique_ptr<ImageView,                             std::function<void(ImageView*)> >                   ImageViewUniquePtr;
+    typedef std::unique_ptr<InstanceCreateInfo>                                                                        InstanceCreateInfoUniquePtr;
     typedef std::unique_ptr<Instance,                              std::function<void(Instance*)> >                    InstanceUniquePtr;
     typedef std::unique_ptr<MemoryAllocator,                       std::function<void(MemoryAllocator*)> >             MemoryAllocatorUniquePtr;
     typedef std::unique_ptr<MemoryBlockCreateInfo>                                                                     MemoryBlockCreateInfoUniquePtr;

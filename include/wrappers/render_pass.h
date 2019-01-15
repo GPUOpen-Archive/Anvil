@@ -83,7 +83,8 @@ namespace Anvil
         
         /* Private functions */
 
-        bool init();
+        bool init_using_core_vk10           ();
+        bool init_using_rp2_create_extension();
 
         /* Constructor. Please see create() for specification */
         RenderPass(Anvil::RenderPassCreateInfoUniquePtr in_renderpass_create_info_ptr,

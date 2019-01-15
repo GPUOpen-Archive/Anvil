@@ -22,6 +22,8 @@
 
 #include "misc/debug.h"
 #include "misc/external_handle.h"
+#include "misc/memory_allocator.h"
+#include "misc/memory_block_create_info.h"
 #include "misc/object_tracker.h"
 #include "misc/struct_chainer.h"
 #include "wrappers/buffer.h"
@@ -320,50 +322,27 @@ end:
 uint32_t Anvil::MemoryBlock::get_device_memory_type_index(uint32_t                  in_memory_type_bits,
                                                           Anvil::MemoryFeatureFlags in_memory_features)
 {
-    const bool                is_coherent_memory_required        ((in_memory_features & Anvil::MemoryFeatureFlagBits::HOST_COHERENT_BIT)    != 0);
-    const bool                is_device_local_memory_required    ((in_memory_features & Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT)     != 0);
-    const bool                is_host_cached_memory_required     ((in_memory_features & Anvil::MemoryFeatureFlagBits::HOST_CACHED_BIT)      != 0);
-    const bool                is_lazily_allocated_memory_required((in_memory_features & Anvil::MemoryFeatureFlagBits::LAZILY_ALLOCATED_BIT) != 0);
-    const bool                is_mappable_memory_required        ((in_memory_features & Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT)         != 0);
-    const bool                is_multi_instance_memory_required  ((in_memory_features & Anvil::MemoryFeatureFlagBits::MULTI_INSTANCE_BIT)   != 0);
-    const Anvil::MemoryTypes& memory_types                       (get_create_info_ptr()->get_device()->get_physical_device_memory_properties().types);
+    uint32_t filtered_mem_types = 0;
+    uint32_t result             = UINT32_MAX;
 
-    if (!is_mappable_memory_required)
+    if (!Anvil::MemoryAllocator::get_mem_types_supporting_mem_features(get_create_info_ptr()->get_device(),
+                                                                       in_memory_type_bits,
+                                                                       in_memory_features,
+                                                                      &filtered_mem_types) )
     {
-        anvil_assert(!is_coherent_memory_required);
+        goto end;
     }
 
-    const std::size_t n_memory_types = memory_types.size();
-    uint32_t          result         = UINT32_MAX;
+    /* Simply pick the first lit bit */
+    result = 0;
 
-    for (uint32_t n_memory_type = 0;
-                  n_memory_type < n_memory_types;
-                ++n_memory_type)
+    while ((filtered_mem_types & (1 << 0)) == 0)
     {
-        const Anvil::MemoryType& current_memory_type = memory_types[n_memory_type];
-
-        if (((is_coherent_memory_required          && ((current_memory_type.flags           & Anvil::MemoryPropertyFlagBits::HOST_COHERENT_BIT))    != 0)   ||
-             !is_coherent_memory_required)                                                                                                                  &&
-            ((is_device_local_memory_required      && ((current_memory_type.flags           & Anvil::MemoryPropertyFlagBits::DEVICE_LOCAL_BIT))     != 0)   ||
-             !is_device_local_memory_required)                                                                                                              &&
-            ((is_host_cached_memory_required       && ((current_memory_type.flags           & Anvil::MemoryPropertyFlagBits::HOST_CACHED_BIT))      != 0)   ||
-             !is_host_cached_memory_required)                                                                                                               &&
-            ((is_lazily_allocated_memory_required  && ((current_memory_type.flags           & Anvil::MemoryPropertyFlagBits::LAZILY_ALLOCATED_BIT)) != 0)   ||
-             !is_lazily_allocated_memory_required)                                                                                                          &&
-            ((is_mappable_memory_required          && ((current_memory_type.flags           & Anvil::MemoryPropertyFlagBits::HOST_VISIBLE_BIT))     != 0)   ||
-             !is_mappable_memory_required)                                                                                                                  &&
-            (!is_multi_instance_memory_required                                                                                                             ||
-             (is_multi_instance_memory_required    && ((current_memory_type.heap_ptr->flags & Anvil::MemoryHeapFlagBits::MULTI_INSTANCE_BIT_KHR)    != 0))) )
-        {
-            if ( (in_memory_type_bits & (1 << n_memory_type)) != 0)
-            {
-                result = n_memory_type;
-
-                break;
-            }
-        }
+        result             ++;
+        filtered_mem_types >>= 1;
     }
 
+end:
     anvil_assert(result != UINT32_MAX);
     return result;
 }

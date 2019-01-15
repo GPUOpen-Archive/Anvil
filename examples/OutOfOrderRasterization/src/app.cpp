@@ -35,6 +35,7 @@
 #include "misc/graphics_pipeline_create_info.h"
 #include "misc/image_create_info.h"
 #include "misc/image_view_create_info.h"
+#include "misc/instance_create_info.h"
 #include "misc/io.h"
 #include "misc/memory_allocator.h"
 #include "misc/object_tracker.h"
@@ -306,8 +307,9 @@ void App::draw_frame()
 
     /* Determine the semaphore which the swapchain image */
     {
-        n_swapchain_image = m_swapchain_ptr->acquire_image(curr_frame_acqusition_wait_semaphore_ptr.get(),
-                                                           true); /* in_should_block */
+        m_swapchain_ptr->acquire_image(curr_frame_acqusition_wait_semaphore_ptr.get(),
+                                      &n_swapchain_image,
+                                       true); /* in_should_block */
     }
 
     /* Set up semaphores we're going to use to render this frame. */
@@ -378,10 +380,16 @@ void App::draw_frame()
     }
 
     {
+        Anvil::SwapchainOperationErrorCode present_result = Anvil::SwapchainOperationErrorCode::DEVICE_LOST;
+
         m_present_queue_ptr->present(m_swapchain_ptr.get(),
-                                     n_swapchain_image,
-                                     n_physical_devices, /* n_wait_semaphores */
-                                     frame_ready_for_present_semaphores);
+                                                   n_swapchain_image,
+                                                   n_physical_devices, /* n_wait_semaphores */
+                                                   frame_ready_for_present_semaphores,
+                                                  &present_result);
+
+        ANVIL_REDUNDANT_VARIABLE(present_result);
+        anvil_assert            (present_result == Anvil::SwapchainOperationErrorCode::SUCCESS);
     }
 
     ++m_n_frames_drawn;
@@ -1144,17 +1152,21 @@ void App::init_window()
 void App::init_vulkan()
 {
     /* Create a Vulkan instance */
-    m_instance_ptr = Anvil::Instance::create("OutOfOrderRasterization",  /* app_name */
-                                             "OutOfOrderRasterization",  /* engine_name */
+    {
+        auto create_info_ptr = Anvil::InstanceCreateInfo::create("OutOfOrderRasterization",  /* app_name    */
+                                                                 "OutOfOrderRasterization",  /* engine_name */
 #ifdef ENABLE_VALIDATION
-                                             std::bind(&App::on_validation_callback,
-                                                       this,
-                                                       std::placeholders::_1,
-                                                       std::placeholders::_2),
+                                                                 std::bind(&App::on_validation_callback,
+                                                                           this,
+                                                                           std::placeholders::_1,
+                                                                           std::placeholders::_2),
 #else
-                                             Anvil::DebugCallbackFunction(),
+                                                                 Anvil::DebugCallbackFunction(),
 #endif
-                                             false); /* in_mt_safe */
+                                                                 false); /* in_mt_safe */
+
+        m_instance_ptr = Anvil::Instance::create(std::move(create_info_ptr) );
+    }
 
     /* Determine which extensions we need to request for */
     {

@@ -155,10 +155,9 @@ void Anvil::WindowWin3264::close()
 /** Creates a new system window and prepares it for usage. */
 bool Anvil::WindowWin3264::init(const bool& in_visible)
 {
-    static volatile uint32_t n_windows_spawned = 0;
-    bool                     result            = false;
-    const char*              window_class_name = (m_closable) ? "Anvil window (closable)"
-                                                              : "Anvil window (non-closable)";
+    bool        result            = false;
+    const char* window_class_name = (m_closable) ? "Anvil window (closable)"
+                                                 : "Anvil window (non-closable)";
 
     if (m_window_owned)
     {
