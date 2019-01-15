@@ -205,6 +205,35 @@ namespace Anvil
          bool add_extension_behavior(std::string       in_extension_name,
                                      ExtensionBehavior in_behavior);
 
+         /** Replaces all instances of [placeholder_name] with [value] in the shader source.
+          *
+          *  @param in_placeholder_name As specified above.
+          *  @param in_value            As specified above.
+          *
+          *  @return true if the function succeeded, false otherwise.
+          **/
+         bool add_placeholder_value_pair(const std::string& in_placeholder_name,
+                                         const std::string& in_value);
+
+         /** Replaces all instances of [placeholder_name] with [value] in the shader source.
+          *
+          *  @param in_placeholder_name As specified above.
+          *  @param in_value            As specified above.
+          *
+          *  @return true if the function succeeded, false otherwise.
+          **/
+         template <typename T>
+         bool add_placeholder_value_pair(const std::string& in_placeholder_name,
+                                         const T&           in_value)
+         {
+            std::stringstream value_sstream;
+
+            value_sstream << in_value;
+
+            return add_placeholder_value_pair(in_placeholder_name,
+                                              value_sstream.str() );
+         }
+
          /** Adds a new pragma which is going to be injected into the GLSL code.
           *
           *  @param in_pragma_name Value to follow the #pragma keyword.
@@ -317,8 +346,9 @@ namespace Anvil
 
     private:
         /* Private type declarations */
-        typedef std::map<std::string, ExtensionBehavior> ExtensionNameToExtensionBehaviorMap;
-        typedef std::map<std::string, std::string>       DefinitionNameToValueMap;
+        typedef std::map<std::string, ExtensionBehavior>         ExtensionNameToExtensionBehaviorMap;
+        typedef std::map<std::string, std::string>               DefinitionNameToValueMap;
+        typedef std::vector<std::pair<std::string, std::string>> PlaceholderNameAndValueVector;
 
         /* Private functions */
         ANVIL_DISABLE_ASSIGNMENT_OPERATOR(GLSLShaderToSPIRVGenerator);
@@ -360,6 +390,7 @@ namespace Anvil
 
         DefinitionNameToValueMap            m_definition_values;
         ExtensionNameToExtensionBehaviorMap m_extension_behaviors;
+        PlaceholderNameAndValueVector       m_placeholder_values;
         DefinitionNameToValueMap            m_pragmas;
     };
 }; /* namespace Anvil */

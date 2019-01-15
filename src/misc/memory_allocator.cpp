@@ -24,6 +24,7 @@
 #include "misc/fence_create_info.h"
 #include "misc/formats.h"
 #include "misc/image_create_info.h"
+#include "misc/instance_create_info.h"
 #include "misc/memory_allocator.h"
 #include "misc/memalloc_backends/backend_oneshot.h"
 #include "misc/memalloc_backends/backend_vma.h"
@@ -31,6 +32,7 @@
 #include "wrappers/device.h"
 #include "wrappers/fence.h"
 #include "wrappers/image.h"
+#include "wrappers/instance.h"
 #include "wrappers/memory_block.h"
 #include "wrappers/queue.h"
 #include <set>
@@ -516,9 +518,10 @@ bool Anvil::MemoryAllocator::add_buffer_internal(Anvil::Buffer*                 
     buffer_memory_types = memory_reqs.memoryTypeBits;
     buffer_storage_size = memory_reqs.size;
 
-    if (!is_alloc_supported(buffer_memory_types,
-                            in_required_memory_features,
-                           &filtered_memory_types) )
+    if (!get_mem_types_supporting_mem_features(m_device_ptr,
+                                               buffer_memory_types,
+                                               in_required_memory_features,
+                                              &filtered_memory_types) )
     {
         result = false;
 
@@ -955,9 +958,10 @@ bool Anvil::MemoryAllocator::add_image_whole(Anvil::Image*                      
     image_memory_types = in_image_ptr->get_image_memory_types();
     image_storage_size = in_image_ptr->get_image_storage_size();
 
-    if (!is_alloc_supported(image_memory_types,
-                            in_required_memory_features,
-                           &filtered_memory_types) )
+    if (!get_mem_types_supporting_mem_features(m_device_ptr,
+                                               image_memory_types,
+                                               in_required_memory_features,
+                                              &filtered_memory_types) )
     {
         result = false;
 
@@ -1036,9 +1040,10 @@ bool Anvil::MemoryAllocator::add_sparse_buffer_region(Anvil::Buffer*            
      * to consider, and so on. */
     anvil_assert((in_offset % memory_reqs.alignment) == 0);
 
-    if (!is_alloc_supported(memory_reqs.memoryTypeBits,
-                            in_required_memory_features,
-                           &filtered_memory_types) )
+    if (!get_mem_types_supporting_mem_features(m_device_ptr,
+                                               memory_reqs.memoryTypeBits,
+                                               in_required_memory_features,
+                                              &filtered_memory_types) )
     {
         result = false;
 
@@ -1140,9 +1145,10 @@ bool Anvil::MemoryAllocator::add_sparse_image_miptail(Anvil::Image*             
 
     anvil_assert(miptail_size != 0);
 
-    if (!is_alloc_supported(miptail_memory_types,
-                            in_required_memory_features,
-                           &filtered_memory_types) )
+    if (!get_mem_types_supporting_mem_features(m_device_ptr,
+                                               miptail_memory_types,
+                                               in_required_memory_features,
+                                              &filtered_memory_types) )
     {
         result = false;
 
@@ -1345,9 +1351,10 @@ bool Anvil::MemoryAllocator::add_sparse_image_subresource(Anvil::Image*         
     total_region_size_in_bytes = Anvil::Utils::round_up(total_region_size_in_bytes,
                                                         tile_size);
 
-    if (!is_alloc_supported(in_image_ptr->get_image_memory_types(),
-                            in_required_memory_features,
-                           &filtered_memory_types) )
+    if (!get_mem_types_supporting_mem_features(m_device_ptr,
+                                               in_image_ptr->get_image_memory_types(),
+                                               in_required_memory_features,
+                                              &filtered_memory_types) )
     {
         result = false;
 
@@ -2041,9 +2048,10 @@ bool Anvil::MemoryAllocator::do_external_memory_handle_type_sanity_checks(const 
 }
 
 /** Tells whether or not a given set of memory types supports the requested memory features. */
-bool Anvil::MemoryAllocator::is_alloc_supported(uint32_t                  in_memory_types,
-                                                Anvil::MemoryFeatureFlags in_memory_features,
-                                                uint32_t*                 out_opt_filtered_memory_types_ptr) const
+bool Anvil::MemoryAllocator::get_mem_types_supporting_mem_features(const Anvil::BaseDevice*         in_device_ptr,
+                                                                   uint32_t                         in_memory_types,
+                                                                   const Anvil::MemoryFeatureFlags& in_memory_features,
+                                                                   uint32_t*                        out_opt_filtered_memory_types_ptr)
 {
     const bool  is_coherent_memory_required        (((in_memory_features & Anvil::MemoryFeatureFlagBits::HOST_COHERENT_BIT)    != 0) );
     const bool  is_device_local_memory_required    (((in_memory_features & Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT)     != 0) );
@@ -2051,8 +2059,16 @@ bool Anvil::MemoryAllocator::is_alloc_supported(uint32_t                  in_mem
     const bool  is_lazily_allocated_memory_required(((in_memory_features & Anvil::MemoryFeatureFlagBits::LAZILY_ALLOCATED_BIT) != 0) );
     const bool  is_mappable_memory_required        (((in_memory_features & Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT)         != 0) );
     const bool  is_multi_instance_memory_required  (((in_memory_features & Anvil::MemoryFeatureFlagBits::MULTI_INSTANCE_BIT)   != 0) );
-    const auto& memory_props                       (m_device_ptr->get_physical_device_memory_properties()  );
+    const auto& memory_props                       (in_device_ptr->get_physical_device_memory_properties()  );
+    const auto  n_forced_mem_type                  (in_device_ptr->get_parent_instance()->get_create_info_ptr()->get_n_memory_type_to_use_for_all_allocs() );
     bool        result                             (true);
+
+    if (n_forced_mem_type != UINT32_MAX)
+    {
+        in_memory_types = 1 << n_forced_mem_type;
+
+        goto end;
+    }
 
     /* Filter out memory types that do not support features requested at creation time */
     for (uint32_t n_memory_type = 0;
@@ -2078,12 +2094,13 @@ bool Anvil::MemoryAllocator::is_alloc_supported(uint32_t                  in_mem
         }
     }
 
-    if (out_opt_filtered_memory_types_ptr != nullptr)
+end:
+    if (result                                       &&
+        out_opt_filtered_memory_types_ptr != nullptr)
     {
         *out_opt_filtered_memory_types_ptr = in_memory_types;
     }
 
-end:
     return result;
 }
 

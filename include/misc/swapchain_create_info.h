@@ -48,7 +48,14 @@ namespace Anvil
                                                    Anvil::ColorSpaceKHR     in_color_space,
                                                    Anvil::PresentModeKHR    in_present_mode,
                                                    Anvil::ImageUsageFlags   in_usage_flags,
-                                                   uint32_t                 in_n_images);
+                                                   uint32_t                 in_n_images,
+                                                   const bool&              in_clipped               = true,
+                                                   const Anvil::Swapchain*  in_opt_old_swapchain_ptr = nullptr);
+
+        const bool& get_clipped() const
+        {
+            return m_clipped;
+        }
 
         Anvil::ColorSpaceKHR get_color_space() const
         {
@@ -89,6 +96,11 @@ namespace Anvil
             return m_n_images;
         }
 
+        const Anvil::Swapchain* get_old_swapchain() const
+        {
+            return m_old_swapchain_ptr;
+        }
+
         Anvil::PresentModeKHR get_present_mode() const
         {
             return m_present_mode;
@@ -110,6 +122,11 @@ namespace Anvil
         Anvil::Window* get_window() const
         {
             return m_window_ptr;
+        }
+
+        void set_clipped(const bool& in_clipped)
+        {
+            m_clipped = in_clipped;
         }
 
         void set_color_space(const Anvil::ColorSpaceKHR& in_color_space)
@@ -147,6 +164,11 @@ namespace Anvil
             m_n_images = in_n_images;
         }
 
+        void set_old_swapchain(const Anvil::Swapchain* in_old_swapchain_ptr)
+        {
+            m_old_swapchain_ptr = in_old_swapchain_ptr;
+        }
+
         void set_present_mode(const Anvil::PresentModeKHR& in_present_mode)
         {
             m_present_mode = in_present_mode;
@@ -181,10 +203,13 @@ namespace Anvil
                             uint32_t                           in_n_images,
                             MTSafety                           in_mt_safety,
                             Anvil::SwapchainCreateFlags        in_flags,
-                            Anvil::DeviceGroupPresentModeFlags in_mgpu_present_mode_flags);
+                            Anvil::DeviceGroupPresentModeFlags in_mgpu_present_mode_flags,
+                            const bool&                        in_clipped,
+                            const Anvil::Swapchain*            in_opt_old_swapchain_ptr);
 
         /* Private variables */
 
+        bool                               m_clipped;
         Anvil::ColorSpaceKHR               m_color_space;
         const Anvil::BaseDevice*           m_device_ptr;
         Anvil::SwapchainCreateFlags        m_flags;
@@ -192,6 +217,7 @@ namespace Anvil
         Anvil::DeviceGroupPresentModeFlags m_mgpu_present_mode_flags;
         Anvil::MTSafety                    m_mt_safety;
         uint32_t                           m_n_images;
+        const Anvil::Swapchain*            m_old_swapchain_ptr;
         Anvil::RenderingSurface*           m_parent_surface_ptr;
         Anvil::PresentModeKHR              m_present_mode;
         Anvil::Window*                     m_window_ptr;
