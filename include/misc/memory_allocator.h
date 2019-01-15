@@ -488,6 +488,11 @@ namespace Anvil
         static Anvil::MemoryAllocatorUniquePtr create_vma(const Anvil::BaseDevice* in_device_ptr,
                                                           MTSafety                 in_mt_safety = Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE);
 
+        static bool get_mem_types_supporting_mem_features(const Anvil::BaseDevice*         in_device_ptr,
+                                                          uint32_t                         in_memory_types,
+                                                          const Anvil::MemoryFeatureFlags& in_memory_features,
+                                                          uint32_t*                        out_opt_filtered_memory_types_ptr);
+
         /** By default, once memory regions are baked, memory allocator will bind them to objects specified
          *  at add_*() call time. Use cases exist where apps may prefer to handle this action on their own.
          *
@@ -547,9 +552,6 @@ namespace Anvil
 
         bool do_bind_sparse_device_indices_sanity_check  (const MGPUBindSparseDeviceIndices*          in_opt_mgpu_bind_sparse_device_indices_ptr) const;
         bool do_external_memory_handle_type_sanity_checks(const Anvil::ExternalMemoryHandleTypeFlags& in_external_memory_handle_types) const;
-        bool is_alloc_supported                          (uint32_t                                    in_memory_types,
-                                                          Anvil::MemoryFeatureFlags                   in_memory_features,
-                                                          uint32_t*                                   out_opt_filtered_memory_types_ptr) const;
 
         void on_is_alloc_pending_for_buffer_query(CallbackArgument* in_callback_arg_ptr);
         void on_is_alloc_pending_for_image_query (CallbackArgument* in_callback_arg_ptr);

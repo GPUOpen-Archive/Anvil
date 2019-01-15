@@ -283,11 +283,11 @@ namespace Anvil
          *
          *  @param out_opt_sample_count_ptr If not null, deref will be set to the enum value telling
          *                                  the sample count assigned to the pipeline.
-         *  @param out_opt_sample_mask_ptr  If not null, deref will be set to the sample mask assigned
+         *  @param out_opt_sample_mask_ptr  If not null, deref will be set to a ptr to the sample mask assigned
          *                                  to the pipeline.
          **/
         void get_multisampling_properties(Anvil::SampleCountFlagBits* out_opt_sample_count_ptr,
-                                          VkSampleMask*               out_opt_sample_mask_ptr) const;
+                                          const VkSampleMask**        out_opt_sample_mask_ptr_ptr) const;
 
         /** Tells the number of dynamic scissor boxes. **/
         uint32_t get_n_dynamic_scissor_boxes() const;

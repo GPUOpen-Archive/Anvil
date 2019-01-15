@@ -115,20 +115,20 @@ namespace Anvil
                                           Anvil::ImageLayout            in_layout,
                                           RenderPassAttachmentID        in_attachment_id,
                                           uint32_t                      in_location,
-                                          const RenderPassAttachmentID* in_opt_attachment_resolve_id_ptr);
+                                          const RenderPassAttachmentID* in_opt_attachment_resolve_id_ptr = nullptr);
 
         /** Configures the depth+stencil attachment the subpass should use.
          *
          *  Note that only up to one depth/stencil attachment may be added for each subpass.
-         *  Any attempt to add more such attachments will results in an assertion failure.
+         *  Any attempt to add more such attachments will result in an assertion failure.
          *
-         *  @param in_subpass_id                ID of the subpass to update the depth+stencil attachment for.
-         *                                      The subpass must have been earlier created with an add_subpass() call.
-         *  @param in_layout                    Layout to use for the attachment when executing the subpass.
-         *                                      Driver takes care of transforming the attachment to the requested layout
-         *                                      before subpass commands starts executing.
-         *  @param in_attachment_id             ID of the render-pass attachment the depth-stencil attachment should refer to.
-         *
+         *  @param in_subpass_id    ID of the subpass to update the depth+stencil attachment for.
+         *                          The subpass must have been earlier created with an add_subpass() call.
+         *  @param in_layout        Layout to use for the attachment when executing the subpass.
+         *                          Driver takes care of transforming the attachment to the requested layout
+         *                          before subpass commands starts executing.
+         *  @param in_attachment_id ID of the render-pass attachment the depth-stencil attachment should refer to.
+         
          *  @return true if the function executed successfully, false otherwise.
          *
          */
@@ -358,15 +358,15 @@ namespace Anvil
          *  @return true if successful, false otherwise.
          **/
         bool get_depth_stencil_attachment_properties(RenderPassAttachmentID      in_attachment_id,
-                                                     Anvil::Format*              out_opt_format_ptr           = nullptr,
-                                                     Anvil::SampleCountFlagBits* out_opt_sample_count_ptr     = nullptr,
-                                                     Anvil::AttachmentLoadOp*    out_opt_depth_load_op_ptr    = nullptr,
-                                                     Anvil::AttachmentStoreOp*   out_opt_depth_store_op_ptr   = nullptr,
-                                                     Anvil::AttachmentLoadOp*    out_opt_stencil_load_op_ptr  = nullptr,
-                                                     Anvil::AttachmentStoreOp*   out_opt_stencil_store_op_ptr = nullptr,
-                                                     Anvil::ImageLayout*         out_opt_initial_layout_ptr   = nullptr,
-                                                     Anvil::ImageLayout*         out_opt_final_layout_ptr     = nullptr,
-                                                     bool*                       out_opt_may_alias_ptr        = nullptr) const;
+                                                     Anvil::Format*              out_opt_format_ptr                = nullptr,
+                                                     Anvil::SampleCountFlagBits* out_opt_sample_count_ptr          = nullptr,
+                                                     Anvil::AttachmentLoadOp*    out_opt_depth_load_op_ptr         = nullptr,
+                                                     Anvil::AttachmentStoreOp*   out_opt_depth_store_op_ptr        = nullptr,
+                                                     Anvil::AttachmentLoadOp*    out_opt_stencil_load_op_ptr       = nullptr,
+                                                     Anvil::AttachmentStoreOp*   out_opt_stencil_store_op_ptr      = nullptr,
+                                                     Anvil::ImageLayout*         out_opt_initial_layout_ptr        = nullptr,
+                                                     Anvil::ImageLayout*         out_opt_final_layout_ptr          = nullptr,
+                                                     bool*                       out_opt_may_alias_ptr             = nullptr) const;
 
         const Anvil::BaseDevice* get_device() const
         {
@@ -425,12 +425,26 @@ namespace Anvil
          *
          *  @return true if successful, false otherwise.
          */
-        bool get_subpass_attachment_properties(SubPassID                in_subpass_id,
-                                               AttachmentType           in_attachment_type,
-                                               uint32_t                 in_n_subpass_attachment,
-                                               RenderPassAttachmentID*  out_renderpass_attachment_id_ptr,
-                                               Anvil::ImageLayout*      out_layout_ptr,
-                                               Anvil::ImageAspectFlags* out_opt_aspects_accessed_ptr = nullptr) const;
+        bool get_subpass_attachment_properties(SubPassID                   in_subpass_id,
+                                               AttachmentType              in_attachment_type,
+                                               uint32_t                    in_n_subpass_attachment,
+                                               RenderPassAttachmentID*     out_renderpass_attachment_id_ptr,
+                                               Anvil::ImageLayout*         out_layout_ptr,
+                                               Anvil::ImageAspectFlags*    out_opt_aspects_accessed_ptr      = nullptr,
+                                               RenderPassAttachmentID*     out_opt_attachment_resolve_id_ptr = nullptr,
+                                               uint32_t*                   out_opt_location_ptr              = nullptr) const;
+
+        /* Returns highest location used by subpass attachments.
+         *
+         * @param in_subpass_id ID of the subpass to issue the query against.
+         * @param out_result_ptr If function returns true, deref will be set to the highest location specified when adding attachments
+         *                       to this subpass.
+         *
+         * @return true if successful, false otherwise. The latter will be returned if no attachments have been added to the subpass, prior
+         *         to making this call.
+         */
+        bool get_subpass_highest_location(SubPassID in_subpass_id,
+                                          uint32_t* out_result_ptr) const;
 
         /** Returns the number of attachments of user-specified type, defined for the specified subpass.
          *
@@ -683,6 +697,7 @@ namespace Anvil
             SubPassAttachment              depth_stencil_attachment;
             uint32_t                       index;
             uint32_t                       multiview_view_mask;
+            uint32_t                       n_highest_location_used;
             LocationToSubPassAttachmentMap input_attachments_map;
             SubPassAttachmentVector        preserved_attachments;
             LocationToSubPassAttachmentMap resolved_attachments_map;
@@ -708,8 +723,9 @@ namespace Anvil
             /** Dummy constructor. This should only be used by STL containers */
             SubPass()
             {
-                index               = UINT32_MAX;
-                multiview_view_mask = 0;
+                index                   = UINT32_MAX;
+                multiview_view_mask     = 0;
+                n_highest_location_used = 0;
             }
 
             /** Constructor.
@@ -719,8 +735,9 @@ namespace Anvil
              **/
             SubPass(uint32_t in_index)
             {
-                index               = in_index;
-                multiview_view_mask = 0;
+                index                   = in_index;
+                multiview_view_mask     = 0;
+                n_highest_location_used = 0;
             }
 
             /* Destructor */
@@ -829,21 +846,21 @@ namespace Anvil
 
         /* Private functions */
 
-        bool add_dependency        (SubPass*                       in_destination_subpass_ptr,
-                                    SubPass*                       in_source_subpass_ptr,
-                                    Anvil::PipelineStageFlags      in_source_stage_mask,
-                                    Anvil::PipelineStageFlags      in_destination_stage_mask,
-                                    Anvil::AccessFlags             in_source_access_mask,
-                                    Anvil::AccessFlags             in_destination_access_mask,
-                                    Anvil::DependencyFlags         in_dependency_flags);
-        bool add_subpass_attachment(SubPassID                      in_subpass_id,
-                                    bool                           in_is_color_attachment,
-                                    Anvil::ImageLayout             in_input_layout,
-                                    RenderPassAttachmentID         in_attachment_id,
-                                    uint32_t                       in_attachment_location,
-                                    bool                           in_should_resolve,
-                                    RenderPassAttachmentID         in_resolve_attachment_id,
-                                    const Anvil::ImageAspectFlags& in_opt_aspects_accessed = Anvil::ImageAspectFlagBits::NONE);
+        bool add_dependency                    (SubPass*                       in_destination_subpass_ptr,
+                                                SubPass*                       in_source_subpass_ptr,
+                                                Anvil::PipelineStageFlags      in_source_stage_mask,
+                                                Anvil::PipelineStageFlags      in_destination_stage_mask,
+                                                Anvil::AccessFlags             in_source_access_mask,
+                                                Anvil::AccessFlags             in_destination_access_mask,
+                                                Anvil::DependencyFlags         in_dependency_flags);
+        bool add_subpass_color_input_attachment(SubPassID                      in_subpass_id,
+                                                bool                           in_is_color_attachment,
+                                                Anvil::ImageLayout             in_input_layout,
+                                                RenderPassAttachmentID         in_attachment_id,
+                                                uint32_t                       in_attachment_location,
+                                                bool                           in_should_resolve,
+                                                RenderPassAttachmentID         in_resolve_attachment_id,
+                                                const Anvil::ImageAspectFlags& in_aspects_accessed);
 
         VkAttachmentReference get_attachment_reference_from_renderpass_attachment(const RenderPassAttachment&                        in_renderpass_attachment)                const;
         VkAttachmentReference get_attachment_reference_from_subpass_attachment   (const SubPassAttachment&                           in_subpass_attachment)                   const;

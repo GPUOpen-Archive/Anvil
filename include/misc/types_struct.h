@@ -401,7 +401,6 @@ namespace Anvil
         Anvil::AccessFlags src_access_mask;
 
         VkBuffer              buffer;
-        VkBufferMemoryBarrier buffer_barrier_vk;
         Anvil::Buffer*        buffer_ptr;
         uint32_t              dst_queue_family_index;
         VkDeviceSize          offset;
@@ -446,21 +445,7 @@ namespace Anvil
         /** Returns a Vulkan buffer memory barrier descriptor, whose configuration corresponds to
          *  to the configuration of this descriptor.
          **/
-        virtual VkBufferMemoryBarrier get_barrier_vk() const
-        {
-            return buffer_barrier_vk;
-        }
-
-        /** Returns a pointer to the Vulkan descriptor, whose configuration corresponds to
-         *  the configuration of this descriptor.
-         *
-         *  The returned pointer remains valid for the duration of the Barrier descriptor's
-         *  life-time.
-         **/
-        const VkBufferMemoryBarrier* get_barrier_vk_ptr() const
-        {
-            return &buffer_barrier_vk;
-        }
+        virtual VkBufferMemoryBarrier get_barrier_vk() const;
 
         bool operator==(const BufferBarrier&) const;
     private:
@@ -674,10 +659,10 @@ namespace Anvil
 
     typedef struct EXTPCIBusInfoProperties
     {
-        uint8_t  pci_bus;
-        uint8_t  pci_device;
-        uint16_t pci_domain;
-        uint8_t  pci_function;
+        uint32_t pci_bus;
+        uint32_t pci_device;
+        uint32_t pci_domain;
+        uint32_t pci_function;
 
         EXTPCIBusInfoProperties();
         EXTPCIBusInfoProperties(const VkPhysicalDevicePCIBusInfoPropertiesEXT& in_props);
@@ -882,6 +867,16 @@ namespace Anvil
 
         ExtensionEXTTransformFeedbackEntrypoints();
     } ExtensionEXTTransformFeedbackEntrypoints;
+
+    typedef struct ExtensionKHRCreateRenderpass2Entrypoints
+    {
+        PFN_vkCreateRenderPass2KHR   vkCreateRenderPass2KHR;
+        PFN_vkCmdBeginRenderPass2KHR vkCmdBeginRenderPass2KHR;
+        PFN_vkCmdNextSubpass2KHR     vkCmdNextSubpass2KHR;
+        PFN_vkCmdEndRenderPass2KHR   vkCmdEndRenderPass2KHR;
+
+        ExtensionKHRCreateRenderpass2Entrypoints();
+    } ExtensionKHRCreateRenderpass2Entrypoints;
 
     typedef struct ExtensionKHRDeviceGroupEntrypoints
     {
@@ -1329,17 +1324,6 @@ namespace Anvil
            return image_barrier_vk;
        }
 
-       /** Returns a pointer to the Vulkan descriptor, whose configuration corresponds to
-         *  the configuration of this descriptor.
-         *
-         *  The returned pointer remains valid for the duration of the Barrier descriptor's
-         *  life-time.
-         **/
-       const VkImageMemoryBarrier* get_barrier_vk_ptr() const
-       {
-           return &image_barrier_vk;
-       }
-
        bool operator==(const ImageBarrier& in_barrier) const;
 
     private:
@@ -1564,17 +1548,6 @@ namespace Anvil
         virtual VkMemoryBarrier get_barrier_vk() const
         {
             return memory_barrier_vk;
-        }
-
-        /** Returns a pointer to the Vulkan descriptor, whose configuration corresponds to
-         *  the configuration of this descriptor.
-         *
-         *  The returned pointer remains valid for the duration of the Barrier descriptor's
-         *  life-time.
-         **/
-        virtual const VkMemoryBarrier* get_barrier_vk_ptr() const
-        {
-            return &memory_barrier_vk;
         }
     } MemoryBarrier;
 

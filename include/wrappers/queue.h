@@ -194,10 +194,11 @@ namespace Anvil
          *
          *  @return Vulkan result for the operation.
          **/
-        VkResult present(Anvil::Swapchain*        in_swapchain_ptr,
-                         uint32_t                 in_swapchain_image_index,
-                         uint32_t                 in_n_wait_semaphores,
-                         Anvil::Semaphore* const* in_wait_semaphore_ptrs_ptr);
+        bool present(Anvil::Swapchain*                   in_swapchain_ptr,
+                     uint32_t                            in_swapchain_image_index,
+                     uint32_t                            in_n_wait_semaphores,
+                     Anvil::Semaphore* const*            in_wait_semaphore_ptrs_ptr,
+                     Anvil::SwapchainOperationErrorCode* out_present_results_ptr);
 
         /** See present() documentation for general information about this function.
          *
@@ -210,10 +211,11 @@ namespace Anvil
          *
          *  @return TODO
          **/
-        VkResult present_in_local_presentation_mode(uint32_t                         in_n_local_mode_presentation_items,
-                                                    const LocalModePresentationItem* in_local_mode_presentation_items,
-                                                    uint32_t                         in_n_wait_semaphores,
-                                                    Anvil::Semaphore* const*         in_wait_semaphore_ptrs_ptr);
+        bool present_in_local_presentation_mode(uint32_t                            in_n_local_mode_presentation_items,
+                                                const LocalModePresentationItem*    in_local_mode_presentation_items,
+                                                uint32_t                            in_n_wait_semaphores,
+                                                Anvil::Semaphore* const*            in_wait_semaphore_ptrs_ptr,
+                                                Anvil::SwapchainOperationErrorCode* out_present_results_ptr);
 
         /** See present() documentation for general information about this function.
          *
@@ -226,10 +228,11 @@ namespace Anvil
          *
          *  @return TODO
          **/
-        VkResult present_in_local_multi_device_presentation_mode(uint32_t                                    in_n_local_multi_device_mode_presentation_items,
-                                                                 const LocalMultiDeviceModePresentationItem* in_local_multi_device_mode_presentation_items,
-                                                                 uint32_t                                    in_n_wait_semaphores,
-                                                                 Anvil::Semaphore* const*                    in_wait_semaphore_ptrs_ptr);
+        bool present_in_local_multi_device_presentation_mode(uint32_t                                    in_n_local_multi_device_mode_presentation_items,
+                                                             const LocalMultiDeviceModePresentationItem* in_local_multi_device_mode_presentation_items,
+                                                             uint32_t                                    in_n_wait_semaphores,
+                                                             Anvil::Semaphore* const*                    in_wait_semaphore_ptrs_ptr,
+                                                             Anvil::SwapchainOperationErrorCode*         out_present_results_ptr);
 
         /** See present() documentation for general information about this function.
          *
@@ -242,10 +245,11 @@ namespace Anvil
          *
          *  @return TODO
          **/
-        VkResult present_in_remote_presentation_mode(uint32_t                          in_n_remote_mode_presentation_items,
-                                                     const RemoteModePresentationItem* in_remote_mode_presentation_items,
-                                                     uint32_t                          in_n_wait_semaphores,
-                                                     Anvil::Semaphore* const*          in_wait_semaphore_ptrs_ptr);
+        bool present_in_remote_presentation_mode(uint32_t                            in_n_remote_mode_presentation_items,
+                                                 const RemoteModePresentationItem*   in_remote_mode_presentation_items,
+                                                 uint32_t                            in_n_wait_semaphores,
+                                                 Anvil::Semaphore* const*            in_wait_semaphore_ptrs_ptr,
+                                                 Anvil::SwapchainOperationErrorCode* out_present_results_ptr);
 
         /** See present() documentation for general information about this function.
          *
@@ -258,10 +262,11 @@ namespace Anvil
          *
          *  @return TODO
          **/
-        VkResult present_in_sum_presentation_mode(uint32_t                       in_n_sum_mode_presentation_items,
-                                                  const SumModePresentationItem* in_sum_mode_presentation_items,
-                                                  uint32_t                       in_n_wait_semaphores,
-                                                  Anvil::Semaphore* const*       in_wait_semaphore_ptrs_ptr);
+        bool present_in_sum_presentation_mode(uint32_t                            in_n_sum_mode_presentation_items,
+                                              const SumModePresentationItem*      in_sum_mode_presentation_items,
+                                              uint32_t                            in_n_wait_semaphores,
+                                              Anvil::Semaphore* const*            in_wait_semaphore_ptrs_ptr,
+                                              Anvil::SwapchainOperationErrorCode* out_present_results_ptr);
 
         bool submit(const SubmitInfo& in_submit_info);
 
@@ -275,18 +280,19 @@ namespace Anvil
 
     private:
         /* Private functions */
-        VkResult present_internal   (Anvil::DeviceGroupPresentModeFlagBits in_presentation_mode,
-                                     uint32_t                              in_n_swapchains,
-                                     Anvil::Swapchain* const*              in_swapchains,
-                                     const uint32_t*                       in_swapchain_image_indices,
-                                     const uint32_t*                       in_device_masks,
-                                     uint32_t                              in_n_wait_semaphores,
-                                     Anvil::Semaphore* const*              in_wait_semaphore_ptrs);
-        void     present_lock_unlock(uint32_t                              in_n_swapchains,
-                                     const Anvil::Swapchain* const*        in_swapchains,
-                                     uint32_t                              in_n_wait_semaphores,
-                                     Anvil::Semaphore* const*              in_wait_semaphore_ptrs,
-                                     bool                                  in_should_lock);
+        bool present_internal   (Anvil::DeviceGroupPresentModeFlagBits in_presentation_mode,
+                                 uint32_t                              in_n_swapchains,
+                                 Anvil::Swapchain* const*              in_swapchains,
+                                 const uint32_t*                       in_swapchain_image_indices,
+                                 const uint32_t*                       in_device_masks,
+                                 uint32_t                              in_n_wait_semaphores,
+                                 Anvil::Semaphore* const*              in_wait_semaphore_ptrs,
+                                 Anvil::SwapchainOperationErrorCode*   out_present_results_ptr);
+        void present_lock_unlock(uint32_t                              in_n_swapchains,
+                                 const Anvil::Swapchain* const*        in_swapchains,
+                                 uint32_t                              in_n_wait_semaphores,
+                                 Anvil::Semaphore* const*              in_wait_semaphore_ptrs,
+                                 bool                                  in_should_lock);
 
         void bind_sparse_memory_lock_unlock    (Anvil::SparseMemoryBindingUpdateInfo& in_update,
                                                 bool                                  in_should_lock);

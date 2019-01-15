@@ -36,18 +36,14 @@ static Anvil::LibraryUniquePtr g_vk10_library_ptr;
 
 
 /** Please see header for specification */
-Anvil::Instance::Instance(const std::string&    in_app_name,
-                          const std::string&    in_engine_name,
-                          DebugCallbackFunction in_opt_validation_callback_function,
-                          bool                  in_mt_safe)
-    :MTSafetySupportProvider       (in_mt_safe),
-     m_app_name                    (in_app_name),
-     m_debug_messenger_ptr         (Anvil::DebugMessengerUniquePtr(nullptr, std::default_delete<Anvil::DebugMessenger>() )),
-     m_engine_name                 (in_engine_name),
-     m_global_layer                (""),
-     m_instance                    (VK_NULL_HANDLE),
-     m_validation_callback_function(in_opt_validation_callback_function)
+Anvil::Instance::Instance(Anvil::InstanceCreateInfoUniquePtr in_create_info_ptr)
+    :MTSafetySupportProvider(in_create_info_ptr->is_mt_safe() ),
+     m_debug_messenger_ptr  (Anvil::DebugMessengerUniquePtr(nullptr, std::default_delete<Anvil::DebugMessenger>() )),
+     m_global_layer         (""),
+     m_instance             (VK_NULL_HANDLE)
 {
+    m_create_info_ptr = std::move(in_create_info_ptr);
+
     Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::INSTANCE,
                                                   this);
 }
@@ -74,24 +70,16 @@ Anvil::Instance::~Instance()
 }
 
 /** Please see header for specification */
-Anvil::InstanceUniquePtr Anvil::Instance::create(const std::string&              in_app_name,
-                                                 const std::string&              in_engine_name,
-                                                 DebugCallbackFunction           in_opt_validation_callback_proc,
-                                                 bool                            in_mt_safe,
-                                                 const std::vector<std::string>& in_opt_disallowed_instance_level_extensions)
+Anvil::InstanceUniquePtr Anvil::Instance::create(Anvil::InstanceCreateInfoUniquePtr in_create_info_ptr)
 {
     InstanceUniquePtr new_instance_ptr(nullptr,
                                        std::default_delete<Anvil::Instance>() );
 
     new_instance_ptr.reset(
-        new Instance(
-            in_app_name,
-            in_engine_name,
-            in_opt_validation_callback_proc,
-            in_mt_safe)
+        new Instance(std::move(in_create_info_ptr) )
     );
 
-    new_instance_ptr->init(in_opt_disallowed_instance_level_extensions);
+    new_instance_ptr->init();
 
     return new_instance_ptr;
 }
@@ -103,8 +91,8 @@ Anvil::InstanceUniquePtr Anvil::Instance::create(const std::string&             
 void Anvil::Instance::debug_callback_handler(const Anvil::DebugMessageSeverityFlagBits& in_severity,
                                              const char*                                in_message_ptr)
 {
-    m_validation_callback_function(in_severity,
-                                   in_message_ptr);
+    get_create_info_ptr()->get_validation_callback()(in_severity,
+                                                     in_message_ptr);
 }
 
 /** Please see header for specification */
@@ -418,7 +406,7 @@ const Anvil::ExtensionKHRDeviceGroupCreationEntrypoints& Anvil::Instance::get_ex
 }
 
 /** Initializes the wrapper. */
-void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instance_level_extensions)
+void Anvil::Instance::init()
 {
     VkApplicationInfo           app_info;
     VkInstanceCreateInfo        create_info;
@@ -479,8 +467,8 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
     app_info.apiVersion         = VK_MAKE_VERSION(1, 0, 0);
     app_info.applicationVersion = 0;
     app_info.engineVersion      = 0;
-    app_info.pApplicationName   = m_app_name.c_str();
-    app_info.pEngineName        = m_engine_name.c_str();
+    app_info.pApplicationName   = get_create_info_ptr()->get_app_name   ().c_str();
+    app_info.pEngineName        = get_create_info_ptr()->get_engine_name().c_str();
     app_info.pNext              = nullptr;
     app_info.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 
@@ -500,15 +488,15 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
 
         /* If validation is enabled and this is a layer which issues debug call-backs, cache it, so that
          * we can request for it at vkCreateInstance() call time */
-        if (m_validation_callback_function       != nullptr          &&
-            layer_description.find("Validation") != std::string::npos)
+        if (get_create_info_ptr()->get_validation_callback()             != nullptr           &&
+            layer_description.find                        ("Validation") != std::string::npos)
         {
             enabled_layers.push_back(layer_name.c_str() );
         }
     }
 
     {
-        if (m_validation_callback_function != nullptr)
+        if (get_create_info_ptr()->get_validation_callback() != nullptr)
         {
             for (uint32_t n_extension = 0;
                           n_extension < sizeof(desired_extensions_with_validation) / sizeof(desired_extensions_with_validation[0]);
@@ -568,7 +556,7 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
         }
 
         /* Filter out undesired extensions */
-        for (const auto& current_extension_name : in_disallowed_instance_level_extensions)
+        for (const auto& current_extension_name : get_create_info_ptr()->get_disallowed_instance_level_extensions() )
         {
             auto ext_iterator = extension_enabled_status.find(current_extension_name);
 
@@ -624,7 +612,7 @@ void Anvil::Instance::init(const std::vector<std::string>& in_disallowed_instanc
 
     init_func_pointers();
 
-    if (m_validation_callback_function != nullptr)
+    if (get_create_info_ptr()->get_validation_callback() != nullptr)
     {
         init_debug_callbacks();
     }

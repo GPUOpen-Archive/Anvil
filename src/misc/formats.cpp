@@ -529,7 +529,7 @@ static const struct
     {Anvil::Format::D24_UNORM_S8_UINT,            UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  0,            23,         24,             31},
     {Anvil::Format::D32_SFLOAT_S8_UINT,           UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  0,            31,         32,             39},
 };
-static uint32_t g_layout_to_n_components[] =
+static const uint32_t g_layout_to_n_components[] =
 {
     /* COMPONENT_LAYOUT_ABGR */
     4,
@@ -1802,20 +1802,26 @@ uint32_t Anvil::Formats::get_yuv_format_plane_index(Anvil::Format              i
 /** Please see header for specification */
 bool Anvil::Formats::has_depth_aspect(Anvil::Format in_format)
 {
-    anvil_assert(!Anvil::Formats::is_format_yuv_khr(in_format) );
+    if (!Anvil::Formats::is_format_yuv_khr(in_format) )
+    {
+        return (g_formats[static_cast<uint32_t>(in_format)].component_layout == Anvil::ComponentLayout::D)  ||
+               (g_formats[static_cast<uint32_t>(in_format)].component_layout == Anvil::ComponentLayout::DS) ||
+               (g_formats[static_cast<uint32_t>(in_format)].component_layout == Anvil::ComponentLayout::XD);
+    }
 
-    return (g_formats[static_cast<uint32_t>(in_format)].component_layout == Anvil::ComponentLayout::D)  ||
-           (g_formats[static_cast<uint32_t>(in_format)].component_layout == Anvil::ComponentLayout::DS) ||
-           (g_formats[static_cast<uint32_t>(in_format)].component_layout == Anvil::ComponentLayout::XD);
+    return false;
 }
 
 /** Please see header for specification */
 bool Anvil::Formats::has_stencil_aspect(Anvil::Format in_format)
 {
-    anvil_assert(!Anvil::Formats::is_format_yuv_khr(in_format) );
+    if (!Anvil::Formats::is_format_yuv_khr(in_format) )
+    {
+        return (g_formats[static_cast<uint32_t>(in_format)].component_layout == Anvil::ComponentLayout::S)  ||
+               (g_formats[static_cast<uint32_t>(in_format)].component_layout == Anvil::ComponentLayout::DS);
+    }
 
-    return (g_formats[static_cast<uint32_t>(in_format)].component_layout == Anvil::ComponentLayout::S)  ||
-           (g_formats[static_cast<uint32_t>(in_format)].component_layout == Anvil::ComponentLayout::DS);
+    return false;
 }
 
 /** Please see header for specification */

@@ -797,11 +797,11 @@ Anvil::StructChainUniquePtr<VkPipelineMultisampleStateCreateInfo> Anvil::Graphic
         const bool                                                 is_sample_mask_enabled              = in_gfx_pipeline_create_info_ptr->is_sample_mask_enabled();
         uint32_t                                                   n_custom_sample_locations           = 0;
 
-        Anvil::SampleCountFlagBits           sample_count                  = static_cast<Anvil::SampleCountFlagBits>(0);
-        VkSampleMask                         sample_mask;
+        Anvil::SampleCountFlagBits sample_count    = static_cast<Anvil::SampleCountFlagBits>(0);
+        const VkSampleMask*        sample_mask_ptr = nullptr;
 
         in_gfx_pipeline_create_info_ptr->get_multisampling_properties(&sample_count,
-                                                                      &sample_mask);
+                                                                      &sample_mask_ptr);
         in_gfx_pipeline_create_info_ptr->get_sample_location_state   (&are_custom_sample_locations_enabled,
                                                                       &custom_sample_locations_per_pixel,
                                                                       &custom_sample_location_grid_size,
@@ -813,7 +813,7 @@ Anvil::StructChainUniquePtr<VkPipelineMultisampleStateCreateInfo> Anvil::Graphic
          * Hence, if the application specified a non-~0u sample mask and has NOT enabled the sample mask using toggle_sample_mask(), it's (in
          * all likelihood) a trivial app-side issue.
          */
-        anvil_assert((!is_sample_mask_enabled && sample_mask == ~0u) ||
+        anvil_assert((!is_sample_mask_enabled && *sample_mask_ptr == ~0u) ||
                        is_sample_mask_enabled);
 
         {
@@ -824,7 +824,7 @@ Anvil::StructChainUniquePtr<VkPipelineMultisampleStateCreateInfo> Anvil::Graphic
             multisample_state_create_info.flags                 = 0;
             multisample_state_create_info.minSampleShading      = min_sample_shading;
             multisample_state_create_info.pNext                 = nullptr;
-            multisample_state_create_info.pSampleMask           = (is_sample_mask_enabled) ? &sample_mask : nullptr;
+            multisample_state_create_info.pSampleMask           = (is_sample_mask_enabled) ? sample_mask_ptr : nullptr;
             multisample_state_create_info.rasterizationSamples  = static_cast<VkSampleCountFlagBits>(sample_count);
             multisample_state_create_info.sampleShadingEnable   = is_sample_shading_enabled ? VK_TRUE : VK_FALSE;
             multisample_state_create_info.sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;

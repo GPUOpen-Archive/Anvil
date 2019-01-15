@@ -152,6 +152,8 @@ namespace Anvil
                                         Anvil::PresentModeKHR        in_presentation_mode,
                                         bool*                        out_result_ptr) const;
 
+        void update_surface_extents() const;
+
     private:
         /* Private type definitions */
         typedef uint32_t DeviceGroupIndex;
@@ -193,10 +195,10 @@ namespace Anvil
         const Anvil::BaseDevice* m_device_ptr;
         Anvil::Instance*         m_instance_ptr;
 
-        uint32_t                                               m_height;
+        mutable uint32_t                                       m_height;
         std::map<DeviceGroupIndex, PhysicalDeviceCapabilities> m_physical_device_capabilities;
         VkSurfaceKHR                                           m_surface;
-        uint32_t                                               m_width;
+        mutable uint32_t                                       m_width;
         const Anvil::Window*                                   m_window_ptr;
     };
 }; /* namespace Anvil */

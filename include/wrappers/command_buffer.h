@@ -62,6 +62,7 @@ namespace Anvil
     typedef enum
     {
         COMMAND_TYPE_BEGIN_RENDER_PASS,
+        COMMAND_TYPE_BEGIN_RENDER_PASS_2_KHR,
         COMMAND_TYPE_BEGIN_QUERY,
         COMMAND_TYPE_BEGIN_QUERY_INDEXED_EXT,
         COMMAND_TYPE_BEGIN_TRANSFORM_FEEDBACK_EXT,
@@ -97,10 +98,12 @@ namespace Anvil
         COMMAND_TYPE_END_QUERY,
         COMMAND_TYPE_END_QUERY_INDEXED_EXT,
         COMMAND_TYPE_END_RENDER_PASS,
+        COMMAND_TYPE_END_RENDER_PASS_2_KHR,
         COMMAND_TYPE_END_TRANSFORM_FEEDBACK_EXT,
         COMMAND_TYPE_EXECUTE_COMMANDS,
         COMMAND_TYPE_FILL_BUFFER,
         COMMAND_TYPE_NEXT_SUBPASS,
+        COMMAND_TYPE_NEXT_SUBPASS_2_KHR,
         COMMAND_TYPE_PIPELINE_BARRIER,
         COMMAND_TYPE_PUSH_CONSTANTS,
         COMMAND_TYPE_RESET_EVENT,
@@ -243,6 +246,37 @@ namespace Anvil
         BeginRenderPassCommand& operator=(const BeginRenderPassCommand&);
     } BeginRenderPassCommand;
 
+    typedef struct BeginRenderPass2KHRCommand : BeginRenderPassCommand
+    {
+        BeginRenderPass2KHRCommand(uint32_t                                in_n_clear_values,
+                                   const VkClearValue*                     in_clear_value_ptrs,
+                                   Anvil::Framebuffer*                     in_fbo_ptr,
+                                   uint32_t                                in_n_physical_devices,
+                                   const Anvil::PhysicalDevice* const*     in_physical_devices,
+                                   const VkRect2D*                         in_render_areas,
+                                   Anvil::RenderPass*                      in_render_pass_ptr,
+                                   Anvil::SubpassContents                  in_contents,
+                                   const uint32_t&                         in_n_attachment_initial_sample_locations,
+                                   const Anvil::AttachmentSampleLocations* in_attachment_initial_sample_locations_ptr,
+                                   const uint32_t&                         in_n_post_subpass_sample_locations,
+                                   const Anvil::SubpassSampleLocations*    in_post_subpass_sample_locations_ptr)
+            :BeginRenderPassCommand(in_n_clear_values,
+                                    in_clear_value_ptrs,
+                                    in_fbo_ptr,
+                                    in_n_physical_devices,
+                                    in_physical_devices,
+                                    in_render_areas,
+                                    in_render_pass_ptr,
+                                    in_contents,
+                                    in_n_attachment_initial_sample_locations,
+                                    in_attachment_initial_sample_locations_ptr,
+                                    in_n_post_subpass_sample_locations,
+                                    in_post_subpass_sample_locations_ptr)
+        {
+            type = CommandType::COMMAND_TYPE_BEGIN_RENDER_PASS_2_KHR;
+        }
+    } BeginRenderPass2KHRCommand;
+
     /* Structure passed as a COMMAND_BUFFER_CALLBACK_ID_BEGIN_RENDER_PASS_COMMAND_RECORDED call-back argument */
     typedef struct BeginRenderPassCommandRecordedCallbackData
     {
@@ -308,6 +342,15 @@ namespace Anvil
             /* Stub */
         }
     } EndRenderPassCommand;
+
+    typedef struct EndRenderPass2KHRCommand : public EndRenderPassCommand
+    {
+        /** Constructor. */
+        EndRenderPass2KHRCommand()
+        {
+            type = COMMAND_TYPE_END_RENDER_PASS_2_KHR;
+        }
+    } EndRenderPass2KHRCommand;
 
     /* Structure passed as a COMMAND_BUFFER_CALLBACK_ID_END_RENDER_PASS_COMMAND_RECORDED call-back argument */
     typedef struct EndRenderPassCommandRecordedCallbackData
@@ -2434,6 +2477,15 @@ namespace Anvil
             }
         } NextSubpassCommand;
 
+        typedef struct NextSubpass2KHRCommand : public NextSubpassCommand
+        {
+            /** Constructor. **/
+            NextSubpass2KHRCommand(Anvil::SubpassContents in_contents)
+                :NextSubpassCommand(in_contents)
+            {
+                type = COMMAND_TYPE_NEXT_SUBPASS_2_KHR;
+            }
+        } NextSubpass2KHRCommand;
 
         /** Holds all arguments passed to a vkCmdPushConstants() command. */
         typedef struct PushConstantsCommand : public Command
@@ -2958,6 +3010,55 @@ namespace Anvil
                                       const uint32_t&                         in_opt_n_post_subpass_sample_locations         = 0,
                                       const Anvil::SubpassSampleLocations*    in_opt_post_subpass_sample_locations_ptr       = nullptr);
 
+        /** Issues a vkCmdBeginRenderPass2KHR() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  This function prototype can be called for both single- and multi-GPU devices. In the latter case,
+         *  it will be assumed that all physical devices within the device group should be used for
+         *  the device mask and that they all should use the same render area.
+         *
+         *  Requires VK_KHR_create_renderpass2 support. Argument meaning is as per extension specification..
+         *
+         *  NOTE: If either @param in_opt_n_attachment_initial_sample_locations or @param in_opt_n_post_subpass_sample_locations
+         *        (or both) are not zero, VK_EXT_sample_locations is required.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_begin_render_pass2_KHR(uint32_t                                in_n_clear_values,
+                                           const VkClearValue*                     in_clear_value_ptrs,
+                                           Anvil::Framebuffer*                     in_fbo_ptr,
+                                           VkRect2D                                in_render_area,
+                                           Anvil::RenderPass*                      in_render_pass_ptr,
+                                           Anvil::SubpassContents                  in_contents,
+                                           const uint32_t&                         in_opt_n_attachment_initial_sample_locations   = 0,
+                                           const Anvil::AttachmentSampleLocations* in_opt_attachment_initial_sample_locations_ptr = nullptr,
+                                           const uint32_t&                         in_opt_n_post_subpass_sample_locations         = 0,
+                                           const Anvil::SubpassSampleLocations*    in_opt_post_subpass_sample_locations_ptr       = nullptr);
+
+        /** See documentation for the other record_begin_render_pass2_KHR() function prototype for general
+         *  information about this function.
+         *
+         *  This prototype can only be used for multi-GPU devices.
+         *
+         *  TODO
+         */
+        bool record_begin_render_pass2_KHR(uint32_t                                in_n_clear_values,
+                                           const VkClearValue*                     in_clear_value_ptrs,
+                                           Anvil::Framebuffer*                     in_fbo_ptr,
+                                           uint32_t                                in_n_physical_devices,
+                                           const Anvil::PhysicalDevice* const*     in_physical_devices,
+                                           const VkRect2D*                         in_render_areas,
+                                           Anvil::RenderPass*                      in_render_pass_ptr,
+                                           Anvil::SubpassContents                  in_contents,
+                                           const uint32_t&                         in_opt_n_attachment_initial_sample_locations   = 0,
+                                           const Anvil::AttachmentSampleLocations* in_opt_attachment_initial_sample_locations_ptr = nullptr,
+                                           const uint32_t&                         in_opt_n_post_subpass_sample_locations         = 0,
+                                           const Anvil::SubpassSampleLocations*    in_opt_post_subpass_sample_locations_ptr       = nullptr);
+
         /** Issues a vkCmdEndRenderPass() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
          *  #define enabled).
@@ -2970,6 +3071,19 @@ namespace Anvil
          *  @return true if successful, false otherwise.
          **/
         bool record_end_render_pass();
+
+        /** Issues a vkCmdEndRenderPass2KHR() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  Requires VK_KHR_create_renderpass2 support. Argument meaning is as per extension specification.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_end_render_pass2_KHR();
 
         /** Issues a vkCmdExecuteCommands() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -2997,6 +3111,19 @@ namespace Anvil
          *  @return true if successful, false otherwise.
          **/
         bool record_next_subpass(Anvil::SubpassContents in_contents);
+
+        /** Issues a vkCmdNextSubpass2KHR() call and appends it to the internal vector of commands
+         *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
+         *  #define enabled).
+         *
+         *  Calling this function for a command buffer which has not been put into a recording mode
+         *  (by issuing a start_recording() call earlier) will result in an assertion failure.
+         *
+         *  Requires VK_KHR_create_renderpass2. Argument meaning is as per extension spec.
+         *
+         *  @return true if successful, false otherwise.
+         **/
+        bool record_next_subpass2_KHR(Anvil::SubpassContents in_contents);
 
         /** Issues a vkBeginCommandBufer() call and clears the internally managed vector of recorded
          *  commands, if STORE_COMMAND_BUFFER_COMMANDS has been defined for the build.
@@ -3040,6 +3167,23 @@ namespace Anvil
         /* Private functions */
         PrimaryCommandBuffer           (const PrimaryCommandBuffer&);
         PrimaryCommandBuffer& operator=(const PrimaryCommandBuffer&);
+
+        bool record_begin_render_pass_internal(const bool&                             in_use_khr_create_rp2_extension,
+                                               uint32_t                                in_n_clear_values,
+                                               const VkClearValue*                     in_clear_value_ptrs,
+                                               Anvil::Framebuffer*                     in_fbo_ptr,
+                                               uint32_t                                in_n_physical_devices,
+                                               const Anvil::PhysicalDevice* const*     in_physical_devices,
+                                               const VkRect2D*                         in_render_areas,
+                                               Anvil::RenderPass*                      in_render_pass_ptr,
+                                               Anvil::SubpassContents                  in_contents,
+                                               const uint32_t&                         in_opt_n_attachment_initial_sample_locations,
+                                               const Anvil::AttachmentSampleLocations* in_opt_attachment_initial_sample_locations_ptr,
+                                               const uint32_t&                         in_opt_n_post_subpass_sample_locations,
+                                               const Anvil::SubpassSampleLocations*    in_opt_post_subpass_sample_locations_ptr);
+        bool record_end_render_pass_internal  (const bool&                             in_use_khr_create_rp2_extension);
+        bool record_next_subpass_internal     (const bool&                             in_use_khr_create_rp2_extension,
+                                               Anvil::SubpassContents                  in_contents);
     };
 
     /** Wrapper class for secondary command buffers. */
