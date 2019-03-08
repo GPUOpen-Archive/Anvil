@@ -22,6 +22,7 @@
 
 #include "misc/debug.h"
 #include "misc/formats.h"
+#include "misc/types.h"
 #include <algorithm>
 #include <unordered_map>
 
@@ -345,7 +346,7 @@ struct YUVFormatInfo
 };
 
 /* TODO: Component layouts are wrong for YUV formats? */
-static const std::unordered_map<Anvil::Format, YUVFormatInfo> g_yuv_formats =
+static const std::unordered_map<Anvil::Format, YUVFormatInfo, Anvil::EnumClassHasher<Anvil::Format>> g_yuv_formats =
 {
     /* format                                                    | name                                                   | num_planes | subresources[0]                                                                                          | subresources[1]                                                                                 | subresources[2]                                                                  | format_type              | is_multiplanar? | is_packed? */
     {Anvil::Format::G8B8G8R8_422_UNORM,                          {"VK_FORMAT_G8B8G8R8_422_UNORM",                         1,             {Anvil::Format::UNKNOWN,            Anvil::ComponentLayout::GBGR,     8,      8,      8,      8},          {},                                                                                               {},                                                                                Anvil::FormatType::UNORM,  false,            false} },
@@ -431,7 +432,7 @@ typedef struct
     uint32_t plane2_b0_last_bit_index;
 } YUVFormatBitLayoutInfo;
 
-static const std::unordered_map<Anvil::Format, YUVFormatBitLayoutInfo> g_yuv_format_bit_layout_info =
+static const std::unordered_map<Anvil::Format, YUVFormatBitLayoutInfo, Anvil::EnumClassHasher<Anvil::Format> > g_yuv_format_bit_layout_info =
 {
     /*                      Single-planar non-packed YUV formats ==> */
 
@@ -480,7 +481,7 @@ static const std::unordered_map<Anvil::Format, YUVFormatBitLayoutInfo> g_yuv_for
     {Anvil::Format::G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16, {UINT32_MAX,  UINT32_MAX, 4,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  4,           15,         4,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
 };
 
-static const std::unordered_map<Anvil::Format, NonYUVFormatBitLayoutInfo> g_nonyuv_format_bit_layout_info =
+static const std::unordered_map<Anvil::Format, NonYUVFormatBitLayoutInfo, Anvil::EnumClassHasher<Anvil::Format> > g_nonyuv_format_bit_layout_info =
 {
     /* format                                   | red start | red end   | green start | green end | blue start | blue end   | alpha start | alpha end | shared_start | shared_end | depth start | depth end | stencil start | stencil end */
     {Anvil::Format::UNKNOWN,                     {UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },

@@ -32,6 +32,15 @@
 
 namespace Anvil
 {
+    template<typename EnumClass>
+    struct EnumClassHasher
+    {
+        std::size_t operator()(const EnumClass& in_value) const
+        {
+            return static_cast<std::size_t>(static_cast<uint32_t>(in_value) );
+        }
+    };
+
     /* Note: Matches VkSampleLocationEXT in terms of the layout and size.
      */
     typedef struct SampleLocation
