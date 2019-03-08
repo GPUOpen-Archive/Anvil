@@ -21,6 +21,7 @@
 //
 
 #include "misc/debug.h"
+#include "misc/descriptor_pool_create_info.h"
 #include "misc/object_tracker.h"
 #include "wrappers/descriptor_pool.h"
 #include "wrappers/descriptor_set.h"
@@ -48,16 +49,9 @@ Anvil::DescriptorSetGroup::DescriptorSetGroup(const Anvil::BaseDevice*          
 {
     auto ds_layout_manager_ptr = m_device_ptr->get_descriptor_set_layout_manager();
 
-    memset(m_overhead_allocations,
-           0,
-           sizeof(m_overhead_allocations) );
-    memset(m_pool_size_per_descriptor_type,
-           0,
-           sizeof(m_pool_size_per_descriptor_type) );
-
     for (const auto& overhead_alloc : in_opt_overhead_allocations)
     {
-        m_overhead_allocations[static_cast<uint32_t>(overhead_alloc.descriptor_type)] = overhead_alloc.n_overhead_allocations;
+        m_descriptor_type_properties[overhead_alloc.descriptor_type].n_overhead_allocations = overhead_alloc.n_overhead_allocations;
     }
 
     /* Initialize descriptor pool */
@@ -114,22 +108,43 @@ Anvil::DescriptorSetGroup::DescriptorSetGroup(const DescriptorSetGroup* in_paren
 {
     auto descriptor_set_layout_manager_ptr = m_device_ptr->get_descriptor_set_layout_manager();
 
-    anvil_assert(  in_parent_dsg_ptr->m_parent_dsg_ptr                                                                                         == nullptr);
-    anvil_assert(((in_parent_dsg_ptr->m_descriptor_pool_ptr->get_flags() & Anvil::DescriptorPoolCreateFlagBits::FREE_DESCRIPTOR_SET_BIT) != 0) == in_releaseable_sets);
+    anvil_assert(  in_parent_dsg_ptr->m_parent_dsg_ptr                                                                                                                       == nullptr);
+    anvil_assert(((in_parent_dsg_ptr->m_descriptor_pool_ptr->get_create_info_ptr()->get_create_flags() & Anvil::DescriptorPoolCreateFlagBits::FREE_DESCRIPTOR_SET_BIT) != 0) == in_releaseable_sets);
 
-    memcpy(m_pool_size_per_descriptor_type,
-           in_parent_dsg_ptr->m_pool_size_per_descriptor_type,
-           sizeof(m_pool_size_per_descriptor_type) );
-    memset(m_overhead_allocations,
-           0,
-           sizeof(m_overhead_allocations) );
+    m_descriptor_type_properties = in_parent_dsg_ptr->m_descriptor_type_properties;
+
+    for (auto& current_descriptor_type_props : m_descriptor_type_properties)
+    {
+        current_descriptor_type_props.second.n_overhead_allocations = 0;
+    }
 
     /* Initialize descriptor pool */
-    m_descriptor_pool_ptr = Anvil::DescriptorPool::create(in_parent_dsg_ptr->m_device_ptr,
-                                                          in_parent_dsg_ptr->m_descriptor_pool_ptr->get_n_maximum_sets(),
-                                                          in_parent_dsg_ptr->m_descriptor_pool_ptr->get_flags         (),
-                                                          m_pool_size_per_descriptor_type,
-                                                          Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe() ));
+    {
+        auto     dp_create_info_ptr = Anvil::DescriptorPoolCreateInfo::create(in_parent_dsg_ptr->m_device_ptr,
+                                                                              in_parent_dsg_ptr->m_descriptor_pool_ptr->get_create_info_ptr()->get_n_maximum_sets(),
+                                                                              in_parent_dsg_ptr->m_descriptor_pool_ptr->get_create_info_ptr()->get_create_flags  (),
+                                                                              Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe() ));
+        uint32_t total_pool_size    = 0;
+
+        for (const auto& current_descriptor_type_props : m_descriptor_type_properties)
+        {
+            dp_create_info_ptr->set_n_descriptors_for_descriptor_type(current_descriptor_type_props.first,
+                                                                      current_descriptor_type_props.second.pool_size);
+
+            total_pool_size += current_descriptor_type_props.second.pool_size;
+        }
+
+        if (total_pool_size == 0)
+        {
+            /* Request space for anything. This is required for correct dummy DSG support, as zero-sized pools are forbidden by the spec. */
+            anvil_assert(dp_create_info_ptr->get_n_descriptors_for_descriptor_type(Anvil::DescriptorType::SAMPLER) == 0);
+
+            dp_create_info_ptr->set_n_descriptors_for_descriptor_type(Anvil::DescriptorType::SAMPLER,
+                                                                      1);
+        }
+
+        m_descriptor_pool_ptr = Anvil::DescriptorPool::create(std::move(dp_create_info_ptr) );
+    }
 
     /* Configure the new DSG instance to use the specified parent DSG */
     for (const auto& ds : in_parent_dsg_ptr->m_descriptor_sets)
@@ -170,10 +185,11 @@ Anvil::DescriptorSetGroup::~DescriptorSetGroup()
 /** Re-creates internally-maintained descriptor pool. **/
 bool Anvil::DescriptorSetGroup::bake_descriptor_pool()
 {
-    Anvil::DescriptorPoolCreateFlags       flags       = ((m_releaseable_sets) ? Anvil::DescriptorPoolCreateFlagBits::FREE_DESCRIPTOR_SET_BIT : Anvil::DescriptorPoolCreateFlagBits::NONE);
-    std::unique_lock<std::recursive_mutex> mutex_lock;
-    auto                                   mutex_ptr   = get_mutex();
-    bool                                   result      = false;
+    Anvil::DescriptorPoolCreateFlags                                                                    flags                    = ((m_releaseable_sets) ? Anvil::DescriptorPoolCreateFlagBits::FREE_DESCRIPTOR_SET_BIT : Anvil::DescriptorPoolCreateFlagBits::NONE);
+    std::unique_lock<std::recursive_mutex>                                                              mutex_lock;
+    auto                                                                                                mutex_ptr                = get_mutex();
+    std::unordered_map<Anvil::DescriptorType, uint32_t, Anvil::EnumClassHasher<Anvil::DescriptorType> > n_descriptors_needed_map;
+    bool                                                                                                result                   = false;
 
     if (mutex_ptr != nullptr)
     {
@@ -188,12 +204,6 @@ bool Anvil::DescriptorSetGroup::bake_descriptor_pool()
     }
 
     /* Count how many descriptor of what types need to have pool space allocated */
-    uint32_t n_descriptors_needed_array[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
-
-    memset(n_descriptors_needed_array,
-           0,
-           sizeof(n_descriptors_needed_array) );
-
     for (auto& current_ds : m_descriptor_sets)
     {
         const Anvil::DescriptorSetCreateInfo* current_ds_create_info_ptr        = nullptr;
@@ -232,11 +242,6 @@ bool Anvil::DescriptorSetGroup::bake_descriptor_pool()
                                                                                nullptr,  /* out_opt_immutable_samplers_enabled_ptr */
                                                                               &ds_binding_flags);
 
-            if (ds_binding_type > static_cast<Anvil::DescriptorType>(VK_DESCRIPTOR_TYPE_END_RANGE) )
-            {
-                continue;
-            }
-
             if (ds_binding_index == variable_descriptor_binding_index)
             {
                 ds_binding_array_size = variable_descriptor_binding_size;
@@ -247,16 +252,13 @@ bool Anvil::DescriptorSetGroup::bake_descriptor_pool()
                 flags |= Anvil::DescriptorPoolCreateFlagBits::UPDATE_AFTER_BIND_BIT;
             }
 
-            n_descriptors_needed_array[static_cast<uint32_t>(ds_binding_type)] += ds_binding_array_size;
+            n_descriptors_needed_map[ds_binding_type] += ds_binding_array_size;
         }
     }
 
-    /* Configure the underlying descriptor pool wrapper */
-    for (uint32_t n_descriptor_type = 0;
-                  n_descriptor_type < VK_DESCRIPTOR_TYPE_RANGE_SIZE;
-                ++n_descriptor_type)
+    for (auto& current_map_entry : n_descriptors_needed_map)
     {
-        m_pool_size_per_descriptor_type[n_descriptor_type] = n_descriptors_needed_array[n_descriptor_type] + m_overhead_allocations[n_descriptor_type];
+        current_map_entry.second += m_descriptor_type_properties[current_map_entry.first].n_overhead_allocations;
     }
 
     /* Verify we can actually create the pool.. */
@@ -271,11 +273,20 @@ bool Anvil::DescriptorSetGroup::bake_descriptor_pool()
     }
 
     /* Create the pool */
-    m_descriptor_pool_ptr = Anvil::DescriptorPool::create(m_device_ptr,
-                                                          m_n_unique_dses,
-                                                          flags | m_user_specified_pool_flags,
-                                                          m_pool_size_per_descriptor_type,
-                                                          Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe() ));
+    {
+        auto dp_create_info_ptr = Anvil::DescriptorPoolCreateInfo::create(m_device_ptr,
+                                                                          m_n_unique_dses,
+                                                                          flags | m_user_specified_pool_flags,
+                                                                          Anvil::Utils::convert_boolean_to_mt_safety_enum(is_mt_safe() ));
+
+        for (const auto& current_n_descriptors_needed_map_entry : n_descriptors_needed_map)
+        {
+            dp_create_info_ptr->set_n_descriptors_for_descriptor_type(current_n_descriptors_needed_map_entry.first,
+                                                                      current_n_descriptors_needed_map_entry.second);
+        }
+
+        m_descriptor_pool_ptr = Anvil::DescriptorPool::create(std::move(dp_create_info_ptr) );
+    }
 
     if (m_descriptor_pool_ptr == nullptr)
     {

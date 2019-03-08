@@ -32,6 +32,7 @@
 #define WRAPPERS_DEVICE_H
 
 #include "misc/debug.h"
+#include "misc/device_create_info.h"
 #include "misc/extensions.h"
 #include "misc/mt_safety.h"
 #include "misc/struct_chainer.h"
@@ -46,8 +47,7 @@ namespace Anvil
         /* Public functions */
 
         /* Constructor */
-        BaseDevice(const Anvil::Instance* in_parent_instance_ptr,
-                   bool                   in_mt_safe);
+        BaseDevice(Anvil::DeviceCreateInfoUniquePtr in_create_info_ptr);
 
         virtual ~BaseDevice();
 
@@ -89,6 +89,11 @@ namespace Anvil
             return result_ptr;
         }
 
+        const Anvil::DeviceCreateInfo* get_create_info_ptr() const
+        {
+            return m_create_info_ptr.get();
+        }
+
         Anvil::DescriptorSetLayoutManager* get_descriptor_set_layout_manager() const
         {
             return m_descriptor_set_layout_manager_ptr.get();
@@ -126,6 +131,7 @@ namespace Anvil
 
             return m_amd_buffer_marker_extension_entrypoints;
         }
+
 
         /** Returns a container with entry-points to functions introduced by VK_AMD_draw_indirect_count  extension.
          *
@@ -305,6 +311,14 @@ namespace Anvil
             return m_khr_maintenance3_extension_entrypoints;
         }
 
+        /** Returns a container with entry-points to functions introduced by VK_KHR_sampler_ycbcr_conversion extension. **/
+        const ExtensionKHRSamplerYCbCrConversionEntrypoints& get_extension_khr_sampler_ycbcr_conversion_entrypoints() const
+        {
+            anvil_assert(m_extension_enabled_info_ptr->get_device_extension_info()->khr_sampler_ycbcr_conversion() );
+
+            return m_khr_sampler_ycbcr_conversion_extension_entrypoints;
+        }
+
         /** Returns a container with entry-points to functions introduced by VK_KHR_swapchain extension.
          *
          *  Will fire an assertion failure if the extension was not requested at device creation time.
@@ -349,9 +363,9 @@ namespace Anvil
 
             switch (in_family_type)
             {
-                case Anvil::QueueFamilyType::COMPUTE:      result = static_cast<uint32_t>(m_compute_queues.size() );      break;
-                case Anvil::QueueFamilyType::TRANSFER:     result = static_cast<uint32_t>(m_transfer_queues.size() );     break;
-                case Anvil::QueueFamilyType::UNIVERSAL:    result = static_cast<uint32_t>(m_universal_queues.size() );    break;
+                case Anvil::QueueFamilyType::COMPUTE:   result = static_cast<uint32_t>(m_compute_queues.size() );   break;
+                case Anvil::QueueFamilyType::TRANSFER:  result = static_cast<uint32_t>(m_transfer_queues.size() );  break;
+                case Anvil::QueueFamilyType::UNIVERSAL: result = static_cast<uint32_t>(m_universal_queues.size() ); break;
 
                 default:
                 {
@@ -391,10 +405,7 @@ namespace Anvil
         }
 
         /** Returns Vulkan instance wrapper used to create this device. */
-        const Anvil::Instance* get_parent_instance() const
-        {
-            return m_parent_instance_ptr;
-        }
+        const Anvil::Instance* get_parent_instance() const;
 
         virtual bool get_physical_device_buffer_properties(const BufferPropertiesQuery& in_query,
                                                            Anvil::BufferProperties*     out_opt_result_ptr = nullptr) const = 0;
@@ -691,16 +702,14 @@ namespace Anvil
 
         /* Protected functions */
 
-        void add_physical_device_features_to_chainer(const VkPhysicalDeviceFeatures*           in_opt_features_ptr,
-                                                     Anvil::StructChainer<VkDeviceCreateInfo>* in_struct_chainer,
-                                                     bool                                      in_add_features_struct) const;
+        void add_physical_device_features_to_chainer(Anvil::StructChainer<VkDeviceCreateInfo>* in_struct_chainer) const;
 
-        std::vector<float> get_queue_priorities(const QueueFamilyInfo*              in_queue_family_info_ptr) const;
-        void               init                (const DeviceExtensionConfiguration& in_extensions,
-                                                const std::vector<std::string>&     in_layers,
-                                                bool                                in_transient_command_buffer_allocs_only,
-                                                bool                                in_support_resettable_command_buffer_allocs,
-                                                bool                                in_enable_shader_module_cache);
+        void create_device(const std::vector<const char*>& in_extensions,
+                           const std::vector<const char*>& in_layers,
+                           DeviceQueueFamilyInfo*          out_queue_families_ptr);
+
+        std::vector<float> get_queue_priorities(const QueueFamilyInfo* in_queue_family_info_ptr) const;
+        bool               init                ();
 
         BaseDevice& operator=(const BaseDevice&);
         BaseDevice           (const BaseDevice&);
@@ -714,15 +723,13 @@ namespace Anvil
         virtual void get_queue_family_indices_for_physical_device(const Anvil::PhysicalDevice* in_physical_device_ptr,
                                                                   DeviceQueueFamilyInfo*       out_device_queue_family_info_ptr) const;
 
-        virtual void create_device                         (const std::vector<const char*>& in_extensions,
-                                                            const std::vector<const char*>& in_layers,
-                                                            const VkPhysicalDeviceFeatures& in_features,
-                                                            DeviceQueueFamilyInfo*          out_queue_families_ptr)       = 0;
         virtual void init_device                           ()                                                             = 0;
         virtual bool is_layer_supported                    (const std::string&              in_layer_name)          const = 0;
         virtual bool is_physical_device_extension_supported(const std::string&              in_extension_name)      const = 0;
 
         /* Protected variables */
+        Anvil::DeviceCreateInfoUniquePtr m_create_info_ptr;
+
         std::vector<Anvil::Queue*> m_compute_queues;
         DeviceQueueFamilyInfo      m_device_queue_families;
         std::vector<Anvil::Queue*> m_sparse_binding_queues;
@@ -754,6 +761,7 @@ namespace Anvil
         ExtensionKHRGetMemoryRequirements2Entrypoints     m_khr_get_memory_requirements2_extension_entrypoints;
         ExtensionKHRMaintenance1Entrypoints               m_khr_maintenance1_extension_entrypoints;
         ExtensionKHRMaintenance3Entrypoints               m_khr_maintenance3_extension_entrypoints;
+        ExtensionKHRSamplerYCbCrConversionEntrypoints     m_khr_sampler_ycbcr_conversion_extension_entrypoints;
         ExtensionKHRSurfaceEntrypoints                    m_khr_surface_extension_entrypoints;
         ExtensionKHRSwapchainEntrypoints                  m_khr_swapchain_extension_entrypoints;
 
@@ -766,16 +774,21 @@ namespace Anvil
             ExtensionKHRExternalMemoryFdEntrypoints       m_khr_external_memory_fd_extension_entrypoints;
             ExtensionKHRExternalSemaphoreFdEntrypoints    m_khr_external_semaphore_fd_extension_entrypoints;
         #endif
+
     private:
+        /* Private functions */
+        bool init_dummy_dsg          () const;
+        bool init_extension_func_ptrs();
+
         /* Private variables */
 
 
         std::unique_ptr<Anvil::ComputePipelineManager>   m_compute_pipeline_manager_ptr;
         DescriptorSetLayoutManagerUniquePtr              m_descriptor_set_layout_manager_ptr;
-        Anvil::DescriptorSetGroupUniquePtr               m_dummy_dsg_ptr;
+        mutable Anvil::DescriptorSetGroupUniquePtr       m_dummy_dsg_ptr;
+        mutable std::mutex                               m_dummy_dsg_mutex;
         std::unique_ptr<Anvil::ExtensionInfo<bool> >     m_extension_enabled_info_ptr;
         GraphicsPipelineManagerUniquePtr                 m_graphics_pipeline_manager_ptr;
-        const Anvil::Instance*                           m_parent_instance_ptr;
         PipelineCacheUniquePtr                           m_pipeline_cache_ptr;
         PipelineLayoutManagerUniquePtr                   m_pipeline_layout_manager_ptr;
         Anvil::ShaderModuleCacheUniquePtr                m_shader_module_cache_ptr;
@@ -793,32 +806,13 @@ namespace Anvil
 
         virtual ~SGPUDevice();
 
-        /** Creates a new Vulkan Device instance using a user-specified physical device instance.
+        /** Creates a new Vulkan Device instance.
          *
-         *  @param in_physical_device_ptr                      Physical device to create this device from. Must not be nullptr.
-         *  @param in_extensions                               Tells which extensions must/should be specified at creation time.
-         *  @param in_layers                                   A vector of layer names to be used when creating the device.
-         *                                                     Can be empty.
-         *  @param in_transient_command_buffer_allocs_only     True if the command pools, which are going to be initialized after
-         *                                                     the device is created, should be set up for transient command buffer
-         *                                                     support.
-         *  @param in_support_resettable_command_buffer_allocs True if the command pools should be configured for resettable command
-         *                                                     buffer support.
-         *  @param in_enable_shader_module_cache               True if all spawned shader modules should be cached throughout instance lifetime.
-         *                                                     False if they should be released as soon as all shared pointers go out of scope.
-         *  @param in_mt_safe                                  True if command buffer creation and queue submissions should be automatically serialized.
-         *                                                     Set to false if your app is never going to use more than one thread at a time for
-         *                                                     command buffer creation or submission.
+         *  @param in_create_info_ptr Create info structure. Must not be nullptr.
          *
          *  @return A new Device instance.
          **/
-        static BaseDeviceUniquePtr create(const Anvil::PhysicalDevice*         in_physical_device_ptr,
-                                          bool                                 in_enable_shader_module_cache,
-                                          const DeviceExtensionConfiguration&  in_extensions,
-                                          const std::vector<std::string>&      in_layers,
-                                          bool                                 in_transient_command_buffer_allocs_only,
-                                          bool                                 in_support_resettable_command_buffer_allocs,
-                                          bool                                 in_mt_safe = false);
+        static BaseDeviceUniquePtr create(Anvil::DeviceCreateInfoUniquePtr in_create_info_ptr);
 
         /** Creates a new swapchain instance for the device.
          *
@@ -846,7 +840,7 @@ namespace Anvil
          **/
         const Anvil::PhysicalDevice* get_physical_device() const
         {
-            return m_parent_physical_device_ptr;
+            return m_create_info_ptr->get_physical_device_ptrs().at(0);
         }
 
         bool get_physical_device_buffer_properties(const BufferPropertiesQuery& in_query,
@@ -901,10 +895,6 @@ namespace Anvil
 
     protected:
         /* Protected functions */
-        void create_device                         (const std::vector<const char*>& in_extensions,
-                                                    const std::vector<const char*>& in_layers,
-                                                    const VkPhysicalDeviceFeatures& in_features,
-                                                    DeviceQueueFamilyInfo*          out_queue_families_ptr) override;
         void get_queue_family_indices              (DeviceQueueFamilyInfo*          out_device_queue_family_info_ptr) const;
         void init_device                           () override;
         bool is_layer_supported                    (const std::string&              in_layer_name)     const override;
@@ -916,11 +906,9 @@ namespace Anvil
         /* Private functions */
 
         /** Private constructor. Please use create() instead. */
-        SGPUDevice(const Anvil::PhysicalDevice* in_physical_device_ptr,
-                   bool                         in_mt_safe);
+        SGPUDevice(Anvil::DeviceCreateInfoUniquePtr in_create_info_ptr);
 
         /* Private variables */
-        const Anvil::PhysicalDevice* m_parent_physical_device_ptr;
     };
 
     /* TODO */
@@ -932,13 +920,7 @@ namespace Anvil
         virtual ~MGPUDevice();
 
         /** TODO */
-        static Anvil::BaseDeviceUniquePtr create(std::vector<const Anvil::PhysicalDevice*> in_physical_device_ptrs,
-                                                 bool                                      in_enable_shader_module_cache,
-                                                 const DeviceExtensionConfiguration&       in_extensions,
-                                                 const std::vector<std::string>&           in_layers,
-                                                 bool                                      in_transient_command_buffer_allocs_only,
-                                                 bool                                      in_support_resettable_command_buffer_allocs,
-                                                 bool                                      in_mt_safe = false);
+        static Anvil::BaseDeviceUniquePtr create(Anvil::DeviceCreateInfoUniquePtr in_create_info_ptr);
 
         /** TODO */
         Anvil::SwapchainUniquePtr create_swapchain(Anvil::RenderingSurface*           in_parent_surface_ptr,
@@ -1073,10 +1055,6 @@ namespace Anvil
 
     protected:
         /* Protected functions */
-        void create_device                         (const std::vector<const char*>& in_extensions,
-                                                    const std::vector<const char*>& in_layers,
-                                                    const VkPhysicalDeviceFeatures& in_features,
-                                                    DeviceQueueFamilyInfo*          out_queue_families_ptr) override;
         void get_queue_family_indices              (DeviceQueueFamilyInfo*          out_device_queue_family_info_ptr) const;
         void init_device                           () override;
         bool is_layer_supported                    (const std::string&              in_layer_name)     const override;
@@ -1099,8 +1077,7 @@ namespace Anvil
         /* Private functions */
 
         /** Private constructor. Please use create() instead. */
-        MGPUDevice(std::vector<const Anvil::PhysicalDevice*> in_physical_device_ptrs,
-                   bool                                      in_mt_safe);
+        MGPUDevice(Anvil::DeviceCreateInfoUniquePtr in_create_info_ptr);
 
         /* Private variables */
         std::map<uint32_t, const ParentPhysicalDeviceProperties*> m_device_index_to_physical_device_props;

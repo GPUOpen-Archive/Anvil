@@ -1,6 +1,6 @@
 # Anvil
 
-This is a README file for Anvil v1.3.1, a framework for Vulkan&trade;.
+This is a README file for Anvil, a framework for Vulkan&trade;.
 The README is organized as a FAQ.
 
 |Toolchain|Status|
@@ -15,8 +15,9 @@ MIT. See `LICENSE.txt`.
 
 What is this?
 ------
-Anvil is a framework for Vulkan v1.0, which we have been using internally for
-quite some time now, in order to develop various Vulkan applications.
+Anvil is a framework for Vulkan v1.0 and v1.1, which we have been using internally for
+quite some time now, in order to develop various Vulkan applications. This guarantees
+that vast majority of the functionality exposed by the library is regularly tested.
 
 The general idea we started from was to have a cross-platform tool, which would
 reduce the amount of time required to write portable Vulkan-based apps from
@@ -34,16 +35,10 @@ Anvil was designed with the following goals in mind:
   using Vulkan, without hiding the API behind thick abstraction layers.
 - Simplify validation layer usage. All you have to do is specify which function
   you would like to be called if a debug call-back is made, and that's it.
-- Provide a reasonable level of deferred approach to baking objects, in order
-  to emulate mutability of certain Vulkan objects to a certain degree. Note
-  that this is an optional feature - you are free to request baking of any
-  object at any time, in order to ensure it will never happen at draw time.
 - Provide a simple cross-platform implementation for areas unrelated to Vulkan
   (eg. window management)
-
-Anvil can be thought of as a toolbox. You are free to use any of its parts you
-like,  and write your own code for everything else. Any Anvil wrapper for an
-actual Vulkan object can be queried to retrieve the raw Vulkan handle.
+- Provide a simple way (with optional flexibility) to manage memory allocations
+  and memory bindings.
 
 Anvil is **not** the right choice for developers who do not have a reasonable
 understanding of how Vulkan works. Its goal is not to provide a glBegin/glEnd-like
@@ -61,8 +56,7 @@ What are Anvil's requirements?
 In order to build Anvil, you will need the following software:
 - C++11 compiler.
 - CMake
-- Vulkan RT 1.0.39.1 or newer.
-- Vulkan SDK 1.0.13.0 or newer.
+- Vulkan SDK (the latest available version is highly recommended)
 
 To build Anvil on Linux, additional packages should be installed:
 - libxcb-keysyms (For ubuntu, use "apt-get install libxcb-keysyms1-dev")
@@ -78,54 +72,9 @@ implementation and on AMDGPU-PRO Vulkan implementation on Linux.
 
 What can it do?
 ------
-This version of Anvil provides:
-
-*  Low-level ref-counted wrappers for the following Vulkan v1.0 features:
-   - Buffer objects (sparse and non-sparse)
-   - Buffer views
-   - Command buffers
-   - Command pools
-   - Descriptor pools
-   - Descriptor sets
-   - Descriptor set layouts
-   - Devices
-   - Events
-   - Fences
-   - Framebuffers
-   - Image objects (sparse, sparse bindings, PRT)
-   - Image views
-   - Instances
-   - Physical devices
-   - Pipeline cache
-   - Pipeline layouts
-   - Query pools
-   - Queues
-   - Renderpasses
-   - Rendering surfaces
-   - Samplers
-   - Semaphores
-   - Shader modules
-   - Swapchains
-
-* More complicated wrappers:
-   - Compute / graphics pipeline managers: provide a way to create regular/derivative pipelines with automatic pipeline layout re-use.
-   - Descriptor set groups:                simplify descriptor set configuration, management and updates.
-   - Memory allocator:                     implements a memory allocator with two back-ends: one that is more appropriate for one-shot
-                                           mem alloc requests, and one that can be used for dynamic memory allocation purposes.
-   - Pipeline layout manager:              caches all created pipeline layouts to avoid instantiating duplicate layout instances.
-
-* Miscellaneous functionality:
-   - Debug markers:                        names and tags can be optionally assigned to any of the created objects. If VK_EXT_debug_marker is enabled, these
-                                           will be automatically patched through to layers that implement the extension on the running platform.
-   - Format info reflection:               provides information about format properties.
-   - GLSL -> SPIR-V conversion:            provides glslang-based GLSL->SPIR-V conversion. The conversion is performed in run-time. Disassembly can also be retrieved, if needed.
-   - GLSL -> SPIR-V conversion cache:      re-uses SPIR-V blobs throughout Instance's lifetime if GLSL->SPIR-V conversion is requested for GLSL source code which has already
-                                           been converted to SPIR-V before.
-   - IO:                                   provides a number of functions to simplify directory- and file-related operations.
-   - Object tracker:                       tracks object allocations and helps detect object leakage.
-   - Shader module cache:                  re-uses shader module instances across Instance lifetime. Improve execution time if your application instantiates shader modules with
-                                           exactly the same configuration during its runtime.
-   - Time:                                 provides a way to query current time using high-performance system queries.
+Anvil provides full support for functionality exposed in Vulkan 1.0 and Vulkan 1.1.
+We also try to do our best to keep it up to date with any extensions our Vulkan implementations
+expose.
 
 We are planning to keep adding new features in the future.
 
@@ -143,12 +92,7 @@ OutOfOrderRasterization and the other example applications are located in the
 
 What are the known issues?
 ------
-Just a handful:
-* All command queues are currently assigned a priority of 1.0.
-* DescriptorSetGroup wrapper does not leverage the <releaseable_sets> flag at
-  baking time.
-
-These will be addressed at some point in the future.
+Please observe the "Issues" tab for more details.
 
 Who made it?
 ------

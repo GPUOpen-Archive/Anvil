@@ -49,6 +49,11 @@ namespace Anvil
         /** Creates a new Instance wrapper instance. **/
         static Anvil::InstanceUniquePtr create(Anvil::InstanceCreateInfoUniquePtr in_create_info_ptr);
 
+        const Anvil::APIVersion& get_api_version() const
+        {
+            return m_api_version;
+        }
+
         const Anvil::IExtensionInfoInstance<bool>* get_enabled_extensions_info() const
         {
             return m_enabled_extensions_info_ptr->get_instance_extension_info();
@@ -192,13 +197,11 @@ namespace Anvil
         void enumerate_layer_extensions      (Anvil::Layer* layer_ptr);
         void enumerate_physical_device_groups();
         void enumerate_physical_devices      ();
-        void init                            ();
+        bool init                            ();
         void init_debug_callbacks            ();
         void init_func_pointers              ();
 
-        #if !defined(ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB)
-            bool init_vk10_func_ptrs();
-        #endif
+        bool init_vk_func_ptrs();
 
         void debug_callback_handler(const Anvil::DebugMessageSeverityFlagBits& in_severity,
                                     const char*                                in_message_ptr);
@@ -215,6 +218,9 @@ namespace Anvil
         ExtensionKHRGetPhysicalDeviceProperties2             m_khr_get_physical_device_properties2_entrypoints;
         ExtensionKHRSurfaceEntrypoints                       m_khr_surface_entrypoints;
 
+        #if defined(_WIN32)
+        #endif
+
         #ifdef _WIN32
             #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
                 ExtensionKHRWin32SurfaceEntrypoints m_khr_win32_surface_entrypoints;
@@ -225,6 +231,7 @@ namespace Anvil
             #endif
         #endif
 
+        Anvil::APIVersion                  m_api_version;
         Anvil::InstanceCreateInfoUniquePtr m_create_info_ptr;
 
         std::unique_ptr<Anvil::ExtensionInfo<bool> > m_enabled_extensions_info_ptr;

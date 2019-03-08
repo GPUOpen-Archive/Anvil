@@ -46,39 +46,12 @@ namespace Anvil
     {
     public:
         /* Public type definitions */
-        typedef struct RenderingSurfaceFormat
-        {
-            Anvil::ColorSpaceKHR color_space;
-            Anvil::Format        format;
-
-            /* Constructor. */
-            RenderingSurfaceFormat(Anvil::SurfaceFormatKHR& in_surface_format)
-            {
-                color_space = in_surface_format.color_space;
-                format      = static_cast<Anvil::Format>(in_surface_format.format);
-            }
-
-            /** Comparison operator for _vulkan_surface_format and in_format types.
-             *
-             *  @param in_format Right-side value.
-             *
-             *  @return true if @param in_format matches _vulkan_surface_format::format value, false
-             *          otherwise.
-             **/
-            bool operator==(const Anvil::Format& in_format) const
-            {
-                return (format == in_format);
-            }
-        } RenderingSurfaceFormat;
 
         /* Public functions */
 
         /** Creates a single Vulkan rendering surface instance and registers the object in
          *  Object Tracker. */
-        static Anvil::RenderingSurfaceUniquePtr create(Anvil::Instance*         in_instance_ptr,
-                                                       const Anvil::BaseDevice* in_device_ptr,
-                                                       const Anvil::Window*     in_window_ptr,
-                                                       MTSafety                 in_mt_safety = Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE);
+        static Anvil::RenderingSurfaceUniquePtr create(Anvil::RenderingSurfaceCreateInfoUniquePtr in_create_info_ptr);
 
         /** Destructor
          *
@@ -158,6 +131,31 @@ namespace Anvil
         /* Private type definitions */
         typedef uint32_t DeviceGroupIndex;
 
+        typedef struct RenderingSurfaceFormat
+        {
+            Anvil::ColorSpaceKHR color_space;
+            Anvil::Format        format;
+
+            /* Constructor. */
+            RenderingSurfaceFormat(Anvil::SurfaceFormatKHR& in_surface_format)
+            {
+                color_space = in_surface_format.color_space;
+                format      = static_cast<Anvil::Format>(in_surface_format.format);
+            }
+
+            /** Comparison operator for _vulkan_surface_format and in_format types.
+             *
+             *  @param in_format Right-side value.
+             *
+             *  @return true if @param in_format matches _vulkan_surface_format::format value, false
+             *          otherwise.
+             **/
+            bool operator==(const Anvil::Format& in_format) const
+            {
+                return (format == in_format);
+            }
+        } RenderingSurfaceFormat;
+
         typedef struct PhysicalDeviceCapabilities
         {
             Anvil::SurfaceCapabilities          capabilities;
@@ -179,11 +177,7 @@ namespace Anvil
         /* Private functions */
 
         /* Constructor. Please see create() for specification */
-        RenderingSurface(Anvil::Instance*         in_instance_ptr,
-                         const Anvil::BaseDevice* in_device_ptr,
-                         const Anvil::Window*     in_window_ptr,
-                         bool                     in_mt_safe,
-                         bool*                    out_safe_to_use_ptr);
+        RenderingSurface(Anvil::RenderingSurfaceCreateInfoUniquePtr in_create_info_ptr);
 
         RenderingSurface           (const RenderingSurface&);
         RenderingSurface& operator=(const RenderingSurface&);
@@ -192,14 +186,12 @@ namespace Anvil
         bool init                    ();
 
         /* Private variables */
-        const Anvil::BaseDevice* m_device_ptr;
-        Anvil::Instance*         m_instance_ptr;
+        Anvil::RenderingSurfaceCreateInfoUniquePtr m_create_info_ptr;
 
         mutable uint32_t                                       m_height;
         std::map<DeviceGroupIndex, PhysicalDeviceCapabilities> m_physical_device_capabilities;
         VkSurfaceKHR                                           m_surface;
         mutable uint32_t                                       m_width;
-        const Anvil::Window*                                   m_window_ptr;
     };
 }; /* namespace Anvil */
 

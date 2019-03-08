@@ -56,6 +56,7 @@
 #include "misc/types.h"
 #include "wrappers/descriptor_set.h"
 #include "wrappers/descriptor_set_layout.h"
+#include <unordered_map>
 
 namespace Anvil
 {
@@ -230,6 +231,46 @@ namespace Anvil
             return true;
         }
 
+        /** TODO
+         *
+         *  NOTE: Do NOT schedule multiple updates for overlapping inline uniform block memory regions without a bake operation in-between. Ignoring
+         *        this requirement results in undefined behavior.
+         *
+         *  Requires VK_EXT_inline_uniform_block.
+         *
+         *  @param in_binding_index         Index of the inline uniform block binding to use for the update.
+         *  @param in_start_offset          Start offset of the inline uniform block's memory region which should be updated. Must be a mul of 4.
+         *  @param in_size                  Size of the inline uniform block's memory region to update. Must be a mul of 4.
+         *  @param in_raw_data_ptr          Data to use for the update. Whether or not the data is cached internally depends on value passed to
+         *                                  @param in_should_cache_raw_data. Must not be nullptr.
+         *  @param in_should_cache_raw_data True if data provided via @param in_raw_data_ptr should be cached internally, false otherwise. In other
+         *                                  words, if this argument is set to true, it is safe to release memory block, to which @param in_raw_data_ptr points.
+         *
+         *  @return true if successful, false otherwise.
+         */
+        bool set_inline_uniform_block_binding_data(const uint32_t&     in_n_set,
+                                                   const BindingIndex& in_binding_index,
+                                                   const uint32_t&     in_start_offset,
+                                                   const uint32_t&     in_size,
+                                                   const void*         in_raw_data_ptr,
+                                                   const bool&         in_should_cache_raw_data)
+        {
+            anvil_assert(m_descriptor_sets.find(in_n_set) != m_descriptor_sets.end() );
+
+            if (m_descriptor_sets[in_n_set]->descriptor_set_ptr == nullptr)
+            {
+                bake_descriptor_sets();
+
+                anvil_assert(m_descriptor_sets[in_n_set]->descriptor_set_ptr != nullptr);
+            }
+
+            return m_descriptor_sets[in_n_set]->descriptor_set_ptr->set_inline_uniform_block_binding_data(in_binding_index,
+                                                                                                          in_start_offset,
+                                                                                                          in_size,
+                                                                                                          in_raw_data_ptr,
+                                                                                                          in_should_cache_raw_data);
+        }
+
         /** This function works exactly like set_bindings(), except that it always replaces the zeroth element
          *  attached to the specified descriptor set's binding.
          */
@@ -269,6 +310,19 @@ namespace Anvil
             ~DescriptorSetInfoContainer();
         } DescriptorSetInfoContainer;
 
+        typedef struct DescriptorTypeProperties
+        {
+            uint32_t n_overhead_allocations;
+            uint32_t pool_size;
+
+            DescriptorTypeProperties()
+                :n_overhead_allocations(0),
+                 pool_size             (0)
+            {
+                /* Stub */
+            }
+        } DescriptorTypeProperties;
+
         /* Private functions */
 
         /** Please see create() documentation for more details. */
@@ -291,8 +345,8 @@ namespace Anvil
         mutable std::map<uint32_t, std::unique_ptr<DescriptorSetInfoContainer> > m_descriptor_sets;
         const Anvil::BaseDevice*                                                 m_device_ptr;
         std::vector<const Anvil::DescriptorSetCreateInfo*>                       m_ds_create_info_ptrs;
-        uint32_t                                                                 m_overhead_allocations         [VK_DESCRIPTOR_TYPE_RANGE_SIZE];
-        uint32_t                                                                 m_pool_size_per_descriptor_type[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
+
+        std::unordered_map<Anvil::DescriptorType, DescriptorTypeProperties, EnumClassHasher<Anvil::DescriptorType> > m_descriptor_type_properties;
 
         uint32_t                               m_n_unique_dses;
         const Anvil::DescriptorSetGroup*       m_parent_dsg_ptr;

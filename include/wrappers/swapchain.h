@@ -203,14 +203,14 @@ namespace Anvil
         void on_present_request_issued      (Anvil::CallbackArgument* in_callback_raw_ptr);
 
         /* Private variables */
-        Anvil::SwapchainCreateInfoUniquePtr m_create_info_ptr;
-        Anvil::FenceUniquePtr               m_image_available_fence_ptr;
-        uint32_t                            m_n_images;  /* number of images created in the swapchain. */
-        std::vector<ImageUniquePtr>         m_image_ptrs;
-        std::vector<ImageViewUniquePtr>     m_image_view_ptrs;
-        uint32_t                            m_last_acquired_image_index;
-        VkExtent2D                          m_size;
-        VkSwapchainKHR                      m_swapchain;
+        Anvil::SwapchainCreateInfoUniquePtr  m_create_info_ptr;
+        Anvil::FenceUniquePtr                m_image_available_fence_ptr;
+        uint32_t                             m_n_images;  /* number of images created in the swapchain. */
+        std::vector<ImageUniquePtr>          m_image_ptrs;
+        std::vector<ImageViewUniquePtr>      m_image_view_ptrs;
+        uint32_t                             m_last_acquired_image_index;
+        VkExtent2D                           m_size;
+        VkSwapchainKHR                       m_swapchain;
 
         bool m_destroy_swapchain_before_parent_window_closes;
 

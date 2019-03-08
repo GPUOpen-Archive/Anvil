@@ -605,8 +605,15 @@ bool Anvil::Buffer::read(VkDeviceSize in_start_offset,
     auto                    memory_block_ptr (get_memory_block(0 /* in_n_memory_block */) );
     bool                    result           (false);
 
-    /* TODO: Support for sparse buffers */
-    anvil_assert(m_create_info_ptr->get_create_flags() == Anvil::BufferCreateFlagBits::NONE);
+    /* TODO: Complete support for sparsely-bound & sparse-resident buffers */
+    anvil_assert((m_create_info_ptr->get_create_flags() & Anvil::BufferCreateFlagBits::SPARSE_RESIDENCY_BIT) == 0);
+
+    if ((m_create_info_ptr->get_create_flags() & Anvil::BufferCreateFlagBits::SPARSE_BINDING_BIT) != 0)
+    {
+        anvil_assert(m_page_tracker_ptr->get_n_memory_blocks            () == 1);
+        anvil_assert(m_page_tracker_ptr->get_n_pages_with_memory_backing() == m_page_tracker_ptr->get_n_pages() );
+    }
+
 
     if ((memory_block_ptr->get_create_info_ptr()->get_memory_features() & Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT) != 0)
     {

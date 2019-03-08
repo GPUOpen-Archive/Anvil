@@ -173,6 +173,39 @@ namespace Anvil
         extern PFN_vkCmdEndRenderPass                              vkCmdEndRenderPass;
         extern PFN_vkCmdExecuteCommands                            vkCmdExecuteCommands;
 
+        /* VK 1.1 core - only available if implementation reports VK 1.1 support!
+         *
+         * These function pointers are always retrieved at run-time.
+         */
+        extern PFN_vkBindBufferMemory2                             vkBindBufferMemory2;
+        extern PFN_vkBindImageMemory2                              vkBindImageMemory2;
+        extern PFN_vkCmdDispatchBase                               vkCmdDispatchBase;
+        extern PFN_vkCmdSetDeviceMask                              vkCmdSetDeviceMask;
+        extern PFN_vkCreateDescriptorUpdateTemplate                vkCreateDescriptorUpdateTemplate;
+        extern PFN_vkCreateSamplerYcbcrConversion                  vkCreateSamplerYcbcrConversion;
+        extern PFN_vkDestroyDescriptorUpdateTemplate               vkDestroyDescriptorUpdateTemplate;
+        extern PFN_vkDestroySamplerYcbcrConversion                 vkDestroySamplerYcbcrConversion;
+        extern PFN_vkEnumerateInstanceVersion                      vkEnumerateInstanceVersion;
+        extern PFN_vkEnumeratePhysicalDeviceGroups                 vkEnumeratePhysicalDeviceGroups;
+        extern PFN_vkGetBufferMemoryRequirements2                  vkGetBufferMemoryRequirements2;
+        extern PFN_vkGetDescriptorSetLayoutSupport                 vkGetDescriptorSetLayoutSupport;
+        extern PFN_vkGetDeviceGroupPeerMemoryFeatures              vkGetDeviceGroupPeerMemoryFeatures;
+        extern PFN_vkGetDeviceQueue2                               vkGetDeviceQueue2;
+        extern PFN_vkGetImageMemoryRequirements2                   vkGetImageMemoryRequirements2;
+        extern PFN_vkGetImageSparseMemoryRequirements2             vkGetImageSparseMemoryRequirements2;
+        extern PFN_vkGetPhysicalDeviceExternalBufferProperties     vkGetPhysicalDeviceExternalBufferProperties;
+        extern PFN_vkGetPhysicalDeviceExternalFenceProperties      vkGetPhysicalDeviceExternalFenceProperties;
+        extern PFN_vkGetPhysicalDeviceExternalSemaphoreProperties  vkGetPhysicalDeviceExternalSemaphoreProperties;
+        extern PFN_vkGetPhysicalDeviceFeatures2                    vkGetPhysicalDeviceFeatures2;
+        extern PFN_vkGetPhysicalDeviceFormatProperties2            vkGetPhysicalDeviceFormatProperties2;
+        extern PFN_vkGetPhysicalDeviceImageFormatProperties2       vkGetPhysicalDeviceImageFormatProperties2;
+        extern PFN_vkGetPhysicalDeviceMemoryProperties2            vkGetPhysicalDeviceMemoryProperties2;
+        extern PFN_vkGetPhysicalDeviceProperties2                  vkGetPhysicalDeviceProperties2;
+        extern PFN_vkGetPhysicalDeviceQueueFamilyProperties2       vkGetPhysicalDeviceQueueFamilyProperties2;
+        extern PFN_vkGetPhysicalDeviceSparseImageFormatProperties2 vkGetPhysicalDeviceSparseImageFormatProperties2;
+        extern PFN_vkTrimCommandPool                               vkTrimCommandPool;
+        extern PFN_vkUpdateDescriptorSetWithTemplate               vkUpdateDescriptorSetWithTemplate;
+
         /* Func pointers to extensions are exposed to apps via relevant functions implemented by Anvil::*Device and Anvil::Instance. */
     }
 }

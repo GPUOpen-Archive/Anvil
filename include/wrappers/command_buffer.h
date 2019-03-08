@@ -125,6 +125,7 @@ namespace Anvil
         COMMAND_TYPE_WAIT_EVENTS,
         COMMAND_TYPE_WRITE_BUFFER_MARKER_AMD,
         COMMAND_TYPE_WRITE_TIMESTAMP,
+
     } CommandType;
 
     /** Base structure for a Vulkan command.
@@ -205,8 +206,8 @@ namespace Anvil
     {
         std::vector<VkClearValue>                 clear_values;
         Anvil::SubpassContents                    contents;
+        uint32_t                                  device_mask;
         Anvil::Framebuffer*                       fbo_ptr;
-        std::vector<const Anvil::PhysicalDevice*> physical_devices;
         std::vector<VkRect2D>                     render_areas;
         Anvil::RenderPass*                        render_pass_ptr;
 
@@ -221,9 +222,9 @@ namespace Anvil
         explicit BeginRenderPassCommand(uint32_t                                in_n_clear_values,
                                         const VkClearValue*                     in_clear_value_ptrs,
                                         Anvil::Framebuffer*                     in_fbo_ptr,
-                                        uint32_t                                in_n_physical_devices,
-                                        const Anvil::PhysicalDevice* const*     in_physical_devices,
-                                        const VkRect2D*                         in_render_areas,
+                                        uint32_t                                in_device_mask,
+                                        uint32_t                                in_n_render_areas,
+                                        const VkRect2D*                         in_render_areas_ptr,
                                         Anvil::RenderPass*                      in_render_pass_ptr,
                                         Anvil::SubpassContents                  in_contents,
                                         const uint32_t&                         in_n_attachment_initial_sample_locations,
@@ -251,9 +252,9 @@ namespace Anvil
         BeginRenderPass2KHRCommand(uint32_t                                in_n_clear_values,
                                    const VkClearValue*                     in_clear_value_ptrs,
                                    Anvil::Framebuffer*                     in_fbo_ptr,
-                                   uint32_t                                in_n_physical_devices,
-                                   const Anvil::PhysicalDevice* const*     in_physical_devices,
-                                   const VkRect2D*                         in_render_areas,
+                                   uint32_t                                in_device_mask,
+                                   uint32_t                                in_n_render_areas,
+                                   const VkRect2D*                         in_render_areas_ptr,
                                    Anvil::RenderPass*                      in_render_pass_ptr,
                                    Anvil::SubpassContents                  in_contents,
                                    const uint32_t&                         in_n_attachment_initial_sample_locations,
@@ -263,9 +264,9 @@ namespace Anvil
             :BeginRenderPassCommand(in_n_clear_values,
                                     in_clear_value_ptrs,
                                     in_fbo_ptr,
-                                    in_n_physical_devices,
-                                    in_physical_devices,
-                                    in_render_areas,
+                                    in_device_mask,
+                                    in_n_render_areas,
+                                    in_render_areas_ptr,
                                     in_render_pass_ptr,
                                     in_contents,
                                     in_n_attachment_initial_sample_locations,
@@ -1267,7 +1268,6 @@ namespace Anvil
                                   uint32_t                   in_region_count,
                                   const Anvil::ImageResolve* in_region_ptrs);
 
-
         /** Issues a vkCmdSetBlendConstants() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
          *  #define enabled).
@@ -1460,6 +1460,7 @@ namespace Anvil
                                   VkDeviceSize   in_dst_offset,
                                   VkDeviceSize   in_data_size,
                                   const void*    in_data_ptr);
+
 
         /** Issues a vkCmdWaitEvents() call and appends it to the internal vector of commands
          *  recorded for the specified command buffer (for builds with STORE_COMMAND_BUFFER_COMMANDS
@@ -1855,6 +1856,7 @@ namespace Anvil
         private:
             ClearDepthStencilImageCommand& operator=(const ClearDepthStencilImageCommand& in);
         } ClearDepthStencilImageCommand;
+
 
         /** Holds all arguments passed to a vkCmdCopyBuffer() command. */
         typedef struct CopyBufferCommand : public Command
@@ -3000,9 +3002,9 @@ namespace Anvil
         bool record_begin_render_pass(uint32_t                                in_n_clear_values,
                                       const VkClearValue*                     in_clear_value_ptrs,
                                       Anvil::Framebuffer*                     in_fbo_ptr,
-                                      uint32_t                                in_n_physical_devices,
-                                      const Anvil::PhysicalDevice* const*     in_physical_devices,
-                                      const VkRect2D*                         in_render_areas,
+                                      uint32_t                                in_device_mask,
+                                      uint32_t                                in_n_render_areas,
+                                      const VkRect2D*                         in_render_areas_ptr,
                                       Anvil::RenderPass*                      in_render_pass_ptr,
                                       Anvil::SubpassContents                  in_contents,
                                       const uint32_t&                         in_opt_n_attachment_initial_sample_locations   = 0,
@@ -3049,9 +3051,9 @@ namespace Anvil
         bool record_begin_render_pass2_KHR(uint32_t                                in_n_clear_values,
                                            const VkClearValue*                     in_clear_value_ptrs,
                                            Anvil::Framebuffer*                     in_fbo_ptr,
-                                           uint32_t                                in_n_physical_devices,
-                                           const Anvil::PhysicalDevice* const*     in_physical_devices,
-                                           const VkRect2D*                         in_render_areas,
+                                           uint32_t                                in_device_mask,
+                                           uint32_t                                in_n_render_areas,
+                                           const VkRect2D*                         in_render_areas_ptr,
                                            Anvil::RenderPass*                      in_render_pass_ptr,
                                            Anvil::SubpassContents                  in_contents,
                                            const uint32_t&                         in_opt_n_attachment_initial_sample_locations   = 0,
@@ -3172,9 +3174,9 @@ namespace Anvil
                                                uint32_t                                in_n_clear_values,
                                                const VkClearValue*                     in_clear_value_ptrs,
                                                Anvil::Framebuffer*                     in_fbo_ptr,
-                                               uint32_t                                in_n_physical_devices,
-                                               const Anvil::PhysicalDevice* const*     in_physical_devices,
-                                               const VkRect2D*                         in_render_areas,
+                                               uint32_t                                in_device_mask,
+                                               uint32_t                                in_n_render_areas,
+                                               const VkRect2D*                         in_render_areas_ptr,
                                                Anvil::RenderPass*                      in_render_pass_ptr,
                                                Anvil::SubpassContents                  in_contents,
                                                const uint32_t&                         in_opt_n_attachment_initial_sample_locations,

@@ -47,9 +47,13 @@ namespace Anvil
          *  @param in_swizzle_blue        Channel to use for the blue component when sampling the view.
          *  @param in_swizzle_alpha       Channel to use for the alpha component when sampling the view.
          *
+         * NOTE: Sampler YCbCr Conversion support is disabled by default. In order to enable it for the about-to-be-created
+         *       image view, please call set_sampler_ycbcr_conversion_ptr().
+         *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
-         * - MT safety:   Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:                        Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
+         * - Sampler YCbCr Conversion support: disabled
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
@@ -81,9 +85,13 @@ namespace Anvil
          *  @param in_swizzle_blue        Channel to use for the blue component when sampling the view.
          *  @param in_swizzle_alpha       Channel to use for the alpha component when sampling the view.
          *
+         * NOTE: Sampler YCbCr Conversion support is disabled by default. In order to enable it for the about-to-be-created
+         *       image view, please call set_sampler_ycbcr_conversion_ptr().
+         *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
-         * - MT safety:   Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:                        Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
+         * - Sampler YCbCr Conversion support: disabled
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
@@ -117,9 +125,13 @@ namespace Anvil
          *  @param in_swizzle_blue        Channel to use for the blue component when sampling the view.
          *  @param in_swizzle_alpha       Channel to use for the alpha component when sampling the view.
          *
+         * NOTE: Sampler YCbCr Conversion support is disabled by default. In order to enable it for the about-to-be-created
+         *       image view, please call set_sampler_ycbcr_conversion_ptr().
+         *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
-         * - MT safety:   Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:                        Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
+         * - Sampler YCbCr Conversion support: disabled
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
@@ -152,9 +164,13 @@ namespace Anvil
          *  @param in_swizzle_blue        Channel to use for the blue component when sampling the view.
          *  @param in_swizzle_alpha       Channel to use for the alpha component when sampling the view.
          *
+         * NOTE: Sampler YCbCr Conversion support is disabled by default. In order to enable it for the about-to-be-created
+         *       image view, please call set_sampler_ycbcr_conversion_ptr().
+         *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
-         * - MT safety:   Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:                        Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
+         * - Sampler YCbCr Conversion support: disabled
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
@@ -185,9 +201,13 @@ namespace Anvil
          *  @param in_swizzle_blue        Channel to use for the blue component when sampling the view.
          *  @param in_swizzle_alpha       Channel to use for the alpha component when sampling the view.
          *
+         * NOTE: Sampler YCbCr Conversion support is disabled by default. In order to enable it for the about-to-be-created
+         *       image view, please call set_sampler_ycbcr_conversion_ptr().
+         *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
-         * - MT safety:   Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:                        Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
+         * - Sampler YCbCr Conversion support: disabled
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
@@ -217,9 +237,13 @@ namespace Anvil
          *  @param in_swizzle_blue        Channel to use for the blue component when sampling the view.
          *  @param in_swizzle_alpha       Channel to use for the alpha component when sampling the view.
          *
+         * NOTE: Sampler YCbCr Conversion support is disabled by default. In order to enable it for the about-to-be-created
+         *       image view, please call set_sampler_ycbcr_conversion_ptr().
+         *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
-         * - MT safety:   Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:                        Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
+         * - Sampler YCbCr Conversion support: disabled
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
@@ -252,9 +276,13 @@ namespace Anvil
          *  @param in_swizzle_blue        Channel to use for the blue component when sampling the view.
          *  @param in_swizzle_alpha       Channel to use for the alpha component when sampling the view.
          *
+         * NOTE: Sampler YCbCr Conversion support is disabled by default. In order to enable it for the about-to-be-created
+         *       image view, please call set_sampler_ycbcr_conversion_ptr().
+         *
          * NOTE: Unless specified later with a corresponding set_..() invocation, the following parameters are assumed by default:
          *
-         * - MT safety:   Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
+         * - MT safety:                        Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
+         * - Sampler YCbCr Conversion support: disabled
          *
          *  @return New ImageView instance, if function executes successfully; nullptr otherwise.
          **/
@@ -323,6 +351,11 @@ namespace Anvil
             return m_parent_image_ptr;
         }
 
+        const Anvil::SamplerYCbCrConversion* get_sampler_ycbcr_conversion_ptr() const
+        {
+            return m_sampler_ycbcr_conversion_ptr;
+        }
+
         /** Returns swizzle array assigned to the image view */
         const std::array<Anvil::ComponentSwizzle, 4>& get_swizzle_array() const
         {
@@ -337,7 +370,7 @@ namespace Anvil
 
         /** Returns usage flags associated with the image view.
          *
-         *  NOTE: If the function returns Anvil::IMAGE_USAGE_FLAG_UNKNOWN, the image view inherits usage bits
+         *  NOTE: If the function returns Anvil::ImageUsageFlagBits::NONE, the image view inherits usage bits
          *        from the parent image.
          *
          */
@@ -391,6 +424,20 @@ namespace Anvil
             m_parent_image_ptr = in_parent_image_ptr;
         }
 
+        /* Attaches or detaches already attached SamplerYCBCRConversion object from the create info struct.
+         * This information will be used at image view creation time.
+         *
+         * NOTE: Requires VK_KHR_sampler_ycbcr_conversion
+         *
+         * @param in_sampler_ycbcr_conversion_ptr If not nullptr, the specified object will be passed to the implementation
+         *                                        at sampler creation time by chaining VkSamplerYcbcrConversionInfo struct.
+         *                                        If nullptr, the struct will not be chained.
+         **/
+        void set_sampler_ycbcr_conversion_ptr(const Anvil::SamplerYCbCrConversion* in_sampler_ycbcr_conversion_ptr)
+        {
+            m_sampler_ycbcr_conversion_ptr = in_sampler_ycbcr_conversion_ptr;
+        }
+
         void set_swizzle_array(const std::array<Anvil::ComponentSwizzle, 4>& in_swizzle_array)
         {
             m_swizzle_array = in_swizzle_array;
@@ -433,6 +480,7 @@ namespace Anvil
         uint32_t                               m_n_layers;
         uint32_t                               m_n_mipmaps;
         Anvil::Image*                          m_parent_image_ptr;
+        const Anvil::SamplerYCbCrConversion*   m_sampler_ycbcr_conversion_ptr;
         std::array<Anvil::ComponentSwizzle, 4> m_swizzle_array;
         Anvil::ImageViewType                   m_type;
         Anvil::ImageUsageFlags                 m_usage;

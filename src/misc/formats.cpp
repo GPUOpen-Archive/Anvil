@@ -22,7 +22,9 @@
 
 #include "misc/debug.h"
 #include "misc/formats.h"
+#include "misc/types.h"
 #include <algorithm>
+#include <unordered_map>
 
 static const struct FormatInfo
 {
@@ -224,6 +226,7 @@ static const struct FormatInfo
 
 struct SubresourceLayoutInfo
 {
+    Anvil::Format          compatible_singleplanar_format;
     Anvil::ComponentLayout component_layout;
     uint8_t                component_bits_used  [4];
     uint8_t                component_bits_unused[4];
@@ -231,39 +234,44 @@ struct SubresourceLayoutInfo
     /*  Default Constructor  */
     SubresourceLayoutInfo()
     {
-        component_layout         = Anvil::ComponentLayout::UNKNOWN;
-        component_bits_used  [0] = component_bits_used  [1] = component_bits_used  [2] = component_bits_used  [3] = 0;
-        component_bits_unused[0] = component_bits_unused[1] = component_bits_unused[2] = component_bits_unused[3] = 0;
+        compatible_singleplanar_format = Anvil::Format::UNKNOWN;
+        component_layout               = Anvil::ComponentLayout::UNKNOWN;
+        component_bits_used  [0]       = component_bits_used  [1] = component_bits_used  [2] = component_bits_used  [3] = 0;
+        component_bits_unused[0]       = component_bits_unused[1] = component_bits_unused[2] = component_bits_unused[3] = 0;
     }
 
-    SubresourceLayoutInfo(Anvil::ComponentLayout in_component_layout,
+    SubresourceLayoutInfo(const Anvil::Format&   in_compatible_singleplanar_format,
+                          Anvil::ComponentLayout in_component_layout,
                           uint8_t                in_component0_bits,
                           uint8_t                in_component1_bits,
                           uint8_t                in_component2_bits,
                           uint8_t                in_component3_bits)
     {
-        component_layout       = in_component_layout;
-        component_bits_used[0] = in_component0_bits;
-        component_bits_used[1] = in_component1_bits;
-        component_bits_used[2] = in_component2_bits;
-        component_bits_used[3] = in_component3_bits;
+        compatible_singleplanar_format = in_compatible_singleplanar_format;
+        component_layout               = in_component_layout;
+        component_bits_used[0]         = in_component0_bits;
+        component_bits_used[1]         = in_component1_bits;
+        component_bits_used[2]         = in_component2_bits;
+        component_bits_used[3]         = in_component3_bits;
 
         component_bits_unused[0] = component_bits_unused[1] = component_bits_unused[2] = component_bits_unused[3] = 0;
     }
 
     /* Constructor for packed format */
-    SubresourceLayoutInfo(Anvil::ComponentLayout in_component_layout,
+    SubresourceLayoutInfo(const Anvil::Format&   in_compatible_singleplanar_format,
+                          Anvil::ComponentLayout in_component_layout,
                           uint8_t                in_component0_bits_used,
                           uint8_t                in_component1_bits_used,
                           uint8_t                in_component2_bits_used,
                           uint8_t                in_component3_bits_used,
                           uint8_t                in_n_bits_per_component)
     {
-        component_layout       = in_component_layout;
-        component_bits_used[0] = in_component0_bits_used;
-        component_bits_used[1] = in_component1_bits_used;
-        component_bits_used[2] = in_component2_bits_used;
-        component_bits_used[3] = in_component3_bits_used;
+        compatible_singleplanar_format = in_compatible_singleplanar_format;
+        component_layout               = in_component_layout;
+        component_bits_used[0]         = in_component0_bits_used;
+        component_bits_used[1]         = in_component1_bits_used;
+        component_bits_used[2]         = in_component2_bits_used;
+        component_bits_used[3]         = in_component3_bits_used;
 
         component_bits_unused[0] = component_bits_unused[1] = component_bits_unused[2] = component_bits_unused[3] = 0;
 
@@ -337,198 +345,278 @@ struct YUVFormatInfo
     }
 };
 
-static const std::map<Anvil::Format, YUVFormatInfo> g_yuv_formats =
+/* TODO: Component layouts are wrong for YUV formats? */
+static const std::unordered_map<Anvil::Format, YUVFormatInfo, Anvil::EnumClassHasher<Anvil::Format>> g_yuv_formats =
 {
-    /* (key)                                                   | YUVFormatInfo (value)                                                                                                                                                                                                                                                                                    */
-    /* format                                                    | name                                                   | num_planes | subresources[0]                                              | subresources[1]                                        | subresources[2]                                | format_type              | is_multiplanar? | is_packed? */
-    {Anvil::Format::G8B8G8R8_422_UNORM,                          {"VK_FORMAT_G8B8G8R8_422_UNORM",                         1,  {Anvil::ComponentLayout::GBGR,     8,      8,      8,      8},          {},                                                      {},                                              Anvil::FormatType::UNORM,  false,      false} },
-    {Anvil::Format::B8G8R8G8_422_UNORM,                          {"VK_FORMAT_B8G8R8G8_422_UNORM",                         1,  {Anvil::ComponentLayout::BGRG,     8,      8,      8,      8},          {},                                                      {},                                              Anvil::FormatType::UNORM,  false,      false} },
-    {Anvil::Format::G8_B8_R8_3PLANE_420_UNORM,                   {"VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM",                  3,  {Anvil::ComponentLayout::R,        8,      0,      0,      0},          {Anvil::ComponentLayout::R,    8,   0,   0,   0},        {Anvil::ComponentLayout::R,  8,  0, 0, 0},       Anvil::FormatType::UNORM,  true,       false} },
-    {Anvil::Format::G8_B8R8_2PLANE_420_UNORM,                    {"VK_FORMAT_G8_B8R8_2PLANE_420_UNORM",                   2,  {Anvil::ComponentLayout::R,        8,      0,      0,      0},          {Anvil::ComponentLayout::BR,   8,   8,   0,   0},        {},                                              Anvil::FormatType::UNORM,  true,       false} },
-    {Anvil::Format::G8_B8_R8_3PLANE_422_UNORM,                   {"VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM",                  3,  {Anvil::ComponentLayout::G,        8,      0,      0,      0},          {Anvil::ComponentLayout::B,    8,   0,   0,   0},        {Anvil::ComponentLayout::R,  8,  0, 0, 0},       Anvil::FormatType::UNORM,  true,       false} },
-    {Anvil::Format::G8_B8R8_2PLANE_422_UNORM,                    {"VK_FORMAT_G8_B8R8_2PLANE_422_UNORM",                   2,  {Anvil::ComponentLayout::G,        8,      0,      0,      0},          {Anvil::ComponentLayout::BR,   8,   8,   0,   0},        {},                                              Anvil::FormatType::UNORM,  true,       false} },
-    {Anvil::Format::G8_B8_R8_3PLANE_444_UNORM,                   {"VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM",                  3,  {Anvil::ComponentLayout::G,        8,      0,      0,      0},          {Anvil::ComponentLayout::B,    8,   0,   0,   0},        {Anvil::ComponentLayout::R,  8,  0, 0, 0},       Anvil::FormatType::UNORM,  true,       false} },
-    {Anvil::Format::R10X6_UNORM_PACK16,                          {"VK_FORMAT_R10X6_UNORM_PACK16",                         1,  {Anvil::ComponentLayout::RX,       10,     0,      0,      0,    16},   {},                                                      {},                                              Anvil::FormatType::UNORM,  false,      true } },
-    {Anvil::Format::R10X6G10X6_UNORM_2PACK16,                    {"VK_FORMAT_R10X6G10X6_UNORM_2PACK16",                   1,  {Anvil::ComponentLayout::RXGX,     10,     10,     0,      0,    16},   {},                                                      {},                                              Anvil::FormatType::UNORM,  false,      true } },
-    {Anvil::Format::R10X6G10X6B10X6A10X6_UNORM_4PACK16,          {"VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16",         1,  {Anvil::ComponentLayout::RXGXBXAX, 10,     10,     10,     10,   16},   {},                                                      {},                                              Anvil::FormatType::UNORM,  false,      true } },
-    {Anvil::Format::G10X6B10X6G10X6R10X6_422_UNORM_4PACK16,      {"VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16",     1,  {Anvil::ComponentLayout::GXBXGXRX, 10,     10,     10,     10,   16},   {},                                                      {},                                              Anvil::FormatType::UNORM,  false,      true } },
-    {Anvil::Format::B10X6G10X6R10X6G10X6_422_UNORM_4PACK16,      {"VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16",     1,  {Anvil::ComponentLayout::BXGXRXGX, 10,     10,     10,     10,   16},   {},                                                      {},                                              Anvil::FormatType::UNORM,  false,      true } },
-    {Anvil::Format::G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16,  {"VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16", 3,  {Anvil::ComponentLayout::GX,       10,     0,      0,      0,    16},   {Anvil::ComponentLayout::BX,   10,  0,   0,   0,  16},   {Anvil::ComponentLayout::RX, 10, 0, 0, 0, 16},   Anvil::FormatType::UNORM,  true,       true } },
-    {Anvil::Format::G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16,   {"VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16",  2,  {Anvil::ComponentLayout::GX,       10,     0,      0,      0,    16},   {Anvil::ComponentLayout::BXRX, 10,  10,  0,   0,  16},   {},                                              Anvil::FormatType::UNORM,  true,       true } },
-    {Anvil::Format::G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16,  {"VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16", 3,  {Anvil::ComponentLayout::GX,       10,     0,      0,      0,    16},   {Anvil::ComponentLayout::BX,   10,  0,   0,   0,  16},   {Anvil::ComponentLayout::RX, 10, 0, 0, 0, 16},   Anvil::FormatType::UNORM,  true,       true } },
-    {Anvil::Format::G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16,   {"VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16",  2,  {Anvil::ComponentLayout::GX,       10,     0,      0,      0,    16},   {Anvil::ComponentLayout::BXRX, 10,  10,  0,   0,  16},   {},                                              Anvil::FormatType::UNORM,  true,       true } },
-    {Anvil::Format::G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16,  {"VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16", 3,  {Anvil::ComponentLayout::GX,       10,     0,      0,      0,    16},   {Anvil::ComponentLayout::BX,   10,  0,   0,   0,  16},   {Anvil::ComponentLayout::RX, 10, 0, 0, 0, 16},   Anvil::FormatType::UNORM,  true,       true } },
-    {Anvil::Format::R12X4_UNORM_PACK16,                          {"VK_FORMAT_R12X4_UNORM_PACK16",                         1,  {Anvil::ComponentLayout::RX,       12,     0,      0,      0,    16},   {},                                                      {},                                              Anvil::FormatType::UNORM,  false,      true } },
-    {Anvil::Format::R12X4G12X4_UNORM_2PACK16,                    {"VK_FORMAT_R12X4G12X4_UNORM_2PACK16",                   1,  {Anvil::ComponentLayout::RXGX,     12,     12,     0,      0,    16},   {},                                                      {},                                              Anvil::FormatType::UNORM,  false,      true } },
-    {Anvil::Format::R12X4G12X4B12X4A12X4_UNORM_4PACK16,          {"VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16",         1,  {Anvil::ComponentLayout::RXGXBXAX, 12,     12,     12,     12,   16},   {},                                                      {},                                              Anvil::FormatType::UNORM,  false,      true } },
-    {Anvil::Format::G12X4B12X4G12X4R12X4_422_UNORM_4PACK16,      {"VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16",     1,  {Anvil::ComponentLayout::GXBXGXRX, 12,     12,     12,     12,   16},   {},                                                      {},                                              Anvil::FormatType::UNORM,  false,      true } },
-    {Anvil::Format::B12X4G12X4R12X4G12X4_422_UNORM_4PACK16,      {"VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16",     1,  {Anvil::ComponentLayout::BXGXRXGX, 12,     12,     12,     12,   16},   {},                                                      {},                                              Anvil::FormatType::UNORM,  false,      true } },
-    {Anvil::Format::G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16,  {"VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16", 3,  {Anvil::ComponentLayout::GX,       12,     0,      0,      0,    16},   {Anvil::ComponentLayout::BX,   12,  0,   0,   0,  16},   {Anvil::ComponentLayout::RX, 12, 0, 0, 0, 16},   Anvil::FormatType::UNORM,  true,       true } },
-    {Anvil::Format::G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16,   {"VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16",  2,  {Anvil::ComponentLayout::GX,       12,     0,      0,      0,    16},   {Anvil::ComponentLayout::BXRX, 12,  12,  0,   0,  16},   {},                                              Anvil::FormatType::UNORM,  true,       true } },
-    {Anvil::Format::G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16,  {"VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16", 3,  {Anvil::ComponentLayout::GX,       12,     0,      0,      0,    16},   {Anvil::ComponentLayout::BX,   12,  0,   0,   0,  16},   {Anvil::ComponentLayout::RX, 12, 0, 0, 0, 16},   Anvil::FormatType::UNORM,  true,       true } },
-    {Anvil::Format::G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16,   {"VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16",  2,  {Anvil::ComponentLayout::GX,       12,     0,      0,      0,    16},   {Anvil::ComponentLayout::BXRX, 12,  12,  0,   0,  16},   {},                                              Anvil::FormatType::UNORM,  true,       true } },
-    {Anvil::Format::G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16,  {"VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16", 3,  {Anvil::ComponentLayout::GX,       12,     0,      0,      0,    16},   {Anvil::ComponentLayout::BX,   12,  0,   0,   0,  16},   {Anvil::ComponentLayout::RX, 12, 0, 0, 0, 16},   Anvil::FormatType::UNORM,  true,       true } },
-    {Anvil::Format::G16B16G16R16_422_UNORM,                      {"VK_FORMAT_G16B16G16R16_422_UNORM",                     1,  {Anvil::ComponentLayout::GBGR,     16,     16,     16,     16},         {},                                                      {},                                              Anvil::FormatType::UNORM,  false,      false} },
-    {Anvil::Format::B16G16R16G16_422_UNORM,                      {"VK_FORMAT_B16G16R16G16_422_UNORM",                     1,  {Anvil::ComponentLayout::BGRG,     16,     16,     16,     16},         {},                                                      {},                                              Anvil::FormatType::UNORM,  false,      false} },
-    {Anvil::Format::G16_B16_R16_3PLANE_420_UNORM,                {"VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM",               3,  {Anvil::ComponentLayout::G,        16,     0,      0,      0},          {Anvil::ComponentLayout::B,    16,  0,   0,   0},        {Anvil::ComponentLayout::R,  16, 0, 0, 0},       Anvil::FormatType::UNORM,  true,       false} },
-    {Anvil::Format::G16_B16R16_2PLANE_420_UNORM,                 {"VK_FORMAT_G16_B16R16_2PLANE_420_UNORM",                2,  {Anvil::ComponentLayout::G,        16,     0,      0,      0},          {Anvil::ComponentLayout::BR,   16,  16,  0,   0},        {},                                              Anvil::FormatType::UNORM,  true,       false} },
-    {Anvil::Format::G16_B16_R16_3PLANE_422_UNORM,                {"VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM",               3,  {Anvil::ComponentLayout::G,        16,     0,      0,      0},          {Anvil::ComponentLayout::B,    16,  0,   0,   0},        {Anvil::ComponentLayout::R,  16, 0, 0, 0},       Anvil::FormatType::UNORM,  true,       false} },
-    {Anvil::Format::G16_B16R16_2PLANE_422_UNORM,                 {"VK_FORMAT_G16_B16R16_2PLANE_422_UNORM",                2,  {Anvil::ComponentLayout::G,        16,     0,      0,      0},          {Anvil::ComponentLayout::BR,   16,  16,  0,   0},        {},                                              Anvil::FormatType::UNORM,  true,       false} },
-    {Anvil::Format::G16_B16_R16_3PLANE_444_UNORM,                {"VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM",               3,  {Anvil::ComponentLayout::G,        16,     0,      0,      0},          {Anvil::ComponentLayout::B,    16,  0,   0,   0},        {Anvil::ComponentLayout::R,  16, 0, 0, 0},       Anvil::FormatType::UNORM,  true,       false} },
+    /* format                                                    | name                                                   | num_planes | subresources[0]                                                                                          | subresources[1]                                                                                 | subresources[2]                                                                  | format_type              | is_multiplanar? | is_packed? */
+    {Anvil::Format::G8B8G8R8_422_UNORM,                          {"VK_FORMAT_G8B8G8R8_422_UNORM",                         1,             {Anvil::Format::UNKNOWN,            Anvil::ComponentLayout::GBGR,     8,      8,      8,      8},          {},                                                                                               {},                                                                                Anvil::FormatType::UNORM,  false,            false} },
+    {Anvil::Format::B8G8R8G8_422_UNORM,                          {"VK_FORMAT_B8G8R8G8_422_UNORM",                         1,             {Anvil::Format::UNKNOWN,            Anvil::ComponentLayout::BGRG,     8,      8,      8,      8},          {},                                                                                               {},                                                                                Anvil::FormatType::UNORM,  false,            false} },
+    {Anvil::Format::G8_B8_R8_3PLANE_420_UNORM,                   {"VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM",                  3,             {Anvil::Format::R8_UNORM,           Anvil::ComponentLayout::R,        8,      0,      0,      0},          {Anvil::Format::R8_UNORM,                 Anvil::ComponentLayout::R,    8,   0,   0,   0},        {Anvil::Format::R8_UNORM, Anvil::ComponentLayout::R,  8,  0, 0, 0},                Anvil::FormatType::UNORM,  true,             false} },
+    {Anvil::Format::G8_B8R8_2PLANE_420_UNORM,                    {"VK_FORMAT_G8_B8R8_2PLANE_420_UNORM",                   2,             {Anvil::Format::R8_UNORM,           Anvil::ComponentLayout::R,        8,      0,      0,      0},          {Anvil::Format::R8G8_UNORM,               Anvil::ComponentLayout::BR,   8,   8,   0,   0},        {},                                                                                Anvil::FormatType::UNORM,  true,             false} },
+    {Anvil::Format::G8_B8_R8_3PLANE_422_UNORM,                   {"VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM",                  3,             {Anvil::Format::R8_UNORM,           Anvil::ComponentLayout::G,        8,      0,      0,      0},          {Anvil::Format::R8_UNORM,                 Anvil::ComponentLayout::B,    8,   0,   0,   0},        {Anvil::Format::R8_UNORM, Anvil::ComponentLayout::R,  8,  0, 0, 0},                Anvil::FormatType::UNORM,  true,             false} },
+    {Anvil::Format::G8_B8R8_2PLANE_422_UNORM,                    {"VK_FORMAT_G8_B8R8_2PLANE_422_UNORM",                   2,             {Anvil::Format::R8_UNORM,           Anvil::ComponentLayout::G,        8,      0,      0,      0},          {Anvil::Format::R8G8_UNORM,               Anvil::ComponentLayout::BR,   8,   8,   0,   0},        {},                                                                                Anvil::FormatType::UNORM,  true,             false} },
+    {Anvil::Format::G8_B8_R8_3PLANE_444_UNORM,                   {"VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM",                  3,             {Anvil::Format::R8_UNORM,           Anvil::ComponentLayout::G,        8,      0,      0,      0},          {Anvil::Format::R8_UNORM,                 Anvil::ComponentLayout::B,    8,   0,   0,   0},        {Anvil::Format::R8_UNORM, Anvil::ComponentLayout::R,  8,  0, 0, 0},                Anvil::FormatType::UNORM,  true,             false} },
+    {Anvil::Format::R10X6_UNORM_PACK16,                          {"VK_FORMAT_R10X6_UNORM_PACK16",                         1,             {Anvil::Format::UNKNOWN,            Anvil::ComponentLayout::RX,       10,     0,      0,      0,    16},   {},                                                                                               {},                                                                                Anvil::FormatType::UNORM,  false,            true } },
+    {Anvil::Format::R10X6G10X6_UNORM_2PACK16,                    {"VK_FORMAT_R10X6G10X6_UNORM_2PACK16",                   1,             {Anvil::Format::UNKNOWN,            Anvil::ComponentLayout::RXGX,     10,     10,     0,      0,    16},   {},                                                                                               {},                                                                                Anvil::FormatType::UNORM,  false,            true } },
+    {Anvil::Format::R10X6G10X6B10X6A10X6_UNORM_4PACK16,          {"VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16",         1,             {Anvil::Format::UNKNOWN,            Anvil::ComponentLayout::RXGXBXAX, 10,     10,     10,     10,   16},   {},                                                                                               {},                                                                                Anvil::FormatType::UNORM,  false,            true } },
+    {Anvil::Format::G10X6B10X6G10X6R10X6_422_UNORM_4PACK16,      {"VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16",     1,             {Anvil::Format::UNKNOWN,            Anvil::ComponentLayout::GXBXGXRX, 10,     10,     10,     10,   16},   {},                                                                                               {},                                                                                Anvil::FormatType::UNORM,  false,            true } },
+    {Anvil::Format::B10X6G10X6R10X6G10X6_422_UNORM_4PACK16,      {"VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16",     1,             {Anvil::Format::UNKNOWN,            Anvil::ComponentLayout::BXGXRXGX, 10,     10,     10,     10,   16},   {},                                                                                               {},                                                                                Anvil::FormatType::UNORM,  false,            true } },
+    {Anvil::Format::G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16,  {"VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16", 3,             {Anvil::Format::R10X6_UNORM_PACK16, Anvil::ComponentLayout::GX,       10,     0,      0,      0,    16},   {Anvil::Format::R10X6_UNORM_PACK16,       Anvil::ComponentLayout::BX,   10,  0,   0,   0,  16},   {Anvil::Format::R10X6_UNORM_PACK16, Anvil::ComponentLayout::RX, 10, 0, 0, 0, 16},  Anvil::FormatType::UNORM,  true,             true } },
+    {Anvil::Format::G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16,   {"VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16",  2,             {Anvil::Format::R10X6_UNORM_PACK16, Anvil::ComponentLayout::GX,       10,     0,      0,      0,    16},   {Anvil::Format::R10X6G10X6_UNORM_2PACK16, Anvil::ComponentLayout::BXRX, 10,  10,  0,   0,  16},   {},                                                                                Anvil::FormatType::UNORM,  true,             true } },
+    {Anvil::Format::G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16,  {"VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16", 3,             {Anvil::Format::R10X6_UNORM_PACK16, Anvil::ComponentLayout::GX,       10,     0,      0,      0,    16},   {Anvil::Format::R10X6_UNORM_PACK16,       Anvil::ComponentLayout::BX,   10,  0,   0,   0,  16},   {Anvil::Format::R10X6_UNORM_PACK16, Anvil::ComponentLayout::RX, 10, 0, 0, 0, 16},  Anvil::FormatType::UNORM,  true,             true } },
+    {Anvil::Format::G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16,   {"VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16",  2,             {Anvil::Format::R10X6_UNORM_PACK16, Anvil::ComponentLayout::GX,       10,     0,      0,      0,    16},   {Anvil::Format::R10X6G10X6_UNORM_2PACK16, Anvil::ComponentLayout::BXRX, 10,  10,  0,   0,  16},   {},                                                                                Anvil::FormatType::UNORM,  true,             true } },
+    {Anvil::Format::G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16,  {"VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16", 3,             {Anvil::Format::R10X6_UNORM_PACK16, Anvil::ComponentLayout::GX,       10,     0,      0,      0,    16},   {Anvil::Format::R10X6_UNORM_PACK16,       Anvil::ComponentLayout::BX,   10,  0,   0,   0,  16},   {Anvil::Format::R10X6_UNORM_PACK16, Anvil::ComponentLayout::RX, 10, 0, 0, 0, 16},  Anvil::FormatType::UNORM,  true,             true } },
+    {Anvil::Format::R12X4_UNORM_PACK16,                          {"VK_FORMAT_R12X4_UNORM_PACK16",                         1,             {Anvil::Format::UNKNOWN,            Anvil::ComponentLayout::RX,       12,     0,      0,      0,    16},   {},                                                                                               {},                                                                                Anvil::FormatType::UNORM,  false,            true } },
+    {Anvil::Format::R12X4G12X4_UNORM_2PACK16,                    {"VK_FORMAT_R12X4G12X4_UNORM_2PACK16",                   1,             {Anvil::Format::UNKNOWN,            Anvil::ComponentLayout::RXGX,     12,     12,     0,      0,    16},   {},                                                                                               {},                                                                                Anvil::FormatType::UNORM,  false,            true } },
+    {Anvil::Format::R12X4G12X4B12X4A12X4_UNORM_4PACK16,          {"VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16",         1,             {Anvil::Format::UNKNOWN,            Anvil::ComponentLayout::RXGXBXAX, 12,     12,     12,     12,   16},   {},                                                                                               {},                                                                                Anvil::FormatType::UNORM,  false,            true } },
+    {Anvil::Format::G12X4B12X4G12X4R12X4_422_UNORM_4PACK16,      {"VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16",     1,             {Anvil::Format::UNKNOWN,            Anvil::ComponentLayout::GXBXGXRX, 12,     12,     12,     12,   16},   {},                                                                                               {},                                                                                Anvil::FormatType::UNORM,  false,            true } },
+    {Anvil::Format::B12X4G12X4R12X4G12X4_422_UNORM_4PACK16,      {"VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16",     1,             {Anvil::Format::UNKNOWN,            Anvil::ComponentLayout::BXGXRXGX, 12,     12,     12,     12,   16},   {},                                                                                               {},                                                                                Anvil::FormatType::UNORM,  false,            true } },
+    {Anvil::Format::G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16,  {"VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16", 3,             {Anvil::Format::R12X4_UNORM_PACK16, Anvil::ComponentLayout::GX,       12,     0,      0,      0,    16},   {Anvil::Format::R12X4_UNORM_PACK16,       Anvil::ComponentLayout::BX,   12,  0,   0,   0,  16},   {Anvil::Format::R12X4_UNORM_PACK16, Anvil::ComponentLayout::RX, 12, 0, 0, 0, 16},  Anvil::FormatType::UNORM,  true,             true } },
+    {Anvil::Format::G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16,   {"VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16",  2,             {Anvil::Format::R12X4_UNORM_PACK16, Anvil::ComponentLayout::GX,       12,     0,      0,      0,    16},   {Anvil::Format::R12X4G12X4_UNORM_2PACK16, Anvil::ComponentLayout::BXRX, 12,  12,  0,   0,  16},   {},                                                                                Anvil::FormatType::UNORM,  true,             true } },
+    {Anvil::Format::G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16,  {"VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16", 3,             {Anvil::Format::R12X4_UNORM_PACK16, Anvil::ComponentLayout::GX,       12,     0,      0,      0,    16},   {Anvil::Format::R12X4_UNORM_PACK16,       Anvil::ComponentLayout::BX,   12,  0,   0,   0,  16},   {Anvil::Format::R12X4_UNORM_PACK16, Anvil::ComponentLayout::RX, 12, 0, 0, 0, 16},  Anvil::FormatType::UNORM,  true,             true } },
+    {Anvil::Format::G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16,   {"VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16",  2,             {Anvil::Format::R12X4_UNORM_PACK16, Anvil::ComponentLayout::GX,       12,     0,      0,      0,    16},   {Anvil::Format::R12X4G12X4_UNORM_2PACK16, Anvil::ComponentLayout::BXRX, 12,  12,  0,   0,  16},   {},                                                                                Anvil::FormatType::UNORM,  true,             true } },
+    {Anvil::Format::G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16,  {"VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16", 3,             {Anvil::Format::R12X4_UNORM_PACK16, Anvil::ComponentLayout::GX,       12,     0,      0,      0,    16},   {Anvil::Format::R12X4_UNORM_PACK16,       Anvil::ComponentLayout::BX,   12,  0,   0,   0,  16},   {Anvil::Format::R12X4_UNORM_PACK16, Anvil::ComponentLayout::RX, 12, 0, 0, 0, 16},  Anvil::FormatType::UNORM,  true,             true } },
+    {Anvil::Format::G16B16G16R16_422_UNORM,                      {"VK_FORMAT_G16B16G16R16_422_UNORM",                     1,             {Anvil::Format::UNKNOWN,            Anvil::ComponentLayout::GBGR,     16,     16,     16,     16},         {},                                                                                               {},                                                                                Anvil::FormatType::UNORM,  false,            false} },
+    {Anvil::Format::B16G16R16G16_422_UNORM,                      {"VK_FORMAT_B16G16R16G16_422_UNORM",                     1,             {Anvil::Format::UNKNOWN,            Anvil::ComponentLayout::BGRG,     16,     16,     16,     16},         {},                                                                                               {},                                                                                Anvil::FormatType::UNORM,  false,            false} },
+    {Anvil::Format::G16_B16_R16_3PLANE_420_UNORM,                {"VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM",               3,             {Anvil::Format::R16_UNORM,          Anvil::ComponentLayout::G,        16,     0,      0,      0},          {Anvil::Format::R16_UNORM,                Anvil::ComponentLayout::B,    16,  0,   0,   0},        {Anvil::Format::R16_UNORM, Anvil::ComponentLayout::R,  16, 0, 0, 0},               Anvil::FormatType::UNORM,  true,             false} },
+    {Anvil::Format::G16_B16R16_2PLANE_420_UNORM,                 {"VK_FORMAT_G16_B16R16_2PLANE_420_UNORM",                2,             {Anvil::Format::R16_UNORM,          Anvil::ComponentLayout::G,        16,     0,      0,      0},          {Anvil::Format::R16G16_UNORM,             Anvil::ComponentLayout::BR,   16,  16,  0,   0},        {},                                                                                Anvil::FormatType::UNORM,  true,             false} },
+    {Anvil::Format::G16_B16_R16_3PLANE_422_UNORM,                {"VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM",               3,             {Anvil::Format::R16_UNORM,          Anvil::ComponentLayout::G,        16,     0,      0,      0},          {Anvil::Format::R16_UNORM,                Anvil::ComponentLayout::B,    16,  0,   0,   0},        {Anvil::Format::R16_UNORM, Anvil::ComponentLayout::R,  16, 0, 0, 0},               Anvil::FormatType::UNORM,  true,             false} },
+    {Anvil::Format::G16_B16R16_2PLANE_422_UNORM,                 {"VK_FORMAT_G16_B16R16_2PLANE_422_UNORM",                2,             {Anvil::Format::R16_UNORM,          Anvil::ComponentLayout::G,        16,     0,      0,      0},          {Anvil::Format::R16G16_UNORM,             Anvil::ComponentLayout::BR,   16,  16,  0,   0},        {},                                                                                Anvil::FormatType::UNORM,  true,             false} },
+    {Anvil::Format::G16_B16_R16_3PLANE_444_UNORM,                {"VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM",               3,             {Anvil::Format::R16_UNORM,          Anvil::ComponentLayout::G,        16,     0,      0,      0},          {Anvil::Format::R16_UNORM,                Anvil::ComponentLayout::B,    16,  0,   0,   0},        {Anvil::Format::R16_UNORM, Anvil::ComponentLayout::R,  16, 0, 0, 0},               Anvil::FormatType::UNORM,  true,             false} },
 };
 
-static const struct
+typedef struct
 {
-    Anvil::Format format;
-    uint32_t      red_component_start_bit_index;
-    uint32_t      red_component_last_bit_index;
-    uint32_t      green_component_start_bit_index;
-    uint32_t      green_component_last_bit_index;
-    uint32_t      blue_component_start_bit_index;
-    uint32_t      blue_component_last_bit_index;
-    uint32_t      alpha_component_start_bit_index;
-    uint32_t      alpha_component_last_bit_index;
-    uint32_t      shared_component_start_bit_index;
-    uint32_t      shared_component_last_bit_index;
-    uint32_t      depth_component_start_bit_index;
-    uint32_t      depth_component_last_bit_index;
-    uint32_t      stencil_component_start_bit_index;
-    uint32_t      stencil_component_last_bit_index;
-} g_format_bit_layout_info[] =
+    uint32_t red_component_start_bit_index;
+    uint32_t red_component_last_bit_index;
+    uint32_t green_component_start_bit_index;
+    uint32_t green_component_last_bit_index;
+    uint32_t blue_component_start_bit_index;
+    uint32_t blue_component_last_bit_index;
+    uint32_t alpha_component_start_bit_index;
+    uint32_t alpha_component_last_bit_index;
+    uint32_t shared_component_start_bit_index;
+    uint32_t shared_component_last_bit_index;
+    uint32_t depth_component_start_bit_index;
+    uint32_t depth_component_last_bit_index;
+    uint32_t stencil_component_start_bit_index;
+    uint32_t stencil_component_last_bit_index;
+} NonYUVFormatBitLayoutInfo;
+
+typedef struct
+{
+    uint32_t plane0_r0_start_bit_index;
+    uint32_t plane0_r0_last_bit_index;
+    uint32_t plane0_g0_start_bit_index;
+    uint32_t plane0_g0_last_bit_index;
+    uint32_t plane0_b0_start_bit_index;
+    uint32_t plane0_b0_last_bit_index;
+    uint32_t plane0_a0_start_bit_index;
+    uint32_t plane0_a0_last_bit_index;
+
+    uint32_t plane0_g1_start_bit_index;
+    uint32_t plane0_g1_last_bit_index;
+
+    uint32_t plane1_r0_start_bit_index;
+    uint32_t plane1_r0_last_bit_index;
+    uint32_t plane1_g0_start_bit_index;
+    uint32_t plane1_g0_last_bit_index;
+    uint32_t plane1_b0_start_bit_index;
+    uint32_t plane1_b0_last_bit_index;
+
+    uint32_t plane2_r0_start_bit_index;
+    uint32_t plane2_r0_last_bit_index;
+    uint32_t plane2_g0_start_bit_index;
+    uint32_t plane2_g0_last_bit_index;
+    uint32_t plane2_b0_start_bit_index;
+    uint32_t plane2_b0_last_bit_index;
+} YUVFormatBitLayoutInfo;
+
+static const std::unordered_map<Anvil::Format, YUVFormatBitLayoutInfo, Anvil::EnumClassHasher<Anvil::Format> > g_yuv_format_bit_layout_info =
+{
+    /*                      Single-planar non-packed YUV formats ==> */
+
+    /* format                                                  | p0r0 start | p0r0 end  | p0g0 start | p0g0 end  | p0b0 start | p0b0 end  | p0a0 start | p0a0 end  | p0g1 start | p0g1 end  | p1r0 start | p1r0 end  | p1g0 start | p1g0 end   | p1b0 start | p1b0 end  | p2r0 start | p2r0 end  | p2g0 start | p2g0 end  | p2b0 start | p2b0 end */
+    {Anvil::Format::G8B8G8R8_422_UNORM,                         {24,          31,         0,           7,          8,           15,         UINT32_MAX,  UINT32_MAX, 16,          23,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::B8G8R8G8_422_UNORM,                         {16,          23,         8,           15,         0,           7,          UINT32_MAX,  UINT32_MAX, 24,          31,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G16B16G16R16_422_UNORM,                     {48,          63,         0,           15,         16,          31,         UINT32_MAX,  UINT32_MAX, 32,          47,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::B16G16R16G16_422_UNORM,                     {32,          47,         16,          31,         0,           15,         UINT32_MAX,  UINT32_MAX, 48,          63,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+
+    /*                      Single-planar packed YUV formats ==> */
+    {Anvil::Format::R10X6_UNORM_PACK16,                         {6,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::R10X6G10X6_UNORM_2PACK16,                   {22,          31,         6,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::R10X6G10X6B10X6A10X6_UNORM_4PACK16,         {54,          63,         38,          47,         22,          31,         6,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G10X6B10X6G10X6R10X6_422_UNORM_4PACK16,     {48,          57,         0,           9,          16,          25,         UINT32_MAX,  UINT32_MAX, 32,          41,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::B10X6G10X6R10X6G10X6_422_UNORM_4PACK16,     {32,          41,         16,          25,         0,           9,          UINT32_MAX,  UINT32_MAX, 48,          57,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::R12X4_UNORM_PACK16,                         {4,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::R12X4G12X4_UNORM_2PACK16,                   {20,          31,         4,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::R12X4G12X4B12X4A12X4_UNORM_4PACK16,         {52,          63,         36,          47,         20,          31,         4,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G12X4B12X4G12X4R12X4_422_UNORM_4PACK16,     {48,          59,         0,           11,         16,          27,         UINT32_MAX,  UINT32_MAX, 32,          43,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::B12X4G12X4R12X4G12X4_422_UNORM_4PACK16,     {32,          43,         16,          27,         0,           11,         UINT32_MAX,  UINT32_MAX, 48,          59,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+
+    /*                      Multi-planar non-packed YUV formats ==> */
+
+    {Anvil::Format::G8_B8_R8_3PLANE_420_UNORM,                  {UINT32_MAX,  UINT32_MAX, 0,           7,          UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  0,           7,          0,           7,          UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G8_B8R8_2PLANE_420_UNORM,                   {UINT32_MAX,  UINT32_MAX, 0,           7,          UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, 8,           15,         UINT32_MAX,  UINT32_MAX,  0,           7,          UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G8_B8_R8_3PLANE_422_UNORM,                  {UINT32_MAX,  UINT32_MAX, 0,           7,          UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  0,           7,          0,           7,          UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G8_B8R8_2PLANE_422_UNORM,                   {UINT32_MAX,  UINT32_MAX, 0,           7,          UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, 8,           15,         UINT32_MAX,  UINT32_MAX,  0,           7,          UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G8_B8_R8_3PLANE_444_UNORM,                  {UINT32_MAX,  UINT32_MAX, 0,           7,          UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  0,           7,          0,           7,          UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G16_B16_R16_3PLANE_420_UNORM,               {UINT32_MAX,  UINT32_MAX, 0,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  0,           15,         0,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G16_B16R16_2PLANE_420_UNORM,                {UINT32_MAX,  UINT32_MAX, 0,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, 16,          31,         UINT32_MAX,  UINT32_MAX,  0,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G16_B16_R16_3PLANE_422_UNORM,               {UINT32_MAX,  UINT32_MAX, 0,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  0,           15,         0,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G16_B16R16_2PLANE_422_UNORM,                {UINT32_MAX,  UINT32_MAX, 0,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, 16,          31,         UINT32_MAX,  UINT32_MAX,  0,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G16_B16_R16_3PLANE_444_UNORM,               {UINT32_MAX,  UINT32_MAX, 0,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  0,           15,         0,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+
+    /*                      Multi-planar packed YUV formats ==> */
+
+    {Anvil::Format::G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16, {UINT32_MAX,  UINT32_MAX, 6,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  6,           15,         6,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16,  {UINT32_MAX,  UINT32_MAX, 6,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, 6,           15,         UINT32_MAX,  UINT32_MAX,  22,          31,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16, {UINT32_MAX,  UINT32_MAX, 6,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  6,           15,         6,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16,  {UINT32_MAX,  UINT32_MAX, 6,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, 6,           15,         UINT32_MAX,  UINT32_MAX,  22,          31,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16, {UINT32_MAX,  UINT32_MAX, 6,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  6,           15,         6,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16, {UINT32_MAX,  UINT32_MAX, 4,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  4,           15,         4,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16,  {UINT32_MAX,  UINT32_MAX, 4,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, 4,           15,         UINT32_MAX,  UINT32_MAX,  20,          31,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16, {UINT32_MAX,  UINT32_MAX, 4,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  4,           15,         4,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16,  {UINT32_MAX,  UINT32_MAX, 4,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, 4,           15,         UINT32_MAX,  UINT32_MAX,  20,          31,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+    {Anvil::Format::G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16, {UINT32_MAX,  UINT32_MAX, 4,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX,  4,           15,         4,           15,         UINT32_MAX,  UINT32_MAX, UINT32_MAX,  UINT32_MAX} },
+};
+
+static const std::unordered_map<Anvil::Format, NonYUVFormatBitLayoutInfo, Anvil::EnumClassHasher<Anvil::Format> > g_nonyuv_format_bit_layout_info =
 {
     /* format                                   | red start | red end   | green start | green end | blue start | blue end   | alpha start | alpha end | shared_start | shared_end | depth start | depth end | stencil start | stencil end */
-    {Anvil::Format::UNKNOWN,                      UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R4G4_UNORM_PACK8,             4,          7,          0,            3,          UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R4G4B4A4_UNORM_PACK16,        12,         15,         8,            11,         4,           7,           0,            3,          UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B4G4R4A4_UNORM_PACK16,        4,          7,          8,            11,         12,          15,          0,            3,          UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R5G6B5_UNORM_PACK16,          11,         15,         5,            10,         0,           4,           UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B5G6R5_UNORM_PACK16,          0,          4,          5,            10,         11,          15,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R5G5B5A1_UNORM_PACK16,        11,         15,         6,            10,         1,           5,           0,            0,          UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B5G5R5A1_UNORM_PACK16,        1,          5,          6,            10,         11,          15,          0,            0,          UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A1R5G5B5_UNORM_PACK16,        10,         14,         5,            9,          0,           4,           15,           15,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8_UNORM,                     0,          7,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8_SNORM,                     0,          7,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8_USCALED,                   0,          7,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8_SSCALED,                   0,          7,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8_UINT,                      0,          7,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8_SINT,                      0,          7,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8_SRGB,                      0,          7,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8_UNORM,                   0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8_SNORM,                   0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8_USCALED,                 0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8_SSCALED,                 0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8_UINT,                    0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8_SINT,                    0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8_SRGB,                    0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8B8_UNORM,                 0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8B8_SNORM,                 0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8B8_USCALED,               0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8B8_SSCALED,               0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8B8_UINT,                  0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8B8_SINT,                  0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8B8_SRGB,                  0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B8G8R8_UNORM,                 16,         23,         8,            15,         0,           7,           UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B8G8R8_SNORM,                 16,         23,         8,            15,         0,           7,           UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B8G8R8_USCALED,               16,         23,         8,            15,         0,           7,           UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B8G8R8_SSCALED,               16,         23,         8,            15,         0,           7,           UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B8G8R8_UINT,                  16,         23,         8,            15,         0,           7,           UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B8G8R8_SINT,                  16,         23,         8,            15,         0,           7,           UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B8G8R8_SRGB,                  16,         23,         8,            15,         0,           7,           UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8B8A8_UNORM,               0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8B8A8_SNORM,               0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8B8A8_USCALED,             0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8B8A8_SSCALED,             0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8B8A8_UINT,                0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8B8A8_SINT,                0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R8G8B8A8_SRGB,                0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B8G8R8A8_UNORM,               16,         23,         8,            15,         0,           7,           24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B8G8R8A8_SNORM,               16,         23,         8,            15,         0,           7,           24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B8G8R8A8_USCALED,             16,         23,         8,            15,         0,           7,           24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B8G8R8A8_SSCALED,             16,         23,         8,            15,         0,           7,           24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B8G8R8A8_UINT,                16,         23,         8,            15,         0,           7,           24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B8G8R8A8_SINT,                16,         23,         8,            15,         0,           7,           24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B8G8R8A8_SRGB,                16,         23,         8,            15,         0,           7,           24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A8B8G8R8_UNORM_PACK32,        0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A8B8G8R8_SNORM_PACK32,        0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A8B8G8R8_USCALED_PACK32,      0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A8B8G8R8_SSCALED_PACK32,      0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A8B8G8R8_UINT_PACK32,         0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A8B8G8R8_SINT_PACK32,         0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A8B8G8R8_SRGB_PACK32,         0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A2R10G10B10_UNORM_PACK32,     20,         29,         10,           19,         0,           9,           30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A2R10G10B10_SNORM_PACK32,     20,         29,         10,           19,         0,           9,           30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A2R10G10B10_USCALED_PACK32,   20,         29,         10,           19,         0,           9,           30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A2R10G10B10_SSCALED_PACK32,   20,         29,         10,           19,         0,           9,           30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A2R10G10B10_UINT_PACK32,      20,         29,         10,           19,         0,           9,           30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A2R10G10B10_SINT_PACK32,      20,         29,         10,           19,         0,           9,           30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A2B10G10R10_UNORM_PACK32,     0,          9,          10,           19,         20,          29,          30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A2B10G10R10_SNORM_PACK32,     0,          9,          10,           19,         20,          29,          30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A2B10G10R10_USCALED_PACK32,   0,          9,          10,           19,         20,          29,          30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A2B10G10R10_SSCALED_PACK32,   0,          9,          10,           19,         20,          29,          30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A2B10G10R10_UINT_PACK32,      0,          9,          10,           19,         20,          29,          30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::A2B10G10R10_SINT_PACK32,      0,          9,          10,           19,         20,          29,          30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16_UNORM,                    0,          15,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16_SNORM,                    0,          15,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16_USCALED,                  0,          15,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16_SSCALED,                  0,          15,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16_UINT,                     0,          15,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16_SINT,                     0,          15,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16_SFLOAT,                   0,          15,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16_UNORM,                 0,          15,         16,           31,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16_SNORM,                 0,          15,         16,           31,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16_USCALED,               0,          15,         16,           31,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16_SSCALED,               0,          15,         16,           31,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16_UINT,                  0,          15,         16,           31,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16_SINT,                  0,          15,         16,           31,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16_SFLOAT,                0,          15,         16,           31,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16B16_UNORM,              0,          15,         16,           31,         32,          47,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16B16_SNORM,              0,          15,         16,           31,         32,          47,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16B16_USCALED,            0,          15,         16,           31,         32,          47,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16B16_SSCALED,            0,          15,         16,           31,         32,          47,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16B16_UINT,               0,          15,         16,           31,         32,          47,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16B16_SINT,               0,          15,         16,           31,         32,          47,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16B16_SFLOAT,             0,          15,         16,           31,         32,          47,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16B16A16_UNORM,           0,          15,         16,           31,         32,          47,          48,           63,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16B16A16_SNORM,           0,          15,         16,           31,         32,          47,          48,           63,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16B16A16_USCALED,         0,          15,         16,           31,         32,          47,          48,           63,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16B16A16_SSCALED,         0,          15,         16,           31,         32,          47,          48,           63,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16B16A16_UINT,            0,          15,         16,           31,         32,          47,          48,           63,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16B16A16_SINT,            0,          15,         16,           31,         32,          47,          48,           63,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R16G16B16A16_SFLOAT,          0,          15,         16,           31,         32,          47,          48,           63,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R32_UINT,                     0,          31,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R32_SINT,                     0,          31,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R32_SFLOAT,                   0,          31,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R32G32_UINT,                  0,          31,         32,           63,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R32G32_SINT,                  0,          31,         32,           63,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R32G32_SFLOAT,                0,          31,         32,           63,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R32G32B32_UINT,               0,          31,         32,           63,         64,          95,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R32G32B32_SINT,               0,          31,         32,           63,         64,          95,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R32G32B32_SFLOAT,             0,          31,         32,           63,         64,          95,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R32G32B32A32_UINT,            0,          31,         32,           63,         64,          95,          96,           127,        UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R32G32B32A32_SINT,            0,          31,         32,           63,         64,          95,          96,           127,        UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R32G32B32A32_SFLOAT,          0,          31,         32,           63,         64,          95,          96,           127,        UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R64_UINT,                     0,          63,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R64_SINT,                     0,          63,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R64_SFLOAT,                   0,          63,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R64G64_UINT,                  0,          63,         64,           127,        UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R64G64_SINT,                  0,          63,         64,           127,        UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R64G64_SFLOAT,                0,          63,         64,           127,        UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R64G64B64_UINT,               0,          63,         64,           127,        128,         191,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R64G64B64_SINT,               0,          63,         64,           127,        128,         191,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R64G64B64_SFLOAT,             0,          63,         64,           127,        128,         191,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R64G64B64A64_UINT,            0,          63,         64,           127,        128,         191,         192,          255,        UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R64G64B64A64_SINT,            0,          63,         64,           127,        128,         191,         192,          255,        UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::R64G64B64A64_SFLOAT,          0,          63,         64,           127,        128,         191,         192,          255,        UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::B10G11R11_UFLOAT_PACK32,      0,          10,         11,           21,         22,          31,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::E5B9G9R9_UFLOAT_PACK32,       0,          8,          9,            17,         18,          26,          UINT32_MAX,   UINT32_MAX, 27,            31,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::D16_UNORM,                    UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  0,            15,         UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::X8_D24_UNORM_PACK32,          UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  0,            23,         UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::D32_SFLOAT,                   UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  0,            31,         UINT32_MAX,     UINT32_MAX},
-    {Anvil::Format::S8_UINT,                      UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, 0,              7},
-    {Anvil::Format::D16_UNORM_S8_UINT,            UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  0,            15,         16,             23},
-    {Anvil::Format::D24_UNORM_S8_UINT,            UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  0,            23,         24,             31},
-    {Anvil::Format::D32_SFLOAT_S8_UINT,           UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  0,            31,         32,             39},
+    {Anvil::Format::UNKNOWN,                     {UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R4G4_UNORM_PACK8,            {4,          7,          0,            3,          UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R4G4B4A4_UNORM_PACK16,       {12,         15,         8,            11,         4,           7,           0,            3,          UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B4G4R4A4_UNORM_PACK16,       {4,          7,          8,            11,         12,          15,          0,            3,          UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R5G6B5_UNORM_PACK16,         {11,         15,         5,            10,         0,           4,           UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B5G6R5_UNORM_PACK16,         {0,          4,          5,            10,         11,          15,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R5G5B5A1_UNORM_PACK16,       {11,         15,         6,            10,         1,           5,           0,            0,          UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B5G5R5A1_UNORM_PACK16,       {1,          5,          6,            10,         11,          15,          0,            0,          UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A1R5G5B5_UNORM_PACK16,       {10,         14,         5,            9,          0,           4,           15,           15,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8_UNORM,                    {0,          7,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8_SNORM,                    {0,          7,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8_USCALED,                  {0,          7,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8_SSCALED,                  {0,          7,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8_UINT,                     {0,          7,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8_SINT,                     {0,          7,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8_SRGB,                     {0,          7,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8_UNORM,                  {0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8_SNORM,                  {0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8_USCALED,                {0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8_SSCALED,                {0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8_UINT,                   {0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8_SINT,                   {0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8_SRGB,                   {0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8B8_UNORM,                {0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8B8_SNORM,                {0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8B8_USCALED,              {0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8B8_SSCALED,              {0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8B8_UINT,                 {0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8B8_SINT,                 {0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8B8_SRGB,                 {0,          7,          8,            15,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B8G8R8_UNORM,                {16,         23,         8,            15,         0,           7,           UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B8G8R8_SNORM,                {16,         23,         8,            15,         0,           7,           UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B8G8R8_USCALED,              {16,         23,         8,            15,         0,           7,           UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B8G8R8_SSCALED,              {16,         23,         8,            15,         0,           7,           UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B8G8R8_UINT,                 {16,         23,         8,            15,         0,           7,           UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B8G8R8_SINT,                 {16,         23,         8,            15,         0,           7,           UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B8G8R8_SRGB,                 {16,         23,         8,            15,         0,           7,           UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8B8A8_UNORM,              {0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8B8A8_SNORM,              {0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8B8A8_USCALED,            {0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8B8A8_SSCALED,            {0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8B8A8_UINT,               {0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8B8A8_SINT,               {0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R8G8B8A8_SRGB,               {0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B8G8R8A8_UNORM,              {16,         23,         8,            15,         0,           7,           24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B8G8R8A8_SNORM,              {16,         23,         8,            15,         0,           7,           24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B8G8R8A8_USCALED,            {16,         23,         8,            15,         0,           7,           24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B8G8R8A8_SSCALED,            {16,         23,         8,            15,         0,           7,           24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B8G8R8A8_UINT,               {16,         23,         8,            15,         0,           7,           24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B8G8R8A8_SINT,               {16,         23,         8,            15,         0,           7,           24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B8G8R8A8_SRGB,               {16,         23,         8,            15,         0,           7,           24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A8B8G8R8_UNORM_PACK32,       {0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A8B8G8R8_SNORM_PACK32,       {0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A8B8G8R8_USCALED_PACK32,     {0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A8B8G8R8_SSCALED_PACK32,     {0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A8B8G8R8_UINT_PACK32,        {0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A8B8G8R8_SINT_PACK32,        {0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A8B8G8R8_SRGB_PACK32,        {0,          7,          8,            15,         16,          23,          24,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A2R10G10B10_UNORM_PACK32,    {20,         29,         10,           19,         0,           9,           30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A2R10G10B10_SNORM_PACK32,    {20,         29,         10,           19,         0,           9,           30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A2R10G10B10_USCALED_PACK32,  {20,         29,         10,           19,         0,           9,           30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A2R10G10B10_SSCALED_PACK32,  {20,         29,         10,           19,         0,           9,           30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A2R10G10B10_UINT_PACK32,     {20,         29,         10,           19,         0,           9,           30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A2R10G10B10_SINT_PACK32,     {20,         29,         10,           19,         0,           9,           30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A2B10G10R10_UNORM_PACK32,    {0,          9,          10,           19,         20,          29,          30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A2B10G10R10_SNORM_PACK32,    {0,          9,          10,           19,         20,          29,          30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A2B10G10R10_USCALED_PACK32,  {0,          9,          10,           19,         20,          29,          30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A2B10G10R10_SSCALED_PACK32,  {0,          9,          10,           19,         20,          29,          30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A2B10G10R10_UINT_PACK32,     {0,          9,          10,           19,         20,          29,          30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::A2B10G10R10_SINT_PACK32,     {0,          9,          10,           19,         20,          29,          30,           31,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16_UNORM,                   {0,          15,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16_SNORM,                   {0,          15,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16_USCALED,                 {0,          15,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16_SSCALED,                 {0,          15,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16_UINT,                    {0,          15,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16_SINT,                    {0,          15,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16_SFLOAT,                  {0,          15,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16_UNORM,                {0,          15,         16,           31,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16_SNORM,                {0,          15,         16,           31,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16_USCALED,              {0,          15,         16,           31,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16_SSCALED,              {0,          15,         16,           31,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16_UINT,                 {0,          15,         16,           31,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16_SINT,                 {0,          15,         16,           31,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16_SFLOAT,               {0,          15,         16,           31,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16B16_UNORM,             {0,          15,         16,           31,         32,          47,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16B16_SNORM,             {0,          15,         16,           31,         32,          47,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16B16_USCALED,           {0,          15,         16,           31,         32,          47,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16B16_SSCALED,           {0,          15,         16,           31,         32,          47,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16B16_UINT,              {0,          15,         16,           31,         32,          47,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16B16_SINT,              {0,          15,         16,           31,         32,          47,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16B16_SFLOAT,            {0,          15,         16,           31,         32,          47,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16B16A16_UNORM,          {0,          15,         16,           31,         32,          47,          48,           63,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16B16A16_SNORM,          {0,          15,         16,           31,         32,          47,          48,           63,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16B16A16_USCALED,        {0,          15,         16,           31,         32,          47,          48,           63,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16B16A16_SSCALED,        {0,          15,         16,           31,         32,          47,          48,           63,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16B16A16_UINT,           {0,          15,         16,           31,         32,          47,          48,           63,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16B16A16_SINT,           {0,          15,         16,           31,         32,          47,          48,           63,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R16G16B16A16_SFLOAT,         {0,          15,         16,           31,         32,          47,          48,           63,         UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R32_UINT,                    {0,          31,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R32_SINT,                    {0,          31,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R32_SFLOAT,                  {0,          31,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R32G32_UINT,                 {0,          31,         32,           63,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R32G32_SINT,                 {0,          31,         32,           63,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R32G32_SFLOAT,               {0,          31,         32,           63,         UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R32G32B32_UINT,              {0,          31,         32,           63,         64,          95,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R32G32B32_SINT,              {0,          31,         32,           63,         64,          95,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R32G32B32_SFLOAT,            {0,          31,         32,           63,         64,          95,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R32G32B32A32_UINT,           {0,          31,         32,           63,         64,          95,          96,           127,        UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R32G32B32A32_SINT,           {0,          31,         32,           63,         64,          95,          96,           127,        UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R32G32B32A32_SFLOAT,         {0,          31,         32,           63,         64,          95,          96,           127,        UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R64_UINT,                    {0,          63,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R64_SINT,                    {0,          63,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R64_SFLOAT,                  {0,          63,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R64G64_UINT,                 {0,          63,         64,           127,        UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R64G64_SINT,                 {0,          63,         64,           127,        UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R64G64_SFLOAT,               {0,          63,         64,           127,        UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R64G64B64_UINT,              {0,          63,         64,           127,        128,         191,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R64G64B64_SINT,              {0,          63,         64,           127,        128,         191,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R64G64B64_SFLOAT,            {0,          63,         64,           127,        128,         191,         UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R64G64B64A64_UINT,           {0,          63,         64,           127,        128,         191,         192,          255,        UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R64G64B64A64_SINT,           {0,          63,         64,           127,        128,         191,         192,          255,        UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::R64G64B64A64_SFLOAT,         {0,          63,         64,           127,        128,         191,         192,          255,        UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::B10G11R11_UFLOAT_PACK32,     {0,          10,         11,           21,         22,          31,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::E5B9G9R9_UFLOAT_PACK32,      {0,          8,          9,            17,         18,          26,          UINT32_MAX,   UINT32_MAX, 27,            31,          UINT32_MAX,   UINT32_MAX, UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::D16_UNORM,                   {UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  0,            15,         UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::X8_D24_UNORM_PACK32,         {UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  0,            23,         UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::D32_SFLOAT,                  {UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  0,            31,         UINT32_MAX,     UINT32_MAX} },
+    {Anvil::Format::S8_UINT,                     {UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  UINT32_MAX,   UINT32_MAX, 0,              7,        } },
+    {Anvil::Format::D16_UNORM_S8_UINT,           {UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  0,            15,         16,             23,       } },
+    {Anvil::Format::D24_UNORM_S8_UINT,           {UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  0,            23,         24,             31,       } },
+    {Anvil::Format::D32_SFLOAT_S8_UINT,          {UINT32_MAX, UINT32_MAX, UINT32_MAX,   UINT32_MAX, UINT32_MAX,  UINT32_MAX,  UINT32_MAX,   UINT32_MAX, UINT32_MAX,    UINT32_MAX,  0,            31,         32,             39,       } },
 };
+
 static const uint32_t g_layout_to_n_components[] =
 {
     /* COMPONENT_LAYOUT_ABGR */
@@ -624,6 +712,69 @@ static const std::vector<Anvil::Format> g_compatibility_classes[] =
         Anvil::Format::R8_SRGB
     },
 
+    {
+        Anvil::Format::G8_B8_R8_3PLANE_420_UNORM
+    },
+
+    {
+        Anvil::Format::G8_B8R8_2PLANE_420_UNORM
+    },
+
+    {
+        Anvil::Format::G8_B8_R8_3PLANE_422_UNORM
+    },
+
+    {
+        Anvil::Format::G8_B8R8_2PLANE_422_UNORM
+    },
+
+    {
+        Anvil::Format::G8_B8_R8_3PLANE_444_UNORM
+    },
+
+    /* 10-bit */
+    {
+        Anvil::Format::G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16
+    },
+
+    {
+        Anvil::Format::G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16
+    },
+
+    {
+        Anvil::Format::G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16
+    },
+
+    {
+        Anvil::Format::G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16
+    },
+
+    {
+        Anvil::Format::G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16
+    },
+
+    /* 12-bit */
+
+    {
+        Anvil::Format::G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16
+    },
+
+    {
+        Anvil::Format::G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16
+    },
+
+    {
+        Anvil::Format::G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16
+    },
+
+    {
+        Anvil::Format::G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16
+    },
+
+    {
+        Anvil::Format::G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16
+    },
+
     /* 16-bit */
     {
         Anvil::Format::R4G4B4A4_UNORM_PACK16,
@@ -646,7 +797,31 @@ static const std::vector<Anvil::Format> g_compatibility_classes[] =
         Anvil::Format::R16_SSCALED,
         Anvil::Format::R16_UINT,
         Anvil::Format::R16_SINT,
-        Anvil::Format::R16_SFLOAT
+        Anvil::Format::R16_SFLOAT,
+
+        /* YUV */
+        Anvil::Format::R10X6_UNORM_PACK16,
+        Anvil::Format::R12X4_UNORM_PACK16
+    },
+
+    {
+        Anvil::Format::G16_B16_R16_3PLANE_420_UNORM,
+    },
+
+    {
+        Anvil::Format::G16_B16R16_2PLANE_420_UNORM,
+    },
+
+    {
+        Anvil::Format::G16_B16_R16_3PLANE_422_UNORM,
+    },
+
+    {
+        Anvil::Format::G16_B16R16_2PLANE_422_UNORM,
+    },
+
+    {
+        Anvil::Format::G16_B16_R16_3PLANE_444_UNORM,
     },
 
     /* 24-bit */
@@ -714,6 +889,18 @@ static const std::vector<Anvil::Format> g_compatibility_classes[] =
         Anvil::Format::R32_SFLOAT,
         Anvil::Format::B10G11R11_UFLOAT_PACK32,
         Anvil::Format::E5B9G9R9_UFLOAT_PACK32,
+
+        /* YUV */
+        Anvil::Format::R10X6G10X6_UNORM_2PACK16,
+        Anvil::Format::R12X4G12X4_UNORM_2PACK16,
+    },
+
+    {
+        Anvil::Format::G8B8G8R8_422_UNORM,
+    },
+
+    {
+        Anvil::Format::B8G8R8G8_422_UNORM
     },
 
     /* 48-bit */
@@ -741,7 +928,39 @@ static const std::vector<Anvil::Format> g_compatibility_classes[] =
         Anvil::Format::R32G32_SFLOAT,
         Anvil::Format::R64_UINT,
         Anvil::Format::R64_SINT,
-        Anvil::Format::R64_SFLOAT
+        Anvil::Format::R64_SFLOAT,
+    },
+
+    {
+        Anvil::Format::R10X6G10X6B10X6A10X6_UNORM_4PACK16,
+    },
+
+    {
+        Anvil::Format::G10X6B10X6G10X6R10X6_422_UNORM_4PACK16,
+    },
+
+    {
+        Anvil::Format::B10X6G10X6R10X6G10X6_422_UNORM_4PACK16,
+    },
+
+    {
+        Anvil::Format::R12X4G12X4B12X4A12X4_UNORM_4PACK16,
+    },
+
+    {
+        Anvil::Format::G12X4B12X4G12X4R12X4_422_UNORM_4PACK16,
+    },
+
+    {
+        Anvil::Format::B12X4G12X4R12X4G12X4_422_UNORM_4PACK16,
+    },
+
+    {
+        Anvil::Format::G16B16G16R16_422_UNORM,
+    },
+
+    {
+        Anvil::Format::B16G16R16G16_422_UNORM
     },
 
     /* 96-bit */
@@ -1265,79 +1484,27 @@ bool Anvil::Formats::get_format_aspects(Anvil::Format                         in
         }
         else
         {
-            struct
-            {
-                bool uses_plane_0_aspect;
-                bool uses_plane_1_aspect;
-                bool uses_plane_2_aspect;
-            } aspects_used;
+            const auto n_planes = get_format_n_planes(in_format);
 
-            aspects_used.uses_plane_0_aspect = false;
-            aspects_used.uses_plane_1_aspect = false;
-            aspects_used.uses_plane_2_aspect = false;
+            out_aspects_ptr->push_back(Anvil::ImageAspectFlagBits::PLANE_0_BIT);
 
-            switch (in_format)
-            {
-                case Anvil::Format::G8_B8R8_2PLANE_420_UNORM:
-                case Anvil::Format::G8_B8R8_2PLANE_422_UNORM:
-                case Anvil::Format::G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16:
-                case Anvil::Format::G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16:
-                case Anvil::Format::G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16:
-                case Anvil::Format::G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16:
-                case Anvil::Format::G16_B16R16_2PLANE_420_UNORM:
-                case Anvil::Format::G16_B16R16_2PLANE_422_UNORM:
-                {
-                    aspects_used = { true, true, false };
-
-                    break;
-                }
-
-                case Anvil::Format::G8_B8_R8_3PLANE_420_UNORM:
-                case Anvil::Format::G8_B8_R8_3PLANE_422_UNORM:
-                case Anvil::Format::G8_B8_R8_3PLANE_444_UNORM:
-                case Anvil::Format::G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16:
-                case Anvil::Format::G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16:
-                case Anvil::Format::G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16:
-                case Anvil::Format::G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16:
-                case Anvil::Format::G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16:
-                case Anvil::Format::G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16:
-                case Anvil::Format::G16_B16_R16_3PLANE_420_UNORM:
-                case Anvil::Format::G16_B16_R16_3PLANE_422_UNORM:
-                case Anvil::Format::G16_B16_R16_3PLANE_444_UNORM:
-                {
-                    aspects_used = { true, true, true };
-
-                    break;
-                }
-
-                default:
-                {
-                    anvil_assert_fail();
-
-                    goto end;
-                }
-            }
-
-            if (aspects_used.uses_plane_0_aspect)
-            {
-                out_aspects_ptr->push_back(Anvil::ImageAspectFlagBits::PLANE_0_BIT);
-            }
-
-            if (aspects_used.uses_plane_1_aspect)
+            if (n_planes >= 2)
             {
                 out_aspects_ptr->push_back(Anvil::ImageAspectFlagBits::PLANE_1_BIT);
             }
 
-            if (aspects_used.uses_plane_2_aspect)
+            if (n_planes >= 3)
             {
                 out_aspects_ptr->push_back(Anvil::ImageAspectFlagBits::PLANE_2_BIT);
             }
+
+            anvil_assert(n_planes >= 1 && n_planes <= 3);
         }
     }
     else
     {
         /* This image can hold color and/or depth and/or stencil aspects only */
-        const Anvil::ComponentLayout format_layout = Anvil::Formats::get_format_component_layout(in_format);
+        const Anvil::ComponentLayout format_layout = Anvil::Formats::get_format_component_layout_nonyuv(in_format);
 
         if (format_layout == Anvil::ComponentLayout::ABGR ||
             format_layout == Anvil::ComponentLayout::ARGB ||
@@ -1367,33 +1534,29 @@ bool Anvil::Formats::get_format_aspects(Anvil::Format                         in
     }
 
     result = true;
-end:
     return result;
 }
 
 /** Please see header for specification */
-void Anvil::Formats::get_format_bit_layout(Anvil::Format in_format,
-                                           uint32_t*     out_opt_red_component_start_bit_index_ptr,
-                                           uint32_t*     out_opt_red_component_end_bit_index_ptr,
-                                           uint32_t*     out_opt_green_component_start_bit_index_ptr,
-                                           uint32_t*     out_opt_green_component_end_bit_index_ptr,
-                                           uint32_t*     out_opt_blue_component_start_bit_index_ptr,
-                                           uint32_t*     out_opt_blue_component_end_bit_index_ptr,
-                                           uint32_t*     out_opt_alpha_component_start_bit_index_ptr,
-                                           uint32_t*     out_opt_alpha_component_end_bit_index_ptr,
-                                           uint32_t*     out_opt_shared_component_start_bit_index_ptr,
-                                           uint32_t*     out_opt_shared_component_end_bit_index_ptr,
-                                           uint32_t*     out_opt_depth_component_start_bit_index_ptr,
-                                           uint32_t*     out_opt_depth_component_end_bit_index_ptr,
-                                           uint32_t*     out_opt_stencil_component_start_bit_index_ptr,
-                                           uint32_t*     out_opt_stencil_component_end_bit_index_ptr)
+void Anvil::Formats::get_format_bit_layout_nonyuv(Anvil::Format in_format,
+                                                  uint32_t*     out_opt_red_component_start_bit_index_ptr,
+                                                  uint32_t*     out_opt_red_component_end_bit_index_ptr,
+                                                  uint32_t*     out_opt_green_component_start_bit_index_ptr,
+                                                  uint32_t*     out_opt_green_component_end_bit_index_ptr,
+                                                  uint32_t*     out_opt_blue_component_start_bit_index_ptr,
+                                                  uint32_t*     out_opt_blue_component_end_bit_index_ptr,
+                                                  uint32_t*     out_opt_alpha_component_start_bit_index_ptr,
+                                                  uint32_t*     out_opt_alpha_component_end_bit_index_ptr,
+                                                  uint32_t*     out_opt_shared_component_start_bit_index_ptr,
+                                                  uint32_t*     out_opt_shared_component_end_bit_index_ptr,
+                                                  uint32_t*     out_opt_depth_component_start_bit_index_ptr,
+                                                  uint32_t*     out_opt_depth_component_end_bit_index_ptr,
+                                                  uint32_t*     out_opt_stencil_component_start_bit_index_ptr,
+                                                  uint32_t*     out_opt_stencil_component_end_bit_index_ptr)
 {
-    anvil_assert(!Anvil::Formats::is_format_yuv_khr(in_format) );
+    anvil_assert(!is_format_yuv_khr(in_format) );
 
-    anvil_assert(sizeof(g_format_bit_layout_info) / sizeof(g_format_bit_layout_info[0]) >  static_cast<uint32_t>(in_format) );
-    anvil_assert(g_format_bit_layout_info[static_cast<uint32_t>(in_format)].format      == in_format);
-
-    const auto& format_info = g_format_bit_layout_info[static_cast<uint32_t>(in_format)];
+    const auto& format_info = g_nonyuv_format_bit_layout_info.at(in_format);
 
     if (out_opt_red_component_start_bit_index_ptr != nullptr)
     {
@@ -1466,8 +1629,147 @@ void Anvil::Formats::get_format_bit_layout(Anvil::Format in_format,
     }
 }
 
+void Anvil::Formats::get_format_bit_layout_yuv(Anvil::Format in_format,
+                                               uint32_t*     out_opt_plane0_r0_start_bit_index_ptr,
+                                               uint32_t*     out_opt_plane0_r0_end_bit_index_ptr,
+                                               uint32_t*     out_opt_plane0_g0_start_bit_index_ptr,
+                                               uint32_t*     out_opt_plane0_g0_end_bit_index_ptr,
+                                               uint32_t*     out_opt_plane0_b0_start_bit_index_ptr,
+                                               uint32_t*     out_opt_plane0_b0_end_bit_index_ptr,
+                                               uint32_t*     out_opt_plane0_a0_start_bit_index_ptr,
+                                               uint32_t*     out_opt_plane0_a0_end_bit_index_ptr,
+                                               uint32_t*     out_opt_plane0_g1_start_bit_index_ptr,
+                                               uint32_t*     out_opt_plane0_g1_end_bit_index_ptr,
+                                               uint32_t*     out_opt_plane1_r0_start_bit_index_ptr,
+                                               uint32_t*     out_opt_plane1_r0_end_bit_index_ptr,
+                                               uint32_t*     out_opt_plane1_g0_start_bit_index_ptr,
+                                               uint32_t*     out_opt_plane1_g0_end_bit_index_ptr,
+                                               uint32_t*     out_opt_plane1_b0_start_bit_index_ptr,
+                                               uint32_t*     out_opt_plane1_b0_end_bit_index_ptr,
+                                               uint32_t*     out_opt_plane2_r0_start_bit_index_ptr,
+                                               uint32_t*     out_opt_plane2_r0_end_bit_index_ptr,
+                                               uint32_t*     out_opt_plane2_g0_start_bit_index_ptr,
+                                               uint32_t*     out_opt_plane2_g0_end_bit_index_ptr,
+                                               uint32_t*     out_opt_plane2_b0_start_bit_index_ptr,
+                                               uint32_t*     out_opt_plane2_b0_end_bit_index_ptr)
+{
+    anvil_assert(is_format_yuv_khr(in_format) );
+
+    const auto& format_info = g_yuv_format_bit_layout_info.at(in_format);
+
+    if (out_opt_plane0_r0_start_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane0_r0_start_bit_index_ptr = format_info.plane0_r0_start_bit_index;
+    }
+
+    if (out_opt_plane0_r0_end_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane0_r0_end_bit_index_ptr = format_info.plane0_r0_last_bit_index;
+    }
+
+    if (out_opt_plane0_g0_start_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane0_g0_start_bit_index_ptr = format_info.plane0_g0_start_bit_index;
+    }
+
+    if (out_opt_plane0_g0_end_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane0_g0_end_bit_index_ptr = format_info.plane0_g0_last_bit_index;
+    }
+
+    if (out_opt_plane0_b0_start_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane0_b0_start_bit_index_ptr = format_info.plane0_b0_start_bit_index;
+    }
+
+    if (out_opt_plane0_b0_end_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane0_b0_end_bit_index_ptr = format_info.plane0_b0_last_bit_index;
+    }
+
+    if (out_opt_plane0_a0_start_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane0_a0_start_bit_index_ptr = format_info.plane0_a0_start_bit_index;
+    }
+
+    if (out_opt_plane0_a0_end_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane0_a0_end_bit_index_ptr = format_info.plane0_a0_last_bit_index;
+    }
+
+    if (out_opt_plane0_g1_start_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane0_g1_start_bit_index_ptr = format_info.plane0_g0_start_bit_index;
+    }
+
+    if (out_opt_plane0_g1_end_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane0_g1_end_bit_index_ptr = format_info.plane0_g1_last_bit_index;
+    }
+
+    if (out_opt_plane1_r0_start_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane1_r0_start_bit_index_ptr = format_info.plane1_r0_start_bit_index;
+    }
+
+    if (out_opt_plane1_r0_end_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane1_r0_end_bit_index_ptr = format_info.plane1_r0_last_bit_index;
+    }
+
+    if (out_opt_plane1_g0_start_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane1_g0_start_bit_index_ptr = format_info.plane1_g0_start_bit_index;
+    }
+
+    if (out_opt_plane1_g0_end_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane1_g0_end_bit_index_ptr = format_info.plane1_g0_last_bit_index;
+    }
+
+    if (out_opt_plane1_b0_start_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane1_b0_start_bit_index_ptr = format_info.plane1_b0_start_bit_index;
+    }
+
+    if (out_opt_plane1_b0_end_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane1_b0_end_bit_index_ptr = format_info.plane1_b0_last_bit_index;
+    }
+
+    if (out_opt_plane2_r0_start_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane2_r0_start_bit_index_ptr = format_info.plane2_r0_start_bit_index;
+    }
+
+    if (out_opt_plane2_r0_end_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane2_r0_end_bit_index_ptr = format_info.plane2_r0_last_bit_index;
+    }
+
+    if (out_opt_plane2_g0_start_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane2_g0_start_bit_index_ptr = format_info.plane2_g0_start_bit_index;
+    }
+
+    if (out_opt_plane2_g0_end_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane2_g0_end_bit_index_ptr = format_info.plane2_g0_last_bit_index;
+    }
+
+    if (out_opt_plane2_b0_start_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane2_b0_start_bit_index_ptr = format_info.plane2_b0_start_bit_index;
+    }
+
+    if (out_opt_plane2_b0_end_bit_index_ptr != nullptr)
+    {
+        *out_opt_plane2_b0_end_bit_index_ptr = format_info.plane2_b0_last_bit_index;
+    }
+}
+
 /** Please see header for specification */
-Anvil::ComponentLayout Anvil::Formats::get_format_component_layout(Anvil::Format in_format)
+Anvil::ComponentLayout Anvil::Formats::get_format_component_layout_nonyuv(Anvil::Format in_format)
 {
     static_assert(sizeof(g_formats) / sizeof(g_formats[0]) == VK_FORMAT_RANGE_SIZE, "");
     anvil_assert(static_cast<uint32_t>(in_format)          <  VK_FORMAT_RANGE_SIZE);
@@ -1477,8 +1779,8 @@ Anvil::ComponentLayout Anvil::Formats::get_format_component_layout(Anvil::Format
 }
 
 /** Please see header for specification */
-Anvil::ComponentLayout Anvil::Formats::get_format_component_layout(Anvil::Format              in_format,
-                                                                   Anvil::ImageAspectFlagBits in_aspect)
+Anvil::ComponentLayout Anvil::Formats::get_format_component_layout_yuv(Anvil::Format              in_format,
+                                                                       Anvil::ImageAspectFlagBits in_aspect)
 {
     const auto plane_idx           = Anvil::Formats::get_yuv_format_plane_index(in_format,
                                                                                 in_aspect);
@@ -1493,7 +1795,7 @@ Anvil::ComponentLayout Anvil::Formats::get_format_component_layout(Anvil::Format
 }
 
 /** Please see header for specification */
-uint32_t Anvil::Formats::get_format_n_components(Anvil::Format in_format)
+uint32_t Anvil::Formats::get_format_n_components_nonyuv(Anvil::Format in_format)
 {
     anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE);
     anvil_assert(!Anvil::Formats::is_format_yuv_khr(in_format) );
@@ -1502,8 +1804,8 @@ uint32_t Anvil::Formats::get_format_n_components(Anvil::Format in_format)
 }
 
 /** Please see header for specification */
-uint32_t Anvil::Formats::get_format_n_components(Anvil::Format              in_format,
-                                                 Anvil::ImageAspectFlagBits in_aspect)
+uint32_t Anvil::Formats::get_format_n_components_yuv(Anvil::Format              in_format,
+                                                     Anvil::ImageAspectFlagBits in_aspect)
 {
     const auto plane_idx = Anvil::Formats::get_yuv_format_plane_index(in_format,
                                                                       in_aspect);
@@ -1514,11 +1816,11 @@ uint32_t Anvil::Formats::get_format_n_components(Anvil::Format              in_f
 }
 
 /** Please see header for specification */
-void Anvil::Formats::get_format_n_component_bits(Anvil::Format in_format,
-                                                 uint32_t*     out_channel0_bits_ptr,
-                                                 uint32_t*     out_channel1_bits_ptr,
-                                                 uint32_t*     out_channel2_bits_ptr,
-                                                 uint32_t*     out_channel3_bits_ptr)
+void Anvil::Formats::get_format_n_component_bits_nonyuv(Anvil::Format in_format,
+                                                        uint32_t*     out_channel0_bits_ptr,
+                                                        uint32_t*     out_channel1_bits_ptr,
+                                                        uint32_t*     out_channel2_bits_ptr,
+                                                        uint32_t*     out_channel3_bits_ptr)
 {
     const FormatInfo* format_props_ptr = nullptr;
 
@@ -1534,12 +1836,12 @@ void Anvil::Formats::get_format_n_component_bits(Anvil::Format in_format,
 }
 
 /** Please see header for specification */
-void Anvil::Formats::get_format_n_component_bits(Anvil::Format              in_format,
-                                                 Anvil::ImageAspectFlagBits in_aspect,
-                                                 uint32_t*                  out_channel0_bits_ptr,
-                                                 uint32_t*                  out_channel1_bits_ptr,
-                                                 uint32_t*                  out_channel2_bits_ptr,
-                                                 uint32_t*                  out_channel3_bits_ptr)
+void Anvil::Formats::get_format_n_component_bits_yuv(Anvil::Format              in_format,
+                                                     Anvil::ImageAspectFlagBits in_aspect,
+                                                     uint32_t*                  out_channel0_bits_ptr,
+                                                     uint32_t*                  out_channel1_bits_ptr,
+                                                     uint32_t*                  out_channel2_bits_ptr,
+                                                     uint32_t*                  out_channel3_bits_ptr)
 {
     const SubresourceLayoutInfo* format_props_ptr = nullptr;
     const auto                   plane_idx        = Anvil::Formats::get_yuv_format_plane_index(in_format,
@@ -1556,12 +1858,60 @@ void Anvil::Formats::get_format_n_component_bits(Anvil::Format              in_f
 }
 
 /** Please see header for specification */
-void Anvil::Formats::get_format_n_unused_component_bits(Anvil::Format              in_format,
-                                                        Anvil::ImageAspectFlagBits in_aspect,
-                                                        uint32_t*                  out_channel0_unused_bits_ptr,
-                                                        uint32_t*                  out_channel1_unused_bits_ptr,
-                                                        uint32_t*                  out_channel2_unused_bits_ptr,
-                                                        uint32_t*                  out_channel3_unused_bits_ptr)
+uint32_t Anvil::Formats::get_format_n_planes(Anvil::Format in_format)
+{
+    uint32_t result = 1;
+
+    switch (in_format)
+    {
+        case Anvil::Format::G8_B8R8_2PLANE_420_UNORM:
+        case Anvil::Format::G8_B8R8_2PLANE_422_UNORM:
+        case Anvil::Format::G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16:
+        case Anvil::Format::G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16:
+        case Anvil::Format::G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16:
+        case Anvil::Format::G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16:
+        case Anvil::Format::G16_B16R16_2PLANE_420_UNORM:
+        case Anvil::Format::G16_B16R16_2PLANE_422_UNORM:
+        {
+            result = 2;
+
+            break;
+        }
+
+        case Anvil::Format::G8_B8_R8_3PLANE_420_UNORM:
+        case Anvil::Format::G8_B8_R8_3PLANE_422_UNORM:
+        case Anvil::Format::G8_B8_R8_3PLANE_444_UNORM:
+        case Anvil::Format::G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16:
+        case Anvil::Format::G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16:
+        case Anvil::Format::G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16:
+        case Anvil::Format::G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16:
+        case Anvil::Format::G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16:
+        case Anvil::Format::G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16:
+        case Anvil::Format::G16_B16_R16_3PLANE_420_UNORM:
+        case Anvil::Format::G16_B16_R16_3PLANE_422_UNORM:
+        case Anvil::Format::G16_B16_R16_3PLANE_444_UNORM:
+        {
+            result = 3;
+
+            break;
+        }
+
+        default:
+        {
+            /* Fall-through */
+        }
+    }
+
+    return result;
+}
+
+/** Please see header for specification */
+void Anvil::Formats::get_format_n_unused_component_bits_yuv(Anvil::Format              in_format,
+                                                            Anvil::ImageAspectFlagBits in_aspect,
+                                                            uint32_t*                  out_channel0_unused_bits_ptr,
+                                                            uint32_t*                  out_channel1_unused_bits_ptr,
+                                                            uint32_t*                  out_channel2_unused_bits_ptr,
+                                                            uint32_t*                  out_channel3_unused_bits_ptr)
 {
     const SubresourceLayoutInfo* format_props_ptr = nullptr;
     const auto                   plane_idx        = Anvil::Formats::get_yuv_format_plane_index(in_format,
@@ -1742,7 +2092,7 @@ void Anvil::Formats::get_yuv_format_plane_extent(Anvil::Format              in_f
 uint32_t Anvil::Formats::get_yuv_format_plane_index(Anvil::Format              in_format,
                                                     Anvil::ImageAspectFlagBits in_aspect)
 {
-    const auto n_planes  = Anvil::Formats::get_yuv_format_n_planes(in_format);
+    const auto n_planes  = Anvil::Formats::get_format_n_planes(in_format);
     uint32_t   plane_idx = 0;
 
     ANVIL_REDUNDANT_VARIABLE_CONST(n_planes);
@@ -1906,6 +2256,8 @@ bool Anvil::Formats::is_format_packed(Anvil::Format in_format)
     {
         return g_yuv_formats.at(in_format).is_packed;
     }
-
-    return g_formats[static_cast<uint32_t>(in_format)].is_packed;
+    else
+    {
+        return g_formats[static_cast<uint32_t>(in_format)].is_packed;
+    }
 }

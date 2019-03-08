@@ -234,7 +234,7 @@
             const auto xfb_props_ptr = in_device_ptr->get_physical_device_properties().ext_transform_feedback_properties_ptr;
 
             m_resources_ptr->maxTransformFeedbackBuffers                 = xfb_props_ptr->n_max_transform_feedback_buffers;
-            m_resources_ptr->maxTransformFeedbackInterleavedComponents   = xfb_props_ptr->max_transform_feedback_buffer_data_size / 4;
+            m_resources_ptr->maxTransformFeedbackInterleavedComponents   = xfb_props_ptr->max_transform_feedback_buffer_data_stride * 4;
         }
         else
         {
@@ -251,12 +251,14 @@
 Anvil::GLSLShaderToSPIRVGenerator::GLSLShaderToSPIRVGenerator(const Anvil::BaseDevice* in_device_ptr,
                                                               const Mode&              in_mode,
                                                               std::string              in_data,
-                                                              ShaderStage              in_shader_stage)
+                                                              ShaderStage              in_shader_stage,
+                                                              SpvVersion               in_spirv_version)
     :CallbacksSupportProvider(GLSL_SHADER_TO_SPIRV_GENERATOR_CALLBACK_ID_COUNT),
      m_data                  (in_data),
      m_glsl_source_code_dirty(true),
      m_mode                  (in_mode),
-     m_shader_stage          (in_shader_stage)
+     m_shader_stage          (in_shader_stage),
+     m_spirv_version         (in_spirv_version)
 {
     #ifdef ANVIL_LINK_WITH_GLSLANG
     {
@@ -663,11 +665,60 @@ end:
         if (new_program_ptr != nullptr &&
             new_shader_ptr  != nullptr)
         {
-            bool link_result = false;
+            bool                              link_result = false;
+            glslang::EShTargetLanguageVersion spirv_version;
 
             /* Try to compile the shader */
             new_shader_ptr->setStrings(&in_body,
                                        1);
+
+            switch (m_spirv_version)
+            {
+                case SpvVersion::_1_0:
+                {
+                    spirv_version = glslang::EShTargetSpv_1_0;
+
+                    break;
+                }
+
+                case SpvVersion::_1_1:
+                {
+                    spirv_version = glslang::EShTargetSpv_1_1;
+
+                    break;
+                }
+
+                case SpvVersion::_1_2:
+                {
+                    spirv_version = glslang::EShTargetSpv_1_2;
+
+                    break;
+                }
+
+                case SpvVersion::_1_3:
+                {
+                    spirv_version = glslang::EShTargetSpv_1_3;
+
+                    break;
+                }
+
+                case SpvVersion::_1_4:
+                {
+                    spirv_version = glslang::EShTargetSpv_1_4;
+
+                    break;
+                }
+
+                default:
+                {
+                    spirv_version = glslang::EShTargetSpv_1_0;
+
+                    break;
+                }
+            }
+
+            new_shader_ptr->setEnvTarget(glslang::EShTargetSpv,
+                                         spirv_version);
 
             result = new_shader_ptr->parse(m_limits_ptr->get_resource_ptr(),
                                            110,   /* defaultVersion    */
@@ -921,7 +972,8 @@ end:
 Anvil::GLSLShaderToSPIRVGeneratorUniquePtr Anvil::GLSLShaderToSPIRVGenerator::create(const Anvil::BaseDevice* in_opt_device_ptr,
                                                                                      const Mode&              in_mode,
                                                                                      std::string              in_data,
-                                                                                     ShaderStage              in_shader_stage)
+                                                                                     ShaderStage              in_shader_stage,
+                                                                                     SpvVersion               in_spirv_version)
 {
     Anvil::GLSLShaderToSPIRVGeneratorUniquePtr result_ptr(nullptr,
                                                           std::default_delete<Anvil::GLSLShaderToSPIRVGenerator>() );
@@ -930,7 +982,8 @@ Anvil::GLSLShaderToSPIRVGeneratorUniquePtr Anvil::GLSLShaderToSPIRVGenerator::cr
         new Anvil::GLSLShaderToSPIRVGenerator(in_opt_device_ptr,
                                               in_mode,
                                               in_data,
-                                              in_shader_stage)
+                                              in_shader_stage,
+                                              in_spirv_version)
     );
 
     Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::ANVIL_GLSL_SHADER_TO_SPIRV_GENERATOR,

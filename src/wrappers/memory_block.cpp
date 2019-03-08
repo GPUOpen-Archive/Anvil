@@ -136,7 +136,8 @@ void Anvil::MemoryBlock::close_gpu_memory_access()
 }
 
 /* Please see header for specification */
-Anvil::MemoryBlockUniquePtr Anvil::MemoryBlock::create(Anvil::MemoryBlockCreateInfoUniquePtr in_create_info_ptr)
+Anvil::MemoryBlockUniquePtr Anvil::MemoryBlock::create(Anvil::MemoryBlockCreateInfoUniquePtr in_create_info_ptr,
+                                                       VkResult*                             out_opt_result_ptr)
 {
     MemoryBlockUniquePtr result_ptr(nullptr,
                                     std::default_delete<MemoryBlock>() );
@@ -150,9 +151,10 @@ Anvil::MemoryBlockUniquePtr Anvil::MemoryBlock::create(Anvil::MemoryBlockCreateI
 
     if (result_ptr != nullptr)
     {
-        if (type == Anvil::MemoryBlockType::REGULAR)
+        if (type == Anvil::MemoryBlockType::REGULAR                 ||
+            type == Anvil::MemoryBlockType::REGULAR_WITH_MEMORY_TYPE )
         {
-            if (!result_ptr->init() )
+            if (!result_ptr->init(out_opt_result_ptr) )
             {
                 result_ptr.reset();
             }
@@ -164,6 +166,11 @@ Anvil::MemoryBlockUniquePtr Anvil::MemoryBlock::create(Anvil::MemoryBlockCreateI
             if (type == Anvil::MemoryBlockType::DERIVED_WITH_CUSTOM_DELETE_PROC)
             {
                 result_ptr->m_memory = result_ptr->m_create_info_ptr->get_memory();
+            }
+
+            if (out_opt_result_ptr != nullptr)
+            {
+                *out_opt_result_ptr = VkResult::VK_SUCCESS;
             }
         }
     }
@@ -209,7 +216,8 @@ Anvil::ExternalHandleUniquePtr Anvil::MemoryBlock::export_to_external_memory_han
     }
     #endif
 
-    if (m_create_info_ptr->get_type() != Anvil::MemoryBlockType::REGULAR)
+    if (m_create_info_ptr->get_type() != Anvil::MemoryBlockType::REGULAR                 &&
+        m_create_info_ptr->get_type() != Anvil::MemoryBlockType::REGULAR_WITH_MEMORY_TYPE )
     {
         parent_memory_block_ptr = m_create_info_ptr->get_parent_memory_block();
 
@@ -348,7 +356,7 @@ end:
 }
 
 /* Allocates actual memory and caches a number of properties used to spawn the memory block */
-bool Anvil::MemoryBlock::init()
+bool Anvil::MemoryBlock::init(VkResult* out_opt_result)
 {
     VkResult                                   result;
     bool                                       result_bool = false;
@@ -390,6 +398,23 @@ bool Anvil::MemoryBlock::init()
             alloc_info.image  = (dedicated_allocation_image_ptr  != nullptr) ? dedicated_allocation_image_ptr->get_image  (false) : VK_NULL_HANDLE;
             alloc_info.pNext  = nullptr;
             alloc_info.sType  = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
+
+            struct_chainer.append_struct(alloc_info);
+        }
+    }
+
+    {
+        const float& memory_priority = m_create_info_ptr->get_memory_priority();
+
+        if (memory_priority != FLT_MAX)
+        {
+            anvil_assert(memory_priority >= 0.0f && memory_priority <= 1.0f);
+
+            VkMemoryPriorityAllocateInfoEXT alloc_info;
+
+            alloc_info.sType    = VK_STRUCTURE_TYPE_MEMORY_PRIORITY_ALLOCATE_INFO_EXT;
+            alloc_info.pNext    = nullptr;
+            alloc_info.priority = memory_priority;
 
             struct_chainer.append_struct(alloc_info);
         }
@@ -495,8 +520,8 @@ bool Anvil::MemoryBlock::init()
         alloc_info_khr.deviceMask = m_create_info_ptr->get_device_mask();
 
         /* NOTE: Host-mappable memory must not be multi-instance heap and must exist on only one device. */
-        if (((m_create_info_ptr->get_memory_features() & Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT) != 0) &&
-            (Utils::count_set_bits(alloc_info_khr.deviceMask) > 1) )
+        if (((m_create_info_ptr->get_memory_features()                          & Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT) != 0) &&
+             (Utils::count_set_bits                 (alloc_info_khr.deviceMask)                                               >  1) )
         {
             alloc_info_khr.flags = 0;
         }
@@ -520,7 +545,11 @@ bool Anvil::MemoryBlock::init()
                                                 &m_memory);
     }
 
-    anvil_assert_vk_call_succeeded(result);
+    if (out_opt_result != nullptr)
+    {
+        *out_opt_result = result;
+    }
+
     if (!is_vk_call_successful(result) )
     {
         goto end;

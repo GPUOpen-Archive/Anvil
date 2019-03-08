@@ -236,7 +236,11 @@ Anvil::DescriptorUpdateTemplateEntry::DescriptorUpdateTemplateEntry(const Anvil:
      offset                     (in_offset),
      stride                     (in_stride)
 {
-    /* Stub */
+    if (in_descriptor_type == Anvil::DescriptorType::INLINE_UNIFORM_BLOCK)
+    {
+        n_destination_array_element *= 4;
+        n_descriptors               *= 4;
+    }
 }
 
 bool Anvil::DescriptorUpdateTemplateEntry::operator==(const Anvil::DescriptorUpdateTemplateEntry& in_entry) const
@@ -503,6 +507,12 @@ Anvil::ExtensionKHRMaintenance3Entrypoints::ExtensionKHRMaintenance3Entrypoints(
     vkGetDescriptorSetLayoutSupportKHR = nullptr;
 }
 
+Anvil::ExtensionKHRSamplerYCbCrConversionEntrypoints::ExtensionKHRSamplerYCbCrConversionEntrypoints()
+{
+    vkCreateSamplerYcbcrConversionKHR  = nullptr;
+    vkDestroySamplerYcbcrConversionKHR = nullptr;
+}
+
 Anvil::ExtensionKHRSurfaceEntrypoints::ExtensionKHRSurfaceEntrypoints()
 {
     vkDestroySurfaceKHR                       = nullptr;
@@ -554,6 +564,94 @@ Anvil::ExtensionKHRGetPhysicalDeviceProperties2::ExtensionKHRGetPhysicalDevicePr
     vkGetPhysicalDeviceProperties2KHR                  = nullptr;
     vkGetPhysicalDeviceQueueFamilyProperties2KHR       = nullptr;
     vkGetPhysicalDeviceSparseImageFormatProperties2KHR = nullptr;
+}
+
+Anvil::EXTConservativeRasterizationProperties::EXTConservativeRasterizationProperties()
+    :conservative_point_and_line_rasterization       (false),
+     conservative_rasterization_post_depth_coverage  (false),
+     degenerate_lines_rasterized                     (false),
+     degenerate_triangles_rasterized                 (false),
+     extra_primitive_overestimation_size_granularity (0.0),
+     fully_covered_fragment_shader_input_variable    (false),
+     max_extra_primitive_overestimation_size         (0.0),
+     primitive_overestimation_size                   (0.0),
+     primitive_underestimation                       (false)
+{
+    /* Stub */
+}
+
+Anvil::EXTConservativeRasterizationProperties::EXTConservativeRasterizationProperties(const VkPhysicalDeviceConservativeRasterizationPropertiesEXT& in_properties)
+    :conservative_point_and_line_rasterization      (VK_BOOL32_TO_BOOL(in_properties.conservativePointAndLineRasterization)),
+    conservative_rasterization_post_depth_coverage  (VK_BOOL32_TO_BOOL(in_properties.conservativeRasterizationPostDepthCoverage)),
+    degenerate_lines_rasterized                     (VK_BOOL32_TO_BOOL(in_properties.degenerateLinesRasterized)),
+    degenerate_triangles_rasterized                 (VK_BOOL32_TO_BOOL(in_properties.degenerateTrianglesRasterized)),
+    extra_primitive_overestimation_size_granularity (in_properties.extraPrimitiveOverestimationSizeGranularity),
+    fully_covered_fragment_shader_input_variable    (VK_BOOL32_TO_BOOL(in_properties.fullyCoveredFragmentShaderInputVariable)),
+    max_extra_primitive_overestimation_size         (in_properties.maxExtraPrimitiveOverestimationSize),
+    primitive_overestimation_size                   (in_properties.primitiveOverestimationSize),
+    primitive_underestimation                       (VK_BOOL32_TO_BOOL(in_properties.primitiveUnderestimation) )
+{
+    /* Stub */
+}
+
+bool Anvil::EXTConservativeRasterizationProperties::operator==(const Anvil::EXTConservativeRasterizationProperties& in_properties) const
+{
+    return (conservative_point_and_line_rasterization       == in_properties.conservative_point_and_line_rasterization       &&
+            conservative_rasterization_post_depth_coverage  == in_properties.conservative_rasterization_post_depth_coverage  &&
+            degenerate_lines_rasterized                     == in_properties.degenerate_lines_rasterized                     &&
+            degenerate_triangles_rasterized                 == in_properties.degenerate_triangles_rasterized                 &&
+            extra_primitive_overestimation_size_granularity == in_properties.extra_primitive_overestimation_size_granularity &&
+            fully_covered_fragment_shader_input_variable    == in_properties.fully_covered_fragment_shader_input_variable    &&
+            max_extra_primitive_overestimation_size         == in_properties.max_extra_primitive_overestimation_size         &&
+            primitive_overestimation_size                   == in_properties.primitive_overestimation_size                   &&
+            primitive_underestimation                       == in_properties.primitive_underestimation);
+}
+
+VkPhysicalDeviceConservativeRasterizationPropertiesEXT Anvil::EXTConservativeRasterizationProperties::get_vk_physical_device_conservative_rasterization_properties() const
+{
+    VkPhysicalDeviceConservativeRasterizationPropertiesEXT result;
+
+    result.conservativePointAndLineRasterization       = BOOL_TO_VK_BOOL32(conservative_point_and_line_rasterization);
+    result.conservativeRasterizationPostDepthCoverage  = BOOL_TO_VK_BOOL32(conservative_rasterization_post_depth_coverage);
+    result.degenerateLinesRasterized                   = BOOL_TO_VK_BOOL32(degenerate_lines_rasterized);
+    result.degenerateTrianglesRasterized               = BOOL_TO_VK_BOOL32(degenerate_triangles_rasterized);
+    result.extraPrimitiveOverestimationSizeGranularity = extra_primitive_overestimation_size_granularity;
+    result.fullyCoveredFragmentShaderInputVariable     = BOOL_TO_VK_BOOL32(fully_covered_fragment_shader_input_variable);
+    result.maxExtraPrimitiveOverestimationSize         = max_extra_primitive_overestimation_size;
+    result.pNext                                       = nullptr;
+    result.primitiveOverestimationSize                 = primitive_overestimation_size;
+    result.primitiveUnderestimation                    = BOOL_TO_VK_BOOL32(primitive_underestimation);
+    result.sType                                       = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CONSERVATIVE_RASTERIZATION_PROPERTIES_EXT);
+
+    return result;
+}
+
+Anvil::EXTDepthClipEnableFeatures::EXTDepthClipEnableFeatures()
+    :depth_clip_enable(false)
+{
+    /* Stub */
+}
+
+Anvil::EXTDepthClipEnableFeatures::EXTDepthClipEnableFeatures(const VkPhysicalDeviceDepthClipEnableFeaturesEXT& in_features)
+    :depth_clip_enable(VK_BOOL32_TO_BOOL(in_features.depthClipEnable) )
+{
+    /* Stub */
+}
+
+VkPhysicalDeviceDepthClipEnableFeaturesEXT Anvil::EXTDepthClipEnableFeatures::get_vk_physical_device_depth_clip_enable_features() const
+{
+    VkPhysicalDeviceDepthClipEnableFeaturesEXT result;
+
+    result.depthClipEnable = BOOL_TO_VK_BOOL32(depth_clip_enable);
+    result.pNext           = nullptr;
+    result.sType           = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_CLIP_ENABLE_FEATURES_EXT;
+
+    return result;
+}
+
+bool Anvil::EXTDepthClipEnableFeatures::operator==(const EXTDepthClipEnableFeatures& in_features) const
+{
+    return (depth_clip_enable == in_features.depth_clip_enable);
 }
 
 Anvil::EXTDescriptorIndexingFeatures::EXTDescriptorIndexingFeatures()
@@ -752,6 +850,67 @@ bool Anvil::EXTExternalMemoryHostProperties::operator==(const Anvil::EXTExternal
     return (min_imported_host_pointer_alignment == in_props.min_imported_host_pointer_alignment);
 }
 
+Anvil::EXTInlineUniformBlockFeatures::EXTInlineUniformBlockFeatures()
+    :descriptor_binding_inline_uniform_block_update_after_bind(false),
+     inline_uniform_block                                     (false)
+{
+    /* Stub */
+}
+
+Anvil::EXTInlineUniformBlockFeatures::EXTInlineUniformBlockFeatures(const VkPhysicalDeviceInlineUniformBlockFeaturesEXT& in_features)
+    :descriptor_binding_inline_uniform_block_update_after_bind(VK_BOOL32_TO_BOOL(in_features.descriptorBindingInlineUniformBlockUpdateAfterBind) ),
+     inline_uniform_block                                     (VK_BOOL32_TO_BOOL(in_features.inlineUniformBlock) )
+{
+    /* Stub */
+}
+
+VkPhysicalDeviceInlineUniformBlockFeaturesEXT Anvil::EXTInlineUniformBlockFeatures::get_vk_physical_device_inline_uniform_block_features() const
+{
+    VkPhysicalDeviceInlineUniformBlockFeaturesEXT result;
+
+    result.descriptorBindingInlineUniformBlockUpdateAfterBind = BOOL_TO_VK_BOOL32(descriptor_binding_inline_uniform_block_update_after_bind);
+    result.inlineUniformBlock                                 = BOOL_TO_VK_BOOL32(inline_uniform_block);
+    result.pNext                                              = nullptr;
+    result.sType                                              = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INLINE_UNIFORM_BLOCK_FEATURES_EXT;
+
+    return result;
+}
+
+bool Anvil::EXTInlineUniformBlockFeatures::operator==(const EXTInlineUniformBlockFeatures& in_features) const
+{
+    return (in_features.descriptor_binding_inline_uniform_block_update_after_bind == descriptor_binding_inline_uniform_block_update_after_bind) &&
+           (in_features.inline_uniform_block                                      == inline_uniform_block);
+}
+
+Anvil::EXTInlineUniformBlockProperties::EXTInlineUniformBlockProperties()
+    :max_descriptor_set_inline_uniform_blocks                        (0),
+     max_descriptor_set_update_after_bind_inline_uniform_blocks      (0),
+     max_inline_uniform_block_size                                   (0),
+     max_per_stage_descriptor_inline_uniform_blocks                  (0),
+     max_per_stage_descriptor_update_after_bind_inline_uniform_blocks(0)
+{
+    /* Stub */
+}
+
+Anvil::EXTInlineUniformBlockProperties::EXTInlineUniformBlockProperties(const VkPhysicalDeviceInlineUniformBlockPropertiesEXT& in_props)
+    :max_descriptor_set_inline_uniform_blocks                        (in_props.maxDescriptorSetInlineUniformBlocks),
+     max_descriptor_set_update_after_bind_inline_uniform_blocks      (in_props.maxDescriptorSetUpdateAfterBindInlineUniformBlocks),
+     max_inline_uniform_block_size                                   (in_props.maxInlineUniformBlockSize),
+     max_per_stage_descriptor_inline_uniform_blocks                  (in_props.maxPerStageDescriptorInlineUniformBlocks),
+     max_per_stage_descriptor_update_after_bind_inline_uniform_blocks(in_props.maxPerStageDescriptorUpdateAfterBindInlineUniformBlocks)
+{
+    /* Stub */
+}
+
+bool Anvil::EXTInlineUniformBlockProperties::operator==(const EXTInlineUniformBlockProperties& in_props) const
+{
+    return (max_descriptor_set_inline_uniform_blocks                         == in_props.max_descriptor_set_inline_uniform_blocks)                          &&
+           (max_descriptor_set_update_after_bind_inline_uniform_blocks       == in_props.max_descriptor_set_update_after_bind_inline_uniform_blocks)        &&
+           (max_inline_uniform_block_size                                    == in_props.max_inline_uniform_block_size)                                     &&
+           (max_per_stage_descriptor_inline_uniform_blocks                   == in_props.max_per_stage_descriptor_inline_uniform_blocks)                    &&
+           (max_per_stage_descriptor_update_after_bind_inline_uniform_blocks == in_props.max_per_stage_descriptor_update_after_bind_inline_uniform_blocks);
+}
+
 Anvil::EXTPCIBusInfoProperties::EXTPCIBusInfoProperties()
     :pci_bus     (0),
      pci_device  (0),
@@ -827,6 +986,33 @@ bool Anvil::EXTSamplerFilterMinmaxProperties::operator==(const Anvil::EXTSampler
 {
     return (filter_minmax_image_component_mapping  == in_props.filter_minmax_image_component_mapping &&
             filter_minmax_single_component_formats == in_props.filter_minmax_single_component_formats);
+}
+
+Anvil::EXTScalarBlockLayoutFeatures::EXTScalarBlockLayoutFeatures()
+    :scalar_block_layout(false)
+{
+    /* Stub */
+}
+
+Anvil::EXTScalarBlockLayoutFeatures::EXTScalarBlockLayoutFeatures(const VkPhysicalDeviceScalarBlockLayoutFeaturesEXT& in_features)
+{
+    scalar_block_layout = VK_BOOL32_TO_BOOL(in_features.scalarBlockLayout);
+}
+
+VkPhysicalDeviceScalarBlockLayoutFeaturesEXT Anvil::EXTScalarBlockLayoutFeatures::get_vk_physical_device_scalar_block_layout_features_ext() const
+{
+    VkPhysicalDeviceScalarBlockLayoutFeaturesEXT result;
+
+    result.pNext             = nullptr;
+    result.scalarBlockLayout = BOOL_TO_VK_BOOL32(scalar_block_layout);
+    result.sType             = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES_EXT;
+
+    return result;
+}
+
+bool Anvil::EXTScalarBlockLayoutFeatures::operator==(const EXTScalarBlockLayoutFeatures& in_features) const
+{
+    return (in_features.scalar_block_layout == scalar_block_layout);
 }
 
 Anvil::EXTTransformFeedbackFeatures::EXTTransformFeedbackFeatures()
@@ -990,23 +1176,34 @@ Anvil::FormatProperties::FormatProperties(const VkFormatProperties& in_format_pr
 }
 
 Anvil::ImageFormatProperties::ImageFormatProperties()
+    :max_resource_size                        (0),
+     n_combined_image_sampler_descriptors_used(0),
+     n_max_array_layers                       (0),
+     n_max_mip_levels                         (0),
+     sample_counts                            (Anvil::SampleCountFlagBits::NONE),
+     supports_amd_texture_gather_bias_lod     (false),
+     valid_stencil_aspect_image_usage_flags   (Anvil::ImageUsageFlagBits::NONE)
 {
-    memset(this,
-           0,
-           sizeof(*this) );
+    max_extent.depth  = 0;
+    max_extent.height = 0;
+    max_extent.width  = 0;
 }
 
 Anvil::ImageFormatProperties::ImageFormatProperties(const VkImageFormatProperties&  in_image_format_props,
                                                     const bool&                     in_supports_amd_texture_gather_bias_lod,
-                                                    const ExternalMemoryProperties& in_external_handle_properties)
+                                                    const ExternalMemoryProperties& in_external_handle_properties,
+                                                    const Anvil::ImageUsageFlags&   in_valid_stencil_aspect_image_usage_flags,
+                                                    const uint32_t&                 in_n_combined_image_sampler_descriptors_used)
 {
-    external_handle_properties           = in_external_handle_properties;
-    max_extent                           = in_image_format_props.maxExtent;
-    max_resource_size                    = in_image_format_props.maxResourceSize;
-    n_max_array_layers                   = in_image_format_props.maxArrayLayers;
-    n_max_mip_levels                     = in_image_format_props.maxMipLevels;
-    sample_counts                        = static_cast<Anvil::SampleCountFlagBits>(in_image_format_props.sampleCounts);
-    supports_amd_texture_gather_bias_lod = in_supports_amd_texture_gather_bias_lod;
+    external_handle_properties                = in_external_handle_properties;
+    max_extent                                = in_image_format_props.maxExtent;
+    max_resource_size                         = in_image_format_props.maxResourceSize;
+    n_combined_image_sampler_descriptors_used = in_n_combined_image_sampler_descriptors_used;
+    n_max_array_layers                        = in_image_format_props.maxArrayLayers;
+    n_max_mip_levels                          = in_image_format_props.maxMipLevels;
+    sample_counts                             = static_cast<Anvil::SampleCountFlagBits>(in_image_format_props.sampleCounts);
+    supports_amd_texture_gather_bias_lod      = in_supports_amd_texture_gather_bias_lod;
+    valid_stencil_aspect_image_usage_flags    = in_valid_stencil_aspect_image_usage_flags;
 }
 
 /** Please see header for specification */
@@ -1103,20 +1300,6 @@ bool Anvil::ImageBarrier::operator==(const ImageBarrier& in_barrier) const
     return result;
 }
 
-Anvil::ImagePhysicalDeviceMemoryBindingUpdate::ImagePhysicalDeviceMemoryBindingUpdate()
-{
-    image_ptr                   = nullptr;
-    memory_block_ptr            = nullptr;
-    memory_block_owned_by_image = false;
-}
-
-Anvil::ImageSFRMemoryBindingUpdate::ImageSFRMemoryBindingUpdate()
-{
-    image_ptr                   = nullptr;
-    memory_block_owned_by_image = false;
-    memory_block_ptr            = nullptr;
-}
-
 bool Anvil::ImageSubresourceRange::operator==(const Anvil::ImageSubresourceRange& in_subresource_range) const
 {
     return (aspect_mask      == in_subresource_range.aspect_mask      &&
@@ -1124,6 +1307,80 @@ bool Anvil::ImageSubresourceRange::operator==(const Anvil::ImageSubresourceRange
             level_count      == in_subresource_range.level_count      &&
             base_array_layer == in_subresource_range.base_array_layer &&
             layer_count      == in_subresource_range.layer_count);
+}
+
+Anvil::KHRSamplerYCbCrConversionFeatures::KHRSamplerYCbCrConversionFeatures()
+    :sampler_ycbcr_conversion(false)
+{
+    /* Stub */
+}
+
+Anvil::KHRSamplerYCbCrConversionFeatures::KHRSamplerYCbCrConversionFeatures(const VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR& in_features)
+    :sampler_ycbcr_conversion(VK_BOOL32_TO_BOOL(in_features.samplerYcbcrConversion) )
+{
+    /* Stub */
+}
+
+VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR Anvil::KHRSamplerYCbCrConversionFeatures::get_vk_physical_device_sampler_ycbcr_conversion_features() const
+{
+    VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR result;
+
+    result.pNext                  = nullptr;
+    result.samplerYcbcrConversion = BOOL_TO_VK_BOOL32(sampler_ycbcr_conversion);
+    result.sType                  = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES_KHR;
+
+    return result;
+}
+
+bool Anvil::KHRSamplerYCbCrConversionFeatures::operator==(const Anvil::KHRSamplerYCbCrConversionFeatures& in_features) const
+{
+    return (in_features.sampler_ycbcr_conversion == sampler_ycbcr_conversion);
+}
+
+Anvil::MemoryBudget::MemoryBudget()
+{
+    heap_budget.fill(0);
+    heap_usage.fill (0);
+}
+
+Anvil::MemoryBudget::MemoryBudget(const VkPhysicalDeviceMemoryBudgetPropertiesEXT& in_properties)
+{
+    anvil_assert(heap_budget.size() == sizeof(in_properties.heapBudget) / sizeof(in_properties.heapBudget[0]));
+    anvil_assert(heap_usage.size()  == sizeof(in_properties.heapUsage)  / sizeof(in_properties.heapUsage[0]));
+
+    memcpy(heap_budget.data(),
+           in_properties.heapBudget,
+           sizeof(in_properties.heapBudget));
+
+    memcpy(heap_usage.data(),
+           in_properties.heapUsage,
+           sizeof(in_properties.heapUsage));
+}
+
+Anvil::EXTMemoryPriorityFeatures::EXTMemoryPriorityFeatures()
+{
+    is_memory_priority_supported = false;
+}
+
+Anvil::EXTMemoryPriorityFeatures::EXTMemoryPriorityFeatures(const VkPhysicalDeviceMemoryPriorityFeaturesEXT& in_features)
+{
+    is_memory_priority_supported = VK_BOOL32_TO_BOOL(in_features.memoryPriority);
+}
+
+VkPhysicalDeviceMemoryPriorityFeaturesEXT Anvil::EXTMemoryPriorityFeatures::get_vk_physical_device_memory_priority_features() const
+{
+    VkPhysicalDeviceMemoryPriorityFeaturesEXT result;
+
+    result.sType          = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PRIORITY_FEATURES_EXT;
+    result.pNext          = nullptr;
+    result.memoryPriority = BOOL_TO_VK_BOOL32(is_memory_priority_supported);
+
+    return result;
+}
+
+bool Anvil::EXTMemoryPriorityFeatures::operator==(const EXTMemoryPriorityFeatures& in_memory_priority_features) const
+{
+    return (is_memory_priority_supported == in_memory_priority_features.is_memory_priority_supported);
 }
 
 Anvil::KHR16BitStorageFeatures::KHR16BitStorageFeatures()
@@ -1197,6 +1454,122 @@ bool Anvil::KHR8BitStorageFeatures::operator==(const Anvil::KHR8BitStorageFeatur
     return (storage_buffer_8_bit_access             == in_features.storage_buffer_8_bit_access             &&
             storage_push_constant_8                 == in_features.storage_push_constant_8                 &&
             uniform_and_storage_buffer_8_bit_access == in_features.uniform_and_storage_buffer_8_bit_access);
+}
+
+Anvil::KHRDepthStencilResolveProperties::KHRDepthStencilResolveProperties()
+{
+    independent_resolve             = false;
+    independent_resolve_none        = false;
+    supported_depth_resolve_modes   = Anvil::ResolveModeFlagBits::NONE;
+    supported_stencil_resolve_modes = Anvil::ResolveModeFlagBits::NONE;
+}
+
+Anvil::KHRDepthStencilResolveProperties::KHRDepthStencilResolveProperties(const VkPhysicalDeviceDepthStencilResolvePropertiesKHR& in_properties)
+{
+    independent_resolve             = (in_properties.independentResolve     == VK_TRUE);
+    independent_resolve_none        = (in_properties.independentResolveNone == VK_TRUE);
+    supported_depth_resolve_modes   = static_cast<Anvil::ResolveModeFlagBits>(in_properties.supportedDepthResolveModes);
+    supported_stencil_resolve_modes = static_cast<Anvil::ResolveModeFlagBits>(in_properties.supportedStencilResolveModes);
+}
+
+bool Anvil::KHRDepthStencilResolveProperties::operator==(const Anvil::KHRDepthStencilResolveProperties& in_props) const
+{
+    return (in_props.independent_resolve             == independent_resolve)             &&
+           (in_props.independent_resolve_none        == independent_resolve_none)        &&
+           (in_props.supported_depth_resolve_modes   == supported_depth_resolve_modes)   &&
+           (in_props.supported_stencil_resolve_modes == supported_stencil_resolve_modes);
+}
+
+
+Anvil::KHRDriverPropertiesProperties::KHRDriverPropertiesProperties()
+    :driver_id(Anvil::DriverIdKHR::UNKNOWN)
+{
+    memset(driver_info,
+           0,
+           sizeof(driver_info) );
+    memset(driver_name,
+           0,
+           sizeof(driver_name) );
+}
+
+Anvil::KHRDriverPropertiesProperties::KHRDriverPropertiesProperties(const VkPhysicalDeviceDriverPropertiesKHR& in_properties)
+{
+    static_assert(sizeof(driver_info) == sizeof(in_properties.driverInfo), "Field size mismatch");
+    static_assert(sizeof(driver_name) == sizeof(in_properties.driverName), "Field size mismatch");
+
+    conformance_version = Anvil::ConformanceVersionKHR   (in_properties.conformanceVersion);
+    driver_id           = static_cast<Anvil::DriverIdKHR>(in_properties.driverID);
+
+    memcpy(driver_info,
+           in_properties.driverInfo,
+           sizeof(driver_info) );
+    memcpy(driver_name,
+           in_properties.driverName,
+           sizeof(driver_name) );
+}
+
+bool Anvil::KHRDriverPropertiesProperties::operator==(const KHRDriverPropertiesProperties& in_props) const
+{
+    bool result = false;
+
+    if (!(in_props.conformance_version == conformance_version) )
+    {
+        goto end;
+    }
+
+    if (in_props.driver_id != driver_id)
+    {
+        goto end;
+    }
+
+    if (memcmp(in_props.driver_info,
+               driver_info,
+               sizeof(driver_info) ) != 0)
+    {
+        goto end;
+    }
+
+    if (memcmp(in_props.driver_name,
+               driver_name,
+               sizeof(driver_name) ) != 0)
+    {
+        goto end;
+    }
+
+    result = true;
+end:
+    return result;
+}
+
+
+Anvil::KHRFloat16Int8Features::KHRFloat16Int8Features()
+{
+    shader_float16 = false;
+    shader_int8    = false;
+}
+
+Anvil::KHRFloat16Int8Features::KHRFloat16Int8Features(const VkPhysicalDeviceFloat16Int8FeaturesKHR& in_features)
+{
+    shader_float16  = (in_features.shaderFloat16   == VK_TRUE);
+    shader_int8     = (in_features.shaderInt8      == VK_TRUE);
+}
+
+VkPhysicalDeviceFloat16Int8FeaturesKHR Anvil::KHRFloat16Int8Features::get_vk_physical_device_float16_int8_features() const
+{
+    VkPhysicalDeviceFloat16Int8FeaturesKHR result;
+
+    result.pNext            = nullptr;
+    result.shaderFloat16    = (shader_float16) ? VK_TRUE : VK_FALSE;
+    result.shaderInt8       = (shader_int8)    ? VK_TRUE : VK_FALSE;
+    result.sType            = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT16_INT8_FEATURES_KHR;
+
+    return result;
+}
+
+bool Anvil::KHRFloat16Int8Features::operator==(const Anvil::KHRFloat16Int8Features& in_features) const
+{
+    return (shader_float16  == in_features.shader_float16 &&
+            shader_int8     == in_features.shader_int8);
 }
 
 Anvil::KHRMaintenance2PhysicalDevicePointClippingProperties::KHRMaintenance2PhysicalDevicePointClippingProperties()
@@ -1288,6 +1661,130 @@ bool Anvil::KHRMultiviewProperties::operator==(const KHRMultiviewProperties& in_
             max_multiview_view_count     == in_props.max_multiview_view_count);
 }
 
+Anvil::KHRShaderAtomicInt64Features::KHRShaderAtomicInt64Features()
+    :shader_buffer_int64_atomics(false),
+     shader_shared_int64_atomics(false)
+{
+    /* Stub */
+}
+
+Anvil::KHRShaderAtomicInt64Features::KHRShaderAtomicInt64Features(const VkPhysicalDeviceShaderAtomicInt64FeaturesKHR& in_features)
+{
+    shader_buffer_int64_atomics = VK_BOOL32_TO_BOOL(in_features.shaderBufferInt64Atomics);
+    shader_shared_int64_atomics = VK_BOOL32_TO_BOOL(in_features.shaderSharedInt64Atomics);
+}
+
+VkPhysicalDeviceShaderAtomicInt64FeaturesKHR Anvil::KHRShaderAtomicInt64Features::get_vk_physical_device_shader_atomic_int64_features() const
+{
+    VkPhysicalDeviceShaderAtomicInt64FeaturesKHR result;
+
+    result.pNext                    = nullptr;
+    result.shaderBufferInt64Atomics = BOOL_TO_VK_BOOL32(shader_buffer_int64_atomics);
+    result.shaderSharedInt64Atomics = BOOL_TO_VK_BOOL32(shader_shared_int64_atomics);
+    result.sType                    = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR;
+
+    return result;
+}
+
+bool Anvil::KHRShaderAtomicInt64Features::operator==(const KHRShaderAtomicInt64Features& in_features) const
+{
+    return (in_features.shader_buffer_int64_atomics == shader_buffer_int64_atomics) &&
+           (in_features.shader_shared_int64_atomics == shader_shared_int64_atomics);
+}
+
+Anvil::KHRShaderFloatControlsProperties::KHRShaderFloatControlsProperties()
+    :separate_denorm_settings                   (false),
+     separate_rounding_mode_settings            (false),
+     shader_denorm_flush_to_zero_float16        (false),
+     shader_denorm_flush_to_zero_float32        (false),
+     shader_denorm_flush_to_zero_float64        (false),
+     shader_denorm_preserve_float16             (false),
+     shader_denorm_preserve_float32             (false),
+     shader_denorm_preserve_float64             (false),
+     shader_rounding_mode_RTE_float16           (false),
+     shader_rounding_mode_RTE_float32           (false),
+     shader_rounding_mode_RTE_float64           (false),
+     shader_rounding_mode_RTZ_float16           (false),
+     shader_rounding_mode_RTZ_float32           (false),
+     shader_rounding_mode_RTZ_float64           (false),
+     shader_signed_zero_inf_nan_preserve_float16(false),
+     shader_signed_zero_inf_nan_preserve_float32(false),
+     shader_signed_zero_inf_nan_preserve_float64(false)
+{
+    /* Stub */
+}
+
+Anvil::KHRShaderFloatControlsProperties::KHRShaderFloatControlsProperties(const VkPhysicalDeviceFloatControlsPropertiesKHR& in_properties)
+    :separate_denorm_settings                   (VK_BOOL32_TO_BOOL(in_properties.separateDenormSettings) ),
+     separate_rounding_mode_settings            (VK_BOOL32_TO_BOOL(in_properties.separateRoundingModeSettings) ),
+     shader_denorm_flush_to_zero_float16        (VK_BOOL32_TO_BOOL(in_properties.shaderDenormFlushToZeroFloat16) ),
+     shader_denorm_flush_to_zero_float32        (VK_BOOL32_TO_BOOL(in_properties.shaderDenormFlushToZeroFloat32) ),
+     shader_denorm_flush_to_zero_float64        (VK_BOOL32_TO_BOOL(in_properties.shaderDenormFlushToZeroFloat64) ),
+     shader_denorm_preserve_float16             (VK_BOOL32_TO_BOOL(in_properties.shaderDenormPreserveFloat16) ),
+     shader_denorm_preserve_float32             (VK_BOOL32_TO_BOOL(in_properties.shaderDenormPreserveFloat32) ),
+     shader_denorm_preserve_float64             (VK_BOOL32_TO_BOOL(in_properties.shaderDenormPreserveFloat64) ),
+     shader_rounding_mode_RTE_float16           (VK_BOOL32_TO_BOOL(in_properties.shaderRoundingModeRTEFloat16) ),
+     shader_rounding_mode_RTE_float32           (VK_BOOL32_TO_BOOL(in_properties.shaderRoundingModeRTEFloat32) ),
+     shader_rounding_mode_RTE_float64           (VK_BOOL32_TO_BOOL(in_properties.shaderRoundingModeRTEFloat64) ),
+     shader_rounding_mode_RTZ_float16           (VK_BOOL32_TO_BOOL(in_properties.shaderRoundingModeRTZFloat16) ),
+     shader_rounding_mode_RTZ_float32           (VK_BOOL32_TO_BOOL(in_properties.shaderRoundingModeRTZFloat32) ),
+     shader_rounding_mode_RTZ_float64           (VK_BOOL32_TO_BOOL(in_properties.shaderRoundingModeRTZFloat64) ),
+     shader_signed_zero_inf_nan_preserve_float16(VK_BOOL32_TO_BOOL(in_properties.shaderSignedZeroInfNanPreserveFloat16) ),
+     shader_signed_zero_inf_nan_preserve_float32(VK_BOOL32_TO_BOOL(in_properties.shaderSignedZeroInfNanPreserveFloat32) ),
+     shader_signed_zero_inf_nan_preserve_float64(VK_BOOL32_TO_BOOL(in_properties.shaderSignedZeroInfNanPreserveFloat64) )
+{
+    /* Stub */
+}
+
+VkPhysicalDeviceFloatControlsPropertiesKHR Anvil::KHRShaderFloatControlsProperties::get_vk_physical_device_float_controls_properties() const
+{
+    VkPhysicalDeviceFloatControlsPropertiesKHR result;
+
+    result.pNext                                 = nullptr;
+    result.sType                                 = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES_KHR;
+    result.separateDenormSettings                = separate_denorm_settings;
+    result.separateRoundingModeSettings          = separate_rounding_mode_settings;
+    result.shaderDenormFlushToZeroFloat16        = shader_denorm_flush_to_zero_float16;
+    result.shaderDenormFlushToZeroFloat32        = shader_denorm_flush_to_zero_float32;
+    result.shaderDenormFlushToZeroFloat64        = shader_denorm_flush_to_zero_float64;
+    result.shaderDenormPreserveFloat16           = shader_denorm_preserve_float16;
+    result.shaderDenormPreserveFloat32           = shader_denorm_preserve_float32;
+    result.shaderDenormPreserveFloat64           = shader_denorm_preserve_float64;
+    result.shaderRoundingModeRTEFloat16          = shader_rounding_mode_RTE_float16;
+    result.shaderRoundingModeRTEFloat32          = shader_rounding_mode_RTE_float32;
+    result.shaderRoundingModeRTEFloat64          = shader_rounding_mode_RTE_float64;
+    result.shaderRoundingModeRTZFloat16          = shader_rounding_mode_RTZ_float16;
+    result.shaderRoundingModeRTZFloat32          = shader_rounding_mode_RTZ_float32;
+    result.shaderRoundingModeRTZFloat64          = shader_rounding_mode_RTZ_float64;
+    result.shaderSignedZeroInfNanPreserveFloat16 = shader_signed_zero_inf_nan_preserve_float16;
+    result.shaderSignedZeroInfNanPreserveFloat32 = shader_signed_zero_inf_nan_preserve_float32;
+    result.shaderSignedZeroInfNanPreserveFloat64 = shader_signed_zero_inf_nan_preserve_float64;
+
+    return result;
+}
+
+bool Anvil::KHRShaderFloatControlsProperties::operator==(const KHRShaderFloatControlsProperties& in_properties) const
+{
+    return
+        (separate_denorm_settings                    == in_properties.separate_denorm_settings)                    &&
+        (separate_rounding_mode_settings             == in_properties.separate_rounding_mode_settings)             &&
+        (shader_denorm_flush_to_zero_float16         == in_properties.shader_denorm_flush_to_zero_float16)         &&
+        (shader_denorm_flush_to_zero_float32         == in_properties.shader_denorm_flush_to_zero_float32)         &&
+        (shader_denorm_flush_to_zero_float64         == in_properties.shader_denorm_flush_to_zero_float64)         &&
+        (shader_denorm_preserve_float16              == in_properties.shader_denorm_preserve_float16)              &&
+        (shader_denorm_preserve_float32              == in_properties.shader_denorm_preserve_float32)              &&
+        (shader_denorm_preserve_float64              == in_properties.shader_denorm_preserve_float64)              &&
+        (shader_rounding_mode_RTE_float16            == in_properties.shader_rounding_mode_RTE_float16)            &&
+        (shader_rounding_mode_RTE_float32            == in_properties.shader_rounding_mode_RTE_float32)            &&
+        (shader_rounding_mode_RTE_float64            == in_properties.shader_rounding_mode_RTE_float64)            &&
+        (shader_rounding_mode_RTZ_float16            == in_properties.shader_rounding_mode_RTZ_float16)            &&
+        (shader_rounding_mode_RTZ_float32            == in_properties.shader_rounding_mode_RTZ_float32)            &&
+        (shader_rounding_mode_RTZ_float64            == in_properties.shader_rounding_mode_RTZ_float64)            &&
+        (shader_signed_zero_inf_nan_preserve_float16 == in_properties.shader_signed_zero_inf_nan_preserve_float16) &&
+        (shader_signed_zero_inf_nan_preserve_float32 == in_properties.shader_signed_zero_inf_nan_preserve_float32) &&
+        (shader_signed_zero_inf_nan_preserve_float64 == in_properties.shader_signed_zero_inf_nan_preserve_float64);
+}
+
 Anvil::KHRVariablePointerFeatures::KHRVariablePointerFeatures()
 {
     variable_pointers                = false;
@@ -1316,6 +1813,40 @@ bool Anvil::KHRVariablePointerFeatures::operator==(const Anvil::KHRVariablePoint
 {
     return (variable_pointers                == in_props.variable_pointers                  &&
             variable_pointers_storage_buffer == in_props.variable_pointers_storage_buffer);
+}
+
+Anvil::KHRVulkanMemoryModelFeatures::KHRVulkanMemoryModelFeatures()
+{
+    vulkan_memory_model                                = false;
+    vulkan_memory_model_availability_visibility_chains = false;
+    vulkan_memory_model_device_scope                   = false;
+}
+
+Anvil::KHRVulkanMemoryModelFeatures::KHRVulkanMemoryModelFeatures(const VkPhysicalDeviceVulkanMemoryModelFeaturesKHR& in_features)
+{
+    vulkan_memory_model                                = VK_BOOL32_TO_BOOL(in_features.vulkanMemoryModel);
+    vulkan_memory_model_availability_visibility_chains = VK_BOOL32_TO_BOOL(in_features.vulkanMemoryModelAvailabilityVisibilityChains);
+    vulkan_memory_model_device_scope                   = VK_BOOL32_TO_BOOL(in_features.vulkanMemoryModelDeviceScope);
+}
+
+VkPhysicalDeviceVulkanMemoryModelFeaturesKHR Anvil::KHRVulkanMemoryModelFeatures::get_vk_physical_device_vulkan_memory_model_features() const
+{
+    VkPhysicalDeviceVulkanMemoryModelFeaturesKHR result;
+
+    result.pNext                                         = nullptr;
+    result.sType                                         = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES_KHR;
+    result.vulkanMemoryModel                             = BOOL_TO_VK_BOOL32(vulkan_memory_model);
+    result.vulkanMemoryModelAvailabilityVisibilityChains = BOOL_TO_VK_BOOL32(vulkan_memory_model_availability_visibility_chains);
+    result.vulkanMemoryModelDeviceScope                  = BOOL_TO_VK_BOOL32(vulkan_memory_model_device_scope);
+
+    return result;
+}
+
+bool Anvil::KHRVulkanMemoryModelFeatures::operator==(const KHRVulkanMemoryModelFeatures& in_features) const
+{
+    return (in_features.vulkan_memory_model                                == vulkan_memory_model)                                &&
+           (in_features.vulkan_memory_model_availability_visibility_chains == vulkan_memory_model_availability_visibility_chains) &&
+           (in_features.vulkan_memory_model_device_scope                   == vulkan_memory_model_device_scope);
 }
 
 Anvil::Layer::Layer(const std::string& in_layer_name)
@@ -2003,47 +2534,293 @@ Anvil::PhysicalDeviceProperties::PhysicalDeviceProperties()
 {
     amd_shader_core_properties_ptr                                     = nullptr;
     core_vk1_0_properties_ptr                                          = nullptr;
+    core_vk1_1_properties_ptr                                          = nullptr;
+    ext_conservative_rasterization_properties_ptr                      = nullptr;
     ext_descriptor_indexing_properties_ptr                             = nullptr;
     ext_external_memory_host_properties_ptr                            = nullptr;
+    ext_inline_uniform_block_properties_ptr                            = nullptr;
     ext_pci_bus_info_properties_ptr                                    = nullptr;
     ext_sample_locations_properties_ptr                                = nullptr;
     ext_sampler_filter_minmax_properties_ptr                           = nullptr;
     ext_transform_feedback_properties_ptr                              = nullptr;
     ext_vertex_attribute_divisor_properties_ptr                        = nullptr;
+    khr_depth_stencil_resolve_properties_ptr                           = nullptr;
+    khr_driver_properties_properties_ptr                               = nullptr;
     khr_external_memory_capabilities_physical_device_id_properties_ptr = nullptr;
     khr_maintenance2_point_clipping_properties_ptr                     = nullptr;
     khr_maintenance3_properties_ptr                                    = nullptr;
     khr_multiview_properties_ptr                                       = nullptr;
+    khr_shader_float_controls_properties_ptr                           = nullptr;
 }
 
 Anvil::PhysicalDeviceProperties::PhysicalDeviceProperties(const AMDShaderCoreProperties*                                        in_amd_shader_core_properties_ptr,
                                                           const PhysicalDevicePropertiesCoreVK10*                               in_core_vk1_0_properties_ptr,
+                                                          const PhysicalDevicePropertiesCoreVK11*                               in_core_vk1_1_properties_ptr,
+                                                          const EXTConservativeRasterizationProperties*                         in_ext_conservative_rasterization_properties_ptr,
                                                           const EXTDescriptorIndexingProperties*                                in_ext_descriptor_indexing_properties_ptr,
                                                           const EXTExternalMemoryHostProperties*                                in_ext_external_memory_host_properties_ptr,
+                                                          const EXTInlineUniformBlockProperties*                                in_ext_inline_uniform_block_properties_ptr,
                                                           const EXTPCIBusInfoProperties*                                        in_ext_pci_bus_info_properties_ptr,
                                                           const EXTSampleLocationsProperties*                                   in_ext_sample_locations_properties_ptr,
                                                           const EXTSamplerFilterMinmaxProperties*                               in_ext_sampler_filter_minmax_properties_ptr,
                                                           const EXTTransformFeedbackProperties*                                 in_ext_transform_feedback_properties_ptr,
                                                           const EXTVertexAttributeDivisorProperties*                            in_ext_vertex_attribute_divisor_properties_ptr,
+                                                          const Anvil::KHRDepthStencilResolveProperties*                        in_khr_depth_stencil_resolve_props_ptr,
+                                                          const KHRDriverPropertiesProperties*                                  in_khr_driver_properties_props_ptr,
                                                           const Anvil::KHRExternalMemoryCapabilitiesPhysicalDeviceIDProperties* in_khr_external_memory_caps_physical_device_id_props_ptr,
                                                           const KHRMaintenance3Properties*                                      in_khr_maintenance3_properties_ptr,
                                                           const Anvil::KHRMaintenance2PhysicalDevicePointClippingProperties*    in_khr_maintenance2_point_clipping_properties_ptr,
-                                                          const Anvil::KHRMultiviewProperties*                                  in_khr_multiview_properties_ptr)
+                                                          const Anvil::KHRMultiviewProperties*                                  in_khr_multiview_properties_ptr,
+                                                          const KHRShaderFloatControlsProperties*                               in_khr_shader_float_controls_properties_ptr)
     :amd_shader_core_properties_ptr                                    (in_amd_shader_core_properties_ptr),
      core_vk1_0_properties_ptr                                         (in_core_vk1_0_properties_ptr),
+     core_vk1_1_properties_ptr                                         (in_core_vk1_1_properties_ptr),
+     ext_conservative_rasterization_properties_ptr                     (in_ext_conservative_rasterization_properties_ptr),
      ext_descriptor_indexing_properties_ptr                            (in_ext_descriptor_indexing_properties_ptr),
      ext_external_memory_host_properties_ptr                           (in_ext_external_memory_host_properties_ptr),
+     ext_inline_uniform_block_properties_ptr                           (in_ext_inline_uniform_block_properties_ptr),
      ext_pci_bus_info_properties_ptr                                   (in_ext_pci_bus_info_properties_ptr),
      ext_sample_locations_properties_ptr                               (in_ext_sample_locations_properties_ptr),
      ext_sampler_filter_minmax_properties_ptr                          (in_ext_sampler_filter_minmax_properties_ptr),
      ext_transform_feedback_properties_ptr                             (in_ext_transform_feedback_properties_ptr),
      ext_vertex_attribute_divisor_properties_ptr                       (in_ext_vertex_attribute_divisor_properties_ptr),
+     khr_depth_stencil_resolve_properties_ptr                          (in_khr_depth_stencil_resolve_props_ptr),
+     khr_driver_properties_properties_ptr                              (in_khr_driver_properties_props_ptr),
      khr_external_memory_capabilities_physical_device_id_properties_ptr(in_khr_external_memory_caps_physical_device_id_props_ptr),
      khr_maintenance2_point_clipping_properties_ptr                    (in_khr_maintenance2_point_clipping_properties_ptr),
      khr_maintenance3_properties_ptr                                   (in_khr_maintenance3_properties_ptr),
-     khr_multiview_properties_ptr                                      (in_khr_multiview_properties_ptr)
+     khr_multiview_properties_ptr                                      (in_khr_multiview_properties_ptr),
+     khr_shader_float_controls_properties_ptr                          (in_khr_shader_float_controls_properties_ptr)
 {
     /* Stub */
+}
+
+bool Anvil::PhysicalDeviceProperties::operator==(const PhysicalDeviceProperties& in_props) const
+{
+    bool       amd_shader_core_properties_match                   = false;
+    const bool core_vk1_0_features_match                          = (*core_vk1_0_properties_ptr == *in_props.core_vk1_0_properties_ptr);
+    bool       core_vk1_1_features_match                          = false;
+    bool       ext_conservative_rasterization_properties_match    = false;
+    bool       ext_descriptor_indexing_properties_match           = false;
+    bool       ext_external_memory_host_properties_match          = false;
+    bool       ext_inline_uniform_block_properties_match          = false;
+    bool       ext_pci_bus_info_properties_match                  = false;
+    bool       ext_sample_locations_properties_match              = false;
+    bool       ext_sampler_filter_minmax_properties_match         = false;
+    bool       ext_vertex_attribute_divisor_properties_match      = false;
+    bool       khr_depth_stencil_resolve_properties_match         = false;
+    bool       khr_driver_properties_properties_match             = false;
+    bool       khr_external_memory_capabilities_properties_match  = false;
+    bool       khr_maintenance2_properties_match                  = false;
+    bool       khr_maintenance3_properties_match                  = false;
+    bool       khr_multiview_properties_match                     = false;
+    bool       khr_shader_float_controls_properties_match         = false;
+
+    if (amd_shader_core_properties_ptr          != nullptr &&
+        in_props.amd_shader_core_properties_ptr != nullptr)
+    {
+        amd_shader_core_properties_match = (*amd_shader_core_properties_ptr == *in_props.amd_shader_core_properties_ptr);
+    }
+    else
+    {
+        amd_shader_core_properties_match = (amd_shader_core_properties_ptr          == nullptr &&
+                                            in_props.amd_shader_core_properties_ptr == nullptr);
+    }
+
+    if (core_vk1_1_properties_ptr          != nullptr &&
+        in_props.core_vk1_1_properties_ptr != nullptr)
+    {
+        core_vk1_1_features_match = (*core_vk1_1_properties_ptr == *in_props.core_vk1_1_properties_ptr);
+    }
+    else
+    {
+        core_vk1_1_features_match = (core_vk1_1_properties_ptr          == nullptr &&
+                                     in_props.core_vk1_1_properties_ptr == nullptr);
+    }
+
+    if (ext_conservative_rasterization_properties_ptr          != nullptr &&
+        in_props.ext_conservative_rasterization_properties_ptr != nullptr)
+    {
+        ext_conservative_rasterization_properties_match = (*ext_conservative_rasterization_properties_ptr == *in_props.ext_conservative_rasterization_properties_ptr);
+    }
+    else
+    {
+        ext_conservative_rasterization_properties_match = (ext_conservative_rasterization_properties_ptr          == nullptr &&
+                                                           in_props.ext_conservative_rasterization_properties_ptr == nullptr);
+    }
+
+    if (ext_descriptor_indexing_properties_ptr          != nullptr &&
+        in_props.ext_descriptor_indexing_properties_ptr != nullptr)
+    {
+        ext_descriptor_indexing_properties_match = (*ext_descriptor_indexing_properties_ptr == *in_props.ext_descriptor_indexing_properties_ptr);
+    }
+    else
+    {
+        ext_descriptor_indexing_properties_match = (ext_descriptor_indexing_properties_ptr          == nullptr &&
+                                                    in_props.ext_descriptor_indexing_properties_ptr == nullptr);
+    }
+
+    if (ext_external_memory_host_properties_ptr          != nullptr &&
+        in_props.ext_external_memory_host_properties_ptr != nullptr)
+    {
+        ext_external_memory_host_properties_match = (*ext_external_memory_host_properties_ptr == *in_props.ext_external_memory_host_properties_ptr);
+    }
+    else
+    {
+        ext_external_memory_host_properties_match = (ext_external_memory_host_properties_ptr          == nullptr &&
+                                                     in_props.ext_external_memory_host_properties_ptr == nullptr);
+    }
+
+    if (ext_inline_uniform_block_properties_ptr != nullptr &&
+        in_props.ext_inline_uniform_block_properties_ptr != nullptr)
+    {
+        ext_inline_uniform_block_properties_match = (*ext_inline_uniform_block_properties_ptr == *in_props.ext_inline_uniform_block_properties_ptr);
+    }
+    else
+    {
+        ext_inline_uniform_block_properties_match = (ext_inline_uniform_block_properties_ptr          == nullptr &&
+                                                     in_props.ext_inline_uniform_block_properties_ptr == nullptr);
+    }
+
+    if (ext_pci_bus_info_properties_ptr          != nullptr &&
+        in_props.ext_pci_bus_info_properties_ptr != nullptr)
+    {
+        ext_pci_bus_info_properties_match = (*ext_pci_bus_info_properties_ptr == *in_props.ext_pci_bus_info_properties_ptr);
+    }
+    else
+    {
+        ext_pci_bus_info_properties_match = (ext_pci_bus_info_properties_ptr          == nullptr &&
+                                             in_props.ext_pci_bus_info_properties_ptr == nullptr);
+    }
+
+    if (ext_sample_locations_properties_ptr          != nullptr &&
+        in_props.ext_sample_locations_properties_ptr != nullptr)
+    {
+        ext_sample_locations_properties_match = (*ext_sample_locations_properties_ptr == *in_props.ext_sample_locations_properties_ptr);
+    }
+    else
+    {
+        ext_sample_locations_properties_match = (ext_sample_locations_properties_ptr          == nullptr &&
+                                                 in_props.ext_sample_locations_properties_ptr == nullptr);
+    }
+
+    if (ext_sampler_filter_minmax_properties_ptr         != nullptr &&
+        in_props.ext_sampler_filter_minmax_properties_ptr != nullptr)
+    {
+        ext_sampler_filter_minmax_properties_match = (*ext_sampler_filter_minmax_properties_ptr == *in_props.ext_sampler_filter_minmax_properties_ptr);
+    }
+    else
+    {
+        ext_sampler_filter_minmax_properties_match = (ext_sampler_filter_minmax_properties_ptr          == nullptr &&
+                                                      in_props.ext_sampler_filter_minmax_properties_ptr == nullptr);
+    }
+
+    if (ext_vertex_attribute_divisor_properties_ptr          != nullptr &&
+        in_props.ext_vertex_attribute_divisor_properties_ptr != nullptr)
+    {
+        ext_vertex_attribute_divisor_properties_match = (*ext_vertex_attribute_divisor_properties_ptr == *in_props.ext_vertex_attribute_divisor_properties_ptr);
+    }
+    else
+    {
+        ext_vertex_attribute_divisor_properties_match = (ext_vertex_attribute_divisor_properties_ptr          == nullptr &&
+                                                         in_props.ext_vertex_attribute_divisor_properties_ptr == nullptr);
+    }
+
+    if (khr_depth_stencil_resolve_properties_ptr          != nullptr &&
+        in_props.khr_depth_stencil_resolve_properties_ptr != nullptr)
+    {
+        khr_depth_stencil_resolve_properties_match = (*khr_depth_stencil_resolve_properties_ptr == *in_props.khr_depth_stencil_resolve_properties_ptr);
+    }
+    else
+    {
+        khr_depth_stencil_resolve_properties_match = (khr_depth_stencil_resolve_properties_ptr          == nullptr &&
+                                                      in_props.khr_depth_stencil_resolve_properties_ptr == nullptr);
+    }
+
+    if (khr_driver_properties_properties_ptr          != nullptr &&
+        in_props.khr_driver_properties_properties_ptr != nullptr)
+    {
+        khr_driver_properties_properties_match = (*khr_driver_properties_properties_ptr == *in_props.khr_driver_properties_properties_ptr);
+    }
+    else
+    {
+        khr_driver_properties_properties_match = (khr_driver_properties_properties_ptr          == nullptr &&
+                                                  in_props.khr_driver_properties_properties_ptr == nullptr);
+    }
+
+    if (khr_external_memory_capabilities_physical_device_id_properties_ptr          != nullptr &&
+        in_props.khr_external_memory_capabilities_physical_device_id_properties_ptr!= nullptr)
+    {
+        khr_external_memory_capabilities_properties_match = (*khr_external_memory_capabilities_physical_device_id_properties_ptr == *in_props.khr_external_memory_capabilities_physical_device_id_properties_ptr);
+    }
+    else
+    {
+        khr_external_memory_capabilities_properties_match = (khr_external_memory_capabilities_physical_device_id_properties_ptr          == nullptr &&
+                                                             in_props.khr_external_memory_capabilities_physical_device_id_properties_ptr == nullptr);
+    }
+
+    if (khr_maintenance2_point_clipping_properties_ptr          != nullptr &&
+        in_props.khr_maintenance2_point_clipping_properties_ptr != nullptr)
+    {
+        khr_maintenance2_properties_match = (*khr_maintenance2_point_clipping_properties_ptr == *in_props.khr_maintenance2_point_clipping_properties_ptr);
+    }
+    else
+    {
+        khr_maintenance2_properties_match = (khr_maintenance2_point_clipping_properties_ptr          == nullptr &&
+                                             in_props.khr_maintenance2_point_clipping_properties_ptr == nullptr);
+    }
+
+    if (khr_maintenance3_properties_ptr          != nullptr &&
+        in_props.khr_maintenance3_properties_ptr != nullptr)
+    {
+        khr_maintenance3_properties_match = (*khr_maintenance3_properties_ptr == *in_props.khr_maintenance3_properties_ptr);
+    }
+    else
+    {
+        khr_maintenance3_properties_match = (khr_maintenance3_properties_ptr          == nullptr &&
+                                             in_props.khr_maintenance3_properties_ptr == nullptr);
+    }
+
+    if (khr_multiview_properties_ptr          != nullptr &&
+        in_props.khr_multiview_properties_ptr != nullptr)
+    {
+        khr_multiview_properties_match = (*khr_multiview_properties_ptr == *in_props.khr_multiview_properties_ptr);
+    }
+    else
+    {
+        khr_multiview_properties_match = (khr_multiview_properties_ptr          == nullptr &&
+                                          in_props.khr_multiview_properties_ptr == nullptr);
+    }
+
+    if (khr_shader_float_controls_properties_ptr          != nullptr &&
+        in_props.khr_shader_float_controls_properties_ptr != nullptr)
+    {
+        khr_shader_float_controls_properties_match  = (*khr_shader_float_controls_properties_ptr == *in_props.khr_shader_float_controls_properties_ptr);
+    }
+    else
+    {
+        khr_shader_float_controls_properties_match = (khr_shader_float_controls_properties_ptr          == nullptr &&
+                                                      in_props.khr_shader_float_controls_properties_ptr == nullptr);
+    }
+
+    return amd_shader_core_properties_match                   &&
+           core_vk1_0_features_match                          &&
+           core_vk1_1_features_match                          &&
+           ext_conservative_rasterization_properties_match    &&
+           ext_descriptor_indexing_properties_match           &&
+           ext_external_memory_host_properties_match          &&
+           ext_inline_uniform_block_properties_match          &&
+           ext_pci_bus_info_properties_match                  &&
+           ext_sample_locations_properties_match              &&
+           ext_sampler_filter_minmax_properties_match         &&
+           ext_vertex_attribute_divisor_properties_match      &&
+           khr_depth_stencil_resolve_properties_match         &&
+           khr_driver_properties_properties_match             &&
+           khr_external_memory_capabilities_properties_match  &&
+           khr_maintenance2_properties_match                  &&
+           khr_maintenance3_properties_match                  &&
+           khr_multiview_properties_match                     &&
+           khr_shader_float_controls_properties_match;
 }
 
 Anvil::PhysicalDevicePropertiesCoreVK10::PhysicalDevicePropertiesCoreVK10()
@@ -2061,32 +2838,251 @@ Anvil::PhysicalDevicePropertiesCoreVK10::PhysicalDevicePropertiesCoreVK10()
            sizeof(pipeline_cache_uuid) );
 }
 
-Anvil::PhysicalDeviceFeatures::PhysicalDeviceFeatures()
+Anvil::PhysicalDevicePropertiesCoreVK11::PhysicalDevicePropertiesCoreVK11()
 {
-    core_vk1_0_features_ptr              = nullptr;
-    ext_descriptor_indexing_features_ptr = nullptr;
-    ext_transform_feedback_features_ptr  = nullptr;
-    khr_16bit_storage_features_ptr       = nullptr;
-    khr_8bit_storage_features_ptr        = nullptr;
-    khr_multiview_features_ptr           = nullptr;
-    khr_variable_pointer_features_ptr    = nullptr;
+    /* Stub */
 }
 
-Anvil::PhysicalDeviceFeatures::PhysicalDeviceFeatures(const PhysicalDeviceFeaturesCoreVK10* in_core_vk1_0_features_ptr,
-                                                      const EXTDescriptorIndexingFeatures*  in_ext_descriptor_indexing_features_ptr,
-                                                      const EXTTransformFeedbackFeatures*   in_ext_transform_feedback_features_ptr,
-                                                      const KHR16BitStorageFeatures*        in_khr_16_bit_storage_features_ptr,
-                                                      const KHR8BitStorageFeatures*         in_khr_8_bit_storage_features_ptr,
-                                                      const KHRMultiviewFeatures*           in_khr_multiview_features_ptr,
-                                                      const KHRVariablePointerFeatures*     in_khr_variable_pointer_features_ptr)
+Anvil::PhysicalDeviceFeatures::PhysicalDeviceFeatures()
 {
-    core_vk1_0_features_ptr              = in_core_vk1_0_features_ptr;
-    ext_descriptor_indexing_features_ptr = in_ext_descriptor_indexing_features_ptr;
-    ext_transform_feedback_features_ptr  = in_ext_transform_feedback_features_ptr;
-    khr_16bit_storage_features_ptr       = in_khr_16_bit_storage_features_ptr;
-    khr_8bit_storage_features_ptr        = in_khr_8_bit_storage_features_ptr;
-    khr_multiview_features_ptr           = in_khr_multiview_features_ptr;
-    khr_variable_pointer_features_ptr    = in_khr_variable_pointer_features_ptr;
+    core_vk1_0_features_ptr                   = nullptr;
+    core_vk1_1_features_ptr                   = nullptr;
+    ext_depth_clip_enable_features_ptr        = nullptr;
+    ext_descriptor_indexing_features_ptr      = nullptr;
+    ext_inline_uniform_block_features_ptr     = nullptr;
+    ext_scalar_block_layout_features_ptr      = nullptr;
+    ext_transform_feedback_features_ptr       = nullptr;
+    ext_memory_priority_features_ptr          = nullptr;
+    khr_16bit_storage_features_ptr            = nullptr;
+    khr_8bit_storage_features_ptr             = nullptr;
+    khr_float16_int8_features_ptr             = nullptr;
+    khr_multiview_features_ptr                = nullptr;
+    khr_sampler_ycbcr_conversion_features_ptr = nullptr;
+    khr_shader_atomic_int64_features_ptr      = nullptr;
+    khr_variable_pointer_features_ptr         = nullptr;
+    khr_vulkan_memory_model_features_ptr      = nullptr;
+}
+
+Anvil::PhysicalDeviceFeatures::PhysicalDeviceFeatures(const PhysicalDeviceFeaturesCoreVK10*    in_core_vk1_0_features_ptr,
+                                                      const PhysicalDeviceFeaturesCoreVK11*    in_core_vk1_1_features_ptr,
+                                                      const EXTDepthClipEnableFeatures*        in_ext_depth_clip_enable_features_ptr,
+                                                      const EXTDescriptorIndexingFeatures*     in_ext_descriptor_indexing_features_ptr,
+                                                      const EXTInlineUniformBlockFeatures*     in_ext_inline_uniform_block_features_ptr,
+                                                      const EXTScalarBlockLayoutFeatures*      in_ext_scalar_block_layout_features_ptr,
+                                                      const EXTTransformFeedbackFeatures*      in_ext_transform_feedback_features_ptr,
+                                                      const EXTMemoryPriorityFeatures*         in_ext_memory_priority_features_ptr,
+                                                      const KHR16BitStorageFeatures*           in_khr_16_bit_storage_features_ptr,
+                                                      const KHR8BitStorageFeatures*            in_khr_8_bit_storage_features_ptr,
+                                                      const KHRFloat16Int8Features*            in_khr_float16_int8_features_ptr,
+                                                      const KHRMultiviewFeatures*              in_khr_multiview_features_ptr,
+                                                      const KHRSamplerYCbCrConversionFeatures* in_khr_sampler_ycbcr_conversion_features_ptr,
+                                                      const KHRShaderAtomicInt64Features*      in_khr_shader_atomic_int64_features_ptr,
+                                                      const KHRVariablePointerFeatures*        in_khr_variable_pointer_features_ptr,
+                                                      const KHRVulkanMemoryModelFeatures*      in_khr_vulkan_memory_model_features_ptr)
+{
+    core_vk1_0_features_ptr                   = in_core_vk1_0_features_ptr;
+    core_vk1_1_features_ptr                   = in_core_vk1_1_features_ptr;
+    ext_depth_clip_enable_features_ptr        = in_ext_depth_clip_enable_features_ptr;
+    ext_descriptor_indexing_features_ptr      = in_ext_descriptor_indexing_features_ptr;
+    ext_inline_uniform_block_features_ptr     = in_ext_inline_uniform_block_features_ptr;
+    ext_scalar_block_layout_features_ptr      = in_ext_scalar_block_layout_features_ptr;
+    ext_transform_feedback_features_ptr       = in_ext_transform_feedback_features_ptr;
+    ext_memory_priority_features_ptr          = in_ext_memory_priority_features_ptr;
+    khr_16bit_storage_features_ptr            = in_khr_16_bit_storage_features_ptr;
+    khr_8bit_storage_features_ptr             = in_khr_8_bit_storage_features_ptr;
+    khr_float16_int8_features_ptr             = in_khr_float16_int8_features_ptr;
+    khr_multiview_features_ptr                = in_khr_multiview_features_ptr;
+    khr_sampler_ycbcr_conversion_features_ptr = in_khr_sampler_ycbcr_conversion_features_ptr;
+    khr_shader_atomic_int64_features_ptr      = in_khr_shader_atomic_int64_features_ptr;
+    khr_variable_pointer_features_ptr         = in_khr_variable_pointer_features_ptr;
+    khr_vulkan_memory_model_features_ptr      = in_khr_vulkan_memory_model_features_ptr;
+}
+
+bool Anvil::PhysicalDeviceFeatures::operator==(const PhysicalDeviceFeatures& in_physical_device_features) const
+{
+    const bool core_vk1_0_features_match                   = (*core_vk1_0_features_ptr == *in_physical_device_features.core_vk1_0_features_ptr);
+    const bool core_vk1_1_features_match                   = ( core_vk1_1_features_ptr == nullptr                                              && in_physical_device_features.core_vk1_1_features_ptr == nullptr) ||
+                                                             (*core_vk1_1_features_ptr == *in_physical_device_features.core_vk1_1_features_ptr);
+    bool       ext_depth_clip_enable_features_match        = false;
+    bool       ext_descriptor_indexing_features_match      = false;
+    bool       ext_inline_uniform_block_features_match     = false;
+    bool       ext_scalar_block_layout_features_match      = false;
+    bool       ext_transform_feedback_features_match       = false;
+    bool       ext_memory_priority_features_match          = false;
+    bool       khr_16bit_storage_features_match            = false;
+    bool       khr_8bit_storage_features_match             = false;
+    bool       khr_float16_int8_features_match             = false;
+    bool       khr_multiview_features_match                = false;
+    bool       khr_sampler_ycbcr_conversion_features_match = false;
+    bool       khr_shader_atomic_int64_features_match      = false;
+    bool       khr_variable_pointer_features_match         = false;
+    bool       khr_vulkan_memory_features_match            = false;
+
+    if (ext_depth_clip_enable_features_ptr                             != nullptr &&
+        in_physical_device_features.ext_depth_clip_enable_features_ptr != nullptr)
+    {
+        ext_depth_clip_enable_features_match = (*ext_depth_clip_enable_features_ptr == *in_physical_device_features.ext_depth_clip_enable_features_ptr);
+    }
+    else
+    {
+        ext_depth_clip_enable_features_match = (ext_depth_clip_enable_features_ptr                             == nullptr &&
+                                                in_physical_device_features.ext_depth_clip_enable_features_ptr == nullptr);
+    }
+
+    if (ext_descriptor_indexing_features_ptr                             != nullptr &&
+        in_physical_device_features.ext_descriptor_indexing_features_ptr != nullptr)
+    {
+        ext_descriptor_indexing_features_match = (*ext_descriptor_indexing_features_ptr == *in_physical_device_features.ext_descriptor_indexing_features_ptr);
+    }
+    else
+    {
+        ext_descriptor_indexing_features_match = (ext_descriptor_indexing_features_ptr                             == nullptr &&
+                                                  in_physical_device_features.ext_descriptor_indexing_features_ptr == nullptr);
+    }
+
+    if (ext_inline_uniform_block_features_ptr                             != nullptr &&
+        in_physical_device_features.ext_inline_uniform_block_features_ptr != nullptr)
+    {
+        ext_inline_uniform_block_features_match = (*ext_inline_uniform_block_features_ptr == *in_physical_device_features.ext_inline_uniform_block_features_ptr);
+    }
+    else
+    {
+        ext_inline_uniform_block_features_match = (ext_inline_uniform_block_features_ptr                             == nullptr &&
+                                                   in_physical_device_features.ext_inline_uniform_block_features_ptr == nullptr);
+    }
+
+    if (ext_scalar_block_layout_features_ptr                            != nullptr &&
+        in_physical_device_features.ext_scalar_block_layout_features_ptr != nullptr)
+    {
+        ext_scalar_block_layout_features_match = (*ext_scalar_block_layout_features_ptr == *in_physical_device_features.ext_scalar_block_layout_features_ptr);
+    }
+    else
+    {
+        ext_scalar_block_layout_features_match = (ext_scalar_block_layout_features_ptr                             == nullptr &&
+                                                  in_physical_device_features.ext_scalar_block_layout_features_ptr == nullptr);
+    }
+
+    if (ext_transform_feedback_features_ptr                             != nullptr &&
+        in_physical_device_features.ext_transform_feedback_features_ptr != nullptr)
+    {
+        ext_transform_feedback_features_match = (*ext_transform_feedback_features_ptr == *in_physical_device_features.ext_transform_feedback_features_ptr);
+    }
+    else
+    {
+        ext_transform_feedback_features_match = (ext_transform_feedback_features_ptr                             == nullptr &&
+                                                 in_physical_device_features.ext_transform_feedback_features_ptr == nullptr);
+    }
+
+    if (ext_memory_priority_features_ptr                             != nullptr &&
+        in_physical_device_features.ext_memory_priority_features_ptr != nullptr)
+    {
+        ext_memory_priority_features_match = (*ext_memory_priority_features_ptr == *in_physical_device_features.ext_memory_priority_features_ptr);
+    }
+
+    if (khr_16bit_storage_features_ptr                             != nullptr &&
+        in_physical_device_features.khr_16bit_storage_features_ptr != nullptr)
+    {
+        khr_16bit_storage_features_match = (*khr_16bit_storage_features_ptr == *in_physical_device_features.khr_16bit_storage_features_ptr);
+    }
+    else
+    {
+        khr_16bit_storage_features_match = (khr_16bit_storage_features_ptr                             == nullptr &&
+                                            in_physical_device_features.khr_16bit_storage_features_ptr == nullptr);
+    }
+
+    if (khr_8bit_storage_features_ptr                             != nullptr &&
+        in_physical_device_features.khr_8bit_storage_features_ptr != nullptr)
+    {
+        khr_8bit_storage_features_match = (*khr_8bit_storage_features_ptr == *in_physical_device_features.khr_8bit_storage_features_ptr);
+    }
+    else
+    {
+        khr_8bit_storage_features_match = (khr_8bit_storage_features_ptr                             == nullptr &&
+                                           in_physical_device_features.khr_8bit_storage_features_ptr == nullptr);
+    }
+
+    if (khr_float16_int8_features_ptr                             != nullptr &&
+        in_physical_device_features.khr_float16_int8_features_ptr != nullptr)
+    {
+        khr_float16_int8_features_match = (*khr_float16_int8_features_ptr == *in_physical_device_features.khr_float16_int8_features_ptr);
+    }
+    else
+    {
+        khr_float16_int8_features_match = (khr_float16_int8_features_ptr                             == nullptr &&
+                                           in_physical_device_features.khr_float16_int8_features_ptr == nullptr);
+    }
+
+    if (khr_multiview_features_ptr                             != nullptr &&
+        in_physical_device_features.khr_multiview_features_ptr != nullptr)
+    {
+        khr_multiview_features_match = (*khr_multiview_features_ptr == *in_physical_device_features.khr_multiview_features_ptr);
+    }
+    else
+    {
+        khr_multiview_features_match = (khr_multiview_features_ptr                             == nullptr &&
+                                        in_physical_device_features.khr_multiview_features_ptr == nullptr);
+    }
+
+    if (khr_sampler_ycbcr_conversion_features_ptr                             != nullptr &&
+        in_physical_device_features.khr_sampler_ycbcr_conversion_features_ptr != nullptr)
+    {
+        khr_sampler_ycbcr_conversion_features_match = (*khr_sampler_ycbcr_conversion_features_ptr == *in_physical_device_features.khr_sampler_ycbcr_conversion_features_ptr);
+    }
+    else
+    {
+        khr_sampler_ycbcr_conversion_features_match = (khr_sampler_ycbcr_conversion_features_ptr                             == nullptr &&
+                                                       in_physical_device_features.khr_sampler_ycbcr_conversion_features_ptr == nullptr);
+    }
+
+    if (khr_shader_atomic_int64_features_ptr                             != nullptr &&
+        in_physical_device_features.khr_shader_atomic_int64_features_ptr != nullptr)
+    {
+        khr_shader_atomic_int64_features_match = (*khr_shader_atomic_int64_features_ptr == *in_physical_device_features.khr_shader_atomic_int64_features_ptr);
+    }
+    else
+    {
+        khr_shader_atomic_int64_features_match = (khr_shader_atomic_int64_features_ptr                             == nullptr &&
+                                                  in_physical_device_features.khr_shader_atomic_int64_features_ptr == nullptr);
+    }
+
+    if (khr_variable_pointer_features_ptr                             != nullptr &&
+        in_physical_device_features.khr_variable_pointer_features_ptr != nullptr)
+    {
+        khr_variable_pointer_features_match = (*khr_variable_pointer_features_ptr == *in_physical_device_features.khr_variable_pointer_features_ptr);
+    }
+    else
+    {
+        khr_variable_pointer_features_match = (khr_variable_pointer_features_ptr                             == nullptr &&
+                                               in_physical_device_features.khr_variable_pointer_features_ptr == nullptr);
+    }
+
+    if (khr_vulkan_memory_model_features_ptr                             != nullptr &&
+        in_physical_device_features.khr_vulkan_memory_model_features_ptr != nullptr)
+    {
+        khr_vulkan_memory_features_match = (*khr_vulkan_memory_model_features_ptr == *in_physical_device_features.khr_vulkan_memory_model_features_ptr);
+    }
+    else
+    {
+        khr_vulkan_memory_features_match = (khr_vulkan_memory_model_features_ptr                             == nullptr &&
+                                            in_physical_device_features.khr_vulkan_memory_model_features_ptr == nullptr);
+    }
+
+    return core_vk1_0_features_match                   &&
+           core_vk1_1_features_match                   &&
+           ext_depth_clip_enable_features_match        &&
+           ext_descriptor_indexing_features_match      &&
+           ext_inline_uniform_block_features_match     &&
+           ext_scalar_block_layout_features_match      &&
+           ext_transform_feedback_features_match       &&
+           ext_memory_priority_features_match          &&
+           khr_16bit_storage_features_match            &&
+           khr_8bit_storage_features_match             &&
+           khr_float16_int8_features_match             &&
+           khr_multiview_features_match                &&
+           khr_sampler_ycbcr_conversion_features_match &&
+           khr_shader_atomic_int64_features_match      &&
+           khr_variable_pointer_features_match         &&
+           khr_vulkan_memory_features_match;
 }
 
 Anvil::PhysicalDeviceGroup::PhysicalDeviceGroup()
@@ -2560,6 +3556,14 @@ Anvil::PhysicalDevicePropertiesCoreVK10::PhysicalDevicePropertiesCoreVK10(const 
            sizeof(pipeline_cache_uuid) );
 }
 
+Anvil::PhysicalDevicePropertiesCoreVK11::PhysicalDevicePropertiesCoreVK11(const VkPhysicalDeviceProtectedMemoryProperties& in_protected_memory_properties,
+                                                                          const VkPhysicalDeviceSubgroupProperties&        in_subgroup_properties)
+    :protected_memory_properties(in_protected_memory_properties),
+     subgroup_properties        (in_subgroup_properties)
+{
+    /* Stub */
+}
+
 bool Anvil::PhysicalDevicePropertiesCoreVK10::operator==(const PhysicalDevicePropertiesCoreVK10& in_props) const
 {
     bool result = false;
@@ -2584,6 +3588,63 @@ bool Anvil::PhysicalDevicePropertiesCoreVK10::operator==(const PhysicalDevicePro
     }
 
     return result;
+}
+
+bool Anvil::PhysicalDevicePropertiesCoreVK11::operator==(const PhysicalDevicePropertiesCoreVK11& in_props) const
+{
+    bool result = false;
+
+    if (protected_memory_properties == in_props.protected_memory_properties &&
+        subgroup_properties         == in_props.subgroup_properties)
+    {
+        result = true;
+    }
+
+    return result;
+}
+
+Anvil::PhysicalDeviceProtectedMemoryFeatures::PhysicalDeviceProtectedMemoryFeatures()
+    :protected_memory(false)
+{
+    /* Stub */
+}
+
+Anvil::PhysicalDeviceProtectedMemoryFeatures::PhysicalDeviceProtectedMemoryFeatures(const VkPhysicalDeviceProtectedMemoryFeatures& in_features)
+{
+    protected_memory = VK_BOOL32_TO_BOOL(in_features.protectedMemory);
+}
+
+VkPhysicalDeviceProtectedMemoryFeatures Anvil::PhysicalDeviceProtectedMemoryFeatures::get_vk_physical_device_protected_memory_features() const
+{
+    VkPhysicalDeviceProtectedMemoryFeatures result;
+
+    result.pNext           = nullptr;
+    result.protectedMemory = BOOL_TO_VK_BOOL32(protected_memory);
+    result.sType           = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROTECTED_MEMORY_FEATURES;
+
+    return result;
+}
+
+bool Anvil::PhysicalDeviceProtectedMemoryFeatures::operator==(const PhysicalDeviceProtectedMemoryFeatures& in_features) const
+{
+    return (protected_memory == in_features.protected_memory);
+}
+
+Anvil::PhysicalDeviceProtectedMemoryProperties::PhysicalDeviceProtectedMemoryProperties()
+    :protected_no_fault(false)
+{
+    /* Stub */
+}
+
+Anvil::PhysicalDeviceProtectedMemoryProperties::PhysicalDeviceProtectedMemoryProperties(const VkPhysicalDeviceProtectedMemoryProperties& in_props)
+    :protected_no_fault(VK_BOOL32_TO_BOOL(in_props.protectedNoFault) )
+{
+    /* Stub */
+}
+
+bool Anvil::PhysicalDeviceProtectedMemoryProperties::operator==(const PhysicalDeviceProtectedMemoryProperties& in_props) const
+{
+    return (protected_no_fault == in_props.protected_no_fault);
 }
 
 Anvil::PhysicalDeviceSparseProperties::PhysicalDeviceSparseProperties()
@@ -2615,6 +3676,30 @@ bool Anvil::PhysicalDeviceSparseProperties::operator==(const Anvil::PhysicalDevi
             residency_non_resident_strict                 == in_props.residency_non_resident_strict);
 }
 
+Anvil::PhysicalDeviceSubgroupProperties::PhysicalDeviceSubgroupProperties()
+{
+    quad_operations_in_all_stages = false;
+    subgroup_size                 = 0;
+    supported_operations          = Anvil::SubgroupFeatureFlagBits::NONE;
+    supported_stages              = Anvil::ShaderStageFlagBits::NONE;
+}
+
+Anvil::PhysicalDeviceSubgroupProperties::PhysicalDeviceSubgroupProperties(const VkPhysicalDeviceSubgroupProperties & in_props)
+{
+    quad_operations_in_all_stages = (in_props.quadOperationsInAllStages == VK_TRUE);
+    subgroup_size                 = in_props.subgroupSize;
+    supported_operations          = static_cast<Anvil::SubgroupFeatureFlagBits>(in_props.supportedOperations);
+    supported_stages              = static_cast<Anvil::ShaderStageFlagBits>(in_props.supportedStages);
+}
+
+bool Anvil::PhysicalDeviceSubgroupProperties::operator==(const PhysicalDeviceSubgroupProperties& in_props) const
+{
+    return (quad_operations_in_all_stages == in_props.quad_operations_in_all_stages &&
+            subgroup_size                 == in_props.subgroup_size                 &&
+            supported_operations          == in_props.supported_operations          &&
+            supported_stages              == in_props.supported_stages);
+}
+
 Anvil::PushConstantRange::PushConstantRange(uint32_t                in_offset,
                                             uint32_t                in_size,
                                             Anvil::ShaderStageFlags in_stages)
@@ -2633,10 +3718,10 @@ bool Anvil::PushConstantRange::operator==(const PushConstantRange& in) const
 
 Anvil::QueueFamilyInfo::QueueFamilyInfo(const VkQueueFamilyProperties& in_props)
 {
-    flags                                             = static_cast<Anvil::QueueFlagBits>(in_props.queueFlags);
-    min_image_transfer_granularity                    = in_props.minImageTransferGranularity;
-    n_queues                                          = in_props.queueCount;
-    n_timestamp_bits                                  = in_props.timestampValidBits;
+    flags                          = static_cast<Anvil::QueueFlagBits>(in_props.queueFlags);
+    min_image_transfer_granularity = in_props.minImageTransferGranularity;
+    n_queues                       = in_props.queueCount;
+    n_timestamp_bits               = in_props.timestampValidBits;
 }
 
 /** Please see header for specification */
@@ -2758,91 +3843,6 @@ Anvil::SpecializationConstant::SpecializationConstant(uint32_t in_constant_id,
     constant_id  = in_constant_id;
     n_bytes      = in_n_bytes;
     start_offset = in_start_offset;
-}
-
-bool Anvil::PhysicalDeviceFeatures::operator==(const PhysicalDeviceFeatures& in_physical_device_features) const
-{
-    const bool core_vk1_0_features_match              = (*core_vk1_0_features_ptr == *in_physical_device_features.core_vk1_0_features_ptr);
-    bool       ext_descriptor_indexing_features_match = false;
-    bool       ext_transform_feedback_features_match  = false;
-    bool       khr_16bit_storage_features_match       = false;
-    bool       khr_8bit_storage_features_match        = false;
-    bool       khr_multiview_features_match           = false;
-    bool       khr_variable_pointer_features_match    = false;
-
-    if (ext_descriptor_indexing_features_ptr                             != nullptr &&
-        in_physical_device_features.ext_descriptor_indexing_features_ptr != nullptr)
-    {
-        ext_descriptor_indexing_features_match = (*ext_descriptor_indexing_features_ptr == *in_physical_device_features.ext_descriptor_indexing_features_ptr);
-    }
-    else
-    {
-        ext_descriptor_indexing_features_match = (ext_descriptor_indexing_features_ptr                             == nullptr &&
-                                                  in_physical_device_features.ext_descriptor_indexing_features_ptr == nullptr);
-    }
-
-    if (ext_transform_feedback_features_ptr                             != nullptr &&
-        in_physical_device_features.ext_transform_feedback_features_ptr != nullptr)
-    {
-        ext_transform_feedback_features_match = (*ext_transform_feedback_features_ptr == *in_physical_device_features.ext_transform_feedback_features_ptr);
-    }
-    else
-    {
-        ext_transform_feedback_features_match = (ext_transform_feedback_features_ptr                             == nullptr &&
-                                                 in_physical_device_features.ext_transform_feedback_features_ptr == nullptr);
-    }
-
-    if (khr_16bit_storage_features_ptr                             != nullptr &&
-        in_physical_device_features.khr_16bit_storage_features_ptr != nullptr)
-    {
-        khr_16bit_storage_features_match = (*khr_16bit_storage_features_ptr == *in_physical_device_features.khr_16bit_storage_features_ptr);
-    }
-    else
-    {
-        khr_16bit_storage_features_match = (khr_16bit_storage_features_ptr                             == nullptr &&
-                                            in_physical_device_features.khr_16bit_storage_features_ptr == nullptr);
-    }
-
-    if (khr_8bit_storage_features_ptr                             != nullptr &&
-        in_physical_device_features.khr_8bit_storage_features_ptr != nullptr)
-    {
-        khr_8bit_storage_features_match = (*khr_8bit_storage_features_ptr == *in_physical_device_features.khr_8bit_storage_features_ptr);
-    }
-    else
-    {
-        khr_8bit_storage_features_match = (khr_8bit_storage_features_ptr                             == nullptr &&
-                                           in_physical_device_features.khr_8bit_storage_features_ptr == nullptr);
-    }
-
-    if (khr_multiview_features_ptr                             != nullptr &&
-        in_physical_device_features.khr_multiview_features_ptr != nullptr)
-    {
-        khr_multiview_features_match = (*khr_multiview_features_ptr == *in_physical_device_features.khr_multiview_features_ptr);
-    }
-    else
-    {
-        khr_multiview_features_match = (khr_multiview_features_ptr                             == nullptr &&
-                                        in_physical_device_features.khr_multiview_features_ptr == nullptr);
-    }
-
-    if (khr_variable_pointer_features_ptr                             != nullptr &&
-        in_physical_device_features.khr_variable_pointer_features_ptr != nullptr)
-    {
-        khr_variable_pointer_features_match = (*khr_variable_pointer_features_ptr == *in_physical_device_features.khr_variable_pointer_features_ptr);
-    }
-    else
-    {
-        khr_variable_pointer_features_match = (khr_variable_pointer_features_ptr                             == nullptr &&
-                                               in_physical_device_features.khr_variable_pointer_features_ptr == nullptr);
-    }
-
-    return core_vk1_0_features_match              &&
-           ext_descriptor_indexing_features_match &&
-           ext_transform_feedback_features_match  &&
-           khr_16bit_storage_features_match       &&
-           khr_8bit_storage_features_match        &&
-           khr_multiview_features_match           &&
-           khr_variable_pointer_features_match;
 }
 
 Anvil::PhysicalDeviceFeaturesCoreVK10::PhysicalDeviceFeaturesCoreVK10()
@@ -3087,154 +4087,20 @@ bool Anvil::PhysicalDeviceFeaturesCoreVK10::operator==(const Anvil::PhysicalDevi
            (wide_lines                                   == in_data.wide_lines);
 }
 
-bool Anvil::PhysicalDeviceProperties::operator==(const PhysicalDeviceProperties& in_props) const
+bool Anvil::PhysicalDeviceFeaturesCoreVK11::operator==(const PhysicalDeviceFeaturesCoreVK11& in_data) const
 {
-    bool       amd_shader_core_properties_match                   = false;
-    const bool core_vk1_0_features_match                          = (*core_vk1_0_properties_ptr == *in_props.core_vk1_0_properties_ptr);
-    bool       ext_descriptor_indexing_properties_match           = false;
-    bool       ext_external_memory_host_properties_match          = false;
-    bool       ext_pci_bus_info_properties_match                  = false;
-    bool       ext_sample_locations_properties_match              = false;
-    bool       ext_sampler_filter_minmax_properties_match         = false;
-    bool       ext_vertex_attribute_divisor_properties_match      = false;
-    bool       khr_external_memory_capabilities_properties_match  = false;
-    bool       khr_maintenance2_properties_match                  = false;
-    bool       khr_maintenance3_properties_match                  = false;
-    bool       khr_multiview_properties_match                     = false;
+    return (protected_memory_features == in_data.protected_memory_features);
+}
 
-    if (amd_shader_core_properties_ptr          != nullptr &&
-        in_props.amd_shader_core_properties_ptr != nullptr)
-    {
-        amd_shader_core_properties_match = (*amd_shader_core_properties_ptr == *in_props.amd_shader_core_properties_ptr);
-    }
-    else
-    {
-        amd_shader_core_properties_match = (amd_shader_core_properties_ptr          == nullptr &&
-                                            in_props.amd_shader_core_properties_ptr == nullptr);
-    }
+Anvil::PhysicalDeviceFeaturesCoreVK11::PhysicalDeviceFeaturesCoreVK11()
+{
+    /* Stub */
+}
 
-    if (ext_descriptor_indexing_properties_ptr          != nullptr &&
-        in_props.ext_descriptor_indexing_properties_ptr != nullptr)
-    {
-        ext_descriptor_indexing_properties_match = (*ext_descriptor_indexing_properties_ptr == *in_props.ext_descriptor_indexing_properties_ptr);
-    }
-    else
-    {
-        ext_descriptor_indexing_properties_match = (ext_descriptor_indexing_properties_ptr          == nullptr &&
-                                                    in_props.ext_descriptor_indexing_properties_ptr == nullptr);
-    }
-
-    if (ext_external_memory_host_properties_ptr          != nullptr &&
-        in_props.ext_external_memory_host_properties_ptr != nullptr)
-    {
-        ext_external_memory_host_properties_match = (*ext_external_memory_host_properties_ptr == *in_props.ext_external_memory_host_properties_ptr);
-    }
-    else
-    {
-        ext_external_memory_host_properties_match = (ext_external_memory_host_properties_ptr          == nullptr &&
-                                                     in_props.ext_external_memory_host_properties_ptr == nullptr);
-    }
-
-    if (ext_pci_bus_info_properties_ptr          != nullptr &&
-        in_props.ext_pci_bus_info_properties_ptr != nullptr)
-    {
-        ext_pci_bus_info_properties_match = (*ext_pci_bus_info_properties_ptr == *in_props.ext_pci_bus_info_properties_ptr);
-    }
-    else
-    {
-        ext_pci_bus_info_properties_match = (ext_pci_bus_info_properties_ptr          == nullptr &&
-                                             in_props.ext_pci_bus_info_properties_ptr == nullptr);
-    }
-
-    if (ext_sample_locations_properties_ptr          != nullptr &&
-        in_props.ext_sample_locations_properties_ptr != nullptr)
-    {
-        ext_sample_locations_properties_match = (*ext_sample_locations_properties_ptr == *in_props.ext_sample_locations_properties_ptr);
-    }
-    else
-    {
-        ext_sample_locations_properties_match = (ext_sample_locations_properties_ptr          == nullptr &&
-                                                 in_props.ext_sample_locations_properties_ptr == nullptr);
-    }
-
-    if (ext_sampler_filter_minmax_properties_ptr         != nullptr &&
-        in_props.ext_sampler_filter_minmax_properties_ptr != nullptr)
-    {
-        ext_sampler_filter_minmax_properties_match = (*ext_sampler_filter_minmax_properties_ptr == *in_props.ext_sampler_filter_minmax_properties_ptr);
-    }
-    else
-    {
-        ext_sampler_filter_minmax_properties_match = (ext_sampler_filter_minmax_properties_ptr          == nullptr &&
-                                                      in_props.ext_sampler_filter_minmax_properties_ptr == nullptr);
-    }
-
-    if (ext_vertex_attribute_divisor_properties_ptr          != nullptr &&
-        in_props.ext_vertex_attribute_divisor_properties_ptr != nullptr)
-    {
-        ext_vertex_attribute_divisor_properties_match = (*ext_vertex_attribute_divisor_properties_ptr == *in_props.ext_vertex_attribute_divisor_properties_ptr);
-    }
-    else
-    {
-        ext_vertex_attribute_divisor_properties_match = (ext_vertex_attribute_divisor_properties_ptr          == nullptr &&
-                                                         in_props.ext_vertex_attribute_divisor_properties_ptr == nullptr);
-    }
-
-    if (khr_external_memory_capabilities_physical_device_id_properties_ptr          != nullptr &&
-        in_props.khr_external_memory_capabilities_physical_device_id_properties_ptr!= nullptr)
-    {
-        khr_external_memory_capabilities_properties_match = (*khr_external_memory_capabilities_physical_device_id_properties_ptr == *in_props.khr_external_memory_capabilities_physical_device_id_properties_ptr);
-    }
-    else
-    {
-        khr_external_memory_capabilities_properties_match = (khr_external_memory_capabilities_physical_device_id_properties_ptr          == nullptr &&
-                                                             in_props.khr_external_memory_capabilities_physical_device_id_properties_ptr == nullptr);
-    }
-
-    if (khr_maintenance2_point_clipping_properties_ptr          != nullptr &&
-        in_props.khr_maintenance2_point_clipping_properties_ptr != nullptr)
-    {
-        khr_maintenance2_properties_match = (*khr_maintenance2_point_clipping_properties_ptr == *in_props.khr_maintenance2_point_clipping_properties_ptr);
-    }
-    else
-    {
-        khr_maintenance2_properties_match = (khr_maintenance2_point_clipping_properties_ptr          == nullptr &&
-                                             in_props.khr_maintenance2_point_clipping_properties_ptr == nullptr);
-    }
-
-    if (khr_maintenance3_properties_ptr          != nullptr &&
-        in_props.khr_maintenance3_properties_ptr != nullptr)
-    {
-        khr_maintenance3_properties_match = (*khr_maintenance3_properties_ptr == *in_props.khr_maintenance3_properties_ptr);
-    }
-    else
-    {
-        khr_maintenance3_properties_match = (khr_maintenance3_properties_ptr          == nullptr &&
-                                             in_props.khr_maintenance3_properties_ptr == nullptr);
-    }
-
-    if (khr_multiview_properties_ptr          != nullptr &&
-        in_props.khr_multiview_properties_ptr != nullptr)
-    {
-        khr_multiview_properties_match = (*khr_multiview_properties_ptr == *in_props.khr_multiview_properties_ptr);
-    }
-    else
-    {
-        khr_multiview_properties_match = (khr_multiview_properties_ptr          == nullptr &&
-                                          in_props.khr_multiview_properties_ptr == nullptr);
-    }
-
-    return amd_shader_core_properties_match                   &&
-           core_vk1_0_features_match                          &&
-           ext_descriptor_indexing_properties_match           &&
-           ext_external_memory_host_properties_match          &&
-           ext_pci_bus_info_properties_match                  &&
-           ext_sample_locations_properties_match              &&
-           ext_sampler_filter_minmax_properties_match         &&
-           ext_vertex_attribute_divisor_properties_match      &&
-           khr_external_memory_capabilities_properties_match  &&
-           khr_maintenance2_properties_match                  &&
-           khr_maintenance3_properties_match                  &&
-           khr_multiview_properties_match;
+Anvil::PhysicalDeviceFeaturesCoreVK11::PhysicalDeviceFeaturesCoreVK11(const PhysicalDeviceProtectedMemoryFeatures& in_protected_memory_features)
+    :protected_memory_features(in_protected_memory_features)
+{
+    /* Stub */
 }
 
 Anvil::SubmitInfo::SubmitInfo(uint32_t                         in_n_command_buffers,
@@ -3247,24 +4113,33 @@ Anvil::SubmitInfo::SubmitInfo(uint32_t                         in_n_command_buff
                               const Anvil::PipelineStageFlags* in_opt_dst_stage_masks_to_wait_on_ptrs,
                               bool                             in_should_block,
                               Anvil::Fence*                    in_opt_fence_ptr)
-    :command_buffers_mgpu_ptr               (nullptr),
-     command_buffers_sgpu_ptr               (in_opt_cmd_buffer_ptrs_ptr),
+    :command_buffers_mgpu_ptr                      (nullptr),
+     command_buffers_sgpu_ptr                      (in_opt_cmd_buffer_ptrs_ptr),
 #if defined(_WIN32)
-     d3d12_fence_signal_semaphore_values_ptr(nullptr),
-     d3d12_fence_wait_semaphore_values_ptr  (nullptr),
+     d3d12_fence_signal_semaphore_values_ptr       (nullptr),
+     d3d12_fence_wait_semaphore_values_ptr         (nullptr),
 #endif
-     dst_stage_wait_masks                   (in_n_semaphores_to_wait_on),
-     fence_ptr                              (in_opt_fence_ptr),
-     n_command_buffers                      (in_n_command_buffers),
-     n_signal_semaphores                    (in_n_semaphores_to_signal),
-     n_wait_semaphores                      (in_n_semaphores_to_wait_on),
-     signal_semaphores_mgpu_ptr             (nullptr),
-     signal_semaphores_sgpu_ptr             (in_opt_semaphore_to_signal_ptrs_ptr),
-     should_block                           (in_should_block),
-     timeout                                (UINT64_MAX),
-     type                                   (SubmissionType::SGPU),
-     wait_semaphores_mgpu_ptr               (nullptr),
-     wait_semaphores_sgpu_ptr               (in_opt_semaphore_to_wait_on_ptrs_ptr)
+     dst_stage_wait_masks                          (in_n_semaphores_to_wait_on),
+     fence_ptr                                     (in_opt_fence_ptr),
+#if defined(_WIN32)
+    keyed_mutex_n_acquire_keys                     (0),
+    keyed_mutex_acquire_d3d11_memory_block_ptrs_ptr(nullptr),
+    keyed_mutex_acquire_mutex_key_value_ptrs       (nullptr),
+    keyed_mutex_acquire_timeout_ptrs               (nullptr),
+    keyed_mutex_n_release_keys                     (0),
+    keyed_mutex_release_d3d11_memory_block_ptrs_ptr(nullptr),
+    keyed_mutex_release_mutex_key_value_ptrs       (nullptr),
+#endif
+     n_command_buffers                             (in_n_command_buffers),
+     n_signal_semaphores                           (in_n_semaphores_to_signal),
+     n_wait_semaphores                             (in_n_semaphores_to_wait_on),
+     signal_semaphores_mgpu_ptr                    (nullptr),
+     signal_semaphores_sgpu_ptr                    (in_opt_semaphore_to_signal_ptrs_ptr),
+     should_block                                  (in_should_block),
+     timeout                                       (UINT64_MAX),
+     type                                          (SubmissionType::SGPU),
+     wait_semaphores_mgpu_ptr                      (nullptr),
+     wait_semaphores_sgpu_ptr                      (in_opt_semaphore_to_wait_on_ptrs_ptr)
 {
     for (uint32_t n_wait_mask = 0;
                   n_wait_mask < in_n_semaphores_to_wait_on;
@@ -3302,24 +4177,33 @@ Anvil::SubmitInfo::SubmitInfo(uint32_t                           in_n_command_bu
                               const Anvil::PipelineStageFlags*   in_opt_dst_stage_masks_to_wait_on_ptr,
                               bool                               in_should_block,
                               Anvil::Fence*                      in_opt_fence_ptr)
-    :command_buffers_mgpu_ptr               (in_opt_command_buffer_submissions_ptr),
-     command_buffers_sgpu_ptr               (nullptr),
+    :command_buffers_mgpu_ptr                      (in_opt_command_buffer_submissions_ptr),
+     command_buffers_sgpu_ptr                      (nullptr),
 #if defined(_WIN32)
-     d3d12_fence_signal_semaphore_values_ptr(nullptr),
-     d3d12_fence_wait_semaphore_values_ptr  (nullptr),
+     d3d12_fence_signal_semaphore_values_ptr       (nullptr),
+     d3d12_fence_wait_semaphore_values_ptr         (nullptr),
 #endif
-     dst_stage_wait_masks                   (in_n_wait_semaphore_submissions),
-     fence_ptr                              (in_opt_fence_ptr),
-     n_command_buffers                      (in_n_command_buffer_submissions),
-     n_signal_semaphores                    (in_n_signal_semaphore_submissions),
-     n_wait_semaphores                      (in_n_wait_semaphore_submissions),
-     signal_semaphores_mgpu_ptr             (in_opt_signal_semaphore_submissions_ptr),
-     signal_semaphores_sgpu_ptr             (nullptr),
-     should_block                           (in_should_block),
-     timeout                                (UINT64_MAX),
-     type                                   (SubmissionType::MGPU),
-     wait_semaphores_mgpu_ptr               (in_opt_wait_semaphore_submissions_ptr),
-     wait_semaphores_sgpu_ptr               (nullptr)
+     dst_stage_wait_masks                          (in_n_wait_semaphore_submissions),
+     fence_ptr                                     (in_opt_fence_ptr),
+#if defined(_WIN32)
+    keyed_mutex_n_acquire_keys                     (0),
+    keyed_mutex_acquire_d3d11_memory_block_ptrs_ptr(nullptr),
+    keyed_mutex_acquire_mutex_key_value_ptrs       (nullptr),
+    keyed_mutex_acquire_timeout_ptrs               (nullptr),
+    keyed_mutex_n_release_keys                     (0),
+    keyed_mutex_release_d3d11_memory_block_ptrs_ptr(nullptr),
+    keyed_mutex_release_mutex_key_value_ptrs       (nullptr),
+#endif
+     n_command_buffers                             (in_n_command_buffer_submissions),
+     n_signal_semaphores                           (in_n_signal_semaphore_submissions),
+     n_wait_semaphores                             (in_n_wait_semaphore_submissions),
+     signal_semaphores_mgpu_ptr                    (in_opt_signal_semaphore_submissions_ptr),
+     signal_semaphores_sgpu_ptr                    (nullptr),
+     should_block                                  (in_should_block),
+     timeout                                       (UINT64_MAX),
+     type                                          (SubmissionType::MGPU),
+     wait_semaphores_mgpu_ptr                      (in_opt_wait_semaphore_submissions_ptr),
+     wait_semaphores_sgpu_ptr                      (nullptr)
 {
     for (uint32_t n_wait_mask = 0;
                   n_wait_mask < in_n_wait_semaphore_submissions;
@@ -3523,6 +4407,24 @@ Anvil::SubmitInfo Anvil::SubmitInfo::create_signal(uint32_t                 in_n
                              in_opt_fence_ptr);
 }
 
+Anvil::SubmitInfo Anvil::SubmitInfo::create_signal(uint32_t                              in_n_signal_semaphore_submissions,
+                                                   const Anvil::SemaphoreMGPUSubmission* in_signal_semaphore_submissions_ptr,
+                                                   Anvil::Fence*                         in_opt_fence_ptr)
+{
+    anvil_assert(in_n_signal_semaphore_submissions   >  0);
+    anvil_assert(in_signal_semaphore_submissions_ptr != nullptr);
+
+   return Anvil::SubmitInfo(0,                                   /* in_n_command_buffer_submissions,        */
+                            nullptr,                             /* in_opt_command_buffer_submissions_ptr,  */
+                            in_n_signal_semaphore_submissions,
+                            in_signal_semaphore_submissions_ptr,
+                            0,                                   /* in_n_wait_semaphore_submissions,        */
+                            nullptr,                             /* in_opt_wait_semaphore_submissions_ptr,  */
+                            nullptr,                             /* in_opt_dst_stage_masks_to_wait_on_ptr,  */
+                            true,                                /* in_should_block,                        */
+                            in_opt_fence_ptr);
+}
+
 Anvil::SubmitInfo Anvil::SubmitInfo::create_signal_wait(uint32_t                         in_n_semaphores_to_signal,
                                                         Anvil::Semaphore* const*         in_semaphore_to_signal_ptrs_ptr,
                                                         uint32_t                         in_n_semaphores_to_wait_on,
@@ -3548,6 +4450,30 @@ Anvil::SubmitInfo Anvil::SubmitInfo::create_signal_wait(uint32_t                
                              in_opt_fence_ptr);
 }
 
+Anvil::SubmitInfo Anvil::SubmitInfo::create_signal_wait(uint32_t                              in_n_signal_semaphore_submissions,
+                                                        const Anvil::SemaphoreMGPUSubmission* in_signal_semaphore_submissions_ptr,
+                                                        uint32_t                              in_n_wait_semaphore_submissions,
+                                                        const Anvil::SemaphoreMGPUSubmission* in_wait_semaphore_submissions_ptr,
+                                                        const Anvil::PipelineStageFlags*      in_dst_stage_masks_to_wait_on_ptrs,
+                                                        bool                                  in_should_block,
+                                                        Anvil::Fence*                         in_opt_fence_ptr)
+{
+    anvil_assert(in_n_signal_semaphore_submissions   >  0);
+    anvil_assert(in_signal_semaphore_submissions_ptr != nullptr);
+    anvil_assert(in_n_wait_semaphore_submissions     >  0);
+    anvil_assert(in_wait_semaphore_submissions_ptr   != nullptr);
+
+    return Anvil::SubmitInfo(0,       /* in_n_command_buffers                  */
+                             nullptr, /* in_opt_command_buffer_submissions_ptr */
+                             in_n_signal_semaphore_submissions,
+                             in_signal_semaphore_submissions_ptr,
+                             in_n_wait_semaphore_submissions,
+                             in_wait_semaphore_submissions_ptr,
+                             in_dst_stage_masks_to_wait_on_ptrs,
+                             in_should_block,
+                             in_opt_fence_ptr);
+}
+
 Anvil::SubmitInfo Anvil::SubmitInfo::create_wait(uint32_t                         in_n_semaphores_to_wait_on,
                                                  Anvil::Semaphore* const*         in_semaphore_to_wait_on_ptrs_ptr,
                                                  const Anvil::PipelineStageFlags* in_dst_stage_masks_to_wait_on_ptrs,
@@ -3566,6 +4492,26 @@ Anvil::SubmitInfo Anvil::SubmitInfo::create_wait(uint32_t                       
                              in_semaphore_to_wait_on_ptrs_ptr,
                              in_dst_stage_masks_to_wait_on_ptrs,
                              true,    /* in_should_block */
+                             in_opt_fence_ptr);
+}
+
+Anvil::SubmitInfo Anvil::SubmitInfo::create_wait(uint32_t                               in_n_wait_semaphore_submissions,
+                                                 const Anvil::SemaphoreMGPUSubmission*  in_wait_semaphore_submissions_ptr,
+                                                 const Anvil::PipelineStageFlags*       in_dst_stage_masks_to_wait_on_ptrs,
+                                                 Anvil::Fence*                          in_opt_fence_ptr)
+{
+    anvil_assert(in_dst_stage_masks_to_wait_on_ptrs != nullptr);
+    anvil_assert(in_n_wait_semaphore_submissions    >  0);
+    anvil_assert(in_wait_semaphore_submissions_ptr  != nullptr);
+
+    return Anvil::SubmitInfo(0,                                   /* in_n_command_buffer_submissions,        */
+                             nullptr,                             /* in_opt_command_buffer_submissions_ptr,  */
+                             0,                                   /* in_n_signal_semaphore_submissions,      */
+                             nullptr,                             /* in_opt_signal_semaphore_submissions_ptr,*/
+                             in_n_wait_semaphore_submissions,
+                             in_wait_semaphore_submissions_ptr,
+                             in_dst_stage_masks_to_wait_on_ptrs,
+                             true,                                /* in_should_block,                        */
                              in_opt_fence_ptr);
 }
 

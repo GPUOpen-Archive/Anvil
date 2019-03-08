@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2018 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2019 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -26,9 +26,12 @@ Anvil::InstanceCreateInfo::InstanceCreateInfo(const std::string&              in
                                               Anvil::DebugCallbackFunction    in_opt_validation_callback_proc,
                                               bool                            in_mt_safe,
                                               const std::vector<std::string>& in_opt_disallowed_instance_level_extensions)
-    :m_app_name                            (in_app_name),
+    :m_api_version                         (Anvil::APIVersion::UNKNOWN),
+     m_app_name                            (in_app_name),
+     m_app_version                         (0),
      m_disallowed_instance_level_extensions(in_opt_disallowed_instance_level_extensions),
      m_engine_name                         (in_engine_name),
+     m_engine_version                      (0),
      m_is_mt_safe                          (in_mt_safe),
      m_n_memory_type_to_use_for_all_alocs  (UINT32_MAX),
      m_validation_callback                 (in_opt_validation_callback_proc)

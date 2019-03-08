@@ -28,11 +28,11 @@ include_directories(${Anvil_SOURCE_DIR}/include
 # Create the OutOfOrderRasterization project.
 add_executable (OutOfOrderRasterization include/app.h
                                         include/teapot_data.h
-                                            src/app.cpp
-                                            src/teapot_data.cpp)
+                                        src/app.cpp
+                                        src/teapot_data.cpp)
 
 # Add linking dependencies for the example projects
-add_dependencies     (OutOfOrderRasterization Anvil)
+add_dependencies(OutOfOrderRasterization Anvil)
 
 if (WIN32)
     target_link_libraries(OutOfOrderRasterization Anvil)

@@ -69,6 +69,11 @@ bool Anvil::DescriptorSetCreateInfo::add_binding(uint32_t                       
         }
     }
 
+    if (in_descriptor_type == Anvil::DescriptorType::INLINE_UNIFORM_BLOCK)
+    {
+        anvil_assert((in_descriptor_array_size % 4) == 0);
+    }
+
     if ((in_flags & Anvil::DescriptorBindingFlagBits::VARIABLE_DESCRIPTOR_COUNT_BIT) != 0)
     {
         if (m_n_variable_descriptor_count_binding != UINT32_MAX)
