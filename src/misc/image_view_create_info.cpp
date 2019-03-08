@@ -307,17 +307,18 @@ Anvil::ImageViewCreateInfo::ImageViewCreateInfo(const Anvil::ImageAspectFlags& i
                                                 const Anvil::ComponentSwizzle* in_swizzle_array_ptr,
                                                 const Anvil::ImageViewType     in_type,
                                                 const Anvil::MTSafety&         in_mt_safety)
-    :m_aspect_mask        (in_aspect_mask),
-     m_device_ptr         (in_device_ptr),
-     m_format             (in_format),
-     m_mt_safety          (in_mt_safety),
-     m_n_base_layer       (in_n_base_layer),
-     m_n_base_mipmap_level(in_n_base_mipmap_level),
-     m_n_layers           (in_n_layers),
-     m_n_mipmaps          (in_n_mipmaps),
-     m_parent_image_ptr   (in_parent_image_ptr),
-     m_swizzle_array      ({in_swizzle_array_ptr[0], in_swizzle_array_ptr[1], in_swizzle_array_ptr[2], in_swizzle_array_ptr[3]}),
-     m_type               (in_type)
+    :m_aspect_mask                 (in_aspect_mask),
+     m_device_ptr                  (in_device_ptr),
+     m_format                      (in_format),
+     m_mt_safety                   (in_mt_safety),
+     m_n_base_layer                (in_n_base_layer),
+     m_n_base_mipmap_level         (in_n_base_mipmap_level),
+     m_n_layers                    (in_n_layers),
+     m_n_mipmaps                   (in_n_mipmaps),
+     m_parent_image_ptr            (in_parent_image_ptr),
+     m_sampler_ycbcr_conversion_ptr(nullptr),
+     m_swizzle_array               ({in_swizzle_array_ptr[0], in_swizzle_array_ptr[1], in_swizzle_array_ptr[2], in_swizzle_array_ptr[3]}),
+     m_type                        (in_type)
 {
     anvil_assert(in_parent_image_ptr != nullptr);
 }

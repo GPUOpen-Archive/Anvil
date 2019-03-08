@@ -273,6 +273,17 @@ namespace Anvil
 
     INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(AccessFlags, VkAccessFlags, AccessFlagBits)
 
+    enum class APIVersion
+    {
+        /* Vulkan 1.0 */
+        _1_0,
+
+        /* Vulkan 1.1 */
+        _1_1,
+
+        UNKNOWN
+    };
+
     /* NOTE: These map 1:1 to VK equivalents */
     enum class AttachmentLoadOp
     {
@@ -365,6 +376,9 @@ namespace Anvil
         SPARSE_BINDING_BIT   = VK_BUFFER_CREATE_SPARSE_BINDING_BIT,
         SPARSE_RESIDENCY_BIT = VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT,
 
+        /* Core VK 1.1 */
+        CREATE_PROTECTED_BIT = VK_BUFFER_CREATE_PROTECTED_BIT,
+
         NONE = 0
     };
     typedef Anvil::Bitfield<Anvil::BufferCreateFlagBits, VkBufferCreateFlags> BufferCreateFlags;
@@ -401,6 +415,15 @@ namespace Anvil
     typedef Anvil::Bitfield<Anvil::BufferUsageFlagBits, VkBufferUsageFlags> BufferUsageFlags;
 
     INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(BufferUsageFlags, VkBufferUsageFlags, BufferUsageFlagBits)
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class ChromaLocation
+    {
+        COSITED_EVEN_KHR = VK_CHROMA_LOCATION_COSITED_EVEN_KHR,
+        MIDPOINT_KHR     = VK_CHROMA_LOCATION_MIDPOINT_KHR,
+
+        UNKNOWN = VK_CHROMA_LOCATION_MAX_ENUM
+    };
 
     /* NOTE: These map 1:1 to VK equivalents */
     enum class ColorComponentFlagBits
@@ -441,6 +464,20 @@ namespace Anvil
         UNKNOWN = VK_COLOR_SPACE_MAX_ENUM_KHR
     };
 
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class CommandPoolCreateFlagBits
+    {
+        /* Core VK 1.0 */
+        CREATE_RESET_COMMAND_BUFFER_BIT = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        CREATE_TRANSIENT_BIT            = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+
+        /* Core VK 1.1 */
+        CREATE_PROTECTED_BIT = VK_COMMAND_POOL_CREATE_PROTECTED_BIT,
+
+        NONE = 0
+    };
+    typedef Anvil::Bitfield<Anvil::CommandPoolCreateFlagBits, VkCommandPoolCreateFlags> CommandPoolCreateFlags;
+
     /* Note: These map 1:1 to VK equivalents. */
     enum class ComponentSwizzle
     {
@@ -467,7 +504,7 @@ namespace Anvil
 
     INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(CompositeAlphaFlags, VkCompositeAlphaFlagsKHR, CompositeAlphaFlagBits)
 
-    /* Note: These map 1:1 to VK equivalents. */
+/* Note: These map 1:1 to VK equivalents. */
     enum class DebugMessageSeverityFlagBits
     {
         ERROR_BIT   = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
@@ -524,6 +561,22 @@ namespace Anvil
     typedef Anvil::Bitfield<Anvil::DeviceGroupPresentModeFlagBits, VkDeviceGroupPresentModeFlagsKHR> DeviceGroupPresentModeFlags;
 
     INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(DeviceGroupPresentModeFlags, VkDeviceGroupPresentModeFlagsKHR, DeviceGroupPresentModeFlagBits)
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class DriverIdKHR
+    {
+        AMD_PROPRIETARY_KHR           = VK_DRIVER_ID_AMD_PROPRIETARY_KHR,
+        AMD_OPEN_SOURCE_KHR           = VK_DRIVER_ID_AMD_OPEN_SOURCE_KHR,
+        ARM_PROPRIETARY_KHR           = VK_DRIVER_ID_ARM_PROPRIETARY_KHR,
+        IMAGINATION_PROPRIETARY_KHR   = VK_DRIVER_ID_IMAGINATION_PROPRIETARY_KHR,
+        INTEL_OPEN_SOURCE_MESA_KHR    = VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA_KHR,
+        INTEL_PROPRIETARY_WINDOWS_KHR = VK_DRIVER_ID_INTEL_PROPRIETARY_WINDOWS_KHR,
+        MESA_RADV_KHR                 = VK_DRIVER_ID_MESA_RADV_KHR,
+        NVIDIA_PROPRIETARY_KHR        = VK_DRIVER_ID_NVIDIA_PROPRIETARY_KHR,
+        QUALCOMM_PROPRIETARY_KHR      = VK_DRIVER_ID_QUALCOMM_PROPRIETARY_KHR,
+
+        UNKNOWN
+    };
 
     enum class DynamicState
     {
@@ -624,6 +677,15 @@ namespace Anvil
         TRANSFER_DST_BIT_KHR = VK_FORMAT_FEATURE_TRANSFER_DST_BIT_KHR,
         TRANSFER_SRC_BIT_KHR = VK_FORMAT_FEATURE_TRANSFER_SRC_BIT_KHR,
 
+        /* KHR_sampler_ycbcr_conversion */
+        MIDPOINT_CHROMA_SAMPLES_BIT_KHR                                                 = VK_FORMAT_FEATURE_MIDPOINT_CHROMA_SAMPLES_BIT_KHR,
+        COSITED_CHROMA_SAMPLES_BIT_KHR                                                  = VK_FORMAT_FEATURE_COSITED_CHROMA_SAMPLES_BIT_KHR,
+        SAMPLED_IMAGE_YCBCR_CONVERSION_LINEAR_FILTER_BIT_KHR                            = VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_LINEAR_FILTER_BIT_KHR,
+        SAMPLED_IMAGE_YCBCR_CONVERSION_SEPARATE_RECONSTRUCTION_FILTER_BIT_KHR           = VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_SEPARATE_RECONSTRUCTION_FILTER_BIT_KHR,
+        SAMPLED_IMAGE_YCBCR_CONVERSION_CHROMA_RECONSTRUCTION_EXPLICIT_BIT_KHR           = VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_CHROMA_RECONSTRUCTION_EXPLICIT_BIT_KHR,
+        SAMPLED_IMAGE_YCBCR_CONVERSION_CHROMA_RECONSTRUCTION_EXPLICIT_FORCEABLE_BIT_KHR = VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_CHROMA_RECONSTRUCTION_EXPLICIT_FORCEABLE_BIT_KHR,
+        DISJOINT_BIT_KHR                                                                = VK_FORMAT_FEATURE_DISJOINT_BIT_KHR,
+
         NONE = 0
     };
     typedef Anvil::Bitfield<Anvil::FormatFeatureFlagBits, VkFormatFeatureFlags> FormatFeatureFlags;
@@ -690,6 +752,15 @@ namespace Anvil
         XD,
 
         UNKNOWN
+    };
+
+    enum class ConservativeRasterizationModeEXT
+    {
+        DISABLED      = VK_CONSERVATIVE_RASTERIZATION_MODE_DISABLED_EXT,
+        OVERESTIMATE  = VK_CONSERVATIVE_RASTERIZATION_MODE_OVERESTIMATE_EXT,
+        UNDERESTIMATE = VK_CONSERVATIVE_RASTERIZATION_MODE_UNDERESTIMATE_EXT,
+
+        UNKNOWN = VK_CONSERVATIVE_RASTERIZATION_MODE_MAX_ENUM_EXT
     };
 
     /* NOTE: These map 1:1 to VK equivalents */
@@ -790,6 +861,8 @@ namespace Anvil
     /* NOTE: These map 1:1 to VK equivalents */
     enum class DescriptorType
     {
+        /* Core VK 1.0 functionality */
+
         COMBINED_IMAGE_SAMPLER = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         INPUT_ATTACHMENT       = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
         SAMPLED_IMAGE          = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
@@ -801,6 +874,10 @@ namespace Anvil
         UNIFORM_BUFFER         = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         UNIFORM_BUFFER_DYNAMIC = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
         UNIFORM_TEXEL_BUFFER   = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,
+
+        /* Requires VK_EXT_inline_uniform_block */
+        INLINE_UNIFORM_BLOCK = VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT,
+
 
         UNKNOWN = VK_DESCRIPTOR_TYPE_MAX_ENUM
     };
@@ -1015,7 +1092,7 @@ namespace Anvil
         ASTC_12x12_UNORM_BLOCK              = VK_FORMAT_ASTC_12x12_UNORM_BLOCK,
         ASTC_12x12_SRGB_BLOCK               = VK_FORMAT_ASTC_12x12_SRGB_BLOCK,
 
-        /* VK_KHR_sampler_ycbcr_conversion */
+        /* Requires VK_KHR_sampler_ycbcr_conversion */
         G8B8G8R8_422_UNORM                          = VK_FORMAT_G8B8G8R8_422_UNORM_KHR,
         B8G8R8G8_422_UNORM                          = VK_FORMAT_B8G8R8G8_422_UNORM_KHR,
         G8_B8_R8_3PLANE_420_UNORM                   = VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM_KHR,
@@ -1125,6 +1202,12 @@ namespace Anvil
         /* NOTE: Requires VK_KHR_maintenance2 */
         BLOCK_TEXEL_VIEW_COMPATIBLE_BIT = VK_IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT_KHR,
         EXTENDED_USAGE_BIT              = VK_IMAGE_CREATE_EXTENDED_USAGE_BIT_KHR,
+
+        /* NOTE: Requires VK_KHR_sampler_ycbcr_conversion */
+        CREATE_DISJOINT_BIT = VK_IMAGE_CREATE_DISJOINT_BIT_KHR,
+
+        /* Note: Requires core VK 1.1 or newer */
+        CREATE_PROTECTED_BIT = VK_IMAGE_CREATE_PROTECTED_BIT,
 
         NONE = 0
     };
@@ -1251,7 +1334,8 @@ namespace Anvil
     {
         DERIVED,
         DERIVED_WITH_CUSTOM_DELETE_PROC,
-        REGULAR
+        REGULAR,
+        REGULAR_WITH_MEMORY_TYPE
     };
 
     enum class MemoryFeatureFlagBits
@@ -1267,6 +1351,9 @@ namespace Anvil
         MAPPABLE_BIT         = 1 << 4,
         MULTI_INSTANCE_BIT   = 1 << 5,
 
+        /* Core VK 1.1 only */
+        PROTECTED_BIT        = 1 << 6,
+
         NONE = 0
     };
     typedef Anvil::Bitfield<Anvil::MemoryFeatureFlagBits, uint32_t> MemoryFeatureFlags;
@@ -1279,15 +1366,24 @@ namespace Anvil
         /* Core VK 1.0 */
         DEVICE_LOCAL_BIT = VK_MEMORY_HEAP_DEVICE_LOCAL_BIT,
 
-        /* VK_KHR_device_group */
+        /* VK_KHR_device_group or core VK 1.1 */
         MULTI_INSTANCE_BIT_KHR = VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR,
-
 
         NONE = 0
     };
     typedef Anvil::Bitfield<Anvil::MemoryHeapFlagBits, VkMemoryHeapFlags> MemoryHeapFlags;
 
     INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(MemoryHeapFlags, VkMemoryHeapFlags, MemoryHeapFlagBits)
+
+    /* NOTE: Maps 1:1 to VK equivalents */
+    enum class MemoryOverallocationBehavior
+    {
+        ALLOWED    = VK_MEMORY_OVERALLOCATION_BEHAVIOR_ALLOWED_AMD,
+        DEFAULT    = VK_MEMORY_OVERALLOCATION_BEHAVIOR_DEFAULT_AMD,
+        DISALLOWED = VK_MEMORY_OVERALLOCATION_BEHAVIOR_DISALLOWED_AMD,
+
+        UNKNOWN = VK_MEMORY_OVERALLOCATION_BEHAVIOR_MAX_ENUM_AMD
+    };
 
     /* NOTE: These map 1:1 to VK equivalents */
     enum class MemoryPropertyFlagBits
@@ -1298,6 +1394,9 @@ namespace Anvil
         HOST_COHERENT_BIT    = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         HOST_VISIBLE_BIT     = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
         LAZILY_ALLOCATED_BIT = VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT,
+
+        /* Core VK 1.1 */
+        PROTECTED_BIT = VK_MEMORY_PROPERTY_PROTECTED_BIT,
 
         NONE = 0
     };
@@ -1343,6 +1442,7 @@ namespace Anvil
         RENDER_PASS                 = VK_OBJECT_TYPE_RENDER_PASS,
         RENDERING_SURFACE           = VK_OBJECT_TYPE_SURFACE_KHR,
         SAMPLER                     = VK_OBJECT_TYPE_SAMPLER,
+        SAMPLER_YCBCR_CONVERSION    = VK_OBJECT_TYPE_SAMPLER_YCBCR_CONVERSION_KHR,
         SEMAPHORE                   = VK_OBJECT_TYPE_SEMAPHORE,
         SHADER_MODULE               = VK_OBJECT_TYPE_SHADER_MODULE,
         SWAPCHAIN                   = VK_OBJECT_TYPE_SWAPCHAIN_KHR,
@@ -1489,9 +1589,9 @@ namespace Anvil
     /** A bitmask defining one or more queue family usage.*/
     enum class QueueFamilyFlagBits
     {
-        COMPUTE_BIT                          = 1 << 0,
-        DMA_BIT                              = 1 << 1,
-        GRAPHICS_BIT                         = 1 << 2,
+        COMPUTE_BIT  = 1 << 0,
+        DMA_BIT      = 1 << 1,
+        GRAPHICS_BIT = 1 << 2,
 
         FIRST_BIT = COMPUTE_BIT,
         LAST_BIT  = GRAPHICS_BIT,
@@ -1501,6 +1601,17 @@ namespace Anvil
     typedef Anvil::Bitfield<Anvil::QueueFamilyFlagBits, uint32_t> QueueFamilyFlags;
 
     INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(QueueFamilyFlags, uint32_t, QueueFamilyFlagBits)
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class QueueGlobalPriority
+    {
+        HIGH_EXT     = VK_QUEUE_GLOBAL_PRIORITY_HIGH_EXT,
+        LOW_EXT      = VK_QUEUE_GLOBAL_PRIORITY_LOW_EXT,
+        MEDIUM_EXT   = VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_EXT,
+        REALTIME_EXT = VK_QUEUE_GLOBAL_PRIORITY_REALTIME_EXT,
+
+        UNKNOWN = VK_QUEUE_GLOBAL_PRIORITY_MAX_ENUM_EXT
+    };
 
     /** Enumerates all available queue family types */
     enum class QueueFamilyType
@@ -1530,6 +1641,9 @@ namespace Anvil
         GRAPHICS_BIT       = VK_QUEUE_GRAPHICS_BIT,
         SPARSE_BINDING_BIT = VK_QUEUE_SPARSE_BINDING_BIT,
         TRANSFER_BIT       = VK_QUEUE_TRANSFER_BIT,
+
+        /* Core VK 1.1 */
+        PROTECTED_BIT = VK_QUEUE_PROTECTED_BIT,
 
         NONE = 0
     };
@@ -1607,6 +1721,22 @@ namespace Anvil
     };
 
     /* NOTE: These map 1:1 to VK equivalents */
+    enum class ResolveModeFlagBits
+    {
+        /* VK_KHR_depth_stencil_resolve */
+
+        SAMPLE_ZERO_BIT_KHR = VK_RESOLVE_MODE_SAMPLE_ZERO_BIT_KHR,
+        AVERAGE_BIT_KHR     = VK_RESOLVE_MODE_AVERAGE_BIT_KHR,
+        MIN_BIT_KHR         = VK_RESOLVE_MODE_MIN_BIT_KHR,
+        MAX_BIT_KHR         = VK_RESOLVE_MODE_MAX_BIT_KHR,
+
+        NONE = VK_RESOLVE_MODE_NONE_KHR,
+    };
+    typedef Anvil::Bitfield<Anvil::ResolveModeFlagBits, VkResolveModeFlagBitsKHR> ResolveModeFlags;
+
+    INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(ResolveModeFlags, VkResolveModeFlagsKHR, ResolveModeFlagBits)
+
+    /* NOTE: These map 1:1 to VK equivalents */
     enum class SampleCountFlagBits
     {
         _1_BIT  = VK_SAMPLE_COUNT_1_BIT,
@@ -1656,6 +1786,30 @@ namespace Anvil
         MIN_EXT              = VK_SAMPLER_REDUCTION_MODE_MIN_EXT,
 
         UNKNOWN = VK_SAMPLER_REDUCTION_MODE_MAX_ENUM_EXT
+    };
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class SamplerYCbCrModelConversion
+    {
+        RGB_IDENTITY_KHR   = VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY_KHR,
+        YCBCR_IDENTITY_KHR = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_IDENTITY_KHR,
+        YCBCR_709_KHR      = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709_KHR,
+        YCBCR_601_KHR      = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601_KHR,
+        YCBCR_2020_KHR     = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_2020_KHR,
+
+        UNKNOWN = VK_SAMPLER_YCBCR_MODEL_CONVERSION_MAX_ENUM
+    };
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class SamplerYCbCrRange
+    {
+        RGB_IDENTITY_KHR   = VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY_KHR,
+        YCBCR_IDENTITY_KHR = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_IDENTITY_KHR,
+        YCBCR_709_KHR      = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709_KHR,
+        YCBCR_601_KHR      = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601_KHR,
+        YCBCR_2020_KHR     = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_2020_KHR,
+
+        UNKNOWN = VK_SAMPLER_YCBCR_MODEL_CONVERSION_MAX_ENUM
     };
 
     /* Specifies one of the compute / rendering pipeline stages. */
@@ -1739,6 +1893,17 @@ namespace Anvil
 
     INJECT_BITFIELD_HELPER_FUNC_PROTOTYPES(SparseMemoryBindFlags, VkSparseMemoryBindFlags, SparseMemoryBindFlagBits)
 
+    /* Specifies SPIR-V language version */
+    enum class SpvVersion
+    {
+        _1_0,
+        _1_1,
+        _1_2,
+        _1_3,
+        _1_4,
+        UNKNOWN
+    };
+
     /* NOTE: These map 1:1 to VK equivalents */
     enum class StencilFaceFlagBits
     {
@@ -1764,6 +1929,23 @@ namespace Anvil
 
         UNKNOWN = VK_STENCIL_OP_MAX_ENUM
     };
+
+    /* NOTE: These map 1:1 to VK equivalents */
+    enum class SubgroupFeatureFlagBits
+    {
+        ARITHMETIC_BIT = VK_SUBGROUP_FEATURE_ARITHMETIC_BIT,
+        BALLOT_BIT     = VK_SUBGROUP_FEATURE_BALLOT_BIT,
+        BASIC_BIT      = VK_SUBGROUP_FEATURE_BASIC_BIT,
+        CLUSTERED_BIT  = VK_SUBGROUP_FEATURE_CLUSTERED_BIT,
+        QUAD_BIT       = VK_SUBGROUP_FEATURE_QUAD_BIT,
+        RELATIVE_BIT   = VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT,
+        SHUFFLE_BIT    = VK_SUBGROUP_FEATURE_SHUFFLE_BIT,
+        VOTE_BIT       = VK_SUBGROUP_FEATURE_VOTE_BIT,
+
+        NONE = VK_SUBGROUP_FEATURE_FLAG_BITS_MAX_ENUM
+    };
+
+    typedef Anvil::Bitfield<Anvil::SubgroupFeatureFlagBits, VkSubgroupFeatureFlagBits> SubgroupFeatureFlags;
 
     /* NOTE: These map 1:1 to VK equivalents */
     enum class SubpassContents
@@ -1797,6 +1979,9 @@ namespace Anvil
     {
         /* Requires VK_KHR_device_group */
         SPLIT_INSTANCE_BIND_REGIONS_BIT = VK_SWAPCHAIN_CREATE_SPLIT_INSTANCE_BIND_REGIONS_BIT_KHR,
+
+        /* Requires VK_KHR_swapchain_mutable_format */
+        CREATE_MUTABLE_FORMAT_BIT = VK_SWAPCHAIN_CREATE_MUTABLE_FORMAT_BIT_KHR,
 
         NONE = 0
     };

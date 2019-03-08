@@ -95,6 +95,7 @@ Anvil::SamplerCreateInfo::SamplerCreateInfo(const Anvil::BaseDevice*    in_devic
      m_mipmap_mode                 (in_mipmap_mode),
      m_mt_safety                   (in_mt_safety),
      m_sampler_reduction_mode      (Anvil::SamplerReductionMode::UNKNOWN),
+     m_sampler_ycbcr_conversion_ptr(nullptr),
      m_use_unnormalized_coordinates(in_use_unnormalized_coordinates)
 {
     /* Stub */

@@ -39,8 +39,9 @@ Anvil::QueryPool::QueryPool(const Anvil::BaseDevice* in_device_ptr,
      m_n_max_indices           (in_n_max_concurrent_queries),
      m_query_type              (in_query_type)
 {
-    anvil_assert(in_query_type == VK_QUERY_TYPE_OCCLUSION ||
-                 in_query_type == VK_QUERY_TYPE_TIMESTAMP);
+    anvil_assert(in_query_type == VK_QUERY_TYPE_OCCLUSION                     ||
+                 in_query_type == VK_QUERY_TYPE_TIMESTAMP                     ||
+                 in_query_type == VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT);
 
     init(in_query_type,
          Anvil::QueryPipelineStatisticFlagBits::NONE,

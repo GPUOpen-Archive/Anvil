@@ -277,7 +277,8 @@ bool Anvil::RenderPass::init_using_core_vk10()
             }
         }
 
-        anvil_assert( (*subpass_iterator)->depth_stencil_attachment.resolve_attachment_index == UINT32_MAX);
+        /* NOTE: DS resolve operations are only accessible via KHR_depth_stencil_resolve + KHR_create_renderpass2. */
+        anvil_assert( (*subpass_iterator)->depth_stencil_attachment.resolve_attachment_index != UINT32_MAX);
 
         /* Determine the highest color attachment location & input attachment index. */
         for (auto subpass_color_attachment_iterator  = (*subpass_iterator)->color_attachments_map.cbegin();
@@ -704,6 +705,7 @@ bool Anvil::RenderPass::init_using_rp2_create_extension()
         uint32_t  current_subpass_attachment_reference_vec_base_index      = static_cast<uint32_t>(subpass_attachment_reference_vec.size() );
         uint32_t  current_subpass_highest_location                         = 0;
         uint32_t  current_subpass_preserve_attachment_vec_base_index       = static_cast<uint32_t>(subpass_preserve_attachment_vec.size () );
+        bool      current_subpass_uses_ds_resolve_operation                = false;
         uint32_t  current_subpass_view_mask                                = 0;
         uint32_t  n_current_subpass_color_attachments_actual               = 0;
         uint32_t  n_current_subpass_ds_attachments                         = 0;
@@ -760,6 +762,7 @@ bool Anvil::RenderPass::init_using_rp2_create_extension()
 
         const uint32_t current_subpass_color_attachment_reference_vec_base_index      = current_subpass_attachment_reference_vec_base_index;
         const uint32_t current_subpass_ds_attachment_reference_vec_base_index         = current_subpass_color_attachment_reference_vec_base_index + subpass_color_attachment_data.n_subpass_attachments;
+        uint32_t       current_subpass_ds_resolve_attachment_reference_vec_base_index = UINT32_MAX; /* optionally updated later */
         const uint32_t current_subpass_input_attachment_reference_vec_base_index      = current_subpass_ds_attachment_reference_vec_base_index    + subpass_ds_attachment_data.n_subpass_attachments;
         const uint32_t current_subpass_resolve_attachment_reference_vec_base_index    = current_subpass_input_attachment_reference_vec_base_index + subpass_input_attachment_data.n_subpass_attachments;
 
@@ -867,6 +870,36 @@ bool Anvil::RenderPass::init_using_rp2_create_extension()
                 current_subpass_attachment_reference.sType      = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2_KHR;
             }
 
+            if (current_subpass_attachment_data.subpass_attachment_type == AttachmentType::DEPTH_STENCIL)
+            {
+                Anvil::ResolveModeFlagBits    current_subpass_ds_resolve_attachment_depth_resolve_mode       = Anvil::ResolveModeFlagBits::NONE;
+                Anvil::ImageLayout            current_subpass_ds_resolve_attachment_layout                   = Anvil::ImageLayout::UNKNOWN;
+                Anvil::RenderPassAttachmentID current_subpass_ds_resolve_attachment_renderpass_attachment_id = UINT32_MAX;
+                Anvil::ResolveModeFlagBits    current_subpass_ds_resolve_attachment_stencil_resolve_mode     = Anvil::ResolveModeFlagBits::NONE;
+
+                current_subpass_uses_ds_resolve_operation = (m_render_pass_create_info_ptr->get_subpass_ds_resolve_attachment_properties(n_subpass,
+                                                                                                                                        &current_subpass_ds_resolve_attachment_renderpass_attachment_id,
+                                                                                                                                        &current_subpass_ds_resolve_attachment_layout,
+                                                                                                                                        &current_subpass_ds_resolve_attachment_depth_resolve_mode,
+                                                                                                                                        &current_subpass_ds_resolve_attachment_stencil_resolve_mode) );
+
+                if (current_subpass_uses_ds_resolve_operation)
+                {
+                    subpass_attachment_reference_vec.resize(subpass_attachment_reference_vec.size() + 1);
+
+                    auto& current_subpass_ds_resolve_attachment_reference = subpass_attachment_reference_vec.back();
+
+                    current_subpass_ds_resolve_attachment_reference.aspectMask = static_cast<VkImageAspectFlagBits>(((current_subpass_ds_resolve_attachment_depth_resolve_mode   != Anvil::ResolveModeFlagBits::NONE) ? Anvil::ImageAspectFlagBits::DEPTH_BIT   : Anvil::ImageAspectFlagBits::NONE) |
+                                                                                                                    ((current_subpass_ds_resolve_attachment_stencil_resolve_mode != Anvil::ResolveModeFlagBits::NONE) ? Anvil::ImageAspectFlagBits::STENCIL_BIT : Anvil::ImageAspectFlagBits::NONE) );
+                    current_subpass_ds_resolve_attachment_reference.attachment = current_subpass_ds_resolve_attachment_renderpass_attachment_id;
+                    current_subpass_ds_resolve_attachment_reference.layout     = static_cast<VkImageLayout>(current_subpass_ds_resolve_attachment_layout);
+                    current_subpass_ds_resolve_attachment_reference.pNext      = nullptr;
+                    current_subpass_ds_resolve_attachment_reference.sType      = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2_KHR;
+
+                    current_subpass_ds_resolve_attachment_reference_vec_base_index = static_cast<uint32_t>(subpass_attachment_reference_vec.size() - 1);
+                }
+            }
+
             current_subpass_attachment_reference_vec_base_index += current_subpass_attachment_data.n_subpass_attachments;
         }
 
@@ -924,6 +957,30 @@ bool Anvil::RenderPass::init_using_rp2_create_extension()
 
                 current_subpass_chainer.append_struct(current_subpass);
             }
+
+            /* Chain the DS resolve struct if needed. */
+            if (current_subpass_uses_ds_resolve_operation)
+            {
+                Anvil::ResolveModeFlagBits                 depth_resolve_mode   = Anvil::ResolveModeFlagBits::NONE;
+                VkSubpassDescriptionDepthStencilResolveKHR ds_resolve;
+                Anvil::ResolveModeFlagBits                 stencil_resolve_mode = Anvil::ResolveModeFlagBits::NONE;
+
+                anvil_assert(current_subpass_ds_resolve_attachment_reference_vec_base_index != UINT32_MAX);
+
+                m_render_pass_create_info_ptr->get_subpass_ds_resolve_attachment_properties(n_subpass,
+                                                                                            nullptr, /* out_opt_renderpass_attachment_id_ptr */
+                                                                                            nullptr, /* out_opt_layout_ptr                   */
+                                                                                           &depth_resolve_mode,
+                                                                                           &stencil_resolve_mode);
+
+                ds_resolve.depthResolveMode               = static_cast<VkResolveModeFlagBitsKHR>             (depth_resolve_mode);
+                ds_resolve.pDepthStencilResolveAttachment = reinterpret_cast<const VkAttachmentReference2KHR*>(current_subpass_ds_resolve_attachment_reference_vec_base_index * sizeof(VkAttachmentReference2KHR) );
+                ds_resolve.pNext                          = nullptr;
+                ds_resolve.stencilResolveMode             = static_cast<VkResolveModeFlagBitsKHR>(stencil_resolve_mode);
+                ds_resolve.sType                          = VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_DEPTH_STENCIL_RESOLVE_KHR;
+
+                current_subpass_chainer.append_struct(ds_resolve);
+            }
         }
     }
 
@@ -932,10 +989,11 @@ bool Anvil::RenderPass::init_using_rp2_create_extension()
                   n_subpass < n_subpasses;
                 ++n_subpass)
     {
-        auto&    current_subpass_chainer                = subpass_chainer_vec.at                 (n_subpass);
-        auto     current_subpass_ptr                    = current_subpass_chainer.get_root_struct();
-        uint32_t n_current_subpass_ds_attachments       = 0;
-        uint32_t n_current_subpass_preserve_attachments = 0;
+        auto&    current_subpass_chainer                    = subpass_chainer_vec.at                 (n_subpass);
+        auto     current_subpass_ptr                        = current_subpass_chainer.get_root_struct();
+        bool     current_subpass_uses_ds_resolve_attachment = false;
+        uint32_t n_current_subpass_ds_attachments           = 0;
+        uint32_t n_current_subpass_preserve_attachments     = 0;
 
         m_render_pass_create_info_ptr->get_subpass_n_attachments(n_subpass,
                                                                  Anvil::AttachmentType::DEPTH_STENCIL,
@@ -943,6 +1001,8 @@ bool Anvil::RenderPass::init_using_rp2_create_extension()
         m_render_pass_create_info_ptr->get_subpass_n_attachments(n_subpass,
                                                                  Anvil::AttachmentType::PRESERVE,
                                                                 &n_current_subpass_preserve_attachments);
+
+        current_subpass_uses_ds_resolve_attachment = m_render_pass_create_info_ptr->get_subpass_ds_resolve_attachment_properties(n_subpass);
 
         const struct
         {
@@ -969,6 +1029,31 @@ bool Anvil::RenderPass::init_using_rp2_create_extension()
         if (n_current_subpass_preserve_attachments > 0)
         {
             current_subpass_ptr->pPreserveAttachments = reinterpret_cast<const uint32_t*>(reinterpret_cast<const uint8_t*>(current_subpass_ptr->pPreserveAttachments) + reinterpret_cast<intptr_t>(&subpass_preserve_attachment_vec.at(0) ));
+        }
+
+        if (current_subpass_uses_ds_resolve_attachment)
+        {
+            VkSubpassDescriptionDepthStencilResolveKHR* ds_resolve_struct_ptr = nullptr;
+            const auto                                  n_structs             = current_subpass_chainer.get_n_structs();
+
+            for (uint32_t n_struct = 1;
+                          n_struct < n_structs;
+                        ++n_struct)
+            {
+                auto struct_header_ptr = current_subpass_chainer.get_struct_at_index(n_struct);
+                anvil_assert(struct_header_ptr != nullptr);
+
+                if (struct_header_ptr->type == VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_DEPTH_STENCIL_RESOLVE_KHR)
+                {
+                    ds_resolve_struct_ptr = reinterpret_cast<VkSubpassDescriptionDepthStencilResolveKHR*>(struct_header_ptr);
+
+                    break;
+                }}
+
+
+            anvil_assert(ds_resolve_struct_ptr != nullptr);
+
+            ds_resolve_struct_ptr->pDepthStencilResolveAttachment = reinterpret_cast<const VkAttachmentReference2KHR*>(reinterpret_cast<const uint8_t*>(ds_resolve_struct_ptr->pDepthStencilResolveAttachment) + reinterpret_cast<intptr_t>(&subpass_attachment_reference_vec.at(0) ));
         }
     }
 

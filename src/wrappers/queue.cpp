@@ -31,6 +31,7 @@
 #include "wrappers/device.h"
 #include "wrappers/fence.h"
 #include "wrappers/instance.h"
+#include "wrappers/memory_block.h"
 #include "wrappers/queue.h"
 #include "wrappers/rendering_surface.h"
 #include "wrappers/semaphore.h"
@@ -40,10 +41,11 @@
 
 
 /** Please see header for specification */
-Anvil::Queue::Queue(const Anvil::BaseDevice* in_device_ptr,
-                    uint32_t                 in_queue_family_index,
-                    uint32_t                 in_queue_index,
-                    bool                     in_mt_safe)
+Anvil::Queue::Queue(const Anvil::BaseDevice*          in_device_ptr,
+                    uint32_t                          in_queue_family_index,
+                    uint32_t                          in_queue_index,
+                    bool                              in_mt_safe,
+                    const Anvil::QueueGlobalPriority& in_global_priority)
 
     :CallbacksSupportProvider       (QUEUE_CALLBACK_ID_COUNT),
      DebugMarkerSupportProvider     (in_device_ptr,
@@ -53,6 +55,7 @@ Anvil::Queue::Queue(const Anvil::BaseDevice* in_device_ptr,
      m_n_debug_label_regions_started(0),
      m_queue                        (VK_NULL_HANDLE),
      m_queue_family_index           (in_queue_family_index),
+     m_queue_global_priority        (in_global_priority),
      m_queue_index                  (in_queue_index)
 {
     /* Retrieve the Vulkan handle */
@@ -63,8 +66,9 @@ Anvil::Queue::Queue(const Anvil::BaseDevice* in_device_ptr,
 
     anvil_assert(m_queue != VK_NULL_HANDLE);
 
-    /* Determine whether the queue supports sparse bindings */
-    m_supports_sparse_bindings = (m_device_ptr->get_queue_family_info(in_queue_family_index)->flags & Anvil::QueueFlagBits::SPARSE_BINDING_BIT) != 0;
+    /* Determine additional properties of the queue */
+    m_supports_protected_memory_operations = (m_device_ptr->get_queue_family_info(in_queue_family_index)->flags & Anvil::QueueFlagBits::PROTECTED_BIT)      != 0;
+    m_supports_sparse_bindings             = (m_device_ptr->get_queue_family_info(in_queue_family_index)->flags & Anvil::QueueFlagBits::SPARSE_BINDING_BIT) != 0;
 
     /* Cache a fence that may be optionally used for submissions */
     {
@@ -258,6 +262,7 @@ bool Anvil::Queue::bind_sparse_memory(Anvil::SparseMemoryBindingUpdateInfo& in_u
             bool                         memory_block_owned_by_image = false;
             Anvil::MemoryBlock*          memory_block_ptr            = nullptr;
             VkDeviceSize                 memory_block_start_offset;
+            uint32_t                     n_plane                     = UINT32_MAX;
             VkDeviceSize                 resource_offset;
             VkDeviceSize                 size;
 
@@ -269,9 +274,11 @@ bool Anvil::Queue::bind_sparse_memory(Anvil::SparseMemoryBindingUpdateInfo& in_u
                                                                &flags,
                                                                &memory_block_ptr,
                                                                &memory_block_start_offset,
-                                                               &memory_block_owned_by_image);
+                                                               &memory_block_owned_by_image,
+                                                               &n_plane);
 
-            image_ptr->on_memory_backing_opaque_update(resource_offset,
+            image_ptr->on_memory_backing_opaque_update(n_plane,
+                                                       resource_offset,
                                                        size,
                                                        memory_block_ptr,
                                                        memory_block_start_offset,
@@ -430,7 +437,8 @@ void Anvil::Queue::bind_sparse_memory_lock_unlock(Anvil::SparseMemoryBindingUpda
                                                                 nullptr,  /* out_opt_flags_ptr                       */
                                                                 nullptr,  /* out_opt_memory_block_ptr_ptr            */
                                                                 nullptr,  /* out_opt_memory_block_start_offset_ptr   */
-                                                                nullptr); /* out_opt_memory_block_owned_by_image_ptr */
+                                                                nullptr,  /* out_opt_memory_block_owned_by_image_ptr */
+                                                                nullptr); /* out_opt_n_plane_ptr                     */
 
             if (in_should_lock)
             {
@@ -445,10 +453,11 @@ void Anvil::Queue::bind_sparse_memory_lock_unlock(Anvil::SparseMemoryBindingUpda
 }
 
 /** Please see header for specification */
-std::unique_ptr<Anvil::Queue> Anvil::Queue::create(const Anvil::BaseDevice* in_device_ptr,
-                                                   uint32_t                 in_queue_family_index,
-                                                   uint32_t                 in_queue_index,
-                                                   bool                     in_mt_safe)
+std::unique_ptr<Anvil::Queue> Anvil::Queue::create(const Anvil::BaseDevice*          in_device_ptr,
+                                                   uint32_t                          in_queue_family_index,
+                                                   uint32_t                          in_queue_index,
+                                                   bool                              in_mt_safe,
+                                                   const Anvil::QueueGlobalPriority& in_queue_global_priority)
 {
     std::unique_ptr<Queue> result_ptr;
 
@@ -456,7 +465,8 @@ std::unique_ptr<Anvil::Queue> Anvil::Queue::create(const Anvil::BaseDevice* in_d
         new Anvil::Queue(in_device_ptr,
                          in_queue_family_index,
                          in_queue_index,
-                         in_mt_safe)
+                         in_mt_safe,
+                         in_queue_global_priority)
     );
 
     return result_ptr;
@@ -1014,13 +1024,15 @@ bool Anvil::Queue::submit(const Anvil::SubmitInfo& in_submit_info)
     VkResult                           result           (VK_ERROR_INITIALIZATION_FAILED);
     Anvil::StructChainer<VkSubmitInfo> struct_chainer;
 
-    std::vector<VkCommandBuffer> cmd_buffers_vk      (in_submit_info.get_n_command_buffers  () );
-    std::vector<VkSemaphore>     signal_semaphores_vk(in_submit_info.get_n_signal_semaphores() );
-    std::vector<VkSemaphore>     wait_semaphores_vk  (in_submit_info.get_n_wait_semaphores  () );
+    std::vector<VkCommandBuffer> cmd_buffers_vk         (in_submit_info.get_n_command_buffers  () );
+    std::vector<VkDeviceMemory>  device_memory_block_vec(0);
+    std::vector<VkSemaphore>     signal_semaphores_vk   (in_submit_info.get_n_signal_semaphores() );
+    std::vector<VkSemaphore>     wait_semaphores_vk     (in_submit_info.get_n_wait_semaphores  () );
 
     std::vector<uint32_t> cmd_buffer_device_masks         = std::vector<uint32_t>(in_submit_info.get_n_command_buffers() );
     std::vector<uint32_t> signal_semaphore_device_indices = std::vector<uint32_t>(in_submit_info.get_n_signal_semaphores() );
     std::vector<uint32_t> wait_semaphore_device_indices   = std::vector<uint32_t>(in_submit_info.get_n_wait_semaphores  () );
+
 
     ANVIL_REDUNDANT_VARIABLE(result);
 
@@ -1030,6 +1042,11 @@ bool Anvil::Queue::submit(const Anvil::SubmitInfo& in_submit_info)
         case SubmissionType::MGPU:
         {
             uint32_t n_cmd_buffers = 0;
+
+            if (in_submit_info.is_protected_submission() )
+            {
+                anvil_assert(reinterpret_cast<const MGPUDevice*>(m_device_ptr)->get_physical_device(0)->supports_core_vk1_1() );
+            }
 
             for (uint32_t n_command_buffer_submission = 0;
                           n_command_buffer_submission < in_submit_info.get_n_command_buffers();
@@ -1052,6 +1069,8 @@ bool Anvil::Queue::submit(const Anvil::SubmitInfo& in_submit_info)
             {
                 const auto& current_submission = in_submit_info.get_signal_semaphores_mgpu()[n_signal_semaphore_submission];
 
+                anvil_assert(current_submission.device_index < reinterpret_cast<const Anvil::MGPUDevice*>(m_device_ptr)->get_n_physical_devices() );
+
                 signal_semaphore_device_indices.at(n_signal_semaphore_submission) = current_submission.device_index;
                 signal_semaphores_vk.at           (n_signal_semaphore_submission) = current_submission.semaphore_ptr->get_semaphore();
             }
@@ -1061,6 +1080,8 @@ bool Anvil::Queue::submit(const Anvil::SubmitInfo& in_submit_info)
                         ++n_wait_semaphore_submission)
             {
                 const auto& current_submission = in_submit_info.get_wait_semaphores_mgpu()[n_wait_semaphore_submission];
+
+                anvil_assert(current_submission.device_index < reinterpret_cast<const Anvil::MGPUDevice*>(m_device_ptr)->get_n_physical_devices() );
 
                 wait_semaphore_device_indices.at(n_wait_semaphore_submission) = current_submission.device_index;
                 wait_semaphores_vk.at           (n_wait_semaphore_submission) = current_submission.semaphore_ptr->get_semaphore();
@@ -1103,6 +1124,11 @@ bool Anvil::Queue::submit(const Anvil::SubmitInfo& in_submit_info)
         case SubmissionType::SGPU:
         {
             VkSubmitInfo submit_info;
+
+            if (in_submit_info.is_protected_submission() )
+            {
+                anvil_assert(reinterpret_cast<const SGPUDevice*>(m_device_ptr)->get_physical_device()->supports_core_vk1_1() );
+            }
 
             for (uint32_t n_command_buffer = 0;
                           n_command_buffer < in_submit_info.get_n_command_buffers();
@@ -1170,6 +1196,75 @@ bool Anvil::Queue::submit(const Anvil::SubmitInfo& in_submit_info)
         }
     }
     #endif
+
+    #if defined(_WIN32)
+    {
+        const Anvil::MemoryBlock** acquire_d3d11_memory_block_ptrs = nullptr;
+        const uint64_t*            acquire_mutex_key_value_ptrs    = nullptr;
+        const uint32_t*            acquire_timeout_ptrs            = nullptr;
+        uint32_t                   n_acquire_keys                  = 0;
+        uint32_t                   n_release_keys                  = 0;
+        const Anvil::MemoryBlock** release_d3d11_memory_block_ptrs = nullptr;
+        const uint64_t*            release_mutex_key_value_ptrs    = nullptr;
+
+        if (in_submit_info.get_keyed_mutex_acquire_release_info(&n_acquire_keys,
+                                                                &acquire_d3d11_memory_block_ptrs,
+                                                                &acquire_mutex_key_value_ptrs,
+                                                                &acquire_timeout_ptrs,
+                                                                &n_release_keys,
+                                                                &release_d3d11_memory_block_ptrs,
+                                                                &release_mutex_key_value_ptrs) )
+        {
+            VkWin32KeyedMutexAcquireReleaseInfoKHR info;
+
+            anvil_assert(n_acquire_keys + n_release_keys > 0);
+
+            device_memory_block_vec.resize(n_acquire_keys + n_release_keys);
+
+            VkDeviceMemory* acquire_sync_ptr = (n_acquire_keys > 0) ? &device_memory_block_vec.at(0)
+                                                                    : nullptr;
+            VkDeviceMemory* release_sync_ptr = (n_release_keys > 0) ? &device_memory_block_vec.at(n_acquire_keys)
+                                                                    : nullptr;
+
+            for (uint32_t n_acquire_sync = 0;
+                          n_acquire_sync < n_acquire_keys;
+                        ++n_acquire_sync)
+            {
+                acquire_sync_ptr[n_acquire_sync] = acquire_d3d11_memory_block_ptrs[n_acquire_sync]->get_memory();
+            }
+
+            for (uint32_t n_release_sync = 0;
+                          n_release_sync < n_release_keys;
+                        ++n_release_sync)
+            {
+                release_sync_ptr[n_release_sync] = release_d3d11_memory_block_ptrs[n_release_sync]->get_memory();
+            }
+
+            info.acquireCount     = n_acquire_keys;
+            info.pAcquireKeys     = acquire_mutex_key_value_ptrs;
+            info.pAcquireSyncs    = acquire_sync_ptr;
+            info.pAcquireTimeouts = acquire_timeout_ptrs;
+            info.pNext            = nullptr;
+            info.pReleaseKeys     = release_mutex_key_value_ptrs;
+            info.pReleaseSyncs    = release_sync_ptr;
+            info.releaseCount     = n_release_keys;
+            info.sType            = VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_ACQUIRE_RELEASE_INFO_KHR;
+
+            struct_chainer.append_struct(info);
+        }
+    }
+    #endif
+
+    if (in_submit_info.is_protected_submission() )
+    {
+        VkProtectedSubmitInfo submit_info;
+
+        submit_info.pNext           = nullptr;
+        submit_info.protectedSubmit = VK_TRUE;
+        submit_info.sType           = VK_STRUCTURE_TYPE_PROTECTED_SUBMIT_INFO;
+
+        struct_chainer.append_struct(submit_info);
+    }
 
     /* Go for it */
     if (fence_ptr                         == nullptr &&

@@ -122,19 +122,47 @@ namespace Anvil
          *  Note that only up to one depth/stencil attachment may be added for each subpass.
          *  Any attempt to add more such attachments will result in an assertion failure.
          *
-         *  @param in_subpass_id    ID of the subpass to update the depth+stencil attachment for.
-         *                          The subpass must have been earlier created with an add_subpass() call.
-         *  @param in_layout        Layout to use for the attachment when executing the subpass.
-         *                          Driver takes care of transforming the attachment to the requested layout
-         *                          before subpass commands starts executing.
-         *  @param in_attachment_id ID of the render-pass attachment the depth-stencil attachment should refer to.
-         
+         *  If VK_KHR_depth_stencil_resolve is supported, DS resolve attachment can be configured by calling the func prototype
+         *  which includes @param in_attachment_resolve_id_ptr, @param in_depth_resolve_mode_ptr and @param in_stencil_resolve_mode_ptr
+         *  parameters. Otherwise, please use the prototype w/o the arguments.
+         *
+         *  @param in_subpass_id                ID of the subpass to update the depth+stencil attachment for.
+         *                                      The subpass must have been earlier created with an add_subpass() call.
+         *  @param in_layout                    Layout to use for the attachment when executing the subpass.
+         *                                      Driver takes care of transforming the attachment to the requested layout
+         *                                      before subpass commands starts executing.
+         *  @param in_attachment_id             ID of the render-pass attachment the depth-stencil attachment should refer to.
+         *  @param in_attachment_resolve_id_ptr Pointer to an ID of the renderpass attachment, to which the MS attachment should be resolved to.
+         *                                      Requires VK_KHR_depth_stencil_resolve support. If not nullptr, @param in_depth_resolve_mode_ptr
+         *                                      and @param in_stencil_resolve_mode_ptr must also not be nullptr.
+         *  @param in_depth_resolve_mode_ptr    Pointer to resolve mode that should be used for the depth aspect.
+         *                                      Requires VK_KHR_depth_stencil_resolve support. If not nullptr, @param in_opt_attachment_resolve_id_ptr
+         *                                      and @param in_opt_stencil_resolve_mode_ptr must also not be nullptr.
+         *  @param in_stencil_resolve_mode_ptr  Pointer to resolve mode that should be used for the stencil aspect.
+         *                                      Requires VK_KHR_depth_stencil_resolve support. If not nullptr, @param in_opt_attachment_resolve_id_ptr
+         *                                      and @param in_opt_depth_resolve_mode_ptr must also not be nullptr.
+         *
          *  @return true if the function executed successfully, false otherwise.
          *
          */
-        bool add_subpass_depth_stencil_attachment(SubPassID                     in_subpass_id,
-                                                  Anvil::ImageLayout            in_layout,
-                                                  RenderPassAttachmentID        in_attachment_id);
+        bool add_subpass_depth_stencil_attachment(SubPassID                         in_subpass_id,
+                                                  Anvil::ImageLayout                in_layout,
+                                                  RenderPassAttachmentID            in_attachment_id,
+                                                  const RenderPassAttachmentID*     in_attachment_resolve_id_ptr,
+                                                  const Anvil::ResolveModeFlagBits* in_depth_resolve_mode_ptr,
+                                                  const Anvil::ResolveModeFlagBits* in_stencil_resolve_mode_ptr);
+
+        bool add_subpass_depth_stencil_attachment(SubPassID              in_subpass_id,
+                                                  Anvil::ImageLayout     in_layout,
+                                                  RenderPassAttachmentID in_attachment_id)
+        {
+            return add_subpass_depth_stencil_attachment(in_subpass_id,
+                                                        in_layout,
+                                                        in_attachment_id,
+                                                        nullptr,  /* in_attachment_resolve_id_ptr */
+                                                        nullptr,  /* in_depth_resolve_mode_ptr    */
+                                                        nullptr); /* in_stencil_resolve_mode_ptr  */
+        }
 
         /** Adds a new input attachment to the RenderPass instance's specified subpass.
          *
@@ -415,6 +443,9 @@ namespace Anvil
 
         /** Retrieves subpass attachment properties, as specified at creation time. 
          *
+         *  Supports all attachment types except depth/stencil resolve attachment. You can retrieve details of the attachment
+         *  by calling get_subpass_ds_resolve_attachment_properties() instead.
+         *
          *  @param in_subpass_id                    ID of the subpass to use for the query.
          *  @param in_attachment_type               Type of the attachment to use for the query. Must not be ATTACHMENT_TYPE_PRESERVE.
          *  @param out_renderpass_attachment_id_ptr Deref will be set to the ID of the renderpass attachment this subpass
@@ -433,6 +464,16 @@ namespace Anvil
                                                Anvil::ImageAspectFlags*    out_opt_aspects_accessed_ptr      = nullptr,
                                                RenderPassAttachmentID*     out_opt_attachment_resolve_id_ptr = nullptr,
                                                uint32_t*                   out_opt_location_ptr              = nullptr) const;
+
+        /* TODO.
+         *
+         * Returns false if no resolve attachment has been specified for d/ds/s attachment.
+         */
+        bool get_subpass_ds_resolve_attachment_properties(SubPassID                   in_subpass_id,
+                                                          RenderPassAttachmentID*     out_opt_renderpass_attachment_id_ptr = nullptr,
+                                                          Anvil::ImageLayout*         out_opt_layout_ptr                   = nullptr,
+                                                          Anvil::ResolveModeFlagBits* out_opt_depth_resolve_mode_ptr       = nullptr,
+                                                          Anvil::ResolveModeFlagBits* out_opt_stencil_resolve_mode_ptr     = nullptr) const;
 
         /* Returns highest location used by subpass attachments.
          *
@@ -644,6 +685,9 @@ namespace Anvil
         {
             Anvil::ImageAspectFlags aspects_accessed; /* Only used for input attachments! */
 
+            Anvil::ResolveModeFlagBits depth_resolve_mode;   /* Only used for MS D/DS attachments! */
+            Anvil::ResolveModeFlagBits stencil_resolve_mode; /* Only used for MS DS/S attachments! */
+
             uint32_t           attachment_index;
             uint32_t           highest_subpass_index;
             Anvil::ImageLayout layout;
@@ -655,10 +699,12 @@ namespace Anvil
             {
                 aspects_accessed         = Anvil::ImageAspectFlagBits::NONE;
                 attachment_index         = UINT32_MAX;
+                depth_resolve_mode       = Anvil::ResolveModeFlagBits::NONE;
                 highest_subpass_index    = UINT32_MAX;
                 layout                   = Anvil::ImageLayout::UNKNOWN;
                 lowest_subpass_index     = UINT32_MAX;
                 resolve_attachment_index = UINT32_MAX;
+                stencil_resolve_mode     = Anvil::ResolveModeFlagBits::NONE;
             }
 
             /** Constructor.
@@ -672,17 +718,21 @@ namespace Anvil
              *                                         MS data of @param in_attachment_ptr should be resolved. If UINT32_MAX, it is
              *                                         assumed the sub-pass should not resolve the MS data.
              **/
-            SubPassAttachment(const uint32_t&                in_attachment_index,
-                              Anvil::ImageLayout             in_layout,
-                              const uint32_t&                in_opt_resolve_attachment_index,
-                              const Anvil::ImageAspectFlags& in_opt_aspects_accessed)
+            SubPassAttachment(const uint32_t&                   in_attachment_index,
+                              Anvil::ImageLayout                in_layout,
+                              const uint32_t&                   in_opt_resolve_attachment_index,
+                              const Anvil::ImageAspectFlags&    in_opt_aspects_accessed,
+                              const Anvil::ResolveModeFlagBits& in_depth_resolve_mode,
+                              const Anvil::ResolveModeFlagBits& in_stencil_resolve_mode)
             {
                 aspects_accessed         = in_opt_aspects_accessed;
                 attachment_index         = in_attachment_index;
+                depth_resolve_mode       = in_depth_resolve_mode;
                 highest_subpass_index    = UINT32_MAX;
                 layout                   = in_layout;
                 lowest_subpass_index     = UINT32_MAX;
                 resolve_attachment_index = in_opt_resolve_attachment_index;
+                stencil_resolve_mode     = in_stencil_resolve_mode;
             }
         } SubPassAttachment;
 
@@ -695,6 +745,7 @@ namespace Anvil
         {
             LocationToSubPassAttachmentMap color_attachments_map;
             SubPassAttachment              depth_stencil_attachment;
+            SubPassAttachment              ds_resolve_attachment;
             uint32_t                       index;
             uint32_t                       multiview_view_mask;
             uint32_t                       n_highest_location_used;

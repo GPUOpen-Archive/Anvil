@@ -943,6 +943,45 @@ Anvil::StructChainUniquePtr<VkPipelineRasterizationStateCreateInfo> Anvil::Graph
         anvil_assert(in_gfx_pipeline_create_info_ptr->get_rasterization_order() == Anvil::RasterizationOrderAMD::STRICT);
     }
 
+    if (m_device_ptr->is_extension_enabled(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME) )
+    {
+        /* Chain a predefined struct which will toggle the conservative rasterization mode, as long as the device supports the
+         * VK_EXT_conservative_rasterization extension.
+         */
+        const VkPipelineRasterizationConservativeStateCreateInfoEXT conservative_rasterization_item
+        {
+            VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT,
+            nullptr,
+            0,
+            static_cast<VkConservativeRasterizationModeEXT>(in_gfx_pipeline_create_info_ptr->get_conservative_rasterization_mode() ),
+            in_gfx_pipeline_create_info_ptr->get_extra_primitive_overestimation_size()
+        };
+
+        raster_state_create_info_chainer.append_struct(conservative_rasterization_item);
+    }
+    else
+    {
+        anvil_assert(in_gfx_pipeline_create_info_ptr->get_conservative_rasterization_mode() == Anvil::ConservativeRasterizationModeEXT::DISABLED);
+    }
+
+    if (m_device_ptr->is_extension_enabled(VK_EXT_DEPTH_CLIP_ENABLE_EXTENSION_NAME) )
+    {
+        const bool is_depth_clip_enabled = in_gfx_pipeline_create_info_ptr->is_depth_clip_enabled();
+
+        /* NOTE: No need to chain the struct IF ::depthClipEnable is to be specified as VK_TRUE, since it does not affect Vulkan impl's behavior. */
+        if (!is_depth_clip_enabled)
+        {
+            VkPipelineRasterizationDepthClipStateCreateInfoEXT create_info;
+
+            create_info.depthClipEnable = VK_FALSE;
+            create_info.flags           = 0;
+            create_info.pNext           = nullptr;
+            create_info.sType           = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_DEPTH_CLIP_STATE_CREATE_INFO_EXT;
+
+            raster_state_create_info_chainer.append_struct(create_info);
+        }
+    }
+
     if (m_device_ptr->is_extension_enabled(VK_EXT_TRANSFORM_FEEDBACK_EXTENSION_NAME) )
     {
         const auto& rasterization_stream_index = in_gfx_pipeline_create_info_ptr->get_rasterization_stream_index();

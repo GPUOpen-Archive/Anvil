@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2019 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
 
 #include "misc/debug.h"
 #include "misc/object_tracker.h"
+#include "misc/rendering_surface_create_info.h"
 #include "misc/window.h"
 #include "wrappers/instance.h"
 #include "wrappers/physical_device.h"
@@ -31,22 +32,16 @@
 #include "config.h"
 
 /* Please see header for specification */
-Anvil::RenderingSurface::RenderingSurface(Anvil::Instance*         in_instance_ptr,
-                                          const Anvil::BaseDevice* in_device_ptr,
-                                          const Anvil::Window*     in_window_ptr,
-                                          bool                     in_mt_safe,
-                                          bool*                    out_safe_to_use_ptr)
-    :DebugMarkerSupportProvider(in_device_ptr,
+Anvil::RenderingSurface::RenderingSurface(Anvil::RenderingSurfaceCreateInfoUniquePtr in_create_info_ptr)
+    :DebugMarkerSupportProvider(in_create_info_ptr->get_device_ptr(),
                                 Anvil::ObjectType::RENDERING_SURFACE),
-     MTSafetySupportProvider   (in_mt_safe),
-     m_device_ptr              (in_device_ptr),
+     MTSafetySupportProvider   (Anvil::Utils::convert_mt_safety_enum_to_boolean(in_create_info_ptr->get_mt_safety (),
+                                                                                in_create_info_ptr->get_device_ptr() )),
      m_height                  (0),
-     m_instance_ptr            (in_instance_ptr),
      m_surface                 (VK_NULL_HANDLE),
-     m_width                   (0),
-     m_window_ptr              (in_window_ptr)
+     m_width                   (0)
 {
-    *out_safe_to_use_ptr = init();
+    m_create_info_ptr = std::move(in_create_info_ptr);
 
     /* Register the instance */
     Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::RENDERING_SURFACE,
@@ -63,9 +58,11 @@ Anvil::RenderingSurface::~RenderingSurface()
     {
         lock();
         {
-            m_instance_ptr->get_extension_khr_surface_entrypoints().vkDestroySurfaceKHR(m_instance_ptr->get_instance_vk(),
-                                                                                        m_surface,
-                                                                                        nullptr /* pAllocator */);
+            auto instance_ptr = m_create_info_ptr->get_instance_ptr();
+
+            instance_ptr->get_extension_khr_surface_entrypoints().vkDestroySurfaceKHR(instance_ptr->get_instance_vk(),
+                                                                                      m_surface,
+                                                                                      nullptr /* pAllocator */);
         }
         unlock();
 
@@ -78,23 +75,24 @@ void Anvil::RenderingSurface::cache_surface_properties()
 {
     const Anvil::DeviceType&             device_type                   (m_device_ptr->get_type() );
     bool                                 is_offscreen_rendering_enabled(true);
-    auto                                 khr_surface_entrypoints       (m_instance_ptr->get_extension_khr_surface_entrypoints() );
+    auto                                 khr_surface_entrypoints       (m_create_info_ptr->get_instance_ptr()->get_extension_khr_surface_entrypoints() );
     const Anvil::MGPUDevice*             mgpu_device_ptr               (dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr));
     uint32_t                             n_physical_devices            (0);
     const Anvil::SGPUDevice*             sgpu_device_ptr               (dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr));
     std::vector<Anvil::SurfaceFormatKHR> supported_formats;
+    auto                                 window_ptr                    (m_create_info_ptr->get_window_ptr() );
 
-    if (m_window_ptr != nullptr)
+    if (window_ptr != nullptr)
     {
-        const WindowPlatform window_platform(m_window_ptr->get_platform() );
+        const WindowPlatform window_platform(window_ptr->get_platform() );
 
         is_offscreen_rendering_enabled = (window_platform == WINDOW_PLATFORM_DUMMY                     ||
                                           window_platform == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS);
 
         if (is_offscreen_rendering_enabled)
         {
-            m_height = m_window_ptr->get_height_at_creation_time();
-            m_width  = m_window_ptr->get_width_at_creation_time ();
+            m_height = window_ptr->get_height_at_creation_time();
+            m_width  = window_ptr->get_width_at_creation_time ();
         }
         else
         {
@@ -238,27 +236,23 @@ void Anvil::RenderingSurface::cache_surface_properties()
 }
 
 /* Please see header for specification */
-Anvil::RenderingSurfaceUniquePtr Anvil::RenderingSurface::create(Anvil::Instance*         in_instance_ptr,
-                                                                 const Anvil::BaseDevice* in_device_ptr,
-                                                                 const Anvil::Window*     in_window_ptr,
-                                                                 MTSafety                 in_mt_safety)
+Anvil::RenderingSurfaceUniquePtr Anvil::RenderingSurface::create(Anvil::RenderingSurfaceCreateInfoUniquePtr in_create_info_ptr)
 {
-    const bool                mt_safe    = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
-                                                                                           in_device_ptr);
     RenderingSurfaceUniquePtr result_ptr(nullptr,
                                          std::default_delete<RenderingSurface>() );
-    bool                      success    = false;
 
     result_ptr.reset(
-        new Anvil::RenderingSurface(in_instance_ptr,
-                                    in_device_ptr,
-                                    in_window_ptr,
-                                    mt_safe,
-                                   &success) );
+        new Anvil::RenderingSurface(
+            std::move(in_create_info_ptr)
+        )
+    );
 
-    if (!success)
+    if (result_ptr != nullptr)
     {
-        result_ptr.reset();
+        if (!result_ptr->init() )
+        {
+            result_ptr.reset();
+        }
     }
 
     return result_ptr;
@@ -354,9 +348,10 @@ bool Anvil::RenderingSurface::init()
 {
     const Anvil::DeviceType& device_type       (m_device_ptr->get_type() );
     bool                     init_successful   (false);
+    auto                     instance_ptr      (m_create_info_ptr->get_instance_ptr() );
     uint32_t                 n_physical_devices(0);
     VkResult                 result            (VK_SUCCESS);
-    const WindowPlatform     window_platform   (m_window_ptr->get_platform());
+    const WindowPlatform     window_platform   (m_create_info_ptr->get_window_ptr()->get_platform());
 
     const bool               is_dummy_window_platform(window_platform == WINDOW_PLATFORM_DUMMY                     ||
                                                       window_platform == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS);
@@ -391,20 +386,22 @@ bool Anvil::RenderingSurface::init()
 
     if (!is_dummy_window_platform)
     {
+        auto window_ptr = m_create_info_ptr->get_window_ptr();
+
         #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT) && defined(_WIN32)
         {
             VkWin32SurfaceCreateInfoKHR surface_create_info;
 
             surface_create_info.flags     = 0;
             surface_create_info.hinstance = GetModuleHandle(nullptr);
-            surface_create_info.hwnd      = m_window_ptr->get_handle();
+            surface_create_info.hwnd      = window_ptr->get_handle();
             surface_create_info.pNext     = nullptr;
             surface_create_info.sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
 
-            result = m_instance_ptr->get_extension_khr_win32_surface_entrypoints().vkCreateWin32SurfaceKHR(m_instance_ptr->get_instance_vk(),
-                                                                                                          &surface_create_info,
-                                                                                                           nullptr, /* pAllocator */
-                                                                                                          &m_surface);
+            result = instance_ptr->get_extension_khr_win32_surface_entrypoints().vkCreateWin32SurfaceKHR(instance_ptr->get_instance_vk(),
+                                                                                                        &surface_create_info,
+                                                                                                         nullptr, /* pAllocator */
+                                                                                                        &m_surface);
         }
         #endif
         #if defined(ANVIL_INCLUDE_XCB_WINDOW_SYSTEM_SUPPORT) && !defined(_WIN32)
@@ -412,17 +409,18 @@ bool Anvil::RenderingSurface::init()
             VkXcbSurfaceCreateInfoKHR surface_create_info;
 
             surface_create_info.flags       = 0;
-            surface_create_info.window      = m_window_ptr->get_handle();
-            surface_create_info.connection  = static_cast<xcb_connection_t*>(m_window_ptr->get_connection());
+            surface_create_info.window      = window_ptr->get_handle();
+            surface_create_info.connection  = static_cast<xcb_connection_t*>(window_ptr->get_connection());
             surface_create_info.pNext       = nullptr;
             surface_create_info.sType       = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
 
-            result = m_instance_ptr->get_extension_khr_xcb_surface_entrypoints().vkCreateXcbSurfaceKHR(m_instance_ptr->get_instance_vk(),
-                                                                                                      &surface_create_info,
-                                                                                                       nullptr, /* pAllocator */
-                                                                                                      &m_surface);
+            result = instance_ptr->get_extension_khr_xcb_surface_entrypoints().vkCreateXcbSurfaceKHR(instance_ptr->get_instance_vk(),
+                                                                                                    &surface_create_info,
+                                                                                                     nullptr, /* pAllocator */
+                                                                                                    &m_surface);
             }
         #endif
+
         anvil_assert_vk_call_succeeded(result);
         if (is_vk_call_successful(result) )
         {
@@ -484,7 +482,7 @@ bool Anvil::RenderingSurface::init()
                 VkBool32 is_presentation_supported = VK_FALSE;
 
                 {
-                    const auto& khr_surface_entrypoints = m_instance_ptr->get_extension_khr_surface_entrypoints();
+                    const auto& khr_surface_entrypoints = instance_ptr->get_extension_khr_surface_entrypoints();
 
                     result = khr_surface_entrypoints.vkGetPhysicalDeviceSurfaceSupportKHR(physical_device_ptr->get_physical_device(),
                                                                                           n_queue_family,
@@ -609,15 +607,17 @@ bool Anvil::RenderingSurface::supports_presentation_mode(const Anvil::PhysicalDe
 
 void Anvil::RenderingSurface::update_surface_extents() const
 {
-    const Anvil::DeviceType& device_type                   (m_device_ptr->get_type() );
-    auto                     khr_surface_entrypoints       (m_instance_ptr->get_extension_khr_surface_entrypoints() );
-    const Anvil::MGPUDevice* mgpu_device_ptr               (dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr));
+    const Anvil::DeviceType& device_type                   (m_device_ptr->get_type                             () );
+    auto                     instance_ptr                  (m_create_info_ptr->get_instance_ptr                () );
+    auto                     khr_surface_entrypoints       (instance_ptr->get_extension_khr_surface_entrypoints() );
+    const Anvil::MGPUDevice* mgpu_device_ptr               (dynamic_cast<const Anvil::MGPUDevice*>             (m_device_ptr));
     uint32_t                 n_physical_devices            (0);
     const Anvil::SGPUDevice* sgpu_device_ptr               (dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr));
+    auto                     window_ptr                    (m_create_info_ptr->get_window_ptr     () );
 
-    if (m_window_ptr != nullptr)
+    if (window_ptr != nullptr)
     {
-        const WindowPlatform window_platform(m_window_ptr->get_platform() );
+        const WindowPlatform window_platform(window_ptr->get_platform() );
 
         if (window_platform == WINDOW_PLATFORM_DUMMY                     ||
             window_platform == WINDOW_PLATFORM_DUMMY_WITH_PNG_SNAPSHOTS)

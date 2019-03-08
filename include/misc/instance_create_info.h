@@ -37,6 +37,14 @@ namespace Anvil
 
         /** Instantiates a new create info which must be specified when creating Anvil Instance object.
          *
+         *  By default, Anvil will query the highest version of Vulkan supported by the implementation and use it when creating the Instance.
+         *  You can override this behavior by calling set_api_version().
+         *
+         *  The following are also assumed by default:
+         *
+         *  + App version:    0
+         *  + Engine version: 0
+
          *  @param in_app_name                                 Name of the application, to be passed in VkCreateInstanceInfo
          *                                                     structure.
          *  @param in_engine_name                              Name of the engine, to be passed in VkCreateInstanceInfo
@@ -55,9 +63,19 @@ namespace Anvil
                                                          bool                            in_mt_safe,
                                                          const std::vector<std::string>& in_opt_disallowed_instance_level_extensions = std::vector<std::string>() );
 
+        const Anvil::APIVersion& get_api_version() const
+        {
+            return m_api_version;
+        }
+
         const std::string& get_app_name() const
         {
             return m_app_name;
+        }
+
+        const uint32_t& get_app_version() const
+        {
+            return m_app_version;
         }
 
         const std::vector<std::string>& get_disallowed_instance_level_extensions() const
@@ -68,6 +86,11 @@ namespace Anvil
         const std::string& get_engine_name() const
         {
             return m_engine_name;
+        }
+
+        const uint32_t& get_engine_version() const
+        {
+            return m_engine_version;
         }
 
         /* Returns memory type index which should be used by Anvil when allocating memory. This value can be specified with set_n_memory_type_to_use_for_all_allocs().
@@ -89,9 +112,24 @@ namespace Anvil
             return m_is_mt_safe;
         }
 
+        void set_api_version(const Anvil::APIVersion& in_api_version)
+        {
+            m_api_version = in_api_version;
+        }
+
         void set_app_name(const std::string& in_app_name)
         {
             m_app_name = in_app_name;
+        }
+
+        void set_app_version(const uint32_t& in_version)
+        {
+            m_app_version = in_version;
+        }
+
+        void set_engine_version(const uint32_t& in_version)
+        {
+            m_engine_version = in_version;
         }
 
         void set_disallowed_instance_level_extensions(const std::vector<std::string>& in_extensions)
@@ -135,9 +173,12 @@ namespace Anvil
 
         /* Private variables */
 
+        Anvil::APIVersion            m_api_version;
         std::string                  m_app_name;
+        uint32_t                     m_app_version;
         std::vector<std::string>     m_disallowed_instance_level_extensions;
         std::string                  m_engine_name;
+        uint32_t                     m_engine_version;
         bool                         m_is_mt_safe;
         uint32_t                     m_n_memory_type_to_use_for_all_alocs;
         Anvil::DebugCallbackFunction m_validation_callback;

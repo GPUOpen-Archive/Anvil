@@ -58,7 +58,6 @@ namespace Anvil
          */
         OBJECT_TRACKER_CALLBACK_ID_ON_SHADER_MODULE_OBJECT_REGISTERED,
 
-
         /* Callback issued when an existing Device object instance is about to go out of scope.
          *
          * This callback IS issued BEFORE a corresponding Vulkan handle is destroyed.

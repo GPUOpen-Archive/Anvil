@@ -33,6 +33,9 @@ namespace Anvil
 
         /** TODO
          *
+         *  NOTE: By default, no YCbCr conversion will be attached to the created sampler. In order to adjust the setting,
+         *        call set_sampler_ycbcr_conversion_ptr() before passing the create info struct to Sampler::create().
+         *
          *  For argument discussion, please consult Vulkan API specification.
          */
         static SamplerCreateInfoUniquePtr create(const Anvil::BaseDevice*    in_device_ptr,
@@ -127,6 +130,11 @@ namespace Anvil
             return m_sampler_reduction_mode;
         }
 
+        const Anvil::SamplerYCbCrConversion* get_sampler_ycbcr_conversion_ptr() const
+        {
+            return m_sampler_ycbcr_conversion_ptr;
+        }
+
         const bool& is_compare_enabled() const
         {
             return m_compare_enable;
@@ -213,6 +221,20 @@ namespace Anvil
             m_sampler_reduction_mode = in_reduction_mode;
         }
 
+        /* Attaches or detaches already attached SamplerYCBCRConversion object from the create info struct.
+         * This information will be used at sampler creation time.
+         *
+         * NOTE: Requires VK_KHR_sampler_ycbcr_conversion
+         *
+         * @param in_sampler_ycbcr_conversion_ptr If not nullptr, the specified object will be passed to the implementation
+         *                                        at sampler creation time by chaining VkSamplerYcbcrConversionInfo struct.
+         *                                        If nullptr, the struct will not be chained.
+         **/
+        void set_sampler_ycbcr_conversion_ptr(const Anvil::SamplerYCbCrConversion* in_sampler_ycbcr_conversion_ptr)
+        {
+            m_sampler_ycbcr_conversion_ptr = in_sampler_ycbcr_conversion_ptr;
+        }
+
         void set_uses_unnormalized_coordinates(const bool& in_use_unnormalized_coordinates)
         {
             m_use_unnormalized_coordinates = in_use_unnormalized_coordinates;
@@ -245,22 +267,23 @@ namespace Anvil
 
         /* Private variables */
 
-        Anvil::SamplerAddressMode   m_address_mode_u;
-        Anvil::SamplerAddressMode   m_address_mode_v;
-        Anvil::SamplerAddressMode   m_address_mode_w;
-        Anvil::BorderColor          m_border_color;
-        bool                        m_compare_enable;
-        Anvil::CompareOp            m_compare_op;
-        float                       m_lod_bias;
-        Anvil::Filter               m_mag_filter;
-        float                       m_max_anisotropy;
-        float                       m_max_lod;
-        Anvil::Filter               m_min_filter;
-        float                       m_min_lod;
-        Anvil::SamplerMipmapMode    m_mipmap_mode;
-        Anvil::MTSafety             m_mt_safety;
-        Anvil::SamplerReductionMode m_sampler_reduction_mode;
-        bool                        m_use_unnormalized_coordinates;
+        Anvil::SamplerAddressMode            m_address_mode_u;
+        Anvil::SamplerAddressMode            m_address_mode_v;
+        Anvil::SamplerAddressMode            m_address_mode_w;
+        Anvil::BorderColor                   m_border_color;
+        bool                                 m_compare_enable;
+        Anvil::CompareOp                     m_compare_op;
+        float                                m_lod_bias;
+        Anvil::Filter                        m_mag_filter;
+        float                                m_max_anisotropy;
+        float                                m_max_lod;
+        Anvil::Filter                        m_min_filter;
+        float                                m_min_lod;
+        Anvil::SamplerMipmapMode             m_mipmap_mode;
+        Anvil::MTSafety                      m_mt_safety;
+        Anvil::SamplerReductionMode          m_sampler_reduction_mode;
+        const Anvil::SamplerYCbCrConversion* m_sampler_ycbcr_conversion_ptr;
+        bool                                 m_use_unnormalized_coordinates;
 
         const Anvil::BaseDevice* m_device_ptr;
 

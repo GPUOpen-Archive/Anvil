@@ -40,6 +40,7 @@ namespace Anvil
          * @param out_n_compatible_formats_ptr   Deref will be set to the number of formats accessible under *out_compatible_formats_ptr_ptr.
          *                                       Must not be nullptr.
          * @param out_compatible_formats_ptr_ptr Deref will be set to a ptr to a linear list of formats compatible with @param in_format.
+         *                                       The list MAY include YUV formats.
          *
          * @return true if successful, false otherwise.
          */
@@ -54,6 +55,9 @@ namespace Anvil
         /** Returns an Anvil::Format which meets the user-specified criteria.
          *
          *  This function does not support block formats.
+         *
+         *  This function will only return one of the non-YUV formats whose component sizes
+         *  match the specified number of bits.
          *
          *  For formats which use less than 4 components, set irrelevant n_component*_bits arguments
          *  to 0.
@@ -80,6 +84,8 @@ namespace Anvil
 
         /** Returns image aspects exposed by a given image format.
          *
+         *  Supports both non-YUV and YUV formats.
+         *
          *  @param in_format       Format to use for the query.
          *  @param out_aspects_ptr Deref will be used to store the result data. Must not be NULL.
          *
@@ -90,8 +96,7 @@ namespace Anvil
 
         /** Returns bit layout for the specified format.
          *
-         *  NOTE: Only non-compressed formats are supported.
-         *  NOTE: YUV KHR formats are NOT supported for this function.
+         *  NOTE: Only non-compressed non-YUV formats are supported.
          *  NOTE: Components not used by the specified format have start and end bit indices set to UINT32_MAX.
          *
          *  @param in_format                                     Non-compressed format to use for the query.
@@ -110,49 +115,73 @@ namespace Anvil
          *  @param out_opt_stencil_component_start_bit_index_ptr If not null, deref will be set to the bit index, from which stencil component data starts.
          *  @param out_opt_stencil_component_end_bit_index_ptr   If not null, deref will be set to the bit index, at which stencil component data ends. (data under the bit includes the data!)
          */
-        static void get_format_bit_layout(Anvil::Format in_format,
-                                          uint32_t*     out_opt_red_component_start_bit_index_ptr     = nullptr,
-                                          uint32_t*     out_opt_red_component_end_bit_index_ptr       = nullptr,
-                                          uint32_t*     out_opt_green_component_start_bit_index_ptr   = nullptr,
-                                          uint32_t*     out_opt_green_component_end_bit_index_ptr     = nullptr,
-                                          uint32_t*     out_opt_blue_component_start_bit_index_ptr    = nullptr,
-                                          uint32_t*     out_opt_blue_component_end_bit_index_ptr      = nullptr,
-                                          uint32_t*     out_opt_alpha_component_start_bit_index_ptr   = nullptr,
-                                          uint32_t*     out_opt_alpha_component_end_bit_index_ptr     = nullptr,
-                                          uint32_t*     out_opt_shared_component_start_bit_index_ptr  = nullptr,
-                                          uint32_t*     out_opt_shared_component_end_bit_index_ptr    = nullptr,
-                                          uint32_t*     out_opt_depth_component_start_bit_index_ptr   = nullptr,
-                                          uint32_t*     out_opt_depth_component_end_bit_index_ptr     = nullptr,
-                                          uint32_t*     out_opt_stencil_component_start_bit_index_ptr = nullptr,
-                                          uint32_t*     out_opt_stencil_component_end_bit_index_ptr   = nullptr);
+        static void get_format_bit_layout_nonyuv(Anvil::Format in_format,
+                                                 uint32_t*     out_opt_red_component_start_bit_index_ptr     = nullptr,
+                                                 uint32_t*     out_opt_red_component_end_bit_index_ptr       = nullptr,
+                                                 uint32_t*     out_opt_green_component_start_bit_index_ptr   = nullptr,
+                                                 uint32_t*     out_opt_green_component_end_bit_index_ptr     = nullptr,
+                                                 uint32_t*     out_opt_blue_component_start_bit_index_ptr    = nullptr,
+                                                 uint32_t*     out_opt_blue_component_end_bit_index_ptr      = nullptr,
+                                                 uint32_t*     out_opt_alpha_component_start_bit_index_ptr   = nullptr,
+                                                 uint32_t*     out_opt_alpha_component_end_bit_index_ptr     = nullptr,
+                                                 uint32_t*     out_opt_shared_component_start_bit_index_ptr  = nullptr,
+                                                 uint32_t*     out_opt_shared_component_end_bit_index_ptr    = nullptr,
+                                                 uint32_t*     out_opt_depth_component_start_bit_index_ptr   = nullptr,
+                                                 uint32_t*     out_opt_depth_component_end_bit_index_ptr     = nullptr,
+                                                 uint32_t*     out_opt_stencil_component_start_bit_index_ptr = nullptr,
+                                                 uint32_t*     out_opt_stencil_component_end_bit_index_ptr   = nullptr);
+
+        /* Works analogously to get_format_bit_layout_nonyuv() but only supports YUV formats. */
+        static void get_format_bit_layout_yuv(Anvil::Format in_format,
+                                              uint32_t*     out_opt_plane0_r0_start_bit_index_ptr = nullptr,
+                                              uint32_t*     out_opt_plane0_r0_end_bit_index_ptr   = nullptr,
+                                              uint32_t*     out_opt_plane0_g0_start_bit_index_ptr = nullptr,
+                                              uint32_t*     out_opt_plane0_g0_end_bit_index_ptr   = nullptr,
+                                              uint32_t*     out_opt_plane0_b0_start_bit_index_ptr = nullptr,
+                                              uint32_t*     out_opt_plane0_b0_end_bit_index_ptr   = nullptr,
+                                              uint32_t*     out_opt_plane0_a0_start_bit_index_ptr = nullptr,
+                                              uint32_t*     out_opt_plane0_a0_end_bit_index_ptr   = nullptr,
+                                              uint32_t*     out_opt_plane0_g1_start_bit_index_ptr = nullptr,
+                                              uint32_t*     out_opt_plane0_g1_end_bit_index_ptr   = nullptr,
+                                              uint32_t*     out_opt_plane1_r0_start_bit_index_ptr = nullptr,
+                                              uint32_t*     out_opt_plane1_r0_end_bit_index_ptr   = nullptr,
+                                              uint32_t*     out_opt_plane1_g0_start_bit_index_ptr = nullptr,
+                                              uint32_t*     out_opt_plane1_g0_end_bit_index_ptr   = nullptr,
+                                              uint32_t*     out_opt_plane1_b0_start_bit_index_ptr = nullptr,
+                                              uint32_t*     out_opt_plane1_b0_end_bit_index_ptr   = nullptr,
+                                              uint32_t*     out_opt_plane2_r0_start_bit_index_ptr = nullptr,
+                                              uint32_t*     out_opt_plane2_r0_end_bit_index_ptr   = nullptr,
+                                              uint32_t*     out_opt_plane2_g0_start_bit_index_ptr = nullptr,
+                                              uint32_t*     out_opt_plane2_g0_end_bit_index_ptr   = nullptr,
+                                              uint32_t*     out_opt_plane2_b0_start_bit_index_ptr = nullptr,
+                                              uint32_t*     out_opt_plane2_b0_end_bit_index_ptr   = nullptr);
 
         /** Tells what component layout is used by @param in_format.
          *
          *  NOTE: This function does NOT support YUV KHR format. Please check the overloaded function if
          *        you would like to use for YUV KHR format.
          */
-        static ComponentLayout get_format_component_layout(Anvil::Format in_format);
+        static ComponentLayout get_format_component_layout_nonyuv(Anvil::Format in_format);
 
         /** Tells what component layout is used by @param in_format at specified subresource @param in_aspect.
          *
          *  NOTE: Only YUV KHR formats are supported.
          */
-        static ComponentLayout get_format_component_layout(Anvil::Format              in_format,
-                                                           Anvil::ImageAspectFlagBits in_aspect);
+        static ComponentLayout get_format_component_layout_yuv(Anvil::Format              in_format,
+                                                               Anvil::ImageAspectFlagBits in_aspect);
 
         /** Tells the number of components used by @param in_format
          *
-         *  NOTE: This function does NOT support YUV KHR format. Please check the overloaded function if
-         *        you would like to use for YUV KHR format.
+         *  NOTE: This function does NOT support YUV KHR formats.
          */
-        static uint32_t get_format_n_components(Anvil::Format in_format);
+        static uint32_t get_format_n_components_nonyuv(Anvil::Format in_format);
 
         /** Tells the number of components used by @param in_format under specified subresource @param in_aspect.
          *
          *  NOTE: Only YUV KHR formats are supported.
          */
-        static uint32_t get_format_n_components(Anvil::Format              in_format,
-                                                Anvil::ImageAspectFlagBits in_aspect);
+        static uint32_t get_format_n_components_yuv(Anvil::Format              in_format,
+                                                    Anvil::ImageAspectFlagBits in_aspect);
 
         /* Tells the number of bits used for each component in case of Vulkan format specified
          * under @param in_format.
@@ -172,11 +201,11 @@ namespace Anvil
          * @param out_channel3_bits_ptr Deref will be set to the number of bits used for channel 3. Must
          *                              not be nullptr.
          */
-        static void get_format_n_component_bits(Anvil::Format in_format,
-                                                uint32_t*     out_channel0_bits_ptr,
-                                                uint32_t*     out_channel1_bits_ptr,
-                                                uint32_t*     out_channel2_bits_ptr,
-                                                uint32_t*     out_channel3_bits_ptr);
+        static void get_format_n_component_bits_nonyuv(Anvil::Format in_format,
+                                                       uint32_t*     out_channel0_bits_ptr,
+                                                       uint32_t*     out_channel1_bits_ptr,
+                                                       uint32_t*     out_channel2_bits_ptr,
+                                                       uint32_t*     out_channel3_bits_ptr);
 
         /* Tells the number of bits used for each component in case of Vulkan format specified
          * under @param in_format at subresource @param in_aspect.
@@ -196,17 +225,25 @@ namespace Anvil
          * @param out_channel3_bits_ptr Deref will be set to the number of bits used for channel 3. Must
          *                              not be nullptr.
          */
-        static void get_format_n_component_bits(Anvil::Format              in_format,
-                                                Anvil::ImageAspectFlagBits in_aspect,
-                                                uint32_t*                  out_channel0_bits_ptr,
-                                                uint32_t*                  out_channel1_bits_ptr,
-                                                uint32_t*                  out_channel2_bits_ptr,
-                                                uint32_t*                  out_channel3_bits_ptr);
+        static void get_format_n_component_bits_yuv(Anvil::Format              in_format,
+                                                    Anvil::ImageAspectFlagBits in_aspect,
+                                                    uint32_t*                  out_channel0_bits_ptr,
+                                                    uint32_t*                  out_channel1_bits_ptr,
+                                                    uint32_t*                  out_channel2_bits_ptr,
+                                                    uint32_t*                  out_channel3_bits_ptr);
+
+        /** Tells the number of planes exposed by the specified format.
+         *
+         *  For non-YUV formats, this function always returns 1.
+         *
+         *  @param in_format Format to use for the query.
+         */
+        static uint32_t get_format_n_planes(Anvil::Format in_format);
 
         /** Tells the number of bits unused for each component in case of Vulkan format specified
          *  under @param in_format at subresource @param in_aspect.
          *
-         *  NOTE: Only YUV KHR fromats are supported.
+         *  NOTE: Only YUV KHR formats are supported.
          *  NOTE: Number of bits reported for each component uses ordering as reported for the format
          *        via get_format_component_layout(). This is especially important in the context of packed formats.
          *
@@ -221,17 +258,23 @@ namespace Anvil
          * @param out_channel3_unused_bits_ptr Deref will be set to the number of bits unused for channel 3. Must
          *                                     not be nullptr.
          */
-        static void get_format_n_unused_component_bits(Anvil::Format              in_format,
-                                                       Anvil::ImageAspectFlagBits in_aspect,
-                                                       uint32_t*                  out_channel0_unused_bits_ptr,
-                                                       uint32_t*                  out_channel1_unused_bits_ptr,
-                                                       uint32_t*                  out_channel2_unused_bits_ptr,
-                                                       uint32_t*                  out_channel3_unused_bits_ptr);
+        static void get_format_n_unused_component_bits_yuv(Anvil::Format              in_format,
+                                                           Anvil::ImageAspectFlagBits in_aspect,
+                                                           uint32_t*                  out_channel0_unused_bits_ptr,
+                                                           uint32_t*                  out_channel1_unused_bits_ptr,
+                                                           uint32_t*                  out_channel2_unused_bits_ptr,
+                                                           uint32_t*                  out_channel3_unused_bits_ptr);
 
-        /* Returns a raw C string for specified format, or NULL if the format is unknown. */
+        /* Returns a raw C string for specified format, or NULL if the format is unknown.
+         *
+         * Both non-YUV and YUV formats are supported.
+         */
         static const char* get_format_name(Anvil::Format in_format);
 
-        /** Tells the format type used by @param in_format. */
+        /** Tells the format type used by @param in_format.
+         *
+         * Both non-YUV and YUV formats are supported.
+         */
         static FormatType get_format_type(Anvil::Format in_format);
 
         /** Returns the extent of subresource @param in_aspect with specified format @param in_format.
@@ -248,6 +291,7 @@ namespace Anvil
                                                 Anvil::ImageAspectFlagBits in_aspect,
                                                 VkExtent3D                 in_image_extent,
                                                 VkExtent3D*                out_plane_extent_ptr);
+
         /** Tells whether @param in_format includes a depth aspect.
          *
          *  NOTE: YUV KHR formats are NOT supported.
@@ -269,7 +313,10 @@ namespace Anvil
         /** Tells whether @param in_format is a KHR YUV format */
         static bool is_format_yuv_khr(Anvil::Format in_format);
 
-        /** Tells whether @param in_format is a packed format */
+        /** Tells whether @param in_format is a packed format.
+         *
+         * Both YUV and non-YUV formats are supported.
+         **/
         static bool is_format_packed(Anvil::Format in_format);
 
     private:

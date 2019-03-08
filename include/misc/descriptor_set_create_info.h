@@ -56,10 +56,15 @@ namespace Anvil
          *  It is an error to attempt to define immutable samplers for descriptors of type other than
          *  sampler or combined image+sampler.
          *
+         *  NOTE: For inline uniform block bindings, subsequent set_binding_item() call is NOT required.
+         *
          *  @param in_binding_index                 Index of the binding to configure.
          *  @param in_descriptor_type               Type of the descriptor to use for the binding.
          *  @param in_descriptor_array_size         Size of the descriptor array to use for the binding.
-         *  @param in_stage_flags                   Rendering stages which are going to use the binding.
+         *
+         *                                          For inline uniform blocks, this parameter corresponds to (number of bytes associated with the
+         *                                          block). This value MUST be divisible by 4.
+         *
          *  @param in_flags                         Please see documentation of Anvil::DescriptorBindingFlags for more details.
          *  @param in_opt_immutable_sampler_ptr_ptr If not nullptr, an array of @param in_descriptor_array_size samplers should
          *                                          be passed. The binding will then be considered immutable, as per spec language.
