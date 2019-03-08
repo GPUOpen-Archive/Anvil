@@ -27,8 +27,7 @@ include_directories(${Anvil_SOURCE_DIR}/include
 
 # Create the DynamicBuffers project.
 add_executable (DynamicBuffers include/app.h
-                                        include/app.h
-                                            src/app.cpp)
+                               src/app.cpp)
 
 # Add linking dependencies for the example projects
 add_dependencies     (DynamicBuffers Anvil)

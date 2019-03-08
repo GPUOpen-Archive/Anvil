@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2019 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,12 +20,6 @@
 // THE SOFTWARE.
 //
 
-/** Defines a command pool wrapper class which simplify the following tasks:
- *
- *  - Primary- and second-level command buffer allocation & resetting.
- *  - State caching
- *
- **/
 #ifndef WRAPPERS_COMMAND_POOL_H
 #define WRAPPERS_COMMAND_POOL_H
 
@@ -64,20 +58,16 @@ namespace Anvil
 
         /** Creates a new CommandPool object.
          *
-         *  @param in_device_ptr                     Device to create the command pool for. Must not be nullptr.
-         *  @param in_transient_allocations_friendly Set to true if the command pool should be created with the
-         *                                           VK_COMMAND_POOL_CREATE_TRANSIENT_BIT flag set on.
-         *  @param in_support_per_cmdbuf_reset_ops   Set to true if the command pool should be created with the
-         *                                           VK_COMMAND_POOL_RESET_COMMAND_BUFFER_BIT flag set on.
-         *  @param in_queue_family_index             Index of the Vulkan queue family the command pool should be created for.
-         *  @param in_mt_safe                        Enable if your application is going to be calling any of the
-         *                                           alloc_*() functions from more than one thread at a time.
+         *  @param in_device_ptr         Device to create the command pool for. Must not be nullptr.
+         *  @param in_create_flags       Create flags to use.
+         *  @param in_queue_family_index Index of the Vulkan queue family the command pool should be created for.
+         *  @param in_mt_safe            Enable if your application is going to be calling any of the
+         *                               alloc_*() functions from more than one thread at a time.
          **/
-        static CommandPoolUniquePtr create(Anvil::BaseDevice* in_device_ptr,
-                                           bool               in_transient_allocations_friendly,
-                                           bool               in_support_per_cmdbuf_reset_ops,
-                                           uint32_t           in_queue_family_index,
-                                           MTSafety           in_mt_safety = MTSafety::INHERIT_FROM_PARENT_DEVICE);
+        static CommandPoolUniquePtr create(Anvil::BaseDevice*                   in_device_ptr,
+                                           const Anvil::CommandPoolCreateFlags& in_create_flags,
+                                           uint32_t                             in_queue_family_index,
+                                           MTSafety                             in_mt_safety = MTSafety::INHERIT_FROM_PARENT_DEVICE);
 
         /** Retrieves the raw Vulkan handle for the encapsulated command pool */
         VkCommandPool get_command_pool() const
@@ -85,18 +75,16 @@ namespace Anvil
             return m_command_pool;
         }
 
+        /** Returns create flags specified at instantiaton time */
+        const Anvil::CommandPoolCreateFlags& get_create_flags() const
+        {
+            return m_create_flags;
+        }
+
         /** Tells which Vulkan queue family this command pool instance has been created for */
         uint32_t get_queue_family_index() const
         {
             return m_queue_family_index;
-        }
-
-        /** Tells whether the command pool has been created with VK_COMMAND_POOL_CREATE_TRANSIENT_BIT 
-         *  flag defined.
-         ***/
-        bool is_transient_allocations_friendly() const
-        {
-            return m_is_transient_allocations_friendly;
         }
 
         /** Reset the command pool.
@@ -107,12 +95,6 @@ namespace Anvil
          *  @return true if successful, false otherwise.
          **/
         bool reset(bool in_release_resources);
-
-        /** Tells whether the command buffers, allocated from this command pool, support reset operations */
-        bool supports_per_cmdbuf_reset_ops() const
-        {
-            return m_supports_per_cmdbuf_reset_ops;
-        }
 
         /* Trims the command buffer as per VK_KHR_maintenance1 extension spec.
          *
@@ -125,21 +107,19 @@ namespace Anvil
         /* Private functions */
 
         /* Please seee create() documentation for more details */
-        explicit CommandPool(Anvil::BaseDevice* in_device_ptr,
-                             bool               in_transient_allocations_friendly,
-                             bool               in_support_per_cmdbuf_reset_ops,
-                             uint32_t           in_queue_family_index,
-                             bool               in_mt_safe);
+        explicit CommandPool(Anvil::BaseDevice*                   in_device_ptr,
+                             const Anvil::CommandPoolCreateFlags& in_create_flags,
+                             uint32_t                             in_queue_family_index,
+                             bool                                 in_mt_safe);
 
         CommandPool           (const CommandPool&);
         CommandPool& operator=(const CommandPool&);
 
         /* Private variables */
-        VkCommandPool      m_command_pool;
-        Anvil::BaseDevice* m_device_ptr;
-        bool               m_is_transient_allocations_friendly;
-        uint32_t           m_queue_family_index;
-        bool               m_supports_per_cmdbuf_reset_ops;
+        VkCommandPool                 m_command_pool;
+        Anvil::CommandPoolCreateFlags m_create_flags;
+        Anvil::BaseDevice*            m_device_ptr;
+        uint32_t                      m_queue_family_index;
 
         friend class Anvil::CommandBufferBase;
     };

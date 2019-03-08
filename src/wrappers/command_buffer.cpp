@@ -79,9 +79,9 @@ Anvil::BeginQueryIndexedEXTCommand::BeginQueryIndexedEXTCommand(Anvil::QueryPool
 Anvil::BeginRenderPassCommand::BeginRenderPassCommand(uint32_t                                in_n_clear_values,
                                                       const VkClearValue*                     in_clear_value_ptrs,
                                                       Anvil::Framebuffer*                     in_fbo_ptr,
-                                                      uint32_t                                in_n_physical_devices,
-                                                      const Anvil::PhysicalDevice* const*     in_physical_devices,
-                                                      const VkRect2D*                         in_render_areas,
+                                                      uint32_t                                in_device_mask,
+                                                      uint32_t                                in_n_render_areas,
+                                                      const VkRect2D*                         in_render_areas_ptr,
                                                       Anvil::RenderPass*                      in_render_pass_ptr,
                                                       Anvil::SubpassContents                  in_contents,
                                                       const uint32_t&                         in_n_attachment_initial_sample_locations,
@@ -91,6 +91,7 @@ Anvil::BeginRenderPassCommand::BeginRenderPassCommand(uint32_t                  
     :Command(COMMAND_TYPE_BEGIN_RENDER_PASS)
 {
     contents        = in_contents;
+    device_mask     = in_device_mask;
     fbo_ptr         = in_fbo_ptr;
     render_pass_ptr = in_render_pass_ptr;
 
@@ -101,16 +102,16 @@ Anvil::BeginRenderPassCommand::BeginRenderPassCommand(uint32_t                  
         clear_values.push_back(in_clear_value_ptrs[n_clear_value]);
     }
 
-    for (uint32_t n_physical_device = 0;
-                  n_physical_device < in_n_physical_devices;
-                ++n_physical_device)
-    {
-        physical_devices.push_back(in_physical_devices[n_physical_device]);
-        render_areas.push_back    (in_render_areas    [n_physical_device]);
-    }
-
     attachment_initial_sample_locations.resize(in_n_attachment_initial_sample_locations);
     post_subpass_sample_locations.resize      (in_n_post_subpass_sample_locations);
+    render_areas.resize                       (in_n_render_areas);
+
+    for (uint32_t n_render_area = 0;
+                  n_render_area < in_n_render_areas;
+                ++n_render_area)
+    {
+        render_areas.at(n_render_area) = in_render_areas_ptr[n_render_area];
+    }
 
     for (uint32_t n_attachment = 0;
                   n_attachment < in_n_attachment_initial_sample_locations;
@@ -1494,7 +1495,7 @@ bool Anvil::CommandBufferBase::record_bind_pipeline(Anvil::PipelineBindPoint in_
         goto end;
     }
 
-    anvil_assert(in_pipeline_bind_point == Anvil::PipelineBindPoint::COMPUTE   ||
+    anvil_assert(in_pipeline_bind_point == Anvil::PipelineBindPoint::COMPUTE  ||
                  in_pipeline_bind_point == Anvil::PipelineBindPoint::GRAPHICS);
 
     pipeline_vk = (in_pipeline_bind_point == Anvil::PipelineBindPoint::COMPUTE) ? m_device_ptr->get_compute_pipeline_manager ()->get_pipeline(in_pipeline_id)
@@ -3480,7 +3481,6 @@ end:
     return result;
 }
 
-
 /* Please see header for specification */
 bool Anvil::CommandBufferBase::record_set_blend_constants(const float in_blend_constants[4])
 {
@@ -3613,7 +3613,7 @@ bool Anvil::CommandBufferBase::record_set_device_mask_KHR(uint32_t in_device_mas
     }
 
     anvil_assert(m_device_ptr->get_extension_info()->khr_device_group() );
-
+    anvil_assert(in_device_mask != 0);
 
     #ifdef STORE_COMMAND_BUFFER_COMMANDS
     {
@@ -3626,20 +3626,14 @@ bool Anvil::CommandBufferBase::record_set_device_mask_KHR(uint32_t in_device_mas
 
     if (m_is_renderpass_active)
     {
-        for (uint32_t n_device = 0;
-                      n_device < sizeof(uint32_t);
-                    ++n_device)
+        if ((m_renderpass_device_mask & in_device_mask) != in_device_mask)
         {
-            if (!(m_renderpass_device_mask & (1 << n_device)) &&
-                 (m_device_mask            & (1 << n_device)) )
-            {
-                /* It is illegal to try to activate a device which has not been enabled
-                 * for the renderpass.
-                 */
-                anvil_assert_fail();
+            /* It is illegal to try to activate a device which has not been enabled
+             * for the renderpass.
+             */
+            anvil_assert_fail();
 
-                goto end;
-            }
+            goto end;
         }
     }
 
@@ -4349,8 +4343,8 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass(uint32_t             
     return record_begin_render_pass(in_n_clear_values,
                                     in_clear_value_ptrs,
                                     in_fbo_ptr,
-                                    0,       /* in_n_physical_devices   */
-                                    nullptr, /* in_physical_devices_ptr */
+                                    0,       /* in_device_mask   */
+                                    1,       /* in_n_render_areas */
                                    &in_render_area,
                                     in_render_pass_ptr,
                                     in_contents,
@@ -4364,9 +4358,9 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass(uint32_t             
 bool Anvil::PrimaryCommandBuffer::record_begin_render_pass(uint32_t                                in_n_clear_values,
                                                            const VkClearValue*                     in_clear_value_ptrs,
                                                            Anvil::Framebuffer*                     in_fbo_ptr,
-                                                           uint32_t                                in_n_physical_devices,
-                                                           const Anvil::PhysicalDevice* const*     in_physical_devices,
-                                                           const VkRect2D*                         in_render_areas,
+                                                           uint32_t                                in_device_mask,
+                                                           uint32_t                                in_n_render_areas,
+                                                           const VkRect2D*                         in_render_areas_ptr,
                                                            Anvil::RenderPass*                      in_render_pass_ptr,
                                                            Anvil::SubpassContents                  in_contents,
                                                            const uint32_t&                         in_opt_n_attachment_initial_sample_locations,
@@ -4378,9 +4372,9 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass(uint32_t             
                                              in_n_clear_values,
                                              in_clear_value_ptrs,
                                              in_fbo_ptr,
-                                             in_n_physical_devices,
-                                             in_physical_devices,
-                                             in_render_areas,
+                                             in_device_mask,
+                                             in_n_render_areas,
+                                             in_render_areas_ptr,
                                              in_render_pass_ptr,
                                              in_contents,
                                              in_opt_n_attachment_initial_sample_locations,
@@ -4404,8 +4398,8 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass2_KHR(uint32_t        
     return record_begin_render_pass2_KHR(in_n_clear_values,
                                          in_clear_value_ptrs,
                                          in_fbo_ptr,
-                                         0,       /* in_n_physical_devices   */
-                                         nullptr, /* in_physical_devices_ptr */
+                                         0,       /* in_device_mask   */
+                                         1,       /* in_n_render_areas */
                                         &in_render_area,
                                          in_render_pass_ptr,
                                          in_contents,
@@ -4419,9 +4413,9 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass2_KHR(uint32_t        
 bool Anvil::PrimaryCommandBuffer::record_begin_render_pass2_KHR(uint32_t                                in_n_clear_values,
                                                                 const VkClearValue*                     in_clear_value_ptrs,
                                                                 Anvil::Framebuffer*                     in_fbo_ptr,
-                                                                uint32_t                                in_n_physical_devices,
-                                                                const Anvil::PhysicalDevice* const*     in_physical_devices,
-                                                                const VkRect2D*                         in_render_areas,
+                                                                uint32_t                                in_device_mask,
+                                                                uint32_t                                in_n_render_areas,
+                                                                const VkRect2D*                         in_render_areas_ptr,
                                                                 Anvil::RenderPass*                      in_render_pass_ptr,
                                                                 Anvil::SubpassContents                  in_contents,
                                                                 const uint32_t&                         in_opt_n_attachment_initial_sample_locations,
@@ -4435,9 +4429,9 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass2_KHR(uint32_t        
                                              in_n_clear_values,
                                              in_clear_value_ptrs,
                                              in_fbo_ptr,
-                                             in_n_physical_devices,
-                                             in_physical_devices,
-                                             in_render_areas,
+                                             in_device_mask,
+                                             in_n_render_areas,
+                                             in_render_areas_ptr,
                                              in_render_pass_ptr,
                                              in_contents,
                                              in_opt_n_attachment_initial_sample_locations,
@@ -4451,9 +4445,9 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass_internal(const bool& 
                                                                     uint32_t                                in_n_clear_values,
                                                                     const VkClearValue*                     in_clear_value_ptrs,
                                                                     Anvil::Framebuffer*                     in_fbo_ptr,
-                                                                    uint32_t                                in_n_physical_devices,
-                                                                    const Anvil::PhysicalDevice* const*     in_physical_devices,
-                                                                    const VkRect2D*                         in_render_areas,
+                                                                    uint32_t                                in_device_mask,
+                                                                    uint32_t                                in_n_render_areas,
+                                                                    const VkRect2D*                         in_render_areas_ptr,
                                                                     Anvil::RenderPass*                      in_render_pass_ptr,
                                                                     Anvil::SubpassContents                  in_contents,
                                                                     const uint32_t&                         in_opt_n_attachment_initial_sample_locations,
@@ -4480,19 +4474,6 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass_internal(const bool& 
         goto end;
     }
 
-    if (in_n_physical_devices == 0                              &&
-        device_type           == Anvil::DeviceType::SINGLE_GPU)
-    {
-        const Anvil::PhysicalDevice* physical_device_ptr;
-        const Anvil::SGPUDevice*     sgpu_device_ptr(dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr) );
-
-        anvil_assert(sgpu_device_ptr != nullptr); /* User attempted to call this function prototype with in_n_physical_devices set to 0 */
-
-        physical_device_ptr   = sgpu_device_ptr->get_physical_device();
-        in_n_physical_devices = 1;
-        in_physical_devices   = &physical_device_ptr;
-    }
-
     #ifdef STORE_COMMAND_BUFFER_COMMANDS
     {
         if (!m_command_stashing_disabled)
@@ -4502,9 +4483,9 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass_internal(const bool& 
                 m_commands.push_back(BeginRenderPass2KHRCommand(in_n_clear_values,
                                                                 in_clear_value_ptrs,
                                                                 in_fbo_ptr,
-                                                                in_n_physical_devices,
-                                                                in_physical_devices,
-                                                                in_render_areas,
+                                                                in_device_mask,
+                                                                in_n_render_areas,
+                                                                in_render_areas_ptr,
                                                                 in_render_pass_ptr,
                                                                 in_contents,
                                                                 in_opt_n_attachment_initial_sample_locations,
@@ -4517,9 +4498,9 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass_internal(const bool& 
                 m_commands.push_back(BeginRenderPassCommand(in_n_clear_values,
                                                             in_clear_value_ptrs,
                                                             in_fbo_ptr,
-                                                            in_n_physical_devices,
-                                                            in_physical_devices,
-                                                            in_render_areas,
+                                                            in_device_mask,
+                                                            in_n_render_areas,
+                                                            in_render_areas_ptr,
                                                             in_render_pass_ptr,
                                                             in_contents,
                                                             in_opt_n_attachment_initial_sample_locations,
@@ -4531,7 +4512,7 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass_internal(const bool& 
     }
     #endif
 
-    anvil_assert(in_render_areas != nullptr);
+    anvil_assert(in_render_areas_ptr != nullptr);
 
     {
         VkRenderPassBeginInfo render_pass_begin_info;
@@ -4540,7 +4521,7 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass_internal(const bool& 
         render_pass_begin_info.framebuffer     = in_fbo_ptr->get_framebuffer(in_render_pass_ptr);
         render_pass_begin_info.pClearValues    = in_clear_value_ptrs;
         render_pass_begin_info.pNext           = nullptr;
-        render_pass_begin_info.renderArea      = in_render_areas[0];
+        render_pass_begin_info.renderArea      = in_render_areas_ptr[0];
         render_pass_begin_info.renderPass      = in_render_pass_ptr->get_render_pass();
         render_pass_begin_info.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 
@@ -4551,18 +4532,11 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass_internal(const bool& 
     {
         VkDeviceGroupRenderPassBeginInfoKHR render_pass_device_group_begin_info;
 
-        render_pass_device_group_begin_info.deviceMask            = 0;
-        render_pass_device_group_begin_info.deviceRenderAreaCount = in_n_physical_devices;
-        render_pass_device_group_begin_info.pDeviceRenderAreas    = in_render_areas;
+        render_pass_device_group_begin_info.deviceMask            = in_device_mask;
+        render_pass_device_group_begin_info.deviceRenderAreaCount = in_n_render_areas;
+        render_pass_device_group_begin_info.pDeviceRenderAreas    = in_render_areas_ptr;
         render_pass_device_group_begin_info.pNext                 = nullptr;
         render_pass_device_group_begin_info.sType                 = VK_STRUCTURE_TYPE_DEVICE_GROUP_RENDER_PASS_BEGIN_INFO_KHR;
-
-        for (uint32_t n_physical_device = 0;
-                      n_physical_device < in_n_physical_devices;
-                    ++n_physical_device)
-        {
-            render_pass_device_group_begin_info.deviceMask |= (1 << in_physical_devices[n_physical_device]->get_device_group_device_index() );
-        }
 
         render_pass_begin_info_chain.append_struct(render_pass_device_group_begin_info);
 

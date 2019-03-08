@@ -37,7 +37,7 @@ namespace Anvil
          *
          * - MGPU present mode flags: Anvil::DeviceGroupPresentModeFlagBits::LOCAL_BIT_KHR
          * - MT safety:               Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
-         * - Swapchain create flags:  0
+         * - Swapchain create flags:  None
          *
          * To modify these, use corresponding set_..() functions.
          */
@@ -60,6 +60,15 @@ namespace Anvil
         Anvil::ColorSpaceKHR get_color_space() const
         {
             return m_color_space;
+        }
+
+        void get_view_format_list(const Anvil::Format** out_compatible_formats_ptr,
+                                  uint32_t*             out_n_compatible_formats_ptr) const
+        {
+            anvil_assert(m_compatible_formats.size() > 0);
+
+            *out_compatible_formats_ptr   = &m_compatible_formats.at(0);
+            *out_n_compatible_formats_ptr = static_cast<uint32_t>   (m_compatible_formats.size() );
         }
 
         /** Returns device instance which has been used to create the swapchain */
@@ -139,6 +148,10 @@ namespace Anvil
             m_device_ptr = in_device_ptr;
         }
 
+        /* NOTE: If @param in_flags includes SwapchainCreateFlagBits::CREATE_MUTABLE_FORMAT_BIT, you must
+         *       also call set_view_format_list() in order to specify the list of compatible formats BEFORE
+         *       passing the create info struct to swapchain create function.
+         */
         void set_flags(const Anvil::SwapchainCreateFlags& in_flags)
         {
             m_flags = in_flags;
@@ -184,6 +197,19 @@ namespace Anvil
             m_usage_flags = in_new_usage_flags;
         }
 
+        /* Caches a list of image formats the created swapchain needs to be able to support.
+         *
+         * If SwapchainCreateFlagBits::CREATE_MUTABLE_FORMAT_BIT create flag has not been specified via set_flags(), it will
+         * be force-set by the function.
+         *
+         * @param in_compatible_formats_ptr Array of formats swapchain images need to support for image view usage. Must not be nullptr.
+         * @param in_n_compatible_formats   Size of @param in_compatible_Formats_ptr array. Must be larger than 0.
+         *
+         * Requires VK_KHR_swapchain_mutable_format extension support.
+         */
+        void set_view_format_list(const Anvil::Format* in_compatible_formats_ptr,
+                                  const uint32_t&      in_n_compatible_formats);
+
         void set_window(Anvil::Window* in_window_ptr)
         {
             m_window_ptr = in_window_ptr;
@@ -211,6 +237,7 @@ namespace Anvil
 
         bool                               m_clipped;
         Anvil::ColorSpaceKHR               m_color_space;
+        std::vector<Anvil::Format>         m_compatible_formats;
         const Anvil::BaseDevice*           m_device_ptr;
         Anvil::SwapchainCreateFlags        m_flags;
         Anvil::Format                      m_format;

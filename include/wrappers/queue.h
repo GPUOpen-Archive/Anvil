@@ -97,9 +97,7 @@ namespace Anvil
 
         /** Initializes a new Vulkan queue instance.
          *
-         *  After construction, set_swapchain() should be called individually
-         *  to assign a swapchain to the queue. This is necessary in order for
-         *  present() calls to work correctly.
+         *  NOTE: This function must only be used by Anvil::*Device!
          *
          *  @param in_device_ptr         Device to retrieve the queue from.
          *  @param in_queue_family_index Index of the queue family to retrieve the queue from.
@@ -107,11 +105,14 @@ namespace Anvil
          *  @param in_mt_safe            True if queue submissions should be protected by a mutex, guaranteeing
          *                               no more than one thread at a time will ever submit a cmd buffer to the
          *                               same cmd queue.
+         *  @param in_global_priority    Global priority of the new queue. Setting this value to anything else than Anvil::QueueGlobalPriority::MEDIUM_EXT
+         *                               requires VK_EXT_queue_global_priority support.
          **/
-        static std::unique_ptr<Anvil::Queue> create(const Anvil::BaseDevice* in_device_ptr,
-                                                    uint32_t                 in_queue_family_index,
-                                                    uint32_t                 in_queue_index,
-                                                    bool                     in_mt_safe);
+        static std::unique_ptr<Anvil::Queue> create(const Anvil::BaseDevice*          in_device_ptr,
+                                                    uint32_t                          in_queue_family_index,
+                                                    uint32_t                          in_queue_index,
+                                                    bool                              in_mt_safe,
+                                                    const Anvil::QueueGlobalPriority& in_global_priority = Anvil::QueueGlobalPriority::MEDIUM_EXT);
 
         /** Destructor */
         virtual ~Queue();
@@ -156,6 +157,15 @@ namespace Anvil
         uint32_t get_queue_family_index() const
         {
             return m_queue_family_index;
+        }
+
+        /** Retrieves global priority used to create the queue.
+         *
+         *  Only meaningful if VK_EXT_queue_global_priority if supported.
+         */
+        const Anvil::QueueGlobalPriority& get_queue_global_priority() const
+        {
+            return m_queue_global_priority;
         }
 
         /** Retrieves index of the queue */
@@ -270,6 +280,12 @@ namespace Anvil
 
         bool submit(const SubmitInfo& in_submit_info);
 
+        /** Tells whether the queue supports protected memory operations */
+        bool supports_protected_memory_operations() const
+        {
+            return m_supports_protected_memory_operations;
+        }
+
         /** Tells whether the queue supports sparse bindings */
         bool supports_sparse_bindings() const
         {
@@ -314,22 +330,25 @@ namespace Anvil
                                                 bool                                  in_should_lock);
 
         /* Constructor. Please see create() for specification */
-        Queue(const Anvil::BaseDevice* in_device_ptr,
-              uint32_t                 in_queue_family_index,
-              uint32_t                 in_queue_index,
-              bool                     in_mt_safe);
+        Queue(const Anvil::BaseDevice*          in_device_ptr,
+              uint32_t                          in_queue_family_index,
+              uint32_t                          in_queue_index,
+              bool                              in_mt_safe,
+              const Anvil::QueueGlobalPriority& in_global_priority);
 
         Queue          (const Queue&);
         Queue operator=(const Queue&);
 
         /* Private variables */
-        const Anvil::BaseDevice* m_device_ptr;
-        uint32_t                 m_n_debug_label_regions_started;
-        VkQueue                  m_queue;
-        uint32_t                 m_queue_family_index;
-        uint32_t                 m_queue_index;
-        Anvil::FenceUniquePtr    m_submit_fence_ptr;
-        bool                     m_supports_sparse_bindings;
+        const Anvil::BaseDevice*         m_device_ptr;
+        uint32_t                         m_n_debug_label_regions_started;
+        VkQueue                          m_queue;
+        const uint32_t                   m_queue_family_index;
+        const Anvil::QueueGlobalPriority m_queue_global_priority;
+        const uint32_t                   m_queue_index;
+        Anvil::FenceUniquePtr            m_submit_fence_ptr;
+        bool                             m_supports_protected_memory_operations;
+        bool                             m_supports_sparse_bindings;
     };
 }; /* namespace Anvil */
 

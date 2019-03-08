@@ -27,11 +27,10 @@ include_directories(${Anvil_SOURCE_DIR}/include
                    
 # Create the OcclusionQuery project.
 add_executable (OcclusionQuery include/app.h
-                                        include/app.h
-                                            src/app.cpp)
+                               src/app.cpp)
 
 # Add linking dependencies for the example projects
-add_dependencies     (OcclusionQuery Anvil)
+add_dependencies(OcclusionQuery Anvil)
 
 if (WIN32)
     target_link_libraries(OcclusionQuery Anvil)

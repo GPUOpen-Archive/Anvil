@@ -51,6 +51,7 @@ INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::QueueFlags,                   
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::QueryControlFlags,                VkQueryControlFlags,                   Anvil::QueryControlFlagBits);
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::QueryPipelineStatisticFlags,      VkQueryPipelineStatisticFlags,         Anvil::QueryPipelineStatisticFlagBits);
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::QueryResultFlags,                 VkQueryResultFlags,                    Anvil::QueryResultFlagBits);
+INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::ResolveModeFlags,                 VkResolveModeFlagsKHR,                 Anvil::ResolveModeFlagBits);
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::SampleCountFlags,                 VkSampleCountFlags,                    Anvil::SampleCountFlagBits);
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::ShaderStageFlags,                 VkShaderStageFlags,                    Anvil::ShaderStageFlagBits);
 INJECT_BITFIELD_HELPER_FUNC_IMPLEMENTATION(Anvil::SparseImageFormatFlags,           VkSparseImageFormatFlags,              Anvil::SparseImageFormatFlagBits);

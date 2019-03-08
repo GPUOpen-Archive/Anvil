@@ -134,11 +134,13 @@ namespace Anvil
          *                           which should be used. This mode is NOT supported if ANVIL_LINK_WITH_GLSLANG
          *                           macro is undefined.
          *  @param in_shader_stage   Shader stage described by the file.
+         *  @param in_spirv_version  Target SPIR-V version.
          **/
          static Anvil::GLSLShaderToSPIRVGeneratorUniquePtr create(const Anvil::BaseDevice* in_opt_device_ptr,
                                                                   const Mode&              in_mode,
                                                                   std::string              in_data,
-                                                                  ShaderStage              in_shader_stage);
+                                                                  ShaderStage              in_shader_stage,
+                                                                  SpvVersion               in_spirv_version = SpvVersion::_1_0);
 
          /** Destructor. Releases all created Vulkan objects, as well as the SPIR-V blob data. */
          ~GLSLShaderToSPIRVGenerator();
@@ -358,7 +360,8 @@ namespace Anvil
         explicit GLSLShaderToSPIRVGenerator(const Anvil::BaseDevice* in_device_ptr,
                                             const Mode&              in_mode,
                                             std::string              in_data,
-                                            ShaderStage              in_shader_stage);
+                                            ShaderStage              in_shader_stage,
+                                            SpvVersion               in_spirv_version);
 
         bool bake_glsl_source_code() const;
 
@@ -386,6 +389,7 @@ namespace Anvil
         mutable bool        m_glsl_source_code_dirty;
 
         ShaderStage               m_shader_stage;
+        SpvVersion                m_spirv_version;
         mutable std::vector<char> m_spirv_blob;
 
         DefinitionNameToValueMap            m_definition_values;
