@@ -27,8 +27,7 @@ include_directories(${Anvil_SOURCE_DIR}/include
 
 # Create the MultiViewport project.
 add_executable (MultiViewport include/app.h
-                                        include/app.h
-                                            src/app.cpp)
+                              src/app.cpp)
 
 # Add linking dependencies for the example projects
 add_dependencies(MultiViewport Anvil)

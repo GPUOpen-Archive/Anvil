@@ -119,12 +119,14 @@ namespace Anvil
     class  DebugMessenger;
     class  DebugMessengerCreateInfo;
     class  DescriptorPool;
+    class  DescriptorPoolCreateInfo;
     class  DescriptorSet;
     class  DescriptorSetCreateInfo;
     class  DescriptorSetGroup;
     class  DescriptorSetLayout;
     class  DescriptorSetLayoutManager;
     class  DescriptorUpdateTemplate;
+    class  DeviceCreateInfo;
     class  ExternalHandle;
     class  Event;
     class  EventCreateInfo;
@@ -156,10 +158,13 @@ namespace Anvil
     class  QueryPool;
     class  Queue;
     class  RenderingSurface;
+    class  RenderingSurfaceCreateInfo;
     class  RenderPass;
     class  RenderPassCreateInfo;
     class  Sampler;
     class  SamplerCreateInfo;
+    class  SamplerYCbCrConversion;
+    class  SamplerYCbCrConversionCreateInfo;
     class  SecondaryCommandBuffer;
     class  Semaphore;
     class  SemaphoreCreateInfo;
@@ -181,6 +186,7 @@ namespace Anvil
     typedef std::unique_ptr<ComputePipelineCreateInfo>                                                                 ComputePipelineCreateInfoUniquePtr;
     typedef std::unique_ptr<DebugMessengerCreateInfo>                                                                  DebugMessengerCreateInfoUniquePtr;
     typedef std::unique_ptr<DebugMessenger,                        std::function<void(DebugMessenger*)> >              DebugMessengerUniquePtr;
+    typedef std::unique_ptr<DescriptorPoolCreateInfo>                                                                  DescriptorPoolCreateInfoUniquePtr;
     typedef std::unique_ptr<DescriptorPool,                        std::function<void(DescriptorPool*)> >              DescriptorPoolUniquePtr;
     typedef std::unique_ptr<DescriptorSetCreateInfo>                                                                   DescriptorSetCreateInfoUniquePtr;
     typedef std::unique_ptr<DescriptorSetGroup,                    std::function<void(DescriptorSetGroup*)> >          DescriptorSetGroupUniquePtr;
@@ -188,6 +194,7 @@ namespace Anvil
     typedef std::unique_ptr<DescriptorSetLayoutManager,            std::function<void(DescriptorSetLayoutManager*)> >  DescriptorSetLayoutManagerUniquePtr;
     typedef std::unique_ptr<DescriptorSet,                         std::function<void(DescriptorSet*)> >               DescriptorSetUniquePtr;
     typedef std::unique_ptr<DescriptorUpdateTemplate,              std::function<void(DescriptorUpdateTemplate*)> >    DescriptorUpdateTemplateUniquePtr;
+    typedef std::unique_ptr<DeviceCreateInfo>                                                                          DeviceCreateInfoUniquePtr;
     typedef std::unique_ptr<ExternalHandle,                        std::function<void(ExternalHandle*)> >              ExternalHandleUniquePtr;
     typedef std::unique_ptr<EventCreateInfo>                                                                           EventCreateInfoUniquePtr;
     typedef std::unique_ptr<Event,                                 std::function<void(Event*)> >                       EventUniquePtr;
@@ -214,10 +221,13 @@ namespace Anvil
     typedef std::unique_ptr<PrimaryCommandBuffer,                  std::function<void(PrimaryCommandBuffer*)> >        PrimaryCommandBufferUniquePtr;
     typedef std::unique_ptr<QueryPool,                             std::function<void(QueryPool*)> >                   QueryPoolUniquePtr;
     typedef std::unique_ptr<RenderingSurface,                      std::function<void(RenderingSurface*)> >            RenderingSurfaceUniquePtr;
+    typedef std::unique_ptr<RenderingSurfaceCreateInfo>                                                                RenderingSurfaceCreateInfoUniquePtr;
     typedef std::unique_ptr<RenderPassCreateInfo>                                                                      RenderPassCreateInfoUniquePtr;
     typedef std::unique_ptr<RenderPass,                            std::function<void(RenderPass*)> >                  RenderPassUniquePtr;
     typedef std::unique_ptr<SamplerCreateInfo>                                                                         SamplerCreateInfoUniquePtr;
     typedef std::unique_ptr<Sampler,                               std::function<void(Sampler*)> >                     SamplerUniquePtr;
+    typedef std::unique_ptr<SamplerYCbCrConversionCreateInfo>                                                          SamplerYCbCrConversionCreateInfoUniquePtr;
+    typedef std::unique_ptr<SamplerYCbCrConversion,                std::function<void(SamplerYCbCrConversion*)> >      SamplerYCbCrConversionUniquePtr;
     typedef std::unique_ptr<SecondaryCommandBuffer,                std::function<void(SecondaryCommandBuffer*)> >      SecondaryCommandBufferUniquePtr;
     typedef std::unique_ptr<SemaphoreCreateInfo>                                                                       SemaphoreCreateInfoUniquePtr;
     typedef std::unique_ptr<Semaphore,                             std::function<void(Semaphore*)> >                   SemaphoreUniquePtr;

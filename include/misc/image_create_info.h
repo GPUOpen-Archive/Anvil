@@ -38,7 +38,7 @@ namespace Anvil
         }
 
         /** Returns an instance of the "create info" item which can be used to instantiate a new Image
-         *  instance *WITH* a memory backing. 
+         *  instance *WITH* a memory backing.
          *
          *  This constructor assumes the image should be initialized in UNDEFINED layout, if no mipmap data
          *  is specified, or PREINITIALIZED otherwise. In the latter case, it will then proceed with filling
@@ -270,12 +270,12 @@ namespace Anvil
             return m_n_layers;
         }
 
-        const std::vector<const Anvil::PhysicalDevice*> get_physical_devices() const
+        const std::vector<uint32_t> get_device_indices() const
         {
             anvil_assert(m_internal_type == Anvil::ImageInternalType::PEER_NO_ALLOC     ||
                          m_internal_type == Anvil::ImageInternalType::SWAPCHAIN_WRAPPER);
 
-            return m_physical_devices;
+            return m_device_indices;
         }
 
         const Anvil::ImageLayout& get_post_alloc_image_layout() const
@@ -310,6 +310,11 @@ namespace Anvil
         const Anvil::SharingMode& get_sharing_mode() const
         {
             return m_sharing_mode;
+        }
+
+        const Anvil::ImageUsageFlags& get_stencil_image_aspect_usage() const
+        {
+            return m_usage_flags_stencil;
         }
 
         const Anvil::Swapchain* get_swapchain() const
@@ -438,17 +443,13 @@ namespace Anvil
             m_sample_count = in_sample_count;
         }
 
-        void set_physical_devices(const uint32_t&                     in_n_physical_devices,
-                                  const Anvil::PhysicalDevice* const* in_physical_devices_ptr)
+        void set_device_indices(const uint32_t& in_device_index_count,
+                                const uint32_t* in_devices_indices_ptr)
         {
-            m_physical_devices.clear();
-
-            for (uint32_t n_physical_device = 0;
-                          n_physical_device < in_n_physical_devices;
-                        ++n_physical_device)
-            {
-                m_physical_devices.push_back(in_physical_devices_ptr[n_physical_device]);
-            }
+            m_device_indices.clear();
+            m_device_indices.insert(m_device_indices.begin(),
+                                    in_devices_indices_ptr,
+                                    in_devices_indices_ptr + in_device_index_count);
         }
 
         void set_SFR_rectangles(const uint32_t& in_n_SFR_rects,
@@ -467,6 +468,17 @@ namespace Anvil
         void set_sharing_mode(const Anvil::SharingMode& in_sharing_mode)
         {
             m_sharing_mode = in_sharing_mode;
+        }
+
+        /* Use this function to specify usage patterns for the stencil part of the image which is about to be created.
+         * As per VK_EXT_separate_stencil_usage, various restrictions apply, amongst which the most important is that
+         * @param in_usage has to be a subset of the usage flags specified globally for the image.
+         *
+         * Requires VK_EXT_separate_stencil_usage.
+         */
+        void set_stencil_image_aspect_usage(const Anvil::ImageUsageFlags& in_usage)
+        {
+            m_usage_flags_stencil = in_usage;
         }
 
         void set_swapchain(const Anvil::Swapchain* in_swapchain_ptr)
@@ -512,7 +524,7 @@ namespace Anvil
                         Anvil::ImageType                     in_type_vk,
                         Anvil::Format                        in_format,
                         Anvil::ImageTiling                   in_tiling,
-                        Anvil::SharingMode                   in_sharing_mode, 
+                        Anvil::SharingMode                   in_sharing_mode,
                         ImageUsageFlags                      in_usage,
                         uint32_t                             in_base_mipmap_width,
                         uint32_t                             in_base_mipmap_height,
@@ -551,12 +563,13 @@ namespace Anvil
         Anvil::ImageTiling                   m_tiling;
         const Anvil::ImageType               m_type_vk;
         ImageUsageFlags                      m_usage_flags;
+        ImageUsageFlags                      m_usage_flags_stencil;
         bool                                 m_use_full_mipmap_chain;
         uint32_t                             m_width;
 
         /* Only used for peer images */
-        std::vector<const Anvil::PhysicalDevice*> m_physical_devices;
-        std::vector<VkRect2D>                     m_sfr_rects;
+        std::vector<uint32_t>   m_device_indices;
+        std::vector<VkRect2D>   m_sfr_rects;
 
         /* Only used for swapchain wrapper images */
         uint32_t                m_n_swapchain_image;

@@ -36,6 +36,7 @@
 #include "misc/instance_create_info.h"
 #include "misc/object_tracker.h"
 #include "misc/render_pass_create_info.h"
+#include "misc/rendering_surface_create_info.h"
 #include "misc/semaphore_create_info.h"
 #include "misc/swapchain_create_info.h"
 #include "misc/time.h"
@@ -867,9 +868,13 @@ void App::init_shaders()
 
 void App::init_swapchain()
 {
-    m_rendering_surface_ptr = Anvil::RenderingSurface::create(m_instance_ptr.get(),
-                                                              m_device_ptr.get  (),
-                                                              m_window_ptr.get  () );
+    {
+        auto create_info_ptr = Anvil::RenderingSurfaceCreateInfo::create(m_instance_ptr.get(),
+                                                                         m_device_ptr.get  (),
+                                                                         m_window_ptr.get  () );
+
+        m_rendering_surface_ptr = Anvil::RenderingSurface::create(std::move(create_info_ptr) );
+    }
 
     m_rendering_surface_ptr->set_name("Main rendering surface");
 
@@ -942,12 +947,16 @@ void App::init_vulkan()
     m_physical_device_ptr = m_instance_ptr->get_physical_device(0);
 
     /* Create a Vulkan device */
-    m_device_ptr = Anvil::SGPUDevice::create(m_physical_device_ptr,
-                                             true,                       /* in_enable_shader_module_cache           */
-                                             Anvil::DeviceExtensionConfiguration(),
-                                             std::vector<std::string>(), /* in_layers                               */
-                                             false,                      /* in_transient_command_buffer_allocs_only */
-                                             false);                     /* in_support_resettable_command_buffers   */
+    {
+        auto create_info_ptr = Anvil::DeviceCreateInfo::create_sgpu(m_physical_device_ptr,
+                                                                    true,                       /* in_enable_shader_module_cache */
+                                                                    Anvil::DeviceExtensionConfiguration(),
+                                                                    std::vector<std::string>(), /* in_layers */
+                                                                    Anvil::CommandPoolCreateFlagBits::NONE,
+                                                                    false);                     /* in_mt_safe */
+
+        m_device_ptr = Anvil::SGPUDevice::create(std::move(create_info_ptr) );
+    }
 }
 
 void App::on_validation_callback(Anvil::DebugMessageSeverityFlags in_severity,
@@ -967,7 +976,7 @@ void App::run()
 }
 
 
-int main()
+int main(int argc, char *argv[])
 {
     std::unique_ptr<App> app_ptr(new App() );
 

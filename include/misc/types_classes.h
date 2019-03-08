@@ -129,6 +129,9 @@ namespace Anvil
          *  @param in_opt_memory_block_start_offset   Start offset of the source memory region. Ignored if
          *                                            @param in_opt_memory_block_ptr is NULL.
          *  @param in_opt_memory_block_owned_by_image TODO
+         *  @param in_n_plane                         Index of the image plane to use for the binding. Must be 0 for joint YUV
+         *                                            and non-YUV images. For disjoint YUV images, must be a value between 0 and 2
+         *                                            inclusive.
          **/
         void append_opaque_image_memory_update(SparseMemoryBindInfoID       in_bind_info_id,
                                                Anvil::Image*                in_image_ptr,
@@ -137,7 +140,8 @@ namespace Anvil
                                                Anvil::SparseMemoryBindFlags in_flags,
                                                Anvil::MemoryBlock*          in_opt_memory_block_ptr,
                                                VkDeviceSize                 in_opt_memory_block_start_offset,
-                                               bool                         in_opt_memory_block_owned_by_image);
+                                               bool                         in_opt_memory_block_owned_by_image,
+                                               uint32_t                     in_n_plane);
 
         /** Retrieves bind info properties.
          *
@@ -276,6 +280,8 @@ namespace Anvil
          *  @param out_opt_memory_block_start_offset_ptr   If not NULL, deref will be set to the start offset of the memory block, which
          *                                                 should be used for the binding operation. Otherwise ignored.
          *  @param out_opt_memory_block_owned_by_image_ptr TODO
+         *  @param out_opt_n_plane_ptr                     If not NULL, deref will be set to index of the image plane to use for the binding
+         *                                                 operation. Otherwise ignored.
          *
          *  @return true if successful, false otherwise.
          */
@@ -287,7 +293,8 @@ namespace Anvil
                                                        Anvil::SparseMemoryBindFlags* out_opt_flags_ptr,
                                                        Anvil::MemoryBlock**          out_opt_memory_block_ptr_ptr,
                                                        VkDeviceSize*                 out_opt_memory_block_start_offset_ptr,
-                                                       bool*                         out_opt_memory_block_owned_by_image_ptr) const;
+                                                       bool*                         out_opt_memory_block_owned_by_image_ptr,
+                                                       uint32_t*                     out_opt_n_plane_ptr) const;
 
         /** Tells how many bind info items have been assigned to the descriptor */
         uint32_t get_n_bind_info_items() const
@@ -331,11 +338,12 @@ namespace Anvil
         /* Private type definitions */
         typedef struct GeneralBindInfo
         {
-            VkDeviceSize        start_offset;
             bool                memory_block_owned_by_target;
             Anvil::MemoryBlock* memory_block_ptr;
             VkDeviceSize        memory_block_start_offset;
+            uint32_t            n_plane;
             VkDeviceSize        size;
+            VkDeviceSize        start_offset;
 
             SparseMemoryBindFlags flags;
 
@@ -343,16 +351,20 @@ namespace Anvil
             {
                 memory_block_owned_by_target = false;
                 memory_block_ptr             = nullptr;
+                memory_block_start_offset    = 0;
+                n_plane                      = 0;
+                size                         = 0;
+                start_offset                 = 0;
             }
         } GeneralBindInfo;
 
         typedef struct ImageBindInfo
         {
             VkExtent3D              extent;
-            VkOffset3D              offset;
             bool                    memory_block_owned_by_image;
             Anvil::MemoryBlock*     memory_block_ptr;
             VkDeviceSize            memory_block_start_offset;
+            VkOffset3D              offset;
             Anvil::ImageSubresource subresource;
 
             SparseMemoryBindFlags flags;

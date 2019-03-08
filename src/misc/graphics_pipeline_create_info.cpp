@@ -35,6 +35,7 @@ Anvil::GraphicsPipelineCreateInfo::GraphicsPipelineCreateInfo(const RenderPass* 
     m_depth_bias_slope_factor              = 1.0f;
     m_depth_bounds_test_enabled            = false;
     m_depth_clamp_enabled                  = false;
+    m_depth_clip_enabled                   = true;
     m_depth_test_compare_op                = Anvil::CompareOp::ALWAYS;
     m_depth_test_enabled                   = false;
     m_depth_writes_enabled                 = false;
@@ -70,6 +71,9 @@ Anvil::GraphicsPipelineCreateInfo::GraphicsPipelineCreateInfo(const RenderPass* 
     m_sample_location_grid_size.width  = 0;
 
     m_rasterization_order = Anvil::RasterizationOrderAMD::STRICT;
+
+    m_conservative_rasterization_mode     = Anvil::ConservativeRasterizationModeEXT::DISABLED;
+    m_extra_primitive_overestimation_size = 0.0f;
 
     memset(m_blend_constant,
            0,
@@ -170,6 +174,7 @@ bool Anvil::GraphicsPipelineCreateInfo::copy_gfx_state_from(const Anvil::Graphic
 
     /* GFX pipeline info-level data */
     m_depth_bounds_test_enabled = in_src_pipeline_create_info_ptr->m_depth_bounds_test_enabled;
+    m_depth_clip_enabled        = in_src_pipeline_create_info_ptr->m_depth_clip_enabled;
     m_max_depth_bounds          = in_src_pipeline_create_info_ptr->m_max_depth_bounds;
     m_min_depth_bounds          = in_src_pipeline_create_info_ptr->m_min_depth_bounds;
 
@@ -183,16 +188,16 @@ bool Anvil::GraphicsPipelineCreateInfo::copy_gfx_state_from(const Anvil::Graphic
 
     m_enabled_dynamic_states = in_src_pipeline_create_info_ptr->m_enabled_dynamic_states;
 
-    m_alpha_to_coverage_enabled            = in_src_pipeline_create_info_ptr->m_alpha_to_coverage_enabled;
-    m_alpha_to_one_enabled                 = in_src_pipeline_create_info_ptr->m_alpha_to_one_enabled;
-    m_depth_clamp_enabled                  = in_src_pipeline_create_info_ptr->m_depth_clamp_enabled;
-    m_depth_writes_enabled                 = in_src_pipeline_create_info_ptr->m_depth_writes_enabled;
-    m_logic_op_enabled                     = in_src_pipeline_create_info_ptr->m_logic_op_enabled;
-    m_primitive_restart_enabled            = in_src_pipeline_create_info_ptr->m_primitive_restart_enabled;
-    m_rasterizer_discard_enabled           = in_src_pipeline_create_info_ptr->m_rasterizer_discard_enabled;
-    m_sample_locations_enabled             = in_src_pipeline_create_info_ptr->m_sample_locations_enabled;
-    m_sample_mask_enabled                  = in_src_pipeline_create_info_ptr->m_sample_mask_enabled;
-    m_sample_shading_enabled               = in_src_pipeline_create_info_ptr->m_sample_shading_enabled;
+    m_alpha_to_coverage_enabled  = in_src_pipeline_create_info_ptr->m_alpha_to_coverage_enabled;
+    m_alpha_to_one_enabled       = in_src_pipeline_create_info_ptr->m_alpha_to_one_enabled;
+    m_depth_clamp_enabled        = in_src_pipeline_create_info_ptr->m_depth_clamp_enabled;
+    m_depth_writes_enabled       = in_src_pipeline_create_info_ptr->m_depth_writes_enabled;
+    m_logic_op_enabled           = in_src_pipeline_create_info_ptr->m_logic_op_enabled;
+    m_primitive_restart_enabled  = in_src_pipeline_create_info_ptr->m_primitive_restart_enabled;
+    m_rasterizer_discard_enabled = in_src_pipeline_create_info_ptr->m_rasterizer_discard_enabled;
+    m_sample_locations_enabled   = in_src_pipeline_create_info_ptr->m_sample_locations_enabled;
+    m_sample_mask_enabled        = in_src_pipeline_create_info_ptr->m_sample_mask_enabled;
+    m_sample_shading_enabled     = in_src_pipeline_create_info_ptr->m_sample_shading_enabled;
 
     m_stencil_test_enabled     = in_src_pipeline_create_info_ptr->m_stencil_test_enabled;
     m_stencil_state_back_face  = in_src_pipeline_create_info_ptr->m_stencil_state_back_face;
@@ -203,6 +208,9 @@ bool Anvil::GraphicsPipelineCreateInfo::copy_gfx_state_from(const Anvil::Graphic
     m_sample_locations_per_pixel = in_src_pipeline_create_info_ptr->m_sample_locations_per_pixel;
 
     m_rasterization_order = in_src_pipeline_create_info_ptr->m_rasterization_order;
+
+    m_conservative_rasterization_mode     = in_src_pipeline_create_info_ptr->m_conservative_rasterization_mode;
+    m_extra_primitive_overestimation_size = in_src_pipeline_create_info_ptr->m_extra_primitive_overestimation_size;
 
     m_tessellation_domain_origin = in_src_pipeline_create_info_ptr->m_tessellation_domain_origin;
 
@@ -538,6 +546,16 @@ Anvil::PrimitiveTopology Anvil::GraphicsPipelineCreateInfo::get_primitive_topolo
 Anvil::RasterizationOrderAMD Anvil::GraphicsPipelineCreateInfo::get_rasterization_order() const
 {
     return m_rasterization_order;
+}
+
+Anvil::ConservativeRasterizationModeEXT Anvil::GraphicsPipelineCreateInfo::get_conservative_rasterization_mode() const
+{
+    return m_conservative_rasterization_mode;
+}
+
+float Anvil::GraphicsPipelineCreateInfo::get_extra_primitive_overestimation_size() const
+{
+    return m_extra_primitive_overestimation_size;
 }
 
 void Anvil::GraphicsPipelineCreateInfo::get_rasterization_properties(Anvil::PolygonMode*   out_opt_polygon_mode_ptr,
@@ -889,6 +907,11 @@ bool Anvil::GraphicsPipelineCreateInfo::is_depth_clamp_enabled() const
     return m_depth_clamp_enabled;
 }
 
+bool Anvil::GraphicsPipelineCreateInfo::is_depth_clip_enabled() const
+{
+    return m_depth_clip_enabled;
+}
+
 bool Anvil::GraphicsPipelineCreateInfo::is_primitive_restart_enabled() const
 {
     return m_primitive_restart_enabled;
@@ -970,6 +993,16 @@ void Anvil::GraphicsPipelineCreateInfo::set_rasterization_order(Anvil::Rasteriza
 void Anvil::GraphicsPipelineCreateInfo::set_rasterization_stream_index(const uint32_t& in_rasterization_stream_index)
 {
     m_rasterization_stream_index = in_rasterization_stream_index;
+}
+
+void Anvil::GraphicsPipelineCreateInfo::set_conservative_rasterization_mode(Anvil::ConservativeRasterizationModeEXT in_conservative_rasterization_mode)
+{
+    m_conservative_rasterization_mode = in_conservative_rasterization_mode;
+}
+
+void Anvil::GraphicsPipelineCreateInfo::set_extra_primitive_overestimation_size(float extra_primitive_overestimation_size)
+{
+    m_extra_primitive_overestimation_size = extra_primitive_overestimation_size;
 }
 
 void Anvil::GraphicsPipelineCreateInfo::set_rasterization_properties(Anvil::PolygonMode   in_polygon_mode,
@@ -1092,6 +1125,11 @@ void Anvil::GraphicsPipelineCreateInfo::toggle_depth_bounds_test(bool  in_should
 void Anvil::GraphicsPipelineCreateInfo::toggle_depth_clamp(bool in_should_enable)
 {
     m_depth_clamp_enabled = in_should_enable;
+}
+
+void Anvil::GraphicsPipelineCreateInfo::toggle_depth_clip(bool in_should_enable)
+{
+    m_depth_clip_enabled = in_should_enable;
 }
 
 void Anvil::GraphicsPipelineCreateInfo::toggle_depth_test(bool             in_should_enable,

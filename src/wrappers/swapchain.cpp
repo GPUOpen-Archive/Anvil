@@ -372,10 +372,10 @@ bool Anvil::Swapchain::init()
     /* not doing offscreen rendering */
     if (!is_offscreen_rendering_enabled)
     {
+        Anvil::CompositeAlphaFlagBits                  composite_alpha           = Anvil::CompositeAlphaFlagBits::NONE;
         const auto&                                    khr_swapchain_entrypoints = m_device_ptr->get_extension_khr_swapchain_entrypoints();
         Anvil::StructChainer<VkSwapchainCreateInfoKHR> struct_chainer;
 
-        #ifdef _DEBUG
         {
             const Anvil::MGPUDevice* mgpu_device_ptr(dynamic_cast<const Anvil::MGPUDevice*>(m_device_ptr) );
             const Anvil::SGPUDevice* sgpu_device_ptr(dynamic_cast<const Anvil::SGPUDevice*>(m_device_ptr) );
@@ -387,6 +387,9 @@ bool Anvil::Swapchain::init()
             Anvil::SurfaceCapabilities   surface_caps;
             Anvil::CompositeAlphaFlags   supported_composite_alpha_flags;
             Anvil::SurfaceTransformFlags supported_surface_transform_flags;
+
+            ANVIL_REDUNDANT_VARIABLE(required_surface_extension_name);
+            ANVIL_REDUNDANT_VARIABLE(result_bool);
 
             #ifdef _WIN32
                 #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
@@ -418,6 +421,8 @@ bool Anvil::Swapchain::init()
             {
                 const Anvil::PhysicalDevice* current_physical_device_ptr = nullptr;
 
+                ANVIL_REDUNDANT_VARIABLE(current_physical_device_ptr);
+
                 switch (device_type)
                 {
                     case Anvil::DeviceType::MULTI_GPU:  current_physical_device_ptr = mgpu_device_ptr->get_physical_device(n_physical_device); break;
@@ -433,7 +438,11 @@ bool Anvil::Swapchain::init()
                 anvil_assert(parent_surface_ptr->get_supported_composite_alpha_flags(current_physical_device_ptr,
                                                                                     &supported_composite_alpha_flags) );
 
-                anvil_assert((supported_composite_alpha_flags & Anvil::CompositeAlphaFlagBits::OPAQUE_BIT_KHR) != 0);
+                {
+                    composite_alpha = Anvil::CompositeAlphaFlagBits::OPAQUE_BIT_KHR;
+
+                    anvil_assert((supported_composite_alpha_flags & composite_alpha) != 0);
+                }
 
                 /* Ensure we can use the swapchain image format  */
                 anvil_assert(parent_surface_ptr->is_compatible_with_image_format(current_physical_device_ptr,
@@ -455,14 +464,13 @@ bool Anvil::Swapchain::init()
                              surface_caps.max_image_count >= m_create_info_ptr->get_n_images() );
             }
         }
-        #endif
 
         {
             VkSwapchainCreateInfoKHR create_info;
             const auto&              old_swapchain_ptr = m_create_info_ptr->get_old_swapchain();
 
             create_info.clipped               = m_create_info_ptr->get_clipped();
-            create_info.compositeAlpha        = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+            create_info.compositeAlpha        = static_cast<VkCompositeAlphaFlagBitsKHR>(composite_alpha);
             create_info.flags                 = m_create_info_ptr->get_flags().get_vk();
             create_info.imageArrayLayers      = 1;
             create_info.imageColorSpace       = static_cast<VkColorSpaceKHR>  (m_create_info_ptr->get_color_space() );
@@ -498,6 +506,28 @@ bool Anvil::Swapchain::init()
             mgpu_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_GROUP_SWAPCHAIN_CREATE_INFO_KHR;
 
             struct_chainer.append_struct(mgpu_create_info);
+        }
+
+        if ((m_create_info_ptr->get_flags() & Anvil::SwapchainCreateFlagBits::CREATE_MUTABLE_FORMAT_BIT) != 0)
+        {
+            const Anvil::Format*           image_formats_ptr             = nullptr;
+            VkImageFormatListCreateInfoKHR image_format_list_create_info;
+            uint32_t                       n_image_formats               = 0;
+
+            anvil_assert(m_device_ptr->get_extension_info()->khr_swapchain_mutable_format() );
+
+            m_create_info_ptr->get_view_format_list(&image_formats_ptr,
+                                                    &n_image_formats);
+
+            anvil_assert(image_formats_ptr != nullptr);
+            anvil_assert(n_image_formats   >  0);
+
+            image_format_list_create_info.pNext           = nullptr;
+            image_format_list_create_info.pViewFormats    = reinterpret_cast<const VkFormat*>(image_formats_ptr);
+            image_format_list_create_info.sType           = VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR;
+            image_format_list_create_info.viewFormatCount = n_image_formats;
+
+            struct_chainer.append_struct(image_format_list_create_info);
         }
 
         struct_chain_ptr = struct_chainer.create_chain();

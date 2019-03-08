@@ -21,6 +21,7 @@
 //
 
 #include "misc/debug.h"
+#include "misc/formats.h"
 #include "misc/object_tracker.h"
 #include "misc/struct_chainer.h"
 #include "wrappers/device.h"
@@ -70,14 +71,23 @@ Anvil::PhysicalDevice::~PhysicalDevice()
  **/
 bool Anvil::PhysicalDevice::init()
 {
-    VkPhysicalDeviceMemoryProperties memory_properties;
-    uint32_t                         n_extensions             = 0;
-    uint32_t                         n_physical_device_layers = 0;
-    uint32_t                         n_physical_device_queues = 0;
-    bool                             result                   = true;
-    VkResult                         result_vk                = VK_ERROR_INITIALIZATION_FAILED;
+    uint32_t n_extensions             = 0;
+    uint32_t n_physical_device_layers = 0;
+    uint32_t n_physical_device_queues = 0;
+    bool     result                   = true;
+    VkResult result_vk                = VK_ERROR_INITIALIZATION_FAILED;
+    bool     supports_vk1_1           = false;
 
     anvil_assert(m_physical_device != VK_NULL_HANDLE);
+
+    {
+        VkPhysicalDeviceProperties props_vk;
+
+        Anvil::Vulkan::vkGetPhysicalDeviceProperties(m_physical_device,
+                                                    &props_vk);
+
+        supports_vk1_1 = supports_core_vk1_1(props_vk.apiVersion);
+    }
 
     /* Retrieve device extensions */
     result_vk = Anvil::Vulkan::vkEnumerateDeviceExtensionProperties(m_physical_device,
@@ -126,15 +136,24 @@ bool Anvil::PhysicalDevice::init()
 
         if (m_instance_ptr->get_enabled_extensions_info()->khr_get_physical_device_properties2() )
         {
-            Anvil::StructID                                           descriptor_indexing_features_struct_id = UINT32_MAX;
-            const auto&                                               gpdp2_entrypoints                      = m_instance_ptr->get_extension_khr_get_physical_device_properties2_entrypoints();
-            Anvil::StructID                                           multiview_features_struct_id           = UINT32_MAX;
-            Anvil::StructID                                           storage_features16_struct_id           = UINT32_MAX;
-            Anvil::StructID                                           storage_features8_struct_id            = UINT32_MAX;
+            Anvil::StructID                                           depth_clip_enable_features_struct_id        = UINT32_MAX;
+            Anvil::StructID                                           descriptor_indexing_features_struct_id      = UINT32_MAX;
+            Anvil::StructID                                           inline_uniform_block_features_struct_id     = UINT32_MAX;
+            Anvil::StructID                                           memory_priority_features_struct_id          = UINT32_MAX;
+            const auto&                                               gpdp2_entrypoints                           = m_instance_ptr->get_extension_khr_get_physical_device_properties2_entrypoints();
+            Anvil::StructID                                           multiview_features_struct_id                = UINT32_MAX;
+            Anvil::StructID                                           protected_memory_features_struct_id         = UINT32_MAX;
+            Anvil::StructID                                           sampler_ycbcr_conversion_features_struct_id = UINT32_MAX;
+            Anvil::StructID                                           scalar_block_layout_features_struct_id      = UINT32_MAX;
+            Anvil::StructID                                           shader_atomic_int64_features_struct_id      = UINT32_MAX;
+            Anvil::StructID                                           shader_float16_int8_struct_id               = UINT32_MAX;
+            Anvil::StructID                                           storage_features16_struct_id                = UINT32_MAX;
+            Anvil::StructID                                           storage_features8_struct_id                 = UINT32_MAX;
             Anvil::StructChainUniquePtr<VkPhysicalDeviceFeatures2KHR> struct_chain_ptr;
             Anvil::StructChainer<VkPhysicalDeviceFeatures2KHR>        struct_chainer;
-            Anvil::StructID                                           transform_feedback_features_struct_id  = UINT32_MAX;
-            Anvil::StructID                                           variable_pointer_features_struct_id    = UINT32_MAX;
+            Anvil::StructID                                           transform_feedback_features_struct_id       = UINT32_MAX;
+            Anvil::StructID                                           variable_pointer_features_struct_id         = UINT32_MAX;
+            Anvil::StructID                                           vulkan_memory_model_features_struct_id      = UINT32_MAX;
 
             /* Chain query structs .. */
             {
@@ -144,6 +163,16 @@ bool Anvil::PhysicalDevice::init()
                 features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR;
 
                 struct_chainer.append_struct(features);
+            }
+
+            if (m_extension_info_ptr->get_device_extension_info()->ext_depth_clip_enable() )
+            {
+                VkPhysicalDeviceDepthClipEnableFeaturesEXT depth_clip_enable_features;
+
+                depth_clip_enable_features.pNext = nullptr;
+                depth_clip_enable_features.sType = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_CLIP_ENABLE_FEATURES_EXT);
+
+                depth_clip_enable_features_struct_id = struct_chainer.append_struct(depth_clip_enable_features);
             }
 
             if (m_extension_info_ptr->get_device_extension_info()->ext_descriptor_indexing() )
@@ -156,6 +185,36 @@ bool Anvil::PhysicalDevice::init()
                 descriptor_indexing_features_struct_id = struct_chainer.append_struct(descriptor_indexing_features);
             }
 
+            if (m_extension_info_ptr->get_device_extension_info()->ext_inline_uniform_block() )
+            {
+                VkPhysicalDeviceInlineUniformBlockFeaturesEXT inline_uniform_block_features;
+
+                inline_uniform_block_features.pNext = nullptr;
+                inline_uniform_block_features.sType = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INLINE_UNIFORM_BLOCK_FEATURES_EXT);
+
+                inline_uniform_block_features_struct_id = struct_chainer.append_struct(inline_uniform_block_features);
+            }
+
+            if (m_extension_info_ptr->get_device_extension_info()->ext_memory_priority())
+            {
+                VkPhysicalDeviceMemoryPriorityFeaturesEXT memory_priority_features;
+
+                memory_priority_features.pNext = nullptr;
+                memory_priority_features.sType = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PRIORITY_FEATURES_EXT);
+
+                memory_priority_features_struct_id = struct_chainer.append_struct(memory_priority_features);
+            }
+
+            if (m_extension_info_ptr->get_device_extension_info()->ext_scalar_block_layout() )
+            {
+                VkPhysicalDeviceScalarBlockLayoutFeaturesEXT scalar_block_layout_features;
+
+                scalar_block_layout_features.pNext = nullptr;
+                scalar_block_layout_features.sType = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES_EXT);
+
+                scalar_block_layout_features_struct_id = struct_chainer.append_struct(scalar_block_layout_features);
+            }
+
             if (m_extension_info_ptr->get_device_extension_info()->ext_transform_feedback() )
             {
                 VkPhysicalDeviceTransformFeedbackFeaturesEXT transform_feedback_features;
@@ -166,7 +225,8 @@ bool Anvil::PhysicalDevice::init()
                 transform_feedback_features_struct_id = struct_chainer.append_struct(transform_feedback_features);
             }
 
-            if (m_extension_info_ptr->get_device_extension_info()->khr_16bit_storage() )
+            if (m_extension_info_ptr->get_device_extension_info()->khr_16bit_storage() ||
+                supports_vk1_1)
             {
                 VkPhysicalDevice16BitStorageFeaturesKHR storage_features;
 
@@ -186,7 +246,8 @@ bool Anvil::PhysicalDevice::init()
                 storage_features8_struct_id = struct_chainer.append_struct(storage_features);
             }
 
-            if (m_extension_info_ptr->get_device_extension_info()->khr_multiview() )
+            if (m_extension_info_ptr->get_device_extension_info()->khr_multiview() ||
+                supports_vk1_1)
             {
                 VkPhysicalDeviceMultiviewFeaturesKHR multiview_features;
 
@@ -196,7 +257,39 @@ bool Anvil::PhysicalDevice::init()
                 multiview_features_struct_id = struct_chainer.append_struct(multiview_features);
             }
 
-            if (m_extension_info_ptr->get_device_extension_info()->khr_variable_pointers() )
+            if (m_extension_info_ptr->get_device_extension_info()->khr_sampler_ycbcr_conversion() ||
+                supports_vk1_1)
+            {
+                VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR sampler_ycbcr_conversion_features;
+
+                sampler_ycbcr_conversion_features.pNext = nullptr;
+                sampler_ycbcr_conversion_features.sType = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES_KHR);
+
+                sampler_ycbcr_conversion_features_struct_id = struct_chainer.append_struct(sampler_ycbcr_conversion_features);
+            }
+
+            if (m_extension_info_ptr->get_device_extension_info()->khr_shader_atomic_int64())
+            {
+                VkPhysicalDeviceShaderAtomicInt64FeaturesKHR shader_atomic_int64_features;
+
+                shader_atomic_int64_features.pNext = nullptr;
+                shader_atomic_int64_features.sType = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR);
+
+                shader_atomic_int64_features_struct_id = struct_chainer.append_struct(shader_atomic_int64_features);
+            }
+
+            if (m_extension_info_ptr->get_device_extension_info()->khr_shader_float16_int8() )
+            {
+                VkPhysicalDeviceFloat16Int8FeaturesKHR shader_float16_int8_features;
+
+                shader_float16_int8_features.pNext = nullptr;
+                shader_float16_int8_features.sType = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT16_INT8_FEATURES_KHR);
+
+                shader_float16_int8_struct_id = struct_chainer.append_struct(shader_float16_int8_features);
+            }
+
+            if (m_extension_info_ptr->get_device_extension_info()->khr_variable_pointers() ||
+                supports_vk1_1)
             {
                 VkPhysicalDeviceVariablePointerFeaturesKHR vp_features;
 
@@ -206,6 +299,26 @@ bool Anvil::PhysicalDevice::init()
                 variable_pointer_features_struct_id = struct_chainer.append_struct(vp_features);
             }
 
+            if (m_extension_info_ptr->get_device_extension_info()->khr_vulkan_memory_model() )
+            {
+                VkPhysicalDeviceVulkanMemoryModelFeaturesKHR vmm_features;
+
+                vmm_features.pNext = nullptr;
+                vmm_features.sType = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES_KHR);
+
+                vulkan_memory_model_features_struct_id = struct_chainer.append_struct(vmm_features);
+            }
+
+            if (supports_vk1_1)
+            {
+                VkPhysicalDeviceProtectedMemoryFeatures protected_mem_features;
+
+                protected_mem_features.pNext = nullptr;
+                protected_mem_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROTECTED_MEMORY_FEATURES;
+
+                protected_memory_features_struct_id = struct_chainer.append_struct(protected_mem_features);
+            }
+
             /* Retrieve the features.. */
             struct_chain_ptr = struct_chainer.create_chain();
 
@@ -213,6 +326,21 @@ bool Anvil::PhysicalDevice::init()
                                                               struct_chain_ptr->get_root_struct() );
 
             /* Cache the results */
+
+            if (depth_clip_enable_features_struct_id != UINT32_MAX)
+            {
+                m_ext_depth_clip_enable_features_ptr.reset(
+                    new EXTDepthClipEnableFeatures(*struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceDepthClipEnableFeaturesEXT>(depth_clip_enable_features_struct_id) )
+                );
+
+                if (m_ext_depth_clip_enable_features_ptr == nullptr)
+                {
+                    anvil_assert(m_ext_depth_clip_enable_features_ptr != nullptr);
+
+                    result = false;
+                    goto end;
+                }
+            }
 
             if (descriptor_indexing_features_struct_id != UINT32_MAX)
             {
@@ -229,6 +357,21 @@ bool Anvil::PhysicalDevice::init()
                 }
             }
 
+            if (inline_uniform_block_features_struct_id != UINT32_MAX)
+            {
+                m_ext_inline_uniform_block_features_ptr.reset(
+                    new EXTInlineUniformBlockFeatures(*struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceInlineUniformBlockFeaturesEXT>(inline_uniform_block_features_struct_id) )
+                );
+
+                if (m_ext_inline_uniform_block_features_ptr == nullptr)
+                {
+                    anvil_assert(m_ext_inline_uniform_block_features_ptr != nullptr);
+
+                    result = false;
+                    goto end;
+                }
+            }
+
             if (multiview_features_struct_id != UINT32_MAX)
             {
                 m_khr_multiview_features_ptr.reset(
@@ -238,6 +381,51 @@ bool Anvil::PhysicalDevice::init()
                 if (m_khr_multiview_features_ptr == nullptr)
                 {
                     anvil_assert(m_khr_multiview_features_ptr != nullptr);
+
+                    result = false;
+                    goto end;
+                }
+            }
+
+            if (sampler_ycbcr_conversion_features_struct_id != UINT32_MAX)
+            {
+                m_khr_sampler_ycbcr_conversion_features_ptr.reset(
+                    new KHRSamplerYCbCrConversionFeatures(*struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR>(sampler_ycbcr_conversion_features_struct_id) )
+                );
+
+                if (m_khr_sampler_ycbcr_conversion_features_ptr == nullptr)
+                {
+                    anvil_assert(m_khr_sampler_ycbcr_conversion_features_ptr != nullptr);
+
+                    result = false;
+                    goto end;
+                }
+            }
+
+            if (scalar_block_layout_features_struct_id != UINT32_MAX)
+            {
+                m_ext_scalar_block_layout_features_ptr.reset(
+                    new EXTScalarBlockLayoutFeatures(*struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceScalarBlockLayoutFeaturesEXT>(scalar_block_layout_features_struct_id) )
+                );
+
+                if (m_ext_scalar_block_layout_features_ptr == nullptr)
+                {
+                    anvil_assert(m_ext_scalar_block_layout_features_ptr != nullptr);
+
+                    result = false;
+                    goto end;
+                }
+            }
+
+            if (shader_atomic_int64_features_struct_id != UINT32_MAX)
+            {
+                m_khr_shader_atomic_int64_features_ptr.reset(
+                    new KHRShaderAtomicInt64Features(*struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceShaderAtomicInt64FeaturesKHR>(shader_atomic_int64_features_struct_id) )
+                );
+
+                if (m_khr_shader_atomic_int64_features_ptr == nullptr)
+                {
+                    anvil_assert(m_khr_shader_atomic_int64_features_ptr != nullptr);
 
                     result = false;
                     goto end;
@@ -289,6 +477,36 @@ bool Anvil::PhysicalDevice::init()
                 }
             }
 
+            if (memory_priority_features_struct_id != UINT32_MAX)
+            {
+                m_ext_memory_priority_features_ptr.reset(
+                    new EXTMemoryPriorityFeatures(*struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceMemoryPriorityFeaturesEXT>(memory_priority_features_struct_id))
+                );
+
+                if (m_ext_memory_priority_features_ptr == nullptr)
+                {
+                    anvil_assert(m_ext_memory_priority_features_ptr != nullptr);
+
+                    result = false;
+                    goto end;
+                }
+            }
+
+            if (shader_float16_int8_struct_id != UINT32_MAX)
+            {
+                m_khr_float16_int8_features_ptr.reset(
+                    new KHRFloat16Int8Features(*struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceFloat16Int8FeaturesKHR>(shader_float16_int8_struct_id) )
+                );
+
+                if (m_khr_float16_int8_features_ptr == nullptr)
+                {
+                    anvil_assert(m_khr_float16_int8_features_ptr != nullptr);
+
+                    result = false;
+                    goto end;
+                }
+            }
+
             if (variable_pointer_features_struct_id != UINT32_MAX)
             {
                 m_khr_variable_pointer_features_ptr.reset(
@@ -298,6 +516,38 @@ bool Anvil::PhysicalDevice::init()
                 if (m_khr_variable_pointer_features_ptr == nullptr)
                 {
                     anvil_assert(m_khr_variable_pointer_features_ptr != nullptr);
+
+                    result = false;
+                    goto end;
+                }
+            }
+
+            if (vulkan_memory_model_features_struct_id != UINT32_MAX)
+            {
+                m_khr_vulkan_memory_model_features_ptr.reset(
+                    new KHRVulkanMemoryModelFeatures(*struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceVulkanMemoryModelFeaturesKHR>(vulkan_memory_model_features_struct_id) )
+                );
+
+                if (m_khr_vulkan_memory_model_features_ptr == nullptr)
+                {
+                    anvil_assert(m_khr_vulkan_memory_model_features_ptr != nullptr);
+
+                    result = false;
+                    goto end;
+                }
+            }
+
+            if (supports_vk1_1)
+            {
+                const auto protected_memory_features = *struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceProtectedMemoryFeatures>(protected_memory_features_struct_id);
+
+                m_core_features_vk11_ptr.reset(
+                    new Anvil::PhysicalDeviceFeaturesCoreVK11(protected_memory_features)
+                );
+
+                if (m_core_features_vk11_ptr == nullptr)
+                {
+                    anvil_assert(m_core_features_vk11_ptr != nullptr);
 
                     result = false;
                     goto end;
@@ -317,13 +567,22 @@ bool Anvil::PhysicalDevice::init()
             goto end;
         }
 
-        m_features = Anvil::PhysicalDeviceFeatures(m_core_features_vk10_ptr.get              (),
-                                                   m_ext_descriptor_indexing_features_ptr.get(),
-                                                   m_ext_transform_feedback_features_ptr.get (),
-                                                   m_khr_16_bit_storage_features_ptr.get     (),
-                                                   m_khr_8_bit_storage_features_ptr.get      (),
-                                                   m_khr_multiview_features_ptr.get          (),
-                                                   m_khr_variable_pointer_features_ptr.get   () );
+        m_features = Anvil::PhysicalDeviceFeatures(m_core_features_vk10_ptr.get                   (),
+                                                   m_core_features_vk11_ptr.get                   (),
+                                                   m_ext_depth_clip_enable_features_ptr.get       (),
+                                                   m_ext_descriptor_indexing_features_ptr.get     (),
+                                                   m_ext_inline_uniform_block_features_ptr.get    (),
+                                                   m_ext_scalar_block_layout_features_ptr.get     (),
+                                                   m_ext_transform_feedback_features_ptr.get      (),
+                                                   m_ext_memory_priority_features_ptr.get         (),
+                                                   m_khr_16_bit_storage_features_ptr.get          (),
+                                                   m_khr_8_bit_storage_features_ptr.get           (),
+                                                   m_khr_float16_int8_features_ptr.get            (),
+                                                   m_khr_multiview_features_ptr.get               (),
+                                                   m_khr_sampler_ycbcr_conversion_features_ptr.get(),
+                                                   m_khr_shader_atomic_int64_features_ptr.get     (),
+                                                   m_khr_variable_pointer_features_ptr.get        (),
+                                                   m_khr_vulkan_memory_model_features_ptr.get     () );
     }
 
     /* Retrieve device layers */
@@ -365,22 +624,49 @@ bool Anvil::PhysicalDevice::init()
         }
     }
 
+    /* Retrieve device properties */
+    {
+        VkPhysicalDeviceProperties props;
+
+        Anvil::Vulkan::vkGetPhysicalDeviceProperties(m_physical_device,
+                                                    &props);
+
+        m_core_properties_vk10_ptr.reset(
+            new Anvil::PhysicalDevicePropertiesCoreVK10(props)
+        );
+
+        if (m_core_properties_vk10_ptr == nullptr)
+        {
+            anvil_assert(m_core_properties_vk10_ptr != nullptr);
+
+            result = false;
+            goto end;
+        }
+    }
+
     /* Retrieve additional device info */
     if (m_instance_ptr->get_enabled_extensions_info()->khr_get_physical_device_properties2() )
     {
+        Anvil::StructID                                             conservative_rasterization_struct_id     = UINT32_MAX;
+        Anvil::StructID                                             depth_stencil_resolve_props_struct_id    = UINT32_MAX;
         Anvil::StructID                                             descriptor_indexing_props_struct_id      = UINT32_MAX;
         Anvil::StructID                                             device_id_props_struct_id                = UINT32_MAX;
+        Anvil::StructID                                             driver_properties_props_struct_id        = UINT32_MAX;
         Anvil::StructID                                             external_memory_host_props_struct_id     = UINT32_MAX;
         const auto&                                                 gpdp2_entrypoints                        = m_instance_ptr->get_extension_khr_get_physical_device_properties2_entrypoints();
+        Anvil::StructID                                             inline_uniform_block_props_struct_id     = UINT32_MAX;
         Anvil::StructID                                             maintenance3_struct_id                   = UINT32_MAX;
         Anvil::StructID                                             multiview_struct_id                      = UINT32_MAX;
         Anvil::StructID                                             pci_bus_info_props_struct_id             = UINT32_MAX;
         Anvil::StructID                                             point_clipping_props_struct_id           = UINT32_MAX;
+        Anvil::StructID                                             protected_memory_props_struct_id         = UINT32_MAX;
         Anvil::StructID                                             sample_locations_props_struct_id         = UINT32_MAX;
         Anvil::StructID                                             sampler_filter_minmax_props_struct_id    = UINT32_MAX;
         Anvil::StructID                                             shader_core_struct_id                    = UINT32_MAX;
+        Anvil::StructID                                             shader_float_controls_props_struct_id    = UINT32_MAX;
         Anvil::StructChainUniquePtr<VkPhysicalDeviceProperties2KHR> struct_chain_ptr;
         Anvil::StructChainer<VkPhysicalDeviceProperties2KHR>        struct_chainer;
+        Anvil::StructID                                             subgroup_props_struct_id                 = UINT32_MAX;
         Anvil::StructID                                             transform_feedback_props_struct_id       = UINT32_MAX;
         Anvil::StructID                                             vertex_attribute_divisor_props_struct_id = UINT32_MAX;
 
@@ -394,6 +680,21 @@ bool Anvil::PhysicalDevice::init()
             struct_chainer.append_struct(general_props);
         }
 
+        if (m_core_properties_vk10_ptr->api_version >= VK_MAKE_VERSION(1, 1, 0))
+        {
+            VkPhysicalDeviceProtectedMemoryProperties protected_memory_properties;
+            VkPhysicalDeviceSubgroupProperties        subgroup_properties;
+
+            protected_memory_properties.pNext = nullptr;
+            protected_memory_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROTECTED_MEMORY_PROPERTIES;
+
+            subgroup_properties.pNext = nullptr;
+            subgroup_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
+
+            protected_memory_props_struct_id = struct_chainer.append_struct(protected_memory_properties);
+            subgroup_props_struct_id         = struct_chainer.append_struct(subgroup_properties);
+        }
+
         if (m_extension_info_ptr->get_device_extension_info()->amd_shader_core_properties() )
         {
             VkPhysicalDeviceShaderCorePropertiesAMD shader_core_properties;
@@ -402,6 +703,16 @@ bool Anvil::PhysicalDevice::init()
             shader_core_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CORE_PROPERTIES_AMD;
 
             shader_core_struct_id = struct_chainer.append_struct(shader_core_properties);
+        }
+
+        if (m_extension_info_ptr->get_device_extension_info()->ext_conservative_rasterization() )
+        {
+            VkPhysicalDeviceConservativeRasterizationPropertiesEXT conservative_rasterization_properties;
+
+            conservative_rasterization_properties.pNext = nullptr;
+            conservative_rasterization_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CONSERVATIVE_RASTERIZATION_PROPERTIES_EXT;
+
+            conservative_rasterization_struct_id = struct_chainer.append_struct(conservative_rasterization_properties);
         }
 
         if (m_extension_info_ptr->get_device_extension_info()->ext_descriptor_indexing() )
@@ -422,6 +733,16 @@ bool Anvil::PhysicalDevice::init()
             external_memory_host_props.sType = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_MEMORY_HOST_PROPERTIES_EXT);
 
             external_memory_host_props_struct_id = struct_chainer.append_struct(external_memory_host_props);
+        }
+
+        if (m_extension_info_ptr->get_device_extension_info()->ext_inline_uniform_block() )
+        {
+            VkPhysicalDeviceInlineUniformBlockPropertiesEXT inline_uniform_block_props;
+
+            inline_uniform_block_props.pNext = nullptr;
+            inline_uniform_block_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INLINE_UNIFORM_BLOCK_PROPERTIES_EXT;
+
+            inline_uniform_block_props_struct_id = struct_chainer.append_struct(inline_uniform_block_props);
         }
 
         if (m_extension_info_ptr->get_device_extension_info()->ext_pci_bus_info() )
@@ -474,6 +795,26 @@ bool Anvil::PhysicalDevice::init()
             vertex_attribute_divisor_props_struct_id = struct_chainer.append_struct(vertex_attribute_divisor_properties);
         }
 
+        if (m_extension_info_ptr->get_device_extension_info()->khr_depth_stencil_resolve() )
+        {
+            VkPhysicalDeviceDepthStencilResolvePropertiesKHR depth_stencil_resolve_properties;
+
+            depth_stencil_resolve_properties.pNext = nullptr;
+            depth_stencil_resolve_properties.sType = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_STENCIL_RESOLVE_PROPERTIES_KHR);
+
+            depth_stencil_resolve_props_struct_id = struct_chainer.append_struct(depth_stencil_resolve_properties);
+        }
+
+        if (m_extension_info_ptr->get_device_extension_info()->khr_driver_properties() )
+        {
+            VkPhysicalDeviceDriverPropertiesKHR driver_properties_properties;
+
+            driver_properties_properties.pNext = nullptr;
+            driver_properties_properties.sType = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR);
+
+            driver_properties_props_struct_id = struct_chainer.append_struct(driver_properties_properties);
+        }
+
         if (m_instance_ptr->get_enabled_extensions_info()->khr_external_memory_capabilities() )
         {
             VkPhysicalDeviceIDPropertiesKHR device_id_props;
@@ -484,7 +825,8 @@ bool Anvil::PhysicalDevice::init()
             device_id_props_struct_id = struct_chainer.append_struct(device_id_props);
         }
 
-        if (m_extension_info_ptr->get_device_extension_info()->khr_maintenance2() )
+        if (m_extension_info_ptr->get_device_extension_info()->khr_maintenance2() ||
+            supports_vk1_1)
         {
             VkPhysicalDevicePointClippingPropertiesKHR point_clipping_props;
 
@@ -494,7 +836,8 @@ bool Anvil::PhysicalDevice::init()
             point_clipping_props_struct_id = struct_chainer.append_struct(point_clipping_props);
         }
 
-        if (m_extension_info_ptr->get_device_extension_info()->khr_maintenance3() )
+        if (m_extension_info_ptr->get_device_extension_info()->khr_maintenance3() ||
+            supports_vk1_1)
         {
             VkPhysicalDeviceMaintenance3PropertiesKHR maintenance3_props;
 
@@ -504,7 +847,8 @@ bool Anvil::PhysicalDevice::init()
             maintenance3_struct_id = struct_chainer.append_struct(maintenance3_props);
         }
 
-        if (m_extension_info_ptr->get_device_extension_info()->khr_multiview() )
+        if (m_extension_info_ptr->get_device_extension_info()->khr_multiview() ||
+            supports_vk1_1)
         {
             VkPhysicalDeviceMultiviewPropertiesKHR multiview_props;
 
@@ -514,13 +858,69 @@ bool Anvil::PhysicalDevice::init()
             multiview_struct_id = struct_chainer.append_struct(multiview_props);
         }
 
+        if (m_extension_info_ptr->get_device_extension_info()->khr_shader_float_controls() )
+        {
+            VkPhysicalDeviceFloatControlsPropertiesKHR float_controls_props;
+
+            float_controls_props.pNext = nullptr;
+            float_controls_props.sType = static_cast<VkStructureType>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES_KHR);
+
+            shader_float_controls_props_struct_id = struct_chainer.append_struct(float_controls_props);
+        }
+
         /* Retrieve the results */
         struct_chain_ptr = struct_chainer.create_chain();
 
         gpdp2_entrypoints.vkGetPhysicalDeviceProperties2KHR(m_physical_device,
                                                             struct_chain_ptr->get_root_struct() );
 
+        if (m_core_properties_vk10_ptr->api_version >= VK_MAKE_VERSION(1, 1, 0))
+        {
+            m_core_properties_vk11_ptr.reset(
+                new PhysicalDevicePropertiesCoreVK11(*struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceProtectedMemoryProperties>(protected_memory_props_struct_id),
+                                                     *struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceSubgroupProperties>       (subgroup_props_struct_id) )
+            );
+
+            if (m_core_properties_vk11_ptr == nullptr)
+            {
+                anvil_assert(m_core_properties_vk11_ptr != nullptr);
+
+                result = false;
+                goto end;
+            }
+        }
+
         /* Cache the retrieved properties */
+        if (conservative_rasterization_struct_id != UINT32_MAX)
+        {
+            m_ext_conservative_rasterization_properties_ptr.reset(
+                new EXTConservativeRasterizationProperties(*struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceConservativeRasterizationPropertiesEXT>(conservative_rasterization_struct_id) )
+            );
+
+            if (m_ext_conservative_rasterization_properties_ptr == nullptr)
+            {
+                anvil_assert(m_ext_conservative_rasterization_properties_ptr != nullptr);
+
+                result = false;
+                goto end;
+            }
+        }
+
+        if (depth_stencil_resolve_props_struct_id != UINT32_MAX)
+        {
+            m_khr_depth_stencil_resolve_properties_ptr.reset(
+                new KHRDepthStencilResolveProperties(*struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceDepthStencilResolvePropertiesKHR>(depth_stencil_resolve_props_struct_id) )
+            );
+
+            if (m_khr_depth_stencil_resolve_properties_ptr == nullptr)
+            {
+                anvil_assert(m_khr_depth_stencil_resolve_properties_ptr != nullptr);
+
+                result = false;
+                goto end;
+            }
+        }
+
         if (descriptor_indexing_props_struct_id != UINT32_MAX)
         {
             m_ext_descriptor_indexing_properties_ptr.reset(
@@ -530,6 +930,21 @@ bool Anvil::PhysicalDevice::init()
             if (m_ext_descriptor_indexing_properties_ptr == nullptr)
             {
                 anvil_assert(m_ext_descriptor_indexing_properties_ptr != nullptr);
+
+                result = false;
+                goto end;
+            }
+        }
+
+        if (driver_properties_props_struct_id != UINT32_MAX)
+        {
+            m_khr_driver_properties_properties_ptr.reset(
+                new KHRDriverPropertiesProperties(*struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceDriverPropertiesKHR>(driver_properties_props_struct_id) )
+            );
+
+            if (m_khr_driver_properties_properties_ptr == nullptr)
+            {
+                anvil_assert(m_khr_driver_properties_properties_ptr != nullptr);
 
                 result = false;
                 goto end;
@@ -560,6 +975,21 @@ bool Anvil::PhysicalDevice::init()
             if (m_ext_external_memory_host_properties_ptr == nullptr)
             {
                 anvil_assert(m_ext_external_memory_host_properties_ptr != nullptr);
+
+                result = false;
+                goto end;
+            }
+        }
+
+        if (inline_uniform_block_props_struct_id != UINT32_MAX)
+        {
+            m_ext_inline_uniform_block_properties_ptr.reset(
+                new EXTInlineUniformBlockProperties(*struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceInlineUniformBlockPropertiesEXT>(inline_uniform_block_props_struct_id) )
+            );
+
+            if (m_ext_inline_uniform_block_properties_ptr == nullptr)
+            {
+                anvil_assert(m_ext_inline_uniform_block_properties_ptr != nullptr);
 
                 result = false;
                 goto end;
@@ -671,6 +1101,21 @@ bool Anvil::PhysicalDevice::init()
             }
         }
 
+        if (shader_float_controls_props_struct_id != UINT32_MAX)
+        {
+            m_khr_shader_float_controls_properties_ptr.reset(
+                new KHRShaderFloatControlsProperties(*struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceFloatControlsPropertiesKHR>(shader_float_controls_props_struct_id) )
+            );
+
+            if (m_khr_shader_float_controls_properties_ptr == nullptr)
+            {
+                anvil_assert(m_khr_shader_float_controls_properties_ptr != nullptr);
+
+                result = false;
+                goto end;
+            }
+        }
+
         if (transform_feedback_props_struct_id != UINT32_MAX)
         {
             m_ext_transform_feedback_properties_ptr.reset(
@@ -702,39 +1147,25 @@ bool Anvil::PhysicalDevice::init()
         }
     }
 
-    /* Retrieve device properties */
-    {
-        VkPhysicalDeviceProperties props;
-
-        Anvil::Vulkan::vkGetPhysicalDeviceProperties(m_physical_device,
-                                                    &props);
-
-        m_core_properties_vk10_ptr.reset(
-            new Anvil::PhysicalDevicePropertiesCoreVK10(props)
-        );
-
-        if (m_core_properties_vk10_ptr == nullptr)
-        {
-            anvil_assert(m_core_properties_vk10_ptr != nullptr);
-
-            result = false;
-            goto end;
-        }
-    }
-
     m_properties = Anvil::PhysicalDeviceProperties(m_amd_shader_core_properties_ptr.get                                    (),
                                                    m_core_properties_vk10_ptr.get                                          (),
+                                                   m_core_properties_vk11_ptr.get                                          (),
+                                                   m_ext_conservative_rasterization_properties_ptr.get                     (),
                                                    m_ext_descriptor_indexing_properties_ptr.get                            (),
                                                    m_ext_external_memory_host_properties_ptr.get                           (),
+                                                   m_ext_inline_uniform_block_properties_ptr.get                           (),
                                                    m_ext_pci_bus_info_ptr.get                                              (),
                                                    m_ext_sample_locations_properties_ptr.get                               (),
                                                    m_ext_sampler_filter_minmax_properties_ptr.get                          (),
                                                    m_ext_transform_feedback_properties_ptr.get                             (),
                                                    m_ext_vertex_attribute_divisor_properties_ptr.get                       (),
+                                                   m_khr_depth_stencil_resolve_properties_ptr.get                          (),
+                                                   m_khr_driver_properties_properties_ptr.get                              (),
                                                    m_khr_external_memory_capabilities_physical_device_id_properties_ptr.get(),
                                                    m_khr_maintenance3_properties_ptr.get                                   (),
                                                    m_khr_maintenance2_physical_device_point_clipping_properties_ptr.get    (),
-                                                   m_khr_multiview_properties_ptr.get                                      () );
+                                                   m_khr_multiview_properties_ptr.get                                      (),
+                                                   m_khr_shader_float_controls_properties_ptr.get                          () );
 
     /* Retrieve device queue data */
     Anvil::Vulkan::vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device,
@@ -743,7 +1174,7 @@ bool Anvil::PhysicalDevice::init()
 
     if (n_physical_device_queues > 0)
     {
-        std::vector<VkQueueFamilyProperties>                 queue_props;
+        std::vector<VkQueueFamilyProperties> queue_props;
 
         queue_props.resize(n_physical_device_queues);
 
@@ -760,13 +1191,49 @@ bool Anvil::PhysicalDevice::init()
     }
 
     /* Retrieve memory properties */
-    Anvil::Vulkan::vkGetPhysicalDeviceMemoryProperties(m_physical_device,
-                                                      &memory_properties);
+    {
+        VkPhysicalDeviceMemoryProperties memory_properties;
 
-    m_memory_properties.init(memory_properties);
+        Anvil::Vulkan::vkGetPhysicalDeviceMemoryProperties(m_physical_device,
+                                                           &memory_properties);
+
+        m_memory_properties.init(memory_properties);
+    }
 
 end:
     return result;
+}
+
+Anvil::MemoryBudget Anvil::PhysicalDevice::get_available_memory_budget() const
+{
+    if (!m_instance_ptr->get_enabled_extensions_info()->khr_get_physical_device_properties2() ||
+        !m_extension_info_ptr->get_device_extension_info()->ext_memory_budget              ())
+    {
+        anvil_assert_fail();
+    }
+
+    const auto&                                                       gpdp2_entrypoints                  = m_instance_ptr->get_extension_khr_get_physical_device_properties2_entrypoints();
+    Anvil::StructID                                                   memory_budget_properties_struct_id;
+    VkPhysicalDeviceMemoryBudgetPropertiesEXT                         memory_budget_properties;
+    VkPhysicalDeviceMemoryProperties2KHR                              memory_properties2;
+    Anvil::StructChainer<VkPhysicalDeviceMemoryProperties2KHR>        struct_chainer;
+    Anvil::StructChainUniquePtr<VkPhysicalDeviceMemoryProperties2KHR> struct_chain_ptr;
+
+    memory_properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2;
+    memory_properties2.pNext = nullptr;
+
+    memory_budget_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT;
+    memory_budget_properties.pNext = nullptr;
+
+    struct_chainer.append_struct(memory_properties2);
+    memory_budget_properties_struct_id = struct_chainer.append_struct(memory_budget_properties);
+
+    struct_chain_ptr = struct_chainer.create_chain();
+
+    gpdp2_entrypoints.vkGetPhysicalDeviceMemoryProperties2KHR(m_physical_device,
+                                                              struct_chain_ptr->get_root_struct());
+
+    return MemoryBudget(*struct_chain_ptr->get_struct_with_id<VkPhysicalDeviceMemoryBudgetPropertiesEXT>(memory_budget_properties_struct_id));
 }
 
 bool Anvil::PhysicalDevice::get_buffer_properties(const Anvil::BufferPropertiesQuery& in_query,
@@ -873,9 +1340,11 @@ bool Anvil::PhysicalDevice::get_image_format_properties(const ImageFormatPropert
     VkFormatProperties                                     core_vk10_format_props;
     VkImageFormatProperties                                core_vk10_image_format_properties;
     Anvil::ExternalMemoryProperties                        external_handle_props;
-    const Anvil::ExtensionKHRGetPhysicalDeviceProperties2* gpdp2_entrypoints_ptr                = nullptr;
-    bool                                                   result                               = false;
-    bool                                                   supports_amd_texture_gather_bias_lod = false;
+    const Anvil::ExtensionKHRGetPhysicalDeviceProperties2* gpdp2_entrypoints_ptr                     = nullptr;
+    uint32_t                                               n_combined_image_sampler_descriptors_used = 0;
+    bool                                                   result                                    = false;
+    bool                                                   supports_amd_texture_gather_bias_lod      = false;
+    Anvil::ImageUsageFlags                                 valid_stencil_image_usage_aspect_flags;
 
     if (m_instance_ptr->get_enabled_extensions_info()->khr_get_physical_device_properties2() )
     {
@@ -900,11 +1369,13 @@ bool Anvil::PhysicalDevice::get_image_format_properties(const ImageFormatPropert
 
     if (gpdp2_entrypoints_ptr != nullptr)
     {
-        Anvil::StructID                                           external_image_format_props_struct_id = UINT32_MAX;
+        Anvil::StructID                                           external_image_format_props_struct_id                 = UINT32_MAX;
+        Anvil::StructID                                           image_stencil_usage_create_info_struct_id             = UINT32_MAX;
         Anvil::StructChainer<VkPhysicalDeviceImageFormatInfo2KHR> input_struct_chainer;
-        auto                                                      instance_extensions_ptr               = m_instance_ptr->get_enabled_extensions_info();
+        auto                                                      instance_extensions_ptr                               = m_instance_ptr->get_enabled_extensions_info();
         Anvil::StructChainer<VkImageFormatProperties2KHR>         output_struct_chainer;
-        Anvil::StructID                                           texture_lod_gather_support_struct_id  = UINT32_MAX;
+        Anvil::StructID                                           sampler_ycbcr_conversion_image_format_props_struct_id = UINT32_MAX; 
+        Anvil::StructID                                           texture_lod_gather_support_struct_id                  = UINT32_MAX;
 
         ANVIL_REDUNDANT_VARIABLE(instance_extensions_ptr);
 
@@ -941,6 +1412,17 @@ bool Anvil::PhysicalDevice::get_image_format_properties(const ImageFormatPropert
             texture_lod_gather_support_struct_id = output_struct_chainer.append_struct(texture_lod_gather_support);
         }
 
+        if (m_extension_info_ptr->get_device_extension_info()->ext_separate_stencil_usage() )
+        {
+            VkImageStencilUsageCreateInfoEXT create_info;
+
+            create_info.pNext        = nullptr;
+            create_info.stencilUsage = 0;
+            create_info.sType        = VK_STRUCTURE_TYPE_IMAGE_STENCIL_USAGE_CREATE_INFO_EXT;
+
+            image_stencil_usage_create_info_struct_id = input_struct_chainer.append_struct(create_info);
+        }
+
         if (in_query.external_memory_handle_type != Anvil::ExternalMemoryHandleTypeFlagBits::NONE)
         {
             anvil_assert(instance_extensions_ptr->khr_external_memory_capabilities() );
@@ -958,6 +1440,18 @@ bool Anvil::PhysicalDevice::get_image_format_properties(const ImageFormatPropert
             input_struct_chainer.append_struct(external_image_format_info);
 
             external_image_format_props_struct_id = output_struct_chainer.append_struct(external_image_format_props);
+        }
+
+        if (m_extension_info_ptr->get_device_extension_info()->khr_sampler_ycbcr_conversion()                &&
+            Anvil::Formats::is_format_yuv_khr                                              (in_query.format) )
+        {
+            VkSamplerYcbcrConversionImageFormatPropertiesKHR image_format_properties;
+
+            image_format_properties.combinedImageSamplerDescriptorCount = 0;
+            image_format_properties.pNext                               = nullptr;
+            image_format_properties.sType                               = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_IMAGE_FORMAT_PROPERTIES_KHR;
+
+            sampler_ycbcr_conversion_image_format_props_struct_id = output_struct_chainer.append_struct(image_format_properties);
         }
 
         auto input_struct_chain_ptr  = input_struct_chainer.create_chain ();
@@ -981,6 +1475,20 @@ bool Anvil::PhysicalDevice::get_image_format_properties(const ImageFormatPropert
 
                 external_handle_props = Anvil::ExternalMemoryProperties(image_format_props_ptr->externalMemoryProperties);
             }
+
+            if (image_stencil_usage_create_info_struct_id != UINT32_MAX)
+            {
+                auto stencil_usage_create_info_ptr = reinterpret_cast<const VkImageStencilUsageCreateInfoEXT*>(input_struct_chain_ptr->get_struct_with_id(image_stencil_usage_create_info_struct_id) );
+
+                valid_stencil_image_usage_aspect_flags = static_cast<Anvil::ImageUsageFlagBits>(stencil_usage_create_info_ptr->stencilUsage);
+            }
+
+            if (sampler_ycbcr_conversion_image_format_props_struct_id != UINT32_MAX)
+            {
+                auto image_format_props_ptr = reinterpret_cast<const VkSamplerYcbcrConversionImageFormatPropertiesKHR*>(input_struct_chain_ptr->get_struct_with_id(sampler_ycbcr_conversion_image_format_props_struct_id) );
+
+                n_combined_image_sampler_descriptors_used = image_format_props_ptr->combinedImageSamplerDescriptorCount;
+            }
         }
         else
         {
@@ -992,7 +1500,9 @@ bool Anvil::PhysicalDevice::get_image_format_properties(const ImageFormatPropert
     {
         *out_opt_result_ptr = Anvil::ImageFormatProperties(core_vk10_image_format_properties,
                                                            supports_amd_texture_gather_bias_lod,
-                                                           external_handle_props);
+                                                           external_handle_props,
+                                                           valid_stencil_image_usage_aspect_flags,
+                                                           n_combined_image_sampler_descriptors_used);
     }
 
     result = true;
@@ -1117,4 +1627,20 @@ void Anvil::PhysicalDevice::set_device_group_index(uint32_t in_new_device_group_
 void Anvil::PhysicalDevice::set_device_group_device_index(uint32_t in_new_device_group_device_index)
 {
     m_device_group_device_index = in_new_device_group_device_index;
+}
+
+/* Please see header for specification */
+bool Anvil::PhysicalDevice::supports_core_vk1_1() const
+{
+    return supports_core_vk1_1(get_device_properties().core_vk1_0_properties_ptr->api_version);
+}
+
+/* Please see header for specification */
+bool Anvil::PhysicalDevice::supports_core_vk1_1(const uint32_t& in_api_version) const
+{
+    const auto vk_major_version = VK_VERSION_MAJOR(in_api_version);
+    const auto vk_minor_version = VK_VERSION_MINOR(in_api_version);
+
+    return (vk_major_version >= 2)                          ||
+           (vk_major_version == 1 && vk_minor_version >= 1);
 }

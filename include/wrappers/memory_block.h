@@ -61,7 +61,16 @@ namespace Anvil
     public:
         /* Public functions */
 
-        static MemoryBlockUniquePtr create(Anvil::MemoryBlockCreateInfoUniquePtr in_create_info_ptr);
+        /* TODO
+         *
+         * @param in_create_info_ptr TODO
+         * @param out_opt_result_ptr If not null, deref will be set to the error code reported by the API function
+         *                           used to allocate the memory.
+         *
+         * @return New memory block instance if successful, null otherwise.
+         */
+        static MemoryBlockUniquePtr create(Anvil::MemoryBlockCreateInfoUniquePtr in_create_info_ptr,
+                                           VkResult*                             out_opt_result_ptr  = nullptr);
 
         /* Creates a new external memory handle of the user-specified type.
          *
@@ -196,7 +205,15 @@ namespace Anvil
 
     private:
         /* Private functions */
-        bool init();
+
+        /* TODO
+         *
+         * @param out_opt_result_ptr If not null, deref will be set to the error code reported by the API function
+         *                           used to allocate the memory.
+         *
+         * @return True if successful, false otherwise.
+         */
+        bool init(VkResult* out_opt_result_ptr = nullptr);
 
         MemoryBlock(Anvil::MemoryBlockCreateInfoUniquePtr in_create_info_ptr);
 

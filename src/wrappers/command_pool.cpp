@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (c) 2017-2019 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -30,20 +30,18 @@
 #include <algorithm>
 
 /* Please see header for specification */
-Anvil::CommandPool::CommandPool(Anvil::BaseDevice* in_device_ptr,
-                                bool               in_transient_allocations_friendly,
-                                bool               in_support_per_cmdbuf_reset_ops,
-                                uint32_t           in_queue_family_index,
-                                bool               in_mt_safe)
+Anvil::CommandPool::CommandPool(Anvil::BaseDevice*                   in_device_ptr,
+                                const Anvil::CommandPoolCreateFlags& in_create_flags,
+                                uint32_t                             in_queue_family_index,
+                                bool                                 in_mt_safe)
 
-    :DebugMarkerSupportProvider         (in_device_ptr,
-                                         Anvil::ObjectType::COMMAND_POOL),
-     MTSafetySupportProvider            (in_mt_safe),
-     m_command_pool                     (VK_NULL_HANDLE),
-     m_device_ptr                       (in_device_ptr),
-     m_is_transient_allocations_friendly(in_transient_allocations_friendly),
-     m_queue_family_index               (in_queue_family_index),
-     m_supports_per_cmdbuf_reset_ops    (in_support_per_cmdbuf_reset_ops)
+    :DebugMarkerSupportProvider(in_device_ptr,
+                                Anvil::ObjectType::COMMAND_POOL),
+     MTSafetySupportProvider   (in_mt_safe),
+     m_command_pool            (VK_NULL_HANDLE),
+     m_create_flags            (in_create_flags),
+     m_device_ptr              (in_device_ptr),
+     m_queue_family_index      (in_queue_family_index)
 {
     VkCommandPoolCreateInfo command_pool_create_info;
     VkResult                result_vk               (VK_ERROR_INITIALIZATION_FAILED);
@@ -51,8 +49,7 @@ Anvil::CommandPool::CommandPool(Anvil::BaseDevice* in_device_ptr,
     ANVIL_REDUNDANT_VARIABLE(result_vk);
 
     /* Go on and create the command pool */
-    command_pool_create_info.flags            = ((in_transient_allocations_friendly) ? VK_COMMAND_POOL_CREATE_TRANSIENT_BIT            : 0u) |
-                                                ((in_support_per_cmdbuf_reset_ops)   ? VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT : 0u);
+    command_pool_create_info.flags            = in_create_flags.get_vk();
     command_pool_create_info.pNext            = nullptr;
     command_pool_create_info.queueFamilyIndex = in_queue_family_index;
     command_pool_create_info.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -126,11 +123,10 @@ Anvil::SecondaryCommandBufferUniquePtr Anvil::CommandPool::alloc_secondary_level
 }
 
 /* Please see header for specification */
-Anvil::CommandPoolUniquePtr Anvil::CommandPool::create(Anvil::BaseDevice* in_device_ptr,
-                                                       bool               in_transient_allocations_friendly,
-                                                       bool               in_support_per_cmdbuf_reset_ops,
-                                                       uint32_t           in_queue_family_index,
-                                                       MTSafety           in_mt_safety)
+Anvil::CommandPoolUniquePtr Anvil::CommandPool::create(Anvil::BaseDevice*                   in_device_ptr,
+                                                       const Anvil::CommandPoolCreateFlags& in_create_flags,
+                                                       uint32_t                             in_queue_family_index,
+                                                       MTSafety                             in_mt_safety)
 {
     const bool                  is_mt_safe = Anvil::Utils::convert_mt_safety_enum_to_boolean(in_mt_safety,
                                                                                              in_device_ptr);
@@ -139,8 +135,7 @@ Anvil::CommandPoolUniquePtr Anvil::CommandPool::create(Anvil::BaseDevice* in_dev
 
     result_ptr.reset(
         new Anvil::CommandPool(in_device_ptr,
-                               in_transient_allocations_friendly,
-                               in_support_per_cmdbuf_reset_ops,
+                               in_create_flags,
                                in_queue_family_index,
                                is_mt_safe)
     );

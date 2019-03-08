@@ -218,6 +218,8 @@ bool Anvil::MemoryAllocatorBackends::VMA::bake(Anvil::MemoryAllocator::Items& in
      */
     for (auto& current_item_ptr : in_items)
     {
+        anvil_assert(current_item_ptr->memory_priority == FLT_MAX); /* VMA doesn't support memory_priority */
+
         MemoryBlockUniquePtr new_memory_block_ptr(nullptr,
                                                   std::default_delete<Anvil::MemoryBlock>() );
 
@@ -424,6 +426,12 @@ bool Anvil::MemoryAllocatorBackends::VMA::supports_external_memory_handles(const
     /* Vulkan Memory Allocator does NOT support external memory handles */
     ANVIL_REDUNDANT_VARIABLE_CONST(in_external_memory_handle_types);
 
+    return false;
+}
+
+bool Anvil::MemoryAllocatorBackends::VMA::supports_protected_memory() const
+{
+    /* Vulkan Memory Allocator does NOT support VK 1.1 features */
     return false;
 }
 

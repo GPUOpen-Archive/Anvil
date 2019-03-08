@@ -87,3 +87,17 @@ Anvil::SwapchainCreateInfo::SwapchainCreateInfo(Anvil::BaseDevice*              
     anvil_assert(in_parent_surface_ptr != nullptr);
     anvil_assert(in_usage_flags        != 0);
 }
+
+void Anvil::SwapchainCreateInfo::set_view_format_list(const Anvil::Format* in_compatible_formats_ptr,
+                                                      const uint32_t&      in_n_compatible_formats)
+{
+    anvil_assert(in_n_compatible_formats > 0);
+
+    m_flags |= Anvil::SwapchainCreateFlagBits::CREATE_MUTABLE_FORMAT_BIT;
+
+    m_compatible_formats.resize(in_n_compatible_formats);
+
+    memcpy(&m_compatible_formats.at(0),
+           in_compatible_formats_ptr,
+           sizeof(Anvil::Format) * in_n_compatible_formats);
+}

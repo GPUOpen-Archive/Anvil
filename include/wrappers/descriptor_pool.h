@@ -58,19 +58,8 @@ namespace Anvil
         /** Creates a new DescriptorPool instance. Sets up the wrapper, but does not immediately
          *  bake a new Vulkan pool.
          *
-         *  @param in_device_ptr                    Device to use.
-         *  @param in_n_max_sets                    Maximum number of sets to be allocable from the pool. Must be at
-         *                                          least 1.
-         *  @param in_flags                         See DescriptorPoolFlagBits documentation for more details.
-         *  @param in_descriptor_count_per_type_ptr Pointer to an array holding info regarding the number of descriptors to preallocate
-         *                                          slots for in the pool. Exactly VK_DESCRIPTOR_TYPE_RANGE_SIZE uint32s will be read
-         *                                          from the array. Must not be null.
          **/
-        static DescriptorPoolUniquePtr create(const Anvil::BaseDevice*                in_device_ptr,
-                                              uint32_t                                in_n_max_sets,
-                                              const Anvil::DescriptorPoolCreateFlags& in_flags,
-                                              const uint32_t*                         in_descriptor_count_per_type_ptr,
-                                              MTSafety                                in_mt_safety = Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE);
+        static DescriptorPoolUniquePtr create(Anvil::DescriptorPoolCreateInfoUniquePtr in_create_info_ptr);
 
         /** Destructor. Releases the Vulkan pool object if instantiated. */
         virtual ~DescriptorPool();
@@ -102,9 +91,9 @@ namespace Anvil
                                    VkDescriptorSet*               out_descriptor_sets_vk_ptr,
                                    VkResult*                      out_opt_result_ptr = nullptr);
 
-        const Anvil::DescriptorPoolCreateFlags& get_flags() const
+        const Anvil::DescriptorPoolCreateInfo* get_create_info_ptr() const
         {
-            return m_flags;
+            return m_create_info_ptr.get();
         }
 
         /** Returns a raw Vulkan handle for the pool.
@@ -116,11 +105,6 @@ namespace Anvil
         const VkDescriptorPool& get_descriptor_pool()
         {
             return m_pool;
-        }
-
-        uint32_t get_n_maximum_sets() const
-        {
-            return m_n_max_sets;
         }
 
         /** Resets the pool.
@@ -135,25 +119,17 @@ namespace Anvil
         bool init();
 
         /** Constructor */
-        DescriptorPool(const Anvil::BaseDevice*                in_device_ptr,
-                       uint32_t                                in_n_max_sets,
-                       const Anvil::DescriptorPoolCreateFlags& in_flags,
-                       const uint32_t*                         in_descriptor_count_per_type_ptr,
-                       bool                                    in_mt_safe);
+        DescriptorPool(Anvil::DescriptorPoolCreateInfoUniquePtr in_create_info_ptr,
+                       bool                                     in_mt_safe);
 
         DescriptorPool           (const DescriptorPool&);
         DescriptorPool& operator=(const DescriptorPool&);
 
         /* Private variables */
-        const Anvil::BaseDevice* m_device_ptr;
-        VkDescriptorPool         m_pool;
-
-        uint32_t m_descriptor_count[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
-        uint32_t m_n_max_sets;
-
-        std::vector<VkDescriptorSet>           m_ds_cache;
-        std::vector<VkDescriptorSetLayout>     m_ds_layout_cache;
-        const Anvil::DescriptorPoolCreateFlags m_flags;
+        Anvil::DescriptorPoolCreateInfoUniquePtr m_create_info_ptr;
+        std::vector<VkDescriptorSet>             m_ds_cache;
+        std::vector<VkDescriptorSetLayout>       m_ds_layout_cache;
+        VkDescriptorPool                         m_pool;
     };
 
 }; /* namespace Anvil */

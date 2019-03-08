@@ -26,18 +26,16 @@
 #include "wrappers/instance.h"
 #include "wrappers/physical_device.h"
 
-#if !defined(ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB)
-    static bool g_core_func_ptrs_inited     = false;
-    static bool g_instance_func_ptrs_inited = false;
-#endif
-
-static std::mutex              g_vk10_func_ptr_init_mutex;
-static Anvil::LibraryUniquePtr g_vk10_library_ptr;
+static bool                    g_core_func_ptrs_inited     = false;
+static bool                    g_instance_func_ptrs_inited = false;
+static std::mutex              g_vk_func_ptr_init_mutex;
+static Anvil::LibraryUniquePtr g_vk_library_ptr;
 
 
 /** Please see header for specification */
 Anvil::Instance::Instance(Anvil::InstanceCreateInfoUniquePtr in_create_info_ptr)
     :MTSafetySupportProvider(in_create_info_ptr->is_mt_safe() ),
+     m_api_version          (APIVersion::UNKNOWN),
      m_debug_messenger_ptr  (Anvil::DebugMessengerUniquePtr(nullptr, std::default_delete<Anvil::DebugMessenger>() )),
      m_global_layer         (""),
      m_instance             (VK_NULL_HANDLE)
@@ -79,7 +77,10 @@ Anvil::InstanceUniquePtr Anvil::Instance::create(Anvil::InstanceCreateInfoUnique
         new Instance(std::move(in_create_info_ptr) )
     );
 
-    new_instance_ptr->init();
+    if (!new_instance_ptr->init() )
+    {
+        new_instance_ptr.reset();
+    }
 
     return new_instance_ptr;
 }
@@ -177,10 +178,14 @@ void Anvil::Instance::enumerate_layer_extensions(Anvil::Layer* in_layer_ptr)
         in_layer_ptr = &m_global_layer;
     }
 
-    layer_name = in_layer_ptr->name.c_str();
-    result     = Anvil::Vulkan::vkEnumerateInstanceExtensionProperties(layer_name,
-                                                                      &n_extensions,
-                                                                       nullptr); /* pProperties */
+    if (in_layer_ptr->name != "")
+    {
+        layer_name = in_layer_ptr->name.c_str();
+    }
+
+    result = Anvil::Vulkan::vkEnumerateInstanceExtensionProperties(layer_name,
+                                                                  &n_extensions,
+                                                                   nullptr); /* pProperties */
 
     anvil_assert_vk_call_succeeded(result);
 
@@ -406,27 +411,25 @@ const Anvil::ExtensionKHRDeviceGroupCreationEntrypoints& Anvil::Instance::get_ex
 }
 
 /** Initializes the wrapper. */
-void Anvil::Instance::init()
+bool Anvil::Instance::init()
 {
-    VkApplicationInfo           app_info;
-    VkInstanceCreateInfo        create_info;
+    uint32_t                    api_version_to_use                 = 0;
+    std::vector<const char*>    enabled_extensions_raw;
     std::vector<const char*>    enabled_layers;
     std::map<std::string, bool> extension_enabled_status;
     bool                        is_device_group_creation_supported = true;
     size_t                      n_instance_layers                  = 0;
-    VkResult                    result                             = VK_ERROR_INITIALIZATION_FAILED;
+    bool                        result                             = false;
+    VkResult                    result_vk                          = VK_ERROR_INITIALIZATION_FAILED;
 
-    ANVIL_REDUNDANT_VARIABLE(result);
+    ANVIL_REDUNDANT_VARIABLE(result_vk);
 
-    #if !defined(ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB)
+    if (!init_vk_func_ptrs() )
     {
-        if (!init_vk10_func_ptrs() )
-        {
-            /* TODO: Return null instance in case of a failure */
-            anvil_assert_fail();
-        }
+        anvil_assert_fail();
+
+        goto end;
     }
-    #endif
 
     /* Enumerate available layers */
     enumerate_instance_layers();
@@ -463,20 +466,74 @@ void Anvil::Instance::init()
         #endif
     };
 
-    /* Set up the app info descriptor **/
-    app_info.apiVersion         = VK_MAKE_VERSION(1, 0, 0);
-    app_info.applicationVersion = 0;
-    app_info.engineVersion      = 0;
-    app_info.pApplicationName   = get_create_info_ptr()->get_app_name   ().c_str();
-    app_info.pEngineName        = get_create_info_ptr()->get_engine_name().c_str();
-    app_info.pNext              = nullptr;
-    app_info.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    /* Determine API version to use */
+    if (m_create_info_ptr->get_api_version() == Anvil::APIVersion::UNKNOWN)
+    {
+        /* Use the latest version available .. */
+        uint32_t available_vk_version       = 0;
+        uint32_t available_vk_version_major = 0;
+        uint32_t available_vk_version_minor = 0;
+
+        if (Anvil::Vulkan::vkEnumerateInstanceVersion != nullptr)
+        {
+            if (Anvil::Vulkan::vkEnumerateInstanceVersion(&available_vk_version) != VK_SUCCESS)
+            {
+                anvil_assert_fail();
+
+                goto end;
+            }
+        }
+        else
+        {
+            /* Assume VK 1.0 is the highest API version available. */
+            available_vk_version = VK_MAKE_VERSION(1, 0, 0);
+        }
+
+        available_vk_version_major = VK_VERSION_MAJOR(available_vk_version);
+        available_vk_version_minor = VK_VERSION_MINOR(available_vk_version);
+
+        if ( available_vk_version_major >= 2                                    ||
+            (available_vk_version_major == 1 && available_vk_version_minor >= 1)) 
+        {
+            api_version_to_use = VK_MAKE_VERSION(1, 1, 0);
+            m_api_version      = APIVersion::_1_1;
+        }
+        else
+        {
+            api_version_to_use = VK_MAKE_VERSION(1, 0, 0);
+            m_api_version      = APIVersion::_1_0;
+        }
+    }
+    else
+    {
+        switch (m_create_info_ptr->get_api_version() )
+        {
+            case APIVersion::_1_0:
+            {
+                api_version_to_use = VK_MAKE_VERSION(1, 0, 0);
+                m_api_version      = APIVersion::_1_0;
+
+                break;
+            }
+
+            case APIVersion::_1_1:
+            {
+                api_version_to_use = VK_MAKE_VERSION(1, 1, 0);
+                m_api_version      = APIVersion::_1_1;
+
+                break;
+            }
+
+            default:
+            {
+                anvil_assert_fail();
+
+                goto end;
+            }
+        }
+    }
 
     /* Set up the create info descriptor */
-    memset(&create_info,
-           0,
-           sizeof(create_info) );
-
     n_instance_layers = static_cast<uint32_t>(m_supported_layers.size() );
 
     for (size_t  n_instance_layer = 0;
@@ -488,8 +545,8 @@ void Anvil::Instance::init()
 
         /* If validation is enabled and this is a layer which issues debug call-backs, cache it, so that
          * we can request for it at vkCreateInstance() call time */
-        if (get_create_info_ptr()->get_validation_callback()             != nullptr           &&
-            layer_description.find                        ("Validation") != std::string::npos)
+        if (get_create_info_ptr()->get_validation_callback()            != nullptr           &&
+            layer_description.find                        ("alidation") != std::string::npos)
         {
             enabled_layers.push_back(layer_name.c_str() );
         }
@@ -576,43 +633,66 @@ void Anvil::Instance::init()
     }
 
     /* We're ready to create a new Vulkan instance */
-    std::vector<const char*> enabled_extensions_raw;
-
     for (auto& ext_name : extension_enabled_status)
     {
         enabled_extensions_raw.push_back(ext_name.first.c_str() );
     }
 
-    create_info.enabledExtensionCount   = static_cast<uint32_t>(enabled_extensions_raw.size() );
-    create_info.enabledLayerCount       = static_cast<uint32_t>(enabled_layers.size() );
-    create_info.flags                   = 0;
-    create_info.pApplicationInfo        = &app_info;
-    create_info.pNext                   = nullptr;
-    create_info.ppEnabledExtensionNames = (enabled_extensions_raw.size() > 0) ? &enabled_extensions_raw[0] : nullptr;
-    create_info.ppEnabledLayerNames     = (enabled_layers.size()         > 0) ? &enabled_layers        [0] : nullptr;
-    create_info.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-
-    result = Anvil::Vulkan::vkCreateInstance(&create_info,
-                                             nullptr, /* pAllocator */
-                                             &m_instance);
-
-    anvil_assert_vk_call_succeeded(result);
-
-    /* Continue initializing */
-    #if !defined(ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB)
     {
-        /* Retrieve the remaining part of instance-dependent function pointers */
-        if (!init_vk10_func_ptrs() )
-        {
-            /* TODO: Return null instance in case of a failure */
-            anvil_assert_fail();
-        }
+        VkApplicationInfo    app_info;
+        VkInstanceCreateInfo create_info;
+
+        /* Set up the app info descriptor */
+        app_info.apiVersion         = api_version_to_use;
+        app_info.applicationVersion = m_create_info_ptr->get_app_version   ();
+        app_info.engineVersion      = m_create_info_ptr->get_engine_version();
+        app_info.pApplicationName   = m_create_info_ptr->get_app_name      ().c_str();
+        app_info.pEngineName        = m_create_info_ptr->get_engine_name   ().c_str();
+        app_info.pNext              = nullptr;
+        app_info.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+
+        create_info.enabledExtensionCount   = static_cast<uint32_t>(enabled_extensions_raw.size() );
+        create_info.enabledLayerCount       = static_cast<uint32_t>(enabled_layers.size        () );
+        create_info.flags                   = 0;
+        create_info.pApplicationInfo        = &app_info;
+        create_info.pNext                   = nullptr;
+        create_info.ppEnabledExtensionNames = (enabled_extensions_raw.size() > 0) ? &enabled_extensions_raw.at(0) : nullptr;
+        create_info.ppEnabledLayerNames     = (enabled_layers.size()         > 0) ? &enabled_layers.at        (0) : nullptr;
+        create_info.sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+
+        result_vk = Anvil::Vulkan::vkCreateInstance(&create_info,
+                                                    nullptr, /* pAllocator */
+                                                    &m_instance);
+
+        anvil_assert_vk_call_succeeded(result_vk);
     }
-    #endif
+
+    /* If this is a VK 1.1 instance, explicitly mark VK1.1 specific extensions as enabled. This is to provide backwards compatibility
+     * with VK 1.0 applications which may not be aware that VK 1.0 extensions that were folded into VK 1.1 do not necessarily have to
+     * be reported as supported.
+     */
+    if (m_api_version == APIVersion::_1_1)
+    {
+        extension_enabled_status[VK_KHR_DEVICE_GROUP_CREATION_EXTENSION_NAME]            = true;
+        extension_enabled_status[VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME]      = true;
+        extension_enabled_status[VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME]     = true;
+        extension_enabled_status[VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME]  = true;
+        extension_enabled_status[VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME] = true;
+
+        m_enabled_extensions_info_ptr = Anvil::ExtensionInfo<bool>::create_instance_extension_info(extension_enabled_status,
+                                                                                                   false); /* in_unspecified_extension_name_value */
+    }
+
+    /* Retrieve the remaining part of instance-dependent function pointers */
+    if (!init_vk_func_ptrs() )
+    {
+        /* TODO: Return null instance in case of a failure */
+        anvil_assert_fail();
+    }
 
     init_func_pointers();
 
-    if (get_create_info_ptr()->get_validation_callback() != nullptr)
+    if (m_create_info_ptr->get_validation_callback() != nullptr)
     {
         init_debug_callbacks();
     }
@@ -623,6 +703,10 @@ void Anvil::Instance::init()
     {
         enumerate_physical_device_groups();
     }
+
+    result = true;
+end:
+    return result;
 }
 
 /** Initializes debug callback support. */
@@ -645,6 +729,13 @@ void Anvil::Instance::init_debug_callbacks()
 /** Initializes all required instance-level function pointers. */
 void Anvil::Instance::init_func_pointers()
 {
+    /* NOTE: Vulkan 1.1 instances do not need to report support for extensions considered core in 1.1. To address this, any func pointers corresponding to VK1.1 functionality
+     *       need to be taken from core entrypoint pool.
+     *
+     *       Anvil reports support for extensions corresponding to wrapped core functionality, irrelevant of what extensions the implementation actually reports for.
+     */
+    const bool is_vk11_instance = (m_api_version == APIVersion::_1_1);
+
     #ifdef _WIN32
     {
         #if defined(ANVIL_INCLUDE_WIN3264_WINDOW_SYSTEM_SUPPORT)
@@ -730,22 +821,38 @@ void Anvil::Instance::init_func_pointers()
         anvil_assert(m_ext_debug_utils_entrypoints.vkSubmitDebugUtilsMessageEXT    != nullptr);
     }
 
-    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_get_physical_device_properties2() )
+    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_get_physical_device_properties2() ||
+        is_vk11_instance)
     {
+        const char* vk_get_physical_device_features_2_entrypoint_name                       = (is_vk11_instance) ? "vkGetPhysicalDeviceFeatures2"
+                                                                                                                 : "vkGetPhysicalDeviceFeatures2KHR";
+        const char* vk_get_physical_device_format_properties_2_entrypoint_name              = (is_vk11_instance) ? "vkGetPhysicalDeviceFormatProperties2"
+                                                                                                                 : "vkGetPhysicalDeviceFormatProperties2KHR";
+        const char* vk_get_physical_device_image_format_properties_2_entrypoint_name        = (is_vk11_instance) ? "vkGetPhysicalDeviceImageFormatProperties2"
+                                                                                                                 : "vkGetPhysicalDeviceImageFormatProperties2KHR";
+        const char* vk_get_physical_device_memory_properties_2_entrypoint_name              = (is_vk11_instance) ? "vkGetPhysicalDeviceMemoryProperties2"
+                                                                                                                 : "vkGetPhysicalDeviceMemoryProperties2KHR";
+        const char* vk_get_physical_device_properties_2_entrypoint_name                     = (is_vk11_instance) ? "vkGetPhysicalDeviceProperties2"
+                                                                                                                 : "vkGetPhysicalDeviceProperties2KHR";
+        const char* vk_get_physical_device_queue_family_properties_2_entrypoint_name        = (is_vk11_instance) ? "vkGetPhysicalDeviceQueueFamilyProperties2"
+                                                                                                                 : "vkGetPhysicalDeviceQueueFamilyProperties2KHR";
+        const char* vk_get_physical_device_sparse_image_format_properties_2_entrypoint_name = (is_vk11_instance) ? "vkGetPhysicalDeviceSparseImageFormatProperties2"
+                                                                                                                 : "vkGetPhysicalDeviceSparseImageFormatProperties2KHR";
+
         m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceFeatures2KHR                    = reinterpret_cast<PFN_vkGetPhysicalDeviceFeatures2KHR>                   (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                                             "vkGetPhysicalDeviceFeatures2KHR") );
+                                                                                                                                                                                                                             vk_get_physical_device_features_2_entrypoint_name) );
         m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceFormatProperties2KHR            = reinterpret_cast<PFN_vkGetPhysicalDeviceFormatProperties2KHR>           (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                                             "vkGetPhysicalDeviceFormatProperties2KHR") );
+                                                                                                                                                                                                                             vk_get_physical_device_format_properties_2_entrypoint_name) );
         m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceImageFormatProperties2KHR       = reinterpret_cast<PFN_vkGetPhysicalDeviceImageFormatProperties2KHR>      (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                                             "vkGetPhysicalDeviceImageFormatProperties2KHR") );
+                                                                                                                                                                                                                             vk_get_physical_device_image_format_properties_2_entrypoint_name) );
         m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceMemoryProperties2KHR            = reinterpret_cast<PFN_vkGetPhysicalDeviceMemoryProperties2KHR>           (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                                             "vkGetPhysicalDeviceMemoryProperties2KHR") );
+                                                                                                                                                                                                                             vk_get_physical_device_memory_properties_2_entrypoint_name) );
         m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceProperties2KHR                  = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2KHR>                 (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                                             "vkGetPhysicalDeviceProperties2KHR") );
+                                                                                                                                                                                                                             vk_get_physical_device_properties_2_entrypoint_name) );
         m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceQueueFamilyProperties2KHR       = reinterpret_cast<PFN_vkGetPhysicalDeviceQueueFamilyProperties2KHR>      (Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                                             "vkGetPhysicalDeviceQueueFamilyProperties2KHR") );
+                                                                                                                                                                                                                             vk_get_physical_device_queue_family_properties_2_entrypoint_name) );
         m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceSparseImageFormatProperties2KHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSparseImageFormatProperties2KHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                                             "vkGetPhysicalDeviceSparseImageFormatProperties2KHR") );
+                                                                                                                                                                                                                             vk_get_physical_device_sparse_image_format_properties_2_entrypoint_name) );
 
         anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceFeatures2KHR                    != nullptr);
         anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceFormatProperties2KHR            != nullptr);
@@ -756,34 +863,50 @@ void Anvil::Instance::init_func_pointers()
         anvil_assert(m_khr_get_physical_device_properties2_entrypoints.vkGetPhysicalDeviceSparseImageFormatProperties2KHR != nullptr);
     }
 
-    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_device_group_creation() )
+    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_device_group_creation() ||
+        is_vk11_instance)
     {
+        const char* vk_enumerate_physical_device_groups_entrypoint_name = (is_vk11_instance) ? "vkEnumeratePhysicalDeviceGroups"
+                                                                                             : "vkEnumeratePhysicalDeviceGroupsKHR";
+
         m_khr_device_group_creation_entrypoints.vkEnumeratePhysicalDeviceGroupsKHR = reinterpret_cast<PFN_vkEnumeratePhysicalDeviceGroupsKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                   "vkEnumeratePhysicalDeviceGroupsKHR") );
+                                                                                                                                                                                   vk_enumerate_physical_device_groups_entrypoint_name) );
 
         anvil_assert(m_khr_device_group_creation_entrypoints.vkEnumeratePhysicalDeviceGroupsKHR != nullptr);
     }
 
-    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_external_fence_capabilities() )
+    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_external_fence_capabilities() ||
+        is_vk11_instance)
     {
-        m_khr_external_fence_capabilities_entrypoints.vkGetPhysicalDeviceExternalFencePropertiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceExternalFencePropertiesKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                               "vkGetPhysicalDeviceExternalFencePropertiesKHR") );
+        const char* vk_get_physical_device_external_fence_properties_entrypoint_name = (is_vk11_instance) ? "vkGetPhysicalDeviceExternalFenceProperties"
+                                                                                                          : "vkGetPhysicalDeviceExternalFencePropertiesKHR";
 
-        anvil_assert(m_khr_external_fence_capabilities_entrypoints.vkGetPhysicalDeviceExternalFencePropertiesKHR!= nullptr);
+        m_khr_external_fence_capabilities_entrypoints.vkGetPhysicalDeviceExternalFencePropertiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceExternalFencePropertiesKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                                                                                                                               vk_get_physical_device_external_fence_properties_entrypoint_name) );
+
+        anvil_assert(m_khr_external_fence_capabilities_entrypoints.vkGetPhysicalDeviceExternalFencePropertiesKHR != nullptr);
     }
 
-    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_external_memory_capabilities() )
+    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_external_memory_capabilities() ||
+        is_vk11_instance)
     {
+        const char* vk_get_physical_device_external_buffer_properties_entrypoint_name = (is_vk11_instance) ? "vkGetPhysicalDeviceExternalBufferProperties"
+                                                                                                           : "vkGetPhysicalDeviceExternalBufferPropertiesKHR";
+
         m_khr_external_memory_capabilities_entrypoints.vkGetPhysicalDeviceExternalBufferPropertiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceExternalBufferPropertiesKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                                  "vkGetPhysicalDeviceExternalBufferPropertiesKHR") );
+                                                                                                                                                                                                                  vk_get_physical_device_external_buffer_properties_entrypoint_name) );
 
         anvil_assert(m_khr_external_memory_capabilities_entrypoints.vkGetPhysicalDeviceExternalBufferPropertiesKHR != nullptr);
     }
 
-    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_external_semaphore_capabilities() )
+    if (m_enabled_extensions_info_ptr->get_instance_extension_info()->khr_external_semaphore_capabilities() ||
+        is_vk11_instance)
     {
+        const char* vk_get_physical_device_external_semaphore_properties_entrypoint_name = (is_vk11_instance) ? "vkGetPhysicalDeviceExternalSemaphoreProperties"
+                                                                                                              : "vkGetPhysicalDeviceExternalSemaphorePropertiesKHR";
+
         m_khr_external_semaphore_capabilities_entrypoints.vkGetPhysicalDeviceExternalSemaphorePropertiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceExternalSemaphorePropertiesKHR>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
-                                                                                                                                                                                                                           "vkGetPhysicalDeviceExternalSemaphorePropertiesKHR") );
+                                                                                                                                                                                                                           vk_get_physical_device_external_semaphore_properties_entrypoint_name) );
 
         anvil_assert(m_khr_external_semaphore_capabilities_entrypoints.vkGetPhysicalDeviceExternalSemaphorePropertiesKHR!= nullptr);
     }
@@ -809,20 +932,22 @@ void Anvil::Instance::init_func_pointers()
     }
 }
 
-#if !defined(ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB)
-    bool Anvil::Instance::init_vk10_func_ptrs()
-    {
-        std::lock_guard<std::mutex> lock  (g_vk10_func_ptr_init_mutex);
-        bool                        result(true);
+bool Anvil::Instance::init_vk_func_ptrs()
+{
+    std::lock_guard<std::mutex> lock  (g_vk_func_ptr_init_mutex);
+    bool                        result(true);
 
-        struct
+    typedef struct
+    {
+        std::string func_name;
+        bool        requires_getter_call;
+        void**      result_func_ptr;
+    } FunctionData;
+
+    #if !defined(ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB)
+        FunctionData functions_vk10[] =
         {
-            std::string func_name;
-            bool        requires_getter_call;
-            void**      result_func_ptr;
-        } functions[] =
-        {
-            /* NOTE: All functions with @param requires_getter_cal equal to false should come first! */
+            /* NOTE: All functions with @param requires_getter_call equal to false should come first! */
             {"vkCreateInstance",                               false, reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateInstance)},
             {"vkDestroyInstance",                              false, reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyInstance)},
             {"vkEnumeratePhysicalDevices",                     false, reinterpret_cast<void**>(&Anvil::Vulkan::vkEnumeratePhysicalDevices)},
@@ -963,33 +1088,68 @@ void Anvil::Instance::init_func_pointers()
             {"vkCmdEndRenderPass",                             true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdEndRenderPass)},
             {"vkCmdExecuteCommands",                           true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdExecuteCommands)}
         };
+    #endif
 
-        if (g_core_func_ptrs_inited     &&
-            g_instance_func_ptrs_inited)
+    FunctionData functions_vk11[] =
+    {
+        {"vkBindBufferMemory2",                             true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkBindBufferMemory2)},
+        {"vkCmdDispatchBase",                               true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdDispatchBase)},
+        {"vkCmdSetDeviceMask",                              true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCmdSetDeviceMask)},
+        {"vkCreateDescriptorUpdateTemplate",                true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateDescriptorUpdateTemplate)},
+        {"vkCreateSamplerYcbcrConversion",                  true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkCreateSamplerYcbcrConversion)},
+        {"vkDestroyDescriptorUpdateTemplate",               true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroyDescriptorUpdateTemplate)},
+        {"vkDestroySamplerYcbcrConversion",                 true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkDestroySamplerYcbcrConversion)},
+        {"vkEnumerateInstanceVersion",                      false, reinterpret_cast<void**>(&Anvil::Vulkan::vkEnumerateInstanceVersion)},
+        {"vkEnumeratePhysicalDeviceGroups",                 true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkEnumeratePhysicalDeviceGroups)},
+        {"vkGetBufferMemoryRequirements2",                  true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetBufferMemoryRequirements2)},
+        {"vkGetDescriptorSetLayoutSupport",                 true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetDescriptorSetLayoutSupport)},
+        {"vkGetDeviceGroupPeerMemoryFeatures",              true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetDeviceGroupPeerMemoryFeatures)},
+        {"vkGetDeviceQueue2",                               true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetDeviceQueue2)},
+        {"vkGetImageMemoryRequirements2",                   true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetImageMemoryRequirements2)},
+        {"vkGetImageSparseMemoryRequirements2",             true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetImageSparseMemoryRequirements2)},
+        {"vkGetPhysicalDeviceExternalBufferProperties",     true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPhysicalDeviceExternalBufferProperties)},
+        {"vkGetPhysicalDeviceExternalFenceProperties",      true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPhysicalDeviceExternalFenceProperties)},
+        {"vkGetPhysicalDeviceExternalSemaphoreProperties",  true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPhysicalDeviceExternalSemaphoreProperties)},
+        {"vkGetPhysicalDeviceFeatures2",                    true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPhysicalDeviceFeatures2)},
+        {"vkGetPhysicalDeviceFormatProperties2",            true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPhysicalDeviceFormatProperties2)},
+        {"vkGetPhysicalDeviceImageFormatProperties2",       true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPhysicalDeviceImageFormatProperties2)},
+        {"vkGetPhysicalDeviceMemoryProperties2",            true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPhysicalDeviceMemoryProperties2)},
+        {"vkGetPhysicalDeviceProperties2",                  true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPhysicalDeviceProperties2)},
+        {"vkGetPhysicalDeviceQueueFamilyProperties2",       true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPhysicalDeviceQueueFamilyProperties2)},
+        {"vkGetPhysicalDeviceSparseImageFormatProperties2", true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkGetPhysicalDeviceSparseImageFormatProperties2)},
+        {"vkTrimCommandPool",                               true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkTrimCommandPool)},
+        {"vkUpdateDescriptorSetWithTemplate",               true,  reinterpret_cast<void**>(&Anvil::Vulkan::vkUpdateDescriptorSetWithTemplate)},
+    };
+
+    if (g_core_func_ptrs_inited     &&
+        g_instance_func_ptrs_inited)
+    {
+        result = true;
+
+        goto end;
+    }
+
+    #if !defined(ANVIL_LINK_STATICALLY_WITH_VULKAN_LIB)
+    {
+        if (g_vk_library_ptr == nullptr)
         {
-            result = true;
+            g_vk_library_ptr = Anvil::Library::create(ANVIL_VULKAN_DYNAMIC_DLL);
 
-            goto end;
-        }
-
-        if (g_vk10_library_ptr == nullptr)
-        {
-            g_vk10_library_ptr = Anvil::Library::create(ANVIL_VULKAN_DYNAMIC_DLL);
-
-            if (g_vk10_library_ptr == nullptr)
+            if (g_vk_library_ptr == nullptr)
             {
-                anvil_assert(g_vk10_library_ptr != nullptr);
+                anvil_assert(g_vk_library_ptr != nullptr);
 
                 goto end;
             }
         }
 
-        for (const auto& current_func_data : functions)
+        /* VK 1.0 func ptrgetters - all entrypoints must be present */
+        for (const auto& current_func_data : functions_vk10)
         {
             if (!current_func_data.requires_getter_call &&
                 !g_core_func_ptrs_inited)
             {
-                *current_func_data.result_func_ptr = g_vk10_library_ptr->get_proc_address(current_func_data.func_name.c_str() );
+                *current_func_data.result_func_ptr = g_vk_library_ptr->get_proc_address(current_func_data.func_name.c_str() );
 
                 if (*current_func_data.result_func_ptr == nullptr)
                 {
@@ -1014,17 +1174,37 @@ void Anvil::Instance::init_func_pointers()
                 }
             }
         }
-
-        g_core_func_ptrs_inited = true;
-
-        if (m_instance != VK_NULL_HANDLE)
-        {
-            g_instance_func_ptrs_inited = true;
-        }
-    end:
-        return result;
     }
-#endif
+    #endif
+
+    /* VK 1.1 func ptr getters - all entrypoints may be missing on implementations that do not support the API */
+    for (const auto& current_func_data : functions_vk11)
+    {
+        if (!current_func_data.requires_getter_call)
+        {
+            *current_func_data.result_func_ptr = reinterpret_cast<void*>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                              current_func_data.func_name.c_str() ));
+        }
+
+         if ((current_func_data.requires_getter_call)                   &&
+             (m_instance                             != VK_NULL_HANDLE) )
+        {
+            *current_func_data.result_func_ptr = reinterpret_cast<void*>(Anvil::Vulkan::vkGetInstanceProcAddr(m_instance,
+                                                                                                              current_func_data.func_name.c_str() ));
+        }
+    }
+
+    /* Done */
+    g_core_func_ptrs_inited = true;
+
+    if (m_instance != VK_NULL_HANDLE)
+    {
+        g_instance_func_ptrs_inited = true;
+    }
+
+end:
+    return result;
+}
 
 /** Please see header for specification */
 bool Anvil::Instance::is_instance_extension_enabled(const char* in_extension_name) const
