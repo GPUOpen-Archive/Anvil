@@ -346,7 +346,7 @@ namespace Anvil
         const Anvil::BaseDevice*                                                 m_device_ptr;
         std::vector<const Anvil::DescriptorSetCreateInfo*>                       m_ds_create_info_ptrs;
 
-        std::unordered_map<Anvil::DescriptorType, DescriptorTypeProperties> m_descriptor_type_properties;
+        std::unordered_map<Anvil::DescriptorType, DescriptorTypeProperties, EnumClassHasher<Anvil::DescriptorType> > m_descriptor_type_properties;
 
         uint32_t                               m_n_unique_dses;
         const Anvil::DescriptorSetGroup*       m_parent_dsg_ptr;

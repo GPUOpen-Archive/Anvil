@@ -133,12 +133,12 @@ namespace Anvil
         DescriptorPoolCreateInfo& operator=(const DescriptorPoolCreateInfo&);
 
         /* Private variables */
-        Anvil::DescriptorPoolCreateFlags                    m_create_flags;
-        const Anvil::BaseDevice*                            m_device_ptr;
-        std::unordered_map<Anvil::DescriptorType, uint32_t> m_descriptor_count;
-        Anvil::MTSafety                                     m_mt_safety;
-        uint32_t                                            m_n_max_inline_uniform_block_bindings;
-        uint32_t                                            m_n_max_sets;
+        Anvil::DescriptorPoolCreateFlags                                                             m_create_flags;
+        const Anvil::BaseDevice*                                                                     m_device_ptr;
+        std::unordered_map<Anvil::DescriptorType, uint32_t, EnumClassHasher<Anvil::DescriptorType> > m_descriptor_count;
+        Anvil::MTSafety                                                                              m_mt_safety;
+        uint32_t                                                                                     m_n_max_inline_uniform_block_bindings;
+        uint32_t                                                                                     m_n_max_sets;
     };
 
 }; /* namespace Anvil */

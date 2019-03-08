@@ -185,11 +185,11 @@ Anvil::DescriptorSetGroup::~DescriptorSetGroup()
 /** Re-creates internally-maintained descriptor pool. **/
 bool Anvil::DescriptorSetGroup::bake_descriptor_pool()
 {
-    Anvil::DescriptorPoolCreateFlags                    flags                    = ((m_releaseable_sets) ? Anvil::DescriptorPoolCreateFlagBits::FREE_DESCRIPTOR_SET_BIT : Anvil::DescriptorPoolCreateFlagBits::NONE);
-    std::unique_lock<std::recursive_mutex>              mutex_lock;
-    auto                                                mutex_ptr                = get_mutex();
-    std::unordered_map<Anvil::DescriptorType, uint32_t> n_descriptors_needed_map;
-    bool                                                result                   = false;
+    Anvil::DescriptorPoolCreateFlags                                                                    flags                    = ((m_releaseable_sets) ? Anvil::DescriptorPoolCreateFlagBits::FREE_DESCRIPTOR_SET_BIT : Anvil::DescriptorPoolCreateFlagBits::NONE);
+    std::unique_lock<std::recursive_mutex>                                                              mutex_lock;
+    auto                                                                                                mutex_ptr                = get_mutex();
+    std::unordered_map<Anvil::DescriptorType, uint32_t, Anvil::EnumClassHasher<Anvil::DescriptorType> > n_descriptors_needed_map;
+    bool                                                                                                result                   = false;
 
     if (mutex_ptr != nullptr)
     {
