@@ -34,6 +34,8 @@
 #include "misc/mt_safety.h"
 #include "misc/types.h"
 #include "misc/page_tracker.h"
+#include <unordered_map>
+
 
 namespace Anvil
 {
@@ -148,9 +150,9 @@ namespace Anvil
         const VkImage& get_image(const bool& in_bake_memory_if_necessary = true);
 
         /** Returns information about the data alignment required by the underlying VkImage instance */
-        VkDeviceSize get_image_alignment() const
+        VkDeviceSize get_image_alignment(const uint32_t& in_n_plane) const
         {
-            return m_alignment;
+            return m_plane_index_to_memory_properties_map.at(in_n_plane).alignment;
         }
 
         /** Returns extent of a user-specified image mip as a VkExtent2D structure.
@@ -170,9 +172,9 @@ namespace Anvil
         VkExtent3D get_image_extent_3D(uint32_t in_n_mipmap) const;
 
         /** Returns information about the memory types the underlying VkImage instance supports */
-        uint32_t get_image_memory_types() const
+        uint32_t get_image_memory_types(const uint32_t& in_n_plane) const
         {
-            return m_memory_types;
+            return m_plane_index_to_memory_properties_map.at(in_n_plane).memory_types;
         }
 
         /** Returns information about size of the mipmap at index @param in_n_mipmap.
@@ -195,9 +197,9 @@ namespace Anvil
         /** Returns information about the amount of memory the underlying VkImage instance requires
          *  to work correctly.
          **/
-        VkDeviceSize get_image_storage_size() const
+        VkDeviceSize get_image_storage_size(const uint32_t& in_n_plane) const
         {
-            return m_storage_size;
+            return m_plane_index_to_memory_properties_map.at(in_n_plane).storage_size;
         }
 
         /** Returns a pointer to the underlying memory block wrapper instance.
@@ -210,14 +212,13 @@ namespace Anvil
          *
          *  In case of sparse images, the callback will only occur if at least one memory allocation
          *  has been scheduled for this image instance.
+         *
+         *  NOTE: The function always returns nullptr for PRTs. However, the callback takes place nevertheless.
+         *
+         *  @param in_n_plane Must be 0 for non-YUV or joint YUV images. For disjoint YUV images, the value must be between 0
+         *                    and 2 (inclusive).
          **/
-        Anvil::MemoryBlock* get_memory_block();
-
-        /** Returns VkMemoryRequirements structure, as reported by the driver for this Image instance. */
-        const VkMemoryRequirements& get_memory_requirements() const
-        {
-            return m_memory_reqs;
-        }
+        Anvil::MemoryBlock* get_memory_block(const uint32_t& in_n_plane = 0);
 
         const uint32_t& get_n_mipmaps() const
         {
@@ -275,14 +276,14 @@ namespace Anvil
                                        uint32_t                   in_y,
                                        uint32_t                   in_z) const;
 
-        bool prefers_dedicated_allocation() const
+        bool prefers_dedicated_allocation(const uint32_t& in_n_plane) const
         {
-            return m_prefers_dedicated_allocation;
+            return m_plane_index_to_memory_properties_map.at(in_n_plane).prefers_dedicated_allocation;
         }
 
-        bool requires_dedicated_allocation() const
+        bool requires_dedicated_allocation(const uint32_t& in_n_plane) const
         {
-            return m_requires_dedicated_allocation;
+            return m_plane_index_to_memory_properties_map.at(in_n_plane).requires_dedicated_allocation;
         }
 
         /** Binds the specified region of a Vulkan memory object to an Image and caches information
@@ -341,34 +342,6 @@ namespace Anvil
         bool set_memory(Anvil::MemoryBlock*  in_memory_block_ptr,
                         uint32_t             in_n_SFR_rects,
                         const VkRect2D*      in_SFRs_ptr);
-
-        /** See set_memory() for general documentation.
-         *
-         *  This static function can be used to set up image memory bindings using SFR rectangles
-         *  in a batched manner.
-         *
-         *  Can only be used for multi-GPU devices.
-         *
-         *  Requires VK_KHR_device_group to be supported by & enabled for the device.
-         *
-         *  TODO
-         **/
-        static bool set_memory_multi(uint32_t                     in_n_image_sfr_memory_binding_updates,
-                                     ImageSFRMemoryBindingUpdate* in_updates_ptr);
-
-        /** See set_memory() for general documentation.
-         *
-         *  This static function can be used to set up image memory bindings by specifying physical devices
-         *  in a batched manner.
-         *
-         *  Can only be used for multi-GPU devices.
-         *
-         *  Requires VK_KHR_device_group to be supported by & enabled for the device.
-         *
-         *  TODO
-         **/
-        static bool set_memory_multi(uint32_t                                in_n_image_physical_device_memory_binding_updates,
-                                     ImagePhysicalDeviceMemoryBindingUpdate* in_updates_ptr);
 
         /** Updates image with specified mip-map data. Blocks until the operation finishes executing.
          *
@@ -536,21 +509,18 @@ namespace Anvil
         void init_page_occupancy(const std::vector<Anvil::SparseImageMemoryRequirements>& in_memory_reqs);
         void init_sfr_tile_size ();
 
-        bool set_memory_internal(uint32_t               in_swapchain_image_index,
-                                 uint32_t               in_opt_n_SFR_rects,
-                                 const VkRect2D*        in_opt_SFRs_ptr,
-                                 uint32_t               in_opt_n_device_indices,
-                                 const uint32_t*        in_opt_device_indices);
-        bool set_memory_internal(Anvil::MemoryBlock*    in_memory_block_ptr,
-                                 bool                   in_owned_by_image);
-        bool set_memory_internal(Anvil::MemoryBlock*    in_memory_block_ptr,
-                                 bool                   in_owned_by_image,
-                                 uint32_t               in_n_device_group_indices,
-                                 const uint32_t*        in_device_group_indices_ptr);
-        bool set_memory_internal(Anvil::MemoryBlock*    in_memory_block_ptr,
-                                 bool                   in_owned_by_image,
-                                 uint32_t               in_n_SFR_rects,
-                                 const VkRect2D*        in_SFRs_ptr);
+        bool set_memory_internal          (Anvil::MemoryBlock*    in_memory_block_ptr,
+                                           bool                   in_owned_by_image,
+                                           uint32_t               in_n_device_group_indices,
+                                           const uint32_t*        in_device_group_indices_ptr,
+                                           uint32_t               in_n_SFR_rects,
+                                           const VkRect2D*        in_SFRs_ptr);
+        bool set_swapchain_memory_internal(uint32_t               in_swapchain_image_index,
+                                           uint32_t               in_opt_n_SFR_rects,
+                                           const VkRect2D*        in_opt_SFRs_ptr,
+                                           uint32_t               in_opt_n_device_indices,
+                                           const uint32_t*        in_opt_device_indices);
+
 
         void on_memory_backing_update       (const Anvil::ImageSubresource& in_subresource,
                                              VkOffset3D                     in_offset,
@@ -558,7 +528,8 @@ namespace Anvil
                                              Anvil::MemoryBlock*            in_memory_block_ptr,
                                              VkDeviceSize                   in_memory_block_start_offset,
                                              bool                           in_memory_block_owned_by_image);
-        void on_memory_backing_opaque_update(VkDeviceSize                   in_resource_offset,
+        void on_memory_backing_opaque_update(uint32_t                       in_n_plane,
+                                             VkDeviceSize                   in_resource_offset,
                                              VkDeviceSize                   in_size,
                                              Anvil::MemoryBlock*            in_memory_block_ptr,
                                              VkDeviceSize                   in_memory_block_start_offset,
@@ -567,32 +538,63 @@ namespace Anvil
         void transition_to_post_alloc_image_layout(Anvil::AccessFlags in_src_access_mask,
                                                    Anvil::ImageLayout in_src_layout);
 
-        /** TODO.
-         *
-         *  Does NOT set ::pQueueFamilyIndices and ::queueFamilyIndexCount!
-         */
-        static VkImageCreateInfo get_create_info_for_swapchain(const Anvil::Swapchain* in_swapchain_ptr);
-
         /* Private members */
         typedef std::pair<uint32_t /* n_layer */, uint32_t /* n_mip */>              LayerMipKey;
         typedef std::map<LayerMipKey, Anvil::SubresourceLayout>                      LayerMipToSubresourceLayoutMap;
         typedef std::map<Anvil::ImageAspectFlagBits, LayerMipToSubresourceLayoutMap> AspectToLayerMipToSubresourceLayoutMap;
 
-        VkDeviceSize                           m_alignment;
-        AspectToLayerMipToSubresourceLayoutMap m_aspects;                   /* only used for linear images */
+        /* NOTE: For YUV images, this map uses .._PLANE_x_..       aspects as keys. Non-disjoint YUV images only use PLANE_0 key.
+         *       For all others, this map uses COLOR/DEPTH/STENCIL aspect keys.
+         *
+         * NOTE: This field is only used for linear images.
+         */
+        AspectToLayerMipToSubresourceLayoutMap m_linear_image_aspect_data;
+
         Anvil::ImageCreateInfoUniquePtr        m_create_info_ptr;
         bool                                   m_has_transitioned_to_post_alloc_layout;
         VkImage                                m_image;
-        VkMemoryRequirements                   m_memory_reqs;
-        uint32_t                               m_memory_types;
-        Mipmaps                                m_mipmaps;
+        Mipmaps                                m_mipmap_props;
         uint32_t                               m_n_mipmaps;
-        VkDeviceSize                           m_storage_size;
         bool                                   m_swapchain_memory_assigned;
-        bool                                   m_uses_full_mipmap_chain;
 
-        bool m_prefers_dedicated_allocation;
-        bool m_requires_dedicated_allocation;
+        struct PerPlaneMemoryProperties
+        {
+            VkDeviceSize                        alignment;
+            uint32_t                            memory_types;
+            std::unique_ptr<Anvil::PageTracker> page_tracker_ptr; /* only used for sparse binding images */
+            bool                                prefers_dedicated_allocation;
+            bool                                requires_dedicated_allocation;
+            VkDeviceSize                        storage_size;
+
+            PerPlaneMemoryProperties()
+                :alignment                    (UINT64_MAX),
+                 memory_types                 (0),
+                 prefers_dedicated_allocation (false),
+                 requires_dedicated_allocation(false),
+                 storage_size                 (0)
+            {
+                /* Stub */
+            }
+
+            PerPlaneMemoryProperties(const VkDeviceSize& in_alignment,
+                                     const uint32_t&     in_memory_types,
+                                     const bool&         in_prefers_dedicated_allocation,
+                                     const bool&         in_requires_dedicated_allocation,
+                                     const VkDeviceSize& in_storage_size)
+                :alignment                    (in_alignment),
+                 memory_types                 (in_memory_types),
+                 prefers_dedicated_allocation (in_prefers_dedicated_allocation),
+                 requires_dedicated_allocation(in_requires_dedicated_allocation),
+                 storage_size                 (in_storage_size)
+            {
+                /* Stub */
+            }
+
+            ANVIL_DISABLE_ASSIGNMENT_OPERATOR(PerPlaneMemoryProperties);
+        };
+
+        /* NOTE: This map always holds exactly one item (key: 0) for single-planar (ie.non-YUV) and joint YUV images. */
+        std::unordered_map<uint32_t, PerPlaneMemoryProperties> m_plane_index_to_memory_properties_map;
 
         std::vector<uint32_t> m_peer_device_indices;
         std::vector<VkRect2D> m_peer_sfr_rects;
@@ -601,7 +603,6 @@ namespace Anvil
         MemoryBlockUniquePtr              m_metadata_memory_block_ptr;
         std::vector<MemoryBlockUniquePtr> m_memory_blocks_owned;
 
-        std::unique_ptr<Anvil::PageTracker>                                      m_page_tracker_ptr; /* only used for sparse non-resident images */
         std::map<Anvil::ImageAspectFlagBits, AspectPageOccupancyData*>           m_sparse_aspect_page_occupancy;
         std::vector<std::unique_ptr<AspectPageOccupancyData> >                   m_sparse_aspect_page_occupancy_data_items_owned;
         std::map<Anvil::ImageAspectFlagBits, Anvil::SparseImageAspectProperties> m_sparse_aspect_props;

@@ -34,7 +34,7 @@
 #include "misc/types.h"
 #include <functional>
 #include <vector>
-
+#include <cfloat>
 
 namespace Anvil
 {
@@ -83,6 +83,7 @@ namespace Anvil
             Anvil::ExternalMemoryHandleTypeFlags alloc_exportable_external_handle_types;
             Anvil::ImageAspectFlagBits           alloc_image_aspect;
             bool                                 alloc_is_dedicated_memory;
+            bool                                 alloc_is_scratch_buffer_alloc;
             MemoryBlockUniquePtr                 alloc_memory_block_ptr;
             uint32_t                             alloc_memory_final_type;
             VkDeviceSize                         alloc_memory_required_alignment;
@@ -93,11 +94,13 @@ namespace Anvil
             MGPUPeerMemoryRequirements           alloc_mgpu_peer_memory_reqs;
             VkDeviceSize                         alloc_offset;
             VkDeviceSize                         alloc_size;
+            float                                memory_priority;
 
             VkExtent3D              extent;
             bool                    is_baked;
             VkDeviceSize            miptail_offset;
             uint32_t                n_layer;
+            uint32_t                n_plane;
             VkOffset3D              offset;
             Anvil::ImageSubresource subresource;
 
@@ -116,7 +119,8 @@ namespace Anvil
                  const bool&                                 in_alloc_is_dedicated,
                  const uint32_t&                             in_device_mask,
                  const MGPUPeerMemoryRequirements&           in_mgpu_peer_memory_reqs,
-                 const MGPUBindSparseDeviceIndices&          in_mgpu_bind_sparse_device_indices);
+                 const MGPUBindSparseDeviceIndices&          in_mgpu_bind_sparse_device_indices,
+                 const float&                                in_memory_priority);
 
             Item(Anvil::MemoryAllocator*                     in_memory_allocator_ptr,
                  Anvil::Buffer*                              in_buffer_ptr,
@@ -133,7 +137,8 @@ namespace Anvil
                  const bool&                                 in_alloc_is_dedicated,
                  const uint32_t&                             in_device_mask,
                  const MGPUPeerMemoryRequirements&           in_mgpu_peer_memory_reqs,
-                 const MGPUBindSparseDeviceIndices&          in_mgpu_bind_sparse_device_indices);
+                 const MGPUBindSparseDeviceIndices&          in_mgpu_bind_sparse_device_indices,
+                 const float&                                in_memory_priority);
 
             Item(Anvil::MemoryAllocator*                     in_memory_allocator_ptr,
                  Anvil::Image*                               in_image_ptr,
@@ -152,7 +157,8 @@ namespace Anvil
                  const bool&                                 in_alloc_is_dedicated,
                  const uint32_t&                             in_device_mask,
                  const MGPUPeerMemoryRequirements&           in_mgpu_peer_memory_reqs,
-                 const MGPUBindSparseDeviceIndices&          in_mgpu_bind_sparse_device_indices);
+                 const MGPUBindSparseDeviceIndices&          in_mgpu_bind_sparse_device_indices,
+                 const float&                                in_memory_priority);
 
             Item(Anvil::MemoryAllocator*                     in_memory_allocator_ptr,
                  Anvil::Image*                               in_image_ptr,
@@ -171,7 +177,8 @@ namespace Anvil
                  const bool&                                 in_alloc_is_dedicated,
                  const uint32_t&                             in_device_mask,
                  const MGPUPeerMemoryRequirements&           in_mgpu_peer_memory_reqs,
-                 const MGPUBindSparseDeviceIndices&          in_mgpu_bind_sparse_device_indices);
+                 const MGPUBindSparseDeviceIndices&          in_mgpu_bind_sparse_device_indices,
+                 const float&                                in_memory_priority);
 
             Item(Anvil::MemoryAllocator*                     in_memory_allocator_ptr,
                  Anvil::Image*                               in_image_ptr,
@@ -187,7 +194,9 @@ namespace Anvil
                  const bool&                                 in_alloc_is_dedicated,
                  const uint32_t&                             in_device_mask,
                  const MGPUPeerMemoryRequirements&           in_mgpu_peer_memory_reqs,
-                 const MGPUBindSparseDeviceIndices&          in_mgpu_bind_sparse_device_indices);
+                 const MGPUBindSparseDeviceIndices&          in_mgpu_bind_sparse_device_indices,
+                 const float&                                in_memory_priority,
+                 const uint32_t&                             in_n_plane);
 
             /** TODO */
             ~Item();
@@ -215,6 +224,7 @@ namespace Anvil
             virtual bool bake                            (Items&                                      in_items)                              = 0;
             virtual bool supports_device_masks           ()                                                                            const = 0;
             virtual bool supports_external_memory_handles(const Anvil::ExternalMemoryHandleTypeFlags& in_external_memory_handle_types) const = 0;
+            virtual bool supports_protected_memory       ()                                                                            const = 0;
         };
 
         /* Public functions */
@@ -241,6 +251,8 @@ namespace Anvil
          *                                                    in the device group. The indices will be used during sparse bind operation, binding the buffer on the device with
          *                                                    resource index to a memory allocation instance on the device with memory index. If null or empty, the binding will work
          *                                                    as if both indices were zero.
+         *  @param in_opt_memory_priority                     Memory priority to use for the allocation. Valid values must be within range [0.0f, 1.0f].
+         *                                                    Ignored if VK_EXT_memory_priority is unavailable or if VMA backend is used or if FLT_MAX is passed.
          *
          *  @return true if the buffer has been successfully scheduled for baking, false otherwise.
          **/
@@ -252,7 +264,8 @@ namespace Anvil
         #endif
                                                                     const uint32_t*                              in_opt_device_mask_ptr                     = nullptr,
                                                                     const MGPUPeerMemoryRequirements*            in_opt_mgpu_peer_memory_reqs_ptr           = nullptr,
-                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr);
+                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr,
+                                                                    const float&                                 in_opt_memory_priority                     = FLT_MAX);
         bool add_buffer_with_float_data_ptr_based_post_fill        (Anvil::Buffer*                               in_buffer_ptr,
                                                                     std::unique_ptr<float[]>                     in_data_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features,
@@ -262,7 +275,8 @@ namespace Anvil
         #endif
                                                                     const uint32_t*                              in_opt_device_mask_ptr                     = nullptr,
                                                                     const MGPUPeerMemoryRequirements*            in_opt_mgpu_peer_memory_reqs_ptr           = nullptr,
-                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr);
+                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr,
+                                                                    const float&                                 in_opt_memory_priority                     = FLT_MAX);
         bool add_buffer_with_float_data_vector_ptr_based_post_fill (Anvil::Buffer*                               in_buffer_ptr,
                                                                     std::unique_ptr<std::vector<float> >         in_data_vector_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features,
@@ -272,7 +286,8 @@ namespace Anvil
         #endif
                                                                     const uint32_t*                              in_opt_device_mask_ptr                     = nullptr,
                                                                     const MGPUPeerMemoryRequirements*            in_opt_mgpu_peer_memory_reqs_ptr           = nullptr,
-                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr);
+                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr,
+                                                                    const float&                                 in_opt_memory_priority                     = FLT_MAX);
         bool add_buffer_with_float_data_vector_ptr_based_post_fill (Anvil::Buffer*                               in_buffer_ptr,
                                                                     const std::vector<float>*                    in_data_vector_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features,
@@ -282,7 +297,8 @@ namespace Anvil
         #endif
                                                                     const uint32_t*                              in_opt_device_mask_ptr                     = nullptr,
                                                                     const MGPUPeerMemoryRequirements*            in_opt_mgpu_peer_memory_reqs_ptr           = nullptr,
-                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr);
+                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr,
+                                                                    const float&                                 in_opt_memory_priority                     = FLT_MAX);
         bool add_buffer_with_uchar8_data_ptr_based_post_fill       (Anvil::Buffer*                               in_buffer_ptr,
                                                                     std::unique_ptr<uint8_t[]>                   in_data_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features,
@@ -292,7 +308,8 @@ namespace Anvil
         #endif
                                                                     const uint32_t*                              in_opt_device_mask_ptr                     = nullptr,
                                                                     const MGPUPeerMemoryRequirements*            in_opt_mgpu_peer_memory_reqs_ptr           = nullptr,
-                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr);
+                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr,
+                                                                    const float&                                 in_opt_memory_priority                     = FLT_MAX);
         bool add_buffer_with_uchar8_data_vector_ptr_based_post_fill(Anvil::Buffer*                               in_buffer_ptr,
                                                                     std::unique_ptr<std::vector<unsigned char> > in_data_vector_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features,
@@ -302,7 +319,8 @@ namespace Anvil
         #endif
                                                                     const uint32_t*                              in_opt_device_mask_ptr                     = nullptr,
                                                                     const MGPUPeerMemoryRequirements*            in_opt_mgpu_peer_memory_reqs_ptr           = nullptr,
-                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr);
+                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr,
+                                                                    const float&                                 in_opt_memory_priority                     = FLT_MAX);
         bool add_buffer_with_uint32_data_ptr_based_post_fill       (Anvil::Buffer*                               in_buffer_ptr,
                                                                     std::unique_ptr<uint32_t[]>                  in_data_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features,
@@ -312,7 +330,8 @@ namespace Anvil
         #endif
                                                                     const uint32_t*                              in_opt_device_mask_ptr                     = nullptr,
                                                                     const MGPUPeerMemoryRequirements*            in_opt_mgpu_peer_memory_reqs_ptr           = nullptr,
-                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr);
+                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr,
+                                                                    const float&                                 in_opt_memory_priority                     = FLT_MAX);
         bool add_buffer_with_uint32_data_vector_ptr_based_post_fill(Anvil::Buffer*                               in_buffer_ptr,
                                                                     std::unique_ptr<std::vector<uint32_t> >      in_data_vector_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features,
@@ -322,7 +341,8 @@ namespace Anvil
         #endif
                                                                     const uint32_t*                              in_opt_device_mask_ptr                     = nullptr,
                                                                     const MGPUPeerMemoryRequirements*            in_opt_mgpu_peer_memory_reqs_ptr           = nullptr,
-                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr);
+                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr,
+                                                                    const float&                                 in_opt_memory_priority                     = FLT_MAX);
         bool add_buffer_with_uint32_data_vector_ptr_based_post_fill(Anvil::Buffer*                               in_buffer_ptr,
                                                                     const std::vector<uint32_t>*                 in_data_vector_ptr,
                                                                     MemoryFeatureFlags                           in_required_memory_features,
@@ -332,7 +352,8 @@ namespace Anvil
         #endif
                                                                     const uint32_t*                              in_opt_device_mask_ptr                     = nullptr,
                                                                     const MGPUPeerMemoryRequirements*            in_opt_mgpu_peer_memory_reqs_ptr           = nullptr,
-                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr);
+                                                                    const MGPUBindSparseDeviceIndices*           in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr,
+                                                                    const float&                                 in_opt_memory_priority                     = FLT_MAX);
 
         /** TODO
          *
@@ -351,6 +372,8 @@ namespace Anvil
          *                                                    in the device group. The indices will be used during sparse bind operation, binding the buffer on the device with
          *                                                    resource index to a memory allocation instance on the device with memory index. If null or empty, the binding will work
          *                                                    as if both indices were zero.
+         *  @param in_opt_memory_priority                     Memory priority to use for the allocation. Valid values must be within range [0.0f, 1.0f].
+         *                                                    Ignored if VK_EXT_memory_priority is unavailable or if VMA backend is used or if FLT_MAX is passed.
          *
          *  @return TODO
          */
@@ -360,7 +383,8 @@ namespace Anvil
                                       MemoryFeatureFlags                    in_required_memory_features,
                                       const uint32_t*                       in_opt_device_mask_ptr                     = nullptr,
                                       const MGPUPeerMemoryRequirements*     in_opt_mgpu_peer_memory_reqs_ptr           = nullptr,
-                                      const MGPUBindSparseDeviceIndices*    in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr);
+                                      const MGPUBindSparseDeviceIndices*    in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr,
+                                      const float&                          in_opt_memory_priority                     = FLT_MAX);
 
 
         /** Adds an Image object which should be assigned storage coming from memory objects
@@ -382,6 +406,8 @@ namespace Anvil
          *                                                    in the device group. The indices will be used during sparse bind operation, binding the image on the device with
          *                                                    resource index to a memory allocation instance on the device with memory index. If null or empty, the binding will work
          *                                                    as if both indices were zero.
+         *  @param in_opt_memory_priority                     Memory priority to use for the allocation. Valid values must be within range [0.0f, 1.0f].
+         *                                                    Ignored if VK_EXT_memory_priority is unavailable or if VMA backend is used or if FLT_MAX is passed.
          *
          *  @return true if the image has been successfully scheduled for baking, false otherwise.
          **/
@@ -393,7 +419,8 @@ namespace Anvil
         #endif
                              const uint32_t*                             in_opt_device_mask_ptr                     = nullptr,
                              const MGPUPeerMemoryRequirements*           in_opt_mgpu_peer_memory_reqs_ptr           = nullptr,
-                             const MGPUBindSparseDeviceIndices*          in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr);
+                             const MGPUBindSparseDeviceIndices*          in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr,
+                             const float&                                in_opt_memory_priority                     = FLT_MAX);
 
 
         /** Adds a new Image object whose layer @param in_n_layer 's miptail for @param in_aspect
@@ -418,6 +445,8 @@ namespace Anvil
          *                                                    in the device group. The indices will be used during sparse bind operation, binding the image on the device with
          *                                                    resource index to a memory allocation instance on the device with memory index. If null or empty, the binding will work
          *                                                    as if both indices were zero.
+         *  @param in_opt_memory_priority                     Memory priority to use for the allocation. Valid values must be within range [0.0f, 1.0f].
+         *                                                    Ignored if VK_EXT_memory_priority is unavailable or if VMA backend is used or if FLT_MAX is passed.
          *
          *  @return true if the miptail has been successfully scheduled for baking, false otherwise.
          */
@@ -427,7 +456,8 @@ namespace Anvil
                                       MemoryFeatureFlags                    in_required_memory_features,
                                       const uint32_t*                       in_opt_device_mask_ptr                     = nullptr,
                                       const MGPUPeerMemoryRequirements*     in_opt_mgpu_peer_memory_reqs_ptr           = nullptr,
-                                      const MGPUBindSparseDeviceIndices*    in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr);
+                                      const MGPUBindSparseDeviceIndices*    in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr,
+                                      const float&                          in_opt_memory_priority                     = FLT_MAX);
 
 
         /** Adds a single subresource which should be assigned memory backing.
@@ -453,6 +483,8 @@ namespace Anvil
          *                                                    in the device group. The indices will be used during sparse bind operation, binding the image on the device with
          *                                                    resource index to a memory allocation instance on the device with memory index. If null or empty, the binding will work
          *                                                    as if both indices were zero.
+         *  @param in_opt_memory_priority                     Memory priority to use for the allocation. Valid values must be within range [0.0f, 1.0f].
+         *                                                    Ignored if VK_EXT_memory_priority is unavailable or if VMA backend is used or if FLT_MAX is passed.
          *
          *  @return true if the subresource has been successfully scheduled for baking, false otherwise.
          **/
@@ -463,7 +495,8 @@ namespace Anvil
                                           MemoryFeatureFlags                    in_required_memory_features,
                                           const uint32_t*                       in_opt_device_mask_ptr                     = nullptr,
                                           const MGPUPeerMemoryRequirements*     in_opt_mgpu_peer_memory_reqs_ptr           = nullptr,
-                                          const MGPUBindSparseDeviceIndices*    in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr);
+                                          const MGPUBindSparseDeviceIndices*    in_opt_mgpu_bind_sparse_device_indices_ptr = nullptr,
+                                          const float&                          in_opt_memory_priority                     = FLT_MAX);
 
         /** TODO */
         bool bake();
@@ -487,6 +520,11 @@ namespace Anvil
          **/
         static Anvil::MemoryAllocatorUniquePtr create_vma(const Anvil::BaseDevice* in_device_ptr,
                                                           MTSafety                 in_mt_safety = Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE);
+
+        static bool get_mem_types_supporting_mem_features(const Anvil::BaseDevice*         in_device_ptr,
+                                                          uint32_t                         in_memory_types,
+                                                          const Anvil::MemoryFeatureFlags& in_memory_features,
+                                                          uint32_t*                        out_opt_filtered_memory_types_ptr);
 
         /** By default, once memory regions are baked, memory allocator will bind them to objects specified
          *  at add_*() call time. Use cases exist where apps may prefer to handle this action on their own.
@@ -543,13 +581,11 @@ namespace Anvil
 #endif
                                  const uint32_t*                             in_opt_device_mask_ptr,
                                  const MGPUPeerMemoryRequirements*           in_opt_mgpu_peer_memory_reqs_ptr,
-                                 const MGPUBindSparseDeviceIndices*          in_opt_mgpu_bind_sparse_device_indices_ptr);
+                                 const MGPUBindSparseDeviceIndices*          in_opt_mgpu_bind_sparse_device_indices_ptr,
+                                 const float&                                in_opt_memory_priority);
 
         bool do_bind_sparse_device_indices_sanity_check  (const MGPUBindSparseDeviceIndices*          in_opt_mgpu_bind_sparse_device_indices_ptr) const;
         bool do_external_memory_handle_type_sanity_checks(const Anvil::ExternalMemoryHandleTypeFlags& in_external_memory_handle_types) const;
-        bool is_alloc_supported                          (uint32_t                                    in_memory_types,
-                                                          Anvil::MemoryFeatureFlags                   in_memory_features,
-                                                          uint32_t*                                   out_opt_filtered_memory_types_ptr) const;
 
         void on_is_alloc_pending_for_buffer_query(CallbackArgument* in_callback_arg_ptr);
         void on_is_alloc_pending_for_image_query (CallbackArgument* in_callback_arg_ptr);

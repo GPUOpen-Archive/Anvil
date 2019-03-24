@@ -22,6 +22,8 @@
 
 #include "misc/debug.h"
 #include "misc/external_handle.h"
+#include "misc/memory_allocator.h"
+#include "misc/memory_block_create_info.h"
 #include "misc/object_tracker.h"
 #include "misc/struct_chainer.h"
 #include "wrappers/buffer.h"
@@ -134,7 +136,8 @@ void Anvil::MemoryBlock::close_gpu_memory_access()
 }
 
 /* Please see header for specification */
-Anvil::MemoryBlockUniquePtr Anvil::MemoryBlock::create(Anvil::MemoryBlockCreateInfoUniquePtr in_create_info_ptr)
+Anvil::MemoryBlockUniquePtr Anvil::MemoryBlock::create(Anvil::MemoryBlockCreateInfoUniquePtr in_create_info_ptr,
+                                                       VkResult*                             out_opt_result_ptr)
 {
     MemoryBlockUniquePtr result_ptr(nullptr,
                                     std::default_delete<MemoryBlock>() );
@@ -148,9 +151,10 @@ Anvil::MemoryBlockUniquePtr Anvil::MemoryBlock::create(Anvil::MemoryBlockCreateI
 
     if (result_ptr != nullptr)
     {
-        if (type == Anvil::MemoryBlockType::REGULAR)
+        if (type == Anvil::MemoryBlockType::REGULAR                 ||
+            type == Anvil::MemoryBlockType::REGULAR_WITH_MEMORY_TYPE )
         {
-            if (!result_ptr->init() )
+            if (!result_ptr->init(out_opt_result_ptr) )
             {
                 result_ptr.reset();
             }
@@ -162,6 +166,11 @@ Anvil::MemoryBlockUniquePtr Anvil::MemoryBlock::create(Anvil::MemoryBlockCreateI
             if (type == Anvil::MemoryBlockType::DERIVED_WITH_CUSTOM_DELETE_PROC)
             {
                 result_ptr->m_memory = result_ptr->m_create_info_ptr->get_memory();
+            }
+
+            if (out_opt_result_ptr != nullptr)
+            {
+                *out_opt_result_ptr = VkResult::VK_SUCCESS;
             }
         }
     }
@@ -207,7 +216,8 @@ Anvil::ExternalHandleUniquePtr Anvil::MemoryBlock::export_to_external_memory_han
     }
     #endif
 
-    if (m_create_info_ptr->get_type() != Anvil::MemoryBlockType::REGULAR)
+    if (m_create_info_ptr->get_type() != Anvil::MemoryBlockType::REGULAR                 &&
+        m_create_info_ptr->get_type() != Anvil::MemoryBlockType::REGULAR_WITH_MEMORY_TYPE )
     {
         parent_memory_block_ptr = m_create_info_ptr->get_parent_memory_block();
 
@@ -320,56 +330,33 @@ end:
 uint32_t Anvil::MemoryBlock::get_device_memory_type_index(uint32_t                  in_memory_type_bits,
                                                           Anvil::MemoryFeatureFlags in_memory_features)
 {
-    const bool                is_coherent_memory_required        ((in_memory_features & Anvil::MemoryFeatureFlagBits::HOST_COHERENT_BIT)    != 0);
-    const bool                is_device_local_memory_required    ((in_memory_features & Anvil::MemoryFeatureFlagBits::DEVICE_LOCAL_BIT)     != 0);
-    const bool                is_host_cached_memory_required     ((in_memory_features & Anvil::MemoryFeatureFlagBits::HOST_CACHED_BIT)      != 0);
-    const bool                is_lazily_allocated_memory_required((in_memory_features & Anvil::MemoryFeatureFlagBits::LAZILY_ALLOCATED_BIT) != 0);
-    const bool                is_mappable_memory_required        ((in_memory_features & Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT)         != 0);
-    const bool                is_multi_instance_memory_required  ((in_memory_features & Anvil::MemoryFeatureFlagBits::MULTI_INSTANCE_BIT)   != 0);
-    const Anvil::MemoryTypes& memory_types                       (get_create_info_ptr()->get_device()->get_physical_device_memory_properties().types);
+    uint32_t filtered_mem_types = 0;
+    uint32_t result             = UINT32_MAX;
 
-    if (!is_mappable_memory_required)
+    if (!Anvil::MemoryAllocator::get_mem_types_supporting_mem_features(get_create_info_ptr()->get_device(),
+                                                                       in_memory_type_bits,
+                                                                       in_memory_features,
+                                                                      &filtered_mem_types) )
     {
-        anvil_assert(!is_coherent_memory_required);
+        goto end;
     }
 
-    const std::size_t n_memory_types = memory_types.size();
-    uint32_t          result         = UINT32_MAX;
+    /* Simply pick the first lit bit */
+    result = 0;
 
-    for (uint32_t n_memory_type = 0;
-                  n_memory_type < n_memory_types;
-                ++n_memory_type)
+    while ((filtered_mem_types & (1 << 0)) == 0)
     {
-        const Anvil::MemoryType& current_memory_type = memory_types[n_memory_type];
-
-        if (((is_coherent_memory_required          && ((current_memory_type.flags           & Anvil::MemoryPropertyFlagBits::HOST_COHERENT_BIT))    != 0)   ||
-             !is_coherent_memory_required)                                                                                                                  &&
-            ((is_device_local_memory_required      && ((current_memory_type.flags           & Anvil::MemoryPropertyFlagBits::DEVICE_LOCAL_BIT))     != 0)   ||
-             !is_device_local_memory_required)                                                                                                              &&
-            ((is_host_cached_memory_required       && ((current_memory_type.flags           & Anvil::MemoryPropertyFlagBits::HOST_CACHED_BIT))      != 0)   ||
-             !is_host_cached_memory_required)                                                                                                               &&
-            ((is_lazily_allocated_memory_required  && ((current_memory_type.flags           & Anvil::MemoryPropertyFlagBits::LAZILY_ALLOCATED_BIT)) != 0)   ||
-             !is_lazily_allocated_memory_required)                                                                                                          &&
-            ((is_mappable_memory_required          && ((current_memory_type.flags           & Anvil::MemoryPropertyFlagBits::HOST_VISIBLE_BIT))     != 0)   ||
-             !is_mappable_memory_required)                                                                                                                  &&
-            (!is_multi_instance_memory_required                                                                                                             ||
-             (is_multi_instance_memory_required    && ((current_memory_type.heap_ptr->flags & Anvil::MemoryHeapFlagBits::MULTI_INSTANCE_BIT_KHR)    != 0))) )
-        {
-            if ( (in_memory_type_bits & (1 << n_memory_type)) != 0)
-            {
-                result = n_memory_type;
-
-                break;
-            }
-        }
+        result             ++;
+        filtered_mem_types >>= 1;
     }
 
+end:
     anvil_assert(result != UINT32_MAX);
     return result;
 }
 
 /* Allocates actual memory and caches a number of properties used to spawn the memory block */
-bool Anvil::MemoryBlock::init()
+bool Anvil::MemoryBlock::init(VkResult* out_opt_result)
 {
     VkResult                                   result;
     bool                                       result_bool = false;
@@ -411,6 +398,23 @@ bool Anvil::MemoryBlock::init()
             alloc_info.image  = (dedicated_allocation_image_ptr  != nullptr) ? dedicated_allocation_image_ptr->get_image  (false) : VK_NULL_HANDLE;
             alloc_info.pNext  = nullptr;
             alloc_info.sType  = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
+
+            struct_chainer.append_struct(alloc_info);
+        }
+    }
+
+    {
+        const float& memory_priority = m_create_info_ptr->get_memory_priority();
+
+        if (memory_priority != FLT_MAX)
+        {
+            anvil_assert(memory_priority >= 0.0f && memory_priority <= 1.0f);
+
+            VkMemoryPriorityAllocateInfoEXT alloc_info;
+
+            alloc_info.sType    = VK_STRUCTURE_TYPE_MEMORY_PRIORITY_ALLOCATE_INFO_EXT;
+            alloc_info.pNext    = nullptr;
+            alloc_info.priority = memory_priority;
 
             struct_chainer.append_struct(alloc_info);
         }
@@ -516,8 +520,8 @@ bool Anvil::MemoryBlock::init()
         alloc_info_khr.deviceMask = m_create_info_ptr->get_device_mask();
 
         /* NOTE: Host-mappable memory must not be multi-instance heap and must exist on only one device. */
-        if (((m_create_info_ptr->get_memory_features() & Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT) != 0) &&
-            (Utils::count_set_bits(alloc_info_khr.deviceMask) > 1) )
+        if (((m_create_info_ptr->get_memory_features()                          & Anvil::MemoryFeatureFlagBits::MAPPABLE_BIT) != 0) &&
+             (Utils::count_set_bits                 (alloc_info_khr.deviceMask)                                               >  1) )
         {
             alloc_info_khr.flags = 0;
         }
@@ -541,7 +545,11 @@ bool Anvil::MemoryBlock::init()
                                                 &m_memory);
     }
 
-    anvil_assert_vk_call_succeeded(result);
+    if (out_opt_result != nullptr)
+    {
+        *out_opt_result = result;
+    }
+
     if (!is_vk_call_successful(result) )
     {
         goto end;

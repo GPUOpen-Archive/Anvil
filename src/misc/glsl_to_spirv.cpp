@@ -215,8 +215,6 @@
         m_resources_ptr->maxFragmentAtomicCounterBuffers             = 0; /* not supported in Vulkan */
         m_resources_ptr->maxCombinedAtomicCounterBuffers             = 0; /* not supported in Vulkan */
         m_resources_ptr->maxAtomicCounterBufferSize                  = 0; /* not supported in Vulkan */
-        m_resources_ptr->maxTransformFeedbackBuffers                 = 0; /* not supported in Vulkan */
-        m_resources_ptr->maxTransformFeedbackInterleavedComponents   = 0; /* not supported in Vulkan */
         m_resources_ptr->maxCullDistances                            = static_cast<int32_t>(CLAMP_TO_INT_MAX(limits.max_cull_distances) );
         m_resources_ptr->maxCombinedClipAndCullDistances             = static_cast<int32_t>(CLAMP_TO_INT_MAX(limits.max_combined_clip_and_cull_distances) );
         m_resources_ptr->maxSamples                                  = (max_sampled_image_samples > max_storage_image_samples) ? CLAMP_TO_INT_MAX(max_sampled_image_samples)
@@ -230,9 +228,22 @@
         m_resources_ptr->limits.generalSamplerIndexing               = 1;
         m_resources_ptr->limits.generalVariableIndexing              = 1;
         m_resources_ptr->limits.generalConstantMatrixVectorIndexing  = 1;
+
+        if (in_device_ptr->get_extension_info()->ext_transform_feedback() )
+        {
+            const auto xfb_props_ptr = in_device_ptr->get_physical_device_properties().ext_transform_feedback_properties_ptr;
+
+            m_resources_ptr->maxTransformFeedbackBuffers                 = xfb_props_ptr->n_max_transform_feedback_buffers;
+            m_resources_ptr->maxTransformFeedbackInterleavedComponents   = xfb_props_ptr->max_transform_feedback_buffer_data_stride * 4;
+        }
+        else
+        {
+            m_resources_ptr->maxTransformFeedbackBuffers               = 0; /* not supported in core Vulkan */
+            m_resources_ptr->maxTransformFeedbackInterleavedComponents = 0; /* not supported in core Vulkan */
+        }
     }
 
-    static GLSLangGlobalInitializer glslang_helper;
+    static const GLSLangGlobalInitializer glslang_helper;
 #endif
 
 
@@ -240,12 +251,14 @@
 Anvil::GLSLShaderToSPIRVGenerator::GLSLShaderToSPIRVGenerator(const Anvil::BaseDevice* in_device_ptr,
                                                               const Mode&              in_mode,
                                                               std::string              in_data,
-                                                              ShaderStage              in_shader_stage)
+                                                              ShaderStage              in_shader_stage,
+                                                              SpvVersion               in_spirv_version)
     :CallbacksSupportProvider(GLSL_SHADER_TO_SPIRV_GENERATOR_CALLBACK_ID_COUNT),
      m_data                  (in_data),
      m_glsl_source_code_dirty(true),
      m_mode                  (in_mode),
-     m_shader_stage          (in_shader_stage)
+     m_shader_stage          (in_shader_stage),
+     m_spirv_version         (in_spirv_version)
 {
     #ifdef ANVIL_LINK_WITH_GLSLANG
     {
@@ -320,6 +333,30 @@ end:
 }
 
 /* Please see header for specification */
+bool Anvil::GLSLShaderToSPIRVGenerator::add_placeholder_value_pair(const std::string& in_placeholder_name,
+                                                                   const std::string& in_value)
+{
+    bool result = false;
+
+    for (const auto& placeholder_value_pair : m_placeholder_values)
+    {
+        if (placeholder_value_pair.first == in_placeholder_name)
+        {
+            anvil_assert_fail();
+
+            goto end;
+        }
+    }
+
+    m_placeholder_values.push_back(std::make_pair(in_placeholder_name, in_value));
+
+    /* All done */
+    result = true;
+end:
+    return result;
+}
+
+/* Please see header for specification */
 bool Anvil::GLSLShaderToSPIRVGenerator::add_pragma(std::string in_pragma_name,
                                                    std::string in_opt_value)
 {
@@ -346,6 +383,7 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_glsl_source_code() const
     std::string    final_glsl_source_string;
     const uint32_t n_definition_values        = static_cast<uint32_t>(m_definition_values.size() );
     const uint32_t n_extension_behaviors      = static_cast<uint32_t>(m_extension_behaviors.size() );
+    const uint32_t n_placeholder_values       = static_cast<uint32_t>(m_placeholder_values.size());
     const uint32_t n_pragmas                  = static_cast<uint32_t>(m_pragmas.size() );
     bool           result                     = false;
 
@@ -392,6 +430,7 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_glsl_source_code() const
     }
 
     if (n_pragmas             > 0 ||
+        n_placeholder_values  > 0 ||
         n_extension_behaviors > 0 ||
         n_definition_values   > 0)
     {
@@ -434,7 +473,7 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_glsl_source_code() const
                                             new_line);
         }
 
-        /* Finish with pragmas */
+        /* Next define pragmas */
         for (auto& current_pragma : m_pragmas)
         {
             std::string pragma_name  = current_pragma.first;
@@ -443,6 +482,23 @@ bool Anvil::GLSLShaderToSPIRVGenerator::bake_glsl_source_code() const
 
             final_glsl_source_string.insert(glsl_source_string_second_line_index,
                                             new_line);
+        }
+
+        /* Finish with replacing placeholders with values */
+        for(auto vec_iterator  = m_placeholder_values.begin();
+                 vec_iterator != m_placeholder_values.end();
+               ++vec_iterator)
+        {
+            const std::string& current_key   = vec_iterator->first;
+            const std::string& current_value = vec_iterator->second;
+            size_t glsl_source_string_pos    = final_glsl_source_string.find(current_key, 0);
+
+            while (glsl_source_string_pos != std::string::npos)
+            {
+                final_glsl_source_string.replace(glsl_source_string_pos, current_key.size(), current_value);
+
+                glsl_source_string_pos = final_glsl_source_string.find(current_key, glsl_source_string_pos);
+            }
         }
     }
 
@@ -571,7 +627,7 @@ end:
     #endif
 
 
-    
+
     return result;
 }
 
@@ -609,11 +665,60 @@ end:
         if (new_program_ptr != nullptr &&
             new_shader_ptr  != nullptr)
         {
-            bool link_result = false;
+            bool                              link_result = false;
+            glslang::EShTargetLanguageVersion spirv_version;
 
             /* Try to compile the shader */
             new_shader_ptr->setStrings(&in_body,
                                        1);
+
+            switch (m_spirv_version)
+            {
+                case SpvVersion::_1_0:
+                {
+                    spirv_version = glslang::EShTargetSpv_1_0;
+
+                    break;
+                }
+
+                case SpvVersion::_1_1:
+                {
+                    spirv_version = glslang::EShTargetSpv_1_1;
+
+                    break;
+                }
+
+                case SpvVersion::_1_2:
+                {
+                    spirv_version = glslang::EShTargetSpv_1_2;
+
+                    break;
+                }
+
+                case SpvVersion::_1_3:
+                {
+                    spirv_version = glslang::EShTargetSpv_1_3;
+
+                    break;
+                }
+
+                case SpvVersion::_1_4:
+                {
+                    spirv_version = glslang::EShTargetSpv_1_4;
+
+                    break;
+                }
+
+                default:
+                {
+                    spirv_version = glslang::EShTargetSpv_1_0;
+
+                    break;
+                }
+            }
+
+            new_shader_ptr->setEnvTarget(glslang::EShTargetSpv,
+                                         spirv_version);
 
             result = new_shader_ptr->parse(m_limits_ptr->get_resource_ptr(),
                                            110,   /* defaultVersion    */
@@ -759,7 +864,7 @@ end:
                                nullptr, /* lpProcessAttributes */
                                nullptr, /* lpThreadAttributes */
                                FALSE, /* bInheritHandles */
-                               CREATE_NO_WINDOW, 
+                               CREATE_NO_WINDOW,
                                nullptr, /* lpEnvironment */
                                nullptr, /* lpCurrentDirectory */
                                &startup_info,
@@ -823,7 +928,7 @@ end:
         #endif
 
         /* Now, read the SPIR-V file contents */
-        
+
 
         Anvil::IO::read_file(in_spirv_filename_with_path.c_str(),
                              false, /* is_text_file */
@@ -867,7 +972,8 @@ end:
 Anvil::GLSLShaderToSPIRVGeneratorUniquePtr Anvil::GLSLShaderToSPIRVGenerator::create(const Anvil::BaseDevice* in_opt_device_ptr,
                                                                                      const Mode&              in_mode,
                                                                                      std::string              in_data,
-                                                                                     ShaderStage              in_shader_stage)
+                                                                                     ShaderStage              in_shader_stage,
+                                                                                     SpvVersion               in_spirv_version)
 {
     Anvil::GLSLShaderToSPIRVGeneratorUniquePtr result_ptr(nullptr,
                                                           std::default_delete<Anvil::GLSLShaderToSPIRVGenerator>() );
@@ -876,7 +982,8 @@ Anvil::GLSLShaderToSPIRVGeneratorUniquePtr Anvil::GLSLShaderToSPIRVGenerator::cr
         new Anvil::GLSLShaderToSPIRVGenerator(in_opt_device_ptr,
                                               in_mode,
                                               in_data,
-                                              in_shader_stage)
+                                              in_shader_stage,
+                                              in_spirv_version)
     );
 
     Anvil::ObjectTracker::get()->register_object(Anvil::ObjectType::ANVIL_GLSL_SHADER_TO_SPIRV_GENERATOR,

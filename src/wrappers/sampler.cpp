@@ -27,6 +27,7 @@
 #include "wrappers/device.h"
 #include "wrappers/physical_device.h"
 #include "wrappers/sampler.h"
+#include "wrappers/sampler_ycbcr_conversion.h"
 
 /** Please see header for specification */
 Anvil::Sampler::Sampler(Anvil::SamplerCreateInfoUniquePtr in_create_info_ptr)
@@ -85,8 +86,9 @@ Anvil::SamplerUniquePtr Anvil::Sampler::create(Anvil::SamplerCreateInfoUniquePtr
 
 bool Anvil::Sampler::init()
 {
-    VkResult                                  result                (VK_ERROR_INITIALIZATION_FAILED);
-    const auto                                sampler_reduction_mode(m_create_info_ptr->get_sampler_reduction_mode() );
+    VkResult                                  result                      (VK_ERROR_INITIALIZATION_FAILED);
+    const auto                                sampler_reduction_mode      (m_create_info_ptr->get_sampler_reduction_mode      () );
+    const auto&                               sampler_ycbcr_conversion_ptr(m_create_info_ptr->get_sampler_ycbcr_conversion_ptr() );
     Anvil::StructChainer<VkSamplerCreateInfo> struct_chainer;
 
     ANVIL_REDUNDANT_VARIABLE(result);
@@ -127,6 +129,17 @@ bool Anvil::Sampler::init()
         srm_create_info.sType         = VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO_EXT;
 
         struct_chainer.append_struct(srm_create_info);
+    }
+
+    if (sampler_ycbcr_conversion_ptr != nullptr)
+    {
+        VkSamplerYcbcrConversionInfoKHR conversion_info;
+
+        conversion_info.conversion = sampler_ycbcr_conversion_ptr->get_sampler_ycbcr_conversion_vk();
+        conversion_info.pNext      = nullptr;
+        conversion_info.sType      = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO_KHR;
+
+        struct_chainer.append_struct(conversion_info);
     }
 
     {

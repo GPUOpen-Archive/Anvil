@@ -156,12 +156,13 @@ void Anvil::SparseMemoryBindingUpdateInfo::append_opaque_image_memory_update(Spa
                                                                              Anvil::SparseMemoryBindFlags in_flags,
                                                                              Anvil::MemoryBlock*          in_opt_memory_block_ptr,
                                                                              VkDeviceSize                 in_opt_memory_block_start_offset,
-                                                                             bool                         in_opt_memory_block_owned_by_image)
+                                                                             bool                         in_opt_memory_block_owned_by_image,
+                                                                             uint32_t                     in_n_plane)
 {
     /* Sanity checks */
-    anvil_assert(in_image_ptr                                 != nullptr);
-    anvil_assert(m_bindings.size()                            >  in_bind_info_id);
-    anvil_assert(in_image_ptr->get_memory_requirements().size >= in_resource_offset + in_size);
+    anvil_assert(in_image_ptr                                     != nullptr);
+    anvil_assert(m_bindings.size                     ()           >  in_bind_info_id);
+    anvil_assert(in_image_ptr->get_image_storage_size(in_n_plane) >= in_resource_offset + in_size);
 
     if (in_opt_memory_block_ptr != nullptr)
     {
@@ -177,6 +178,7 @@ void Anvil::SparseMemoryBindingUpdateInfo::append_opaque_image_memory_update(Spa
     update.memory_block_owned_by_target = in_opt_memory_block_owned_by_image;
     update.memory_block_ptr             = in_opt_memory_block_ptr;
     update.memory_block_start_offset    = in_opt_memory_block_start_offset;
+    update.n_plane                      = in_n_plane;
     update.size                         = in_size;
     update.start_offset                 = in_resource_offset;
 
@@ -671,7 +673,8 @@ bool Anvil::SparseMemoryBindingUpdateInfo::get_image_opaque_memory_update_proper
                                                                                      Anvil::SparseMemoryBindFlags* out_opt_flags_ptr,
                                                                                      Anvil::MemoryBlock**          out_opt_memory_block_ptr_ptr,
                                                                                      VkDeviceSize*                 out_opt_memory_block_start_offset_ptr,
-                                                                                     bool*                         out_opt_memory_block_owned_by_image_ptr) const
+                                                                                     bool*                         out_opt_memory_block_owned_by_image_ptr,
+                                                                                     uint32_t*                     out_opt_n_plane_ptr) const
 {
     decltype(m_bindings)::const_iterator     binding_iterator;
     GeneralBindInfo                          image_opaque_bind;
@@ -746,6 +749,11 @@ bool Anvil::SparseMemoryBindingUpdateInfo::get_image_opaque_memory_update_proper
     if (out_opt_memory_block_owned_by_image_ptr != nullptr)
     {
         *out_opt_memory_block_owned_by_image_ptr = image_opaque_bind.memory_block_owned_by_target;
+    }
+
+    if (out_opt_n_plane_ptr != nullptr)
+    {
+        *out_opt_n_plane_ptr = image_opaque_bind.n_plane;
     }
 
     /* All done */

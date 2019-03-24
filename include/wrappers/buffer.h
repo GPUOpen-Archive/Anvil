@@ -185,14 +185,6 @@ namespace Anvil
          *  This function can only be used for NON-SPARSE buffers. Calling this function for sparse buffers will
          *  result in an assertion failure.
          *
-         *  Single-argument function prototype can only be used for single-GPU device instances, whereas the other one
-         *  can be used for both single- multi-GPU device instances. In the latter case:
-         *
-         *  1) If the memory comes from a memory heap with VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR flag, all physical devices
-         *     are bound its own instance of the memory and @param in_physical_devices_ptr is ignored.
-         *  2) If the memory comes from a memory heap without the flag, physical devices specified by the caller are assigned
-         *     the same instance of the memory.
-         *
          *  @param in_memory_block_ptr             Memory block to attach to the buffer object. Must not be NULL.
          *  @param in_memory_block_owned_by_buffer TODO
          *  @param in_n_device_group_indices       Describes the number of device indices available under @param in_device_group_indices_ptr.

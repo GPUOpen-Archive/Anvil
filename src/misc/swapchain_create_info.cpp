@@ -30,7 +30,9 @@ Anvil::SwapchainCreateInfoUniquePtr Anvil::SwapchainCreateInfo::create(Anvil::Ba
                                                                        Anvil::ColorSpaceKHR     in_color_space,
                                                                        Anvil::PresentModeKHR    in_present_mode,
                                                                        Anvil::ImageUsageFlags   in_usage_flags,
-                                                                       uint32_t                 in_n_images)
+                                                                       uint32_t                 in_n_images,
+                                                                       const bool&              in_clipped,
+                                                                       const Anvil::Swapchain*  in_opt_old_swapchain_ptr)
 {
     SwapchainCreateInfoUniquePtr result_ptr = SwapchainCreateInfoUniquePtr(nullptr,
                                                                            std::default_delete<Anvil::SwapchainCreateInfo>() );
@@ -46,7 +48,9 @@ Anvil::SwapchainCreateInfoUniquePtr Anvil::SwapchainCreateInfo::create(Anvil::Ba
                                 in_n_images,
                                 Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE,
                                 Anvil::SwapchainCreateFlagBits::NONE,
-                                Anvil::DeviceGroupPresentModeFlagBits::LOCAL_BIT_KHR) /* in_mgpu_present_mode_flags */
+                                Anvil::DeviceGroupPresentModeFlagBits::LOCAL_BIT_KHR, /* in_mgpu_present_mode_flags */
+                                in_clipped,
+                                in_opt_old_swapchain_ptr)
     );
 
     return result_ptr;
@@ -62,14 +66,18 @@ Anvil::SwapchainCreateInfo::SwapchainCreateInfo(Anvil::BaseDevice*              
                                                 uint32_t                           in_n_images,
                                                 MTSafety                           in_mt_safety,
                                                 Anvil::SwapchainCreateFlags        in_flags,
-                                                Anvil::DeviceGroupPresentModeFlags in_mgpu_present_mode_flags)
-    :m_color_space            (in_color_space),
+                                                Anvil::DeviceGroupPresentModeFlags in_mgpu_present_mode_flags,
+                                                const bool&                        in_clipped,
+                                                const Anvil::Swapchain*            in_opt_old_swapchain_ptr)
+    :m_clipped                (in_clipped),
+     m_color_space            (in_color_space),
      m_device_ptr             (in_device_ptr),
      m_flags                  (in_flags),
      m_format                 (in_format),
      m_mgpu_present_mode_flags(in_mgpu_present_mode_flags),
      m_mt_safety              (in_mt_safety),
      m_n_images               (in_n_images),
+     m_old_swapchain_ptr      (in_opt_old_swapchain_ptr),
      m_parent_surface_ptr     (in_parent_surface_ptr),
      m_present_mode           (in_present_mode),
      m_usage_flags            (in_usage_flags),
@@ -78,4 +86,18 @@ Anvil::SwapchainCreateInfo::SwapchainCreateInfo(Anvil::BaseDevice*              
     anvil_assert(in_n_images           >  0);
     anvil_assert(in_parent_surface_ptr != nullptr);
     anvil_assert(in_usage_flags        != 0);
+}
+
+void Anvil::SwapchainCreateInfo::set_view_format_list(const Anvil::Format* in_compatible_formats_ptr,
+                                                      const uint32_t&      in_n_compatible_formats)
+{
+    anvil_assert(in_n_compatible_formats > 0);
+
+    m_flags |= Anvil::SwapchainCreateFlagBits::CREATE_MUTABLE_FORMAT_BIT;
+
+    m_compatible_formats.resize(in_n_compatible_formats);
+
+    memcpy(&m_compatible_formats.at(0),
+           in_compatible_formats_ptr,
+           sizeof(Anvil::Format) * in_n_compatible_formats);
 }

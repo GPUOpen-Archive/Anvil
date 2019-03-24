@@ -64,6 +64,10 @@ private:
     void on_validation_callback(Anvil::DebugMessageSeverityFlags in_severity,
                                  const char*                     in_message_ptr);
 
+    #if defined(ENABLE_MGPU_SUPPORT)
+        std::vector<VkRect2D> get_render_areas(uint32_t in_afr_render_index = 0) const;
+    #endif
+
     /* Private variables */
     Anvil::BaseDeviceUniquePtr m_device_ptr;
 
@@ -74,13 +78,24 @@ private:
     Anvil::SwapchainUniquePtr        m_swapchain_ptr;
     Anvil::WindowUniquePtr           m_window_ptr;
 
+    #if defined(ENABLE_EXPLICIT_SWAPCHAIN_IMAGE_MEMORY_BINDING)
+        std::vector<Anvil::ImageUniquePtr>     m_swapchain_images;
+        std::vector<Anvil::ImageViewUniquePtr> m_swapchain_image_views;
+    #endif
+
     Anvil::ImageUniquePtr                               m_depth_image_ptr;
     Anvil::ImageViewUniquePtr                           m_depth_image_view_ptr;
     std::vector<Anvil::FramebufferUniquePtr>            m_framebuffers;
     std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_fs_entrypoint_ptr;
 
-    std::vector<Anvil::PrimaryCommandBufferUniquePtr> m_render_cmdbuffers_ooo_off;
-    std::vector<Anvil::PrimaryCommandBufferUniquePtr> m_render_cmdbuffers_ooo_on;
+    #if !defined(ENABLE_MGPU_SUPPORT)
+        std::vector<Anvil::PrimaryCommandBufferUniquePtr> m_render_cmdbuffers_ooo_off;
+        std::vector<Anvil::PrimaryCommandBufferUniquePtr> m_render_cmdbuffers_ooo_on;
+    #else
+        Anvil::PrimaryCommandBufferUniquePtr                                                               m_dummy_cmdbuffer_ptr;
+        std::map<uint32_t /* physical device index */, std::vector<Anvil::PrimaryCommandBufferUniquePtr> > m_render_cmdbuffers_ooo_on;
+        std::map<uint32_t /* physical device index */, std::vector<Anvil::PrimaryCommandBufferUniquePtr> > m_render_cmdbuffers_ooo_off;
+    #endif
 
     std::vector<Anvil::RenderPassUniquePtr>             m_renderpasses;
     std::unique_ptr<Anvil::ShaderModuleStageEntryPoint> m_vs_entrypoint_ptr;
@@ -92,6 +107,20 @@ private:
     bool                   m_should_rotate;
     std::unique_ptr<float> m_teapot_props_data_ptr;
     Anvil::Time            m_time;
+
+    #if defined(USE_LOCAL_SFR_PRESENTATION_MODE)
+        struct SwapchainPeerImages
+        {
+            /* Holds N_SWAPCHAIN_IMAGES peer images for consecutive swapchain image indices */
+            std::vector<Anvil::ImageUniquePtr> peer_images;
+        };
+
+        uint32_t                         m_n_presenting_physical_device;
+        std::vector<SwapchainPeerImages> m_swapchain_peer_images_per_physical_device;
+    #endif
+    #if defined(USE_LOCAL_AFR_PRESENTATION_MODE) || defined(USE_REMOTE_AFR_PRESENTATION_MODE)
+        uint32_t m_n_rendering_physical_device;
+    #endif
 
     typedef struct SemaphoreBundle
     {

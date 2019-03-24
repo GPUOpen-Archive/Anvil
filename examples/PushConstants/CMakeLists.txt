@@ -52,11 +52,10 @@ endif()
 
 # Create the PushConstants project.
 add_executable (PushConstants include/app.h
-                                        include/app.h
-                                            src/app.cpp)
+                              src/app.cpp)
 
 # Add linking dependencies for the example projects
-add_dependencies     (PushConstants Anvil)
+add_dependencies(PushConstants Anvil)
 
 if (WIN32)
     target_link_libraries(PushConstants Anvil)

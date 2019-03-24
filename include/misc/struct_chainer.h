@@ -266,6 +266,18 @@ namespace Anvil
             return reinterpret_cast<const StructType*>(&m_structs.at(m_structs.size() - 1).at(0) );
         }
 
+        uint32_t get_n_structs() const
+        {
+            return static_cast<uint32_t>(m_structs.size() );
+        }
+
+        StructType* get_root_struct()
+        {
+            anvil_assert(m_structs.size() > 0);
+
+            return reinterpret_cast<StructType*>(&m_structs.at(0).at(0) );
+        }
+
         const StructType* get_root_struct() const
         {
             anvil_assert(m_structs.size() > 0);
@@ -273,6 +285,17 @@ namespace Anvil
             return reinterpret_cast<const StructType*>(&m_structs.at(0).at(0) );
         }
 
+        VkStructHeader* get_struct_at_index(const uint32_t& in_index)
+        {
+            VkStructHeader* result_ptr = nullptr;
+
+            if (m_structs.size() > in_index)
+            {
+                result_ptr = reinterpret_cast<VkStructHeader*>(&m_structs.at(in_index).at(0) );
+            }
+
+            return result_ptr;
+        }
     private:
         /* Private type definitions */
         typedef struct HelperStruct

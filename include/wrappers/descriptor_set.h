@@ -24,7 +24,6 @@
  *
  *  Implemented to:
  *
- *  - reference-count wrapper instances
  *  - cache set binding information.
  *  - monitor layout adjustments and act accordingly.
  *  - monitor pool reset events and act accordingly.
@@ -666,6 +665,8 @@ namespace Anvil
          *  UniformBufferBindingElement        - for uniform buffer bindings.
          *  UniformTexelBufferBindingElement   - for storage uniform buffer bindings.
          *
+         *  This function CANNOT be used for inline uniform block binding updates. Instead, please use set_inline_uniform_block_binding_data().
+         *
          *  @param in_binding_index As per documentation. Must correspond to a binding which has earlier
          *                          been added by calling add_binding() function.
          *  @param in_element_range As per documentation. Must not be equal to or larger than the array size,
@@ -682,24 +683,33 @@ namespace Anvil
             anvil_assert(in_elements_ptr != nullptr);
             anvil_assert(m_unusable       == false);
 
-            BindingItems&  binding_items      = m_bindings[in_binding_index];
-            const uint32_t last_element_index = in_element_range.second + in_element_range.first;
+            BindingItemUniquePtrs& binding_item_ptrs  = m_binding_ptrs[in_binding_index];
+            const uint32_t         last_element_index = in_element_range.second + in_element_range.first;
 
             for (BindingElementIndex current_element_index = in_element_range.first;
                                      current_element_index < last_element_index;
                                    ++current_element_index)
             {
-                if (!(binding_items[current_element_index] == in_elements_ptr[current_element_index - in_element_range.first]) )
+                if (!( binding_item_ptrs[current_element_index]  != nullptr                                                         &&
+                      *binding_item_ptrs[current_element_index] == in_elements_ptr[current_element_index - in_element_range.first]) )
                 {
                     m_dirty = true;
 
-                    binding_items[current_element_index] = in_elements_ptr[current_element_index - in_element_range.first];
+                    binding_item_ptrs[current_element_index].reset(
+                        new Anvil::DescriptorSet::BindingItem()
+                    );
+
+                    *binding_item_ptrs[current_element_index] = in_elements_ptr[current_element_index - in_element_range.first];
                 }
             }
 
             return true;
         }
 
+        /* TODO
+         *
+         * NOTE: This function CANNOT be used for inline uniform block binding updates. Instead, please use set_inline_uniform_block_binding_data().
+         */
         template<typename BindingElementType>
         bool set_binding_array_items(BindingIndex                     in_binding_index,
                                      BindingElementArrayRange         in_element_range,
@@ -708,16 +718,20 @@ namespace Anvil
             anvil_assert(in_elements_ptr_ptr != nullptr);
             anvil_assert(m_unusable          == false);
 
-            BindingItems&  binding_items      = m_bindings[in_binding_index];
-            const uint32_t last_element_index = in_element_range.second + in_element_range.first;
+            BindingItemUniquePtrs& binding_item_ptrs  = m_binding_ptrs[in_binding_index];
+            const uint32_t         last_element_index = in_element_range.second + in_element_range.first;
 
             for (BindingElementIndex current_element_index = in_element_range.first;
                                      current_element_index < last_element_index;
                                    ++current_element_index)
             {
-                m_dirty |= !(binding_items[current_element_index] == *in_elements_ptr_ptr[current_element_index - in_element_range.first]);
+                m_dirty |= !(*binding_item_ptrs[current_element_index] == *in_elements_ptr_ptr[current_element_index - in_element_range.first]);
 
-                binding_items[current_element_index] = *in_elements_ptr_ptr[current_element_index - in_element_range.first];
+                binding_item_ptrs[current_element_index].reset(
+                    new Anvil::DescriptorSet::BindingItem()
+                );
+
+                *binding_item_ptrs[current_element_index] = *in_elements_ptr_ptr[current_element_index - in_element_range.first];
             }
 
             return true;
@@ -725,6 +739,9 @@ namespace Anvil
 
         /** This function works exactly like set_binding_array_items(), except that it always replaces the zeroth element
          *  attached to the specified descriptor set's binding.
+         *
+         *  NOTE: This function CANNOT be used for inline uniform block binding updates. Instead, please use set_inline_uniform_block_binding_data().
+         *
          */
         template<typename BindingElementType>
         bool set_binding_item(BindingIndex              in_binding_index,
@@ -735,6 +752,28 @@ namespace Anvil
                                                                     1), /* NumberOfBindingElements  */
                                           &in_element);
         }
+
+        /** TODO
+         *
+         *  NOTE: Multiple update requests for the same inline uniform block binding are supported and will be executed via consecutive API calls.
+         *
+         *  Requires VK_EXT_inline_uniform_block.
+         *
+         *  @param in_binding_index         Index of the inline uniform block binding to use for the update.
+         *  @param in_start_offset          Start offset of the inline uniform block's memory region which should be updated. Must be a mul of 4.
+         *  @param in_size                  Size of the inline uniform block's memory region to update. Must be a mul of 4.
+         *  @param in_raw_data_ptr          Data to use for the update. Whether or not the data is cached internally depends on value passed to
+         *                                  @param in_should_cache_raw_data. Must not be nullptr.
+         *  @param in_should_cache_raw_data True if data provided via @param in_raw_data_ptr should be cached internally, false otherwise. In other
+         *                                  words, if this argument is set to true, it is safe to release memory block, to which @param in_raw_data_ptr points.
+         *
+         *  @return true if successful, false otherwise.
+         */
+        bool set_inline_uniform_block_binding_data(const BindingIndex& in_binding_index,
+                                                   const uint32_t&     in_start_offset,
+                                                   const uint32_t&     in_size,
+                                                   const void*         in_raw_data_ptr,
+                                                   const bool&         in_should_cache_raw_data);
 
         /** Updates internally-maintained Vulkan descriptor set instances.
          *
@@ -754,14 +793,16 @@ namespace Anvil
          **/
         typedef struct BindingItem
         {
-            Anvil::Buffer*        buffer_ptr;
-            Anvil::BufferView*    buffer_view_ptr;
-            Anvil::ImageLayout    image_layout;
-            Anvil::ImageView*     image_view_ptr;
-            Anvil::Sampler*       sampler_ptr;
-            VkDeviceSize          size;
-            VkDeviceSize          start_offset;
-            Anvil::DescriptorType type_vk;
+            Anvil::Buffer*                                           buffer_ptr;
+            Anvil::BufferView*                                       buffer_view_ptr;
+            Anvil::ImageLayout                                       image_layout;
+            Anvil::ImageView*                                        image_view_ptr;
+            std::unique_ptr<uint8_t, std::function<void(uint8_t*)> > iub_update_data_ptr;
+            Anvil::Sampler*                                          sampler_ptr;
+            VkDeviceSize                                             size;
+            VkDeviceSize                                             start_offset;
+            Anvil::DescriptorType                                    type_vk;
+
 
             bool dirty;
 
@@ -769,61 +810,42 @@ namespace Anvil
             {
                 return (buffer_ptr   == in.buffer_ptr      &&
                         size         == in.size            &&
-                        start_offset == in.start_offset);
+                        start_offset == in.start_offset    &&
+                        type_vk      == in.get_type() );
             }
 
             bool operator==(const CombinedImageSamplerBindingElement& in) const
             {
                 return (image_layout   == in.image_layout     &&
                         image_view_ptr == in.image_view_ptr   &&
-                        sampler_ptr    == in.sampler_ptr);
+                        sampler_ptr    == in.sampler_ptr      &&
+                        type_vk        == in.get_type() );
             }
 
             bool operator==(const ImageBindingElement& in) const
             {
                 return (image_layout   == in.image_layout   &&
-                        image_view_ptr == in.image_view_ptr);
+                        image_view_ptr == in.image_view_ptr &&
+                        type_vk        == in.get_type() );
             }
 
             bool operator==(const SamplerBindingElement& in) const
             {
-                return (sampler_ptr == in.sampler_ptr);
+                return (sampler_ptr == in.sampler_ptr &&
+                        type_vk     == in.get_type() );
             }
 
             bool operator==(const TexelBufferBindingElement& in) const
             {
-                return (buffer_view_ptr == in.buffer_view_ptr);
+                return (buffer_view_ptr == in.buffer_view_ptr &&
+                        type_vk         == in.get_type() );
             }
 
-            /* Copy assignment operator.
-             *
-             * Retains the buffer instance embedded in @param in_element
-             **/
-            BindingItem& operator=(const BufferBindingElement& in_element);
-
-            /* Copy assignment operator.
-             *
-             * Retains the image view & sampler instances embedded in @param in_element
-             **/
+            BindingItem& operator=(const BufferBindingElement&               in_element);
             BindingItem& operator=(const CombinedImageSamplerBindingElement& in_element);
-
-            /* Copy assignment operator.
-             *
-             * Retains the image view instance embedded in @param in_element
-             **/
-            BindingItem& operator=(const ImageBindingElement& in_element);
-
-            /* Copy assignment operator.
-             *
-             * Retains the sampler instance embedded in @param in_element
-             **/
-            BindingItem& operator=(const SamplerBindingElement& in_element);
-
-            /* Copy assignment operator.
-             *
-             * Retains the buffer view instance embedded in @param in_element
-             **/
-            BindingItem& operator=(const TexelBufferBindingElement& in_element);
+            BindingItem& operator=(const ImageBindingElement&                in_element);
+            BindingItem& operator=(const SamplerBindingElement&              in_element);
+            BindingItem& operator=(const TexelBufferBindingElement&          in_element);
 
             /* Default dummy constructor. */ 
             BindingItem()
@@ -837,6 +859,8 @@ namespace Anvil
                 buffer_view_ptr = nullptr;
                 image_view_ptr  = nullptr;
                 sampler_ptr     = nullptr;
+
+                type_vk = Anvil::DescriptorType::UNKNOWN;
             }
 
             /* Destructor.
@@ -845,8 +869,9 @@ namespace Anvil
             ~BindingItem();
         } BindingItem;
 
-        typedef std::vector<BindingItem>             BindingItems;
-        typedef std::map<BindingIndex, BindingItems> BindingIndexToBindingItemsMap;
+        typedef std::unique_ptr<BindingItem>                  BindingItemUniquePtr;
+        typedef std::vector<BindingItemUniquePtr>             BindingItemUniquePtrs;
+        typedef std::map<BindingIndex, BindingItemUniquePtrs> BindingIndexToBindingItemUniquePtrsMap;
 
         /* Private functions */
 
@@ -875,28 +900,39 @@ namespace Anvil
         DescriptorSet& operator=(const DescriptorSet&);
 
         void alloc_bindings                ();
-        void fill_buffer_info_vk_descriptor(const Anvil::DescriptorSet::BindingItem& in_binding_item,
-                                            VkDescriptorBufferInfo*                  out_descriptor_ptr) const;
-        void fill_image_info_vk_descriptor (const Anvil::DescriptorSet::BindingItem& in_binding_item,
-                                            const bool&                              in_immutable_samplers_enabled,
-                                            VkDescriptorImageInfo*                   out_descriptor_ptr) const;
+        void fill_buffer_info_vk_descriptor(const Anvil::DescriptorSet::BindingItem&   in_binding_item,
+                                            VkDescriptorBufferInfo*                    out_descriptor_ptr) const;
+        void fill_image_info_vk_descriptor (const Anvil::DescriptorSet::BindingItem&   in_binding_item,
+                                            const bool&                                in_immutable_samplers_enabled,
+                                            VkDescriptorImageInfo*                     out_descriptor_ptr) const;
+        void fill_iub_vk_descriptor        (const Anvil::DescriptorSet::BindingItem&   in_binding_item,
+                                            VkWriteDescriptorSetInlineUniformBlockEXT* out_descriptor_ptr) const;
         void on_parent_pool_reset          ();
         bool update_using_core_method      () const;
         bool update_using_template_method  () const;
 
         /* Private variables */
-        mutable BindingIndexToBindingItemsMap m_bindings;
-        VkDescriptorSet                       m_descriptor_set;
-        const Anvil::BaseDevice*              m_device_ptr;
-        mutable bool                          m_dirty;
-        const Anvil::DescriptorSetLayout*     m_layout_ptr;
-        Anvil::DescriptorPool*                m_parent_pool_ptr;
-        bool                                  m_unusable;
 
-        mutable std::vector<VkDescriptorBufferInfo> m_cached_ds_info_buffer_info_items_vk;
-        mutable std::vector<VkDescriptorImageInfo>  m_cached_ds_info_image_info_items_vk;
-        mutable std::vector<VkBufferView>           m_cached_ds_info_texel_buffer_info_items_vk;
-        mutable std::vector<VkWriteDescriptorSet>   m_cached_ds_write_items_vk;
+        /* For descriptor types != INLINE_UNIFORM_BLOCK, this is the usual binding index->binding item map. Holds bindings associated
+         * with corresponding array items.
+         *
+         * For INLINE_UNIFORM_BLOCK descriptors, this is a binding index->pending updates map.
+         */
+        mutable BindingIndexToBindingItemUniquePtrsMap m_binding_ptrs;
+
+
+        VkDescriptorSet                                m_descriptor_set;
+        const Anvil::BaseDevice*                       m_device_ptr;
+        mutable bool                                   m_dirty;
+        const Anvil::DescriptorSetLayout*              m_layout_ptr;
+        Anvil::DescriptorPool*                         m_parent_pool_ptr;
+        bool                                           m_unusable;
+
+        mutable std::vector<VkDescriptorBufferInfo>                    m_cached_ds_info_buffer_info_items_vk;
+        mutable std::vector<VkDescriptorImageInfo>                     m_cached_ds_info_image_info_items_vk;
+        mutable std::vector<VkBufferView>                              m_cached_ds_info_texel_buffer_info_items_vk;
+        mutable std::vector<VkWriteDescriptorSetInlineUniformBlockEXT> m_cached_ds_write_iub_items_vk;
+        mutable std::vector<VkWriteDescriptorSet>                      m_cached_ds_write_items_vk;
 
         mutable std::vector<DescriptorUpdateTemplateEntry>                                                     m_template_entries;
         mutable std::map<std::vector<DescriptorUpdateTemplateEntry>, Anvil::DescriptorUpdateTemplateUniquePtr> m_template_object_map;

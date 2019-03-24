@@ -35,8 +35,8 @@ Anvil::SemaphoreCreateInfoUniquePtr Anvil::SemaphoreCreateInfo::create(const Anv
     return result_ptr;
 }
 
-Anvil::SemaphoreCreateInfo::SemaphoreCreateInfo(const Anvil::BaseDevice*    in_device_ptr,
-                                                MTSafety                    in_mt_safety)
+Anvil::SemaphoreCreateInfo::SemaphoreCreateInfo(const Anvil::BaseDevice* in_device_ptr,
+                                                MTSafety                 in_mt_safety)
     :m_device_ptr                                             (in_device_ptr),
      m_exportable_external_semaphore_handle_types             (Anvil::ExternalSemaphoreHandleTypeFlagBits::NONE),
 #if defined(_WIN32)
