@@ -64,6 +64,7 @@ namespace Anvil
             bool     bake                            (Anvil::MemoryAllocator::Items&              in_items) final;
             VkResult map                             (void*                                       in_memory_object,
                                                       VkDeviceSize                                in_start_offset,
+                                                      VkDeviceSize                                in_memory_block_start_offset,
                                                       VkDeviceSize                                in_size,
                                                       void**                                      out_result_ptr) final;
             bool     supports_baking                 () const final;
