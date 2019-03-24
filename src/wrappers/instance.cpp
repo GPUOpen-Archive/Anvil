@@ -19,7 +19,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
-
 #include "misc/debug.h"
 #include "misc/debug_messenger_create_info.h"
 #include "misc/object_tracker.h"

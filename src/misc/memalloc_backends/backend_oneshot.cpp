@@ -418,9 +418,12 @@ end:
 
 VkResult Anvil::MemoryAllocatorBackends::OneShot::map(void*        in_memory_object,
                                                       VkDeviceSize in_start_offset,
+                                                      VkDeviceSize in_memory_block_start_offset,
                                                       VkDeviceSize in_size,
                                                       void**       out_result_ptr)
 {
+    ANVIL_REDUNDANT_VARIABLE(in_memory_block_start_offset);
+
     return Anvil::Vulkan::vkMapMemory(m_device_ptr->get_device_vk(),
                                       reinterpret_cast<VkDeviceMemory>(in_memory_object),
                                       in_start_offset,
