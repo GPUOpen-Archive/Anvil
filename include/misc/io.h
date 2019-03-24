@@ -66,6 +66,7 @@ namespace Anvil
             KEY_ID_RIGHT  = ANVIL_KEY_HELPER(Right),
             KEY_ID_SPACE  = ANVIL_KEY_HELPER(space),
         #endif
+
 #endif
         KEY_ID_COUNT,
 

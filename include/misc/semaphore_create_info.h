@@ -130,8 +130,8 @@ namespace Anvil
 
     private:
         /* Private functions */
-        SemaphoreCreateInfo(const Anvil::BaseDevice*    in_device_ptr,
-                            MTSafety                    in_mt_safety);
+        SemaphoreCreateInfo(const Anvil::BaseDevice* in_device_ptr,
+                            MTSafety                 in_mt_safety);
 
         /* Private variables */
         const Anvil::BaseDevice*                m_device_ptr;

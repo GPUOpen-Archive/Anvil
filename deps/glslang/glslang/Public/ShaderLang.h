@@ -1,6 +1,7 @@
 //
 // Copyright (C) 2002-2005  3Dlabs Inc. Ltd.
 // Copyright (C) 2013-2016 LunarG, Inc.
+// Copyright (C) 2015-2018 Google, Inc.
 //
 // All rights reserved.
 //
@@ -52,9 +53,6 @@
 #define SH_IMPORT_EXPORT
 #else
 #define SH_IMPORT_EXPORT
-#ifndef __fastcall
-#define __fastcall
-#endif
 #define C_DECL
 #endif
 
@@ -70,7 +68,7 @@
 // This should always increase, as some paths to do not consume
 // a more major number.
 // It should increment by one when new functionality is added.
-#define GLSLANG_MINOR_VERSION 10
+#define GLSLANG_MINOR_VERSION 11
 
 //
 // Call before doing any other compiler/linker operations.
@@ -82,7 +80,7 @@ SH_IMPORT_EXPORT int ShInitialize();
 //
 // Call this at process shutdown to clean up memory.
 //
-SH_IMPORT_EXPORT int __fastcall ShFinalize();
+SH_IMPORT_EXPORT int ShFinalize();
 
 //
 // Types of languages the compiler can consume.
@@ -235,6 +233,7 @@ enum EShMessages {
     EShMsgDebugInfo        = (1 << 10), // save debug information
     EShMsgHlslEnable16BitTypes  = (1 << 11), // enable use of 16-bit types in SPIR-V for HLSL
     EShMsgHlslLegalization  = (1 << 12), // enable HLSL Legalization messages
+    EShMsgHlslDX9Compatible = (1 << 13), // enable HLSL DX9 compatible mode (right now only for samplers)
 };
 
 //

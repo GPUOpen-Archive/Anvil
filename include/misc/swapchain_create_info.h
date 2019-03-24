@@ -37,7 +37,7 @@ namespace Anvil
          *
          * - MGPU present mode flags: Anvil::DeviceGroupPresentModeFlagBits::LOCAL_BIT_KHR
          * - MT safety:               Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE
-         * - Swapchain create flags:  0
+         * - Swapchain create flags:  None
          *
          * To modify these, use corresponding set_..() functions.
          */
@@ -48,11 +48,27 @@ namespace Anvil
                                                    Anvil::ColorSpaceKHR     in_color_space,
                                                    Anvil::PresentModeKHR    in_present_mode,
                                                    Anvil::ImageUsageFlags   in_usage_flags,
-                                                   uint32_t                 in_n_images);
+                                                   uint32_t                 in_n_images,
+                                                   const bool&              in_clipped               = true,
+                                                   const Anvil::Swapchain*  in_opt_old_swapchain_ptr = nullptr);
+
+        const bool& get_clipped() const
+        {
+            return m_clipped;
+        }
 
         Anvil::ColorSpaceKHR get_color_space() const
         {
             return m_color_space;
+        }
+
+        void get_view_format_list(const Anvil::Format** out_compatible_formats_ptr,
+                                  uint32_t*             out_n_compatible_formats_ptr) const
+        {
+            anvil_assert(m_compatible_formats.size() > 0);
+
+            *out_compatible_formats_ptr   = &m_compatible_formats.at(0);
+            *out_n_compatible_formats_ptr = static_cast<uint32_t>   (m_compatible_formats.size() );
         }
 
         /** Returns device instance which has been used to create the swapchain */
@@ -89,6 +105,11 @@ namespace Anvil
             return m_n_images;
         }
 
+        const Anvil::Swapchain* get_old_swapchain() const
+        {
+            return m_old_swapchain_ptr;
+        }
+
         Anvil::PresentModeKHR get_present_mode() const
         {
             return m_present_mode;
@@ -112,6 +133,11 @@ namespace Anvil
             return m_window_ptr;
         }
 
+        void set_clipped(const bool& in_clipped)
+        {
+            m_clipped = in_clipped;
+        }
+
         void set_color_space(const Anvil::ColorSpaceKHR& in_color_space)
         {
             m_color_space = in_color_space;
@@ -122,6 +148,10 @@ namespace Anvil
             m_device_ptr = in_device_ptr;
         }
 
+        /* NOTE: If @param in_flags includes SwapchainCreateFlagBits::CREATE_MUTABLE_FORMAT_BIT, you must
+         *       also call set_view_format_list() in order to specify the list of compatible formats BEFORE
+         *       passing the create info struct to swapchain create function.
+         */
         void set_flags(const Anvil::SwapchainCreateFlags& in_flags)
         {
             m_flags = in_flags;
@@ -147,6 +177,11 @@ namespace Anvil
             m_n_images = in_n_images;
         }
 
+        void set_old_swapchain(const Anvil::Swapchain* in_old_swapchain_ptr)
+        {
+            m_old_swapchain_ptr = in_old_swapchain_ptr;
+        }
+
         void set_present_mode(const Anvil::PresentModeKHR& in_present_mode)
         {
             m_present_mode = in_present_mode;
@@ -161,6 +196,19 @@ namespace Anvil
         {
             m_usage_flags = in_new_usage_flags;
         }
+
+        /* Caches a list of image formats the created swapchain needs to be able to support.
+         *
+         * If SwapchainCreateFlagBits::CREATE_MUTABLE_FORMAT_BIT create flag has not been specified via set_flags(), it will
+         * be force-set by the function.
+         *
+         * @param in_compatible_formats_ptr Array of formats swapchain images need to support for image view usage. Must not be nullptr.
+         * @param in_n_compatible_formats   Size of @param in_compatible_Formats_ptr array. Must be larger than 0.
+         *
+         * Requires VK_KHR_swapchain_mutable_format extension support.
+         */
+        void set_view_format_list(const Anvil::Format* in_compatible_formats_ptr,
+                                  const uint32_t&      in_n_compatible_formats);
 
         void set_window(Anvil::Window* in_window_ptr)
         {
@@ -181,17 +229,22 @@ namespace Anvil
                             uint32_t                           in_n_images,
                             MTSafety                           in_mt_safety,
                             Anvil::SwapchainCreateFlags        in_flags,
-                            Anvil::DeviceGroupPresentModeFlags in_mgpu_present_mode_flags);
+                            Anvil::DeviceGroupPresentModeFlags in_mgpu_present_mode_flags,
+                            const bool&                        in_clipped,
+                            const Anvil::Swapchain*            in_opt_old_swapchain_ptr);
 
         /* Private variables */
 
+        bool                               m_clipped;
         Anvil::ColorSpaceKHR               m_color_space;
+        std::vector<Anvil::Format>         m_compatible_formats;
         const Anvil::BaseDevice*           m_device_ptr;
         Anvil::SwapchainCreateFlags        m_flags;
         Anvil::Format                      m_format;
         Anvil::DeviceGroupPresentModeFlags m_mgpu_present_mode_flags;
         Anvil::MTSafety                    m_mt_safety;
         uint32_t                           m_n_images;
+        const Anvil::Swapchain*            m_old_swapchain_ptr;
         Anvil::RenderingSurface*           m_parent_surface_ptr;
         Anvil::PresentModeKHR              m_present_mode;
         Anvil::Window*                     m_window_ptr;

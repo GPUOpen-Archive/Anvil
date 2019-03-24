@@ -166,6 +166,36 @@
     PFN_vkCmdNextSubpass                                Anvil::Vulkan::vkCmdNextSubpass                               = nullptr;
     PFN_vkCmdEndRenderPass                              Anvil::Vulkan::vkCmdEndRenderPass                             = nullptr;
     PFN_vkCmdExecuteCommands                            Anvil::Vulkan::vkCmdExecuteCommands                           = nullptr;
+
+    PFN_vkBindBufferMemory2                             Anvil::Vulkan::vkBindBufferMemory2                             = nullptr;
+    PFN_vkBindImageMemory2                              Anvil::Vulkan::vkBindImageMemory2                              = nullptr;
+    PFN_vkCmdDispatchBase                               Anvil::Vulkan::vkCmdDispatchBase                               = nullptr;
+    PFN_vkCmdSetDeviceMask                              Anvil::Vulkan::vkCmdSetDeviceMask                              = nullptr;
+    PFN_vkCreateDescriptorUpdateTemplate                Anvil::Vulkan::vkCreateDescriptorUpdateTemplate                = nullptr;
+    PFN_vkCreateSamplerYcbcrConversion                  Anvil::Vulkan::vkCreateSamplerYcbcrConversion                  = nullptr;
+    PFN_vkDestroyDescriptorUpdateTemplate               Anvil::Vulkan::vkDestroyDescriptorUpdateTemplate               = nullptr;
+    PFN_vkDestroySamplerYcbcrConversion                 Anvil::Vulkan::vkDestroySamplerYcbcrConversion                 = nullptr;
+    PFN_vkEnumerateInstanceVersion                      Anvil::Vulkan::vkEnumerateInstanceVersion                      = nullptr;
+    PFN_vkEnumeratePhysicalDeviceGroups                 Anvil::Vulkan::vkEnumeratePhysicalDeviceGroups                 = nullptr;
+    PFN_vkGetBufferMemoryRequirements2                  Anvil::Vulkan::vkGetBufferMemoryRequirements2                  = nullptr;
+    PFN_vkGetDescriptorSetLayoutSupport                 Anvil::Vulkan::vkGetDescriptorSetLayoutSupport                 = nullptr;
+    PFN_vkGetDeviceGroupPeerMemoryFeatures              Anvil::Vulkan::vkGetDeviceGroupPeerMemoryFeatures              = nullptr;
+    PFN_vkGetDeviceQueue2                               Anvil::Vulkan::vkGetDeviceQueue2                               = nullptr;
+    PFN_vkGetImageMemoryRequirements2                   Anvil::Vulkan::vkGetImageMemoryRequirements2                   = nullptr;
+    PFN_vkGetImageSparseMemoryRequirements2             Anvil::Vulkan::vkGetImageSparseMemoryRequirements2             = nullptr;
+    PFN_vkGetPhysicalDeviceExternalBufferProperties     Anvil::Vulkan::vkGetPhysicalDeviceExternalBufferProperties     = nullptr;
+    PFN_vkGetPhysicalDeviceExternalFenceProperties      Anvil::Vulkan::vkGetPhysicalDeviceExternalFenceProperties      = nullptr;
+    PFN_vkGetPhysicalDeviceExternalSemaphoreProperties  Anvil::Vulkan::vkGetPhysicalDeviceExternalSemaphoreProperties  = nullptr;
+    PFN_vkGetPhysicalDeviceFeatures2                    Anvil::Vulkan::vkGetPhysicalDeviceFeatures2                    = nullptr;
+    PFN_vkGetPhysicalDeviceFormatProperties2            Anvil::Vulkan::vkGetPhysicalDeviceFormatProperties2            = nullptr;
+    PFN_vkGetPhysicalDeviceImageFormatProperties2       Anvil::Vulkan::vkGetPhysicalDeviceImageFormatProperties2       = nullptr;
+    PFN_vkGetPhysicalDeviceMemoryProperties2            Anvil::Vulkan::vkGetPhysicalDeviceMemoryProperties2            = nullptr;
+    PFN_vkGetPhysicalDeviceProperties2                  Anvil::Vulkan::vkGetPhysicalDeviceProperties2                  = nullptr;
+    PFN_vkGetPhysicalDeviceQueueFamilyProperties2       Anvil::Vulkan::vkGetPhysicalDeviceQueueFamilyProperties2       = nullptr;
+    PFN_vkGetPhysicalDeviceSparseImageFormatProperties2 Anvil::Vulkan::vkGetPhysicalDeviceSparseImageFormatProperties2 = nullptr;
+    PFN_vkTrimCommandPool                               Anvil::Vulkan::vkTrimCommandPool                               = nullptr;
+    PFN_vkUpdateDescriptorSetWithTemplate               Anvil::Vulkan::vkUpdateDescriptorSetWithTemplate               = nullptr;
+
 #else
     PFN_vkCreateInstance                                Anvil::Vulkan::vkCreateInstance                               = ::vkCreateInstance;
     PFN_vkDestroyInstance                               Anvil::Vulkan::vkDestroyInstance                              = ::vkDestroyInstance;
@@ -304,4 +334,33 @@
     PFN_vkCmdNextSubpass                                Anvil::Vulkan::vkCmdNextSubpass                               = ::vkCmdNextSubpass;
     PFN_vkCmdEndRenderPass                              Anvil::Vulkan::vkCmdEndRenderPass                             = ::vkCmdEndRenderPass;
     PFN_vkCmdExecuteCommands                            Anvil::Vulkan::vkCmdExecuteCommands                           = ::vkCmdExecuteCommands;
+
+    PFN_vkBindBufferMemory2                             Anvil::Vulkan::vkBindBufferMemory2                             = nullptr;
+    PFN_vkBindImageMemory2                              Anvil::Vulkan::vkBindImageMemory2                              = nullptr;
+    PFN_vkCmdDispatchBase                               Anvil::Vulkan::vkCmdDispatchBase                               = nullptr;
+    PFN_vkCmdSetDeviceMask                              Anvil::Vulkan::vkCmdSetDeviceMask                              = nullptr;
+    PFN_vkCreateDescriptorUpdateTemplate                Anvil::Vulkan::vkCreateDescriptorUpdateTemplate                = nullptr;
+    PFN_vkCreateSamplerYcbcrConversion                  Anvil::Vulkan::vkCreateSamplerYcbcrConversion                  = nullptr;
+    PFN_vkDestroyDescriptorUpdateTemplate               Anvil::Vulkan::vkDestroyDescriptorUpdateTemplate               = nullptr;
+    PFN_vkDestroySamplerYcbcrConversion                 Anvil::Vulkan::vkDestroySamplerYcbcrConversion                 = nullptr;
+    PFN_vkEnumerateInstanceVersion                      Anvil::Vulkan::vkEnumerateInstanceVersion                      = nullptr;
+    PFN_vkEnumeratePhysicalDeviceGroups                 Anvil::Vulkan::vkEnumeratePhysicalDeviceGroups                 = nullptr;
+    PFN_vkGetBufferMemoryRequirements2                  Anvil::Vulkan::vkGetBufferMemoryRequirements2                  = nullptr;
+    PFN_vkGetDescriptorSetLayoutSupport                 Anvil::Vulkan::vkGetDescriptorSetLayoutSupport                 = nullptr;
+    PFN_vkGetDeviceGroupPeerMemoryFeatures              Anvil::Vulkan::vkGetDeviceGroupPeerMemoryFeatures              = nullptr;
+    PFN_vkGetDeviceQueue2                               Anvil::Vulkan::vkGetDeviceQueue2                               = nullptr;
+    PFN_vkGetImageMemoryRequirements2                   Anvil::Vulkan::vkGetImageMemoryRequirements2                   = nullptr;
+    PFN_vkGetImageSparseMemoryRequirements2             Anvil::Vulkan::vkGetImageSparseMemoryRequirements2             = nullptr;
+    PFN_vkGetPhysicalDeviceExternalBufferProperties     Anvil::Vulkan::vkGetPhysicalDeviceExternalBufferProperties     = nullptr;
+    PFN_vkGetPhysicalDeviceExternalFenceProperties      Anvil::Vulkan::vkGetPhysicalDeviceExternalFenceProperties      = nullptr;
+    PFN_vkGetPhysicalDeviceExternalSemaphoreProperties  Anvil::Vulkan::vkGetPhysicalDeviceExternalSemaphoreProperties  = nullptr;
+    PFN_vkGetPhysicalDeviceFeatures2                    Anvil::Vulkan::vkGetPhysicalDeviceFeatures2                    = nullptr;
+    PFN_vkGetPhysicalDeviceFormatProperties2            Anvil::Vulkan::vkGetPhysicalDeviceFormatProperties2            = nullptr;
+    PFN_vkGetPhysicalDeviceImageFormatProperties2       Anvil::Vulkan::vkGetPhysicalDeviceImageFormatProperties2       = nullptr;
+    PFN_vkGetPhysicalDeviceMemoryProperties2            Anvil::Vulkan::vkGetPhysicalDeviceMemoryProperties2            = nullptr;
+    PFN_vkGetPhysicalDeviceProperties2                  Anvil::Vulkan::vkGetPhysicalDeviceProperties2                  = nullptr;
+    PFN_vkGetPhysicalDeviceQueueFamilyProperties2       Anvil::Vulkan::vkGetPhysicalDeviceQueueFamilyProperties2       = nullptr;
+    PFN_vkGetPhysicalDeviceSparseImageFormatProperties2 Anvil::Vulkan::vkGetPhysicalDeviceSparseImageFormatProperties2 = nullptr;
+    PFN_vkTrimCommandPool                               Anvil::Vulkan::vkTrimCommandPool                               = nullptr;
+    PFN_vkUpdateDescriptorSetWithTemplate               Anvil::Vulkan::vkUpdateDescriptorSetWithTemplate               = nullptr;
 #endif

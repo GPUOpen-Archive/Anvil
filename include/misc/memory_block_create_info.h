@@ -65,6 +65,9 @@ namespace Anvil
          *  to MemoryBlock::create().
          *
          *  TODO
+         *
+         *  @param in_allowed_memory_bits A bitfield whose indices correspond to memory type indices which can be used for the allocation.
+         *                                
          */
         static MemoryBlockCreateInfoUniquePtr create_derived_with_custom_delete_proc(const Anvil::BaseDevice*             in_device_ptr,
                                                                                      VkDeviceMemory                       in_memory,
@@ -103,6 +106,39 @@ namespace Anvil
                                                              VkDeviceSize              in_size,
                                                              Anvil::MemoryFeatureFlags in_memory_features);
 
+        /** Spawns a create info instance which can be used to instantiate a new memory block.
+         *
+         *  WARNING: in_memory_type_index has to meet all memory requirements, it is user's responsibility to adhere!
+         *           If it is possible please use create_regular function instead of this function.
+         *
+         *  This function can be used for both single- and multi-GPU device instances. For the latter case,
+         *  the default behavior is to allocate a single instance of memory (deviceMask = 1) for memory heaps
+         *  that do NOT have the VK_MEMORY_HEAP_MULTI_INSTANCE_BIT_KHR bit on, or allocate as many instances
+         *  of memory as there are physical devices assigned to the logical device. This can be adjusted
+         *  by calling corresponding set_..() functions.
+         *
+         *  NOTE: The following parameters take the following defautl values:
+         *
+         *  - Exportable external memory handle types: Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_NONE
+         *  - Importable external memory handle type:  Anvil::EXTERNAL_MEMORY_HANDLE_TYPE_NONE
+         *  - MT safety:                               Anvil::MTSafety::INHERIT_FROM_PARENT_DEVICE.
+         *  - Use a dedicated allocation?:             No.
+         *
+         *  These can be further adjusted by callingt corresponding set_..() functions prior to passing the CreateInfo instance
+         *  to MemoryBlock::create().
+         *
+         *  @param in_device_ptr          Device to use.
+         *  @param in_allowed_memory_bits Memory type bits which meet the allocation requirements.
+         *  @param in_size                Required allocation size.
+         *  @param in_memory_features     Required memory features.
+         *  @param in_memory_type_index   Required memory type index
+         **/
+        static MemoryBlockCreateInfoUniquePtr create_with_memory_type(const Anvil::BaseDevice*  in_device_ptr,
+                                                                      uint32_t                  in_allowed_memory_bits,
+                                                                      VkDeviceSize              in_size,
+                                                                      Anvil::MemoryFeatureFlags in_memory_features,
+                                                                      uint32_t                  in_memory_type_index);
+
         const uint32_t& get_allowed_memory_bits() const
         {
             return m_allowed_memory_bits;
@@ -126,6 +162,11 @@ namespace Anvil
             {
                 *out_opt_image_ptr_ptr = m_dedicated_allocation_image_ptr;
             }
+        }
+
+        float get_memory_priority() const
+        {
+            return m_memory_priority;
         }
 
         const Anvil::BaseDevice* get_device() const
@@ -352,6 +393,11 @@ namespace Anvil
             m_use_dedicated_allocation        = true;
         }
 
+        void set_memory_priority(const float& in_priority)
+        {
+            m_memory_priority = in_priority;
+        }
+
     private:
         MemoryBlockCreateInfo(const Anvil::MemoryBlockType&                      in_type,
                               const uint32_t&                                    in_allowed_memory_bits,
@@ -379,6 +425,7 @@ namespace Anvil
         Anvil::ExternalMemoryHandleTypeFlagBits     m_imported_external_memory_handle_type;
         VkDeviceMemory                              m_memory;
         Anvil::MemoryFeatureFlags                   m_memory_features;
+        float                                       m_memory_priority;
         uint32_t                                    m_memory_type_index;
         Anvil::MTSafety                             m_mt_safety;
         Anvil::OnMemoryBlockReleaseCallbackFunction m_on_release_callback_function;

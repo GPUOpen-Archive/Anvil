@@ -36,10 +36,12 @@
 #include "misc/graphics_pipeline_create_info.h"
 #include "misc/image_create_info.h"
 #include "misc/image_view_create_info.h"
+#include "misc/instance_create_info.h"
 #include "misc/io.h"
 #include "misc/memory_allocator.h"
 #include "misc/object_tracker.h"
 #include "misc/render_pass_create_info.h"
+#include "misc/rendering_surface_create_info.h"
 #include "misc/semaphore_create_info.h"
 #include "misc/swapchain_create_info.h"
 #include "misc/time.h"
@@ -276,8 +278,14 @@ void App::draw_frame()
     present_wait_semaphore_ptr = curr_frame_signal_semaphore_ptr;
 
     /* Determine the semaphore which the swapchain image */
-    n_swapchain_image = m_swapchain_ptr->acquire_image(curr_frame_wait_semaphore_ptr,
-                                                       true); /* in_should_block */
+    {
+        const auto acquire_result = m_swapchain_ptr->acquire_image(curr_frame_wait_semaphore_ptr,
+                                                                  &n_swapchain_image,
+                                                                   true); /* in_should_block */
+
+        ANVIL_REDUNDANT_VARIABLE_CONST(acquire_result);
+        anvil_assert                  (acquire_result == Anvil::SwapchainOperationErrorCode::SUCCESS);
+    }
 
     /* Submit work chunk and present */
     update_data_ub_contents(n_swapchain_image);
@@ -292,10 +300,18 @@ void App::draw_frame()
                                   false /* should_block */)
     );
 
-    present_queue_ptr->present(m_swapchain_ptr.get(),
-                               n_swapchain_image,
-                               1, /* n_wait_semaphores */
-                              &present_wait_semaphore_ptr);
+    {
+        Anvil::SwapchainOperationErrorCode present_result = Anvil::SwapchainOperationErrorCode::DEVICE_LOST;
+
+        present_queue_ptr->present(m_swapchain_ptr.get(),
+                                   n_swapchain_image,
+                                   1, /* n_wait_semaphores */
+                                  &present_wait_semaphore_ptr,
+                                  &present_result);
+
+        ANVIL_REDUNDANT_VARIABLE(present_result);
+        anvil_assert            (present_result == Anvil::SwapchainOperationErrorCode::SUCCESS);
+    }
 
     ++n_frames_rendered;
 
@@ -816,9 +832,13 @@ void App::init_swapchain()
 {
     Anvil::SGPUDevice* device_ptr(reinterpret_cast<Anvil::SGPUDevice*>(m_device_ptr.get() ));
 
-    m_rendering_surface_ptr = Anvil::RenderingSurface::create(m_instance_ptr.get(),
-                                                              m_device_ptr.get  (),
-                                                              m_window_ptr.get  ());
+    {
+        auto create_info_ptr = Anvil::RenderingSurfaceCreateInfo::create(m_instance_ptr.get(),
+                                                                         m_device_ptr.get  (),
+                                                                         m_window_ptr.get  () );
+
+        m_rendering_surface_ptr = Anvil::RenderingSurface::create(std::move(create_info_ptr) );
+    }
 
     m_rendering_surface_ptr->set_name("Main rendering surface");
 
@@ -872,27 +892,35 @@ void App::init_window()
 void App::init_vulkan()
 {
     /* Create a Vulkan instance */
-    m_instance_ptr = Anvil::Instance::create(APP_NAME,  /* in_app_name    */
-                                             APP_NAME,  /* in_engine_name */
+    {
+        auto create_info_ptr = Anvil::InstanceCreateInfo::create(APP_NAME,  /* in_app_name    */
+                                                                 APP_NAME,  /* in_engine_name */
 #ifdef ENABLE_VALIDATION
-                                             std::bind(&App::on_validation_callback,
-                                                       this,
-                                                       std::placeholders::_1,
-                                                       std::placeholders::_2),
+                                                                 std::bind(&App::on_validation_callback,
+                                                                           this,
+                                                                           std::placeholders::_1,
+                                                                           std::placeholders::_2),
 #else
-                                             Anvil::DebugCallbackFunction(),
+                                                                 Anvil::DebugCallbackFunction(),
 #endif
-                                             false); /* in_mt_safe */
+                                                                 false); /* in_mt_safe */
+
+        m_instance_ptr = Anvil::Instance::create(std::move(create_info_ptr) );
+    }
 
     m_physical_device_ptr = m_instance_ptr->get_physical_device(0);
 
     /* Create a Vulkan device */
-    m_device_ptr = Anvil::SGPUDevice::create(m_physical_device_ptr,
-                                             true,                       /* in_enable_shader_module_cache           */
-                                             Anvil::DeviceExtensionConfiguration(),
-                                             std::vector<std::string>(), /* in_layers                               */
-                                             false,                      /* in_transient_command_buffer_allocs_only */
-                                             false);                     /* in_support_resettable_command_buffers   */
+    {
+        auto create_info_ptr = Anvil::DeviceCreateInfo::create_sgpu(m_physical_device_ptr,
+                                                                    true,                       /* in_enable_shader_module_cache */
+                                                                    Anvil::DeviceExtensionConfiguration(),
+                                                                    std::vector<std::string>(), /* in_layers */
+                                                                    Anvil::CommandPoolCreateFlagBits::NONE,
+                                                                    false);                     /* in_mt_safe */
+
+        m_device_ptr = Anvil::SGPUDevice::create(std::move(create_info_ptr) );
+    }
 }
 
 void App::on_validation_callback(Anvil::DebugMessageSeverityFlags in_severity,
@@ -950,7 +978,7 @@ void App::update_data_ub_contents(uint32_t in_n_swapchain_image)
 }
 
 
-int main()
+int main(int argc, char *argv[])
 {
     std::unique_ptr<App> app_ptr(new App() );
 
