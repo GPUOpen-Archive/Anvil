@@ -98,6 +98,7 @@ void Anvil::BaseDevice::create_device(const std::vector<const char*>& in_extensi
                                       const std::vector<const char*>& in_layers,
                                       DeviceQueueFamilyInfo*          out_queue_families_ptr)
 {
+    std::vector<float>                       device_queue_priorities;
     const auto&                              physical_device_ptrs             (m_create_info_ptr->get_physical_device_ptrs() );
     std::vector<VkPhysicalDevice>            physical_devices                 (physical_device_ptrs.size                  () );
     VkResult                                 result                           (VK_ERROR_INITIALIZATION_FAILED);
@@ -138,7 +139,6 @@ void Anvil::BaseDevice::create_device(const std::vector<const char*>& in_extensi
         /* Queue create info items */
         {
             std::vector<VkDeviceQueueCreateInfo> device_queue_create_info_items;
-            std::vector<float>                   device_queue_priorities;
             const auto                           n_queue_fams                   = static_cast<uint32_t>(zeroth_physical_device_queue_fams.size() );
 
             /* For any queue that uses non-medium global priority, we're going to need a dedicated device queue create info struct. This is

@@ -4121,6 +4121,7 @@ Anvil::SubmitInfo::SubmitInfo(uint32_t                         in_n_command_buff
 #endif
      dst_stage_wait_masks                          (in_n_semaphores_to_wait_on),
      fence_ptr                                     (in_opt_fence_ptr),
+     is_protected                                  (false),
 #if defined(_WIN32)
     keyed_mutex_n_acquire_keys                     (0),
     keyed_mutex_acquire_d3d11_memory_block_ptrs_ptr(nullptr),
@@ -4185,6 +4186,7 @@ Anvil::SubmitInfo::SubmitInfo(uint32_t                           in_n_command_bu
 #endif
      dst_stage_wait_masks                          (in_n_wait_semaphore_submissions),
      fence_ptr                                     (in_opt_fence_ptr),
+     is_protected                                  (false),
 #if defined(_WIN32)
     keyed_mutex_n_acquire_keys                     (0),
     keyed_mutex_acquire_d3d11_memory_block_ptrs_ptr(nullptr),
