@@ -36,6 +36,7 @@ namespace Anvil
 
         virtual VkResult map            (void*        in_memory_object,
                                          VkDeviceSize in_start_offset,
+                                         VkDeviceSize in_memory_block_start_offset,
                                          VkDeviceSize in_size,
                                          void**       out_result_ptr)   = 0;
         virtual bool     supports_baking() const                        = 0;

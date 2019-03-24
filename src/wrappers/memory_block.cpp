@@ -682,8 +682,11 @@ bool Anvil::MemoryBlock::open_gpu_memory_access()
             {
                 result_vk = m_parent_memory_allocator_backend_ptr->map(m_backend_object,
                                                                        0, /* in_start_offset */
-                                                                       m_create_info_ptr->get_size(),
+                                                                       m_create_info_ptr->get_start_offset(),
+                                                                       m_create_info_ptr->get_size        (),
                                                                        static_cast<void**>(&m_gpu_data_ptr) );
+
+                m_gpu_data_ptr = reinterpret_cast<uint8_t*>(m_gpu_data_ptr);
             }
             else
             {
