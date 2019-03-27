@@ -1638,8 +1638,24 @@ bool Anvil::PhysicalDevice::supports_core_vk1_1() const
 /* Please see header for specification */
 bool Anvil::PhysicalDevice::supports_core_vk1_1(const uint32_t& in_api_version) const
 {
-    const auto vk_major_version = VK_VERSION_MAJOR(in_api_version);
-    const auto vk_minor_version = VK_VERSION_MINOR(in_api_version);
+    auto vk_major_version = VK_VERSION_MAJOR(in_api_version);
+    auto vk_minor_version = VK_VERSION_MINOR(in_api_version);
+
+    /* Make sure to clamp the version in case API version used to create the parent instance is lower! */
+    const auto instance_api_version   = m_instance_ptr->get_api_version();
+    uint32_t   instance_major_version = 0;
+    uint32_t   instance_minor_version = 0;
+
+    Anvil::Utils::get_version_chunks_for_api_version(instance_api_version,
+                                                    &instance_major_version,
+                                                    &instance_minor_version);
+
+    if ( instance_major_version <  vk_major_version                                               ||
+        (instance_major_version == vk_major_version && instance_minor_version < vk_minor_version))
+    {
+        vk_major_version = instance_major_version;
+        vk_minor_version = instance_minor_version;
+    }
 
     return (vk_major_version >= 2)                          ||
            (vk_major_version == 1 && vk_minor_version >= 1);

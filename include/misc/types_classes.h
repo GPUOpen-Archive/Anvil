@@ -374,6 +374,10 @@ namespace Anvil
             {
                 memory_block_owned_by_image = false;
                 memory_block_ptr            = nullptr;
+                memory_block_start_offset   = UINT32_MAX;
+                offset.x                    = 0;
+                offset.y                    = 0;
+                offset.z                    = 0;
             }
         } ImageBindInfo;
 

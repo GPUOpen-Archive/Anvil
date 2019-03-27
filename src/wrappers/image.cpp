@@ -1518,8 +1518,8 @@ bool Anvil::Image::has_aspects(const Anvil::ImageAspectFlags& in_aspects) const
             }
         }
 
-        anvil_assert(!result                                   ||
-                      result && checked_aspects == in_aspects);
+        anvil_assert( !result                                   ||
+                     ( result && checked_aspects == in_aspects));
     }
 
     return result;

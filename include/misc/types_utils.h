@@ -31,6 +31,11 @@ namespace Anvil
         bool convert_mt_safety_enum_to_boolean(MTSafety                 in_mt_safety,
                                                const Anvil::BaseDevice* in_device_ptr);
 
+        /* NOTE: in_api_version must NOT be Anvil::APIVersion::UNKNOWN */
+        void get_version_chunks_for_api_version(const Anvil::APIVersion& in_api_version,
+                                                uint32_t*                out_major_version_ptr,
+                                                uint32_t*                out_minor_version_ptr);
+
         Anvil::QueueFamilyFlags get_queue_family_flags_from_queue_family_type(Anvil::QueueFamilyType in_queue_family_type);
 
         /** Converts a queue family bitfield value to an array of queue family indices.

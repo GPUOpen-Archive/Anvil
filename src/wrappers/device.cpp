@@ -1474,8 +1474,8 @@ bool Anvil::BaseDevice::init_extension_func_ptrs()
             m_khr_external_memory_fd_extension_entrypoints.vkGetMemoryFdKHR           = reinterpret_cast<PFN_vkGetMemoryFdKHR>          (get_proc_address("vkGetMemoryFdKHR"));
             m_khr_external_memory_fd_extension_entrypoints.vkGetMemoryFdPropertiesKHR = reinterpret_cast<PFN_vkGetMemoryFdPropertiesKHR>(get_proc_address("vkGetMemoryFdPropertiesKHR"));
 
-            anvil_assert(m_khr_external_memory_win32_extension_entrypoints.vkGetMemoryFdKHR           != nullptr);
-            anvil_assert(m_khr_external_memory_win32_extension_entrypoints.vkGetMemoryFdPropertiesKHR != nullptr);
+            anvil_assert(m_khr_external_memory_fd_extension_entrypoints.vkGetMemoryFdKHR           != nullptr);
+            anvil_assert(m_khr_external_memory_fd_extension_entrypoints.vkGetMemoryFdPropertiesKHR != nullptr);
         }
 
         if (m_extension_enabled_info_ptr->get_device_extension_info()->khr_external_semaphore_fd() )
@@ -2115,7 +2115,7 @@ void Anvil::MGPUDevice::init_device()
         auto& physical_device_props = m_parent_physical_devices.at(n_physical_device);
 
         anvil_assert( present_caps.presentMask[n_physical_device] == 0                                                                                    ||
-                      present_caps.presentMask[n_physical_device] != 0 && (present_caps.presentMask[n_physical_device] & (1 << n_physical_device) ) != 0);
+                     (present_caps.presentMask[n_physical_device] != 0 && (present_caps.presentMask[n_physical_device] & (1 << n_physical_device) ) != 0));
 
         for (uint32_t n_sub_physical_device = 0;
                       n_sub_physical_device < static_cast<uint32_t>(m_parent_physical_devices.size() );
