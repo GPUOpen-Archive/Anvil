@@ -24,6 +24,37 @@
 #include "wrappers/device.h"
 
 /** Please see header for specification */
+void Anvil::Utils::get_version_chunks_for_api_version(const Anvil::APIVersion& in_api_version,
+                                                      uint32_t*                out_major_version_ptr,
+                                                      uint32_t*                out_minor_version_ptr)
+{
+    switch (in_api_version)
+    {
+        case Anvil::APIVersion::_1_0:
+        {
+            *out_major_version_ptr = 1;
+            *out_minor_version_ptr = 0;
+
+            break;
+        }
+
+        case Anvil::APIVersion::_1_1:
+        {
+            *out_major_version_ptr = 1;
+            *out_minor_version_ptr = 1;
+
+            break;
+        }
+
+        default:
+        {
+            /* in_api_version must NOT be Anvil::APIVersion::UNKNOWN! */
+            anvil_assert_fail();
+        }
+    }
+}
+
+/** Please see header for specification */
 Anvil::MemoryFeatureFlags Anvil::Utils::get_memory_feature_flags_from_vk_property_flags(Anvil::MemoryPropertyFlags in_mem_type_flags,
                                                                                         Anvil::MemoryHeapFlags     in_mem_heap_flags)
 {

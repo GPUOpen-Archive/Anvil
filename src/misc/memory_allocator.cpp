@@ -1205,9 +1205,9 @@ bool Anvil::MemoryAllocator::add_sparse_image_miptail(Anvil::Image*             
     anvil_assert(result);
 
     /* Even more sanity checks */
-    anvil_assert((aspect_props_ptr->flags & Anvil::SparseImageFormatFlagBits::SINGLE_MIPTAIL_BIT) != 0 &&
-                  in_n_layer                                                                      == 0 ||
-                 (aspect_props_ptr->flags & Anvil::SparseImageFormatFlagBits::SINGLE_MIPTAIL_BIT) == 0);
+    anvil_assert(((aspect_props_ptr->flags & Anvil::SparseImageFormatFlagBits::SINGLE_MIPTAIL_BIT) != 0  &&
+                   in_n_layer                                                                      == 0) ||
+                 ((aspect_props_ptr->flags & Anvil::SparseImageFormatFlagBits::SINGLE_MIPTAIL_BIT) == 0));
 
     /* Determine allocation properties */
     miptail_memory_types = in_image_ptr->get_image_memory_types(n_plane);

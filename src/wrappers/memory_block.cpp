@@ -305,7 +305,7 @@ Anvil::ExternalHandleUniquePtr Anvil::MemoryBlock::export_to_external_memory_han
     else
     {
         result_returned_ptr = Anvil::ExternalHandle::create(result_handle,
-                                                            false); /* in_close_at_destruction_time */
+                                                            is_autorelease_handle); /* in_close_at_destruction_time */
     }
 
     anvil_assert(result_returned_ptr != nullptr);
@@ -464,7 +464,7 @@ bool Anvil::MemoryBlock::init(VkResult* out_opt_result)
                 VkImportMemoryHostPointerInfoEXT handle_info_khr;
 
                 anvil_assert(handle_import_info_ptr->host_ptr != nullptr);
-                anvil_assert(handle_import_info_ptr->handle   == static_cast<Anvil::ExternalHandleType>(nullptr) );
+                anvil_assert(handle_import_info_ptr->handle   == 0);
 
                 handle_info_khr.handleType   = static_cast<VkExternalMemoryHandleTypeFlagBitsKHR>(imported_external_memory_handle_type);
                 handle_info_khr.pHostPointer = handle_import_info_ptr->host_ptr;
@@ -490,7 +490,7 @@ bool Anvil::MemoryBlock::init(VkResult* out_opt_result)
                 }
                 #else
                 {
-                    anvil_assert(handle_import_info_ptr->handle != static_cast<Anvil::ExternalHandleType>(nullptr) );
+                    anvil_assert(handle_import_info_ptr->handle != 0);
                 }
                 #endif
 
