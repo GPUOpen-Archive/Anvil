@@ -41,8 +41,8 @@ Anvil::BasePipelineManager::BasePipelineManager(const Anvil::BaseDevice* in_devi
      m_pipeline_cache_ptr    (nullptr),
      m_pipeline_counter      (0)
 {
-    anvil_assert(!in_use_pipeline_cache && in_pipeline_cache_to_reuse_ptr == nullptr ||
-                  in_use_pipeline_cache);
+    anvil_assert((!in_use_pipeline_cache && in_pipeline_cache_to_reuse_ptr == nullptr) ||
+                   in_use_pipeline_cache);
 
     m_pipeline_layout_manager_ptr = in_device_ptr->get_pipeline_layout_manager();
     anvil_assert(m_pipeline_layout_manager_ptr != nullptr);

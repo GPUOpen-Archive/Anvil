@@ -3203,7 +3203,7 @@ bool Anvil::CommandBufferBase::record_pipeline_barrier(Anvil::PipelineStageFlags
     }
 
     anvil_assert((!m_is_renderpass_active)                                                                           ||
-                 ( m_is_renderpass_active) && (in_dependency_flags & Anvil::DependencyFlagBits::VIEW_LOCAL_BIT) == 0);
+                 ((m_is_renderpass_active) && (in_dependency_flags & Anvil::DependencyFlagBits::VIEW_LOCAL_BIT) == 0));
 
     #ifdef STORE_COMMAND_BUFFER_COMMANDS
     {
@@ -4583,7 +4583,7 @@ bool Anvil::PrimaryCommandBuffer::record_begin_render_pass_internal(const bool& 
     {
         auto chain_ptr = render_pass_begin_info_chain.create_chain();
 
-        if (in_use_khr_create_rp2_extension)
+        if (!in_use_khr_create_rp2_extension)
         {
             Anvil::Vulkan::vkCmdBeginRenderPass(m_command_buffer,
                                                 chain_ptr->get_root_struct(),

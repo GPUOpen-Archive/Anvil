@@ -278,7 +278,7 @@ bool Anvil::RenderPass::init_using_core_vk10()
         }
 
         /* NOTE: DS resolve operations are only accessible via KHR_depth_stencil_resolve + KHR_create_renderpass2. */
-        anvil_assert( (*subpass_iterator)->depth_stencil_attachment.resolve_attachment_index != UINT32_MAX);
+        anvil_assert( (*subpass_iterator)->depth_stencil_attachment.resolve_attachment_index == UINT32_MAX);
 
         /* Determine the highest color attachment location & input attachment index. */
         for (auto subpass_color_attachment_iterator  = (*subpass_iterator)->color_attachments_map.cbegin();

@@ -27,7 +27,7 @@
 #include <functional>
 
 
-#ifdef _DEBUG
+#if defined(_DEBUG)
     #define anvil_assert(assertion)                  \
         if (!(assertion))                            \
         {                                            \

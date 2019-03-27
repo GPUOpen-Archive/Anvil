@@ -424,8 +424,8 @@ bool Anvil::Fence::reset_fences(const uint32_t in_n_fences,
         {
             Anvil::Fence& current_fence = in_fences[n_fence_batch * fence_cache_capacity + n_fence];
 
-            anvil_assert(device_ptr == nullptr                                          ||
-                         device_ptr != nullptr && current_fence.m_device_ptr != nullptr);
+            anvil_assert((device_ptr == nullptr)                                          ||
+                         (device_ptr != nullptr && current_fence.m_device_ptr != nullptr) );
 
             device_ptr           = current_fence.m_device_ptr;
             fence_cache[n_fence] = current_fence.m_fence;

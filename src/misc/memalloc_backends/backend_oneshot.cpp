@@ -330,7 +330,10 @@ bool Anvil::MemoryAllocatorBackends::OneShot::bake(Anvil::MemoryAllocator::Items
                                                                 (is_current_item_image && current_item_ptr->image_ptr->get_create_info_ptr()->get_tiling() == Anvil::ImageTiling::LINEAR);
 
                             anvil_assert(current_item_ptr->alloc_exportable_external_handle_types == 0);
-                            anvil_assert(current_item_ptr->alloc_external_nt_handle_info_ptr      == nullptr);
+
+                            #if defined(_WIN32)
+                                anvil_assert(current_item_ptr->alloc_external_nt_handle_info_ptr == nullptr);
+                            #endif
 
                             n_bytes_required = Anvil::Utils::round_up(n_bytes_required,
                                                                       current_item_ptr->alloc_memory_required_alignment);

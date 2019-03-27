@@ -185,7 +185,7 @@ namespace Anvil
     static_assert(offsetof(SurfaceCapabilities, supported_usage_flags)     == offsetof(VkSurfaceCapabilitiesKHR, supportedUsageFlags),     "Member offsets must match");
 
     /* NOTE: Maps 1:1 to VkImageSubresource */
-    typedef struct
+    typedef struct ImageSubresource
     {
         Anvil::ImageAspectFlags aspect_mask;
         uint32_t                mip_level;
@@ -201,6 +201,13 @@ namespace Anvil
 
             return result;
         }
+
+        ImageSubresource()
+            :array_layer(UINT32_MAX),
+             mip_level  (UINT32_MAX)
+         {
+             /* Stub */
+         }
     } ImageSubresource;
 
     static_assert(sizeof(ImageSubresource)                == sizeof(VkImageSubresource),               "Struct sizes much match");
