@@ -40,19 +40,20 @@ namespace Anvil
             return m_handle;
         }
 
-        #if defined(_WIN32)
-            /* If a payload of an object exported to a NT handle is imported to another object, the ownership is passed
-             * to the new object.
-             *
-             * For NT handles, it is assumed the handle should be destroyed when the wrapper goes out of scope. If the above
-             * import is performed, you MUST tell ExternalHandleWrapper to release the ownership of the handle, or else anything
-             * can happen.
-             */
-            void release_ownership()
-            {
-                m_close_at_destruction_time = false;
-            }
-        #endif
+        /* If a payload of an object exported to a NT handle is imported to another object, the ownership is passed
+         * to the new object.
+         *
+         * For NT handles, it is assumed the handle should be destroyed when the wrapper goes out of scope. If the above
+         * import is performed, you MUST tell ExternalHandle to release the ownership of the handle, or else it will leak.
+         *
+         * Under Linux, ownership of the underlying FD is transferred to the app at export time, and back to the driver at import time.
+         * If the wrapper has been created with in_close_at_destruction_time set to true and an exported external handle IS imported,
+         * you need to call this function in order to avoid double release of the FD.
+         */
+        void release_ownership()
+        {
+            m_close_at_destruction_time = false;
+        }
 
     private:
         ExternalHandle(const ExternalHandleType& in_handle,

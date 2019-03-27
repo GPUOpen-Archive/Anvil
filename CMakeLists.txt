@@ -22,6 +22,10 @@ endif()
 
 # Do not modify anything after this line, unless you know what you're doing.
 
+if (NOT MSVC)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
+endif()
+
 configure_file("include/config.h.in" "include/config.h")
 
 include_directories("${Anvil_BINARY_DIR}/include"
