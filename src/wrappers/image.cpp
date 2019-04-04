@@ -661,7 +661,7 @@ bool Anvil::Image::init()
                 Anvil::StructChainer<VkImageMemoryRequirementsInfo2KHR>        input_struct_chainer;
                 Anvil::StructChainUniquePtr<VkImageMemoryRequirementsInfo2KHR> input_struct_chain_ptr;
                 const bool                                                     khr_dedicated_allocation_available = m_device_ptr->get_extension_info()->khr_dedicated_allocation();
-                Anvil::StructID                                                memory_dedicated_reqs_struct_id    = UINT32_MAX;
+                Anvil::StructID                                                memory_dedicated_reqs_struct_id;
                 Anvil::StructChainer<VkMemoryRequirements2KHR>                 result_struct_chainer;
                 Anvil::StructChainUniquePtr<VkMemoryRequirements2KHR>          result_struct_chain_ptr;
 
@@ -735,7 +735,7 @@ bool Anvil::Image::init()
                     current_plane_properties.memory_types = memory_reqs.memoryTypeBits;
                     current_plane_properties.storage_size = memory_reqs.size;
 
-                    if (memory_dedicated_reqs_struct_id != UINT32_MAX)
+                    if (memory_dedicated_reqs_struct_id.is_valid() )
                     {
                         const auto memory_dedicated_reqs_ptr = result_struct_chain_ptr->get_struct_with_id<VkMemoryDedicatedRequirementsKHR>(memory_dedicated_reqs_struct_id);
 

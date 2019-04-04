@@ -880,8 +880,7 @@ void App::init_dsgs()
 
     /* Create the descriptor set layouts for the generator program. */
     m_producer_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr.get(),
-                                                           producer_dsg_create_info_ptrs,
-                                                           false); /* releaseable_sets */
+                                                           producer_dsg_create_info_ptrs);
 
 
     m_producer_dsg_ptr->set_binding_item(0, /* n_set         */
@@ -902,8 +901,7 @@ void App::init_dsgs()
 
     /* Set up the descriptor set layout for the renderer program.  */
     m_consumer_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr.get(),
-                                                           consumer_dsg_create_info_ptrs,
-                                                           false); /* releaseable_sets */
+                                                           consumer_dsg_create_info_ptrs);
 
 
     m_consumer_dsg_ptr->set_binding_item(0, /* n_set         */
@@ -1019,11 +1017,18 @@ void App::init_gfx_pipelines()
                                                                                 Anvil::ShaderModuleStageEntryPoint(), /* tess_evaluation_shader */
                                                                                *m_consumer_vs_ptr);
 
-    consumer_pipeline_info_ptr->add_vertex_attribute          (0, /* location */
-                                                               Anvil::Format::R8G8_UNORM,
-                                                               0,                /* offset_in_bytes */
-                                                               sizeof(char) * 2, /* stride_in_bytes */
-                                                               Anvil::VertexInputRate::INSTANCE);
+    {
+        Anvil::VertexInputAttribute attribute(0,                         /* in_location        */
+                                              Anvil::Format::R8G8_UNORM,
+                                              0);                        /* in_offset_in_bytes */
+
+        consumer_pipeline_info_ptr->add_vertex_binding(0,                                /* in_binding */
+                                                       Anvil::VertexInputRate::INSTANCE,
+                                                       sizeof(char) * 2,                 /* in_stride_in_bytes */
+                                                       1,                                /* in_attribute_ptrs  */
+                                                      &attribute);
+    }
+
     consumer_pipeline_info_ptr->set_descriptor_set_create_info(m_consumer_dsg_ptr->get_descriptor_set_create_info() );
     consumer_pipeline_info_ptr->set_primitive_topology        (Anvil::PrimitiveTopology::LINE_STRIP);
     consumer_pipeline_info_ptr->set_rasterization_properties  (Anvil::PolygonMode::FILL,

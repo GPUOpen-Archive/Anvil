@@ -627,14 +627,11 @@ void App::init_dsgs()
                                                       Anvil::ShaderStageFlagBits::VERTEX_BIT);
 
     m_1stpass_dsg_ptr      = Anvil::DescriptorSetGroup::create(m_device_ptr.get(),
-                                                               dsg_1stpass_create_info_ptrs,
-                                                               false); /* in_releaseable_sets */
+                                                               dsg_1stpass_create_info_ptrs);
     m_2ndpass_tri_dsg_ptr  = Anvil::DescriptorSetGroup::create(m_device_ptr.get(),
-                                                               tri_dsg_2ndpass_create_info_ptrs,
-                                                               false); /* in_releaseable_sets */
+                                                               tri_dsg_2ndpass_create_info_ptrs);
     m_2ndpass_quad_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr.get(),
-                                                               quad_dsg_2ndpass_create_info_ptrs,
-                                                               false); /* in_releaseable_sets */
+                                                               quad_dsg_2ndpass_create_info_ptrs);
 
     m_1stpass_dsg_ptr->set_binding_item     (0, /* n_set         */
                                              0, /* binding_index */

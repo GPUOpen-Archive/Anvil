@@ -1988,10 +1988,6 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_1D(Anvil::ImageAspectFlagBits 
 {
     MipmapRawData result;
 
-    memset(&result,
-            0,
-            sizeof(result) );
-
     result.aspect    = in_aspect;
     result.data_size = in_row_size;
     result.row_size  = in_row_size;
@@ -2015,10 +2011,6 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_1D_array(Anvil::ImageAspectFla
 {
     MipmapRawData result;
 
-    memset(&result,
-            0,
-            sizeof(result) );
-
     result.aspect    = in_aspect;
     result.data_size = in_data_size;
     result.n_layer   = in_n_layer;
@@ -2040,10 +2032,6 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_2D(Anvil::ImageAspectFlagBits 
                                                      uint32_t                   in_row_size)
 {
     MipmapRawData result;
-
-    memset(&result,
-            0,
-            sizeof(result) );
 
     result.aspect    = in_aspect;
     result.data_size = in_data_size;
@@ -2068,10 +2056,6 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_2D_array(Anvil::ImageAspectFla
 {
     MipmapRawData result;
 
-    memset(&result,
-            0,
-            sizeof(result) );
-
     result.aspect    = in_aspect;
     result.data_size = in_data_size;
     result.n_layer   = in_n_layer;
@@ -2095,10 +2079,6 @@ Anvil::MipmapRawData Anvil::MipmapRawData::create_3D(Anvil::ImageAspectFlagBits 
                                                      uint32_t                   in_row_size)
 {
     MipmapRawData result;
-
-    memset(&result,
-            0,
-            sizeof(result) );
 
     result.aspect    = in_aspect;
     result.data_size = in_data_size;

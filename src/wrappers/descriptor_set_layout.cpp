@@ -94,7 +94,7 @@ uint32_t Anvil::DescriptorSetLayout::get_maximum_variable_descriptor_count(const
                                                                            const Anvil::BaseDevice*                      in_device_ptr)
 {
     const Anvil::ExtensionKHRMaintenance3Entrypoints*             entrypoints_ptr  = nullptr;
-    Anvil::StructID                                               query_struct_id  = UINT32_MAX;
+    Anvil::StructID                                               query_struct_id;
     const VkDescriptorSetVariableDescriptorCountLayoutSupportEXT* query_struct_ptr = nullptr;
     uint32_t                                                      result           = 0;
     Anvil::StructChainUniquePtr<VkDescriptorSetLayoutSupportKHR>  struct_chain_ptr;

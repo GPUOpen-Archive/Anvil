@@ -132,37 +132,28 @@ namespace Anvil
                                                                        in_data_ptr);
         }
 
-        /** Adds a new vertex attribute descriptor to the specified graphics pipeline. This data will be used
-         *  at baking time to configure input vertex attribute & bindings for the Vulkan pipeline object.
+        /** Adds a new vertex binding descriptor to the specified graphics pipeline, along with one or more attributes
+         *  that consume the binding. This data will be used at baking time to configure input vertex attribute & bindings
+         *  for the Vulkan pipeline object.
          *
-         *  By default, Anvil only assigns a unique binding to those vertex attributes, whose characteristics
-         *  are unique (ie. whose divisor & input rate & stride match). This works well for most of the use cases, the
-         *  only exception being when you need to associate a unique offset to a specific vertex binding. In
-         *  this case, you need to set @param in_explicit_binding_index to an index, under which your exclusive
-         *  binding is going to be stored.
-         *  When preparing the binding array, Anvil will not reuse user-specified "explicit" bindings for
-         *  attributes, for which "explicit" bindings have not been requested, even if their properties match. 
-         *
-         *
-         *  @param in_location               Vertex attribute location
-         *  @param in_format                 Vertex attribute format.
-         *  @param in_offset_in_bytes        Start offset of the vertex attribute data.
+         *  @param in_binding                Index to use for the new binding.
          *  @param in_stride_in_bytes        Stride of the vertex attribute data.
          *  @param in_step_rate              Step rate to use for the vertex attribute data.
-         *  @param in_explicit_binding_index Please see general description of the function for more details.
-         *  @param in_divisor                Divisor to use for the attribute. Please read EXT_vertex_attribute_divisor
-         *                                   for more details. Only set to values different than 1 if the extension
-         *                                   is reported as supported.
+         *  @param in_n_attributes           Number of items available for reading under @param in_attribute_ptrs. Must be
+         *                                   at least 1.
+         *  @param in_attribute_ptrs         Vertex attributes to associate with the new bindings.
+         *  @param in_divisor                Vertex attribute divisor to use for the binding. Any value different than 1
+         *                                   is only supported for devices with VK_EXT_vertex_attribute_divisor extension
+         *                                   enabled.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool add_vertex_attribute(uint32_t               in_location,
-                                  Anvil::Format          in_format,
-                                  uint32_t               in_offset_in_bytes,
-                                  uint32_t               in_stride_in_bytes,
-                                  Anvil::VertexInputRate in_step_rate,
-                                  uint32_t               in_explicit_binding_index = UINT32_MAX,
-                                  uint32_t               in_divisor                = 1);
+        bool add_vertex_binding(uint32_t                           in_binding,
+                                Anvil::VertexInputRate             in_step_rate,
+                                uint32_t                           in_stride_in_bytes,
+                                const uint32_t&                    in_n_attributes,
+                                const Anvil::VertexInputAttribute* in_attribute_ptrs,
+                                uint32_t                           in_divisor        = 1);
 
         /** Tells whether depth writes have been enabled. **/
         bool are_depth_writes_enabled() const;
@@ -257,22 +248,22 @@ namespace Anvil
 
         /** Retrieves general properties.
          *
-         *  @param out_opt_n_scissors_ptr              If not null, deref will be set to the number of scissors used
-         *                                             by the pipeline.
-         *  @param out_opt_n_viewports_ptr             If not null, deref will be set to the number of viewports used
-         *                                             by the pipeline.
-         *  @param out_opt_n_vertex_attributes_ptr     If not null, deref will be set to the number of vertex
-         *                                             attributes specified by the owner.
-         *  @param out_opt_renderpass_ptr_ptr          If not null, deref will be set to the renderpass assigned to
-         *                                             the pipeline.
-         *  @param out_opt_subpass_id_ptr              If not null, deref will be set to the ID of the subpass the pipeline
-         *                                             has been created for.
+         *  @param out_opt_n_scissors_ptr        If not null, deref will be set to the number of scissors used
+         *                                       by the pipeline.
+         *  @param out_opt_n_viewports_ptr       If not null, deref will be set to the number of viewports used
+         *                                       by the pipeline.
+         *  @param out_opt_n_vertex_bindings_ptr If not null, deref will be set to the number of vertex
+         *                                       bindings specified by the owner.
+         *  @param out_opt_renderpass_ptr_ptr    If not null, deref will be set to the renderpass assigned to
+         *                                       the pipeline.
+         *  @param out_opt_subpass_id_ptr        If not null, deref will be set to the ID of the subpass the pipeline
+         *                                       has been created for.
          *
          *  @return true if successful, false otherwise.
          **/
         void get_graphics_pipeline_properties(uint32_t*          out_opt_n_scissors_ptr,
                                               uint32_t*          out_opt_n_viewports_ptr,
-                                              uint32_t*          out_opt_n_vertex_attributes_ptr,
+                                              uint32_t*          out_opt_n_vertex_bindings_ptr,
                                               const RenderPass** out_opt_renderpass_ptr_ptr,
                                               SubPassID*         out_opt_subpass_id_ptr) const;
 
@@ -463,25 +454,24 @@ namespace Anvil
          *  This means the binding ultimately assigned by graphics pipeline manager does not necessarily have to match
          *  @param out_opt_binding_ptr.
          *
-         *  @param in_n_vertex_input_attribute Index of the vertex attribute to retrieve info of.
-         *  @param out_opt_location_ptr                      If not null, deref will be set to the specified attribute's location.
-         *  @param out_opt_format_ptr                        If not null, deref will be set to the specified attribute's format.
-         *  @param out_opt_offset_ptr                        If not null, deref will be set to the specified attribute's start offset.
-         *  @param out_opt_explicit_vertex_binding_index_ptr If not null, deref will be set to the specified attribute's explicit vertex binding index.
-         *  @param out_opt_stride_ptr                        If not null, deref will be set to the specified attribute's stride.
-         *  @param out_opt_rate_ptr                          If not null, deref will be set to the specified attribute's step rate.
-         *  @param out_opt_divisor_ptr                       If not null, deref will be set to the specified attribute's divisor.
+         *  @param in_n_vertex_input_binding  Ordinal number of vertex input binding to use for the query.
+         *  @param out_opt_binding_ptr        If not null, deref will be set to the specified binding's index.
+         *  @param out_opt_stride_ptr         If not null, deref will be set to the specified binding's stride.
+         *  @param out_opt_rate_ptr           If not null, deref will be set to the specified binding's step rate.
+         *  @param out_opt_n_attributes_ptr   If not null, deref will be set to the number of items available for reading at * @param out_opt_attributes_ptr_ptr
+         *  @param out_opt_attributes_ptr_ptr If not null, deref will be set to a pointer an array of attribute descriptors associated
+         *                                    with the binding.
+         *  @param out_opt_divisor_ptr        If not null, deref will be set to the specified binding's vertex attribute divisor.
          *
          *  @return true if successful, false otherwise.
          **/
-        bool get_vertex_attribute_properties(uint32_t                in_n_vertex_input_attribute,
-                                             uint32_t*               out_opt_location_ptr                      = nullptr,
-                                             Anvil::Format*          out_opt_format_ptr                        = nullptr,
-                                             uint32_t*               out_opt_offset_ptr                        = nullptr,
-                                             uint32_t*               out_opt_explicit_vertex_binding_index_ptr = nullptr,
-                                             uint32_t*               out_opt_stride_ptr                        = nullptr,
-                                             Anvil::VertexInputRate* out_opt_rate_ptr                          = nullptr,
-                                             uint32_t*               out_opt_divisor_ptr                       = nullptr) const;
+        bool get_vertex_binding_properties(uint32_t                     in_n_vertex_binding,
+                                           uint32_t*                    out_opt_binding_ptr        = nullptr,
+                                           uint32_t*                    out_opt_stride_ptr         = nullptr,
+                                           Anvil::VertexInputRate*      out_opt_rate_ptr           = nullptr,
+                                           uint32_t*                    out_opt_n_attributes_ptr   = nullptr,
+                                           const VertexInputAttribute** out_opt_attributes_ptr_ptr = nullptr,
+                                           uint32_t*                    out_opt_divisor_ptr        = nullptr) const;
 
         /** Retrieves properties of a viewport at a given index.
          *
@@ -995,58 +985,40 @@ namespace Anvil
         /** A vertex attribute descriptor. This descriptor is not exposed to the Vulkan implementation. Instead,
          *  its members are used to create Vulkan input attribute & binding descriptors at baking time.
          */
-        typedef struct InternalVertexAttribute
+        typedef struct InternalVertexBinding
         {
-            uint32_t               divisor;
-            uint32_t               explicit_binding_index;
-            Anvil::Format          format;
-            uint32_t               location;
-            uint32_t               offset_in_bytes;
-            Anvil::VertexInputRate rate;
-            uint32_t               stride_in_bytes;
+            uint32_t                          divisor;
+            Anvil::VertexInputRate            rate;
+            uint32_t                          stride_in_bytes;
+            std::vector<VertexInputAttribute> attributes;
 
             /** Dummy constructor. Should only be used by STL. */
-            InternalVertexAttribute()
+            InternalVertexBinding()
             {
-                divisor                = 1;
-                explicit_binding_index = UINT32_MAX;
-                format                 = Anvil::Format::UNKNOWN;
-                location               = UINT32_MAX;
-                offset_in_bytes        = UINT32_MAX;
-                rate                   = Anvil::VertexInputRate::UNKNOWN;
-                stride_in_bytes        = UINT32_MAX;
+                divisor         = UINT32_MAX;
+                rate            = Anvil::VertexInputRate::UNKNOWN;
+                stride_in_bytes = UINT32_MAX;
             }
 
             /** Constructor.
              *
-             *  @param in_divisor         Divisor to use for the attribute.
-             *  @param in_format          Attribute format.
-             *  @param in_location        Attribute location.
-             *  @param in_offset_in_bytes Start offset in bytes.
+             *  @param in_divisor         Vertexattribute divisor.
              *  @param in_rate            Step rate.
              *  @param in_stride_in_bytes Stride in bytes.
              **/
-            InternalVertexAttribute(uint32_t               in_divisor,
-                                    uint32_t               in_explicit_binding_index,
-                                    Anvil::Format          in_format,
-                                    uint32_t               in_location,
-                                    uint32_t               in_offset_in_bytes,
-                                    Anvil::VertexInputRate in_rate,
-                                    uint32_t               in_stride_in_bytes)
+            InternalVertexBinding(uint32_t               in_divisor,
+                                  Anvil::VertexInputRate in_rate,
+                                  uint32_t               in_stride_in_bytes)
             {
-                divisor                = in_divisor;
-                explicit_binding_index = in_explicit_binding_index;
-                format                 = in_format;
-                location               = in_location;
-                offset_in_bytes        = in_offset_in_bytes;
-                rate                   = in_rate;
-                stride_in_bytes        = in_stride_in_bytes;
+                divisor         = in_divisor;
+                rate            = in_rate;
+                stride_in_bytes = in_stride_in_bytes;
             }
-        } InternalVertexAttribute;
+        } InternalVertexBinding;
 
-        typedef std::map<uint32_t, InternalScissorBox> InternalScissorBoxes;
-        typedef std::vector<InternalVertexAttribute>   InternalVertexAttributes;
-        typedef std::map<uint32_t, InternalViewport>   InternalViewports;
+        typedef std::map<uint32_t, InternalScissorBox>    InternalScissorBoxes;
+        typedef std::map<uint32_t, InternalVertexBinding> InternalVertexBindings;
+        typedef std::map<uint32_t, InternalViewport>      InternalViewports;
 
         /* Private functions */
         explicit GraphicsPipelineCreateInfo(const RenderPass* in_renderpass_ptr,
@@ -1097,7 +1069,7 @@ namespace Anvil
 
         TessellationDomainOrigin m_tessellation_domain_origin;
 
-        InternalVertexAttributes                 m_attributes;
+        InternalVertexBindings                   m_bindings;
         float                                    m_blend_constant[4];
         Anvil::CullModeFlags                     m_cull_mode;
         Anvil::PolygonMode                       m_polygon_mode;
