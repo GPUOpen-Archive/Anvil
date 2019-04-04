@@ -116,7 +116,7 @@ void Anvil::BaseDevice::create_device(const std::vector<const char*>& in_extensi
     }
 
     {
-        Anvil::StructID root_create_info_struct_id = 0;
+        Anvil::StructID root_create_info_struct_id;
 
         /* Root structure */
         {
@@ -1176,6 +1176,8 @@ bool Anvil::BaseDevice::init()
                                                m_create_info_ptr->get_helper_command_pool_create_flags(),
                                                current_queue_fam_queue.family_index,
                                                mt_safety);
+
+                anvil_assert(m_command_pool_ptr_per_vk_queue_fam[current_queue_fam_queue.family_index] != nullptr);
             }
         }
     }
@@ -1187,8 +1189,20 @@ bool Anvil::BaseDevice::init()
     }
 
     /* Set up the pipeline cache */
-    m_pipeline_cache_ptr = Anvil::PipelineCache::create(this,
-                                                        is_mt_safe() );
+    {
+        auto pipeline_cache_ptr = m_create_info_ptr->get_pipeline_cache_ptr();
+
+        if (pipeline_cache_ptr == nullptr)
+        {
+            m_pipeline_cache_ptr = Anvil::PipelineCache::create(this,
+                                                                is_mt_safe() );
+        }
+        else
+        {
+            m_pipeline_cache_ptr = Anvil::PipelineCacheUniquePtr(pipeline_cache_ptr,
+                                                                 [](Anvil::PipelineCache*){});
+        }
+    }
 
     /* Cache a pipeline layout manager instance. */
     m_pipeline_layout_manager_ptr = Anvil::PipelineLayoutManager::create(this,
@@ -1237,7 +1251,7 @@ bool Anvil::BaseDevice::init_dummy_dsg() const
 
     m_dummy_dsg_ptr = Anvil::DescriptorSetGroup::create(this,
                                                         dummy_ds_create_info_ptrs,
-                                                        false, /* releaseable_sets */
+                                                        Anvil::DescriptorPoolCreateFlagBits::NONE,
                                                         Anvil::MTSafety::DISABLED,
                                                         dummy_overhead_allocs);
 

@@ -108,7 +108,6 @@ namespace Anvil
 
         typedef struct GraphicsPipelineData
         {
-            AttributeLocationToBindingIndexMap             attribute_location_to_binding_index_map;
             const Anvil::GraphicsPipelineCreateInfo*       pipeline_create_info_ptr;
             std::vector<VkVertexInputAttributeDescription> vk_input_attributes;
 

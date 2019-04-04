@@ -96,40 +96,30 @@ Anvil::GraphicsPipelineCreateInfo::~GraphicsPipelineCreateInfo()
     /* Stub */
 }
 
-bool Anvil::GraphicsPipelineCreateInfo::add_vertex_attribute(uint32_t               in_location,
-                                                             Anvil::Format          in_format,
-                                                             uint32_t               in_offset_in_bytes,
-                                                             uint32_t               in_stride_in_bytes,
-                                                             Anvil::VertexInputRate in_step_rate,
-                                                             uint32_t               in_explicit_binding_index,
-                                                             uint32_t               in_divisor)
+bool Anvil::GraphicsPipelineCreateInfo::add_vertex_binding(uint32_t                           in_binding,
+                                                           Anvil::VertexInputRate             in_step_rate,
+                                                           uint32_t                           in_stride_in_bytes,
+                                                           const uint32_t&                    in_n_attributes,
+                                                           const Anvil::VertexInputAttribute* in_attribute_ptrs,
+                                                           uint32_t                           in_divisor)
 {
     bool result = false;
 
     #ifdef _DEBUG
     {
+        /* Make sure the binding has not already been specified */
+        anvil_assert(m_bindings.find(in_binding) == m_bindings.end() );
+
         /* Make sure the location is not already referred to by already added attributes */
-        for (auto attribute_iterator  = m_attributes.cbegin();
-                  attribute_iterator != m_attributes.cend();
-                ++attribute_iterator)
+        for (const auto& current_binding : m_bindings)
         {
-            anvil_assert(attribute_iterator->location != in_location);
-        }
-
-        /* If an explicit binding has been requested for the new attribute, we need to make sure that any user-specified attributes
-         * that refer to this binding specify the same stride and input rate. */
-        if (in_explicit_binding_index != UINT32_MAX)
-        {
-            for (auto attribute_iterator  = m_attributes.cbegin();
-                      attribute_iterator != m_attributes.cend();
-                    ++attribute_iterator)
+            for (const auto& current_attribute : current_binding.second.attributes)
             {
-                const auto& current_attribute = *attribute_iterator;
-
-                if (current_attribute.explicit_binding_index == in_explicit_binding_index)
+                for (uint32_t n_in_attribute = 0;
+                              n_in_attribute < in_n_attributes;
+                            ++n_in_attribute)
                 {
-                    anvil_assert(current_attribute.rate            == in_step_rate);
-                    anvil_assert(current_attribute.stride_in_bytes == in_stride_in_bytes);
+                    anvil_assert(current_attribute.location != in_attribute_ptrs[n_in_attribute].location);
                 }
             }
         }
@@ -139,16 +129,17 @@ bool Anvil::GraphicsPipelineCreateInfo::add_vertex_attribute(uint32_t           
     /* Add a new vertex attribute descriptor. At this point, we do not differentiate between
      * attributes and bindings. Actual Vulkan attributes and bindings will be created at baking
      * time. */
-    m_attributes.push_back(
-        InternalVertexAttribute(
-            in_divisor,
-            in_explicit_binding_index,
-            in_format,
-            in_location,
-            in_offset_in_bytes,
-            in_step_rate,
-            in_stride_in_bytes)
-    );
+    InternalVertexBinding new_binding(in_divisor,
+                                      in_step_rate,
+                                      in_stride_in_bytes);
+
+    new_binding.attributes.resize(in_n_attributes);
+
+    memcpy(&new_binding.attributes.at(0),
+            in_attribute_ptrs,
+            in_n_attributes * sizeof(Anvil::VertexInputAttribute) );
+
+    m_bindings[in_binding] = new_binding;
 
     /* All done */
     result = true;
@@ -214,7 +205,7 @@ bool Anvil::GraphicsPipelineCreateInfo::copy_gfx_state_from(const Anvil::Graphic
 
     m_tessellation_domain_origin = in_src_pipeline_create_info_ptr->m_tessellation_domain_origin;
 
-    m_attributes                             = in_src_pipeline_create_info_ptr->m_attributes;
+    m_bindings                               = in_src_pipeline_create_info_ptr->m_bindings;
     m_blend_constant[0]                      = in_src_pipeline_create_info_ptr->m_blend_constant[0];
     m_blend_constant[1]                      = in_src_pipeline_create_info_ptr->m_blend_constant[1];
     m_blend_constant[2]                      = in_src_pipeline_create_info_ptr->m_blend_constant[2];
@@ -460,7 +451,7 @@ void Anvil::GraphicsPipelineCreateInfo::get_enabled_dynamic_states(const Anvil::
 
 void Anvil::GraphicsPipelineCreateInfo::get_graphics_pipeline_properties(uint32_t*          out_opt_n_scissors_ptr,
                                                                          uint32_t*          out_opt_n_viewports_ptr,
-                                                                         uint32_t*          out_opt_n_vertex_attributes_ptr,
+                                                                         uint32_t*          out_opt_n_vertex_bindings_ptr,
                                                                          const RenderPass** out_opt_renderpass_ptr_ptr,
                                                                          SubPassID*         out_opt_subpass_id_ptr) const
 {
@@ -474,9 +465,9 @@ void Anvil::GraphicsPipelineCreateInfo::get_graphics_pipeline_properties(uint32_
         *out_opt_n_viewports_ptr = static_cast<uint32_t>(m_viewports.size() );
     }
 
-    if (out_opt_n_vertex_attributes_ptr != nullptr)
+    if (out_opt_n_vertex_bindings_ptr != nullptr)
     {
-        *out_opt_n_vertex_attributes_ptr = static_cast<uint32_t>(m_attributes.size() );
+        *out_opt_n_vertex_bindings_ptr = static_cast<uint32_t>(m_bindings.size() );
     }
 
     if (out_opt_renderpass_ptr_ptr != nullptr)
@@ -773,60 +764,69 @@ uint32_t Anvil::GraphicsPipelineCreateInfo::get_n_patch_control_points() const
     return m_n_patch_control_points;
 }
 
-bool Anvil::GraphicsPipelineCreateInfo::get_vertex_attribute_properties(uint32_t                in_n_vertex_input_attribute,
-                                                                        uint32_t*               out_opt_location_ptr,
-                                                                        Anvil::Format*          out_opt_format_ptr,
-                                                                        uint32_t*               out_opt_offset_ptr,
-                                                                        uint32_t*               out_opt_explicit_vertex_binding_index_ptr,
-                                                                        uint32_t*               out_opt_stride_ptr,
-                                                                        Anvil::VertexInputRate* out_opt_rate_ptr,
-                                                                        uint32_t*               out_opt_divisor_ptr) const
+bool Anvil::GraphicsPipelineCreateInfo::get_vertex_binding_properties(uint32_t                     in_n_vertex_binding,
+                                                                      uint32_t*                    out_opt_binding_ptr,
+                                                                      uint32_t*                    out_opt_stride_ptr,
+                                                                      Anvil::VertexInputRate*      out_opt_rate_ptr,
+                                                                      uint32_t*                    out_opt_n_attributes_ptr,
+                                                                      const VertexInputAttribute** out_opt_attributes_ptr_ptr,
+                                                                      uint32_t*                    out_opt_divisor_ptr) const
 {
-    const InternalVertexAttribute* attribute_ptr = nullptr;
-    bool                           result        = false;
+    auto                         binding_iterator = m_bindings.begin();
+    const InternalVertexBinding* binding_ptr      = nullptr;
+    bool                         result           = false;
 
-    if (m_attributes.size() < in_n_vertex_input_attribute)
+    if (m_bindings.size() < in_n_vertex_binding)
     {
         goto end;
     }
     else
     {
-        attribute_ptr = &m_attributes.at(in_n_vertex_input_attribute);
+        uint32_t n_item           = 0;
+
+        while (n_item != in_n_vertex_binding)
+        {
+            binding_iterator++;
+            n_item          ++;
+
+            if (binding_iterator == m_bindings.end() )
+            {
+                goto end;
+            }
+        }
+
+        binding_ptr = &binding_iterator->second;
     }
 
-    if (out_opt_location_ptr != nullptr)
+    if (out_opt_binding_ptr != nullptr)
     {
-        *out_opt_location_ptr = attribute_ptr->location;
-    }
-
-    if (out_opt_format_ptr != nullptr)
-    {
-        *out_opt_format_ptr = attribute_ptr->format;
-    }
-
-    if (out_opt_offset_ptr != nullptr)
-    {
-        *out_opt_offset_ptr = attribute_ptr->offset_in_bytes;
-    }
-
-    if (out_opt_explicit_vertex_binding_index_ptr != nullptr)
-    {
-        *out_opt_explicit_vertex_binding_index_ptr = attribute_ptr->explicit_binding_index;
+        *out_opt_binding_ptr = binding_iterator->first;
     }
 
     if (out_opt_stride_ptr != nullptr)
     {
-        *out_opt_stride_ptr = attribute_ptr->stride_in_bytes;
+        *out_opt_stride_ptr = binding_ptr->stride_in_bytes;
     }
 
     if (out_opt_rate_ptr != nullptr)
     {
-        *out_opt_rate_ptr = attribute_ptr->rate;
+        *out_opt_rate_ptr = binding_ptr->rate;
+    }
+
+    if (out_opt_n_attributes_ptr != nullptr)
+    {
+        *out_opt_n_attributes_ptr = static_cast<uint32_t>(binding_ptr->attributes.size() );
+    }
+
+    if (out_opt_attributes_ptr_ptr != nullptr)
+    {
+        *out_opt_attributes_ptr_ptr = (binding_ptr->attributes.size() > 0) ? &binding_ptr->attributes.at(0)
+                                                                           : nullptr;
     }
 
     if (out_opt_divisor_ptr != nullptr)
     {
-        *out_opt_divisor_ptr = attribute_ptr->divisor;
+        *out_opt_divisor_ptr = binding_ptr->divisor;
     }
 
     /* All done */

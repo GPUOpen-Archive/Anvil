@@ -38,8 +38,9 @@ namespace Anvil
          * Anvil creates one command pool per each queue family which apps can use at any time which is why the CommandPoolCreateFlags argument
          * is present.
          *
-         * By default, the device will be created with API version equal to min(instance-level API version, physical device API version}.
-         * This can be overridden by calling set_api_version().
+         * NOTE: By default, an empty pipeline cache will be created for pipeline manager usage. You can adjust this behavior, allowing for
+         *       pipeline cache reuse across executions, by calling set_pipeline_cache_ptr() and retrieving pipeline cache data and caching it
+         *       at later time.
          *
          * NOTE: If VK_EXT_global_queue_priority is supported, all queues are associated MEDIUM_EXT global priority by default.
          *       This can be changed on a per-queue basis by calling set_queue_global_priority() prior to passing the structure
@@ -100,6 +101,11 @@ namespace Anvil
         const std::vector<const Anvil::PhysicalDevice*>& get_physical_device_ptrs() const
         {
             return m_physical_device_ptrs;
+        }
+
+        Anvil::PipelineCache* get_pipeline_cache_ptr() const
+        {
+            return m_pipeline_cache_ptr.get();
         }
 
         Anvil::QueueGlobalPriority get_queue_global_priority(const uint32_t& in_queue_family_index,
@@ -186,6 +192,12 @@ namespace Anvil
             m_queue_properties[in_queue_family_index][in_queue_index].global_priority = in_queue_global_priority;
         }
 
+        /* Caches user-specified pipeline cache for usage with pipeline managers. */
+        void set_pipeline_cache_ptr(Anvil::PipelineCacheUniquePtr in_pipeline_cache_ptr)
+        {
+            m_pipeline_cache_ptr = std::move(in_pipeline_cache_ptr);
+        }
+
         /* Associates priority with a given <queue family index, queue index> pair.
          *
          * By default, all queues will be associated a priority of 0.0.
@@ -264,6 +276,7 @@ namespace Anvil
         Anvil::MemoryOverallocationBehavior                                          m_memory_overallocation_behavior;
         bool                                                                         m_mt_safe;
         std::vector<const Anvil::PhysicalDevice*>                                    m_physical_device_ptrs;
+        Anvil::PipelineCacheUniquePtr                                                m_pipeline_cache_ptr;
         std::unordered_map<uint32_t, std::unordered_map<uint32_t, QueueProperties> > m_queue_properties;
         bool                                                                         m_should_enable_shader_module_cache;
 
