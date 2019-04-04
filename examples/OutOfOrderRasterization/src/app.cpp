@@ -1441,8 +1441,7 @@ void App::init_dsgs()
                                                     Anvil::ShaderStageFlagBits::VERTEX_BIT);
 
             new_dsg_ptr = Anvil::DescriptorSetGroup::create(m_device_ptr.get(),
-                                                            new_dsg_create_info_ptr,
-                                                            false); /* in_releaseable_sets */
+                                                            new_dsg_create_info_ptr);
         }
 
         new_dsg_ptr->set_binding_item(0, /* n_set         */
@@ -1482,11 +1481,17 @@ void App::init_gfx_pipelines()
                                                                                       Anvil::ShaderModuleStageEntryPoint(), /* in_te_entrypoint */
                                                                                      *m_vs_entrypoint_ptr);
 
-            pipeline_create_info_ptr->add_vertex_attribute(0, /* location */
-                                                           Anvil::Format::R32G32B32_SFLOAT,
-                                                           0,                 /* offset_in_bytes */
-                                                           sizeof(float) * 3, /* stride_in_bytes */
-                                                           Anvil::VertexInputRate::VERTEX);
+            {
+                auto attribute = Anvil::VertexInputAttribute(0,                               /* location        */
+                                                             Anvil::Format::R32G32B32_SFLOAT,
+                                                             0);                              /* offset_in_bytes */
+
+                pipeline_create_info_ptr->add_vertex_binding(0,                             /* in_binding         */
+                                                             Anvil::VertexInputRate::VERTEX,
+                                                             sizeof(float) * 3,             /* in_stride_in_bytes */
+                                                             1, /* in_n_attributes */
+                                                            &attribute);
+            }
 
             pipeline_create_info_ptr->set_descriptor_set_create_info(m_dsg_ptrs[0]->get_descriptor_set_create_info() );
 
@@ -1708,11 +1713,18 @@ void App::init_renderpasses()
                                                                                             Anvil::ShaderModuleStageEntryPoint(), /* in_te_entrypoint */
                                                                                            *m_vs_entrypoint_ptr);
 
-            gfx_pipeline_create_info_ptr->add_vertex_attribute          (0, /* location */
-                                                                         Anvil::Format::R32G32B32_SFLOAT,
-                                                                         0,                 /* offset_in_bytes */
-                                                                         sizeof(float) * 3, /* stride_in_bytes */
-                                                                         Anvil::VertexInputRate::VERTEX);
+            {
+                auto attribute = Anvil::VertexInputAttribute(0,                               /* location        */
+                                                             Anvil::Format::R32G32B32_SFLOAT,
+                                                             0);                              /* offset_in_bytes */
+
+                gfx_pipeline_create_info_ptr->add_vertex_binding(0,                              /* in_binding      */
+                                                                 Anvil::VertexInputRate::VERTEX,
+                                                                 sizeof(float) * 3,              /* stride_in_bytes */
+                                                                 1,                              /* in_n_attributes */
+                                                                &attribute);
+            }
+
             gfx_pipeline_create_info_ptr->set_descriptor_set_create_info(m_dsg_ptrs[0]->get_descriptor_set_create_info() );
 
             gfx_manager_ptr->add_pipeline(std::move(gfx_pipeline_create_info_ptr),

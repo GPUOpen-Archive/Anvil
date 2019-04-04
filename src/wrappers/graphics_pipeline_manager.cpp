@@ -1064,6 +1064,7 @@ std::unique_ptr<Anvil::StructChainVector<VkPipelineShaderStageCreateInfo> > Anvi
 
                 if (current_shader_stage_specialization_constants_ptr->size() > 0)
                 {
+                    Anvil::StructID                       helper_struct_id;
                     VkSpecializationInfo                  specialization_info;
                     std::vector<VkSpecializationMapEntry> specialization_map_entries;
 
@@ -1075,11 +1076,12 @@ std::unique_ptr<Anvil::StructChainVector<VkPipelineShaderStageCreateInfo> > Anvi
                                                     &specialization_info);
                     }
 
-                    shader_stage_create_info_chainer.store_helper_structure       (specialization_info,
-                                                                                   root_struct_id,
-                                                                                   offsetof(VkPipelineShaderStageCreateInfo, pSpecializationInfo) );
+                    helper_struct_id = shader_stage_create_info_chainer.store_helper_structure(specialization_info,
+                                                                                               root_struct_id,
+                                                                                               offsetof(VkPipelineShaderStageCreateInfo, pSpecializationInfo) );
+
                     shader_stage_create_info_chainer.store_helper_structure_vector(specialization_map_entries,
-                                                                                   root_struct_id,
+                                                                                   helper_struct_id,
                                                                                    offsetof(VkSpecializationInfo, pMapEntries) );
                 }
 
@@ -1408,106 +1410,75 @@ bool Anvil::GraphicsPipelineManager::delete_pipeline(PipelineID in_pipeline_id)
  */
 void Anvil::GraphicsPipelineManager::GraphicsPipelineData::bake_vk_attributes_and_bindings()
 {
-    uint32_t n_attributes = 0;
+    uint32_t n_bindings = 0;
 
-    anvil_assert(attribute_location_to_binding_index_map.size() == 0);
-    anvil_assert(input_bindings.size                         () == 0);
-    anvil_assert(vk_input_attributes.size                    () == 0);
-    anvil_assert(vk_input_bindings.size                      () == 0);
+    anvil_assert(input_bindings.size     () == 0);
+    anvil_assert(vk_input_attributes.size() == 0);
+    anvil_assert(vk_input_bindings.size  () == 0);
 
-    pipeline_create_info_ptr->get_graphics_pipeline_properties(nullptr,       /* out_opt_n_scissors_ptr          */
-                                                               nullptr,       /* out_opt_n_viewports_ptr         */
-                                                               &n_attributes, /* out_opt_n_vertex_attributes_ptr */
-                                                               nullptr,       /* out_opt_renderpass_ptr          */
-                                                               nullptr);      /* out_opt_subpass_id_ptr          */
+    pipeline_create_info_ptr->get_graphics_pipeline_properties(nullptr,     /* out_opt_n_scissors_ptr        */
+                                                               nullptr,     /* out_opt_n_viewports_ptr       */
+                                                               &n_bindings, /* out_opt_n_vertex_bindings_ptr */
+                                                               nullptr,     /* out_opt_renderpass_ptr        */
+                                                               nullptr);    /* out_opt_subpass_id_ptr        */
 
-    for (uint32_t n_attribute = 0;
-                  n_attribute < n_attributes;
-                ++n_attribute)
+    for (uint32_t n_binding = 0;
+                  n_binding < n_bindings;
+                ++n_binding)
     {
         /* Identify the binding index we should use for the attribute.
          *
          * If an explicit binding has been specified by the application, this step can be skipped */
-        uint32_t                          current_attribute_divisor                       = 1;
-        uint32_t                          current_attribute_explicit_vertex_binding_index = UINT32_MAX;
-        uint32_t                          current_attribute_location                      = UINT32_MAX;
-        Anvil::Format                     current_attribute_format                        = Anvil::Format::UNKNOWN;
-        uint32_t                          current_attribute_offset                        = UINT32_MAX;
-        Anvil::VertexInputRate            current_attribute_rate                          = Anvil::VertexInputRate::UNKNOWN;
-        uint32_t                          current_attribute_stride                        = UINT32_MAX;
-        VkVertexInputAttributeDescription current_attribute_vk;
-        uint32_t                          n_attribute_binding                             = UINT32_MAX;
-        bool                              has_found                                       = false;
+        const Anvil::VertexInputAttribute* current_binding_attributes_ptr = nullptr;
+        uint32_t                           current_binding_divisor        = 0;
+        uint32_t                           current_binding_index          = UINT32_MAX;
+        uint32_t                           current_binding_n_attributes   = 0;
+        Anvil::VertexInputRate             current_binding_rate           = Anvil::VertexInputRate::UNKNOWN;
+        uint32_t                           current_binding_stride         = UINT32_MAX;
 
-        if (!pipeline_create_info_ptr->get_vertex_attribute_properties(n_attribute,
-                                                                      &current_attribute_location,
-                                                                      &current_attribute_format,
-                                                                      &current_attribute_offset,
-                                                                      &current_attribute_explicit_vertex_binding_index,
-                                                                      &current_attribute_stride,
-                                                                      &current_attribute_rate,
-                                                                      &current_attribute_divisor) )
+        if (!pipeline_create_info_ptr->get_vertex_binding_properties(n_binding,
+                                                                    &current_binding_index,
+                                                                    &current_binding_stride,
+                                                                    &current_binding_rate,
+                                                                    &current_binding_n_attributes,
+                                                                    &current_binding_attributes_ptr,
+            &current_binding_divisor) )
         {
             anvil_assert_fail();
 
             continue;
         }
 
-        if (current_attribute_explicit_vertex_binding_index == UINT32_MAX)
-        {
-            for (auto input_binding_iterator  = input_bindings.begin();
-                      input_binding_iterator != input_bindings.end();
-                    ++input_binding_iterator)
-            {
-                if (input_binding_iterator->divisor    == current_attribute_divisor &&
-                    input_binding_iterator->input_rate == current_attribute_rate    &&
-                    input_binding_iterator->stride     == current_attribute_stride)
-                {
-                    has_found           = true;
-                    n_attribute_binding = static_cast<uint32_t>(input_binding_iterator - input_bindings.begin());
+        /* Create a new VK binding descriptor for current binding */
+        VertexInputBinding              new_binding_anvil;
+        VkVertexInputBindingDescription new_binding_vk;
 
-                    break;
-                }
-            }
-        }
-        else
-        {
-            has_found           = false;
-            n_attribute_binding = current_attribute_explicit_vertex_binding_index;
-        }
+        new_binding_vk.binding   = current_binding_index;
+        new_binding_vk.inputRate = static_cast<VkVertexInputRate>(current_binding_rate);
+        new_binding_vk.stride    = current_binding_stride;
 
-        if (!has_found)
-        {
-            /* Got to create a new binding descriptor .. */
-            VertexInputBinding              new_binding_anvil;
-            VkVertexInputBindingDescription new_binding_vk;
+        new_binding_anvil = VertexInputBinding(new_binding_vk,
+                                               current_binding_divisor);
 
-            new_binding_vk.binding   = (current_attribute_explicit_vertex_binding_index == UINT32_MAX) ? static_cast<uint32_t>(vk_input_bindings.size() )
-                                                                                                       : current_attribute_explicit_vertex_binding_index;
-            new_binding_vk.inputRate = static_cast<VkVertexInputRate>(current_attribute_rate);
-            new_binding_vk.stride    = current_attribute_stride;
-
-            new_binding_anvil = VertexInputBinding(new_binding_vk,
-                                                   current_attribute_divisor);
-
-            input_bindings.push_back   (new_binding_anvil);
-            vk_input_bindings.push_back(new_binding_vk);
-
-            n_attribute_binding = new_binding_vk.binding;
-        }
+        input_bindings.push_back   (new_binding_anvil);
+        vk_input_bindings.push_back(new_binding_vk);
 
         /* Good to convert the internal attribute descriptor to the Vulkan's input attribute descriptor */
-        current_attribute_vk.binding  = n_attribute_binding;
-        current_attribute_vk.format   = static_cast<VkFormat>(current_attribute_format);
-        current_attribute_vk.location = current_attribute_location;
-        current_attribute_vk.offset   = current_attribute_offset;
+        for (uint32_t n_current_attribute = 0;
+                      n_current_attribute < current_binding_n_attributes;
+                    ++n_current_attribute)
+        {
+            const auto&                       current_attribute    = current_binding_attributes_ptr[n_current_attribute];
+            VkVertexInputAttributeDescription current_attribute_vk;
 
-        /* Associate attribute locations with assigned bindings */
-        anvil_assert(attribute_location_to_binding_index_map.find(current_attribute_location) == attribute_location_to_binding_index_map.end() );
-        attribute_location_to_binding_index_map[current_attribute_location] = current_attribute_vk.binding;
+            current_attribute_vk.binding  = current_binding_index;
+            current_attribute_vk.format   = static_cast<VkFormat>(current_attribute.format);
+            current_attribute_vk.location = current_attribute.location;
+            current_attribute_vk.offset   = current_attribute.offset_in_bytes;
 
-        /* Cache the descriptor */
-        vk_input_attributes.push_back(current_attribute_vk);
+            /* Cache the descriptor */
+            vk_input_attributes.push_back(current_attribute_vk);
+        }
     }
 }
 
