@@ -3391,6 +3391,31 @@ namespace Anvil
     static_assert(offsetof(SurfaceFormatKHR, format)      == offsetof(VkSurfaceFormatKHR, format),     "Member offsets must match");
     static_assert(offsetof(SurfaceFormatKHR, color_space) == offsetof(VkSurfaceFormatKHR, colorSpace), "Member offsets must match");
 
+    typedef struct VertexInputAttribute
+    {
+        Anvil::Format format;
+        uint32_t      location;
+        uint32_t      offset_in_bytes;
+
+        VertexInputAttribute()
+            :format         (Anvil::Format::UNKNOWN),
+             location       (UINT32_MAX),
+             offset_in_bytes(UINT32_MAX)
+        {
+            /* Stub */
+        }
+
+        VertexInputAttribute(const uint32_t&      in_location,
+                             const Anvil::Format& in_format,
+                             const uint32_t&      in_offset_in_bytes)
+            :format         (in_format),
+             location       (in_location),
+             offset_in_bytes(in_offset_in_bytes)
+        {
+            /* Stub */
+        }
+    } VertexInputAttribute;
+
     /* Represents a Vulkan structure header */
     typedef struct
     {

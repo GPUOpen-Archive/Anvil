@@ -736,36 +736,65 @@ void App::init_gfx_pipelines()
                                                                Anvil::DynamicState::VIEWPORT);
     gfx_pipeline_create_info_ptr->toggle_primitive_restart    (true /* should_enable */);
 
-    gfx_pipeline_create_info_ptr->add_vertex_attribute(g_vertex_attribute_location,
-                                                       mesh_vertex_data_format,
-                                                       0,                                        /* offset_in_bytes */
-                                                       sizeof(float) * n_mesh_vertex_components, /* stride_in_bytes */
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       g_vertex_attribute_binding);
-    gfx_pipeline_create_info_ptr->add_vertex_attribute(g_color1_attribute_location,
-                                                       mesh_color_data_format,
-                                                       0,                                       /* offset_in_bytes */
-                                                       sizeof(float) * n_mesh_color_components, /* stride_in_bytes */
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       g_color1_attribute_binding);
-    gfx_pipeline_create_info_ptr->add_vertex_attribute(g_color2_attribute_location,
-                                                       mesh_color_data_format,
-                                                       0,                                       /* offset_in_bytes */
-                                                       sizeof(float) * n_mesh_color_components, /* stride_in_bytes */
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       g_color2_attribute_binding);
-    gfx_pipeline_create_info_ptr->add_vertex_attribute(g_color3_attribute_location,
-                                                       mesh_color_data_format,
-                                                       0,                                       /* offset_in_bytes */
-                                                       sizeof(float) * n_mesh_color_components, /* stride_in_bytes */
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       g_color3_attribute_binding);
-    gfx_pipeline_create_info_ptr->add_vertex_attribute(g_color4_attribute_location,
-                                                       mesh_color_data_format,
-                                                       0,                                       /* offset_in_bytes */
-                                                       sizeof(float) * n_mesh_color_components, /* stride_in_bytes */
-                                                       Anvil::VertexInputRate::VERTEX,
-                                                       g_color4_attribute_binding);
+    {
+        Anvil::VertexInputAttribute attribute(g_vertex_attribute_location,
+                                              mesh_vertex_data_format,
+                                              0);                          /* in_offset_in_bytes */
+
+        gfx_pipeline_create_info_ptr->add_vertex_binding(g_vertex_attribute_binding,
+                                                         Anvil::VertexInputRate::VERTEX,
+                                                         sizeof(float) * n_mesh_vertex_components, /* in_stride_in_bytes */
+                                                         1, /* in_n_attributes */
+                                                        &attribute);
+    }
+
+    {
+        Anvil::VertexInputAttribute attribute(g_color1_attribute_location,
+                                              mesh_color_data_format,
+                                              0);                          /* in_offset_in_bytes */
+
+        gfx_pipeline_create_info_ptr->add_vertex_binding(g_color1_attribute_binding,
+                                                         Anvil::VertexInputRate::VERTEX,
+                                                         sizeof(float) * n_mesh_color_components, /* in_stride_in_bytes */
+                                                         1, /* in_n_attributes */
+                                                        &attribute);
+    }
+
+    {
+        Anvil::VertexInputAttribute attribute(g_color2_attribute_location,
+                                              mesh_color_data_format,
+                                              0);                          /* in_offset_in_bytes */
+
+        gfx_pipeline_create_info_ptr->add_vertex_binding(g_color2_attribute_binding,
+                                                         Anvil::VertexInputRate::VERTEX,
+                                                         sizeof(float) * n_mesh_color_components, /* in_stride_in_bytes */
+                                                         1, /* in_n_attributes */
+                                                        &attribute);
+    }
+
+    {
+        Anvil::VertexInputAttribute attribute(g_color3_attribute_location,
+                                              mesh_color_data_format,
+                                              0);                          /* in_offset_in_bytes */
+
+        gfx_pipeline_create_info_ptr->add_vertex_binding(g_color3_attribute_binding,
+                                                         Anvil::VertexInputRate::VERTEX,
+                                                         sizeof(float) * n_mesh_color_components, /* in_stride_in_bytes */
+                                                         1, /* in_n_attributes */
+                                                        &attribute);
+    }
+
+    {
+        Anvil::VertexInputAttribute attribute(g_color4_attribute_location,
+                                              mesh_color_data_format,
+                                              0);                          /* in_offset_in_bytes */
+
+        gfx_pipeline_create_info_ptr->add_vertex_binding(g_color4_attribute_binding,
+                                                         Anvil::VertexInputRate::VERTEX,
+                                                         sizeof(float) * n_mesh_color_components, /* in_stride_in_bytes */
+                                                         1, /* in_n_attributes */
+                                                        &attribute);
+    }
 
     for (uint32_t n_scissor_box = 0;
                   n_scissor_box < sizeof(scissors) / sizeof(scissors[0]);

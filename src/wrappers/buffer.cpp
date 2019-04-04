@@ -296,7 +296,7 @@ bool Anvil::Buffer::init()
              */
             if (m_device_ptr->get_extension_info()->khr_get_memory_requirements2() )
             {
-                Anvil::StructID                                       dedicated_reqs_struct_id           = static_cast<Anvil::StructID>(UINT32_MAX);
+                Anvil::StructID                                       dedicated_reqs_struct_id;
                 const auto                                            gmr2_entrypoints                   = m_device_ptr->get_extension_khr_get_memory_requirements2_entrypoints();
                 VkBufferMemoryRequirementsInfo2KHR                    info;
                 const bool                                            khr_dedicated_allocation_available = m_device_ptr->get_extension_info()->khr_dedicated_allocation();

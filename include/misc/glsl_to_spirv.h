@@ -44,7 +44,7 @@
         #pragma warning(disable: 4464)
     #endif
 
-    #include "../../deps/glslang/glslang/Public/ShaderLang.h"
+    #include "glslang/Public/ShaderLang.h"
 
     #ifdef _MSC_VER
         #pragma warning(pop)
