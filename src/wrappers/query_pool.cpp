@@ -37,7 +37,8 @@ Anvil::QueryPool::QueryPool(const Anvil::BaseDevice* in_device_ptr,
      MTSafetySupportProvider   (in_mt_safe),
      m_device_ptr              (in_device_ptr),
      m_n_max_indices           (in_n_max_concurrent_queries),
-     m_query_type              (in_query_type)
+     m_query_type              (in_query_type),
+     m_query_ps_flags          ()
 {
     anvil_assert(in_query_type == VK_QUERY_TYPE_OCCLUSION                     ||
                  in_query_type == VK_QUERY_TYPE_TIMESTAMP                     ||
@@ -63,7 +64,8 @@ Anvil::QueryPool::QueryPool(const Anvil::BaseDevice*           in_device_ptr,
      MTSafetySupportProvider   (in_mt_safe),
      m_device_ptr              (in_device_ptr),
      m_n_max_indices           (in_n_max_concurrent_queries),
-     m_query_type              (in_query_type)
+     m_query_type              (in_query_type),
+     m_query_ps_flags          (in_pipeline_statistics)
 {
     init(in_query_type,
          in_pipeline_statistics,
@@ -148,6 +150,7 @@ bool Anvil::QueryPool::get_query_pool_results_internal(const uint32_t&          
 {
     VkQueryResultFlags flags             = 0;
     uint32_t           result_query_size = 0;
+	uint32_t           query_integer_size = 0;
     bool               result            = false;
     VkResult           result_vk;
 
@@ -161,12 +164,26 @@ bool Anvil::QueryPool::get_query_pool_results_internal(const uint32_t&          
     if (in_should_return_uint64)
     {
         flags             |= VK_QUERY_RESULT_64_BIT;
-        result_query_size  = sizeof(uint64_t);
+        query_integer_size  = sizeof(uint64_t);
     }
     else
     {
-        result_query_size = sizeof(uint32_t);
+        query_integer_size = sizeof(uint32_t);
     }
+
+	if(m_query_type == VkQueryType::VK_QUERY_TYPE_PIPELINE_STATISTICS)
+	{
+		uint32_t number_of_bits = sizeof(m_query_ps_flags) *CHAR_BIT;
+		uint32_t number_of_set_bits = 0u;
+		for(uint32_t i_bit=0u;i_bit<number_of_bits;++i_bit)
+		{
+			if(m_query_ps_flags.get_vk() &(1<<i_bit))
+				++number_of_set_bits;
+		}
+		result_query_size = number_of_set_bits *query_integer_size; // one integer is written for every enabled bit
+	}
+	else
+		result_query_size = query_integer_size;
 
     if ((in_query_props & Anvil::QueryResultFlagBits::PARTIAL_BIT) != 0)
     {
@@ -188,7 +205,7 @@ bool Anvil::QueryPool::get_query_pool_results_internal(const uint32_t&          
     if ((in_query_props & Anvil::QueryResultFlagBits::WITH_AVAILABILITY_BIT) != 0)
     {
         flags             |= VK_QUERY_RESULT_WITH_AVAILABILITY_BIT;
-        result_query_size *= 2;
+        result_query_size += query_integer_size;
     }
 
     /* Execute the request */
