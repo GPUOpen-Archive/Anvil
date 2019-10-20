@@ -620,7 +620,7 @@ bool Anvil::Image::init()
                                                  &m_image);
         }
 
-        if (!is_vk_call_successful(result) )
+        if (!is_vk_call_successful(result) || !m_image)
         {
             anvil_assert_vk_call_succeeded(result);
 
