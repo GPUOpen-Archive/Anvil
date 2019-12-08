@@ -26,8 +26,9 @@
 
 #include <functional>
 
+#define ENABLE_DEBUG_ASSERTIONS
 
-#if defined(_DEBUG)
+#if defined(ENABLE_DEBUG_ASSERTIONS)
     #define anvil_assert(assertion)                  \
         if (!(assertion))                            \
         {                                            \
@@ -46,8 +47,10 @@
 #endif
 
 
+//#define is_vk_call_successful(result) \
+//    (result == VK_SUCCESS || result == VK_ERROR_VALIDATION_FAILED_EXT || result == VK_INCOMPLETE)
 #define is_vk_call_successful(result) \
-    (result == VK_SUCCESS || result == VK_ERROR_VALIDATION_FAILED_EXT || result == VK_INCOMPLETE)
+    (result == VK_SUCCESS || result == VK_INCOMPLETE)
 
 #define anvil_assert_vk_call_succeeded(result) \
     anvil_assert( is_vk_call_successful(result) )
