@@ -1693,10 +1693,10 @@ bool Anvil::KHRShaderAtomicInt64Features::operator==(const KHRShaderAtomicInt64F
 }
 
 Anvil::KHRShaderFloatControlsProperties::KHRShaderFloatControlsProperties()
-	//:denorm_behavior_independence                   (VkShaderFloatControlsIndependenceKHR::VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_32_BIT_ONLY_KHR),
-	//rounding_mode_independence            (VkShaderFloatControlsIndependenceKHR::VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_32_BIT_ONLY_KHR),
-	:separate_denorm_settings                   (false),
-	separate_rounding_mode_settings            (false),
+    //:denorm_behavior_independence                   (VkShaderFloatControlsIndependenceKHR::VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_32_BIT_ONLY_KHR),
+    //rounding_mode_independence            (VkShaderFloatControlsIndependenceKHR::VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_32_BIT_ONLY_KHR),
+    :separate_denorm_settings                   (false),
+    separate_rounding_mode_settings            (false),
      shader_denorm_flush_to_zero_float16        (false),
      shader_denorm_flush_to_zero_float32        (false),
      shader_denorm_flush_to_zero_float64        (false),
@@ -1718,9 +1718,9 @@ Anvil::KHRShaderFloatControlsProperties::KHRShaderFloatControlsProperties()
 
 Anvil::KHRShaderFloatControlsProperties::KHRShaderFloatControlsProperties(const VkPhysicalDeviceFloatControlsPropertiesKHR& in_properties)
     //:denorm_behavior_independence                   (in_properties.denormBehaviorIndependence ),
-	//rounding_mode_independence            (in_properties.roundingModeIndependence ),
-	:separate_denorm_settings                   (VK_BOOL32_TO_BOOL(in_properties.separateDenormSettings) ),
-	separate_rounding_mode_settings            (VK_BOOL32_TO_BOOL(in_properties.separateRoundingModeSettings) ),
+    //rounding_mode_independence            (in_properties.roundingModeIndependence ),
+    :separate_denorm_settings                   (VK_BOOL32_TO_BOOL(in_properties.separateDenormSettings) ),
+    separate_rounding_mode_settings            (VK_BOOL32_TO_BOOL(in_properties.separateRoundingModeSettings) ),
      shader_denorm_flush_to_zero_float16        (VK_BOOL32_TO_BOOL(in_properties.shaderDenormFlushToZeroFloat16) ),
      shader_denorm_flush_to_zero_float32        (VK_BOOL32_TO_BOOL(in_properties.shaderDenormFlushToZeroFloat32) ),
      shader_denorm_flush_to_zero_float64        (VK_BOOL32_TO_BOOL(in_properties.shaderDenormFlushToZeroFloat64) ),
@@ -1748,8 +1748,8 @@ VkPhysicalDeviceFloatControlsPropertiesKHR Anvil::KHRShaderFloatControlsProperti
     result.sType                                 = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES_KHR;
     //result.denormBehaviorIndependence                = denorm_behavior_independence;
     //result.roundingModeIndependence          = rounding_mode_independence;
-	result.separateDenormSettings                = separate_denorm_settings;
-	result.separateRoundingModeSettings          = separate_rounding_mode_settings;
+    result.separateDenormSettings                = separate_denorm_settings;
+    result.separateRoundingModeSettings          = separate_rounding_mode_settings;
     result.shaderDenormFlushToZeroFloat16        = shader_denorm_flush_to_zero_float16;
     result.shaderDenormFlushToZeroFloat32        = shader_denorm_flush_to_zero_float32;
     result.shaderDenormFlushToZeroFloat64        = shader_denorm_flush_to_zero_float64;
@@ -1774,8 +1774,8 @@ bool Anvil::KHRShaderFloatControlsProperties::operator==(const KHRShaderFloatCon
     return
         //(denorm_behavior_independence                    == in_properties.denorm_behavior_independence)                    &&
         //(rounding_mode_independence             == in_properties.rounding_mode_independence)             &&
-		(separate_denorm_settings                    == in_properties.separate_denorm_settings)                    &&
-		(separate_rounding_mode_settings             == in_properties.separate_rounding_mode_settings)             &&
+        (separate_denorm_settings                    == in_properties.separate_denorm_settings)                    &&
+        (separate_rounding_mode_settings             == in_properties.separate_rounding_mode_settings)             &&
         (shader_denorm_flush_to_zero_float16         == in_properties.shader_denorm_flush_to_zero_float16)         &&
         (shader_denorm_flush_to_zero_float32         == in_properties.shader_denorm_flush_to_zero_float32)         &&
         (shader_denorm_flush_to_zero_float64         == in_properties.shader_denorm_flush_to_zero_float64)         &&
