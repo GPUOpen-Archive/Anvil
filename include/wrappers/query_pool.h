@@ -162,7 +162,6 @@ namespace Anvil
         uint32_t                 m_n_max_indices;
         VkQueryPool              m_query_pool_vk;
         const VkQueryType        m_query_type;
-        Anvil::QueryPipelineStatisticFlags m_query_ps_flags;
     };
 }; /* namespace Anvil */
 

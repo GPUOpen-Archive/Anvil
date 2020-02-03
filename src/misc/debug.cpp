@@ -43,10 +43,10 @@ void default_assertion_failure_handler(const char*  in_filename,
                                        unsigned int in_line,
                                        const char*  in_message)
 {
-	std::cout<<"Assertion failed in "<<in_filename<<"["<<in_line<<","<<in_message<<"]"<<std::endl;
-	char c;
-	std::cin>>c;
-	exit(-1);
+  std::cout<<"Assertion failed in "<<in_filename<<"["<<in_line<<","<<in_message<<"]"<<std::endl;
+  char c;
+  std::cin>>c;
+  exit(-1);
     /*fprintf(stderr,
              "Assertion failed in [%s:%d]: %s\n",
              in_filename,
