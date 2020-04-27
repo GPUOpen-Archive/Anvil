@@ -404,6 +404,8 @@ bool Anvil::Image::get_aspect_subresource_layout(Anvil::ImageAspectFlagBits in_a
 /** Please see header for specification */
 Anvil::MemoryBlock* Anvil::Image::get_memory_block(const uint32_t& in_n_plane)
 {
+	if(in_n_plane == 0 && m_memory_block_external)
+		return m_memory_block_external;
     bool       is_callback_needed   = false;
     const auto is_prt               = (m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_RESIDENCY_BIT) != 0;
     const auto uses_sparse_bindings = (m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_BINDING_BIT)   != 0;
@@ -461,6 +463,7 @@ Anvil::MemoryBlock* Anvil::Image::get_memory_block(const uint32_t& in_n_plane)
  *
  *  For argument discussion, please see documentation of the constructors.
  **/
+#include <iostream>
 bool Anvil::Image::init()
 {
     VkResult result      = VK_ERROR_INITIALIZATION_FAILED;
@@ -918,6 +921,7 @@ bool Anvil::Image::init()
 
             for (auto& current_plane_item : m_plane_index_to_memory_properties_map)
             {
+				auto memFeatures = m_create_info_ptr->get_memory_features();
                 auto create_info_ptr = Anvil::MemoryBlockCreateInfo::create_regular(m_device_ptr,
                                                                                     current_plane_item.second.memory_types,
                                                                                     current_plane_item.second.storage_size,
@@ -931,11 +935,28 @@ bool Anvil::Image::init()
                                                               this);
                 }
 
-                memory_block_ptr = Anvil::MemoryBlock::create(std::move(create_info_ptr) );
+				VkResult resultPtr {};
+                memory_block_ptr = Anvil::MemoryBlock::create(std::move(create_info_ptr), &resultPtr);
+				std::cout<<"Vk mem alloc result: "<<resultPtr<<std::endl;
+				if(resultPtr!= VK_SUCCESS)
+				{
+					auto &memProps = m_device_ptr->get_physical_device_memory_properties();
+					for(uint32_t i=0;i<memProps.n_heaps;++i)
+					{
+						std::cout<<"Heap "<<i<<":\n";
+						auto &heap = memProps.heaps[i];
+						std::cout<<"Flags: "<<static_cast<int>(heap.flags.get_vk())<<std::endl;
+						std::cout<<"Size: "<<static_cast<int>(heap.size)<<std::endl;
+					}
+					std::cout<<"Requested memory types: "<<current_plane_item.second.memory_types<<std::endl;
+					std::cout<<"Requested size: "<<current_plane_item.second.storage_size<<std::endl;
+					std::cout<<"Requested mem features: "<<memFeatures.get_vk()<<std::endl;
+				}
             }
 
             if (memory_block_ptr == nullptr)
             {
+				//std::cout<<"Error: Unable to allocate memory: "<<resultPtr<<std::endl;
                 anvil_assert(memory_block_ptr != nullptr);
 
                 result_bool = false;
@@ -2054,6 +2075,8 @@ bool Anvil::Image::set_memory_internal(Anvil::MemoryBlock*  in_memory_block_ptr,
                                      std::default_delete<MemoryBlock>() )
             );
         }
+		else
+			m_memory_block_external = in_memory_block_ptr;
 
         {
             const auto&        mips_to_upload   = m_create_info_ptr->get_mipmaps_to_upload();
@@ -2382,9 +2405,11 @@ void Anvil::Image::upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_p
 
                         if ((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_BINDING_BIT) == 0)
                         {
-                            anvil_assert(m_memory_blocks_owned.size() == 1);
+							anvil_assert(m_memory_blocks_owned.size() == 1 || m_memory_block_external != nullptr);
 
-                            mem_block_ptr = m_memory_blocks_owned.at(0).get();
+                            mem_block_ptr = m_memory_block_external;
+							if(mem_block_ptr == nullptr)
+								mem_block_ptr = m_memory_blocks_owned.at(0).get();
                         }
                         else
                         if ((m_create_info_ptr->get_create_flags() & Anvil::ImageCreateFlagBits::SPARSE_BINDING_BIT)   != 0 &&

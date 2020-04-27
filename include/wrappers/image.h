@@ -354,9 +354,9 @@ namespace Anvil
          *                                  to, in order to perform the request. Must not be NULL.
          *
          **/
-        void upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_ptr,
-                            Anvil::ImageLayout                in_current_image_layout,
-                            Anvil::ImageLayout*               out_new_image_layout_ptr);
+		void upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_ptr,
+			Anvil::ImageLayout                in_current_image_layout,
+			Anvil::ImageLayout*               out_new_image_layout_ptr);
 
     private:
         /** Defines dimensions of a single image mip-map */
@@ -602,6 +602,7 @@ namespace Anvil
 
         MemoryBlockUniquePtr              m_metadata_memory_block_ptr;
         std::vector<MemoryBlockUniquePtr> m_memory_blocks_owned;
+		MemoryBlock *m_memory_block_external = nullptr;
 
         std::map<Anvil::ImageAspectFlagBits, AspectPageOccupancyData*>           m_sparse_aspect_page_occupancy;
         std::vector<std::unique_ptr<AspectPageOccupancyData> >                   m_sparse_aspect_page_occupancy_data_items_owned;
