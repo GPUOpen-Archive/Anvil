@@ -67,8 +67,6 @@ namespace Anvil
         /** Returns rendering surface's height */
         uint32_t get_height() const
         {
-            anvil_assert(m_height != 0);
-
             return m_height;
         }
 
@@ -109,8 +107,6 @@ namespace Anvil
         /** Returns rendering surface's width */
         uint32_t get_width() const
         {
-            anvil_assert(m_width != 0);
-
             return m_width;
         }
 
