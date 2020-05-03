@@ -378,7 +378,7 @@ namespace Anvil
     {
         std::vector<BufferBarrier> buffer_barriers;
         std::vector<ImageBarrier>  image_barriers;
-        std::vector<MemoryBarrier> memory_barriers;
+        std::vector<MemoryBarrierAnv> memory_barriers;
 
         Anvil::DependencyFlags flags;
 
@@ -395,7 +395,7 @@ namespace Anvil
                                         Anvil::PipelineStageFlags  in_dst_stage_mask,
                                         Anvil::DependencyFlags     in_flags,
                                         uint32_t                   in_memory_barrier_count,
-                                        const MemoryBarrier* const in_memory_barriers_ptr_ptr,
+                                        const MemoryBarrierAnv* const in_memory_barriers_ptr_ptr,
                                         uint32_t                   in_buffer_memory_barrier_count,
                                         const BufferBarrier* const in_buffer_memory_barrier_ptr_ptr,
                                         uint32_t                   in_image_memory_barrier_count,
@@ -1189,7 +1189,7 @@ namespace Anvil
                                      Anvil::PipelineStageFlags  in_dst_stage_mask,
                                      Anvil::DependencyFlags     in_dependency_flags,
                                      uint32_t                   in_memory_barrier_count,
-                                     const MemoryBarrier* const in_memory_barriers_ptr,
+                                     const MemoryBarrierAnv* const in_memory_barriers_ptr,
                                      uint32_t                   in_buffer_memory_barrier_count,
                                      const BufferBarrier* const in_buffer_memory_barriers_ptr,
                                      uint32_t                   in_image_memory_barrier_count,
@@ -1478,7 +1478,7 @@ namespace Anvil
                                 Anvil::PipelineStageFlags  in_src_stage_mask,
                                 Anvil::PipelineStageFlags  in_dst_stage_mask,
                                 uint32_t                   in_memory_barrier_count,
-                                const MemoryBarrier* const in_memory_barriers_ptr,
+                                const MemoryBarrierAnv* const in_memory_barriers_ptr,
                                 uint32_t                   in_buffer_memory_barrier_count,
                                 const BufferBarrier* const in_buffer_memory_barriers_ptr,
                                 uint32_t                   in_image_memory_barrier_count,
@@ -2835,7 +2835,7 @@ namespace Anvil
 
             std::vector<BufferBarrier>  buffer_barriers;
             std::vector<ImageBarrier>   image_barriers;
-            std::vector<MemoryBarrier>  memory_barriers;
+            std::vector<MemoryBarrierAnv>  memory_barriers;
 
             std::vector<VkEvent>       events;
             std::vector<Anvil::Event*> event_ptrs;
@@ -2846,7 +2846,7 @@ namespace Anvil
                                        Anvil::PipelineStageFlags  in_src_stage_mask,
                                        Anvil::PipelineStageFlags  in_dst_stage_mask,
                                        uint32_t                   in_memory_barrier_count,
-                                       const MemoryBarrier* const in_memory_barrier_ptr_ptr,
+                                       const MemoryBarrierAnv* const in_memory_barrier_ptr_ptr,
                                        uint32_t                   in_buffer_memory_barrier_count,
                                        const BufferBarrier* const in_buffer_memory_barrier_ptr_ptr,
                                        uint32_t                   in_image_memory_barrier_count,

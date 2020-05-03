@@ -1828,7 +1828,7 @@ namespace Anvil
     typedef std::vector<Layer> Layers;
 
     /** Describes a Vulkan memory barrier. */
-    typedef struct MemoryBarrier
+    typedef struct MemoryBarrierAnv
     {
         Anvil::AccessFlags destination_access_mask;
         Anvil::AccessFlags source_access_mask;
@@ -1841,11 +1841,11 @@ namespace Anvil
          *  @param in_destination_access_mask Destination access mask of the Vulkan memory barrier.
          *
          **/
-        explicit MemoryBarrier(Anvil::AccessFlags in_destination_access_mask,
+        explicit MemoryBarrierAnv(Anvil::AccessFlags in_destination_access_mask,
                                Anvil::AccessFlags in_source_access_mask);
 
         /** Destructor. */
-        virtual ~MemoryBarrier()
+        virtual ~MemoryBarrierAnv()
         {
             /* Stub */
         }
@@ -1857,7 +1857,7 @@ namespace Anvil
         {
             return memory_barrier_vk;
         }
-    } MemoryBarrier;
+    } MemoryBarrierAnv;
 
     /** Holds properties of a single Vulkan Memory Heap. */
     typedef struct MemoryHeap

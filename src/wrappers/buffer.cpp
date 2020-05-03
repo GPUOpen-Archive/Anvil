@@ -678,7 +678,7 @@ bool Anvil::Buffer::read(VkDeviceSize in_start_offset,
                                                 0, /* in_offset */
                                                 in_size);
             Anvil::BufferCopy    copy_region;
-            Anvil::MemoryBarrier pre_copy_barrier(Anvil::AccessFlagBits::TRANSFER_READ_BIT, /* in_destination_access_mask */
+            Anvil::MemoryBarrierAnv pre_copy_barrier(Anvil::AccessFlagBits::TRANSFER_READ_BIT, /* in_destination_access_mask */
                                                   Anvil::AccessFlagBits::HOST_WRITE_BIT | Anvil::AccessFlagBits::MEMORY_WRITE_BIT | Anvil::AccessFlagBits::SHADER_WRITE_BIT | Anvil::AccessFlagBits::TRANSFER_WRITE_BIT);
 
             copy_region.dst_offset = 0;
