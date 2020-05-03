@@ -1877,7 +1877,7 @@ bool Anvil::Layer::operator==(const std::string& in_layer_name) const
     return name == in_layer_name;
 }
 
-Anvil::MemoryBarrier::MemoryBarrier(Anvil::AccessFlags in_destination_access_mask,
+Anvil::MemoryBarrierAnv::MemoryBarrierAnv(Anvil::AccessFlags in_destination_access_mask,
                                     Anvil::AccessFlags in_source_access_mask)
 {
     destination_access_mask = in_destination_access_mask;
