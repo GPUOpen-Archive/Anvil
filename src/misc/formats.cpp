@@ -1771,8 +1771,8 @@ void Anvil::Formats::get_format_bit_layout_yuv(Anvil::Format in_format,
 /** Please see header for specification */
 Anvil::ComponentLayout Anvil::Formats::get_format_component_layout_nonyuv(Anvil::Format in_format)
 {
-    static_assert(sizeof(g_formats) / sizeof(g_formats[0]) == VK_FORMAT_RANGE_SIZE, "");
-    anvil_assert(static_cast<uint32_t>(in_format)          <  VK_FORMAT_RANGE_SIZE);
+    // static_assert(sizeof(g_formats) / sizeof(g_formats[0]) == VK_FORMAT_RANGE_SIZE, "");
+    // anvil_assert(static_cast<uint32_t>(in_format)          <  VK_FORMAT_RANGE_SIZE);
     anvil_assert(!Anvil::Formats::is_format_yuv_khr(in_format) );
 
     return g_formats[static_cast<uint32_t>(in_format)].component_layout;
@@ -1797,7 +1797,7 @@ Anvil::ComponentLayout Anvil::Formats::get_format_component_layout_yuv(Anvil::Fo
 /** Please see header for specification */
 uint32_t Anvil::Formats::get_format_n_components_nonyuv(Anvil::Format in_format)
 {
-    anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE);
+    // anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE);
     anvil_assert(!Anvil::Formats::is_format_yuv_khr(in_format) );
 
     return g_layout_to_n_components[static_cast<uint32_t>(g_formats[static_cast<uint32_t>(in_format)].component_layout)];
@@ -1824,7 +1824,7 @@ void Anvil::Formats::get_format_n_component_bits_nonyuv(Anvil::Format in_format,
 {
     const FormatInfo* format_props_ptr = nullptr;
 
-    anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE);
+    // anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE);
     anvil_assert(!Anvil::Formats::is_format_yuv_khr(in_format) );
 
     format_props_ptr = g_formats + static_cast<uint32_t>(in_format);
@@ -1930,7 +1930,7 @@ void Anvil::Formats::get_format_n_unused_component_bits_yuv(Anvil::Format       
 /** Please see header for specification */
 const char* Anvil::Formats::get_format_name(Anvil::Format in_format)
 {
-    anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE || Anvil::Formats::is_format_yuv_khr(in_format) );
+    // anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE || Anvil::Formats::is_format_yuv_khr(in_format) );
 
     if (Anvil::Formats::is_format_yuv_khr(in_format) )
     {
@@ -1945,7 +1945,7 @@ const char* Anvil::Formats::get_format_name(Anvil::Format in_format)
 /** Please see header for specification */
 Anvil::FormatType Anvil::Formats::get_format_type(Anvil::Format in_format)
 {
-    anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE || Anvil::Formats::is_format_yuv_khr(in_format) );
+    // anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE || Anvil::Formats::is_format_yuv_khr(in_format) );
 
     if (Anvil::Formats::is_format_yuv_khr(in_format) )
     {
@@ -2177,7 +2177,7 @@ bool Anvil::Formats::has_stencil_aspect(Anvil::Format in_format)
 /** Please see header for specification */
 bool Anvil::Formats::is_format_compressed(Anvil::Format in_format)
 {
-    anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE || Anvil::Formats::is_format_yuv_khr(in_format));
+    // anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE || Anvil::Formats::is_format_yuv_khr(in_format));
 
     if (Anvil::Formats::is_format_yuv_khr(in_format) )
     {
@@ -2198,7 +2198,7 @@ bool Anvil::Formats::is_format_compressed(Anvil::Format in_format)
 /** Please see header for specification */
 bool Anvil::Formats::is_format_multiplanar(Anvil::Format in_format)
 {
-    anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE || Anvil::Formats::is_format_yuv_khr(in_format) );
+    // anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE || Anvil::Formats::is_format_yuv_khr(in_format) );
 
     if (Anvil::Formats::is_format_yuv_khr(in_format) )
     {
@@ -2250,7 +2250,7 @@ bool Anvil::Formats::is_format_yuv_khr(Anvil::Format in_format)
 /** Please see header for specification */
 bool Anvil::Formats::is_format_packed(Anvil::Format in_format)
 {
-    anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE || Anvil::Formats::is_format_yuv_khr(in_format) );
+    // anvil_assert(static_cast<uint32_t>(in_format) < VK_FORMAT_RANGE_SIZE || Anvil::Formats::is_format_yuv_khr(in_format) );
 
     if (Anvil::Formats::is_format_yuv_khr(in_format) )
     {
