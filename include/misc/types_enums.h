@@ -1448,7 +1448,7 @@ namespace Anvil
         SWAPCHAIN                   = VK_OBJECT_TYPE_SWAPCHAIN_KHR,
 
         /* Anvil-specific items */
-        ANVIL_COMPUTE_PIPELINE_MANAGER = VK_OBJECT_TYPE_END_RANGE + 1,
+        ANVIL_COMPUTE_PIPELINE_MANAGER = 2'000'000'000 + 1, // 2'000'000'000 is arbitrary and mustn't match any VK_OBJECT_TYPE enum values!
         ANVIL_DESCRIPTOR_SET_GROUP,
         ANVIL_DESCRIPTOR_SET_LAYOUT_MANAGER,
         ANVIL_GLSL_SHADER_TO_SPIRV_GENERATOR,
@@ -1785,7 +1785,7 @@ namespace Anvil
         MAX_EXT              = VK_SAMPLER_REDUCTION_MODE_MAX_EXT,
         MIN_EXT              = VK_SAMPLER_REDUCTION_MODE_MIN_EXT,
 
-        UNKNOWN = VK_SAMPLER_REDUCTION_MODE_MAX_ENUM_EXT
+        UNKNOWN = VK_SAMPLER_REDUCTION_MODE_MAX_ENUM
     };
 
     /* NOTE: These map 1:1 to VK equivalents */
