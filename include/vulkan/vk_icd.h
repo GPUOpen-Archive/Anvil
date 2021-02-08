@@ -120,6 +120,8 @@ typedef enum {
     VK_ICD_WSI_PLATFORM_HEADLESS,
     VK_ICD_WSI_PLATFORM_METAL,
     VK_ICD_WSI_PLATFORM_DIRECTFB,
+    VK_ICD_WSI_PLATFORM_VI,
+    VK_ICD_WSI_PLATFORM_GGP,
 } VkIcdWsiPlatform;
 
 typedef struct {
@@ -195,6 +197,13 @@ typedef struct {
 } VkIcdSurfaceIOS;
 #endif  // VK_USE_PLATFORM_IOS_MVK
 
+#ifdef VK_USE_PLATFORM_GGP
+typedef struct {
+    VkIcdSurfaceBase base;
+    GgpStreamDescriptor streamDescriptor;
+} VkIcdSurfaceGgp;
+#endif  // VK_USE_PLATFORM_GGP
+
 typedef struct {
     VkIcdSurfaceBase base;
     VkDisplayModeKHR displayMode;
@@ -216,5 +225,12 @@ typedef struct {
     const CAMetalLayer *pLayer;
 } VkIcdSurfaceMetal;
 #endif // VK_USE_PLATFORM_METAL_EXT
+
+#ifdef VK_USE_PLATFORM_VI_NN
+typedef struct {
+    VkIcdSurfaceBase base;
+    void *window;
+} VkIcdSurfaceVi;
+#endif // VK_USE_PLATFORM_VI_NN
 
 #endif  // VKICD_H
