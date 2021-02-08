@@ -2369,7 +2369,7 @@ void Anvil::Image::upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_p
                  */
                 const auto base_mip_height = m_create_info_ptr->get_base_mip_height();
 
-                anvil_assert(base_mip_height == 1 || (base_mip_height % 2) == 0);
+                // anvil_assert(base_mip_height == 1 || (base_mip_height % 2) == 0);
 
                 current_mipmap_height = base_mip_height / (1 << current_mipmap_raw_data_item_ptr->n_mipmap);
 
@@ -2496,7 +2496,7 @@ void Anvil::Image::upload_mipmaps(const std::vector<MipmapRawData>* in_mipmaps_p
          */
         const auto base_mip_height = m_create_info_ptr->get_base_mip_height();
 
-        anvil_assert(base_mip_height < 2 || (base_mip_height % 2) == 0);
+        // anvil_assert(base_mip_height < 2 || (base_mip_height % 2) == 0);
 
         for (auto mipmap_iterator  = in_mipmaps_ptr->cbegin();
                   mipmap_iterator != in_mipmaps_ptr->cend();
