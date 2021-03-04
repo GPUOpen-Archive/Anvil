@@ -229,6 +229,8 @@ namespace Anvil
 
         /* Public functions */
 
+       IMemoryAllocatorBackend *GetAllocatorBackend() {return m_backend_ptr.get();}
+
         /** Adds a new Buffer object which should use storage coming from the buffer memory
          *  maintained by the Memory Allocator.
          *

@@ -756,11 +756,11 @@ bool Anvil::MemoryBlock::read(VkDeviceSize in_start_offset,
             const auto          non_coherent_atom_size = m_create_info_ptr->get_device()->get_physical_device_properties().core_vk1_0_properties_ptr->limits.non_coherent_atom_size;
             VkResult            result_vk              = VK_ERROR_INITIALIZATION_FAILED;
 
-            anvil_assert            (m_start_offset == 0);
+            // anvil_assert            (m_start_offset == 0);
             ANVIL_REDUNDANT_VARIABLE(result_vk);
 
             mapped_memory_range.memory = m_memory;
-            mapped_memory_range.offset = Anvil::Utils::round_down(in_start_offset,
+            mapped_memory_range.offset = Anvil::Utils::round_down(m_start_offset +in_start_offset,
                                                                   non_coherent_atom_size);
             mapped_memory_range.pNext  = nullptr;
             mapped_memory_range.size   = Anvil::Utils::round_up(in_size,
@@ -779,7 +779,7 @@ bool Anvil::MemoryBlock::read(VkDeviceSize in_start_offset,
         }
 
         memcpy(out_result_ptr,
-               static_cast<char*>(m_gpu_data_ptr) + static_cast<intptr_t>(in_start_offset),
+               static_cast<char*>(m_gpu_data_ptr) + static_cast<intptr_t>(m_start_offset +in_start_offset),
                static_cast<size_t>(in_size));
 
         close_gpu_memory_access();
@@ -844,7 +844,7 @@ bool Anvil::MemoryBlock::write(VkDeviceSize in_start_offset,
             goto end;
         }
 
-        memcpy(static_cast<char*>(m_gpu_data_ptr) + static_cast<intptr_t>(in_start_offset),
+        memcpy(static_cast<char*>(m_gpu_data_ptr) + static_cast<intptr_t>(m_start_offset +in_start_offset),
                in_data,
                static_cast<size_t>(in_size));
 
@@ -858,7 +858,7 @@ bool Anvil::MemoryBlock::write(VkDeviceSize in_start_offset,
             ANVIL_REDUNDANT_VARIABLE(result_vk);
 
             mapped_memory_range.memory = m_memory;
-            mapped_memory_range.offset = Anvil::Utils::round_down(in_start_offset,
+            mapped_memory_range.offset = Anvil::Utils::round_down(m_start_offset +in_start_offset,
                                                                   non_coherent_atom_size);
             mapped_memory_range.pNext  = nullptr;
             mapped_memory_range.size   = Anvil::Utils::round_up(in_size,
