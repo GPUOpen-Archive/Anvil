@@ -114,7 +114,8 @@ bool Anvil::ComputePipelineManager::bake()
         const auto                                current_pipeline_create_info_ptr         = current_pipeline_ptr->pipeline_create_info_ptr.get();
         VkComputePipelineCreateInfo               pipeline_create_info;
         const Anvil::ShaderModuleStageEntryPoint* shader_stage_entry_point_ptr             = nullptr;
-        const unsigned char*                      specialization_constants_data_buffer_ptr = nullptr;
+        const unsigned char*                      spec_constants_data_buffer_ptr = nullptr;
+        uint32_t                                  spec_constants_data_buffer_size = 0;
         const SpecializationConstants*            specialization_constants_ptr             = nullptr;
 
         anvil_assert(current_pipeline_ptr->baked_pipeline == VK_NULL_HANDLE);
@@ -128,12 +129,14 @@ bool Anvil::ComputePipelineManager::bake()
 
         current_pipeline_create_info_ptr->get_specialization_constants(Anvil::ShaderStage::COMPUTE,
                                                                       &specialization_constants_ptr,
-                                                                      &specialization_constants_data_buffer_ptr);
+                                                                      &spec_constants_data_buffer_ptr,
+                                                                      &spec_constants_data_buffer_size);
 
         if (specialization_constants_ptr->size() > 0)
         {
             bake_specialization_info_vk(*specialization_constants_ptr,
-                                         specialization_constants_data_buffer_ptr,
+                                         spec_constants_data_buffer_ptr,
+                                         spec_constants_data_buffer_size,
                                         &specialization_map_entries_vk[n_current_pipeline],
                                         &specialization_info_vk       [n_current_pipeline]);
         }

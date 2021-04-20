@@ -1030,13 +1030,15 @@ std::unique_ptr<Anvil::StructChainVector<VkPipelineShaderStageCreateInfo> > Anvi
 
         if (shader_stage_entry_point_ptr != nullptr)
         {
-            const unsigned char*           current_shader_stage_specialization_constants_data_buffer_ptr = nullptr;
+            const unsigned char*           spec_constants_data_buffer_ptr = nullptr;
+            uint32_t                       spec_constants_data_buffer_size = 0;
             const SpecializationConstants* current_shader_stage_specialization_constants_ptr             = nullptr;
             Anvil::ShaderModule*           shader_module_ptr                                             = shader_stage_entry_point_ptr->shader_module_ptr;
 
             in_gfx_pipeline_create_info_ptr->get_specialization_constants(current_graphics_shader_stage,
                                                                          &current_shader_stage_specialization_constants_ptr,
-                                                                         &current_shader_stage_specialization_constants_data_buffer_ptr);
+                                                                         &spec_constants_data_buffer_ptr,
+                                                                         &spec_constants_data_buffer_size);
 
             {
                 Anvil::StructID                                       root_struct_id;
@@ -1071,7 +1073,8 @@ std::unique_ptr<Anvil::StructChainVector<VkPipelineShaderStageCreateInfo> > Anvi
                     if (current_shader_stage_specialization_constants_ptr->size() > 0)
                     {
                         bake_specialization_info_vk(*current_shader_stage_specialization_constants_ptr,
-                                                     current_shader_stage_specialization_constants_data_buffer_ptr,
+                                                     spec_constants_data_buffer_ptr,
+                                                     spec_constants_data_buffer_size,
                                                     &specialization_map_entries,
                                                     &specialization_info);
                     }

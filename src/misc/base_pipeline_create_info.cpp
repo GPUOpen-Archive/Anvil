@@ -156,7 +156,8 @@ bool Anvil::BasePipelineCreateInfo::get_shader_stage_properties(Anvil::ShaderSta
 
 bool Anvil::BasePipelineCreateInfo::get_specialization_constants(Anvil::ShaderStage              in_shader_stage,
                                                                  const SpecializationConstants** out_opt_spec_constants_ptr,
-                                                                 const unsigned char**           out_opt_spec_constants_data_buffer_ptr) const
+                                                                 const unsigned char**           out_opt_spec_constants_data_buffer_ptr,
+                                                                 uint32_t *out_opt_spec_constants_data_buffer_size) const
 {
     bool       result          = false;
     const auto sc_map_iterator = m_specialization_constants_map.find(in_shader_stage);
@@ -173,6 +174,9 @@ bool Anvil::BasePipelineCreateInfo::get_specialization_constants(Anvil::ShaderSt
             *out_opt_spec_constants_data_buffer_ptr = (m_specialization_constants_data_buffer.size() > 0) ? &m_specialization_constants_data_buffer.at(0)
                                                                                                           : nullptr;
         }
+
+        if (out_opt_spec_constants_data_buffer_size != nullptr)
+            *out_opt_spec_constants_data_buffer_size = m_specialization_constants_data_buffer.size();
 
         result = true;
     }

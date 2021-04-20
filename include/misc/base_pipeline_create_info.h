@@ -75,7 +75,8 @@ namespace Anvil
 
         bool get_specialization_constants(Anvil::ShaderStage              in_shader_stage,
                                           const SpecializationConstants** out_opt_spec_constants_ptr,
-                                          const unsigned char**           out_opt_spec_constants_data_buffer_ptr) const;
+                                          const unsigned char**           out_opt_spec_constants_data_buffer_ptr,
+                                          uint32_t *out_opt_spec_constants_data_buffer_size=nullptr) const;
 
         bool has_optimizations_disabled() const
         {
