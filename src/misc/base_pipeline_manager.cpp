@@ -186,10 +186,10 @@ end:
 /* Please see header for specification */
 void Anvil::BasePipelineManager::bake_specialization_info_vk(const SpecializationConstants&         in_specialization_constants,
                                                              const unsigned char*                   in_specialization_constant_data_ptr,
+                                                             const uint32_t                         in_specialization_constant_data_size,
                                                              std::vector<VkSpecializationMapEntry>* out_specialization_map_entry_vk_vector_ptr,
                                                              VkSpecializationInfo*                  out_specialization_info_ptr) const
 {
-    uint32_t n_specialization_constant_bytes = 0;
     uint32_t n_specialization_constants      = 0;
 
     /* Prepare specialization info descriptor */
@@ -209,12 +209,10 @@ void Anvil::BasePipelineManager::bake_specialization_info_vk(const Specializatio
         new_entry.offset     = current_specialization_constant.start_offset;
         new_entry.size       = current_specialization_constant.n_bytes;
 
-        n_specialization_constant_bytes += current_specialization_constant.n_bytes;
-
         out_specialization_map_entry_vk_vector_ptr->push_back(new_entry);
     }
 
-    out_specialization_info_ptr->dataSize      = n_specialization_constant_bytes;
+    out_specialization_info_ptr->dataSize      = in_specialization_constant_data_size;
     out_specialization_info_ptr->mapEntryCount = n_specialization_constants;
     out_specialization_info_ptr->pData         = (n_specialization_constants > 0) ? in_specialization_constant_data_ptr
                                                                                   : nullptr;

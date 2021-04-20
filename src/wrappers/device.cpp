@@ -934,15 +934,10 @@ bool Anvil::BaseDevice::init()
 
     if (is_validation_enabled)
     {
-        if (is_layer_supported("VK_LAYER_LUNARG_standard_validation") )
+        // anvil_assert(is_layer_supported("VK_LAYER_KHRONOS_validation") );
+        if (is_layer_supported("VK_LAYER_KHRONOS_validation") )
         {
-            layers_final.push_back("VK_LAYER_LUNARG_standard_validation");
-        }
-        else
-        {
-            anvil_assert(is_layer_supported("VK_LAYER_LUNARG_core_validation") );
-
-            layers_final.push_back("VK_LAYER_LUNARG_core_validation");
+            layers_final.push_back("VK_LAYER_KHRONOS_validation");
         }
     }
 
