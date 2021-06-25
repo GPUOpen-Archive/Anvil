@@ -119,6 +119,9 @@ namespace Anvil
             ValueType khr_variable_pointers;
             ValueType khr_vulkan_memory_model;
 
+            ValueType nv_external_memory_capabilities;
+            ValueType khr_physical_device_properties_2;
+
             #if defined(_WIN32)
                 ValueType khr_win32_keyed_mutex;
             #endif
@@ -228,6 +231,9 @@ namespace Anvil
                     {ExtensionData(VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME,         &khr_swapchain_mutable_format)},
                     {ExtensionData(VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,                &khr_variable_pointers)},
                     {ExtensionData(VK_KHR_VULKAN_MEMORY_MODEL_EXTENSION_NAME,              &khr_vulkan_memory_model)},
+
+                    {ExtensionData(VK_NV_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME,              &nv_external_memory_capabilities)},
+                    {ExtensionData(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,              &khr_physical_device_properties_2)},
 
                     #if defined(_WIN32)
                         {ExtensionData(VK_KHR_WIN32_KEYED_MUTEX_EXTENSION_NAME, &khr_win32_keyed_mutex)},
@@ -430,6 +436,9 @@ namespace Anvil
         virtual ValueType khr_swapchain_mutable_format        () const = 0;
         virtual ValueType khr_variable_pointers               () const = 0;
         virtual ValueType khr_vulkan_memory_model             () const = 0;
+        virtual ValueType nv_external_memory_capabilities             () const = 0;
+        virtual ValueType khr_external_memory_capabilities             () const = 0;
+        virtual ValueType khr_physical_device_properties_2             () const = 0;
 
         #if defined(_WIN32)
             virtual ValueType khr_win32_keyed_mutex() const = 0;
@@ -1120,6 +1129,20 @@ namespace Anvil
             anvil_assert(m_expose_device_extensions);
 
             return m_device_extensions_ptr->khr_vulkan_memory_model;
+        }
+
+        ValueType nv_external_memory_capabilities() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->nv_external_memory_capabilities;
+        }
+
+        ValueType khr_physical_device_properties_2() const final
+        {
+            anvil_assert(m_expose_device_extensions);
+
+            return m_device_extensions_ptr->khr_physical_device_properties_2;
         }
 
         #if defined(_WIN32)

@@ -1603,7 +1603,14 @@ bool Anvil::PhysicalDevice::is_device_extension_supported(const std::string& in_
 {
     anvil_assert(m_extension_info_ptr != nullptr);
 
-    return m_extension_info_ptr->get_device_extension_info()->by_name(in_extension_name);
+	auto isSupported = false;
+	try
+	{
+		isSupported = m_extension_info_ptr->get_device_extension_info()->by_name(in_extension_name);
+	}
+	catch(const std::out_of_range&)
+	{}
+	return isSupported;
 }
 
 /* Please see header for specification */

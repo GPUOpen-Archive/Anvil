@@ -1693,8 +1693,8 @@ bool Anvil::KHRShaderAtomicInt64Features::operator==(const KHRShaderAtomicInt64F
 }
 
 Anvil::KHRShaderFloatControlsProperties::KHRShaderFloatControlsProperties()
-    :separate_denorm_settings                   (false),
-     separate_rounding_mode_settings            (false),
+    :denorm_behavior_independence                   (VkShaderFloatControlsIndependenceKHR::VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_32_BIT_ONLY_KHR),
+    rounding_mode_independence            (VkShaderFloatControlsIndependenceKHR::VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_32_BIT_ONLY_KHR),
      shader_denorm_flush_to_zero_float16        (false),
      shader_denorm_flush_to_zero_float32        (false),
      shader_denorm_flush_to_zero_float64        (false),
@@ -1715,8 +1715,8 @@ Anvil::KHRShaderFloatControlsProperties::KHRShaderFloatControlsProperties()
 }
 
 Anvil::KHRShaderFloatControlsProperties::KHRShaderFloatControlsProperties(const VkPhysicalDeviceFloatControlsPropertiesKHR& in_properties)
-    :separate_denorm_settings                   (VK_BOOL32_TO_BOOL(in_properties.separateDenormSettings) ),
-     separate_rounding_mode_settings            (VK_BOOL32_TO_BOOL(in_properties.separateRoundingModeSettings) ),
+    :denorm_behavior_independence                   (in_properties.denormBehaviorIndependence ),
+    rounding_mode_independence            (in_properties.roundingModeIndependence ),
      shader_denorm_flush_to_zero_float16        (VK_BOOL32_TO_BOOL(in_properties.shaderDenormFlushToZeroFloat16) ),
      shader_denorm_flush_to_zero_float32        (VK_BOOL32_TO_BOOL(in_properties.shaderDenormFlushToZeroFloat32) ),
      shader_denorm_flush_to_zero_float64        (VK_BOOL32_TO_BOOL(in_properties.shaderDenormFlushToZeroFloat64) ),
@@ -1742,8 +1742,8 @@ VkPhysicalDeviceFloatControlsPropertiesKHR Anvil::KHRShaderFloatControlsProperti
 
     result.pNext                                 = nullptr;
     result.sType                                 = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES_KHR;
-    result.separateDenormSettings                = separate_denorm_settings;
-    result.separateRoundingModeSettings          = separate_rounding_mode_settings;
+    result.denormBehaviorIndependence                = denorm_behavior_independence;
+    result.roundingModeIndependence          = rounding_mode_independence;
     result.shaderDenormFlushToZeroFloat16        = shader_denorm_flush_to_zero_float16;
     result.shaderDenormFlushToZeroFloat32        = shader_denorm_flush_to_zero_float32;
     result.shaderDenormFlushToZeroFloat64        = shader_denorm_flush_to_zero_float64;
@@ -1766,8 +1766,8 @@ VkPhysicalDeviceFloatControlsPropertiesKHR Anvil::KHRShaderFloatControlsProperti
 bool Anvil::KHRShaderFloatControlsProperties::operator==(const KHRShaderFloatControlsProperties& in_properties) const
 {
     return
-        (separate_denorm_settings                    == in_properties.separate_denorm_settings)                    &&
-        (separate_rounding_mode_settings             == in_properties.separate_rounding_mode_settings)             &&
+        (denorm_behavior_independence                    == in_properties.denorm_behavior_independence)                    &&
+        (rounding_mode_independence             == in_properties.rounding_mode_independence)             &&
         (shader_denorm_flush_to_zero_float16         == in_properties.shader_denorm_flush_to_zero_float16)         &&
         (shader_denorm_flush_to_zero_float32         == in_properties.shader_denorm_flush_to_zero_float32)         &&
         (shader_denorm_flush_to_zero_float64         == in_properties.shader_denorm_flush_to_zero_float64)         &&
@@ -1869,7 +1869,7 @@ bool Anvil::Layer::operator==(const std::string& in_layer_name) const
     return name == in_layer_name;
 }
 
-Anvil::MemoryBarrier::MemoryBarrier(Anvil::AccessFlags in_destination_access_mask,
+Anvil::MemoryBarrierAnv::MemoryBarrierAnv(Anvil::AccessFlags in_destination_access_mask,
                                     Anvil::AccessFlags in_source_access_mask)
 {
     destination_access_mask = in_destination_access_mask;

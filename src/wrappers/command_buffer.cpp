@@ -45,7 +45,6 @@
 #include "wrappers/query_pool.h"
 #include "wrappers/render_pass.h"
 
-
 /* Command stashing should be enabled by default for builds that care. */
 bool Anvil::CommandBufferBase::m_command_stashing_disabled = false;
 
@@ -756,7 +755,7 @@ Anvil::PipelineBarrierCommand::PipelineBarrierCommand(Anvil::PipelineStageFlags 
                                                       Anvil::PipelineStageFlags  in_dst_stage_mask,
                                                       Anvil::DependencyFlags     in_flags,
                                                       uint32_t                   in_memory_barrier_count,
-                                                      const MemoryBarrier* const in_memory_barrier_ptr_ptr,
+                                                      const MemoryBarrierAnv* const in_memory_barrier_ptr_ptr,
                                                       uint32_t                   in_buffer_memory_barrier_count,
                                                       const BufferBarrier* const in_buffer_memory_barrier_ptr_ptr,
                                                       uint32_t                   in_image_memory_barrier_count,
@@ -988,7 +987,7 @@ Anvil::CommandBufferBase::WaitEventsCommand::WaitEventsCommand(uint32_t         
                                                                Anvil::PipelineStageFlags  in_src_stage_mask,
                                                                Anvil::PipelineStageFlags  in_dst_stage_mask,
                                                                uint32_t                   in_memory_barrier_count,
-                                                               const MemoryBarrier* const in_memory_barriers_ptr,
+                                                               const MemoryBarrierAnv* const in_memory_barriers_ptr,
                                                                uint32_t                   in_buffer_memory_barrier_count,
                                                                const BufferBarrier* const in_buffer_memory_barriers_ptr,
                                                                uint32_t                   in_image_memory_barrier_count,
@@ -3183,7 +3182,7 @@ bool Anvil::CommandBufferBase::record_pipeline_barrier(Anvil::PipelineStageFlags
                                                        Anvil::PipelineStageFlags  in_dst_stage_mask,
                                                        Anvil::DependencyFlags     in_dependency_flags,
                                                        uint32_t                   in_memory_barrier_count,
-                                                       const MemoryBarrier* const in_memory_barriers_ptr,
+                                                       const MemoryBarrierAnv* const in_memory_barriers_ptr,
                                                        uint32_t                   in_buffer_memory_barrier_count,
                                                        const BufferBarrier* const in_buffer_memory_barriers_ptr,
                                                        uint32_t                   in_image_memory_barrier_count,
@@ -4042,7 +4041,7 @@ bool Anvil::CommandBufferBase::record_wait_events(uint32_t                   in_
                                                   Anvil::PipelineStageFlags  in_src_stage_mask,
                                                   Anvil::PipelineStageFlags  in_dst_stage_mask,
                                                   uint32_t                   in_memory_barrier_count,
-                                                  const MemoryBarrier* const in_memory_barriers_ptr,
+                                                  const MemoryBarrierAnv* const in_memory_barriers_ptr,
                                                   uint32_t                   in_buffer_memory_barrier_count,
                                                   const BufferBarrier* const in_buffer_memory_barriers_ptr,
                                                   uint32_t                   in_image_memory_barrier_count,

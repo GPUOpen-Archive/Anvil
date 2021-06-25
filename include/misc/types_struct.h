@@ -1745,8 +1745,8 @@ namespace Anvil
 
     typedef struct KHRShaderFloatControlsProperties
     {
-        bool separate_denorm_settings;
-        bool separate_rounding_mode_settings;
+        VkShaderFloatControlsIndependenceKHR denorm_behavior_independence;
+        VkShaderFloatControlsIndependenceKHR rounding_mode_independence;
         bool shader_denorm_flush_to_zero_float16;
         bool shader_denorm_flush_to_zero_float32;
         bool shader_denorm_flush_to_zero_float64;
@@ -1826,7 +1826,7 @@ namespace Anvil
     typedef std::vector<Layer> Layers;
 
     /** Describes a Vulkan memory barrier. */
-    typedef struct MemoryBarrier
+    typedef struct MemoryBarrierAnv
     {
         Anvil::AccessFlags destination_access_mask;
         Anvil::AccessFlags source_access_mask;
@@ -1839,11 +1839,11 @@ namespace Anvil
          *  @param in_destination_access_mask Destination access mask of the Vulkan memory barrier.
          *
          **/
-        explicit MemoryBarrier(Anvil::AccessFlags in_destination_access_mask,
+        explicit MemoryBarrierAnv(Anvil::AccessFlags in_destination_access_mask,
                                Anvil::AccessFlags in_source_access_mask);
 
         /** Destructor. */
-        virtual ~MemoryBarrier()
+        virtual ~MemoryBarrierAnv()
         {
             /* Stub */
         }
@@ -1855,7 +1855,7 @@ namespace Anvil
         {
             return memory_barrier_vk;
         }
-    } MemoryBarrier;
+    } MemoryBarrierAnv;
 
     /** Holds properties of a single Vulkan Memory Heap. */
     typedef struct MemoryHeap

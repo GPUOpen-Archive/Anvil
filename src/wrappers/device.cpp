@@ -934,15 +934,10 @@ bool Anvil::BaseDevice::init()
 
     if (is_validation_enabled)
     {
-        if (is_layer_supported("VK_LAYER_LUNARG_standard_validation") )
+        // anvil_assert(is_layer_supported("VK_LAYER_KHRONOS_validation") );
+        if (is_layer_supported("VK_LAYER_KHRONOS_validation") )
         {
-            layers_final.push_back("VK_LAYER_LUNARG_standard_validation");
-        }
-        else
-        {
-            anvil_assert(is_layer_supported("VK_LAYER_LUNARG_core_validation") );
-
-            layers_final.push_back("VK_LAYER_LUNARG_core_validation");
+            layers_final.push_back("VK_LAYER_KHRONOS_validation");
         }
     }
 
@@ -1332,7 +1327,7 @@ bool Anvil::BaseDevice::init_extension_func_ptrs()
         m_ext_sample_locations_extension_entrypoints.vkGetPhysicalDeviceMultisamplePropertiesEXT = reinterpret_cast<PFN_vkGetPhysicalDeviceMultisamplePropertiesEXT>(get_proc_address("vkGetPhysicalDeviceMultisamplePropertiesEXT") );
 
         anvil_assert(m_ext_sample_locations_extension_entrypoints.vkCmdSetSampleLocationsEXT                  != nullptr);
-        anvil_assert(m_ext_sample_locations_extension_entrypoints.vkGetPhysicalDeviceMultisamplePropertiesEXT != nullptr);
+        // anvil_assert(m_ext_sample_locations_extension_entrypoints.vkGetPhysicalDeviceMultisamplePropertiesEXT != nullptr);
     }
 
     if (m_extension_enabled_info_ptr->get_device_extension_info()->ext_transform_feedback() )
@@ -1401,7 +1396,7 @@ bool Anvil::BaseDevice::init_extension_func_ptrs()
                 anvil_assert(m_khr_device_group_extension_entrypoints.vkAcquireNextImage2KHR                  != nullptr);
                 anvil_assert(m_khr_device_group_extension_entrypoints.vkGetDeviceGroupPresentCapabilitiesKHR  != nullptr);
                 anvil_assert(m_khr_device_group_extension_entrypoints.vkGetDeviceGroupSurfacePresentModesKHR  != nullptr);
-                anvil_assert(m_khr_device_group_extension_entrypoints.vkGetPhysicalDevicePresentRectanglesKHR != nullptr);
+                // anvil_assert(m_khr_device_group_extension_entrypoints.vkGetPhysicalDevicePresentRectanglesKHR != nullptr);
             }
         }
     }

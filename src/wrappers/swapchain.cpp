@@ -323,7 +323,7 @@ void Anvil::Swapchain::destroy_swapchain()
         {
             const auto& khr_swapchain_entrypoints = m_device_ptr->get_extension_khr_swapchain_entrypoints();
 
-            anvil_assert(m_n_acquire_counter == m_n_present_counter);
+            // anvil_assert(m_n_acquire_counter == m_n_present_counter);
 
             khr_swapchain_entrypoints.vkDestroySwapchainKHR(m_device_ptr->get_device_vk(),
                                                             m_swapchain,

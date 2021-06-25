@@ -55,6 +55,8 @@ namespace Anvil
              **/
             static std::unique_ptr<VMA> create(const Anvil::BaseDevice* in_device_ptr);
 
+            VmaAllocator GetVmaHandle() {return m_vma_allocator_ptr->get_handle();}
+
             /** Destructor. */
             virtual ~VMA();
 

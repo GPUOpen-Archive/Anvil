@@ -37,19 +37,24 @@ static Anvil::AssertionFailedCallbackFunction g_anvil_assertion_check_failed_fun
                                                                                               std::placeholders::_3);
 
 
+#include <iostream>
 /** Please see header for specification */
 void default_assertion_failure_handler(const char*  in_filename,
                                        unsigned int in_line,
                                        const char*  in_message)
 {
-    fprintf(stderr,
+  std::cout<<"Assertion failed in "<<in_filename<<"["<<in_line<<","<<in_message<<"]"<<std::endl;
+  char c;
+  std::cin>>c;
+  exit(-1);
+    /*fprintf(stderr,
              "Assertion failed in [%s:%d]: %s\n",
              in_filename,
              in_line,
              in_message);
     fflush  (stderr);
 
-    exit(-1);
+    exit(-1);*/
 }
 
 /** Please see header for specification */
@@ -57,7 +62,7 @@ void Anvil::on_assertion_failed(const char*  in_filename,
                                 unsigned int in_line,
                                 const char*  in_message)
 {
-    #if defined(_WIN32) && defined(_DEBUG)
+    #if defined(_WIN32) && defined(ENABLE_DEBUG_ASSERTIONS)
     {
         if (::IsDebuggerPresent() )
         {

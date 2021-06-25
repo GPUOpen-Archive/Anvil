@@ -611,6 +611,24 @@ bool Anvil::Instance::init()
             extension_enabled_status[VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME] = true;
         }
 
+        // These are required for VR on Nvidia GPUs.
+        // TODO It would be better if the caller could define these as custom extensions!
+        if (is_instance_extension_supported(VK_NV_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME) )
+        {
+            extension_enabled_status[VK_NV_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME] = true;
+        }
+
+        if (is_instance_extension_supported(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME) )
+        {
+            extension_enabled_status[VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME] = true;
+        }
+
+        if (is_instance_extension_supported(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) )
+        {
+            extension_enabled_status[VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME] = true;
+        }
+        //
+
         /* Filter out undesired extensions */
         for (const auto& current_extension_name : get_create_info_ptr()->get_disallowed_instance_level_extensions() )
         {

@@ -442,8 +442,8 @@ const char* Anvil::Utils::get_raw_string(VkAttachmentLoadOp in_load_op)
     };
     static const uint32_t n_attachment_load_op_strings = sizeof(attachment_load_op_strings) / sizeof(attachment_load_op_strings[0]);
 
-    static_assert(n_attachment_load_op_strings == VK_ATTACHMENT_LOAD_OP_RANGE_SIZE, "");
-    anvil_assert (in_load_op                   <= VK_ATTACHMENT_LOAD_OP_END_RANGE);
+    // static_assert(n_attachment_load_op_strings == VK_ATTACHMENT_LOAD_OP_RANGE_SIZE, "");
+    // anvil_assert (in_load_op                   <= VK_ATTACHMENT_LOAD_OP_END_RANGE);
 
     return attachment_load_op_strings[in_load_op];
 }
@@ -458,8 +458,8 @@ const char* Anvil::Utils::get_raw_string(VkAttachmentStoreOp in_store_op)
     };
     static const uint32_t n_attachment_store_op_strings = sizeof(attachment_store_op_strings) / sizeof(attachment_store_op_strings[0]);
 
-    static_assert(n_attachment_store_op_strings == VK_ATTACHMENT_STORE_OP_RANGE_SIZE, "");
-    anvil_assert (in_store_op                   <= VK_ATTACHMENT_STORE_OP_END_RANGE);
+    // static_assert(n_attachment_store_op_strings == VK_ATTACHMENT_STORE_OP_RANGE_SIZE, "");
+    // anvil_assert (in_store_op                   <= VK_ATTACHMENT_STORE_OP_END_RANGE);
 
     return attachment_store_op_strings[in_store_op];
 }
@@ -679,7 +679,7 @@ const char* Anvil::Utils::get_raw_string(VkImageTiling in_image_tiling)
     };
     static const int32_t n_image_tilings = sizeof(image_tilings) / sizeof(image_tilings[0]);
 
-    static_assert(n_image_tilings == VK_IMAGE_TILING_RANGE_SIZE, "");
+    // static_assert(n_image_tilings == VK_IMAGE_TILING_RANGE_SIZE, "");
     anvil_assert (in_image_tiling <  n_image_tilings);
 
     return image_tilings[in_image_tiling];
@@ -696,8 +696,8 @@ const char* Anvil::Utils::get_raw_string(VkImageType in_image_type)
     };
     static const uint32_t n_image_types = sizeof(image_types) / sizeof(image_types[0]);
 
-    static_assert(n_image_types == VK_IMAGE_TYPE_RANGE_SIZE, "");
-    anvil_assert (in_image_type <  VK_IMAGE_TYPE_RANGE_SIZE);
+    // static_assert(n_image_types == VK_IMAGE_TYPE_RANGE_SIZE, "");
+    // anvil_assert (in_image_type <  VK_IMAGE_TYPE_RANGE_SIZE);
 
     return image_types[in_image_type];
 }
@@ -717,8 +717,8 @@ const char* Anvil::Utils::get_raw_string(VkImageViewType in_image_view_type)
     };
     static const uint32_t n_image_view_types = sizeof(image_view_types) / sizeof(image_view_types[0]);
 
-    static_assert(n_image_view_types == VK_IMAGE_VIEW_TYPE_RANGE_SIZE, "");
-    anvil_assert (in_image_view_type <  VK_IMAGE_VIEW_TYPE_RANGE_SIZE);
+    // static_assert(n_image_view_types == VK_IMAGE_VIEW_TYPE_RANGE_SIZE, "");
+    // anvil_assert (in_image_view_type <  VK_IMAGE_VIEW_TYPE_RANGE_SIZE);
 
     return image_view_types[in_image_view_type];
 }
@@ -885,7 +885,7 @@ const char* Anvil::Utils::get_raw_string(VkSharingMode in_sharing_mode)
     };
     static const int32_t n_sharing_modes = sizeof(sharing_modes) / sizeof(sharing_modes[0]);
 
-    static_assert(n_sharing_modes == VK_SHARING_MODE_RANGE_SIZE, "");
+    // static_assert(n_sharing_modes == VK_SHARING_MODE_RANGE_SIZE, "");
     anvil_assert (in_sharing_mode <  n_sharing_modes);
 
     return sharing_modes[in_sharing_mode];
