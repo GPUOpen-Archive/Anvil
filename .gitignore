@@ -1,4 +1,3 @@
 build/
-include/config.h
 deps/glslang/build_winx64/
 deps/glslang_bak/
