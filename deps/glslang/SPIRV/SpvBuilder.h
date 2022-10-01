@@ -181,6 +181,7 @@ public:
     Id makeSamplerType();
     Id makeSampledImageType(Id imageType);
     Id makeCooperativeMatrixType(Id component, Id scope, Id rows, Id cols);
+    Id makeGenericType(spv::Op opcode, std::vector<spv::IdImmediate>& operands);
 
     // accelerationStructureNV type
     Id makeAccelerationStructureType();
@@ -202,6 +203,7 @@ public:
     StorageClass getTypeStorageClass(Id typeId) const { return module.getStorageClass(typeId); }
     ImageFormat getImageTypeFormat(Id typeId) const
         { return (ImageFormat)module.getInstruction(typeId)->getImmediateOperand(6); }
+    Id getResultingAccessChainType() const;
 
     bool isPointer(Id resultId)      const { return isPointerType(getTypeId(resultId)); }
     bool isScalar(Id resultId)       const { return isScalarType(getTypeId(resultId)); }
@@ -293,6 +295,7 @@ public:
     }
 
     // For making new constants (will return old constant if the requested one was already made).
+    Id makeNullConstant(Id typeId);
     Id makeBoolConstant(bool b, bool specConstant = false);
     Id makeInt8Constant(int i, bool specConstant = false)
         { return makeIntConstant(makeIntType(8),  (unsigned)i, specConstant); }
@@ -838,6 +841,8 @@ public:
     std::unordered_map<unsigned int, std::vector<Instruction*>> groupedStructConstants;
     // map type opcodes to type instructions
     std::unordered_map<unsigned int, std::vector<Instruction*>> groupedTypes;
+    // list of OpConstantNull instructions
+    std::vector<Instruction*> nullConstants;
 
     // stack of switches
     std::stack<Block*> switchMerges;

@@ -157,7 +157,7 @@ bool Anvil::DescriptorUpdateTemplate::init(const Anvil::DescriptorSetLayout*    
         create_info.pipelineBindPoint          = VK_PIPELINE_BIND_POINT_MAX_ENUM;
         create_info.pipelineLayout             = VK_NULL_HANDLE;
         create_info.pNext                      = nullptr;
-        create_info.set                        = VK_NULL_HANDLE;
+        create_info.set                        = 0;
         create_info.sType                      = VK_STRUCTURE_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_CREATE_INFO_KHR;
         create_info.templateType               = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_DESCRIPTOR_SET_KHR;
 

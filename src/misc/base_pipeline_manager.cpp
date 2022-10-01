@@ -457,7 +457,7 @@ bool Anvil::BasePipelineManager::get_shader_info(PipelineID                  in_
     {
         bake();
 
-        anvil_assert(!pipeline_ptr->baked_pipeline != VK_NULL_HANDLE);
+        anvil_assert(!pipeline_ptr->baked_pipeline != 0);
     }
 
     switch (in_info_type)
@@ -578,7 +578,7 @@ bool Anvil::BasePipelineManager::get_shader_statistics(PipelineID               
     {
         bake();
 
-        anvil_assert(!pipeline_ptr->baked_pipeline != VK_NULL_HANDLE);
+        anvil_assert(!pipeline_ptr->baked_pipeline != 0);
     }
 
     vk_result = entrypoints.vkGetShaderInfoAMD(m_device_ptr->get_device_vk(),

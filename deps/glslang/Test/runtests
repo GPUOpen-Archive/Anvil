@@ -169,7 +169,7 @@ run -g --relaxed-errors --suppress-warnings --aml --amb --hlsl-offsets --nsf --s
      -G -H spv.debugInfo.frag --rsb frag 3 > $TARGETDIR/spv.debugInfo.frag.out
 diff -b $BASEDIR/spv.debugInfo.frag.out $TARGETDIR/spv.debugInfo.frag.out || HASERROR=1
 run -g -Od --target-env vulkan1.1 --relaxed-errors --suppress-warnings --aml --amb --hlsl-offsets --nsf --spirv-val \
-     -G -H spv.debugInfo.frag --rsb frag 3 > $TARGETDIR/spv.debugInfo.1.1.frag.out
+     -V -H spv.debugInfo.frag --rsb frag 3 > $TARGETDIR/spv.debugInfo.1.1.frag.out
 diff -b $BASEDIR/spv.debugInfo.1.1.frag.out $TARGETDIR/spv.debugInfo.1.1.frag.out || HASERROR=1
 run -g -D -Od -e newMain -g --amb --aml --fua --hlsl-iomap --nsf --spirv-val --sib 1 --ssb 2 --sbb 3 --stb 4 --suavb 5 --sub 6 \
      --sep origMain -H -Od spv.hlslDebugInfo.vert --rsb vert t0 0 0 > $TARGETDIR/spv.hlslDebugInfo.frag.out
@@ -189,6 +189,16 @@ run -D -Od -e main -H -Od -Iinc1/path1 -Iinc1/path2 hlsl.dashI.vert > $TARGETDIR
 diff -b $BASEDIR/hlsl.dashI.vert.out $TARGETDIR/hlsl.dashI.vert.out || HASERROR=1
 run -D -Od -e MainPs -H -Od -g hlsl.pp.line3.frag > $TARGETDIR/hlsl.pp.line3.frag.out
 diff -b $BASEDIR/hlsl.pp.line3.frag.out $TARGETDIR/hlsl.pp.line3.frag.out || HASERROR=1
+
+#
+# Testing --depfile
+#
+
+echo "Testing --depfile"
+run -D -Od -e main -H --depfile $TARGETDIR/hlsl.include.vert.d.out -Od ../Test/hlsl.include.vert > $TARGETDIR/hlsl.include.vert.out
+diff -b $BASEDIR/hlsl.include.vert.d.out $TARGETDIR/hlsl.include.vert.d.out || HASERROR=1
+run -D -Od -e main -H --depfile $TARGETDIR/hlsl.dashI.vert.d.out -Od -Iinc1/path1 -Iinc1/path2 hlsl.dashI.vert > $TARGETDIR/hlsl.dashI.vert.out
+diff -b $BASEDIR/hlsl.dashI.vert.d.out $TARGETDIR/hlsl.dashI.vert.d.out || HASERROR=1
 
 #
 # Testing -D and -U
@@ -245,6 +255,15 @@ run -H -e main -V -D -Od -H -i --invert-y hlsl.y-negate-3.vert > $TARGETDIR/hlsl
 diff -b $BASEDIR/hlsl.y-negate-3.vert.out $TARGETDIR/hlsl.y-negate-3.vert.out || HASERROR=1
 
 #
+# Testing position W reciprocal
+#
+echo "Testing position W reciprocal"
+run -H -e main -V -D -Od -H -i --hlsl-dx-position-w hlsl.w-recip.frag > $TARGETDIR/hlsl.w-recip.frag.out
+diff -b $BASEDIR/hlsl.w-recip.frag.out $TARGETDIR/hlsl.w-recip.frag.out || HASERROR=1
+run -H -e main -V -D -Od -H -i --hlsl-dx-position-w hlsl.w-recip2.frag > $TARGETDIR/hlsl.w-recip2.frag.out
+diff -b $BASEDIR/hlsl.w-recip2.frag.out $TARGETDIR/hlsl.w-recip2.frag.out || HASERROR=1
+
+#
 # Testing hlsl_functionality1
 #
 echo "Testing hlsl_functionality1"
@@ -269,6 +288,55 @@ diff -b $BASEDIR/hlsl.pp.expand.frag.err $TARGETDIR/hlsl.pp.expand.frag.err || H
 echo "Testing nan-clamp"
 run --nan-clamp -H --aml --amb spv.400.frag > $TARGETDIR/spv.400.frag.nanclamp.out
 diff -b $BASEDIR/spv.400.frag.nanclamp.out $TARGETDIR/spv.400.frag.nanclamp.out || HASERROR=1
+
+#
+# Test --auto-sampled-textures
+#
+echo "Testing auto-sampled-textures"
+run --auto-sampled-textures -H -Od -e MainPs -D -S frag hlsl.autosampledtextures.frag > $TARGETDIR/hlsl.autosampledtextures.frag.out
+diff -b $BASEDIR/hlsl.autosampledtextures.frag.out $TARGETDIR/hlsl.autosampledtextures.frag.out || HASERROR=1
+run --auto-sampled-textures -H -Od -S frag glsl.autosampledtextures.frag > $TARGETDIR/glsl.autosampledtextures.frag.out
+diff -b $BASEDIR/glsl.autosampledtextures.frag.out $TARGETDIR/glsl.autosampledtextures.frag.out || HASERROR=1
+
+# Test --glsl-version
+#
+echo "Testing --glsl-version"
+run --glsl-version 410 -V -S vert glsl.versionOverride.vert > $TARGETDIR/glsl.versionOverride.vert.out
+diff -b $BASEDIR/glsl.versionOverride.vert.out $TARGETDIR/glsl.versionOverride.vert.out || HASERROR=1
+run --glsl-version 420 -V -S frag glsl.versionOverride.frag > $TARGETDIR/glsl.versionOverride.frag.out
+diff -b $BASEDIR/glsl.versionOverride.frag.out $TARGETDIR/glsl.versionOverride.frag.out || HASERROR=1
+run --glsl-version 430 -V -S geom glsl.versionOverride.geom > $TARGETDIR/glsl.versionOverride.geom.out
+diff -b $BASEDIR/glsl.versionOverride.geom.out $TARGETDIR/glsl.versionOverride.geom.out || HASERROR=1
+run --glsl-version 440 -V -S tesc glsl.versionOverride.tesc > $TARGETDIR/glsl.versionOverride.tesc.out
+diff -b $BASEDIR/glsl.versionOverride.tesc.out $TARGETDIR/glsl.versionOverride.tesc.out || HASERROR=1
+run --glsl-version 450 -V -S tese glsl.versionOverride.tese > $TARGETDIR/glsl.versionOverride.tese.out
+diff -b $BASEDIR/glsl.versionOverride.tese.out $TARGETDIR/glsl.versionOverride.tese.out || HASERROR=1
+run --glsl-version 460 -V -S comp glsl.versionOverride.comp > $TARGETDIR/glsl.versionOverride.comp.out
+diff -b $BASEDIR/glsl.versionOverride.comp.out $TARGETDIR/glsl.versionOverride.comp.out || HASERROR=1
+
+#
+# Test --enhanced-msgs
+#
+
+echo "Testing enhanced-msgs"
+run --enhanced-msgs -V --target-env vulkan1.2 --amb --aml enhanced.0.frag > $TARGETDIR/enhanced.0.frag.out
+diff -b $BASEDIR/enhanced.0.frag.out $TARGETDIR/enhanced.0.frag.out || HASERROR=1
+run --enhanced-msgs -V --target-env vulkan1.2 --amb --aml enhanced.1.frag > $TARGETDIR/enhanced.1.frag.out
+diff -b $BASEDIR/enhanced.1.frag.out $TARGETDIR/enhanced.1.frag.out || HASERROR=1
+run --enhanced-msgs -V --target-env vulkan1.2 --amb --aml enhanced.2.frag > $TARGETDIR/enhanced.2.frag.out
+diff -b $BASEDIR/enhanced.2.frag.out $TARGETDIR/enhanced.2.frag.out || HASERROR=1
+run --enhanced-msgs -V --target-env vulkan1.2 --amb --aml enhanced.3.vert enhanced.3.frag > $TARGETDIR/enhanced.3.link.out
+diff -b $BASEDIR/enhanced.3.link.out $TARGETDIR/enhanced.3.link.out || HASERROR=1
+run --enhanced-msgs -V --target-env vulkan1.2 --amb --aml enhanced.4.vert enhanced.4.frag > $TARGETDIR/enhanced.4.link.out
+diff -b $BASEDIR/enhanced.4.link.out $TARGETDIR/enhanced.4.link.out || HASERROR=1
+run --enhanced-msgs -V --target-env vulkan1.2 --amb --aml enhanced.5.vert enhanced.5.frag > $TARGETDIR/enhanced.5.link.out
+diff -b $BASEDIR/enhanced.5.link.out $TARGETDIR/enhanced.5.link.out || HASERROR=1
+run --enhanced-msgs -V --target-env vulkan1.2 --amb --aml enhanced.6.vert enhanced.6.frag > $TARGETDIR/enhanced.6.link.out
+diff -b $BASEDIR/enhanced.6.link.out $TARGETDIR/enhanced.6.link.out || HASERROR=1
+run --enhanced-msgs -V --target-env vulkan1.2 --amb --aml enhanced.7.vert enhanced.7.frag > $TARGETDIR/enhanced.7.link.out
+diff -b $BASEDIR/enhanced.7.link.out $TARGETDIR/enhanced.7.link.out || HASERROR=1
+run --enhanced-msgs -V --target-env vulkan1.2 --amb --aml spv.textureError.frag > $TARGETDIR/spv.textureError.frag.out
+diff -b $BASEDIR/spv.textureError.frag.out $TARGETDIR/spv.textureError.frag.out || HASERROR=1
 
 #
 # Final checking

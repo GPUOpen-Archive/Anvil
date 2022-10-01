@@ -69,6 +69,7 @@ using CompileVulkanToSpirvDeadCodeElimTest = GlslangTest<::testing::TestWithPara
 using CompileVulkanToDebugSpirvTest = GlslangTest<::testing::TestWithParam<std::string>>;
 using CompileVulkan1_1ToSpirvTest = GlslangTest<::testing::TestWithParam<std::string>>;
 using CompileToSpirv14Test = GlslangTest<::testing::TestWithParam<std::string>>;
+using CompileToSpirv16Test = GlslangTest<::testing::TestWithParam<std::string>>;
 using CompileOpenGLToSpirvTest = GlslangTest<::testing::TestWithParam<std::string>>;
 using VulkanSemantics = GlslangTest<::testing::TestWithParam<std::string>>;
 using OpenGLSemantics = GlslangTest<::testing::TestWithParam<std::string>>;
@@ -77,6 +78,7 @@ using HlslIoMap = GlslangTest<::testing::TestWithParam<IoMapData>>;
 using GlslIoMap = GlslangTest<::testing::TestWithParam<IoMapData>>;
 using CompileVulkanToSpirvTestAMD = GlslangTest<::testing::TestWithParam<std::string>>;
 using CompileVulkanToSpirvTestNV = GlslangTest<::testing::TestWithParam<std::string>>;
+using CompileVulkanToSpirv14TestNV = GlslangTest<::testing::TestWithParam<std::string>>;
 using CompileUpgradeTextureToSampledTextureAndDropSamplersTest = GlslangTest<::testing::TestWithParam<std::string>>;
 
 // Compiling GLSL to SPIR-V under Vulkan semantics. Expected to successfully
@@ -118,6 +120,13 @@ TEST_P(CompileToSpirv14Test, FromFile)
 {
     loadFileCompileAndCheck(GlobalTestSettings.testRoot, GetParam(),
                             Source::GLSL, Semantics::Vulkan, glslang::EShTargetVulkan_1_1, glslang::EShTargetSpv_1_4,
+                            Target::Spv);
+}
+
+TEST_P(CompileToSpirv16Test, FromFile)
+{
+    loadFileCompileAndCheck(GlobalTestSettings.testRoot, GetParam(),
+                            Source::GLSL, Semantics::Vulkan, glslang::EShTargetVulkan_1_3, glslang::EShTargetSpv_1_6,
                             Target::Spv);
 }
 
@@ -201,6 +210,13 @@ TEST_P(CompileVulkanToSpirvTestNV, FromFile)
 {
     loadFileCompileAndCheck(GlobalTestSettings.testRoot, GetParam(),
                             Source::GLSL, Semantics::Vulkan, glslang::EShTargetVulkan_1_0, glslang::EShTargetSpv_1_0,
+                            Target::Spv);
+}
+
+TEST_P(CompileVulkanToSpirv14TestNV, FromFile)
+{
+    loadFileCompileAndCheck(GlobalTestSettings.testRoot, GetParam(),
+                            Source::GLSL, Semantics::Vulkan, glslang::EShTargetVulkan_1_1, glslang::EShTargetSpv_1_4,
                             Target::Spv);
 }
 
@@ -328,6 +344,7 @@ INSTANTIATE_TEST_SUITE_P(
         "spv.demoteDisabled.frag",
         "spv.deepRvalue.frag",
         "spv.depthOut.frag",
+        "spv.depthUnchanged.frag",
         "spv.discard-dce.frag",
         "spv.doWhileLoop.frag",
         "spv.earlyReturnDiscard.frag",
@@ -350,10 +367,21 @@ INSTANTIATE_TEST_SUITE_P(
         "spv.functionSemantics.frag",
         "spv.functionParameterTypes.frag",
         "spv.GeometryShaderPassthrough.geom",
+        "spv.funcall.array.frag",
+        "spv.load.bool.array.interface.block.frag",
         "spv.interpOps.frag",
         "spv.int64.frag",
         "spv.intcoopmat.comp",
         "spv.intOps.vert",
+        "spv.intrinsicsSpirvByReference.vert",
+        "spv.intrinsicsSpirvDecorate.frag",
+        "spv.intrinsicsSpirvExecutionMode.frag",
+        "spv.intrinsicsSpirvInstruction.vert",
+        "spv.intrinsicsSpirvLiteral.vert",
+        "spv.intrinsicsSpirvStorageClass.rchit",
+        "spv.intrinsicsSpirvType.rgen",
+        "spv.intrinsicsSpirvTypeLocalVar.vert",
+        "spv.invariantAll.vert",
         "spv.layer.tese",
         "spv.layoutNested.vert",
         "spv.length.frag",
@@ -376,6 +404,7 @@ INSTANTIATE_TEST_SUITE_P(
         "spv.nonuniform4.frag",
         "spv.nonuniform5.frag",
         "spv.noWorkgroup.comp",
+        "spv.nullInit.comp",
         "spv.offsets.frag",
         "spv.Operations.frag",
         "spv.paramMemory.frag",
@@ -440,6 +469,7 @@ INSTANTIATE_TEST_SUITE_P(
         "spv.specConstant.int8.comp",
         "spv.storageBuffer.vert",
         "spv.terminate.frag",
+        "spv.subgroupUniformControlFlow.vert",
         "spv.precise.tese",
         "spv.precise.tesc",
         "spv.viewportindex.tese",
@@ -454,6 +484,7 @@ INSTANTIATE_TEST_SUITE_P(
         "spv.smBuiltins.frag",
         "spv.builtin.PrimitiveShadingRateEXT.vert",
         "spv.builtin.ShadingRateEXT.frag",
+        "spv.atomicAdd.bufferReference.comp"
     })),
     FileNameAsCustomTestSuffix
 );
@@ -497,11 +528,13 @@ INSTANTIATE_TEST_SUITE_P(
         "spv.vulkan110.int16.frag",
         "spv.int32.frag",
         "spv.explicittypes.frag",
+        "spv.float16NoRelaxed.vert",
         "spv.float32.frag",
         "spv.float64.frag",
         "spv.memoryScopeSemantics.comp",
         "spv.memoryScopeSemantics_Error.comp",
         "spv.multiView.frag",
+        "spv.queueFamilyScope.comp",
         "spv.RayGenShader11.rgen",
         "spv.subgroup.frag",
         "spv.subgroup.geom",
@@ -552,6 +585,8 @@ INSTANTIATE_TEST_SUITE_P(
         "spv.1.4.OpCopyLogical.comp",
         "spv.1.4.OpCopyLogicalBool.comp",
         "spv.1.4.OpCopyLogical.funcall.frag",
+        "spv.1.4.funcall.array.frag",
+        "spv.1.4.load.bool.array.interface.block.frag",
         "spv.1.4.image.frag",
         "spv.1.4.sparseTexture.frag",
         "spv.1.4.texture.frag",
@@ -580,9 +615,32 @@ INSTANTIATE_TEST_SUITE_P(
         "spv.ext.World3x4.rahit",
         "spv.ext.AccelDecl.frag",
         "spv.ext.RayQueryDecl.frag",
+
+        // SPV_KHR_workgroup_memory_explicit_layout depends on SPIR-V 1.4.
+        "spv.WorkgroupMemoryExplicitLayout.SingleBlock.comp",
+        "spv.WorkgroupMemoryExplicitLayout.MultiBlock.comp",
+        "spv.WorkgroupMemoryExplicitLayout.8BitAccess.comp",
+        "spv.WorkgroupMemoryExplicitLayout.16BitAccess.comp",
+        "spv.WorkgroupMemoryExplicitLayout.NonBlock.comp",
+        "spv.WorkgroupMemoryExplicitLayout.MixBlockNonBlock_Errors.comp",
+        "spv.WorkgroupMemoryExplicitLayout.std140.comp",
+        "spv.WorkgroupMemoryExplicitLayout.std430.comp",
+        "spv.WorkgroupMemoryExplicitLayout.scalar.comp",
     })),
     FileNameAsCustomTestSuffix
 );
+
+// clang-format off
+INSTANTIATE_TEST_SUITE_P(
+    Glsl, CompileToSpirv16Test,
+    ::testing::ValuesIn(std::vector<std::string>({
+        "spv.1.6.conditionalDiscard.frag",
+        "spv.1.6.helperInvocation.frag",
+        "spv.1.6.specConstant.comp",
+    })),
+    FileNameAsCustomTestSuffix
+);
+
 
 // clang-format off
 INSTANTIATE_TEST_SUITE_P(
@@ -700,6 +758,7 @@ INSTANTIATE_TEST_SUITE_P(
     "spv.multiviewPerViewAttributes.vert",
     "spv.multiviewPerViewAttributes.tesc",
     "spv.atomicInt64.comp",
+    "spv.atomicStoreInt64.comp",
     "spv.shadingRate.frag",
     "spv.RayGenShader.rgen",
     "spv.RayGenShaderArray.rgen",
@@ -736,6 +795,17 @@ INSTANTIATE_TEST_SUITE_P(
 FileNameAsCustomTestSuffix
 );
 
+INSTANTIATE_TEST_SUITE_P(
+    Glsl, CompileVulkanToSpirv14TestNV,
+    ::testing::ValuesIn(std::vector<std::string>({
+    "spv.RayGenShaderMotion.rgen",
+    "spv.IntersectShaderMotion.rint",
+    "spv.AnyHitShaderMotion.rahit",
+    "spv.ClosestHitShaderMotion.rchit",
+    "spv.MissShaderMotion.rmiss",
+})),
+FileNameAsCustomTestSuffix
+);
 INSTANTIATE_TEST_SUITE_P(
     Glsl, CompileUpgradeTextureToSampledTextureAndDropSamplersTest,
     ::testing::ValuesIn(std::vector<std::string>({

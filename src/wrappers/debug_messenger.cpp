@@ -327,7 +327,7 @@ void Anvil::DebugMessenger::submit_message(const Anvil::DebugMessageSeverityFlag
                                                 (in_objects.size() > 0) ? Anvil::Utils::get_vk_debug_report_object_type_ext_from_object_type(in_objects.at(0).object_type)
                                                                         : VK_DEBUG_REPORT_OBJECT_TYPE_UNKNOWN_EXT,
                                                 (in_objects.size() > 0) ? reinterpret_cast<uint64_t>(&in_objects.at(0).object_handle)
-                                                                        : VK_NULL_HANDLE,
+                                                                        : 0,
                                                 0, /* location */
                                                 in_message_id,
                                                 "", /* pLayerPrefix */

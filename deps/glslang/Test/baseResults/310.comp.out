@@ -7,9 +7,9 @@ ERROR: 0:39: 'in' : global storage input qualifier cannot be used in a compute s
 ERROR: 0:39: 'location qualifier on input' : not supported in this stage: compute
 ERROR: 0:40: 'in' : global storage input qualifier cannot be used in a compute shader 
 ERROR: 0:41: 'out' : global storage output qualifier cannot be used in a compute shader 
-ERROR: 0:44: 'shared' : cannot apply layout qualifiers to a shared variable 
+ERROR: 0:44: 'shared block' : not supported for this version or the enabled extensions 
 ERROR: 0:44: 'location' : can only apply to uniform, buffer, in, or out storage qualifiers 
-ERROR: 0:45: 'shared' :  cannot initialize this type of qualifier  
+ERROR: 0:45: 'shared' : initializer can only be a null initializer ('{}') 
 ERROR: 0:47: 'local_size' : can only apply to 'in' 
 ERROR: 0:47: 'local_size' : can only apply to 'in' 
 ERROR: 0:47: 'local_size' : can only apply to 'in' 
@@ -115,6 +115,11 @@ ERROR: node is still EOpNull!
 0:36              Constant:
 0:36                1 (const uint)
 0:36            'gl_LocalInvocationIndex' ( in highp uint LocalInvocationIndex)
+0:45  Sequence
+0:45    move second child to first child ( temp highp float)
+0:45      'fs' ( shared highp float)
+0:45      Constant:
+0:45        4.200000
 0:59  Function Definition: foo( ( global void)
 0:59    Function Parameters: 
 0:61    Sequence
@@ -175,7 +180,7 @@ ERROR: node is still EOpNull!
 0:91              'i' ( temp highp int)
 0:92      imageStore ( global highp void)
 0:92        'ii2da' ( writeonly uniform highp iimage2DArray)
-0:92        Construct ivec3 ( temp 3-component vector of int)
+0:92        Construct ivec3 ( temp highp 3-component vector of int)
 0:92          'i' ( temp highp int)
 0:92          'i' ( temp highp int)
 0:92          'i' ( temp highp int)
@@ -184,9 +189,9 @@ ERROR: node is still EOpNull!
 0:92          0 (const int)
 0:92          0 (const int)
 0:92          0 (const int)
-0:93      imageLoad ( global mediump 4-component vector of float)
+0:93      imageLoad ( global mediump 4-component vector of float, operation at highp)
 0:93        'img2Drgba' (layout( rgba32f) readonly uniform mediump image2D)
-0:93        Construct ivec2 ( temp mediump 2-component vector of int)
+0:93        Construct ivec2 ( temp highp 2-component vector of int)
 0:93          'i' ( temp highp int)
 0:93          'i' ( temp highp int)
 0:94      imageLoad ( global highp 4-component vector of int)
@@ -553,6 +558,11 @@ ERROR: node is still EOpNull!
 0:36              Constant:
 0:36                1 (const uint)
 0:36            'gl_LocalInvocationIndex' ( in highp uint LocalInvocationIndex)
+0:45  Sequence
+0:45    move second child to first child ( temp highp float)
+0:45      'fs' ( shared highp float)
+0:45      Constant:
+0:45        4.200000
 0:?   Linker Objects
 0:?     'gl_WorkGroupSize' ( const highp 3-component vector of uint WorkGroupSize)
 0:?       2 (const uint)

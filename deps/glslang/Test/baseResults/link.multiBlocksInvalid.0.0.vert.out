@@ -28,7 +28,7 @@ Shader version: 430
 0:37              0 (const int)
 0:39      move second child to first child ( temp 4-component vector of float)
 0:39        gl_Position: direct index for structure ( gl_Position 4-component vector of float Position)
-0:39          'anon@0' ( out block{ gl_Position 4-component vector of float Position gl_Position,  gl_PointSize float PointSize gl_PointSize,  out unsized 1-element array of float ClipDistance gl_ClipDistance,  gl_ClipVertex 4-component vector of float ClipVertex gl_ClipVertex,  out 4-component vector of float FrontColor gl_FrontColor,  out 4-component vector of float BackColor gl_BackColor,  out 4-component vector of float FrontSecondaryColor gl_FrontSecondaryColor,  out 4-component vector of float BackSecondaryColor gl_BackSecondaryColor,  out unsized 1-element array of 4-component vector of float TexCoord gl_TexCoord,  out float FogFragCoord gl_FogFragCoord})
+0:39          'anon@0' ( out block{ gl_Position 4-component vector of float Position gl_Position,  gl_PointSize float PointSize gl_PointSize,  out unsized 1-element array of float ClipDistance gl_ClipDistance})
 0:39          Constant:
 0:39            0 (const uint)
 0:39        matrix-times-vector ( temp 4-component vector of float)
@@ -43,7 +43,7 @@ Shader version: 430
 0:?     'uC' (layout( column_major std140) uniform block{layout( column_major std140 offset=0) uniform 4-component vector of float color1})
 0:?     'uBufC' (layout( column_major std430) buffer block{layout( column_major std430 offset=0) buffer 4-component vector of float color1})
 0:?     'oColor' ( smooth out 4-component vector of float)
-0:?     'anon@0' ( out block{ gl_Position 4-component vector of float Position gl_Position,  gl_PointSize float PointSize gl_PointSize,  out unsized 1-element array of float ClipDistance gl_ClipDistance,  gl_ClipVertex 4-component vector of float ClipVertex gl_ClipVertex,  out 4-component vector of float FrontColor gl_FrontColor,  out 4-component vector of float BackColor gl_BackColor,  out 4-component vector of float FrontSecondaryColor gl_FrontSecondaryColor,  out 4-component vector of float BackSecondaryColor gl_BackSecondaryColor,  out unsized 1-element array of 4-component vector of float TexCoord gl_TexCoord,  out float FogFragCoord gl_FogFragCoord})
+0:?     'anon@0' ( out block{ gl_Position 4-component vector of float Position gl_Position,  gl_PointSize float PointSize gl_PointSize,  out unsized 1-element array of float ClipDistance gl_ClipDistance})
 0:?     'gl_VertexID' ( gl_VertexId int VertexId)
 0:?     'gl_InstanceID' ( gl_InstanceId int InstanceId)
 
@@ -89,19 +89,35 @@ Shader version: 430
 
 Linked vertex stage:
 
-ERROR: Linking vertex stage: Types must match:
-WARNING: Linking vertex stage: Matched shader interfaces are using different instance names.
-    uC: "layout( column_major std140) uniform block{layout( column_major std140 offset=0) uniform 4-component vector of float color1}" versus uColorB: "layout( column_major std140) uniform block{layout( column_major std140 offset=0) uniform 4-component vector of float color2}"
-ERROR: Linking vertex stage: Types must match:
-ERROR: Linking vertex stage: Storage qualifiers must match:
-ERROR: Linking vertex stage: Layout qualification must match:
-    uBufC: "layout( column_major std430) buffer block{layout( column_major std430 offset=0) buffer 4-component vector of float color1}" versus uColorB: "layout( column_major std140) uniform block{layout( column_major std140 offset=0) uniform 4-component vector of float color2}"
-ERROR: Linking vertex stage: Types must match:
-WARNING: Linking vertex stage: Matched shader interfaces are using different instance names.
-    uD: "layout( column_major std140) uniform block{layout( column_major std140 offset=0) uniform 4X4 matrix of float uProj}" versus uDefaultB: "layout( column_major std140) uniform block{layout( column_major std140 offset=0) uniform 4X4 matrix of float uWorld}"
-ERROR: Linking vertex stage: Types must match:
-WARNING: Linking vertex stage: Matched shader interfaces are using different instance names.
-    oV: " out block{ out 4-component vector of float v1}" versus oVert: " out block{ out 4-component vector of float v2}"
+ERROR: Linking vertex and vertex stages: Member names and types must match:
+    Block: ColorBlock
+        vertex stage: " vec4 color1"
+        vertex stage: " vec4 color2"
+WARNING: Linking vertex and vertex stages: Matched shader interfaces are using different instance names.
+    vertex stage: Block: ColorBlock Instance: uC: ""
+    vertex stage: Block: ColorBlock Instance: uColorB: ""
+ERROR: Linking vertex and vertex stages: Member names and types must match:
+    Block: ColorBlock
+        vertex stage: " vec4 color1"
+        vertex stage: " vec4 color2"
+ERROR: Linking vertex and vertex stages: Storage qualifiers must match:
+ERROR: Linking vertex and vertex stages: Layout packing qualifier must match:
+    vertex stage: Block: ColorBlock Instance: uBufC: "layout( column_major std430) buffer"
+    vertex stage: Block: ColorBlock Instance: uColorB: "layout( column_major std140) uniform"
+ERROR: Linking vertex and vertex stages: Member names and types must match:
+    Block: Block
+        vertex stage: " mat4x4 uProj"
+        vertex stage: " mat4x4 uWorld"
+WARNING: Linking vertex and vertex stages: Matched shader interfaces are using different instance names.
+    vertex stage: Block: Block Instance: uD: ""
+    vertex stage: Block: Block Instance: uDefaultB: ""
+ERROR: Linking vertex and vertex stages: Member names and types must match:
+    Block: Vertex
+        vertex stage: " vec4 v1"
+        vertex stage: " vec4 v2"
+WARNING: Linking vertex and vertex stages: Matched shader interfaces are using different instance names.
+    vertex stage: Block: Vertex Instance: oV: ""
+    vertex stage: Block: Vertex Instance: oVert: ""
 
 Shader version: 430
 0:? Sequence
@@ -132,7 +148,7 @@ Shader version: 430
 0:37              0 (const int)
 0:39      move second child to first child ( temp 4-component vector of float)
 0:39        gl_Position: direct index for structure ( gl_Position 4-component vector of float Position)
-0:39          'anon@0' ( out block{ gl_Position 4-component vector of float Position gl_Position,  gl_PointSize float PointSize gl_PointSize,  out 1-element array of float ClipDistance gl_ClipDistance,  gl_ClipVertex 4-component vector of float ClipVertex gl_ClipVertex,  out 4-component vector of float FrontColor gl_FrontColor,  out 4-component vector of float BackColor gl_BackColor,  out 4-component vector of float FrontSecondaryColor gl_FrontSecondaryColor,  out 4-component vector of float BackSecondaryColor gl_BackSecondaryColor,  out 1-element array of 4-component vector of float TexCoord gl_TexCoord,  out float FogFragCoord gl_FogFragCoord})
+0:39          'anon@0' ( out block{ gl_Position 4-component vector of float Position gl_Position,  gl_PointSize float PointSize gl_PointSize,  out 1-element array of float ClipDistance gl_ClipDistance})
 0:39          Constant:
 0:39            0 (const uint)
 0:39        matrix-times-vector ( temp 4-component vector of float)
@@ -175,7 +191,7 @@ Shader version: 430
 0:?     'uC' (layout( column_major std140) uniform block{layout( column_major std140 offset=0) uniform 4-component vector of float color1})
 0:?     'uBufC' (layout( column_major std430) buffer block{layout( column_major std430 offset=0) buffer 4-component vector of float color1})
 0:?     'oColor' ( smooth out 4-component vector of float)
-0:?     'anon@0' ( out block{ gl_Position 4-component vector of float Position gl_Position,  gl_PointSize float PointSize gl_PointSize,  out 1-element array of float ClipDistance gl_ClipDistance,  gl_ClipVertex 4-component vector of float ClipVertex gl_ClipVertex,  out 4-component vector of float FrontColor gl_FrontColor,  out 4-component vector of float BackColor gl_BackColor,  out 4-component vector of float FrontSecondaryColor gl_FrontSecondaryColor,  out 4-component vector of float BackSecondaryColor gl_BackSecondaryColor,  out 1-element array of 4-component vector of float TexCoord gl_TexCoord,  out float FogFragCoord gl_FogFragCoord})
+0:?     'anon@0' ( out block{ gl_Position 4-component vector of float Position gl_Position,  gl_PointSize float PointSize gl_PointSize,  out 1-element array of float ClipDistance gl_ClipDistance})
 0:?     'gl_VertexID' ( gl_VertexId int VertexId)
 0:?     'gl_InstanceID' ( gl_InstanceId int InstanceId)
 0:?     'P' ( in 4-component vector of float)

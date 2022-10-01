@@ -30,7 +30,7 @@ Anvil::DebugMarkerSupportProviderWorker::DebugMarkerSupportProviderWorker(const 
                                                                           const Anvil::ObjectType& in_vk_object_type)
     :m_device_ptr      (in_device_ptr),
      m_object_tag_name (0),
-     m_vk_object_handle(VK_NULL_HANDLE),
+     m_vk_object_handle(0),
      m_vk_object_type  (in_vk_object_type)
 {
     const auto& device_extension_info_ptr   = m_device_ptr->get_extension_info();
@@ -63,7 +63,7 @@ void Anvil::DebugMarkerSupportProviderWorker::set_name_internal(const std::strin
     {
         m_object_name = in_object_name;
 
-        if (m_vk_object_handle != VK_NULL_HANDLE)
+        if (m_vk_object_handle != 0)
         {
             switch (m_used_api)
             {
@@ -166,7 +166,7 @@ void Anvil::DebugMarkerSupportProviderWorker::set_tag_internal(const uint64_t in
                in_tag_ptr,
                in_tag_size);
 
-        if (m_vk_object_handle != VK_NULL_HANDLE)
+        if (m_vk_object_handle != 0)
         {
             switch (m_used_api)
             {
@@ -238,11 +238,11 @@ void Anvil::DebugMarkerSupportProviderWorker::set_tag_internal(const uint64_t in
 /** Please see header for specification */
 void Anvil::DebugMarkerSupportProviderWorker::set_vk_handle_internal(uint64_t in_vk_object_handle)
 {
-    if (in_vk_object_handle == VK_NULL_HANDLE)
+    if (in_vk_object_handle == 0)
     {
-        anvil_assert(m_vk_object_handle != VK_NULL_HANDLE);
+        anvil_assert(m_vk_object_handle != 0);
 
-        m_vk_object_handle = VK_NULL_HANDLE;
+        m_vk_object_handle = 0;
 
         m_object_name.clear    ();
         m_object_tag_data.clear();
@@ -252,7 +252,7 @@ void Anvil::DebugMarkerSupportProviderWorker::set_vk_handle_internal(uint64_t in
     else
     if (m_vk_object_handle != in_vk_object_handle)
     {
-        anvil_assert(m_vk_object_handle == VK_NULL_HANDLE);
+        anvil_assert(m_vk_object_handle == 0);
 
         m_vk_object_handle = in_vk_object_handle;
 

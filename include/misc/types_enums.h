@@ -1610,7 +1610,7 @@ namespace Anvil
         MEDIUM_EXT   = VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_EXT,
         REALTIME_EXT = VK_QUEUE_GLOBAL_PRIORITY_REALTIME_EXT,
 
-        UNKNOWN = VK_QUEUE_GLOBAL_PRIORITY_MAX_ENUM_EXT
+        UNKNOWN = VK_QUEUE_GLOBAL_PRIORITY_MAX_ENUM_KHR
     };
 
     /** Enumerates all available queue family types */
