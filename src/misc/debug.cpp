@@ -25,6 +25,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <vulkan/vk_enum_string_helper.h>
 
 static void default_assertion_failure_handler(const char*  in_filename,
                                               unsigned int in_line,
@@ -35,18 +36,28 @@ static Anvil::AssertionFailedCallbackFunction g_anvil_assertion_check_failed_fun
                                                                                               std::placeholders::_1,
                                                                                               std::placeholders::_2,
                                                                                               std::placeholders::_3);
+struct AnvilAssertionFailure : public std::runtime_error
+{
+	AnvilAssertionFailure(const std::string &msg)
+		: std::runtime_error{msg}
+	{}
+};
 
+std::string Anvil::result_to_string(int64_t result)
+{
+	return string_VkResult(static_cast<VkResult>(result));
+}
 
-#include <iostream>
+#include <sstream>
 /** Please see header for specification */
 void default_assertion_failure_handler(const char*  in_filename,
                                        unsigned int in_line,
                                        const char*  in_message)
 {
-  std::cout<<"Assertion failed in "<<in_filename<<"["<<in_line<<","<<in_message<<"]"<<std::endl;
-  char c;
-  std::cin>>c;
-  exit(-1);
+	std::stringstream ss;
+	ss<<"Assertion failed in "<<in_filename<<"["<<in_line<<","<<in_message<<"]";
+	throw AnvilAssertionFailure{ss.str()};
+
     /*fprintf(stderr,
              "Assertion failed in [%s:%d]: %s\n",
              in_filename,
@@ -66,7 +77,7 @@ void Anvil::on_assertion_failed(const char*  in_filename,
     {
         if (::IsDebuggerPresent() )
         {
-            __debugbreak();
+            //__debugbreak();
         }
     }
     #endif

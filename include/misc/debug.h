@@ -25,6 +25,8 @@
 #define MISC_DEBUG_H
 
 #include <functional>
+#include <cinttypes>
+#include <string>
 
 #define ENABLE_DEBUG_ASSERTIONS
 
@@ -35,6 +37,14 @@
             Anvil::on_assertion_failed(__FILE__,     \
                                         __LINE__,    \
                                         #assertion); \
+        }
+
+    #define anvil_assert_with_msg(assertion,msg)     \
+        if (!(assertion))                            \
+        {                                            \
+            Anvil::on_assertion_failed(__FILE__,     \
+                                        __LINE__,    \
+                                        msg); \
         }
 
     #define anvil_assert_fail()                                      \
@@ -52,12 +62,10 @@
 #define is_vk_call_successful(result) \
     (result == VK_SUCCESS || result == VK_INCOMPLETE)
 
-#define anvil_assert_vk_call_succeeded(result) \
-    anvil_assert( is_vk_call_successful(result) )
-
-
 namespace Anvil
 {
+	std::string result_to_string(int64_t result);
+
     /** Function prototype of an assertion failure handler.
      *
      *  @param in_filename File, from which the assertion failure originated.
@@ -89,5 +97,8 @@ namespace Anvil
      **/
     void set_assertion_failure_handler(AssertionFailedCallbackFunction in_new_callback_func);
 };
+
+#define anvil_assert_vk_call_succeeded(result) \
+    anvil_assert_with_msg( is_vk_call_successful(result),Anvil::result_to_string(result).c_str() )
 
 #endif /* MISC_DEBUG_H */
