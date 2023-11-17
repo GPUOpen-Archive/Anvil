@@ -472,9 +472,9 @@ namespace Anvil
          *
          *  @return As per description.
          **/
-        VkDescriptorSet get_descriptor_set_vk() const
+        VkDescriptorSet get_descriptor_set_vk(bool updateIfDirty = true) const
         {
-            if (m_dirty)
+            if (m_dirty && updateIfDirty)
             {
                 update();
 
