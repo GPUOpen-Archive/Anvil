@@ -278,7 +278,7 @@ namespace Anvil
                                               Anvil::Semaphore* const*            in_wait_semaphore_ptrs_ptr,
                                               Anvil::SwapchainOperationErrorCode* out_present_results_ptr);
 
-        bool submit(const SubmitInfo& in_submit_info);
+        VkResult submit(const SubmitInfo &in_submit_info);
 
         /** Tells whether the queue supports protected memory operations */
         bool supports_protected_memory_operations() const

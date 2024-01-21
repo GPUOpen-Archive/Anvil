@@ -1017,7 +1017,7 @@ void Anvil::Queue::present_lock_unlock(uint32_t                       in_n_swapc
 }
 
 /** Please see header for specification */
-bool Anvil::Queue::submit(const Anvil::SubmitInfo& in_submit_info)
+VkResult Anvil::Queue::submit(const Anvil::SubmitInfo &in_submit_info)
 {
     Anvil::Fence*                      fence_ptr        (in_submit_info.get_fence() );
     bool                               needs_fence_reset(false);
@@ -1371,7 +1371,7 @@ bool Anvil::Queue::submit(const Anvil::SubmitInfo& in_submit_info)
          }
      }
 
-     return (result == VK_SUCCESS);
+     return result;
 }
 
 void Anvil::Queue::submit_command_buffers_lock_unlock(uint32_t                         in_n_command_buffers,
